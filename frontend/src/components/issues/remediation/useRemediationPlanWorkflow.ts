@@ -250,8 +250,9 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
             const updated = await issuesApi.updateProgress(issue.id, {
                 progress_percent: Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : undefined,
                 remediation_status: remediationStatus as IssueRemediationStatus,
-                blocker_reason: blockerReason || undefined,
-                completion_notes: completionNotes || undefined,
+                // Empty string means "clear on the server"; undefined would drop the key.
+                blocker_reason: blockerReason,
+                completion_notes: completionNotes,
             });
             await syncIssue(updated, ['progressPercent', 'remediationStatus', 'blockerReason', 'completionNotes']);
         });
@@ -301,7 +302,8 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
         await runMutation(async () => {
             const updated = await issuesApi.close(issue.id, {
                 validation_note: validationNote.trim(),
-                completion_notes: completionNotes || undefined,
+                // Empty string means "clear on the server"; undefined would drop the key.
+                completion_notes: completionNotes,
             });
             await syncIssue(updated, ['validationNote', 'completionNotes']);
         });

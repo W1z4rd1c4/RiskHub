@@ -8,6 +8,8 @@ import { toDateTimeLocalInputValue } from '@/utils/dateTimeLocal';
 import { createTestQueryClient } from '@test/queryClient';
 
 const mockListAssignableOwners = vi.fn();
+const mockUpdateProgress = vi.fn();
+const mockClose = vi.fn();
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {
@@ -15,10 +17,10 @@ vi.mock('@/services/issuesApi', () => ({
         get: vi.fn(),
         assign: vi.fn(),
         startRemediation: vi.fn(),
-        updateProgress: vi.fn(),
+        updateProgress: (...args: unknown[]) => mockUpdateProgress(...args),
         requestException: vi.fn(),
         approveException: vi.fn(),
-        close: vi.fn(),
+        close: (...args: unknown[]) => mockClose(...args),
     },
 }));
 
@@ -203,5 +205,57 @@ describe('useRemediationPlanWorkflow', () => {
         expect(result.current.exceptionReason).toBe('');
         expect(result.current.exceptionExpiresAt).toBe('');
         expect(result.current.validationNote).toBe('Next validation');
+    });
+
+    it('clearing_notes_sends_empty_strings_so_backend_can_clear_them', async () => {
+        const base = makeIssue();
+        const issue = makeIssue({
+            remediation_plan: {
+                ...base.remediation_plan!,
+                blocker_reason: 'Old blocker',
+                completion_notes: 'Old completion',
+            },
+        });
+        const clearedIssue = makeIssue({
+            remediation_plan: {
+                ...base.remediation_plan!,
+                blocker_reason: null,
+                completion_notes: null,
+            },
+        });
+        mockUpdateProgress.mockResolvedValue(clearedIssue);
+        mockClose.mockResolvedValue(clearedIssue);
+
+        const { result } = renderHook(
+            ({ issue: current }) => useRemediationPlanWorkflow({ issue: current }),
+            { initialProps: { issue }, wrapper: createWrapper() },
+        );
+
+        act(() => {
+            result.current.setBlockerReason('');
+            result.current.setCompletionNotes('');
+        });
+
+        await act(async () => {
+            await result.current.handleUpdateProgress();
+        });
+
+        expect(mockUpdateProgress).toHaveBeenCalledWith(
+            issue.id,
+            expect.objectContaining({ blocker_reason: '', completion_notes: '' }),
+        );
+
+        act(() => {
+            result.current.setValidationNote('Validated');
+        });
+
+        await act(async () => {
+            await result.current.handleClose();
+        });
+
+        expect(mockClose).toHaveBeenCalledWith(
+            issue.id,
+            expect.objectContaining({ completion_notes: '' }),
+        );
     });
 });

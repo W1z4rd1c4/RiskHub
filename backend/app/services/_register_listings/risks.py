@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.mappers.risk import risk_summary_load_options, risk_to_summary
+from app.core.exceptions import ValidationError
 from app.core.permissions import can_read_vendor, risk_visibility_clause
 from app.core.security import check_permission
 from app.models import (
@@ -336,39 +337,34 @@ async def plan_risk_listing(
         ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE,
     )
 
-    order_column: Any = Risk.risk_id_code
-    if sort_by:
-        if sort_by == "name":
-            order_column = Risk.name
-        elif sort_by == "description":
-            order_column = Risk.description
-        elif sort_by == "status":
-            order_column = Risk.status
-        elif sort_by == "risk_id_code":
-            order_column = Risk.risk_id_code
-        elif sort_by == "category":
-            order_column = Risk.category
-        elif sort_by == "type":
-            order_column = Risk.risk_type
-        elif sort_by == "risk_type":
-            order_column = Risk.risk_type
-        elif sort_by == "gross_score":
-            order_column = Risk.gross_score
-        elif sort_by == "net_score":
-            order_column = Risk.net_score
-        elif sort_by == "kri_count":
-            order_column = (
-                select(func.count(KeyRiskIndicator.id))
-                .where(
-                    KeyRiskIndicator.risk_id == Risk.id,
-                    KeyRiskIndicator.is_archived.is_(False),
-                )
-                .scalar_subquery()
-            )
-        elif sort_by == "control_count":
-            order_column = (
-                select(func.count(ControlRiskLink.id)).where(ControlRiskLink.risk_id == Risk.id).scalar_subquery()
-            )
+    kri_count_column = (
+        select(func.count(KeyRiskIndicator.id))
+        .where(
+            KeyRiskIndicator.risk_id == Risk.id,
+            KeyRiskIndicator.is_archived.is_(False),
+        )
+        .scalar_subquery()
+    )
+    control_count_column = (
+        select(func.count(ControlRiskLink.id)).where(ControlRiskLink.risk_id == Risk.id).scalar_subquery()
+    )
+    sortable_fields: dict[str, Any] = {
+        "name": Risk.name,
+        "description": Risk.description,
+        "status": Risk.status,
+        "risk_id_code": Risk.risk_id_code,
+        "category": Risk.category,
+        "type": Risk.risk_type,
+        "risk_type": Risk.risk_type,
+        "gross_score": Risk.gross_score,
+        "net_score": Risk.net_score,
+        "kri_count": kri_count_column,
+        "control_count": control_count_column,
+    }
+    if sort_by is not None and sort_by not in sortable_fields:
+        raise ValidationError("Invalid sort_by value")
+
+    order_column: Any = sortable_fields[sort_by] if sort_by else Risk.risk_id_code
 
     if sort_order == "desc":
         base_query = base_query.order_by(desc(order_column))

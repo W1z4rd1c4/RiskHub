@@ -101,11 +101,7 @@ describe('RemediationPlanCard workflow visibility', () => {
 
         return render(
             <QueryClientProvider client={queryClient}>
-                <RemediationPlanCard
-                    issue={issue}
-                    canWrite
-                    canApprove
-                />
+                <RemediationPlanCard issue={issue} />
             </QueryClientProvider>
         );
     }

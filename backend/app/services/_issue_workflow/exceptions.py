@@ -16,7 +16,7 @@ from app.core.datetime_utils import coerce_utc, utc_now
 from app.models import Issue, IssueException, User
 from app.models.issue import IssueExceptionStatus, IssueStatus
 
-from .transitions import _conflict, _is_remediation_complete, _status_value
+from .transitions import _conflict, _ensure_issue_not_closed, _is_remediation_complete, _status_value
 
 
 async def request_exception(
@@ -26,6 +26,8 @@ async def request_exception(
     reason: str,
     actor: User,
 ) -> IssueException:
+    _ensure_issue_not_closed(issue, "request an exception for")
+
     now = utc_now()
     for existing_exception in issue.exceptions:
         expires_at = coerce_utc(existing_exception.expires_at)
@@ -65,8 +67,16 @@ async def approve_exception(
     expires_at: datetime,
     actor: User,
 ) -> IssueException:
+    _ensure_issue_not_closed(issue, "approve an exception for")
+
     if exception.status != IssueExceptionStatus.requested.value:
         _conflict(f"Only requested exceptions can be approved (current={exception.status})")
+
+    if exception.requested_by_id is not None and exception.requested_by_id == actor.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Users cannot approve their own exception requests",
+        )
 
     coerced_expires_at = coerce_utc(expires_at)
     if coerced_expires_at is None:
@@ -98,6 +108,10 @@ async def revoke_exception(
 ) -> IssueException:
     if exception.status != IssueExceptionStatus.approved.value:
         _conflict(f"Only approved exceptions can be revoked (current={exception.status})")
+
+    expires_at = coerce_utc(exception.expires_at)
+    if expires_at is None or expires_at <= utc_now():
+        _conflict("Cannot revoke an expired exception")
 
     updates = {
         "status": IssueExceptionStatus.revoked.value,

@@ -942,3 +942,91 @@ async def test_vendor_link_audit_failure_rolls_back_link_mutation(
         select(VendorRiskLink).where(VendorRiskLink.vendor_id == vendor_id, VendorRiskLink.risk_id == risk_id)
     )
     assert link_result.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_vendor_link_mutations_reject_archived_targets(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "risks", "read")
+    await _grant(db_session, test_role_employee, "controls", "read")
+
+    vendor = Vendor(
+        name="Archived Target Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    archived_risk = _make_risk(risk_id_code="ARCH-TGT-R001", department_id=test_department.id)
+    archived_risk.is_archived = True
+    live_risk = _make_risk(risk_id_code="ARCH-TGT-R002", department_id=test_department.id)
+    archived_control = _make_control(name="Archived Target Control", department_id=test_department.id)
+    archived_control.is_archived = True
+    db_session.add_all([vendor, archived_risk, live_risk, archived_control])
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    await db_session.refresh(archived_risk)
+    await db_session.refresh(live_risk)
+    await db_session.refresh(archived_control)
+
+    archived_kri = _make_kri(
+        risk_id=live_risk.id,
+        metric_name="Archived Target KRI",
+        reporting_owner_id=test_user_employee.id,
+    )
+    archived_kri.is_archived = True
+    db_session.add(archived_kri)
+    await db_session.commit()
+    await db_session.refresh(archived_kri)
+
+    risk_link_resp = await client_employee.post(
+        f"/api/v1/vendors/{vendor.id}/linked-risks",
+        json={"risk_id": archived_risk.id},
+    )
+    assert risk_link_resp.status_code == 409
+    assert risk_link_resp.json()["detail"] == "Cannot link archived risk"
+
+    control_link_resp = await client_employee.post(
+        f"/api/v1/vendors/{vendor.id}/linked-controls",
+        json={"control_id": archived_control.id},
+    )
+    assert control_link_resp.status_code == 409
+    assert control_link_resp.json()["detail"] == "Cannot link archived control"
+
+    kri_link_resp = await client_employee.post(
+        f"/api/v1/vendors/{vendor.id}/linked-kris",
+        json={"kri_id": archived_kri.id},
+    )
+    assert kri_link_resp.status_code == 409
+    assert kri_link_resp.json()["detail"] == "Cannot link archived kri"
+
+    # Unlinking already-linked archived targets stays allowed as a cleanup path.
+    db_session.add_all(
+        [
+            VendorRiskLink(vendor_id=vendor.id, risk_id=archived_risk.id),
+            VendorControlLink(vendor_id=vendor.id, control_id=archived_control.id),
+        ]
+    )
+    await db_session.commit()
+
+    risk_unlink_resp = await client_employee.delete(
+        f"/api/v1/vendors/{vendor.id}/linked-risks/{archived_risk.id}"
+    )
+    assert risk_unlink_resp.status_code == 204
+    control_unlink_resp = await client_employee.delete(
+        f"/api/v1/vendors/{vendor.id}/linked-controls/{archived_control.id}"
+    )
+    assert control_unlink_resp.status_code == 204

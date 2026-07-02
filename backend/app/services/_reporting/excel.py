@@ -194,8 +194,8 @@ async def _build_summary_payload(
     }
 
     if not context.empty_scope:
-        controls_query = select(Control)
-        risks_query = select(Risk)
+        controls_query = select(Control).where(Control.live())
+        risks_query = select(Risk).where(Risk.live())
 
         control_scope = control_visibility_clause(context.current_user, department_id=context.department_id)
         risk_scope = await risk_visibility_clause(db, context.current_user, department_id=context.department_id)

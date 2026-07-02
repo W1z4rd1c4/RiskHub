@@ -110,11 +110,13 @@ class KRIHistoryService:
         db: AsyncSession,
         entry_id: int,
         new_value: float,
-        corrected_by_id: Optional[int] = None,
+        corrected_by_id: int,
+        description: str | None = None,
     ) -> KRIValueHistory:
         return await _apply_history_correction(
             db=db,
             entry_id=entry_id,
             new_value=new_value,
             corrected_by_id=corrected_by_id,
+            description=description,
         )

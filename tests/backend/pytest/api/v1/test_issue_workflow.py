@@ -55,6 +55,20 @@ async def _grant(db: AsyncSession, role_id: int, resource: str, action: str) -> 
     db.expire_all()
 
 
+async def _reassign_exception_requester(db: AsyncSession, exception_id: int, user_id: int) -> None:
+    """Point an exception request at another user.
+
+    Several single-client tests authenticate every call as the same user; the
+    self-approval guard would otherwise reject their approve step even though
+    requester identity is incidental to what they assert.
+    """
+    exception = (
+        await db.execute(select(IssueException).where(IssueException.id == exception_id))
+    ).scalar_one()
+    exception.requested_by_id = user_id
+    await db.commit()
+
+
 async def _create_global_user_without_issue_access(
     db: AsyncSession,
     *,
@@ -185,6 +199,8 @@ async def test_issue_workflow_happy_path(
     exception_id = exception_request_resp.json()["id"]
     assert exception_request_resp.json()["status"] == "requested"
     assert exception_request_resp.json()["requested_by_name"] == test_user.name
+
+    await _reassign_exception_requester(db_session, exception_id, test_user_employee.id)
 
     approve_resp = await auth_client.post(
         f"/api/v1/issues/{issue_id}/approve-exception",
@@ -1089,8 +1105,10 @@ async def test_issue_outbox_exception_handler_supports_manager_scoped_recipient(
 
 @pytest.mark.asyncio
 async def test_revoke_exception_happy_path(
+    db_session: AsyncSession,
     auth_client: AsyncClient,
     test_department,
+    test_user_employee: User,
 ):
     create_resp = await auth_client.post(
         "/api/v1/issues",
@@ -1110,6 +1128,8 @@ async def test_revoke_exception_happy_path(
     )
     assert request_resp.status_code == 201
     exception_id = request_resp.json()["id"]
+
+    await _reassign_exception_requester(db_session, exception_id, test_user_employee.id)
 
     approve_resp = await auth_client.post(
         f"/api/v1/issues/{issue_id}/approve-exception",
@@ -1131,9 +1151,11 @@ async def test_revoke_exception_happy_path(
 
 @pytest.mark.asyncio
 async def test_revoke_exception_requires_issues_approve_permission(
+    db_session: AsyncSession,
     client_cro: AsyncClient,
     client_employee: AsyncClient,
     test_department,
+    test_user_employee: User,
 ):
     create_resp = await client_cro.post(
         "/api/v1/issues",
@@ -1153,6 +1175,8 @@ async def test_revoke_exception_requires_issues_approve_permission(
     )
     assert request_resp.status_code == 201
     exception_id = request_resp.json()["id"]
+
+    await _reassign_exception_requester(db_session, exception_id, test_user_employee.id)
 
     approve_resp = await client_cro.post(
         f"/api/v1/issues/{issue_id}/approve-exception",
@@ -1175,6 +1199,7 @@ async def test_revoke_exception_reopens_closed_issue_with_incomplete_remediation
     db_session: AsyncSession,
     auth_client: AsyncClient,
     test_department,
+    test_user_employee: User,
 ):
     create_resp = await auth_client.post(
         "/api/v1/issues",
@@ -1194,6 +1219,8 @@ async def test_revoke_exception_reopens_closed_issue_with_incomplete_remediation
     )
     assert request_resp.status_code == 201
     exception_id = request_resp.json()["id"]
+
+    await _reassign_exception_requester(db_session, exception_id, test_user_employee.id)
 
     approve_resp = await auth_client.post(
         f"/api/v1/issues/{issue_id}/approve-exception",
@@ -1231,6 +1258,7 @@ async def test_revoke_exception_does_not_reopen_closed_issue_with_completed_reme
     db_session: AsyncSession,
     auth_client: AsyncClient,
     test_department,
+    test_user_employee: User,
 ):
     create_resp = await auth_client.post(
         "/api/v1/issues",
@@ -1250,6 +1278,8 @@ async def test_revoke_exception_does_not_reopen_closed_issue_with_completed_reme
     )
     assert request_resp.status_code == 201
     exception_id = request_resp.json()["id"]
+
+    await _reassign_exception_requester(db_session, exception_id, test_user_employee.id)
 
     approve_resp = await auth_client.post(
         f"/api/v1/issues/{issue_id}/approve-exception",
@@ -1340,6 +1370,7 @@ async def test_issue_exception_approved_notification_skips_unreadable_recipient(
     client_cro: AsyncClient,
     test_department,
     test_role_employee: Role,
+    test_user_employee: User,
 ):
     unreadable_owner = await _create_global_user_without_issue_access(
         db_session,
@@ -1369,6 +1400,8 @@ async def test_issue_exception_approved_notification_skips_unreadable_recipient(
     assert request_resp.status_code == 201
     exception_id = request_resp.json()["id"]
 
+    await _reassign_exception_requester(db_session, exception_id, test_user_employee.id)
+
     approve_resp = await client_cro.post(
         f"/api/v1/issues/{issue_id}/approve-exception",
         json={
@@ -1390,3 +1423,243 @@ async def test_issue_exception_approved_notification_skips_unreadable_recipient(
         )
     ).scalar_one_or_none()
     assert notification is None
+
+
+@pytest.mark.asyncio
+async def test_approve_exception_rejects_self_approval(
+    db_session: AsyncSession,
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    test_role_employee: Role,
+    test_department,
+    test_user_employee: User,
+):
+    role_id = test_role_employee.id
+    department_id = test_department.id
+    employee_name = test_user_employee.name
+    await _grant(db_session, role_id, "issues", "read")
+    await _grant(db_session, role_id, "issues", "write")
+
+    create_resp = await client_cro.post(
+        "/api/v1/issues",
+        json={
+            "title": "Self approval guard",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": department_id,
+        },
+    )
+    assert create_resp.status_code == 201
+    issue_id = create_resp.json()["id"]
+
+    request_resp = await client_cro.post(
+        f"/api/v1/issues/{issue_id}/request-exception",
+        json={"reason": "Requested by would-be approver"},
+    )
+    assert request_resp.status_code == 201
+    exception_id = request_resp.json()["id"]
+
+    detail_as_requester = await client_cro.get(f"/api/v1/issues/{issue_id}")
+    assert detail_as_requester.status_code == 200
+    assert detail_as_requester.json()["capabilities"]["can_approve_exception"] is False
+
+    self_approve_resp = await client_cro.post(
+        f"/api/v1/issues/{issue_id}/approve-exception",
+        json={
+            "exception_id": exception_id,
+            "expires_at": (datetime.now(UTC) + timedelta(days=7)).isoformat(),
+        },
+    )
+    assert self_approve_resp.status_code == 403
+
+    await _grant(db_session, role_id, "issues", "approve")
+
+    detail_as_other_approver = await client_employee.get(f"/api/v1/issues/{issue_id}")
+    assert detail_as_other_approver.status_code == 200
+    assert detail_as_other_approver.json()["capabilities"]["can_approve_exception"] is True
+
+    approve_resp = await client_employee.post(
+        f"/api/v1/issues/{issue_id}/approve-exception",
+        json={
+            "exception_id": exception_id,
+            "expires_at": (datetime.now(UTC) + timedelta(days=7)).isoformat(),
+        },
+    )
+    assert approve_resp.status_code == 200
+    assert approve_resp.json()["approved_by_name"] == employee_name
+
+
+@pytest.mark.asyncio
+async def test_exception_request_and_approval_rejected_on_closed_issue(
+    db_session: AsyncSession,
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    test_role_employee: Role,
+    test_department,
+):
+    role_id = test_role_employee.id
+    department_id = test_department.id
+    await _grant(db_session, role_id, "issues", "read")
+    await _grant(db_session, role_id, "issues", "approve")
+
+    create_resp = await client_cro.post(
+        "/api/v1/issues",
+        json={
+            "title": "Closed issue exception guard",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": department_id,
+        },
+    )
+    assert create_resp.status_code == 201
+    issue_id = create_resp.json()["id"]
+
+    start_resp = await client_cro.post(f"/api/v1/issues/{issue_id}/start-remediation", json={})
+    assert start_resp.status_code == 200
+
+    progress_resp = await client_cro.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"progress_percent": 100, "completion_notes": "Done"},
+    )
+    assert progress_resp.status_code == 200
+
+    request_resp = await client_cro.post(
+        f"/api/v1/issues/{issue_id}/request-exception",
+        json={"reason": "Pending request left open"},
+    )
+    assert request_resp.status_code == 201
+    exception_id = request_resp.json()["id"]
+
+    close_resp = await client_cro.post(
+        f"/api/v1/issues/{issue_id}/close",
+        json={"validation_note": "Validated"},
+    )
+    assert close_resp.status_code == 200
+    assert close_resp.json()["status"] == "closed"
+
+    detail_resp = await client_employee.get(f"/api/v1/issues/{issue_id}")
+    assert detail_resp.status_code == 200
+    assert detail_resp.json()["capabilities"]["can_approve_exception"] is False
+
+    approve_resp = await client_employee.post(
+        f"/api/v1/issues/{issue_id}/approve-exception",
+        json={
+            "exception_id": exception_id,
+            "expires_at": (datetime.now(UTC) + timedelta(days=7)).isoformat(),
+        },
+    )
+    assert approve_resp.status_code == 409
+
+    new_request_resp = await client_cro.post(
+        f"/api/v1/issues/{issue_id}/request-exception",
+        json={"reason": "Too late"},
+    )
+    assert new_request_resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_revoke_exception_rejects_expired_exception(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department,
+    test_user_employee: User,
+):
+    create_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Expired exception revoke guard",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": test_department.id,
+        },
+    )
+    assert create_resp.status_code == 201
+    issue_id = create_resp.json()["id"]
+
+    request_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/request-exception",
+        json={"reason": "Will expire before revocation"},
+    )
+    assert request_resp.status_code == 201
+    exception_id = request_resp.json()["id"]
+
+    await _reassign_exception_requester(db_session, exception_id, test_user_employee.id)
+
+    approve_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/approve-exception",
+        json={
+            "exception_id": exception_id,
+            "expires_at": (datetime.now(UTC) + timedelta(days=10)).isoformat(),
+        },
+    )
+    assert approve_resp.status_code == 200
+
+    exception = (
+        await db_session.execute(select(IssueException).where(IssueException.id == exception_id))
+    ).scalar_one()
+    exception.expires_at = datetime.now(UTC) - timedelta(days=1)
+    await db_session.commit()
+
+    revoke_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/revoke-exception",
+        json={"exception_id": exception_id},
+    )
+    assert revoke_resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_update_progress_clears_notes_with_empty_string(
+    auth_client: AsyncClient,
+    test_department,
+):
+    create_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Clearable notes issue",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": test_department.id,
+        },
+    )
+    assert create_resp.status_code == 201
+    issue_id = create_resp.json()["id"]
+
+    start_resp = await auth_client.post(f"/api/v1/issues/{issue_id}/start-remediation", json={})
+    assert start_resp.status_code == 200
+
+    set_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={
+            "remediation_status": "blocked",
+            "blocker_reason": "Waiting on vendor",
+            "completion_notes": "Half done",
+        },
+    )
+    assert set_resp.status_code == 200
+    assert set_resp.json()["remediation_plan"]["blocker_reason"] == "Waiting on vendor"
+    assert set_resp.json()["remediation_plan"]["completion_notes"] == "Half done"
+
+    clear_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={
+            "remediation_status": "active",
+            "blocker_reason": "",
+            "completion_notes": "",
+        },
+    )
+    assert clear_resp.status_code == 200
+    assert clear_resp.json()["remediation_plan"]["blocker_reason"] is None
+    assert clear_resp.json()["remediation_plan"]["completion_notes"] is None
+
+    # Omitting the fields entirely must still leave existing values untouched.
+    keep_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"blocker_reason": "New blocker", "remediation_status": "blocked"},
+    )
+    assert keep_resp.status_code == 200
+    untouched_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"progress_percent": 25},
+    )
+    assert untouched_resp.status_code == 200
+    assert untouched_resp.json()["remediation_plan"]["blocker_reason"] == "New blocker"

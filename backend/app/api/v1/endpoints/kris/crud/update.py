@@ -14,7 +14,14 @@ router = APIRouter()
 APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
 
 
-@router.put("/{kri_id}", response_model=KRIResponse, responses=APPROVAL_QUEUED_RESPONSE)
+@router.patch("/{kri_id}", response_model=KRIResponse, responses=APPROVAL_QUEUED_RESPONSE)
+@router.put(
+    "/{kri_id}",
+    response_model=KRIResponse,
+    responses=APPROVAL_QUEUED_RESPONSE,
+    deprecated=True,
+    description="Deprecated alias for PATCH: applies partial-update semantics despite the PUT verb.",
+)
 async def update_kri(
     kri_id: int,
     data: KRIUpdate,
@@ -22,8 +29,9 @@ async def update_kri(
     current_user: User = Depends(require_permission("risks", "write")),
 ):
     """
-    Update a KRI. Non-privileged users editing any KRI
-    will trigger an approval request instead of immediate update.
+    Partially update a KRI (unset fields are left untouched). Non-privileged
+    users editing any KRI will trigger an approval request instead of
+    immediate update.
     """
     outcome = await update_kri_detail(
         db=db,

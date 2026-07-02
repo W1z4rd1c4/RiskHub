@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -10,10 +10,13 @@ from app.schemas.approval_request import ApprovalQueuedResponse
 from app.services._entity_mutation_lifecycle.lifecycle import archive_kri_detail
 
 router = APIRouter()
-APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
+ARCHIVE_RESPONSES: dict[int | str, dict[str, Any]] = {
+    202: {"model": ApprovalQueuedResponse, "description": "Approval request queued; item stays visible"},
+    204: {"description": "Deleted immediately (caller has approval-resolution authority)"},
+}
 
 
-@router.delete("/{kri_id}", status_code=202, responses=APPROVAL_QUEUED_RESPONSE)
+@router.delete("/{kri_id}", status_code=status.HTTP_202_ACCEPTED, responses=ARCHIVE_RESPONSES)
 async def delete_kri(
     kri_id: int,
     reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),

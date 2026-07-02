@@ -5,7 +5,7 @@ from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import activity_logger
-from app.core.audit.kri import kri_history_corrected, kri_updated, kri_value_created
+from app.core.audit.kri import kri_updated, kri_value_created
 from app.models import KeyRiskIndicator, User
 from app.models.kri_history import KRIValueHistory
 
@@ -97,26 +97,18 @@ async def apply_approved_kri_history_correction(
     kri: KeyRiskIndicator,
     entry: KRIValueHistory,
     new_value: float,
-    old_value: float,
     corrected_by: User,
     approval_id: int,
 ) -> None:
     mutation_snapshot = capture_kri_value_mutation_snapshot(kri)
-    updated_entry = await KRIHistoryService.apply_history_correction(
+    # apply_history_correction records the value-correction audit entry itself;
+    # old_value was already staleness-checked against the entry upstream.
+    await KRIHistoryService.apply_history_correction(
         db=db,
         entry_id=entry.id,
         new_value=new_value,
         corrected_by_id=corrected_by.id,
-    )
-
-    await kri_history_corrected(
-        db,
-        kri=kri,
-        history_entry=updated_entry,
-        actor=corrected_by,
-        changes={"value": {"old": old_value, "new": new_value}},
         description=f"Corrected via approval #{approval_id}",
-        log_activity_func=activity_logger.log_activity,
     )
 
     kri_changes = build_kri_value_mutation_changes(kri, mutation_snapshot)

@@ -541,7 +541,8 @@ def compute_metrics(data: dict, end: datetime, end_date: date, dept: int | None)
             within += 1
         if latest.period_end + timedelta(days=15) < end_date:
             overdue += 1
-    kri_health = round(within / measured * 100) if measured else 0
+    # Mirrors app.core._snapshot_metrics.kri.calculate_kri_health: no KRIs is vacuously healthy.
+    kri_health = round(within / measured * 100) if measured else 100
 
     pending = sum(
         1

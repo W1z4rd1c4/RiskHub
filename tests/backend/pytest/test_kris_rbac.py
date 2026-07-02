@@ -1922,3 +1922,48 @@ async def test_read_scoped_user_can_get_archived_kri_detail_with_include_archive
     visible = await client_readonly.get(f"/api/v1/kris/{archived_kri.id}?include_archived=true")
     assert visible.status_code == 200
     assert visible.json()["id"] == archived_kri.id
+
+
+@pytest.mark.asyncio
+async def test_kri_list_excludes_live_kris_of_archived_parent_risk(
+    auth_client: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user,
+):
+    """A live KRI whose parent Risk is archived must not appear in the default register."""
+    archived_parent = await create_test_risk(
+        db_session,
+        risk_id_code="R-KRI-ARCH-PARENT",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        name="Archived Parent Risk",
+        overrides={"is_archived": True},
+    )
+    orphaned_live_kri = KeyRiskIndicator(
+        risk_id=archived_parent.id,
+        metric_name="Live KRI of archived risk",
+        description="Should be hidden from live register views",
+        unit="%",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+    )
+    db_session.add(orphaned_live_kri)
+    await db_session.commit()
+    await db_session.refresh(orphaned_live_kri)
+
+    default_resp = await auth_client.get("/api/v1/kris")
+    assert default_resp.status_code == 200
+    default_ids = {item["id"] for item in default_resp.json()["items"]}
+    assert orphaned_live_kri.id not in default_ids
+
+    explicit_live_resp = await auth_client.get("/api/v1/kris?is_archived=false")
+    assert explicit_live_resp.status_code == 200
+    explicit_live_ids = {item["id"] for item in explicit_live_resp.json()["items"]}
+    assert orphaned_live_kri.id not in explicit_live_ids
+
+    include_resp = await auth_client.get("/api/v1/kris?include_archived=true")
+    assert include_resp.status_code == 200
+    include_ids = {item["id"] for item in include_resp.json()["items"]}
+    assert orphaned_live_kri.id in include_ids

@@ -8,7 +8,13 @@ from app.core.datetime_utils import utc_now
 from app.models import Issue, User
 from app.models.issue import IssueStatus
 
-from .transitions import _completion_updates, _conflict, _get_or_init_remediation, _is_remediation_complete
+from .transitions import (
+    _completion_updates,
+    _conflict,
+    _get_or_init_remediation,
+    _is_remediation_complete,
+    _normalized_note,
+)
 
 
 async def close_issue(
@@ -38,7 +44,7 @@ async def close_issue(
 
     remediation_updates: dict[str, object] = _completion_updates(remediation, now)
     if completion_notes is not None:
-        remediation_updates["completion_notes"] = completion_notes
+        remediation_updates["completion_notes"] = _normalized_note(completion_notes)
     remediation_changes = build_change_set(remediation, remediation_updates)
     for key, value in remediation_updates.items():
         setattr(remediation, key, value)

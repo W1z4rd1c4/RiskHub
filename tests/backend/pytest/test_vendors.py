@@ -844,3 +844,10 @@ async def test_vendor_restore_reactivates_inactive_vendor(
     restored = await client_employee.post(f"/api/v1/vendors/{vendor.id}/restore")
     assert restored.status_code == 200
     assert restored.json()["is_archived"] is False
+
+
+@pytest.mark.asyncio
+async def test_list_vendors_rejects_invalid_sort_by(auth_client: AsyncClient):
+    response = await auth_client.get("/api/v1/vendors", params={"sort_by": "unknown_field"})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid sort_by value"

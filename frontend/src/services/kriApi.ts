@@ -94,7 +94,7 @@ export const kriApi = {
     },
 
     async updateKRI(id: number, data: KRIUpdate): Promise<KeyRiskIndicator | ApprovalCreatedResponse> {
-        return apiClient.put(`/kris/${id}`, data, { schema: keyRiskIndicatorOrApprovalSchema });
+        return apiClient.patch(`/kris/${id}`, data, { schema: keyRiskIndicatorOrApprovalSchema });
     },
 
     async deleteKRI(id: number, reason: string): Promise<void | ApprovalCreatedResponse> {

@@ -37,6 +37,11 @@ def _completion_updates(remediation: IssueRemediationPlan, now: datetime) -> dic
     return updates
 
 
+def _normalized_note(value: str) -> str | None:
+    """A provided empty/whitespace note clears the field; text is kept trimmed."""
+    return value.strip() or None
+
+
 def _ensure_issue_not_closed(issue: Issue, action_label: str) -> None:
     if _status_value(issue.status) == IssueStatus.closed.value:
         _conflict(f"Cannot {action_label} a closed issue")

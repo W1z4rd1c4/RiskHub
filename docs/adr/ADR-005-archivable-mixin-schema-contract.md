@@ -20,6 +20,20 @@ Revision `k6l7m8n9o0p1` drops `Vendor.status` and retires the legacy `("inactive
 
 `ControlStatus` (in `backend/app/models/control.py`) retains the `inactive` member after `archived` was dropped in v5.3. `inactive` is orthogonal to `is_archived` — it represents a control that is defined and part of the catalog but not currently enforced (executions blocked, statistics report it separately, reactivation flips status back to `active`). `is_archived = True` represents soft-deletion (the control is no longer part of the catalog and is hidden from default listings). Consumers that need this distinction include `app.services._control_execution.workflow.is_executable` (which checks both flags), `app.services._authorization_capabilities.controls` (which restricts the executable set to `{active, draft}` and excludes `inactive`), and `app.api.v1.endpoints.departments.detail` (which reports `active` and `inactive` counts as separate non-archive statistics). The error path in `app.services._control_execution.workflow` distinguishes "Cannot execute an archived control" from "Cannot execute an inactive control", confirming the two states are user-visible and semantically distinct. Removing `inactive` would force callers to either archive non-enforced controls (losing them from listings) or keep them `active` (allowing executions against unintended targets); both regress the contract.
 
+### KRI parent-archive filtering, not cascade (2026-07-02)
+
+Archiving a `Risk` does not cascade `is_archived` to its child `KeyRiskIndicator` rows. Live
+views and derived metrics must therefore filter on the parent as well as the child: any query
+that joins `KeyRiskIndicator` to `Risk` for a non-archived surface applies `Risk.live()`
+alongside the KRI's own archived predicate. A cascade was rejected because it is destructive
+under the forward-only migration policy (un-archiving a risk could not reliably restore which
+KRIs had been independently archived beforehand). Enforced call sites: the KRI register listing
+(`app.services._register_listings.kris`), quarterly snapshot metrics
+(`app.core._snapshot_metrics.kri`), the summary report payload
+(`app.services._reporting.excel`, for Risk/Control `live()` filtering), and vendor link
+creation (`app.services._vendor_links.workflow`, which rejects archived link targets with 409
+while still allowing unlink as a cleanup path).
+
 ## Alternatives Rejected
 
 - Keep all status dialects: rejected because every listing/report must remember entity-specific archive semantics.

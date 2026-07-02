@@ -95,7 +95,13 @@ def _build_issue_capabilities(
         can_mark_remediation_blocked=can_mark_remediation_blocked,
         can_mark_remediation_completed=can_mark_remediation_completed,
         can_request_exception=bool(can_write and not is_closed and active_exception is None),
-        can_approve_exception=bool(can_approve and pending_exception is not None and active_exception is None),
+        can_approve_exception=bool(
+            can_approve
+            and not is_closed
+            and pending_exception is not None
+            and active_exception is None
+            and pending_exception.requested_by_id != current_user.id
+        ),
         can_revoke_exception=bool(can_approve and active_exception is not None),
         can_close=can_close,
         can_link_risk=bool(can_link and has_permission(current_user, "risks", "read")),

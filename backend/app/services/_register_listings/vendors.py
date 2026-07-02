@@ -7,6 +7,7 @@ from sqlalchemy import String, asc, case, desc, false, func, literal, or_, selec
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.exceptions import ValidationError
 from app.core.permissions import risk_visibility_clause
 from app.core.security import check_permission
 from app.models import Department, Risk, User, Vendor, VendorRiskLink
@@ -182,7 +183,11 @@ def vendor_order_column(sort_by: str | None) -> Any:
         "process": Vendor.process,
         "created_at": Vendor.created_at,
     }
-    return sort_columns.get(sort_by or "", Vendor.name)
+    if sort_by is None:
+        return Vendor.name
+    if sort_by not in sort_columns:
+        raise ValidationError("Invalid sort_by value")
+    return sort_columns[sort_by]
 
 
 def vendor_group_counts() -> tuple:

@@ -973,3 +973,29 @@ async def test_non_privileged_cannot_specify_period_end(
 
     assert response.status_code == 400
     assert "cannot specify custom period_end" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_update_kri_supports_patch_with_put_alias(
+    auth_client: AsyncClient,
+    test_kri_for_api,
+    db_session: AsyncSession,
+):
+    """PATCH is the canonical partial-update verb; PUT stays as a deprecated alias."""
+    patch_resp = await auth_client.patch(
+        f"/api/v1/kris/{test_kri_for_api.id}",
+        json={"description": "Patched description"},
+    )
+    assert patch_resp.status_code == 200
+    await db_session.refresh(test_kri_for_api)
+    assert test_kri_for_api.description == "Patched description"
+    # Partial semantics: untouched fields survive.
+    assert test_kri_for_api.metric_name is not None
+
+    put_resp = await auth_client.put(
+        f"/api/v1/kris/{test_kri_for_api.id}",
+        json={"description": "Put description"},
+    )
+    assert put_resp.status_code == 200
+    await db_session.refresh(test_kri_for_api)
+    assert test_kri_for_api.description == "Put description"

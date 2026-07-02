@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-    "last_reviewed": "2026-05-26",
+    "last_reviewed": "2026-07-02",
     "last_architecture_refactor_reviewed": "2026-05-17",
   "architecture_refactor_notes": [
     "2026-05-03: Collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
@@ -25,7 +25,8 @@
     "2026-05-25: Postgres compatibility fix changed backend/app/services/_approval_execution/delete_side_effects.py KRI delete side-effect loading from joined eager loading to select-in loading so row locking does not target nullable outer-join relations. User-visible authorization policy and capability semantics are unchanged.",
     "2026-05-26: Dashboard department metrics preserve risk and KRI aggregate visibility on mixed risks:read dashboard surfaces while zeroing control aggregate fields unless the actor has controls:read. Route guards, response schemas, and capability field shapes are unchanged.",
     "2026-05-26: Delete approval intake now captures versioned governance context for risk, control, and KRI delete requests; approval execution auto-rejects stale or existing-target legacy delete approvals before archive side effects. Approval route guards and response capability field shapes are unchanged.",
-    "2026-05-26: Issue assignment now suppresses duplicate no-op assignment outbox events and derives assignment event idempotency from persisted activity identity. issues:write, issue scope, assignable-owner checks, REST shape, and capability semantics are unchanged."
+    "2026-05-26: Issue assignment now suppresses duplicate no-op assignment outbox events and derives assignment event idempotency from persisted activity identity. issues:write, issue scope, assignable-owner checks, REST shape, and capability semantics are unchanged.",
+    "2026-07-02: Policy tightening from the business-logic audit. Issue exceptions: requesters can no longer approve their own exception requests (403), exception requests and approvals are denied on closed issues (409), expired exceptions can no longer be revoked (409), and can_approve_exception excludes the requester and closed issues. Vendor links: link creation rejects archived risk/control/KRI targets (409) while unlink remains available for cleanup. KRI history corrections now emit their value-change activity record inside apply_history_correction so the privileged direct path is audited like the approval path. Live register listings, snapshot metrics, and summary exports exclude archived rows (including KRIs of archived parent risks per ADR-005 amendment). Risks/vendors listings reject unknown sort_by values (400). Capability field shapes are unchanged."
   ],
   "owner": "RiskHub Maintainer",
   "capability_catalog": "docs/security/capability-catalog.json",
@@ -532,7 +533,7 @@
       "id": "AUTHZ-VENDORS-WRITE",
       "surface": "Vendors",
       "action": "Create, update, archive, restore, and mutate vendor links",
-      "actor_scope": "Requires vendors:write/delete or vendor-owner exception; edit and link mutations require an active visible vendor and visible target entity; inactive vendors can only be restored when authorized",
+      "actor_scope": "Requires vendors:write/delete or vendor-owner exception; edit and link mutations require an active visible vendor and visible target entity; link creation additionally rejects archived risk/control/KRI targets (unlink stays available for cleanup); inactive vendors can only be restored when authorized",
       "backend_authority": "backend/app/api/v1/endpoints/vendors/ and backend/app/api/v1/endpoints/vendor_links.py",
       "service_policy": "backend/app/services/_vendor_workflow/policy.py and backend/app/services/_vendor_links/ own shared link/unlink workflow; backend/app/services/_vendor_governance/links.py owns vendor link authorization and mutation helpers; backend/app/services/_vendor_governance/lifecycle.py and policy.py own create/update/archive/restore authorization outcomes while preserving vendor owner exceptions and inactive-vendor rejection",
       "response_capability": "backend/app/schemas/vendor.py VendorCapabilities.can_update, can_archive, can_restore, can_link_risk, can_link_control, can_link_kri, can_create_linked_risk, can_create_linked_control, can_create_linked_kri, and can_create_issue",
@@ -659,7 +660,7 @@
       "id": "AUTHZ-ISSUES-REMEDIATION",
       "surface": "Issues and remediation",
       "action": "Create, read, update, link, assign, progress, close, approve exceptions, and view issue activity history",
-      "actor_scope": "Requires issues:read/write/approve plus issue scope, owner assignment, linked-entity visibility helpers, read-only KRI reporting-owner scope for directly KRI-linked issues, activity history requires activity_log:read and business-view eligibility, active vendor checks for vendor context/link mutations, validated link-backed issue source provenance, protected current source links, set-based linked-resource redaction, duplicate active-exception request denial, and derived context filters",
+      "actor_scope": "Requires issues:read/write/approve plus issue scope, owner assignment, linked-entity visibility helpers, read-only KRI reporting-owner scope for directly KRI-linked issues, activity history requires activity_log:read and business-view eligibility, active vendor checks for vendor context/link mutations, validated link-backed issue source provenance, protected current source links, set-based linked-resource redaction, duplicate active-exception request denial, exception self-approval denial (requesters cannot approve their own requests), closed-issue exception request/approval denial, expired-exception revocation denial, and derived context filters",
       "backend_authority": "backend/app/api/v1/endpoints/issues/",
       "service_policy": "backend/app/core/_permissions/issues.py, backend/app/services/_issue_register/source_mutation.py, backend/app/services/_issue_workflow/assignment.py, backend/app/services/_issue_workflow/serialization.py, backend/app/core/_permissions/visible_ids.py, backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; backend/app/api/v1/endpoints/issues/crud/list.py remains the HTTP Adapter for issue list criteria; issue list/detail linked risk/control/KRI/vendor labels, risk/vendor contexts, and grouped context labels/counts are redacted through precomputed visible ID/context sets with fail-closed invalid drilldown filters, backend/app/services/_issue_register/ owns list grouping/context query helpers, and backend/app/services/_register_listings/issues.py owns issue register listing planning used by HTTP adapters",
       "response_capability": "backend/app/schemas/issue.py IssueCapabilities including can_view_activity_history, source_display, source_link, and IssueLink.is_source_link metadata on IssueSummary, IssueRead, and IssueListResponse collection capabilities",

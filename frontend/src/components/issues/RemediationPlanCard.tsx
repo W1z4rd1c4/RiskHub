@@ -9,11 +9,9 @@ import { WorkflowSummarySection } from './remediation/WorkflowSummarySection';
 
 interface RemediationPlanCardProps {
     issue: Issue;
-    canWrite: boolean;
-    canApprove: boolean;
 }
 
-export function RemediationPlanCard({ issue, canWrite: _canWrite, canApprove: _canApprove }: RemediationPlanCardProps) {
+export function RemediationPlanCard({ issue }: RemediationPlanCardProps) {
     const workflow = useRemediationPlanWorkflow({ issue });
 
     return (

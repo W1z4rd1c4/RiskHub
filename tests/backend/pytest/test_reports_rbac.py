@@ -860,6 +860,56 @@ class TestUnifiedExportEndpoints:
         assert "Summary Visible Cross Dept Control" in audit_response.content.decode("utf-8")
 
     @pytest.mark.asyncio
+    async def test_summary_export_excludes_archived_rows(
+        self,
+        client_employee: AsyncClient,
+        db_session: AsyncSession,
+        test_department: Department,
+        test_user_employee: User,
+    ):
+        before_response = await client_employee.get("/api/v1/reports/summary/export?format=csv")
+        assert before_response.status_code == 200
+        before_rows = list(csv.DictReader(StringIO(before_response.content.decode("utf-8"))))
+        before_summary = {row["Metric"]: row["Value"] for row in before_rows}
+
+        archived_risk = Risk(
+            risk_id_code="SUMMARY-ARCHIVED-R-001",
+            name="Summary Archived Risk",
+            process="Finance",
+            description="Archived rows must not skew the summary",
+            category="Operational",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            risk_type="operational",
+            gross_probability=5,
+            gross_impact=5,
+            net_probability=5,
+            net_impact=5,
+            status="active",
+            is_archived=True,
+        )
+        archived_control = Control(
+            name="Summary Archived Control",
+            description="Archived control must not count",
+            department_id=test_department.id,
+            control_owner_id=test_user_employee.id,
+            status="active",
+            is_archived=True,
+        )
+        db_session.add_all([archived_risk, archived_control])
+        await db_session.commit()
+
+        after_response = await client_employee.get("/api/v1/reports/summary/export?format=csv")
+        assert after_response.status_code == 200
+        after_rows = list(csv.DictReader(StringIO(after_response.content.decode("utf-8"))))
+        after_summary = {row["Metric"]: row["Value"] for row in after_rows}
+
+        assert after_summary["Total Risks"] == before_summary["Total Risks"]
+        assert after_summary["Total Controls"] == before_summary["Total Controls"]
+        assert after_summary["Critical Risks"] == before_summary["Critical Risks"]
+        assert after_summary["Average Net Risk Score"] == before_summary["Average Net Risk Score"]
+
+    @pytest.mark.asyncio
     async def test_audit_export_linked_risks_use_set_based_visibility(
         self,
         client_employee: AsyncClient,

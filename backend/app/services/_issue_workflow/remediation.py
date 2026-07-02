@@ -22,6 +22,7 @@ from .transitions import (
     _ensure_remediation_transition,
     _get_or_init_remediation,
     _is_remediation_complete,
+    _normalized_note,
     _status_value,
 )
 
@@ -117,9 +118,9 @@ async def update_progress(
             _ensure_remediation_transition(remediation.status, remediation_status)
         remediation_updates["status"] = target_status
     if blocker_reason is not None:
-        remediation_updates["blocker_reason"] = blocker_reason
+        remediation_updates["blocker_reason"] = _normalized_note(blocker_reason)
     if completion_notes is not None:
-        remediation_updates["completion_notes"] = completion_notes
+        remediation_updates["completion_notes"] = _normalized_note(completion_notes)
 
     if target_status == IssueRemediationStatus.completed.value or progress_percent == 100:
         now = utc_now()

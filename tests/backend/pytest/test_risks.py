@@ -761,3 +761,10 @@ async def test_risk_restore_requires_delete_permission(
         headers={"X-Mock-User-Id": str(readonly_user.id)},
     )
     assert forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_list_risks_rejects_invalid_sort_by(auth_client: AsyncClient):
+    response = await auth_client.get("/api/v1/risks", params={"sort_by": "unknown_field"})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid sort_by value"

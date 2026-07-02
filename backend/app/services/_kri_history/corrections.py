@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.audit.issue import issue_status_changed
+from app.core.audit.kri import kri_history_corrected
 from app.core.datetime_utils import utc_now
 from app.models import Issue, User
 from app.models.issue import IssueSourceType, IssueStatus
@@ -27,7 +26,7 @@ async def _close_retracted_kri_breach_issues(
     db: AsyncSession,
     *,
     entry: KRIValueHistory,
-    corrected_by_id: int | None,
+    actor: User,
 ) -> None:
     result = await db.execute(
         select(Issue)
@@ -42,7 +41,6 @@ async def _close_retracted_kri_breach_issues(
     if not issues:
         return
 
-    actor = await db.get(User, corrected_by_id) if corrected_by_id is not None else None
     now = utc_now()
     for issue in issues:
         old_status = _status_value(issue.status)
@@ -51,36 +49,39 @@ async def _close_retracted_kri_breach_issues(
         issue.status = IssueStatus.closed
         issue.closed_at = now
         issue.validation_note = AUTO_CLOSED_KRI_BREACH_NOTE
-        if actor is not None:
-            await issue_status_changed(
-                db,
-                actor=actor,
-                issue=issue,
-                changes={
-                    "status": {"old": old_status, "new": IssueStatus.closed.value},
-                    "closed_at": {"old": old_closed_at, "new": now},
-                    "validation_note": {"old": old_validation_note, "new": AUTO_CLOSED_KRI_BREACH_NOTE},
-                },
-                description=AUTO_CLOSED_KRI_BREACH_NOTE,
-            )
+        await issue_status_changed(
+            db,
+            actor=actor,
+            issue=issue,
+            changes={
+                "status": {"old": old_status, "new": IssueStatus.closed.value},
+                "closed_at": {"old": old_closed_at, "new": now},
+                "validation_note": {"old": old_validation_note, "new": AUTO_CLOSED_KRI_BREACH_NOTE},
+            },
+            description=AUTO_CLOSED_KRI_BREACH_NOTE,
+        )
 
 
 async def apply_history_correction(
     db: AsyncSession,
     entry_id: int,
     new_value: float,
-    corrected_by_id: Optional[int] = None,
+    corrected_by_id: int,
+    description: str | None = None,
 ) -> KRIValueHistory:
     """
     Apply a correction to a historical entry.
 
     If the corrected entry is the latest for the KRI, also updates current_value.
+    Every correction records an activity-log entry with the old and new value;
+    corrections are history rewrites and must never be unaudited.
 
     Args:
         db: Database session
         entry_id: ID of the history entry to correct
         new_value: The corrected value
         corrected_by_id: ID of user making the correction
+        description: Optional caller context for the audit record
 
     Returns:
         Updated KRIValueHistory entry
@@ -96,10 +97,20 @@ async def apply_history_correction(
 
     if not entry:
         raise ValueError(f"History entry {entry_id} not found")
-    kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == entry.kri_id).with_for_update())
+    kri_result = await db.execute(
+        select(KeyRiskIndicator)
+        .where(KeyRiskIndicator.id == entry.kri_id)
+        .options(selectinload(KeyRiskIndicator.risk))
+        .with_for_update()
+    )
     locked_kri = kri_result.scalar_one_or_none()
     if locked_kri is None:
         raise ValueError(f"KRI {entry.kri_id} not found")
+
+    actor = await db.get(User, corrected_by_id)
+    if actor is None:
+        raise ValueError(f"User {corrected_by_id} not found")
+    old_value = entry.value
 
     breach_status = classify_kri_breach(
         current_value=new_value,
@@ -110,8 +121,16 @@ async def apply_history_correction(
     # Update entry
     entry.value = new_value
     entry.breach_status = breach_status
+    await kri_history_corrected(
+        db,
+        kri=locked_kri,
+        history_entry=entry,
+        actor=actor,
+        changes={"value": {"old": old_value, "new": new_value}},
+        description=description,
+    )
     if breach_status == "within":
-        await _close_retracted_kri_breach_issues(db, entry=entry, corrected_by_id=corrected_by_id)
+        await _close_retracted_kri_breach_issues(db, entry=entry, actor=actor)
 
     # Check if this is the latest entry for the KRI
     latest_result = await db.execute(

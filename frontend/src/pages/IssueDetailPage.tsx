@@ -51,8 +51,6 @@ export function IssueDetailPage() {
         () => issue?.description || t('detail.messages.no_description'),
         [issue?.description, t],
     );
-    const canWriteIssue = resolveCapabilityFlag(issue?.capabilities, 'can_update');
-    const canApproveIssueException = resolveCapabilityFlag(issue?.capabilities, 'can_approve_exception');
 
     const tabs: Array<{ id: IssueDetailTab; label: string; icon: typeof Target }> = [
         { id: 'overview', label: t('detail.tabs.overview'), icon: Target },
@@ -185,11 +183,7 @@ export function IssueDetailPage() {
             ) : null}
 
             {activeTab === 'workflow' ? (
-                <IssueWorkflowTab
-                    canApprove={canApproveIssueException}
-                    canWrite={canWriteIssue}
-                    issue={issue}
-                />
+                <IssueWorkflowTab issue={issue} />
             ) : null}
 
             {activeTab === 'history' ? (

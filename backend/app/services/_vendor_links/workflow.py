@@ -13,6 +13,7 @@ from app.core.activity_logger import log_activity
 from app.core.audit.types import AuditLogActivity
 from app.core.audit.vendor import vendor_link_created, vendor_link_deleted
 from app.core.datetime_utils import utc_now
+from app.core.exceptions import ConflictError
 from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
 from app.models import (
     Control,
@@ -94,27 +95,29 @@ async def _ensure_visible_target(
     current_user: User,
     target: VendorLinkTarget,
     entity_id: int,
+    *,
+    require_live: bool = False,
 ) -> None:
     if target.kind == "risk":
         risk_result = await db.execute(select(Risk).where(Risk.id == entity_id))
-        risk = risk_result.scalar_one_or_none()
-        if not risk or not await _can_read_risk(db, current_user, entity_id):
+        entity: Risk | Control | KeyRiskIndicator | None = risk_result.scalar_one_or_none()
+        if not entity or not await _can_read_risk(db, current_user, entity_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=target.not_found_detail)
-        return
-
-    if target.kind == "control":
+    elif target.kind == "control":
         control_result = await db.execute(
             select(Control).options(selectinload(Control.department)).where(Control.id == entity_id)
         )
-        control = control_result.scalar_one_or_none()
-        if not control or not await _can_read_control(db, current_user, control):
+        entity = control_result.scalar_one_or_none()
+        if not entity or not await _can_read_control(db, current_user, entity):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=target.not_found_detail)
-        return
+    else:
+        kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == entity_id))
+        entity = kri_result.scalar_one_or_none()
+        if not entity or not await _can_read_kri(db, current_user, entity_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=target.not_found_detail)
 
-    kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == entity_id))
-    kri = kri_result.scalar_one_or_none()
-    if not kri or not await _can_read_kri(db, current_user, entity_id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=target.not_found_detail)
+    if require_live and entity.is_archived:
+        raise ConflictError(f"Cannot link archived {target.kind}")
 
 
 async def _prepare_vendor_link_mutation(
@@ -124,6 +127,7 @@ async def _prepare_vendor_link_mutation(
     current_user: User,
     kind: VendorLinkKind,
     entity_id: int,
+    require_live_target: bool = False,
 ) -> tuple[VendorLinkTarget, Vendor]:
     target = vendor_link_target(kind)
     vendor = await require_vendor_access(
@@ -133,7 +137,7 @@ async def _prepare_vendor_link_mutation(
         entity_permission=target.entity_permission,
         require_write=True,
     )
-    await _ensure_visible_target(db, current_user, target, entity_id)
+    await _ensure_visible_target(db, current_user, target, entity_id, require_live=require_live_target)
     return target, vendor
 
 
@@ -298,6 +302,7 @@ async def link_vendor_target(
         current_user=current_user,
         kind=kind,
         entity_id=entity_id,
+        require_live_target=True,
     )
     try:
         result = await _link_vendor_target_prepared_no_commit(
@@ -333,6 +338,7 @@ async def link_vendor_target_no_commit(
         current_user=current_user,
         kind=kind,
         entity_id=entity_id,
+        require_live_target=True,
     )
     return await _link_vendor_target_prepared_no_commit(
         db,

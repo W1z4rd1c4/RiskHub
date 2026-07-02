@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RiskHub — Third-Party Dependency Report (2026-07-02)</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --ink: #1f2328; --muted: #59636e;
+    --border: #d1d9e0; --good: #1a7f37; --good-bg: #dafbe1;
+    --watch: #9a6700; --watch-bg: #fff8c5; --replace: #cf222e; --replace-bg: #ffebe9;
+    --accent: #0969da;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         background: var(--bg); color: var(--ink); margin: 0; padding: 2rem; line-height: 1.5; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.2rem; margin: 2.2rem 0 .6rem; border-bottom: 2px solid var(--border); padding-bottom: .3rem; }
+  .sub { color: var(--muted); margin-bottom: 1.5rem; }
+  .summary { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.2rem 0; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+          padding: .8rem 1.2rem; min-width: 140px; }
+  .stat .n { font-size: 1.5rem; font-weight: 700; }
+  .stat .l { color: var(--muted); font-size: .85rem; }
+  table { width: 100%; border-collapse: collapse; background: var(--card);
+          border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-size: .88rem; }
+  th { background: #eff2f5; text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--border); }
+  td { padding: .55rem .7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  code { background: #eff2f5; padding: .1rem .35rem; border-radius: 4px; font-size: .85em;
+         font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .badge { display: inline-block; padding: .1rem .55rem; border-radius: 999px;
+           font-weight: 600; font-size: .78rem; white-space: nowrap; }
+  .b-good { color: var(--good); background: var(--good-bg); }
+  .b-watch { color: var(--watch); background: var(--watch-bg); }
+  .b-replace { color: var(--replace); background: var(--replace-bg); }
+  .name { font-weight: 600; white-space: nowrap; }
+  .ver { color: var(--muted); font-size: .8rem; }
+  .callout { border-left: 4px solid var(--replace); background: var(--replace-bg);
+             padding: .8rem 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0; }
+  .callout.watch { border-left-color: var(--watch); background: var(--watch-bg); }
+  .foot { color: var(--muted); font-size: .8rem; margin-top: 2.5rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>RiskHub — Third-Party Dependency Report</h1>
+<div class="sub">Generated 2026-07-02 · Sources: <code>backend/requirements-runtime.txt</code>, <code>requirements-db.txt</code>, <code>requirements-dev.txt</code>, <code>frontend/package.json</code>, <code>docker-compose.yml</code>, Dockerfiles · Usage verified against actual code in <code>backend/app/</code> and <code>frontend/src/</code></div>
+
+<div class="summary">
+  <div class="stat"><div class="n">64</div><div class="l">items reviewed</div></div>
+  <div class="stat"><div class="n" style="color:var(--good)">62</div><div class="l">good choices</div></div>
+  <div class="stat"><div class="n" style="color:var(--watch)">1</div><div class="l">watch (psycopg2)</div></div>
+  <div class="stat"><div class="n" style="color:var(--replace)">1</div><div class="l">replace (passlib)</div></div>
+</div>
+
+<div class="callout">
+  <strong>The one real problem: passlib.</strong> It is unmaintained (last release Oct 2020) and is the sole reason <code>bcrypt</code> must be pinned to 4.1.3 — passlib crashes on bcrypt ≥ 4.1. Only <code>app/core/security.py</code> uses it, so the migration surface is one file. <strong>Best replacement: <code>pwdlib</code></strong> — actively maintained, built specifically as passlib's successor, verifies existing bcrypt hashes unchanged (no user re-hash needed), and unlocks Argon2id.
+</div>
+<div class="callout watch">
+  <strong>Watch: psycopg2-binary.</strong> Only used by the <code>dbtasks</code> image for Alembic migrations and seeding — not the app runtime — so it's low urgency. When convenient, move to <code>psycopg</code> (v3), the maintained successor; Alembic supports it out of the box.
+</div>
+
+<h2>1. Infrastructure &amp; External Services</h2>
+<table>
+<tr><th style="width:16%">Item</th><th style="width:24%">What it is / for</th><th style="width:30%">How RiskHub uses it</th><th style="width:8%">Verdict</th><th style="width:22%">Why / Alternative</th></tr>
+<tr>
+  <td class="name">PostgreSQL <div class="ver">image postgres:16</div></td>
+  <td>Relational database</td>
+  <td>Primary datastore for all GRC entities (risks, controls, vendors, issues, KRIs). Accessed async via SQLAlchemy + asyncpg; forward-only Alembic migrations per ADR-010.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The gold-standard open-source RDBMS: transactional integrity, JSONB, mature async drivers. Nothing better for this workload.</td>
+</tr>
+<tr>
+  <td class="name">Redis <div class="ver">image redis:7-alpine + hardened Dockerfile</div></td>
+  <td>In-memory key-value store with atomic operations and TTLs</td>
+  <td>Sliding-window rate limiting via a Lua script (<code>app/middleware/rate_limit/backend.py</code>), account-lockout counters (<code>account_lockout_service.py</code>), SSO challenge store (<code>sso_challenge_store.py</code>), health checks. An in-memory fallback backend exists for dev. Custom image runs as non-root UID 10001.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>Exactly the right tool for atomic counters and expiring state; the Lua-scripted sliding window is race-free. Redis 7.2 is still BSD-licensed. If licensing ever becomes a concern on newer versions, <strong>Valkey</strong> is a protocol-compatible drop-in — but no change is needed today.</td>
+</tr>
+<tr>
+  <td class="name">nginx <div class="ver">alpine, digest-pinned</div></td>
+  <td>Web server</td>
+  <td>Serves the built React SPA in the production frontend container (<code>frontend/Dockerfile</code> stage 2); base OS packages upgraded on every rebuild for CVE hygiene.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>Battle-tested, tiny, and the Dockerfile already strips unused dynamic modules. Digest pinning + apk upgrade is a solid supply-chain pattern.</td>
+</tr>
+<tr>
+  <td class="name">Node.js <div class="ver">24-alpine, digest-pinned</div></td>
+  <td>JavaScript runtime</td>
+  <td>Frontend build stage only (<code>npm ci &amp;&amp; npm run build</code>); not present in the runtime image.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>Build-only exposure, digest-pinned. Multi-stage build keeps it out of production.</td>
+</tr>
+<tr>
+  <td class="name">Microsoft Entra ID + Graph API <div class="ver">external SaaS</div></td>
+  <td>Identity provider and directory service</td>
+  <td>SSO login (MSAL in browser + PyJWT/JWKS validation in backend), JIT provisioning, directory sync and deprovision checks via Graph (<code>_graph_directory/</code>), with an AD emulator for dev.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>For a Microsoft-centric enterprise (which the AD/Entra design implies), it's the natural IdP; the code keeps a provider abstraction (<code>DIRECTORY_PROVIDER</code>), so it isn't hard-locked in.</td>
+</tr>
+</table>
+
+<h2>2. Backend Runtime (Python)</h2>
+<table>
+<tr><th style="width:16%">Package</th><th style="width:24%">What it's for</th><th style="width:30%">How RiskHub uses it</th><th style="width:8%">Verdict</th><th style="width:22%">Why / Alternative</th></tr>
+<tr>
+  <td class="name">fastapi <div class="ver">0.135.4</div></td>
+  <td>Async web framework</td>
+  <td>The entire REST API surface (<code>app/api/v1/</code>), dependency injection for auth/capabilities, auto-generated OpenAPI.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>Async-first, Pydantic-native validation, the de facto standard for modern Python APIs.</td>
+</tr>
+<tr>
+  <td class="name">starlette <div class="ver">1.3.1</div></td>
+  <td>ASGI toolkit underlying FastAPI</td>
+  <td>Middleware stack, request/response primitives; pinned explicitly so security patches don't wait on FastAPI releases.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>Comes with FastAPI; explicit pinning is good security practice (recently used to clear Dependabot alerts).</td>
+</tr>
+<tr>
+  <td class="name">uvicorn[standard] <div class="ver">0.41.0</div></td>
+  <td>ASGI server</td>
+  <td>Runs the app in the backend and scheduler containers; <code>[standard]</code> extra adds uvloop/httptools performance.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The standard ASGI server; fast and boring in the good way.</td>
+</tr>
+<tr>
+  <td class="name">prometheus-fastapi-instrumentator <div class="ver">6.1.0</div></td>
+  <td>Prometheus metrics for FastAPI</td>
+  <td>Exposes <code>/metrics</code>; custom metrics in rate-limit middleware and approval-queue projection.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>Thin, purpose-built wrapper over the official Prometheus client; the standard pick for FastAPI.</td>
+</tr>
+<tr>
+  <td class="name">opentelemetry-sdk + otlp-proto-http exporter <div class="ver">1.42.1</div></td>
+  <td>Distributed tracing / telemetry export</td>
+  <td>Tracing configured in <code>app/core/otel.py</code>, wired in <code>main.py</code>, exports OTLP over HTTP to any collector.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>Vendor-neutral industry standard — works with Grafana, Datadog, Jaeger, anything. No lock-in.</td>
+</tr>
+<tr>
+  <td class="name">sqlalchemy[asyncio] <div class="ver">2.0.46</div></td>
+  <td>ORM / database toolkit</td>
+  <td>All data access via async sessions; models for every domain entity; the transaction conventions in ADR-002 build on it.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The Python ORM standard; the 2.0 async API is mature. No credible better alternative for this scale.</td>
+</tr>
+<tr>
+  <td class="name">asyncpg <div class="ver">0.31.0</div></td>
+  <td>Async PostgreSQL driver</td>
+  <td>Production driver behind SQLAlchemy (<code>postgresql+asyncpg://</code> in DATABASE_URL).</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The fastest async Postgres driver; the canonical pairing with async SQLAlchemy.</td>
+</tr>
+<tr>
+  <td class="name">psycopg2-binary <div class="ver">2.9.11</div></td>
+  <td>Sync PostgreSQL driver</td>
+  <td>Only in the <code>dbtasks</code> image (<code>requirements-db.txt</code>) for Alembic migrations and DB seeding.</td>
+  <td><span class="badge b-watch">WATCH</span></td>
+  <td>Works, and it's tooling-only, but it's the legacy line. <strong>Best alternative: psycopg (v3)</strong> — the actively developed successor, supported by Alembic out of the box; removes the "-binary in production" caveat entirely.</td>
+</tr>
+<tr>
+  <td class="name">pydantic + pydantic-settings <div class="ver">2.12.5 / 2.14.2</div></td>
+  <td>Data validation and typed settings</td>
+  <td>All request/response schemas; typed settings tree (<code>app/core/settings/</code>, <code>config_sections.py</code>) loading env vars like <code>REDIS_URL</code>, <code>ENTRA_*</code>.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>V2 is Rust-fast and integral to FastAPI. The settings package is the standard way to do 12-factor config.</td>
+</tr>
+<tr>
+  <td class="name">email-validator <div class="ver">2.3.0</div></td>
+  <td>RFC-compliant email validation</td>
+  <td>Backs Pydantic's <code>EmailStr</code> fields on user/contact schemas.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The official Pydantic companion for email fields; no real alternative.</td>
+</tr>
+<tr>
+  <td class="name">alembic <div class="ver">1.18.4</div></td>
+  <td>Database schema migrations</td>
+  <td>Forward-only Postgres migrations (ADR-010), run by the bootstrap container (<code>alembic upgrade head</code>).</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The migration tool for SQLAlchemy, from the same author. Standard and correct.</td>
+</tr>
+<tr>
+  <td class="name">PyJWT[crypto] <div class="ver">2.13.0</div></td>
+  <td>JWT creation and verification</td>
+  <td>Session tokens and Entra ID token validation, including the scheduled JWKS refresh job.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The right JWT library — actively maintained, unlike <code>python-jose</code> which has stale CVEs. Already the best-in-class choice.</td>
+</tr>
+<tr>
+  <td class="name">cryptography <div class="ver">48.0.1</div></td>
+  <td>Cryptographic primitives</td>
+  <td>Signature verification for JWTs (via PyJWT's crypto extra) and general crypto needs.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The canonical, audited Python crypto library. Only sane choice.</td>
+</tr>
+<tr>
+  <td class="name">passlib[bcrypt] + bcrypt <div class="ver">1.7.4 / pinned 4.1.3</div></td>
+  <td>Password hashing framework</td>
+  <td><code>CryptContext(schemes=["bcrypt"])</code> in <code>app/core/security.py</code> for local-account password hash/verify.</td>
+  <td><span class="badge b-replace">REPLACE</span></td>
+  <td>passlib is <strong>unmaintained since Oct 2020</strong> and forces the bcrypt 4.1.3 pin (it breaks on bcrypt ≥ 4.1). <strong>Best alternative: pwdlib</strong> — the actively maintained passlib successor; verifies existing bcrypt hashes as-is (zero user impact), adds Argon2id, and only one file needs changing.</td>
+</tr>
+<tr>
+  <td class="name">httpx <div class="ver">0.28.1</div></td>
+  <td>Async HTTP client</td>
+  <td>All outbound calls: Graph API transport, SSO token exchange, and the outbound-request guard (<code>core/outbound_guard.py</code>, SSRF protection).</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The modern async-native client with sane timeout defaults; matches the async stack (requests is sync-only).</td>
+</tr>
+<tr>
+  <td class="name">msal <div class="ver">1.35.0</div></td>
+  <td>Microsoft authentication library</td>
+  <td>Confidential-client credentials for Microsoft Graph in <code>_graph_directory/auth.py</code> (directory sync/deprovisioning).</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>Microsoft's official library; hand-rolling Entra token flows would be strictly worse.</td>
+</tr>
+<tr>
+  <td class="name">APScheduler <div class="ver">3.11.2</div></td>
+  <td>In-process job scheduling</td>
+  <td>Runs KRI checks, questionnaire checks, issue-deadline checks, AD deprovision scan, JWKS refresh, orphan scan, and outbox dispatch (<code>core/scheduler_jobs.py</code>) in a dedicated single-instance scheduler container.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>Right-sized: one scheduler container + the outbox pattern already prevents duplicate work, so a distributed queue (Celery/arq) would be over-engineering. Revisit only if jobs must scale across nodes.</td>
+</tr>
+<tr>
+  <td class="name">structlog <div class="ver">25.5.0</div></td>
+  <td>Structured logging</td>
+  <td>JSON-structured application logs throughout the backend (e.g. scheduler job telemetry).</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The best structured-logging library for Python; machine-parseable logs are the right call for an auditable GRC system.</td>
+</tr>
+<tr>
+  <td class="name">psutil <div class="ver">7.2.2</div></td>
+  <td>Process/system metrics</td>
+  <td>Process resource telemetry in admin telemetry endpoints (<code>_admin_telemetry/lifecycle.py</code>).</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The standard cross-platform way to read process stats; imported lazily where needed.</td>
+</tr>
+<tr>
+  <td class="name">python-dateutil <div class="ver">2.9.0</div></td>
+  <td>Date parsing and arithmetic</td>
+  <td>Date handling beyond the stdlib (parsing, relative deltas) in services and jobs.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>Ubiquitous, stable, effectively part of the ecosystem.</td>
+</tr>
+<tr>
+  <td class="name">redis (redis-py) <div class="ver">7.2.0</div></td>
+  <td>Redis client</td>
+  <td>Async client for rate limiting (executes the Lua sliding-window script), lockout counters, SSO challenge store, health checks.</td>
+  <td><span class="badge b-good">GOOD</span></td>
+  <td>The official client with first-class asyncio and Lua script support — exactly what the middleware needs. Also compatible with Valkey if the server ever changes.</td>
+</tr>
+</table>
+
+<h2>3. Backend Dev / Test / Security Tooling</h2>
+<table>
+<tr><th style="width:16%">Package</th><th style="width:24%">What it's for</th><th style="width:30%">How RiskHub uses it</th><th style="width:8%">Verdict</th><th style="width:22%">Why / Alternative</th></tr>
+<tr><td class="name">pytest + pytest-asyncio + pytest-cov + pytest-timeout</td><td>Test runner, async support, coverage, hang protection</td><td>The whole backend suite in <code>tests/backend/pytest/</code>, including the architecture-lock invariant tests.</td><td><span class="badge b-good">GOOD</span></td><td>The Python testing standard; the plugin set covers async, coverage, and CI hangs.</td></tr>
+<tr><td class="name">pytest-postgresql</td><td>Real Postgres instances in tests</td><td>API tests run against actual Postgres instead of mocks (pairs with <code>client_factory</code>).</td><td><span class="badge b-good">GOOD</span></td><td>Testing against the real engine catches dialect issues SQLite can't.</td></tr>
+<tr><td class="name">freezegun</td><td>Time freezing in tests</td><td>Deterministic tests for deadlines, lockout windows, token expiry.</td><td><span class="badge b-good">GOOD</span></td><td>The standard for time-dependent tests.</td></tr>
+<tr><td class="name">syrupy</td><td>Snapshot testing</td><td>Snapshot assertions for stable API/response shapes.</td><td><span class="badge b-good">GOOD</span></td><td>The maintained modern snapshot plugin for pytest.</td></tr>
+<tr><td class="name">aiosqlite</td><td>Async SQLite driver</td><td>Lightweight DB backend for fast unit-level tests.</td><td><span class="badge b-good">GOOD</span></td><td>Fine as a speed tier — the important paths also run on real Postgres.</td></tr>
+<tr><td class="name">fakeredis + testcontainers[redis]</td><td>Redis test doubles and real Redis containers</td><td>Fast in-process Redis fake for unit tests; real containerized Redis for integration tests.</td><td><span class="badge b-good">GOOD</span></td><td>Two-tier approach is exactly right: fast by default, real when it matters.</td></tr>
+<tr><td class="name">sqlalchemy-utils</td><td>SQLAlchemy helpers</td><td>Database create/drop utilities in test setup.</td><td><span class="badge b-good">GOOD</span></td><td>Small, standard helper; dev-only.</td></tr>
+<tr><td class="name">ruff <div class="ver">0.6.9</div></td><td>Linter + formatter (Rust)</td><td>Backend lint gate (replaces flake8/isort/black in one tool).</td><td><span class="badge b-good">GOOD</span></td><td>Current best-in-class — orders of magnitude faster than the tools it replaces.</td></tr>
+<tr><td class="name">bandit</td><td>Python security static analysis</td><td>Security lint gate for common vulnerability patterns.</td><td><span class="badge b-good">GOOD</span></td><td>Standard Python SAST; cheap signal in CI for a security-sensitive product.</td></tr>
+<tr><td class="name">mypy</td><td>Static type checking</td><td>Type gate over the backend.</td><td><span class="badge b-good">GOOD</span></td><td>The reference type checker; right choice for a large typed codebase.</td></tr>
+<tr><td class="name">pre-commit</td><td>Git hook manager</td><td>Runs lint/format/security hooks before commits.</td><td><span class="badge b-good">GOOD</span></td><td>The standard hook framework.</td></tr>
+<tr><td class="name">openpyxl</td><td>Excel file reading/writing</td><td>Data-migration and seed scripts (<code>scripts/migrate_risks.py</code>, <code>seed_controls.py</code>, etc.) importing GRC data from spreadsheets.</td><td><span class="badge b-good">GOOD</span></td><td>The standard pure-Python xlsx library; scripts-only, not in the runtime image.</td></tr>
+<tr><td class="name">OWASP ZAP <div class="ver">zap.yaml</div></td><td>Dynamic application security testing (DAST)</td><td>Automated scan configuration at repo root for pentest-style checks against the running app.</td><td><span class="badge b-good">GOOD</span></td><td>The standard open-source DAST scanner; appropriate for a security-focused GRC product.</td></tr>
+</table>
+
+<h2>4. Frontend Runtime (npm dependencies)</h2>
+<table>
+<tr><th style="width:16%">Package</th><th style="width:24%">What it's for</th><th style="width:30%">How RiskHub uses it</th><th style="width:8%">Verdict</th><th style="width:22%">Why / Alternative</th></tr>
+<tr><td class="name">react + react-dom <div class="ver">19.2</div></td><td>UI framework</td><td>The entire SPA.</td><td><span class="badge b-good">GOOD</span></td><td>Largest ecosystem, on the current major version. The safe, correct default for an enterprise app.</td></tr>
+<tr><td class="name">react-router-dom <div class="ver">7.13</div></td><td>Client-side routing</td><td>All SPA navigation between GRC modules; recently patched via Dependabot.</td><td><span class="badge b-good">GOOD</span></td><td>The de facto React router; v7 is current.</td></tr>
+<tr><td class="name">@tanstack/react-query <div class="ver">5.90</div></td><td>Server-state management (fetching, caching, invalidation)</td><td>All backend API data fetching and cache lifecycle.</td><td><span class="badge b-good">GOOD</span></td><td>Best-in-class for server state — eliminates hand-rolled loading/error/cache logic. Better fit here than Redux-style stores.</td></tr>
+<tr><td class="name">@azure/msal-browser <div class="ver">5.2</div></td><td>Entra ID auth in the browser</td><td>SSO login flow (auth code + PKCE) against Microsoft Entra ID, matching the backend's <code>msal</code>.</td><td><span class="badge b-good">GOOD</span></td><td>Microsoft's official browser library; the only sensible choice for Entra SSO.</td></tr>
+<tr><td class="name">@radix-ui/* <div class="ver">label, select, slot, tabs</div></td><td>Accessible headless UI primitives</td><td>Foundation for form controls and tabs (shadcn/ui-style component layer).</td><td><span class="badge b-good">GOOD</span></td><td>Best accessibility story of any React primitive library — keyboard nav and ARIA handled correctly for free.</td></tr>
+<tr><td class="name">class-variance-authority + clsx + tailwind-merge</td><td>Class-composition utilities</td><td>Variant-based component styling and conflict-free Tailwind class merging.</td><td><span class="badge b-good">GOOD</span></td><td>The standard trio for a Radix + Tailwind design system; tiny footprint.</td></tr>
+<tr><td class="name">tailwindcss <div class="ver">3.4 (+ animate, typography, autoprefixer, postcss)</div></td><td>Utility-first CSS framework</td><td>All application styling; typography plugin styles rendered markdown.</td><td><span class="badge b-good">GOOD</span></td><td>Dominant, productive, purges to a tiny CSS bundle. v4 exists but upgrading is optional polish, not a defect.</td></tr>
+<tr><td class="name">date-fns <div class="ver">4.1</div></td><td>Date utility functions</td><td>Formatting and manipulating deadlines, review dates, KRI timestamps.</td><td><span class="badge b-good">GOOD</span></td><td>Tree-shakable and immutable — the right modern pick over Moment.js.</td></tr>
+<tr><td class="name">framer-motion <div class="ver">12.23</div></td><td>Animation library</td><td>UI transitions and micro-interactions.</td><td><span class="badge b-good">GOOD</span></td><td>The best React animation DX. Heaviest UI dependency here — worth confirming it's tree-shaken, but not a wrong choice.</td></tr>
+<tr><td class="name">i18next + react-i18next + browser-languagedetector <div class="ver">25.7 / 16.5 / 8.2</div></td><td>Internationalization</td><td>All UI strings, with custom parity/usage validation scripts (<code>npm run i18n:*</code>) enforcing key hygiene.</td><td><span class="badge b-good">GOOD</span></td><td>The most mature React i18n stack; the custom validation tooling built on top is a strength.</td></tr>
+<tr><td class="name">lucide-react <div class="ver">0.562</div></td><td>Icon set</td><td>All UI iconography.</td><td><span class="badge b-good">GOOD</span></td><td>Consistent, tree-shakable, actively maintained (the Feather successor).</td></tr>
+<tr><td class="name">react-markdown + remark-gfm <div class="ver">10.1 / 4.0</div></td><td>Markdown rendering</td><td>Renders user/markdown content (descriptions, notes) with GitHub-flavored tables/lists.</td><td><span class="badge b-good">GOOD</span></td><td>Renders markdown to a React element tree instead of injecting raw HTML strings — the XSS-safe way to show user-authored markdown in a GRC app.</td></tr>
+<tr><td class="name">recharts <div class="ver">3.6</div></td><td>Charting library</td><td>Risk/KRI dashboard visualizations.</td><td><span class="badge b-good">GOOD</span></td><td>Declarative, React-native API; entirely adequate for dashboard-scale data volumes. Only worth revisiting (ECharts) if you ever plot tens of thousands of points.</td></tr>
+<tr><td class="name">react-is <div class="ver">19.2</div></td><td>React element introspection</td><td>Peer requirement of recharts, version-matched to React 19.</td><td><span class="badge b-good">GOOD</span></td><td>Required plumbing; correctly version-aligned.</td></tr>
+<tr><td class="name">zod <div class="ver">4.3</div></td><td>Runtime schema validation</td><td>Client-side validation of API payloads and form input.</td><td><span class="badge b-good">GOOD</span></td><td>The TypeScript-first validation standard — the frontend mirror of Pydantic on the backend.</td></tr>
+</table>
+
+<h2>5. Frontend Build / Test Tooling (npm devDependencies)</h2>
+<table>
+<tr><th style="width:16%">Package</th><th style="width:24%">What it's for</th><th style="width:30%">How RiskHub uses it</th><th style="width:8%">Verdict</th><th style="width:22%">Why / Alternative</th></tr>
+<tr><td class="name">vite + @vitejs/plugin-react <div class="ver">7.3 / 5.1</div></td><td>Dev server and production bundler</td><td>Dev server (<code>npm run dev</code>), production build (<code>tsc -b &amp;&amp; vite build</code>); recently patched via Dependabot.</td><td><span class="badge b-good">GOOD</span></td><td>The current-generation standard — instant HMR, fast builds. Webpack would be a downgrade.</td></tr>
+<tr><td class="name">typescript <div class="ver">5.9</div></td><td>Static typing</td><td>Whole frontend is TypeScript; <code>tsc -b</code> gates the build.</td><td><span class="badge b-good">GOOD</span></td><td>Non-negotiable for an enterprise SPA of this size.</td></tr>
+<tr><td class="name">eslint 9 + typescript-eslint + react-hooks + react-refresh + globals</td><td>Linting</td><td>Flat-config lint gate (<code>npm run lint</code>) including hooks-rules enforcement.</td><td><span class="badge b-good">GOOD</span></td><td>Standard stack on the current ESLint major; the react-hooks plugin catches real bugs.</td></tr>
+<tr><td class="name">vitest + @vitest/coverage-v8 + jsdom <div class="ver">4.0</div></td><td>Unit test runner, coverage, DOM environment</td><td>Unit/component tests with coverage (<code>npm run test:coverage</code>).</td><td><span class="badge b-good">GOOD</span></td><td>Native Vite integration, Jest-compatible API, faster than Jest. Right choice given Vite.</td></tr>
+<tr><td class="name">Testing Library <div class="ver">dom / react / user-event / jest-dom</div></td><td>Component testing utilities</td><td>Behavior-oriented component tests (query by role/text, simulate real user events).</td><td><span class="badge b-good">GOOD</span></td><td>The industry-standard testing philosophy — tests survive refactors because they assert behavior, not internals.</td></tr>
+<tr><td class="name">msw <div class="ver">2.12</div></td><td>API mocking at the network layer</td><td>Intercepts fetch in tests so components run against realistic API responses.</td><td><span class="badge b-good">GOOD</span></td><td>Best-practice mocking — the app code is untouched; mocks live at the network boundary.</td></tr>
+<tr><td class="name">@playwright/test + @axe-core/playwright <div class="ver">1.57 / 4.11</div></td><td>End-to-end and accessibility testing</td><td>Large E2E suite in <code>tests/frontend/e2e/</code> covering roles, permissions, approval workflows, cross-department access; axe adds automated a11y audits.</td><td><span class="badge b-good">GOOD</span></td><td>Playwright is the current E2E leader (speed, reliability, tracing); using it to verify authorization behavior end-to-end is a standout strength for a GRC product.</td></tr>
+</table>
+
+<h2>Bottom Line</h2>
+<p>This is a modern, conservative, well-pinned stack with no exotic dependencies. Backend (FastAPI + SQLAlchemy 2 + Postgres + Redis) and frontend (React 19 + Vite + Tailwind + Radix + TanStack Query) are each the current mainstream best practice, and the supply-chain hygiene (digest-pinned images, explicit Starlette pin, non-root Redis image, Dependabot) is above average. Two actions:</p>
+<ol>
+  <li><strong>Replace passlib with pwdlib</strong> in <code>app/core/security.py</code> — removes an unmaintained dependency and the bcrypt 4.1.3 pin. Existing bcrypt hashes keep verifying.</li>
+  <li><strong>Eventually swap psycopg2-binary for psycopg (v3)</strong> in the dbtasks tooling image — low urgency, tooling-only.</li>
+</ol>
+
+<div class="foot">Report generated by dependency review on 2026-07-02. Verdicts based on manifest pins and verified code usage sites; no external network checks were performed.</div>
+
+</div>
+</body>
+</html>

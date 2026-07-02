@@ -528,6 +528,41 @@ class TestHistoryCorrection:
         assert test_kri_with_history.current_value == 99.0
 
     @pytest.mark.asyncio
+    async def test_apply_correction_records_audit_activity(
+        self, db_session: AsyncSession, test_kri_with_history, test_user_cro
+    ):
+        """Every history correction leaves an activity-log record of old and new value."""
+        from sqlalchemy import select
+
+        from app.models import ActivityLog
+        from app.models.activity_log import ActivityAction, ActivityEntityType
+
+        entries, _ = await KRIHistoryService.get_history(
+            db=db_session,
+            kri_id=test_kri_with_history.id,
+        )
+        entry = entries[0]
+
+        await KRIHistoryService.apply_history_correction(
+            db=db_session,
+            entry_id=entry.id,
+            new_value=99.0,
+            corrected_by_id=test_user_cro.id,
+        )
+        await db_session.commit()
+
+        activity = await db_session.scalar(
+            select(ActivityLog).where(
+                ActivityLog.entity_type == ActivityEntityType.KRI_VALUE.value,
+                ActivityLog.entity_id == entry.id,
+                ActivityLog.action == ActivityAction.UPDATE.value,
+            )
+        )
+        assert activity is not None
+        assert activity.changes["value"] == {"old": 45.0, "new": 99.0}
+        assert activity.actor_id == test_user_cro.id
+
+    @pytest.mark.asyncio
     async def test_correction_recalculates_breach_status(
         self, db_session: AsyncSession, test_kri_with_history, test_user_cro
     ):

@@ -310,10 +310,14 @@ async def build_kri_listing_plan(
 
     query = select(KeyRiskIndicator).join(Risk)
 
+    # Live views require a live parent Risk too: risk archiving does not cascade
+    # to child KRIs (ADR-005), so the join filter is what keeps them out.
     if is_archived is not None:
         query = query.where(archived_clause(KeyRiskIndicator, archived=is_archived))
+        if not is_archived:
+            query = query.where(Risk.live())
     elif not include_archived:
-        query = query.where(archived_clause(KeyRiskIndicator, archived=False))
+        query = query.where(archived_clause(KeyRiskIndicator, archived=False), Risk.live())
 
     visibility_clause = await kri_visibility_clause(db, current_user)
     if visibility_clause is not None:

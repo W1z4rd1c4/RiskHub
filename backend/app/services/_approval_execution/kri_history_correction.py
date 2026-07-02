@@ -72,7 +72,6 @@ async def _apply_kri_history_correction(
             kri=kri,
             entry=entry,
             new_value=new_value,
-            old_value=old_value,
             corrected_by=current_user,
             approval_id=approval.id,
         )
