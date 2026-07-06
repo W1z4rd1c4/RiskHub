@@ -13,7 +13,8 @@ from app.models.kri_history import KRIValueHistory
 from . import clock
 from .periods import (
     due_date,
-    latest_closed_period_for_date,
+    never_reported_is_overdue,
+    overdue_required_period_end,
     period_bounds_for_date,
     reporting_owner_id,
 )
@@ -142,24 +143,39 @@ async def get_overdue_kris(
 
     overdue = []
     for kri in kris:
-        _, period_end = latest_closed_period_for_date(today, kri.frequency)
+        # Overdue anchor is the latest STRICTLY past-due period (ADR-012 SSOT), shared
+        # with the snapshot metrics and the monitoring not_submitted filter. This flags
+        # a KRI that missed an EARLIER period even while the most recent period is still
+        # inside its grace window; the previous latest-closed-at-today anchor + grace gate
+        # under-reported that case. overdue_required_period_end always returns a period
+        # whose due date is strictly before today, so no separate today > due gate is needed.
+        period_end = overdue_required_period_end(today, kri.frequency)
         due = due_date(period_end)
 
-        if today > due:
-            # Check if updated since period end
-            if kri.last_period_end and kri.last_period_end >= period_end:
-                continue  # Already reported for this period
+        if kri.last_period_end is not None:
+            # HAS-REPORTED: overdue iff the last report predates the latest strictly
+            # past-due period end (backtracking anchor). Behavior unchanged.
+            if kri.last_period_end >= period_end:
+                continue
+        else:
+            # NEVER-REPORTED (last_period_end IS NULL): gate through the shared
+            # never_reported_is_overdue SSOT so this listing agrees with the DETAIL
+            # classifier and the not_submitted list filter. A never-reported KRI stays
+            # `new` inside its initial (today-anchored) grace window and is overdue ONLY
+            # once its first required period is strictly past due.
+            if not never_reported_is_overdue(today, kri.frequency):
+                continue
 
-            days_overdue = (today - due).days
-            overdue.append(
-                _build_kri_period_due_row(
-                    kri,
-                    period_end=period_end,
-                    due=due,
-                    metric_key="days_overdue",
-                    metric_value=days_overdue,
-                )
+        days_overdue = (today - due).days
+        overdue.append(
+            _build_kri_period_due_row(
+                kri,
+                period_end=period_end,
+                due=due,
+                metric_key="days_overdue",
+                metric_value=days_overdue,
             )
+        )
 
     # Sort by days overdue descending
     overdue.sort(key=lambda x: _int_sort_value(x, "days_overdue"), reverse=True)

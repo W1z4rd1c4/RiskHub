@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import String, case, false, func, literal, or_, select
+from sqlalchemy import String, case, false, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -18,6 +18,7 @@ from app.core.security import check_permission
 from app.models import ApprovalResourceType, Department, KeyRiskIndicator, Risk, User, VendorKRILink
 from app.models._archivable import archived_clause
 from app.models.global_config import ConfigDefaults, get_config_int
+from app.models.key_risk_indicator import kri_breach_condition
 from app.schemas.collection import CollectionGroupRead
 from app.services._authorization_capabilities.common import pending_approvals_for_resources
 from app.services._collection_contracts import CollectionGroupEntry, build_grouped_collection_page
@@ -127,10 +128,7 @@ async def load_kri_sql_groups(
     current_user: User,
     can_read_vendors: bool,
 ) -> list[CollectionGroupRead]:
-    breach_expr = or_(
-        KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-        KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
-    )
+    breach_expr = kri_breach_condition()
     active_expr = KeyRiskIndicator.is_archived.is_(False)
 
     if group_by == "category":
@@ -331,12 +329,7 @@ async def build_kri_listing_plan(
         query = query.where(func.lower(KeyRiskIndicator.metric_name).like(search_term))
 
     if breach_only:
-        query = query.where(
-            or_(
-                KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-                KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
-            )
-        )
+        query = query.where(kri_breach_condition())
 
     query = query.options(
         selectinload(KeyRiskIndicator.reporting_owner),

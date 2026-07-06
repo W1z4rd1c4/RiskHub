@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveCapability, resolveCapabilityFlag } from '@/lib/capabilities';
+import { canArchive, resolveCapability, resolveCapabilityFlag } from '@/lib/capabilities';
 
 describe('capability resolution helpers', () => {
     it('resolves backend boolean capability metadata strictly', () => {
@@ -36,5 +36,28 @@ describe('capability resolution helpers', () => {
 
     it('denies defensively when a capability field is not boolean', () => {
         expect(resolveCapabilityFlag({ can_update: 'yes' }, 'can_update')).toBe(false);
+    });
+});
+
+describe('canArchive', () => {
+    it('allows archiving when both immediate and request-approval flags are granted', () => {
+        expect(canArchive({ can_archive_immediately: true, can_request_archive_approval: true })).toBe(true);
+    });
+
+    it('denies archiving when both flags are withheld', () => {
+        expect(canArchive({ can_archive_immediately: false, can_request_archive_approval: false })).toBe(false);
+    });
+
+    it('allows archiving when only immediate archive is granted', () => {
+        expect(canArchive({ can_archive_immediately: true, can_request_archive_approval: false })).toBe(true);
+    });
+
+    it('allows archiving when only archive-approval request is granted', () => {
+        expect(canArchive({ can_archive_immediately: false, can_request_archive_approval: true })).toBe(true);
+    });
+
+    it('denies archiving when capability metadata is absent', () => {
+        expect(canArchive(null)).toBe(false);
+        expect(canArchive(undefined)).toBe(false);
     });
 });

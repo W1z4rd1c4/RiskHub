@@ -17,7 +17,7 @@ import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { useTranslation } from '@/i18n/hooks';
-import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import { apiClient } from '@/services/apiClient';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
@@ -99,9 +99,7 @@ export function ControlDetailPage() {
     const monitoring = getControlMonitoringMeta(control.monitoring_status);
     const MonitoringIcon = monitoring.icon;
     const canUpdateControl = resolveCapabilityFlag(control.capabilities, 'can_update');
-    const canArchiveControl =
-        resolveCapabilityFlag(control.capabilities, 'can_archive_immediately') ||
-        resolveCapabilityFlag(control.capabilities, 'can_request_archive_approval');
+    const canArchiveControl = canArchive(control.capabilities);
     const canRestoreControl = resolveCapabilityFlag(control.capabilities, 'can_restore');
     const canLogExecution = resolveCapabilityFlag(control.capabilities, 'can_log_execution');
     const canLinkRisk = resolveCapabilityFlag(control.capabilities, 'can_link_risk');

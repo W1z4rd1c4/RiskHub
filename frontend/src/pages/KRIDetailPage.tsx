@@ -10,7 +10,7 @@ import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
-import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { formatMetricNumberValue } from '@/i18n/formatters';
 import { useKriDetailState } from '@/pages/detail/useKriDetailState';
@@ -90,9 +90,7 @@ export function KRIDetailPage() {
     const monitoring = getKriMonitoringMeta(kri.monitoring_status);
     const MonitoringIcon = monitoring.icon;
     const canUpdateKri = resolveCapabilityFlag(kri.capabilities, 'can_update');
-    const canArchiveKri =
-        resolveCapabilityFlag(kri.capabilities, 'can_archive_immediately') ||
-        resolveCapabilityFlag(kri.capabilities, 'can_request_archive_approval');
+    const canArchiveKri = canArchive(kri.capabilities);
     const canRestoreKri = resolveCapabilityFlag(kri.capabilities, 'can_restore');
     const canCreateIssue = resolveCapabilityFlag(kri.capabilities, 'can_create_issue');
 

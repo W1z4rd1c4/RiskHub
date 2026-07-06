@@ -56,6 +56,44 @@ def latest_closed_period_for_date(target_date: clock.date, frequency: str) -> Tu
     return period_bounds_for_date(previous_date, frequency)
 
 
+def overdue_required_period_end(as_of: clock.date, frequency: str) -> clock.date:
+    """End of the latest period whose ``due_date`` has STRICTLY passed as of ``as_of``.
+
+    This is the single overdue/``not_submitted`` anchor shared by the KRI snapshot
+    metrics, the monitoring-status list filter, and the overdue-KRI listing (ADR-012).
+    A KRI is overdue when it has not reported for this period.
+
+    ``due_date(pe) = pe + REPORTING_GRACE_DAYS``. The period is strictly past due when
+    ``due_date(pe) < as_of`` i.e. ``pe <= as_of - REPORTING_GRACE_DAYS - 1``, so the
+    answer is the latest closed period as of that back-dated anchor. Back-dating (rather
+    than anchoring at ``as_of`` and then re-checking the grace window) is what makes a KRI
+    that missed an *earlier* period read as overdue even while the most recent period is
+    still inside its grace window -- the latest-closed-period-at-``as_of`` rule under-reports
+    that case.
+    """
+    anchor = as_of - timedelta(days=REPORTING_GRACE_DAYS + 1)
+    _, required_period_end = latest_closed_period_for_date(anchor, frequency)
+    return required_period_end
+
+
+def never_reported_is_overdue(as_of: clock.date, frequency: str) -> bool:
+    """Whether a never-reported KRI (``last_period_end IS NULL``) is overdue as of ``as_of``.
+
+    Single source of truth for the null-history overdue/``not_submitted`` decision, shared
+    by the DETAIL classifier (``derive_kri_monitoring_snapshot``) and the monitoring
+    ``not_submitted`` LIST FILTER (``_kri_frequency_status_clauses``) so the two cannot
+    diverge for null-history rows.
+
+    A never-reported KRI keeps a today-anchored new-vs-overdue window (distinct from the
+    backtracking anchor used once it HAS reported): it is overdue only once the latest
+    closed period's own ``due_date`` has strictly passed, i.e. ``as_of > due_date(pe)``
+    where ``pe`` is ``latest_closed_period_for_date(as_of, frequency)``. Before that it is
+    still ``new`` inside its initial grace window.
+    """
+    _, required_period_end = latest_closed_period_for_date(as_of, frequency)
+    return as_of > due_date(required_period_end)
+
+
 def is_period_end_boundary(period_end: clock.date, frequency: str) -> bool:
     """Validate that the given date is a calendar-aligned period end."""
     _, expected_end = period_bounds_for_date(period_end, frequency)

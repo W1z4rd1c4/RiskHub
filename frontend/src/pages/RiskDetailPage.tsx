@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
@@ -110,9 +110,7 @@ export function RiskDetailPage() {
     }
 
     const canUpdateRisk = resolveCapabilityFlag(risk.capabilities, 'can_update');
-    const canArchiveRisk =
-        resolveCapabilityFlag(risk.capabilities, 'can_archive_immediately') ||
-        resolveCapabilityFlag(risk.capabilities, 'can_request_archive_approval');
+    const canArchiveRisk = canArchive(risk.capabilities);
     const canRestoreRisk = resolveCapabilityFlag(risk.capabilities, 'can_restore');
     const canCreateIssue = resolveCapabilityFlag(risk.capabilities, 'can_create_issue');
     const displayStatus = getRiskDisplayStatus(risk);

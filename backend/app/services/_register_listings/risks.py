@@ -22,6 +22,7 @@ from app.models import (
 )
 from app.models._archivable import archived_clause
 from app.models.global_config import ConfigDefaults, get_config_int
+from app.models.key_risk_indicator import kri_breach_condition
 from app.schemas.risk import RiskStatusEnum
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._authorization_capabilities.common import pending_approvals_for_resources
@@ -306,10 +307,7 @@ async def plan_risk_listing(
             select(KeyRiskIndicator.risk_id)
             .where(
                 KeyRiskIndicator.is_archived.is_(False),
-                or_(
-                    KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-                    KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
-                ),
+                kri_breach_condition(),
             )
             .scalar_subquery()
         )

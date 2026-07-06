@@ -6,7 +6,12 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm.attributes import NO_VALUE
 
 from app.models.key_risk_indicator import KeyRiskIndicator
-from app.services._kri_history.periods import due_date, latest_closed_period_for_date
+from app.services._kri_history.periods import (
+    due_date,
+    latest_closed_period_for_date,
+    never_reported_is_overdue,
+    overdue_required_period_end,
+)
 
 from .types import (
     KRIMonitoringConfig,
@@ -70,11 +75,27 @@ def derive_kri_monitoring_snapshot(
     is_submitted_for_required_period = (
         facts.last_period_end is not None and facts.last_period_end >= required_period_end
     )
-    days_overdue = 0
-    if today > required_due_date and not is_submitted_for_required_period:
-        days_overdue = max((today - required_due_date).days, 0)
 
-    if not facts.has_submission_history and days_overdue == 0:
+    # not_submitted/overdue keys off the backtracking overdue anchor (ADR-012 SSOT),
+    # shared with the snapshot metrics and the monitoring not_submitted list filter, so
+    # a KRI that missed an EARLIER period is flagged even while the most recent period is
+    # still inside its grace window. breach/warning/optimal keep is_submitted_for_required
+    # period on the latest-closed-at-today period above -- their behavior is unchanged.
+    # A never-reported KRI (no last_period_end) keeps its today-anchored new-vs-overdue
+    # window: it is overdue only once the latest closed period's due date has itself passed.
+    overdue_period_end = overdue_required_period_end(today, facts.frequency)
+    if facts.last_period_end is not None:
+        is_overdue = facts.last_period_end < overdue_period_end
+        overdue_row_period_end = overdue_period_end
+    else:
+        # Null-history overdue decision is the shared SSOT (never_reported_is_overdue),
+        # identical to the monitoring not_submitted list filter's null-history clause.
+        is_overdue = never_reported_is_overdue(today, facts.frequency)
+        overdue_row_period_end = required_period_end
+    overdue_due_date = due_date(overdue_row_period_end)
+    days_overdue = max((today - overdue_due_date).days, 0) if is_overdue else 0
+
+    if not facts.has_submission_history and not is_overdue:
         return KRIMonitoringSnapshot(
             monitoring_status=KRIMonitoringStatus.new,
             monitoring_status_reason=KRIMonitoringReason.no_submission_history_within_window,
@@ -85,13 +106,13 @@ def derive_kri_monitoring_snapshot(
             warning_upper_margin_ratio=config.warning_upper_margin_ratio,
         )
 
-    if days_overdue > 0:
+    if is_overdue:
         return KRIMonitoringSnapshot(
             monitoring_status=KRIMonitoringStatus.not_submitted,
             monitoring_status_reason=KRIMonitoringReason.required_period_missing_submission,
             is_submitted_for_required_period=False,
-            required_period_end=required_period_end,
-            required_due_date=required_due_date,
+            required_period_end=overdue_row_period_end,
+            required_due_date=overdue_due_date,
             days_overdue=days_overdue,
             warning_upper_margin_ratio=config.warning_upper_margin_ratio,
         )

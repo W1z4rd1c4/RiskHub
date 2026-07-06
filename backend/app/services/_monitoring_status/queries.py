@@ -7,8 +7,14 @@ from sqlalchemy.sql import Select
 
 from app.models.control import Control
 from app.models.control_execution import ControlExecution, ExecutionResult
-from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
-from app.services._kri_history.periods import due_date, latest_closed_period_for_date, period_bounds_for_date
+from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency, kri_breach_condition
+from app.services._kri_history.periods import (
+    due_date,
+    latest_closed_period_for_date,
+    never_reported_is_overdue,
+    overdue_required_period_end,
+    period_bounds_for_date,
+)
 
 from .types import ControlMonitoringStatus, KRIMonitoringStatus, KRITimelinessStatus
 
@@ -91,10 +97,7 @@ def _kri_frequency_status_clauses(
         (KeyRiskIndicator.upper_limit - KeyRiskIndicator.lower_limit) * warning_upper_margin_ratio
     )
     warning_condition = and_(upper_above_lower, in_range, KeyRiskIndicator.current_value >= warning_threshold)
-    breach_condition = or_(
-        KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-        KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
-    )
+    breach_condition = kri_breach_condition()
 
     clauses = []
     for frequency in KRIFrequency:
@@ -105,17 +108,33 @@ def _kri_frequency_status_clauses(
             KeyRiskIndicator.last_period_end.is_not(None),
             KeyRiskIndicator.last_period_end >= required_period_end,
         )
-        missing_required_period = or_(
-            KeyRiskIndicator.last_period_end.is_(None),
-            KeyRiskIndicator.last_period_end < required_period_end,
+        # not_submitted, HAS-REPORTED rows: use the backtracking overdue anchor (the
+        # latest STRICTLY past-due period end, ADR-012 SSOT) so a KRI that missed an
+        # EARLIER period is flagged even while the most recent period is still inside
+        # its grace window. new/breach/warning/optimal keep the latest-closed-at-today
+        # period above -- their behavior is unchanged.
+        overdue_period_end = overdue_required_period_end(today, frequency.value)
+        reported_but_overdue = and_(
+            KeyRiskIndicator.last_period_end.is_not(None),
+            KeyRiskIndicator.last_period_end < overdue_period_end,
         )
+        # not_submitted, NEVER-REPORTED rows (last_period_end IS NULL): match the DETAIL
+        # classifier's today-anchored window via the shared never_reported_is_overdue SSOT
+        # -- a never-reported KRI is not_submitted ONLY once its first required period is
+        # past due, and stays `new` inside its initial grace window. Gating the no_history
+        # clause on this per-frequency boolean is what stops the filter from disagreeing
+        # with the detail classifier (and double-counting a row as both new and
+        # not_submitted).
+        never_reported_overdue = never_reported_is_overdue(today, frequency.value)
 
         if monitoring_status == KRIMonitoringStatus.new:
             if today <= required_due_date:
                 clauses.append(and_(is_frequency, no_history))
         elif monitoring_status == KRIMonitoringStatus.not_submitted:
-            if today > required_due_date:
-                clauses.append(and_(is_frequency, missing_required_period))
+            missing_overdue_clauses = [reported_but_overdue]
+            if never_reported_overdue:
+                missing_overdue_clauses.append(no_history)
+            clauses.append(and_(is_frequency, or_(*missing_overdue_clauses)))
         elif monitoring_status == KRIMonitoringStatus.breach:
             clauses.append(and_(is_frequency, submitted_for_required_period, breach_condition))
         elif monitoring_status == KRIMonitoringStatus.warning:

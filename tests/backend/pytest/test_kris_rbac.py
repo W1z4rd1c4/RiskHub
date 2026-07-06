@@ -1421,9 +1421,11 @@ async def test_cross_department_risk_owner_can_read_kri_surfaces(
     test_user_approval_requester,
 ):
     """KRI list/detail/history/breaches should share canonical risk-owner visibility."""
-    from datetime import UTC, date, datetime
+    from datetime import UTC, datetime, time
 
     from app.models.kri_history import KRIValueHistory
+    from app.services._kri_history import clock
+    from app.services._kri_history.periods import latest_closed_period_for_date
 
     other_dept = Department(name="KRI Owner Other Dept", code="KRI-OWNER-X", is_active=True)
     db_session.add(other_dept)
@@ -1449,6 +1451,12 @@ async def test_cross_department_risk_owner_can_read_kri_surfaces(
     await db_session.commit()
     await db_session.refresh(risk)
 
+    # Report for the latest closed required period so the KRI classifies as `breach`
+    # (a stale KRI that missed a past-due period now classifies as `not_submitted`,
+    # which takes precedence over the breach value -- ADR-012 backtracking overdue).
+    reported_period_start, reported_period_end = latest_closed_period_for_date(
+        clock.today(), KRIFrequency.monthly.value
+    )
     kri = KeyRiskIndicator(
         risk_id=risk.id,
         metric_name="Risk Owner Visible Breached KRI",
@@ -1458,7 +1466,7 @@ async def test_cross_department_risk_owner_can_read_kri_surfaces(
         upper_limit=100.0,
         unit="%",
         frequency=KRIFrequency.monthly.value,
-        last_period_end=date(2026, 4, 30),
+        last_period_end=reported_period_end,
     )
     db_session.add(kri)
     await db_session.commit()
@@ -1467,9 +1475,9 @@ async def test_cross_department_risk_owner_can_read_kri_surfaces(
     db_session.add(
         KRIValueHistory(
             kri_id=kri.id,
-            period_start=date(2026, 4, 1),
-            period_end=date(2026, 4, 30),
-            recorded_at=datetime(2026, 5, 1, 12, 0, tzinfo=UTC),
+            period_start=reported_period_start,
+            period_end=reported_period_end,
+            recorded_at=datetime.combine(reported_period_end, time(12, 0), tzinfo=UTC),
             recorded_by_id=test_user_approval_requester.id,
             value=150.0,
             lower_limit=0.0,

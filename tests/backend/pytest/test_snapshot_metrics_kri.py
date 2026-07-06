@@ -91,8 +91,15 @@ async def test_count_overdue_kris_excludes_archived_kris_and_archived_risks(
 ):
     await _seed_kri_archive_matrix(db_session, department_id=test_department.id, owner_id=test_user.id)
 
-    assert await count_overdue_kris(db_session, None) == 1
-    assert await count_overdue_kris(db_session, [test_department.id]) == 1
+    # ADR-006 rebaseline (frequency-aware correction): count_overdue_kris is now
+    # frequency-aware (reusing the _kri_history period SSOT) rather than a flat
+    # +15-day / SQLite no-op window. The only live KRI here defaults to QUARTERLY
+    # and is 60 days stale; a quarter (~91d) + 15-day grace (~106d) has NOT elapsed,
+    # so it is NOT overdue -> 0 (was pinned 1 under the flat/no-op behavior). The
+    # archived KRI and archived-parent decoys remain excluded by live()/Risk.live();
+    # their exclusion is independently pinned by the breach/health tests above.
+    assert await count_overdue_kris(db_session, None) == 0
+    assert await count_overdue_kris(db_session, [test_department.id]) == 0
 
 
 @pytest.mark.asyncio

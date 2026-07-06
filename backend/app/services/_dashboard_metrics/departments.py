@@ -7,6 +7,7 @@ from app.core.permissions import get_user_department_ids, has_permission
 from app.models import Control, ControlExecution, Department, KeyRiskIndicator, Risk, User
 from app.models.control import ControlStatus
 from app.models.global_config import ConfigDefaults, get_config_int
+from app.models.key_risk_indicator import kri_breach_condition
 from app.schemas.dashboard import DepartmentMetrics
 
 
@@ -110,10 +111,7 @@ async def load_department_dashboard_metrics(
             ).all()
         )
 
-    breach_condition = or_(
-        KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-        KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
-    )
+    breach_condition = kri_breach_condition()
     kri_rows = (
         await db.execute(
             select(

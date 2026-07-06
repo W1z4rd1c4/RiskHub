@@ -7,8 +7,9 @@ from datetime import date, datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, String, Text, func
+from sqlalchemy import Date, DateTime, Float, ForeignKey, String, Text, func, or_
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.db.base import Base
 from app.models._archivable import ArchivableMixin
@@ -88,3 +89,19 @@ class KeyRiskIndicator(ArchivableMixin, Base):
         order_by="desc(KRIValueHistory.recorded_at)",
     )
     vendor_links: Mapped[list["VendorKRILink"]] = relationship("VendorKRILink", back_populates="kri")
+
+
+def kri_breach_condition() -> ColumnElement[bool]:
+    """Canonical SQLAlchemy predicate for a breaching KRI.
+
+    A KRI breaches when its ``current_value`` falls outside its tolerance band
+    ``[lower_limit, upper_limit]``. This is the single source of truth for the
+    bare breach comparison; read paths compose it with their own archive,
+    parent-liveness, and submission filters. Consumers that need to combine it
+    with other clauses (e.g. monitoring status) pass the returned expression to
+    ``and_(...)`` / ``.where(...)`` unchanged.
+    """
+    return or_(
+        KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
+        KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
+    )
