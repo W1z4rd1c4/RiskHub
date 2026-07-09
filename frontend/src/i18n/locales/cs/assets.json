@@ -1,0 +1,117 @@
+{
+    "title": "Aktiva",
+    "subtitle": "ICT registr — ICT aktiva podporující business procesy",
+    "actions": {
+        "new": "Nové aktivum",
+        "edit": "Upravit aktivum",
+        "create": "Vytvořit aktivum",
+        "save": "Uložit změny",
+        "cancel": "Zrušit",
+        "restore": "Obnovit",
+        "retry": "Zkusit znovu",
+        "back_to_register": "Zpět na aktiva"
+    },
+    "filters": {
+        "search_placeholder": "Hledat podle názvu, typu nebo vlastníka...",
+        "all_statuses": "Všechny stavy"
+    },
+    "status": {
+        "active": "Aktivní",
+        "archived": "Archivované"
+    },
+    "columns": {
+        "name": "Aktivum",
+        "asset_type": "Typ aktiva",
+        "owner": "Vlastník",
+        "preliminary_criticality": "Předběžná kritičnost",
+        "lifecycle_state": "Životní cyklus",
+        "status": "Stav"
+    },
+    "form": {
+        "sections": {
+            "identity": "Identifikace",
+            "ownership": "Vlastnictví a regulace",
+            "ratings": "Hodnota aktiva — CIAA (1–5)",
+            "impact_dependencies": "Business dopad a závislosti",
+            "lifecycle": "Životní cyklus a revize"
+        },
+        "name": "Název aktiva",
+        "asset_type": "Typ aktiva",
+        "asset_level": "Úroveň aktiva",
+        "description": "Popis / účel",
+        "physical_location": "Umístění (fyzické)",
+        "deployment_model": "Model nasazení",
+        "alternative_names": "Alternativní názvy",
+        "business_owner": "Business vlastník",
+        "owner_department": "Vlastnický útvar",
+        "ict_owner": "ICT vlastník",
+        "gdpr_relevance": "GDPR relevance",
+        "ai_relevance": "AI relevance",
+        "data_classification": "Klasifikace dat",
+        "confidentiality_rating": "Důvěrnost (1–5)",
+        "integrity_rating": "Integrita (1–5)",
+        "availability_rating": "Dostupnost (1–5)",
+        "authenticity_rating": "Autenticita (1–5)",
+        "impact_client": "Dopad na klienta (1–5)",
+        "impact_regulatory": "Regulatorní dopad (1–5)",
+        "substitutability_rating": "Nahraditelnost (1–5)",
+        "vendor_dependency_rating": "Závislost na dodavateli (1–5)",
+        "internet_exposed": "Vystaveno internetu",
+        "preliminary_criticality": "Předběžná kritičnost",
+        "lifecycle_state": "Stav / životní cyklus",
+        "standard_support_end_date": "Konec řádné podpory",
+        "extended_support_end_date": "Konec rozšířené podpory",
+        "custom_support_end_date": "Konec přizpůsobené podpory",
+        "last_legacy_risk_assessment_date": "Poslední posouzení rizika legacy",
+        "review_state": "Stav revize",
+        "notes": "Poznámka",
+        "not_set": "Nevyplněno",
+        "ratings_note": "Hodnota aktiva (CIAA) se odvozuje jako maximum ze čtyř hodnocení.",
+        "errors": {
+            "name_required": "Název aktiva je povinný.",
+            "save_failed": "Uložení aktiva se nezdařilo."
+        }
+    },
+    "detail": {
+        "derived_fields_note": "Hodnota aktiva, vážené skóre, výsledná kritičnost, CIF a SPOF jsou odvozovány registrem a nelze je zadat ručně."
+    },
+    "links": {
+        "add": "Propojit",
+        "remove": "Odebrat vazbu",
+        "spof": "SPOF",
+        "errors": {
+            "mutation_failed": "Úpravu vazby se nepodařilo uložit."
+        },
+        "processes": {
+            "title": "Podporované procesy",
+            "empty": "Zatím žádné vazby na procesy.",
+            "primary": "Primární proces",
+            "set_primary": "Nastavit jako primární",
+            "select_placeholder": "Vyberte proces...",
+            "significance": "Význam vazby",
+            "no_metadata": "Bez podrobností vazby"
+        },
+        "assets": {
+            "title": "Vazby na jiná aktiva",
+            "empty": "Zatím žádné vazby mezi aktivy.",
+            "depends_on": "Závisí na",
+            "supports": "Podporuje",
+            "direction_depends_on": "Toto aktivum závisí na...",
+            "direction_supports": "Toto aktivum podporuje...",
+            "select_placeholder": "Vyberte aktivum...",
+            "dependency_type": "Typ závislosti",
+            "no_metadata": "Bez podrobností vazby"
+        }
+    },
+    "messages": {
+        "archive_confirm": "Archivovat aktivum „{{assetName}}“? Zůstane v historii registru a lze jej obnovit."
+    },
+    "empty": {
+        "no_assets": "V registru zatím nejsou žádná aktiva."
+    },
+    "errors": {
+        "not_found": "Aktivum nenalezeno.",
+        "load_failed": "Načtení aktiv se nezdařilo.",
+        "archive_failed": "Archivace aktiva se nezdařila."
+    }
+}

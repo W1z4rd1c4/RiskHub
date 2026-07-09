@@ -4,6 +4,7 @@ expected_keys = [
     "issues:read",
     "vendors:read",
     "processes:read",
+    "assets:read",
     "departments:read",
     "users:read",
     "users:write",

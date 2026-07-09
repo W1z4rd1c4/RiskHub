@@ -1,4 +1,4 @@
-"""ICT Register write-side lifecycles — Process now, Asset and Threat later.
+"""ICT Register write-side lifecycles — Process and Asset now, Threat later.
 
 ADR-007 Amendment 1 classification: workflow-paired with ``_vendor_governance``
 (no new top-level bounded context per the ICT Register spec). The register is

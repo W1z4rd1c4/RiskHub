@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     activity_log,
     admin,
     approvals,
+    assets,
     auth,
     controls,
     dashboard,
@@ -42,6 +43,7 @@ api_router.include_router(risks.router, prefix="/risks", tags=["risks"])
 api_router.include_router(issues.router, tags=["issues"])
 api_router.include_router(vendors.router, prefix="/vendors", tags=["vendors"])
 api_router.include_router(processes.router, prefix="/processes", tags=["processes"])
+api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
 api_router.include_router(vendor_links.router, tags=["vendor-links"])
 api_router.include_router(vendor_reports.router, tags=["vendor-reports"])
 api_router.include_router(risk_questionnaires.risk_router, tags=["questionnaires"])

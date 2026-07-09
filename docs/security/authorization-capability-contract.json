@@ -74,6 +74,7 @@
     "backend/app/api/v1/endpoints/vendor_reports.py",
     "backend/app/api/v1/endpoints/vendors/",
     "backend/app/api/v1/endpoints/processes/",
+    "backend/app/api/v1/endpoints/assets/",
     "backend/app/core/_permissions/",
     "backend/app/core/approval_helpers.py",
     "backend/app/core/permission_cache.py",
@@ -99,6 +100,7 @@
     "backend/app/schemas/user.py",
     "backend/app/schemas/vendor.py",
     "backend/app/schemas/process.py",
+    "backend/app/schemas/asset.py",
     "backend/app/services/_access_workflow/",
     "backend/app/services/_admin_telemetry/",
     "backend/app/services/_activity_log_query/",
@@ -585,6 +587,39 @@
       "tests": [
         "tests/backend/pytest/test_ict_register_processes.py",
         "tests/frontend/unit/src/pages/__tests__/ProcessesPage.presentation.test.ts"
+      ],
+      "status": "authoritative",
+      "findings": []
+    },
+    {
+      "id": "AUTHZ-ASSETS-READ",
+      "surface": "ICT Register",
+      "action": "Read Asset register listings, details, and Link relations from both ends",
+      "actor_scope": "Requires assets:read — the standard business-entity read granted to business roles alongside vendors:read and processes:read; Assets carry no per-row ownership or department scope; reading Process<->Asset links additionally requires processes:read on either end; platform admins hold no business permissions and are denied",
+      "backend_authority": "backend/app/api/v1/endpoints/assets/ GET routes under /api/v1/assets and backend/app/api/v1/endpoints/processes/links.py GET /api/v1/processes/{id}/asset-links",
+      "service_policy": "backend/app/services/_ict_register_lifecycle/asset_policy.py asserts read authorization; backend/app/services/_ict_register_lifecycle/asset_lifecycle.py owns register listing; backend/app/services/_ict_register_lifecycle/asset_links.py owns Link relation reads from both ends; backend/app/services/_ict_register_lifecycle/asset_projection.py with backend/app/services/_authorization_capabilities/assets.py owns capability projection including the primary-Process designation",
+      "response_capability": "backend/app/schemas/asset.py AssetCapabilities on AssetRead and AssetListCapabilities on AssetListResponse",
+      "frontend_gate": "frontend/src/routing/business.tsx uses an assets:read navigation projection; frontend/src/pages/AssetsPage.tsx and frontend/src/pages/AssetDetailPage.tsx render backend read authority and deny on backend 403",
+      "tests": [
+        "tests/backend/pytest/test_ict_register_assets.py",
+        "tests/frontend/unit/src/authz/useAuthz.invariant.test.ts",
+        "tests/frontend/unit/src/pages/__tests__/AssetsPage.presentation.test.ts"
+      ],
+      "status": "authoritative",
+      "findings": []
+    },
+    {
+      "id": "AUTHZ-ASSETS-WRITE",
+      "surface": "ICT Register",
+      "action": "Create, update, archive, and restore Assets and manage their Link relations including the primary-Process designation",
+      "actor_scope": "Requires assets:write for create/update and link add/edit/remove (the atomic primary-designation swap included) and assets:delete for archive/restore; the RBAC seed grants maintenance to risk_manager with the CRO wildcard applying; derived fields are rejected on write; archived Assets reject edits and link mutations until restored; at most one primary Process per Asset is enforced in the service layer",
+      "backend_authority": "backend/app/api/v1/endpoints/assets/ POST, PATCH, DELETE, restore, and link routes under /api/v1/assets",
+      "service_policy": "backend/app/services/_ict_register_lifecycle/asset_lifecycle.py and backend/app/services/_ict_register_lifecycle/asset_links.py own service transaction boundaries and audit facts; backend/app/services/_ict_register_lifecycle/asset_policy.py asserts write and archive authorization; closed-list enforcement comes from backend/app/services/_ict_register_reference/ through backend/app/schemas/asset.py",
+      "response_capability": "backend/app/schemas/asset.py AssetCapabilities.can_update, can_archive, can_restore and AssetListCapabilities.can_create",
+      "frontend_gate": "frontend/src/pages/AssetsPage.tsx, frontend/src/pages/AssetDetailPage.tsx, and frontend/src/pages/assets/ gate create, edit, archive, restore, and link-management actions on backend capabilities",
+      "tests": [
+        "tests/backend/pytest/test_ict_register_assets.py",
+        "tests/frontend/unit/src/pages/__tests__/AssetsPage.presentation.test.ts"
       ],
       "status": "authoritative",
       "findings": []

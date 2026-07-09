@@ -8,6 +8,7 @@ import {
   Command,
   Handshake,
   Scale,
+  Server,
   ShieldAlert,
   Target,
   Workflow,
@@ -42,6 +43,8 @@ const VendorsPage = lazy(() => import('@/pages/VendorsPage'));
 const VendorDetailPage = lazy(() => import('@/pages/VendorDetailPage'));
 const ProcessesPage = lazy(() => import('@/pages/ProcessesPage'));
 const ProcessDetailPage = lazy(() => import('@/pages/ProcessDetailPage'));
+const AssetsPage = lazy(() => import('@/pages/AssetsPage'));
+const AssetDetailPage = lazy(() => import('@/pages/AssetDetailPage'));
 const VendorReportsPage = lazy(() => import('@/pages/VendorReportsPage'));
 const AuditTrailPage = lazy(() => import('@/pages/AuditTrailPage'));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
@@ -163,6 +166,21 @@ export const businessRoutes: AppRouteDef[] = [
   { key: 'processes-new', path: 'processes/new', element: <ProcessDetailPage mode="new" /> },
   { key: 'processes-detail', path: 'processes/:id', element: <ProcessDetailPage /> },
   { key: 'processes-edit', path: 'processes/:id/edit', element: <ProcessDetailPage mode="edit" /> },
+  {
+    key: 'assets',
+    path: 'assets',
+    element: <AssetsPage />,
+    nav: {
+      href: '/assets',
+      labelKey: 'assets',
+      icon: Server,
+      isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'assets'),
+      order: 76,
+    },
+  },
+  { key: 'assets-new', path: 'assets/new', element: <AssetDetailPage mode="new" /> },
+  { key: 'assets-detail', path: 'assets/:id', element: <AssetDetailPage /> },
+  { key: 'assets-edit', path: 'assets/:id/edit', element: <AssetDetailPage mode="edit" /> },
   {
     key: 'departments',
     path: 'departments',

@@ -3,3 +3,5 @@
 "backend/app/services/approval_execution_service.py" = ["approval_rejected", "approval_cancelled"]
 "backend/app/services/issue_deadline_service.py" = ["issue_exception_status_changed", "issue_status_changed"]
 "backend/app/services/_ict_register_lifecycle/lifecycle.py" = ["process_created", "process_updated", "process_archived", "process_restored"]
+"backend/app/services/_ict_register_lifecycle/asset_lifecycle.py" = ["asset_created", "asset_updated", "asset_archived", "asset_restored"]
+"backend/app/services/_ict_register_lifecycle/asset_links.py" = ["asset_link_created", "asset_link_updated", "asset_link_deleted"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.services._authorization_capabilities.approvals import approval_capabilities
+from app.services._authorization_capabilities.assets import asset_capabilities
 from app.services._authorization_capabilities.controls import control_capabilities
 from app.services._authorization_capabilities.issues import issue_capabilities, preload_issue_capabilities
 from app.services._authorization_capabilities.kris import kri_capabilities
@@ -24,6 +25,7 @@ __all__ = [
     "Capabilities",
     "approval_capabilities",
     "approval_scenario_capabilities",
+    "asset_capabilities",
     "build_me_capabilities",
     "can_view_loaded_vendor",
     "can_view_vendor_link",

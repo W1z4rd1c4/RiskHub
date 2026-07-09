@@ -251,3 +251,48 @@ module = "process"
 function = "process_restored"
 entity_type = "PROCESS"
 action = "UPDATE"
+
+[[adapter]]
+module = "asset"
+function = "asset_created"
+entity_type = "ASSET"
+action = "CREATE"
+
+[[adapter]]
+module = "asset"
+function = "asset_updated"
+entity_type = "ASSET"
+action = "UPDATE"
+
+[[adapter]]
+module = "asset"
+function = "asset_archived"
+entity_type = "ASSET"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "asset"
+function = "asset_restored"
+entity_type = "ASSET"
+action = "UPDATE"
+
+[[adapter]]
+module = "asset"
+function = "asset_link_created"
+entity_type = "ASSET_LINK"
+action = "CREATE"
+rationale = "Asset link mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "asset"
+function = "asset_link_updated"
+entity_type = "ASSET_LINK"
+action = "UPDATE"
+rationale = "Link field edits and the primary-Process designation swap are auditable relationship changes."
+
+[[adapter]]
+module = "asset"
+function = "asset_link_deleted"
+entity_type = "ASSET_LINK"
+action = "DELETE"
+rationale = "Asset unlink mutations are auditable relationship changes, emitted at the lifecycle service layer."

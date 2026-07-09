@@ -1,0 +1,117 @@
+{
+    "title": "Assets",
+    "subtitle": "ICT Register — ICT assets supporting the business Processes",
+    "actions": {
+        "new": "New Asset",
+        "edit": "Edit Asset",
+        "create": "Create Asset",
+        "save": "Save Changes",
+        "cancel": "Cancel",
+        "restore": "Restore",
+        "retry": "Retry",
+        "back_to_register": "Back to Assets"
+    },
+    "filters": {
+        "search_placeholder": "Search by name, type, or owner...",
+        "all_statuses": "All statuses"
+    },
+    "status": {
+        "active": "Active",
+        "archived": "Archived"
+    },
+    "columns": {
+        "name": "Asset",
+        "asset_type": "Type",
+        "owner": "Owner",
+        "preliminary_criticality": "Preliminary criticality",
+        "lifecycle_state": "Lifecycle",
+        "status": "Status"
+    },
+    "form": {
+        "sections": {
+            "identity": "Identification",
+            "ownership": "Ownership and regulation",
+            "ratings": "Asset value — C/I/A/Auth (1–5)",
+            "impact_dependencies": "Business impact and dependencies",
+            "lifecycle": "Lifecycle and review"
+        },
+        "name": "Asset name",
+        "asset_type": "Asset type",
+        "asset_level": "Asset level",
+        "description": "Description / purpose",
+        "physical_location": "Physical location",
+        "deployment_model": "Deployment model",
+        "alternative_names": "Alternative names",
+        "business_owner": "Business owner",
+        "owner_department": "Owning department",
+        "ict_owner": "ICT owner",
+        "gdpr_relevance": "GDPR relevance",
+        "ai_relevance": "AI relevance",
+        "data_classification": "Data classification",
+        "confidentiality_rating": "Confidentiality (1–5)",
+        "integrity_rating": "Integrity (1–5)",
+        "availability_rating": "Availability (1–5)",
+        "authenticity_rating": "Authenticity (1–5)",
+        "impact_client": "Client impact (1–5)",
+        "impact_regulatory": "Regulatory impact (1–5)",
+        "substitutability_rating": "Substitutability of asset (1–5)",
+        "vendor_dependency_rating": "Vendor dependency (1–5)",
+        "internet_exposed": "Internet exposed",
+        "preliminary_criticality": "Preliminary criticality",
+        "lifecycle_state": "Lifecycle state",
+        "standard_support_end_date": "End of standard support",
+        "extended_support_end_date": "End of extended support",
+        "custom_support_end_date": "End of custom support",
+        "last_legacy_risk_assessment_date": "Last legacy risk assessment",
+        "review_state": "Review state",
+        "notes": "Notes",
+        "not_set": "Not set",
+        "ratings_note": "The asset value (CIAA) is derived as the maximum of the four ratings.",
+        "errors": {
+            "name_required": "Asset name is required.",
+            "save_failed": "Failed to save the asset."
+        }
+    },
+    "detail": {
+        "derived_fields_note": "Asset value, weighted score, resulting criticality, CIF, and SPOF are derived by the register engine and cannot be entered by hand."
+    },
+    "links": {
+        "add": "Link",
+        "remove": "Remove link",
+        "spof": "SPOF",
+        "errors": {
+            "mutation_failed": "Failed to update the link."
+        },
+        "processes": {
+            "title": "Supported Processes",
+            "empty": "No Processes linked yet.",
+            "primary": "Primary Process",
+            "set_primary": "Set as primary",
+            "select_placeholder": "Select a Process...",
+            "significance": "Link significance",
+            "no_metadata": "No link details"
+        },
+        "assets": {
+            "title": "Asset dependencies",
+            "empty": "No Asset links yet.",
+            "depends_on": "Depends on",
+            "supports": "Supports",
+            "direction_depends_on": "This asset depends on...",
+            "direction_supports": "This asset supports...",
+            "select_placeholder": "Select an Asset...",
+            "dependency_type": "Dependency type",
+            "no_metadata": "No link details"
+        }
+    },
+    "messages": {
+        "archive_confirm": "Archive asset \"{{assetName}}\"? It stays in the register history and can be restored."
+    },
+    "empty": {
+        "no_assets": "No assets in the register yet."
+    },
+    "errors": {
+        "not_found": "Asset not found.",
+        "load_failed": "Failed to load assets.",
+        "archive_failed": "Failed to archive the asset."
+    }
+}

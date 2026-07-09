@@ -308,6 +308,37 @@
       ]
     },
     {
+      "id": "asset",
+      "backend": {
+        "path": "backend/app/schemas/asset.py",
+        "class": "AssetCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/assets.ts",
+        "schema": "assetCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_update",
+        "can_archive",
+        "can_restore"
+      ]
+    },
+    {
+      "id": "asset_list",
+      "backend": {
+        "path": "backend/app/schemas/asset.py",
+        "class": "AssetListCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/assets.ts",
+        "schema": "assetListCapabilitiesSchema"
+      },
+      "fields": [
+        "can_create"
+      ]
+    },
+    {
       "id": "issue_list",
       "backend": {
         "path": "backend/app/schemas/issue.py",

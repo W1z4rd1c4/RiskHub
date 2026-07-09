@@ -1,6 +1,7 @@
 from app.models.activity_log import ActivityAction, ActivityEntityType, ActivityLog
 from app.models.approval_request import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 from app.models.approval_scenario import ApprovalScenario
+from app.models.asset import Asset, AssetAssetLink, ProcessAssetLink
 from app.models.control import Control, ControlForm, ControlFrequency, ControlStatus
 from app.models.control_execution import ControlExecution, ExecutionResult
 from app.models.department import Department
@@ -66,6 +67,9 @@ __all__ = [
     "NotificationType",
     "OutboxEvent",
     "Process",
+    "Asset",
+    "ProcessAssetLink",
+    "AssetAssetLink",
     "Issue",
     "IssueSeverity",
     "IssueStatus",

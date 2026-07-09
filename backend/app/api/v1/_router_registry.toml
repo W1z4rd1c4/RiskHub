@@ -48,6 +48,11 @@ prefix = "/processes"
 tags = ["processes"]
 
 [[modules]]
+module = "assets"
+prefix = "/assets"
+tags = ["assets"]
+
+[[modules]]
 module = "vendor_links"
 prefix = "/vendors"
 tags = ["vendor-links"]
