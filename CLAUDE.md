@@ -82,3 +82,17 @@ Every finding cites `file:line` and quotes ≤15 words from the file.
 - Running large lint/test suites in the main thread (output bloats main context). Always delegate.
 - Sequencing independent agent calls. If they don't depend on each other, they go in one message with parallel tool uses.
 - Trusting a single agent on a high-stakes finding. Adversarial Round 2 catches Round 1 hallucinations.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked as **GitHub issues** on `W1z4rd1c4/RiskHub` via the `gh` CLI. External PRs are **not** a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), all present as GitHub labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+**Single-context**: `docs/adr/` at the repo root; `CONTEXT.md` glossary at the repo root (extended via `/grill-with-docs`). See `docs/agents/domain.md`.
