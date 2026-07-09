@@ -113,6 +113,11 @@ prefix = "/orphaned-items"
 tags = ["governance"]
 
 [[modules]]
+module = "ict_register"
+prefix = "/ict-register"
+tags = ["ict-register"]
+
+[[modules]]
 module = "lookups"
 prefix = "/lookups"
 tags = ["lookups"]

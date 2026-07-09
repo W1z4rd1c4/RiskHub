@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     directory,
     executions,
     health,
+    ict_register,
     issues,
     kris,
     lookups,
@@ -52,6 +53,7 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(directory.router, tags=["directory"])
 api_router.include_router(orphaned_items.router, prefix="/orphaned-items", tags=["governance"])
+api_router.include_router(ict_register.router, prefix="/ict-register", tags=["ict-register"])
 api_router.include_router(lookups.router, prefix="/lookups", tags=["lookups"])
 api_router.include_router(activity_log.router, prefix="/activity-log", tags=["activity-log"])
 api_router.include_router(riskhub.router, prefix="/riskhub", tags=["riskhub"])

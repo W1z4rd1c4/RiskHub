@@ -1,7 +1,7 @@
 """Seed script to populate database with initial data."""
 
 import asyncio
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Any, cast
 
 from sqlalchemy import select
@@ -25,6 +25,7 @@ from app.models import (
     ControlExecution,
     ControlRiskLink,
     Department,
+    GlobalConfig,
     Permission,
     Risk,
     RiskTypeConfig,
@@ -33,6 +34,10 @@ from app.models import (
     User,
 )
 from app.models.user import AccessScope
+from app.services._ict_register_reference import (
+    ICT_PARAMETER_CONFIG_CATEGORY,
+    ICT_WORKBOOK_PARAMETERS,
+)
 
 DEFAULT_RISK_TYPES = (
     {
@@ -111,6 +116,55 @@ async def seed_default_risk_types(db: AsyncSession) -> dict[str, int]:
     return summary
 
 
+def _ict_parameter_config_value(value: int | str | date) -> tuple[str, str]:
+    """Serialize one workbook parameter default to a (value, value_type) config pair."""
+    if isinstance(value, bool):  # defensive: bool is an int subclass, never expected
+        raise ValueError("ICT workbook parameters have no boolean values")
+    if isinstance(value, int):
+        return str(value), "int"
+    if isinstance(value, date):
+        return value.isoformat(), "string"
+    return value, "string"
+
+
+async def seed_ict_workbook_parameter_config(db: AsyncSession) -> int:
+    """Seed the 23 ICT Register workbook parameters into global_config.
+
+    Idempotent: rows already present (by key) are left untouched, so
+    re-seeding never duplicates and never resets governed values. Rows are
+    seeded non-editable; the parameter set is read-only until explicit
+    governance ships.
+    """
+    result = await db.execute(
+        select(GlobalConfig.key).where(
+            GlobalConfig.key.in_([parameter.config_key for parameter in ICT_WORKBOOK_PARAMETERS])
+        )
+    )
+    existing_keys = set(result.scalars().all())
+
+    created = 0
+    for parameter in ICT_WORKBOOK_PARAMETERS:
+        if parameter.config_key in existing_keys:
+            continue
+        value, value_type = _ict_parameter_config_value(parameter.default)
+        db.add(
+            GlobalConfig(
+                key=parameter.config_key,
+                value=value,
+                value_type=value_type,
+                category=ICT_PARAMETER_CONFIG_CATEGORY,
+                display_name=parameter.name,
+                description=parameter.meaning,
+                is_editable=False,
+            )
+        )
+        created += 1
+
+    if created:
+        await db.flush()
+    return created
+
+
 async def seed_database():
     """Seed the database with initial data."""
     async with session_context(get_settings()) as db:
@@ -121,11 +175,14 @@ async def seed_database():
             risk_type_summary = await seed_default_risk_types(db)
             if risk_type_summary["created"] or risk_type_summary["repaired"]:
                 print(f"Reconciled default risk types ({_format_risk_type_seed_summary(risk_type_summary)})")
+            ict_parameters_created = await seed_ict_workbook_parameter_config(db)
+            if ict_parameters_created:
+                print(f"Seeded {ict_parameters_created} ICT Register workbook parameters")
             # Still check and seed controls/risks if missing
             result = await db.execute(select(Control))
             if not result.scalars().first():
                 await seed_controls_and_risks(db)
-            elif risk_type_summary["created"] or risk_type_summary["repaired"]:
+            elif risk_type_summary["created"] or risk_type_summary["repaired"] or ict_parameters_created:
                 await db.commit()
             return
 
@@ -177,6 +234,9 @@ async def seed_database():
 
         risk_type_summary = await seed_default_risk_types(db)
         print(f"Reconciled default risk types ({_format_risk_type_seed_summary(risk_type_summary)})")
+
+        ict_parameters_created = await seed_ict_workbook_parameter_config(db)
+        print(f"Seeded {ict_parameters_created} ICT Register workbook parameters")
 
         # Create test users
         users = {}

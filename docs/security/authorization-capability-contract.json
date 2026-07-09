@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-    "last_reviewed": "2026-07-02",
+    "last_reviewed": "2026-07-09",
     "last_architecture_refactor_reviewed": "2026-05-17",
   "architecture_refactor_notes": [
     "2026-05-03: Collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
@@ -59,6 +59,7 @@
     "backend/app/api/v1/endpoints/departments/",
     "backend/app/api/v1/endpoints/directory.py",
     "backend/app/api/v1/endpoints/executions.py",
+    "backend/app/api/v1/endpoints/ict_register.py",
     "backend/app/api/v1/endpoints/issues/",
     "backend/app/api/v1/endpoints/kris/",
     "backend/app/api/v1/endpoints/lookups.py",
@@ -87,6 +88,7 @@
     "backend/app/schemas/control.py",
     "backend/app/schemas/dashboard.py",
     "backend/app/schemas/execution.py",
+    "backend/app/schemas/ict_register.py",
     "backend/app/schemas/issue.py",
     "backend/app/schemas/kri.py",
     "backend/app/schemas/orphaned_item.py",
@@ -107,6 +109,7 @@
     "backend/app/services/_dashboard_metrics/",
     "backend/app/services/_deadline_execution/",
     "backend/app/services/_entity_mutation_lifecycle/",
+    "backend/app/services/_ict_register_reference/",
     "backend/app/services/_identity_access_lifecycle/",
     "backend/app/services/_issue_register/",
     "backend/app/services/_issue_workflow/assignment.py",
@@ -766,6 +769,21 @@
         "tests/frontend/unit/src/pages/admin-console/__tests__/AdminConsoleOpsPanels.sessions.test.tsx",
         "tests/frontend/unit/src/pages/admin-console/__tests__/AdminConsoleAuditPanels.test.tsx",
         "tests/backend/pytest/test_admin_telemetry.py"
+      ],
+      "status": "authoritative",
+      "findings": []
+    },
+    {
+      "id": "AUTHZ-ICT-REGISTER-REFERENCE-READ",
+      "surface": "ICT Register",
+      "action": "Read ICT Register reference data: closed lists, ICT service taxonomy, country categories, CZ-EN RoI maps, and the versioned workbook parameter set",
+      "actor_scope": "Requires vendors:read (the standard business-entity read); reference data is global and carries no per-row or department scope; the surface is read-only with no mutating routes",
+      "backend_authority": "backend/app/api/v1/endpoints/ict_register.py read-only GET routes under /api/v1/ict-register",
+      "service_policy": "backend/app/services/_ict_register_reference/ owns the verbatim workbook reference registry and the ADR-008-style parameter overlay; backend/app/db/seed.py seeds the non-editable ict_register_parameters global_config rows",
+      "response_capability": "None — plain read schemas in backend/app/schemas/ict_register.py; reference rows carry no per-user state, so no per-row action metadata is exposed",
+      "frontend_gate": "None yet — backend-only reference surface (issue #41); later ICT Register slices add the register pages",
+      "tests": [
+        "tests/backend/pytest/test_ict_register_reference.py"
       ],
       "status": "authoritative",
       "findings": []

@@ -7,6 +7,7 @@ packages = [
     "_quarterly_comparison",
     "_reporting",
     "_org_chart",
+    "_ict_register_reference", # ICT Register reference data; projects workbook constants + seeded parameter rows.
 ]
 
 dual_classed_packages = [
