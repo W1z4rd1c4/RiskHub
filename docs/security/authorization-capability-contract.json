@@ -73,6 +73,7 @@
     "backend/app/api/v1/endpoints/vendor_links.py",
     "backend/app/api/v1/endpoints/vendor_reports.py",
     "backend/app/api/v1/endpoints/vendors/",
+    "backend/app/api/v1/endpoints/processes/",
     "backend/app/core/_permissions/",
     "backend/app/core/approval_helpers.py",
     "backend/app/core/permission_cache.py",
@@ -97,6 +98,7 @@
     "backend/app/schemas/riskhub.py",
     "backend/app/schemas/user.py",
     "backend/app/schemas/vendor.py",
+    "backend/app/schemas/process.py",
     "backend/app/services/_access_workflow/",
     "backend/app/services/_admin_telemetry/",
     "backend/app/services/_activity_log_query/",
@@ -111,6 +113,7 @@
     "backend/app/services/_entity_mutation_lifecycle/",
     "backend/app/services/_ict_register_reference/",
     "backend/app/services/_identity_access_lifecycle/",
+    "backend/app/services/_ict_register_lifecycle/",
     "backend/app/services/_issue_register/",
     "backend/app/services/_issue_workflow/assignment.py",
     "backend/app/services/_issue_workflow/serialization.py",
@@ -187,6 +190,7 @@
     "frontend/src/services/riskHubApi.ts",
     "frontend/src/services/session/",
     "frontend/src/services/vendorReportApi.ts",
+    "frontend/src/types/process.ts",
     "frontend/src/types/vendor.ts"
   ],
   "actions": [
@@ -548,6 +552,39 @@
         "tests/frontend/unit/src/pages/__tests__/DirectFormCapabilityGates.test.tsx",
         "tests/frontend/unit/src/pages/__tests__/VendorDetailPage.presentation.test.ts",
         "tests/backend/pytest/test_vendor_link_workflow_module.py"
+      ],
+      "status": "authoritative",
+      "findings": []
+    },
+    {
+      "id": "AUTHZ-PROCESSES-READ",
+      "surface": "ICT Register",
+      "action": "Read Process register listings and details",
+      "actor_scope": "Requires processes:read — the standard business-entity read granted to business roles alongside vendors:read; Processes carry no per-row ownership or department scope; platform admins hold no business permissions and are denied",
+      "backend_authority": "backend/app/api/v1/endpoints/processes/ GET routes under /api/v1/processes",
+      "service_policy": "backend/app/services/_ict_register_lifecycle/policy.py asserts read authorization; backend/app/services/_ict_register_lifecycle/lifecycle.py owns register listing; backend/app/services/_ict_register_lifecycle/projection.py with backend/app/services/_authorization_capabilities/processes.py owns capability projection",
+      "response_capability": "backend/app/schemas/process.py ProcessCapabilities on ProcessRead and ProcessListCapabilities on ProcessListResponse",
+      "frontend_gate": "frontend/src/routing/business.tsx uses a processes:read navigation projection; frontend/src/pages/ProcessesPage.tsx and frontend/src/pages/ProcessDetailPage.tsx render backend read authority and deny on backend 403",
+      "tests": [
+        "tests/backend/pytest/test_ict_register_processes.py",
+        "tests/frontend/unit/src/authz/useAuthz.invariant.test.ts",
+        "tests/frontend/unit/src/pages/__tests__/ProcessesPage.presentation.test.ts"
+      ],
+      "status": "authoritative",
+      "findings": []
+    },
+    {
+      "id": "AUTHZ-PROCESSES-WRITE",
+      "surface": "ICT Register",
+      "action": "Create, update, archive, and restore Processes",
+      "actor_scope": "Requires processes:write for create/update and processes:delete for archive/restore; the RBAC seed grants maintenance to risk_manager with the CRO wildcard applying; the server-assigned F-code and derived fields are rejected on write; archived Processes reject edits until restored",
+      "backend_authority": "backend/app/api/v1/endpoints/processes/ POST, PATCH, DELETE, and restore routes under /api/v1/processes",
+      "service_policy": "backend/app/services/_ict_register_lifecycle/lifecycle.py owns service transaction boundaries and audit facts; backend/app/services/_ict_register_lifecycle/policy.py asserts write and archive authorization; closed-list enforcement comes from backend/app/services/_ict_register_reference/ through backend/app/schemas/process.py",
+      "response_capability": "backend/app/schemas/process.py ProcessCapabilities.can_update, can_archive, can_restore and ProcessListCapabilities.can_create",
+      "frontend_gate": "frontend/src/pages/ProcessesPage.tsx, frontend/src/pages/ProcessDetailPage.tsx, and frontend/src/pages/processes/ gate create, edit, archive, and restore actions on backend capabilities",
+      "tests": [
+        "tests/backend/pytest/test_ict_register_processes.py",
+        "tests/frontend/unit/src/pages/__tests__/ProcessesPage.presentation.test.ts"
       ],
       "status": "authoritative",
       "findings": []

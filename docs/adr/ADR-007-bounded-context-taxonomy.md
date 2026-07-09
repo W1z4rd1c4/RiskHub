@@ -60,6 +60,7 @@ ADR-007's taxonomy is extended with three secondary categories (read-shape, work
    - `_vendor_workflow` ↔ `_vendor_governance`
    - `_orphaned_items` ↔ `_identity_access_lifecycle`
    - `_notification_inbox` ↔ `_identity_access_lifecycle`
+   - `_ict_register_lifecycle` ↔ `_vendor_governance`
 
 3. **Adapter contexts** are exempt from the per-context `HTTPException` ban only at the adapter boundary. Translation from external-system exceptions to RiskHub `DomainError` subclasses is the adapter's job per ADR-003. Adapters: `_directory_identity`, `_graph_directory` (after the package move planned under finding 61), `_admin_telemetry`, `_activity_log_query`, `_auth_session`.
 
@@ -96,6 +97,7 @@ The full classification covers the 31 underscore-prefixed packages plus the `_mo
 | `_vendor_workflow` | Workflow-paired (`_vendor_governance`) | Vendor workflow | `_bounded_context_workflow_pairs.toml` |
 | `_orphaned_items` | Workflow-paired (`_identity_access_lifecycle`) | Orphan detection during deactivation | `_bounded_context_workflow_pairs.toml` |
 | `_notification_inbox` | Workflow-paired (`_identity_access_lifecycle`) | Notification dispatch on identity events | `_bounded_context_workflow_pairs.toml` |
+| `_ict_register_lifecycle` | Workflow-paired (`_vendor_governance`) | ICT Register write-side lifecycles (Process, later Asset/Threat); the register graph shares link tables and sweeps with vendor governance | `_bounded_context_workflow_pairs.toml` |
 | `_directory_identity` | Adapter | External directory identity | `_bounded_context_adapters.toml` |
 | `_graph_directory` | Adapter | Microsoft Graph adapter | `_bounded_context_adapters.toml` |
 | `_admin_telemetry` | Adapter | Admin telemetry projection | `_bounded_context_adapters.toml` |

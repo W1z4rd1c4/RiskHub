@@ -1,0 +1,311 @@
+import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useTranslation } from '@/i18n/hooks';
+import { logError } from '@/services/logger';
+import { processApi } from '@/services/processApi';
+import type { Process } from '@/types/process';
+
+import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
+import { ProcessForm } from './processes/ProcessForm';
+import { getProcessDisplayStatus } from './processes/processesPagePresentation';
+import { getProcessStatusColor } from './processes/processColumns';
+import { useProcessDetailState, type ProcessDetailMode } from './processes/useProcessDetailState';
+
+interface ProcessDetailPageProps {
+    mode?: ProcessDetailMode;
+}
+
+function DetailField({ label, value }: { label: string; value: string | number | null | undefined }) {
+    return (
+        <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
+            <p className="text-sm text-white">{value === null || value === undefined || value === '' ? '—' : value}</p>
+        </div>
+    );
+}
+
+export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
+    const navigate = useNavigate();
+    const { t } = useTranslation('processes');
+    const { t: tCommon } = useTranslation('common');
+    const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+    const [isArchiving, setIsArchiving] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
+
+    const {
+        canArchive,
+        canEdit,
+        canRestore,
+        error,
+        isAccessDenied,
+        isLoading,
+        process,
+        restoreProcess,
+    } = useProcessDetailState({ mode, notFoundMessage: t('errors.not_found') });
+
+    const createGateState = useCreateCapabilityGate({
+        enabled: mode === 'new',
+        load: useCallback(() => processApi.getProcesses({ offset: 0, limit: 1 }), []),
+        logMessage: 'Failed to load process create capabilities.',
+    });
+
+    const archiveProcess = async () => {
+        if (!process) {
+            return;
+        }
+        try {
+            setIsArchiving(true);
+            await processApi.archiveProcess(process.id);
+            void navigate('/processes');
+        } catch (archiveError) {
+            logError('Failed to archive process:', archiveError);
+            setActionError(t('errors.archive_failed'));
+        } finally {
+            setIsArchiving(false);
+            setIsArchiveDialogOpen(false);
+        }
+    };
+
+    if (mode === 'new') {
+        if (createGateState !== 'allowed') {
+            return <FormCapabilityGateState state={createGateState} />;
+        }
+        return (
+            <div className="space-y-8">
+                <div className="flex items-start gap-3">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/processes')}
+                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                    </button>
+                    <div>
+                        <h1 className="text-3xl font-bold text-white">{t('actions.new')}</h1>
+                        <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
+                    </div>
+                </div>
+                <ProcessForm
+                    onSaved={(saved: Process) => navigate(`/processes/${saved.id}`)}
+                    onCancel={() => navigate('/processes')}
+                />
+            </div>
+        );
+    }
+
+    if (isLoading) {
+        return (
+            <div className="glass-card animate-pulse text-sm text-slate-400">{tCommon('loading')}</div>
+        );
+    }
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
+    }
+
+    if (error || !process) {
+        return (
+            <div className="glass-card space-y-4">
+                <div className="flex items-start gap-3 text-rose-300">
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                    <p className="text-sm font-medium">{error ?? t('errors.not_found')}</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => navigate('/processes')}
+                    className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white transition-colors text-sm font-semibold"
+                >
+                    {t('actions.back_to_register')}
+                </button>
+            </div>
+        );
+    }
+
+    if (mode === 'edit') {
+        if (canEdit !== true) {
+            return <FormCapabilityGateState state="denied" />;
+        }
+        return (
+            <div className="space-y-8">
+                <div className="flex items-start gap-3">
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/processes/${process.id}`)}
+                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                    </button>
+                    <div>
+                        <h1 className="text-3xl font-bold text-white">{t('actions.edit')}</h1>
+                        <p className="text-slate-500 font-medium mt-1">{process.l1_process}</p>
+                    </div>
+                </div>
+                <ProcessForm
+                    initialData={process}
+                    isEdit
+                    onSaved={(saved: Process) => navigate(`/processes/${saved.id}`)}
+                    onCancel={() => navigate(`/processes/${process.id}`)}
+                />
+            </div>
+        );
+    }
+
+    const status = getProcessDisplayStatus(process);
+
+    return (
+        <div className="space-y-8">
+            {actionError ? (
+                <div className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                    <p className="text-sm font-medium">{actionError}</p>
+                </div>
+            ) : null}
+
+            <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
+                <div className="flex items-start gap-3">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/processes')}
+                        data-testid="process-detail-back"
+                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                    </button>
+                    <div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-mono font-bold text-accent">{process.f_code}</span>
+                            <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getProcessStatusColor(status)}`}
+                            >
+                                {t(`status.${status}`)}
+                            </span>
+                        </div>
+                        <h1 className="text-3xl font-bold text-white mt-1">{process.l1_process}</h1>
+                        <p className="text-slate-500 font-medium mt-1">
+                            {process.l0_area}
+                            {process.l2_subprocess ? ` · ${process.l2_subprocess}` : ''}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    {canRestore && (
+                        <button
+                            type="button"
+                            onClick={() => void restoreProcess()}
+                            data-testid="process-detail-restore"
+                            className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                        >
+                            <ArchiveRestore className="h-4 w-4" />
+                            {t('actions.restore')}
+                        </button>
+                    )}
+                    {canEdit && (
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/processes/${process.id}/edit`)}
+                            data-testid="process-detail-edit"
+                            className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                        >
+                            <Pencil className="h-4 w-4" />
+                            {t('actions.edit')}
+                        </button>
+                    )}
+                    {canArchive && (
+                        <button
+                            type="button"
+                            onClick={() => setIsArchiveDialogOpen(true)}
+                            data-testid="process-detail-archive"
+                            className="px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-400/30 text-rose-300 hover:bg-rose-500/20 transition-colors flex items-center gap-2 text-sm font-semibold"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            {tCommon('actions.archive')}
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            <div className="glass-card space-y-5">
+                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    {t('form.sections.ownership')}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <DetailField label={t('form.owner')} value={process.owner} />
+                    <DetailField label={t('form.owner_department')} value={process.owner_department} />
+                    <DetailField label={t('form.licensed_activity')} value={process.licensed_activity} />
+                </div>
+            </div>
+
+            <div className="glass-card space-y-5">
+                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    {t('form.sections.impacts')}
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                    <DetailField label={t('form.impact_client')} value={process.impact_client} />
+                    <DetailField label={t('form.impact_market_operations')} value={process.impact_market_operations} />
+                    <DetailField label={t('form.impact_regulatory')} value={process.impact_regulatory} />
+                    <DetailField label={t('form.impact_financial')} value={process.impact_financial} />
+                    <DetailField label={t('form.impact_reputational')} value={process.impact_reputational} />
+                    <DetailField label={t('form.mtpd_hours')} value={process.mtpd_hours} />
+                </div>
+            </div>
+
+            <div className="glass-card space-y-5">
+                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    {t('form.sections.criticality')}
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                    <DetailField label={t('form.preliminary_criticality')} value={process.preliminary_criticality} />
+                    <DetailField label={t('form.cif_override')} value={process.cif_override} />
+                </div>
+                <p className="text-xs text-slate-500">{t('detail.derived_fields_note')}</p>
+            </div>
+
+            <div className="glass-card space-y-5">
+                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    {t('form.sections.continuity')}
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                    <DetailField label={t('form.rto_hours')} value={process.rto_hours} />
+                    <DetailField label={t('form.rpo_hours')} value={process.rpo_hours} />
+                    <DetailField label={t('form.bcm_link')} value={process.bcm_link} />
+                    <DetailField label={t('form.last_dr_test_date')} value={process.last_dr_test_date} />
+                    <DetailField label={t('form.dr_test_result')} value={process.dr_test_result} />
+                </div>
+            </div>
+
+            <div className="glass-card space-y-5">
+                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    {t('form.sections.assessment')}
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                    <DetailField label={t('form.interruption_impact')} value={process.interruption_impact} />
+                    <DetailField label={t('form.assessment_date')} value={process.assessment_date} />
+                </div>
+                {process.notes ? (
+                    <div className="space-y-1">
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.notes')}</p>
+                        <p className="text-sm text-slate-300 whitespace-pre-wrap">{process.notes}</p>
+                    </div>
+                ) : null}
+            </div>
+
+            <ConfirmDialog
+                isOpen={isArchiveDialogOpen}
+                onClose={() => setIsArchiveDialogOpen(false)}
+                onConfirm={archiveProcess}
+                title={tCommon('actions.archive')}
+                message={t('messages.archive_confirm', { processName: process.l1_process })}
+                confirmLabel={tCommon('actions.archive')}
+                variant="danger"
+                isLoading={isArchiving}
+            />
+        </div>
+    );
+}
+
+export default ProcessDetailPage;

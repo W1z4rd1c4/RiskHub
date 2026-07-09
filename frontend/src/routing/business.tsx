@@ -10,6 +10,7 @@ import {
   Scale,
   ShieldAlert,
   Target,
+  Workflow,
 } from 'lucide-react';
 
 import {
@@ -39,6 +40,8 @@ const DepartmentsPage = lazy(() => import('@/pages/DepartmentsPage'));
 const DepartmentDetailPage = lazy(() => import('@/pages/DepartmentDetailPage'));
 const VendorsPage = lazy(() => import('@/pages/VendorsPage'));
 const VendorDetailPage = lazy(() => import('@/pages/VendorDetailPage'));
+const ProcessesPage = lazy(() => import('@/pages/ProcessesPage'));
+const ProcessDetailPage = lazy(() => import('@/pages/ProcessDetailPage'));
 const VendorReportsPage = lazy(() => import('@/pages/VendorReportsPage'));
 const AuditTrailPage = lazy(() => import('@/pages/AuditTrailPage'));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
@@ -145,6 +148,21 @@ export const businessRoutes: AppRouteDef[] = [
   { key: 'vendors-new', path: 'vendors/new', element: <VendorDetailPage mode="new" /> },
   { key: 'vendors-detail', path: 'vendors/:id', element: <VendorDetailPage /> },
   { key: 'vendors-edit', path: 'vendors/:id/edit', element: <VendorDetailPage mode="edit" /> },
+  {
+    key: 'processes',
+    path: 'processes',
+    element: <ProcessesPage />,
+    nav: {
+      href: '/processes',
+      labelKey: 'processes',
+      icon: Workflow,
+      isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'processes'),
+      order: 75,
+    },
+  },
+  { key: 'processes-new', path: 'processes/new', element: <ProcessDetailPage mode="new" /> },
+  { key: 'processes-detail', path: 'processes/:id', element: <ProcessDetailPage /> },
+  { key: 'processes-edit', path: 'processes/:id/edit', element: <ProcessDetailPage mode="edit" /> },
   {
     key: 'departments',
     path: 'departments',

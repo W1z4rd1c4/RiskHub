@@ -6,6 +6,7 @@ from app.services._authorization_capabilities.issues import issue_capabilities, 
 from app.services._authorization_capabilities.kris import kri_capabilities
 from app.services._authorization_capabilities.me import build_me_capabilities
 from app.services._authorization_capabilities.perimeter import Capabilities, has_capability, require_capability
+from app.services._authorization_capabilities.processes import process_capabilities
 from app.services._authorization_capabilities.riskhub_config import (
     approval_scenario_capabilities,
     department_capabilities,
@@ -32,6 +33,7 @@ __all__ = [
     "issue_capabilities",
     "kri_capabilities",
     "preload_issue_capabilities",
+    "process_capabilities",
     "risk_capabilities",
     "risk_type_capabilities",
     "require_capability",

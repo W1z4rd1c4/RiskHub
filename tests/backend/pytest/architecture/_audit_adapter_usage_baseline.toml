@@ -2,3 +2,4 @@
 "backend/app/core/approval_helpers.py" = ["approval_created"]
 "backend/app/services/approval_execution_service.py" = ["approval_rejected", "approval_cancelled"]
 "backend/app/services/issue_deadline_service.py" = ["issue_exception_status_changed", "issue_status_changed"]
+"backend/app/services/_ict_register_lifecycle/lifecycle.py" = ["process_created", "process_updated", "process_archived", "process_restored"]

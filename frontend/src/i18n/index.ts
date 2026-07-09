@@ -14,6 +14,7 @@ import settingsEN from './locales/en/settings.json';
 import adminEN from './locales/en/admin.json';
 import authEN from './locales/en/auth.json';
 import vendorsEN from './locales/en/vendors.json';
+import processesEN from './locales/en/processes.json';
 import issuesEN from './locales/en/issues.json';
 import errorKeysEN from './locales/en/errorKeys.json';
 import notificationsEN from './locales/en/notifications.json';
@@ -30,6 +31,7 @@ import settingsCS from './locales/cs/settings.json';
 import adminCS from './locales/cs/admin.json';
 import authCS from './locales/cs/auth.json';
 import vendorsCS from './locales/cs/vendors.json';
+import processesCS from './locales/cs/processes.json';
 import issuesCS from './locales/cs/issues.json';
 import errorKeysCS from './locales/cs/errorKeys.json';
 import notificationsCS from './locales/cs/notifications.json';
@@ -52,6 +54,7 @@ export const resources = {
         admin: adminEN,
         auth: authEN,
         vendors: vendorsEN,
+        processes: processesEN,
         issues: issuesEN,
         errorKeys: errorKeysEN,
         notifications: notificationsEN,
@@ -68,6 +71,7 @@ export const resources = {
         admin: adminCS,
         auth: authCS,
         vendors: vendorsCS,
+        processes: processesCS,
         issues: issuesCS,
         errorKeys: errorKeysCS,
         notifications: notificationsCS,
@@ -86,6 +90,7 @@ export const namespaces = [
     'admin',
     'auth',
     'vendors',
+    'processes',
     'issues',
     'errorKeys',
     'notifications',

@@ -47,6 +47,7 @@ class ActivityEntityType(str, PyEnum):
     RISK_QUESTIONNAIRE = "risk_questionnaire"
     VENDOR = "vendor"
     VENDOR_LINK = "vendor_link"
+    PROCESS = "process"
     # Reserved: vendor extended domains are parked until the DORA feature set ships.
     VENDOR_ASSESSMENT = "vendor_assessment"
     VENDOR_INCIDENT = "vendor_incident"

@@ -325,6 +325,9 @@ Rules:
 | `vendors:delete` | Archive vendors | Privileged users only |
 | `vendor_contracts:read` | **Reserved** for future vendor contract + DORA clause governance | Reserved |
 | `vendor_contracts:write` | **Reserved** for future vendor contract + DORA clause governance | Reserved |
+| `processes:read` | View ICT Register processes | Business users (global, unscoped) |
+| `processes:write` | Create/edit ICT Register processes | CRO, Risk Manager |
+| `processes:delete` | Archive/restore ICT Register processes | CRO, Risk Manager |
 | `issues:read` | View issues/findings | CRO, Risk Manager, Compliance, Internal Audit, Dept Head (scoped) |
 | `issues:write` | Create/edit issues and remediation | CRO, Risk Manager, Dept Head (scoped) |
 | `issues:approve` | Approve issue exceptions | CRO, Risk Manager (global approvers) |

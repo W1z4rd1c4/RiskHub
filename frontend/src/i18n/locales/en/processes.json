@@ -1,0 +1,83 @@
+{
+    "title": "Processes",
+    "subtitle": "ICT Register — business processes in the L0/L1/L2 hierarchy",
+    "actions": {
+        "new": "New Process",
+        "edit": "Edit Process",
+        "create": "Create Process",
+        "save": "Save Changes",
+        "cancel": "Cancel",
+        "restore": "Restore",
+        "retry": "Retry",
+        "back_to_register": "Back to Processes"
+    },
+    "filters": {
+        "search_placeholder": "Search by F-code, area, process, or owner...",
+        "all_statuses": "All statuses"
+    },
+    "status": {
+        "active": "Active",
+        "archived": "Archived"
+    },
+    "columns": {
+        "f_code": "F-code",
+        "process": "Process",
+        "l0_area": "L0 area",
+        "owner": "Owner",
+        "mtpd": "MTPD (h)",
+        "preliminary_criticality": "Preliminary class",
+        "cif_override": "CIF override",
+        "status": "Status"
+    },
+    "form": {
+        "sections": {
+            "identity": "Identification",
+            "ownership": "Ownership",
+            "impacts": "Impacts (1–5)",
+            "criticality": "Criticality and CIF",
+            "continuity": "Continuity (BCM/DR)",
+            "assessment": "Assessment and state"
+        },
+        "l0_area": "L0 area",
+        "l1_process": "L1 process",
+        "l2_subprocess": "L2 sub-process / variant",
+        "owner": "Process owner",
+        "owner_department": "Owning department",
+        "impact_client": "Client impact (1–5)",
+        "impact_market_operations": "Market / operational impact (1–5)",
+        "impact_regulatory": "Regulatory impact (1–5)",
+        "impact_financial": "Financial impact (1–5)",
+        "impact_reputational": "Reputational impact (1–5, informative)",
+        "mtpd_hours": "MTPD (h)",
+        "preliminary_criticality": "Preliminary class",
+        "cif_override": "CIF override",
+        "licensed_activity": "Licensed activity",
+        "rto_hours": "RTO (h)",
+        "rpo_hours": "RPO (h)",
+        "bcm_link": "BCM link",
+        "last_dr_test_date": "Last DR test",
+        "dr_test_result": "DR test result",
+        "interruption_impact": "Function interruption impact",
+        "assessment_date": "Assessment date",
+        "notes": "Notes",
+        "not_set": "Not set",
+        "errors": {
+            "identity_required": "L0 area and L1 process are required.",
+            "save_failed": "Failed to save the process."
+        }
+    },
+    "detail": {
+        "derived_fields_note": "Criticality score, class, and CIF are derived by the register engine and cannot be entered by hand."
+    },
+    "messages": {
+        "archive_confirm": "Archive process \"{{processName}}\"? It stays in the register history and can be restored."
+    },
+    "empty": {
+        "no_processes": "No processes in the register yet."
+    },
+    "errors": {
+        "not_found": "Process not found.",
+        "load_failed": "Failed to load processes.",
+        "archive_failed": "Failed to archive the process."
+    }
+}

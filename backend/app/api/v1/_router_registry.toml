@@ -43,6 +43,11 @@ prefix = "/vendors"
 tags = ["vendors"]
 
 [[modules]]
+module = "processes"
+prefix = "/processes"
+tags = ["processes"]
+
+[[modules]]
 module = "vendor_links"
 prefix = "/vendors"
 tags = ["vendor-links"]

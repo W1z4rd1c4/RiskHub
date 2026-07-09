@@ -19,6 +19,7 @@ from app.api.v1.endpoints import (
     notifications,
     orphaned_items,
     preferences,
+    processes,
     reports,
     risk_questionnaires,
     riskhub,
@@ -40,6 +41,7 @@ api_router.include_router(controls.router, prefix="/controls", tags=["controls"]
 api_router.include_router(risks.router, prefix="/risks", tags=["risks"])
 api_router.include_router(issues.router, tags=["issues"])
 api_router.include_router(vendors.router, prefix="/vendors", tags=["vendors"])
+api_router.include_router(processes.router, prefix="/processes", tags=["processes"])
 api_router.include_router(vendor_links.router, tags=["vendor-links"])
 api_router.include_router(vendor_reports.router, tags=["vendor-reports"])
 api_router.include_router(risk_questionnaires.risk_router, tags=["questionnaires"])

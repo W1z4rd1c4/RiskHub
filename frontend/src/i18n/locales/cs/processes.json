@@ -1,0 +1,83 @@
+{
+    "title": "Procesy",
+    "subtitle": "ICT registr — business procesy v hierarchii L0/L1/L2",
+    "actions": {
+        "new": "Nový proces",
+        "edit": "Upravit proces",
+        "create": "Vytvořit proces",
+        "save": "Uložit změny",
+        "cancel": "Zrušit",
+        "restore": "Obnovit",
+        "retry": "Zkusit znovu",
+        "back_to_register": "Zpět na procesy"
+    },
+    "filters": {
+        "search_placeholder": "Hledat podle F-kódu, oblasti, procesu nebo vlastníka...",
+        "all_statuses": "Všechny stavy"
+    },
+    "status": {
+        "active": "Aktivní",
+        "archived": "Archivovaný"
+    },
+    "columns": {
+        "f_code": "F-kód",
+        "process": "Proces",
+        "l0_area": "L0 oblast",
+        "owner": "Vlastník",
+        "mtpd": "MTPD (hod)",
+        "preliminary_criticality": "Předběžná třída",
+        "cif_override": "CIF override",
+        "status": "Stav"
+    },
+    "form": {
+        "sections": {
+            "identity": "Identifikace",
+            "ownership": "Vlastnictví",
+            "impacts": "Dopady (1–5)",
+            "criticality": "Kritičnost a CIF",
+            "continuity": "Kontinuita (BCM/DR)",
+            "assessment": "Posouzení a stav"
+        },
+        "l0_area": "L0 oblast",
+        "l1_process": "L1 proces",
+        "l2_subprocess": "L2 podproces / varianta",
+        "owner": "Vlastník procesu",
+        "owner_department": "Vlastnický útvar",
+        "impact_client": "Dopad na klienta (1–5)",
+        "impact_market_operations": "Tržní / provozní dopad (1–5)",
+        "impact_regulatory": "Regulatorní dopad (1–5)",
+        "impact_financial": "Finanční dopad (1–5)",
+        "impact_reputational": "Reputační dopad (1–5, informativní)",
+        "mtpd_hours": "MTPD (hod)",
+        "preliminary_criticality": "Předběžná třída",
+        "cif_override": "CIF override (Ano/Ne)",
+        "licensed_activity": "Licencovaná činnost",
+        "rto_hours": "RTO (hod)",
+        "rpo_hours": "RPO (hod)",
+        "bcm_link": "BCM vazba",
+        "last_dr_test_date": "Poslední DR test",
+        "dr_test_result": "Výsledek DR testu",
+        "interruption_impact": "Dopad přerušení funkce",
+        "assessment_date": "Datum posouzení",
+        "notes": "Poznámka",
+        "not_set": "Nevyplněno",
+        "errors": {
+            "identity_required": "L0 oblast a L1 proces jsou povinné.",
+            "save_failed": "Uložení procesu se nezdařilo."
+        }
+    },
+    "detail": {
+        "derived_fields_note": "Skóre kritičnosti, třída a CIF jsou odvozovány registrem a nelze je zadat ručně."
+    },
+    "messages": {
+        "archive_confirm": "Archivovat proces „{{processName}}“? Zůstane v historii registru a lze jej obnovit."
+    },
+    "empty": {
+        "no_processes": "V registru zatím nejsou žádné procesy."
+    },
+    "errors": {
+        "not_found": "Proces nenalezen.",
+        "load_failed": "Načtení procesů se nezdařilo.",
+        "archive_failed": "Archivace procesu se nezdařila."
+    }
+}

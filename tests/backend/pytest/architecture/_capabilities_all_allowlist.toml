@@ -47,6 +47,10 @@ name = "preload_issue_capabilities"
 expires_at = "2026-09-01"
 
 [[public_names]]
+name = "process_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
 name = "risk_capabilities"
 expires_at = "2026-09-01"
 

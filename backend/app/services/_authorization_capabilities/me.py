@@ -13,6 +13,7 @@ _RESOURCE_PERMISSION_CHECKS: tuple[tuple[str, str], ...] = (
     ("controls", "read"),
     ("issues", "read"),
     ("vendors", "read"),
+    ("processes", "read"),
     ("departments", "read"),
     ("users", "read"),
     ("users", "write"),

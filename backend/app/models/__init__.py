@@ -21,6 +21,7 @@ from app.models.kri_history import KRIValueHistory
 from app.models.notification import Notification, NotificationType
 from app.models.orphaned_item import OrphanedItem
 from app.models.outbox_event import OutboxEvent
+from app.models.process import Process
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
 from app.models.refresh_token import RefreshToken
 from app.models.risk import ControlEffectiveness, ControlRiskLink, Risk, RiskStatus, RiskType
@@ -64,6 +65,7 @@ __all__ = [
     "Notification",
     "NotificationType",
     "OutboxEvent",
+    "Process",
     "Issue",
     "IssueSeverity",
     "IssueStatus",

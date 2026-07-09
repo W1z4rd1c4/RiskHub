@@ -227,3 +227,27 @@ module = "approval"
 function = "approval_cancelled"
 entity_type = "APPROVAL"
 action = "CANCEL"
+
+[[adapter]]
+module = "process"
+function = "process_created"
+entity_type = "PROCESS"
+action = "CREATE"
+
+[[adapter]]
+module = "process"
+function = "process_updated"
+entity_type = "PROCESS"
+action = "UPDATE"
+
+[[adapter]]
+module = "process"
+function = "process_archived"
+entity_type = "PROCESS"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "process"
+function = "process_restored"
+entity_type = "PROCESS"
+action = "UPDATE"

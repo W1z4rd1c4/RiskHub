@@ -277,6 +277,37 @@
       ]
     },
     {
+      "id": "process",
+      "backend": {
+        "path": "backend/app/schemas/process.py",
+        "class": "ProcessCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/processes.ts",
+        "schema": "processCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_update",
+        "can_archive",
+        "can_restore"
+      ]
+    },
+    {
+      "id": "process_list",
+      "backend": {
+        "path": "backend/app/schemas/process.py",
+        "class": "ProcessListCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/processes.ts",
+        "schema": "processListCapabilitiesSchema"
+      },
+      "fields": [
+        "can_create"
+      ]
+    },
+    {
       "id": "issue_list",
       "backend": {
         "path": "backend/app/schemas/issue.py",

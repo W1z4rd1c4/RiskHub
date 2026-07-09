@@ -45,3 +45,7 @@ right = "_identity_access_lifecycle"
 [[pairs]]
 left = "_notification_inbox"
 right = "_identity_access_lifecycle"
+
+[[pairs]]
+left = "_ict_register_lifecycle"
+right = "_vendor_governance"
