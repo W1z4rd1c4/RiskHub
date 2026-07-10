@@ -476,9 +476,25 @@ async def test_archive_restore_lifecycle_and_archived_predecessors_may_exist(
             await client.post(chain_url, json=_minimal_entry_payload(contract["id"], predecessor_id=gone["id"]))
         ).json()
 
+        # While the chain is fully active the successor resolves cleanly (rank 4).
+        active_successor = next(
+            row for row in (await client.get(chain_url)).json() if row["id"] == successor["id"]
+        )
+        assert active_successor["derived"]["chain_check"] == "OK"
+        assert active_successor["derived"]["rank"] == 4
+
         # Archive hides the row from the default collection...
         assert (await client.delete(f"{chain_url}/{gone['id']}")).status_code == 204
         assert [row["id"] for row in (await client.get(chain_url)).json()] == [keep["id"], successor["id"]]
+
+        # ...and the successor's derived chain check FLIPS: an archived
+        # predecessor is a #49 chain break — it stops feeding the derivation
+        # graph, so 09!K reads "CHYBA ŘETĚZCE" and the rank goes unknown.
+        broken_successor = next(
+            row for row in (await client.get(chain_url)).json() if row["id"] == successor["id"]
+        )
+        assert broken_successor["derived"]["chain_check"] == "CHYBA ŘETĚZCE"
+        assert broken_successor["derived"]["rank"] is None
 
         # ...while its successor keeps pointing at it: the broken chain is a
         # #49 chain-error finding, never a cascade or a write block here.
@@ -488,6 +504,10 @@ async def test_archive_restore_lifecycle_and_archived_predecessors_may_exist(
         successor_row = next(row for row in with_archived if row["id"] == successor["id"])
         assert archived_row["is_archived"] is True
         assert archived_row["archived_by_id"] is not None
+        # The archived row itself no longer carries a derived block (it left the
+        # active register), while its still-active successor is flagged broken.
+        assert archived_row["derived"] is None
+        assert successor_row["derived"]["chain_check"] == "CHYBA ŘETĚZCE"
         assert successor_row["predecessor_id"] == gone["id"]
         assert archived_row["capabilities"]["can_restore"] is True
         assert archived_row["capabilities"]["can_update"] is False

@@ -1139,3 +1139,50 @@ async def test_vendor_writes_that_include_derived_fields_are_rejected(
         # Non-derived unknown keys keep being ignored (legacy `status` senders).
         tolerant = await client.post("/api/v1/vendors", json={**base, "status": "active"})
         assert tolerant.status_code == 201, tolerant.text
+
+
+@pytest.mark.asyncio
+async def test_archived_predecessor_breaks_the_derived_chain(
+    client_factory, test_user_cro: User, test_department
+):
+    """An archived predecessor is a #49 chain break, never a valid rank source:
+    once the row a successor points at is archived it stops feeding the graph,
+    so the successor's Rank recursion misses and 09!K derives "CHYBA ŘETĚZCE"
+    (rank None). Spec 2.3(3b); sub_outsourcing_policy.py:120-121."""
+    async with client_factory(user=test_user_cro) as client:
+        vendor = await _create_vendor(
+            client, department_id=test_department.id, owner_user_id=test_user_cro.id
+        )
+        contract = await _create_via_api(
+            client,
+            f"/api/v1/vendors/{vendor['id']}/contracts",
+            {"contract_reference": "SML-2020-001"},
+        )
+        chain_url = f"/api/v1/vendors/{vendor['id']}/sub-outsourcing"
+        predecessor = await _create_via_api(
+            client, chain_url, {"contract_id": contract["id"], "sub_provider_name": "CLOUD OPS s.r.o."}
+        )
+        successor = await _create_via_api(
+            client,
+            chain_url,
+            {
+                "contract_id": contract["id"],
+                "predecessor_id": predecessor["id"],
+                "sub_provider_name": "DC HOSTING GmbH",
+            },
+        )
+
+        # The fully active chain resolves: predecessor rank 2, successor rank 3.
+        active = {row["id"]: row for row in (await client.get(chain_url)).json()}
+        assert active[predecessor["id"]]["derived"]["rank"] == 2
+        assert active[successor["id"]]["derived"]["rank"] == 3
+        assert active[successor["id"]]["derived"]["chain_check"] == "OK"
+
+        # Archive the predecessor — it leaves the active register entirely.
+        assert (await client.delete(f"{chain_url}/{predecessor['id']}")).status_code == 204
+
+        successor_row = next(
+            row for row in (await client.get(chain_url)).json() if row["id"] == successor["id"]
+        )
+        assert successor_row["derived"]["rank"] is None
+        assert successor_row["derived"]["chain_check"] == "CHYBA ŘETĚZCE"

@@ -11,10 +11,13 @@ source is the workbook BUILDER's data module (``builder/seed.py`` +
 pure column-letter stub satisfies the builder module's import).
 
 Idempotent upsert-by-natural-key (the seed_e2e_ict_register pattern): every
-row is keyed by its workbook natural key, re-runs converge (created=0), so a
-failed run is simply re-run to completion — no partial state survives.
-Anything the service layer rejects is a REPORTED data finding, never a
-silent skip.
+row is keyed by its workbook natural key. The import is NOT atomic — the
+parameter overlay and the service-layer create/update/link ops commit
+incrementally as the run proceeds, so a failed or interrupted run CAN leave
+partial committed state behind. Recovery is therefore not a rollback but a
+clean re-run: re-runs converge on the same rows (created=0), so re-running to
+completion is always safe. Anything the service layer rejects is a REPORTED
+data finding, never a silent skip.
 
 Usage (from backend/, DATABASE_URL required — the script refuses to guess):
 

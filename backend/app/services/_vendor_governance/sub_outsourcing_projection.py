@@ -14,15 +14,19 @@ async def load_sub_outsourcing_derived_blocks(
 ) -> dict[int, VendorSubOutsourcingDerived]:
     """Compute the engine-derived 09_Subdodávky block per chain entry (#49).
 
-    The owning Vendor is the graph target — the whole Sub-outsourcing register
-    rides along, so the Rank recursion sees every predecessor row.
+    The owning Vendor is the graph target — the whole ACTIVE Sub-outsourcing
+    register rides along, so the Rank recursion sees every active predecessor
+    row. Archived entries (surfaced only via ``include_archived``) leave the
+    active register and so carry no derived block — they are omitted here and
+    render as ``derived: null``.
     """
     if not entries:
         return {}
     derivation = await compute_vendor_register_derivation(db, [vendor])
     return {
-        entry.id: VendorSubOutsourcingDerived.model_validate(derivation.sub_outsourcing[entry.id])
+        entry.id: VendorSubOutsourcingDerived.model_validate(block)
         for entry in entries
+        if (block := derivation.sub_outsourcing.get(entry.id)) is not None
     }
 
 

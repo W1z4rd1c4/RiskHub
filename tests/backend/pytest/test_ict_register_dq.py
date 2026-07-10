@@ -1462,6 +1462,67 @@ async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
 
 
 @pytest.mark.asyncio
+async def test_dq38_rises_when_a_mid_chain_sub_outsourcing_row_is_archived(
+    client_factory, test_user_cro: User
+):
+    """DQ-38 = COUNTIF(09.K,"CHYBA ŘETĚZCE"). Archiving a mid-chain row removes
+    it from the active register, so the successor pointing at it can no longer
+    resolve its Rank — the chain breaks and the finding count rises by one. The
+    archived row itself drops out (never counts as an active finding)."""
+    async with client_factory(user=test_user_cro) as client:
+        vendor = await client.post(
+            "/api/v1/vendors",
+            json={
+                "name": "BIZ DATA",
+                "process": "IT",
+                "department_id": None,
+                "outsourcing_owner_user_id": test_user_cro.id,
+            },
+        )
+        assert vendor.status_code == 201, vendor.text
+        vendor = vendor.json()
+        contract = await client.post(
+            f"/api/v1/vendors/{vendor['id']}/contracts", json={"contract_reference": "SML-2020-001"}
+        )
+        assert contract.status_code == 201, contract.text
+        contract = contract.json()
+        chain_url = f"/api/v1/vendors/{vendor['id']}/sub-outsourcing"
+        a = (
+            await client.post(chain_url, json={"contract_id": contract["id"], "sub_provider_name": "A"})
+        ).json()
+        b = (
+            await client.post(
+                chain_url,
+                json={"contract_id": contract["id"], "predecessor_id": a["id"], "sub_provider_name": "B"},
+            )
+        ).json()
+        c = (
+            await client.post(
+                chain_url,
+                json={"contract_id": contract["id"], "predecessor_id": b["id"], "sub_provider_name": "C"},
+            )
+        ).json()
+
+        # The fully active 3-tier chain has no chain-break finding.
+        before = await client.get("/api/v1/ict-register/dq")
+        assert before.status_code == 200, before.text
+        dq38_before = {entry["check_id"]: entry for entry in before.json()["checks"]}["DQ-38"]
+        assert dq38_before["count"] == 0
+        assert dq38_before["status"] == "OK"
+
+        # Archive the mid-chain row B: C's predecessor lookup now misses.
+        assert (await client.delete(f"{chain_url}/{b['id']}")).status_code == 204
+
+        after = await client.get("/api/v1/ict-register/dq")
+        assert after.status_code == 200, after.text
+        dq38_after = {entry["check_id"]: entry for entry in after.json()["checks"]}["DQ-38"]
+        assert dq38_after["count"] == 1
+        assert dq38_after["status"] == "NÁLEZ"
+        assert [row["entity_id"] for row in dq38_after["violating_rows"]] == [c["id"]]
+        assert dq38_after["violating_rows"][0]["route_entity_type"] == "vendor"
+
+
+@pytest.mark.asyncio
 async def test_dq_endpoint_follows_the_vendors_read_authz_pattern(
     client_factory, test_user_employee: User, test_user_platform_admin: User
 ):

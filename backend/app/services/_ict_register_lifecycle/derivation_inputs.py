@@ -14,7 +14,10 @@ never surface them.
 
 Archived rows keep feeding the graph: Link relations survive archiving (they
 are only removed explicitly), and the link sections of the register UI show
-them either way — the derivation stays consistent with the visible graph.
+them either way — the derivation stays consistent with the visible graph. The
+lone exception is Sub-outsourcing chain rows: an archived row leaves the active
+register, so it is filtered out of the load below (an archived predecessor is a
+#49 "CHYBA ŘETĚZCE" chain break, never a resolvable rank source).
 
 Vendor targets additionally load the WHOLE Contract and Sub-outsourcing
 registers (issue #49): the workbook's duplicate-reference check (08!U) and
@@ -60,6 +63,7 @@ from app.models import (
     VendorRiskLink,
     VendorSubOutsourcing,
 )
+from app.models._archivable import archived_clause
 
 from .committee import IctCommitteeGraph
 from .derivation import (
@@ -341,6 +345,11 @@ async def load_ict_register_graph(
 
     # Contracts + Sub-outsourcing (vendor targets only): whole-register loads —
     # the duplicate check (08!U) and the chain scans (09!E/F) are global.
+    # Sub-outsourcing is the ONE exception to the archived-rows-keep-feeding
+    # stance above: an archived chain row leaves the active register, so the
+    # Rank recursion must not resolve it as a predecessor (an archived
+    # predecessor is a #49 "CHYBA ŘETĚZCE" chain break, DQ-38) and it must not
+    # count as an active DUPLICITA — sub_outsourcing_policy.py:120-121.
     contracts: list[VendorContract] = []
     sub_outsourcing: list[VendorSubOutsourcing] = []
     if vendor_ids:
@@ -349,7 +358,11 @@ async def load_ict_register_graph(
         )
         sub_outsourcing = list(
             (
-                await db.execute(select(VendorSubOutsourcing).order_by(VendorSubOutsourcing.id))
+                await db.execute(
+                    select(VendorSubOutsourcing)
+                    .where(archived_clause(VendorSubOutsourcing, archived=False))
+                    .order_by(VendorSubOutsourcing.id)
+                )
             ).scalars()
         )
 
@@ -463,8 +476,17 @@ async def load_ict_register_dq_graph(db: "AsyncSession") -> IctRegisterDqGraph:
     contracts = list(
         (await db.execute(select(VendorContract).order_by(VendorContract.id))).scalars()
     )
+    # Archived chain rows leave the active register (see load_ict_register_graph):
+    # DQ-38 counts a successor whose archived predecessor broke its chain, and an
+    # archived row is never itself an active chain-break or DUPLICITA finding.
     sub_outsourcing = list(
-        (await db.execute(select(VendorSubOutsourcing).order_by(VendorSubOutsourcing.id))).scalars()
+        (
+            await db.execute(
+                select(VendorSubOutsourcing)
+                .where(archived_clause(VendorSubOutsourcing, archived=False))
+                .order_by(VendorSubOutsourcing.id)
+            )
+        ).scalars()
     )
     risk_process_links = list(
         (await db.execute(select(RiskProcessLink).order_by(RiskProcessLink.id))).scalars()
