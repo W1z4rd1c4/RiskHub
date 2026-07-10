@@ -12,10 +12,12 @@ and `frontend/src/pages/VendorsPage.tsx`.
 - `VendorDetailHeader.tsx`
 - `VendorFormView.tsx`
 - `VendorOverviewTab.tsx`
+- `VendorSubOutsourcingSection.tsx`
 - `VendorsTableSection.tsx`
 - `useVendorDetailState.ts`
 - `vendorContractsPresentation.tsx`
 - `vendorDetailPresentation.ts`
+- `vendorSubOutsourcingPresentation.tsx`
 - `vendorsPagePresentation.ts`
 
 ## Notes

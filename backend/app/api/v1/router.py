@@ -30,6 +30,7 @@ from app.api.v1.endpoints import (
     vendor_contracts,
     vendor_links,
     vendor_reports,
+    vendor_sub_outsourcing,
     vendors,
 )
 
@@ -47,6 +48,7 @@ api_router.include_router(processes.router, prefix="/processes", tags=["processe
 api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
 api_router.include_router(vendor_links.router, tags=["vendor-links"])
 api_router.include_router(vendor_contracts.router, tags=["vendor-contracts"])
+api_router.include_router(vendor_sub_outsourcing.router, tags=["vendor-sub-outsourcing"])
 api_router.include_router(vendor_reports.router, tags=["vendor-reports"])
 api_router.include_router(risk_questionnaires.risk_router, tags=["questionnaires"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])

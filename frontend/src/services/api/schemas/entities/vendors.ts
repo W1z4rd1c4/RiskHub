@@ -1,6 +1,7 @@
 import type { Vendor, VendorLinkedRiskSummary, VendorListResponse } from '@/types/vendor';
 import type { VendorContract } from '@/types/vendorContract';
 import type { LinkedVendorSummary } from '@/types/vendorLink';
+import type { VendorSubOutsourcing } from '@/types/vendorSubOutsourcing';
 
 import { collectionPaginationSchema, passthroughObject, z } from '../common';
 
@@ -35,6 +36,8 @@ const vendorCapabilitiesSchema = passthroughObject({
     can_create_issue: z.boolean(),
     can_view_contracts: z.boolean(),
     can_manage_contracts: z.boolean(),
+    can_view_sub_outsourcing: z.boolean(),
+    can_manage_sub_outsourcing: z.boolean(),
 });
 
 export const vendorContractCapabilitiesSchema = passthroughObject({
@@ -154,6 +157,46 @@ export const vendorContractSchema: z.ZodType<VendorContract> = passthroughObject
 });
 
 export const vendorContractListSchema = z.array(vendorContractSchema);
+
+export const vendorSubOutsourcingCapabilitiesSchema = passthroughObject({
+    can_read: z.boolean(),
+    can_update: z.boolean(),
+    can_archive: z.boolean(),
+    can_restore: z.boolean(),
+});
+
+export const vendorSubOutsourcingSchema: z.ZodType<VendorSubOutsourcing> = passthroughObject({
+    id: z.number(),
+    vendor_id: z.number(),
+    contract_id: z.number(),
+    predecessor_id: z.number().nullable().optional(),
+    sub_provider_name: z.string().nullable().optional(),
+    identifier_type: z.string().nullable().optional(),
+    identifier_value: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
+    ict_service_code: z.string().nullable().optional(),
+    note: z.string().nullable().optional(),
+    is_archived: z.boolean(),
+    archived_at: z.string().nullable().optional(),
+    archived_by_id: z.number().nullable().optional(),
+    capabilities: vendorSubOutsourcingCapabilitiesSchema.nullable().optional(),
+    created_at: z.string(),
+    updated_at: z.string(),
+});
+
+export const vendorSubOutsourcingListSchema = z.array(vendorSubOutsourcingSchema);
+
+/** S01-S19 ICT service taxonomy from the ICT Register reference API (issue #41). */
+export const ictServiceTaxonomySchema = passthroughObject({
+    services: z.array(
+        passthroughObject({
+            code: z.string(),
+            label: z.string(),
+        }),
+    ),
+    cloud_service_codes: z.array(z.string()),
+});
+
 export const vendorArraySchema = z.array(vendorSchema);
 export const vendorListResponseSchema: z.ZodType<VendorListResponse> =
     collectionPaginationSchema(vendorSchema).extend({

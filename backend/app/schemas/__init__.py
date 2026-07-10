@@ -120,6 +120,12 @@ from app.schemas.vendor_contract import (
     VendorContractRead,
     VendorContractUpdate,
 )
+from app.schemas.vendor_sub_outsourcing import (
+    VendorSubOutsourcingCapabilities,
+    VendorSubOutsourcingCreate,
+    VendorSubOutsourcingRead,
+    VendorSubOutsourcingUpdate,
+)
 
 __all__ = [
     # User schemas
@@ -224,6 +230,10 @@ __all__ = [
     "VendorContractCreate",
     "VendorContractUpdate",
     "VendorContractRead",
+    "VendorSubOutsourcingCapabilities",
+    "VendorSubOutsourcingCreate",
+    "VendorSubOutsourcingUpdate",
+    "VendorSubOutsourcingRead",
     # Risk questionnaires
     "RiskQuestionnaireStatusEnum",
     "RiskQuestionnaireListItemRead",

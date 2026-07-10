@@ -296,5 +296,37 @@
     "errors": {
       "mutation_failed": "Saving the contract failed."
     }
+  },
+  "sub_outsourcing": {
+    "title": "Sub-outsourcing",
+    "empty": "No sub-outsourcing entries yet.",
+    "columns": {
+      "sub_provider": "Sub-provider",
+      "contract": "Contract",
+      "country": "Country",
+      "ict_service": "ICT service (S-code)",
+      "status": "Status"
+    },
+    "actions": {
+      "add": "Add sub-outsourcing entry",
+      "create": "Create entry",
+      "edit": "Edit entry",
+      "archive": "Archive entry",
+      "restore": "Restore entry"
+    },
+    "form": {
+      "not_set": "Not set",
+      "contract": "Contract",
+      "predecessor": "Predecessor provider (empty = direct)",
+      "sub_provider_name": "Sub-provider (name)",
+      "identifier_type": "ID code type",
+      "identifier_value": "ID code",
+      "country": "Country",
+      "ict_service": "ICT service (S-code)",
+      "note": "Note"
+    },
+    "errors": {
+      "mutation_failed": "Saving the sub-outsourcing entry failed."
+    }
   }
 }

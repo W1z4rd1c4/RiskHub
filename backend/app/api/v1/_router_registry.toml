@@ -63,6 +63,11 @@ prefix = "/vendors"
 tags = ["vendor-contracts"]
 
 [[modules]]
+module = "vendor_sub_outsourcing"
+prefix = "/vendors"
+tags = ["vendor-sub-outsourcing"]
+
+[[modules]]
 module = "vendor_reports"
 prefix = "/vendor-reports"
 tags = ["vendor-reports"]

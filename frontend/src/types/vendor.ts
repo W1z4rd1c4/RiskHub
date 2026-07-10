@@ -37,6 +37,8 @@ export interface VendorCapabilities {
     can_create_issue: boolean;
     can_view_contracts: boolean;
     can_manage_contracts: boolean;
+    can_view_sub_outsourcing: boolean;
+    can_manage_sub_outsourcing: boolean;
 }
 
 export interface Vendor {

@@ -54,4 +54,13 @@ def vendor_capabilities(current_user: User, vendor: Vendor) -> VendorCapabilitie
         can_manage_contracts=bool(
             is_visible and is_active and has_permission(current_user, "vendor_contracts", "write")
         ),
+        # ICT Register Sub-outsourcing section (issue #45): the same governed
+        # surface as Contracts — the fourth-party contract chain — so both
+        # gates follow the vendor_contracts resource.
+        can_view_sub_outsourcing=bool(
+            is_visible and has_permission(current_user, "vendor_contracts", "read")
+        ),
+        can_manage_sub_outsourcing=bool(
+            is_visible and is_active and has_permission(current_user, "vendor_contracts", "write")
+        ),
     )

@@ -20,6 +20,7 @@ import { VendorLinkedKRIsTab } from '@/components/vendors/VendorLinkedKRIsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 
 import { VendorContractsSection } from './VendorContractsSection';
+import { VendorSubOutsourcingSection } from './VendorSubOutsourcingSection';
 import { getVendorDisplayStatus } from './vendorsPagePresentation';
 
 interface VendorOverviewSummary {
@@ -332,6 +333,18 @@ export function VendorOverviewTab({
                     <VendorContractsSection
                         vendorId={vendor.id}
                         canManageContracts={resolveCapabilityFlag(vendor.capabilities, 'can_manage_contracts')}
+                    />
+                </div>
+            ) : null}
+
+            {resolveCapabilityFlag(vendor.capabilities, 'can_view_sub_outsourcing') ? (
+                <div id="vendor-sub-outsourcing">
+                    <VendorSubOutsourcingSection
+                        vendorId={vendor.id}
+                        canManageSubOutsourcing={resolveCapabilityFlag(
+                            vendor.capabilities,
+                            'can_manage_sub_outsourcing',
+                        )}
                     />
                 </div>
             ) : null}

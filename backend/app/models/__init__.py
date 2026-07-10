@@ -38,6 +38,7 @@ from app.models.vendor_contract import VendorContract
 from app.models.vendor_control_link import VendorControlLink
 from app.models.vendor_kri_link import VendorKRILink
 from app.models.vendor_risk_link import VendorRiskLink
+from app.models.vendor_sub_outsourcing import VendorSubOutsourcing
 
 __all__ = [
     "Role",
@@ -87,6 +88,7 @@ __all__ = [
     "VendorType",
     "VendorReplaceability",
     "VendorContract",
+    "VendorSubOutsourcing",
     "VendorRiskLink",
     "VendorControlLink",
     "VendorKRILink",

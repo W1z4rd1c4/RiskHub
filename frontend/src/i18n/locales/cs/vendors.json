@@ -296,5 +296,37 @@
     "errors": {
       "mutation_failed": "Uložení smlouvy se nezdařilo."
     }
+  },
+  "sub_outsourcing": {
+    "title": "Subdodavatelské řetězce",
+    "empty": "Zatím žádné subdodávky.",
+    "columns": {
+      "sub_provider": "Subdodavatel",
+      "contract": "Smlouva",
+      "country": "Země",
+      "ict_service": "Služba (S-kód)",
+      "status": "Stav"
+    },
+    "actions": {
+      "add": "Přidat subdodávku",
+      "create": "Vytvořit subdodávku",
+      "edit": "Upravit subdodávku",
+      "archive": "Archivovat subdodávku",
+      "restore": "Obnovit subdodávku"
+    },
+    "form": {
+      "not_set": "Nenastaveno",
+      "contract": "Smlouva",
+      "predecessor": "Nadřazený poskytovatel (prázdné = přímý)",
+      "sub_provider_name": "Subdodavatel (název)",
+      "identifier_type": "Typ ID kódu",
+      "identifier_value": "ID kód",
+      "country": "Země",
+      "ict_service": "Služba (S-kód)",
+      "note": "Poznámka"
+    },
+    "errors": {
+      "mutation_failed": "Uložení subdodávky se nezdařilo."
+    }
   }
 }

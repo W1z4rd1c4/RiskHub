@@ -39,6 +39,9 @@ export function getVendorDetailScrollTargetId(tab: string | null, section: strin
     if (tab === 'contracts') {
         return 'vendor-contracts';
     }
+    if (tab === 'sub-outsourcing') {
+        return 'vendor-sub-outsourcing';
+    }
     return null;
 }
 

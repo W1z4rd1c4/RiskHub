@@ -157,6 +157,30 @@ entity_type = "VENDOR_CONTRACT"
 action = "UPDATE"
 
 [[adapter]]
+module = "vendor_sub_outsourcing"
+function = "vendor_sub_outsourcing_created"
+entity_type = "VENDOR_SUB_OUTSOURCING"
+action = "CREATE"
+
+[[adapter]]
+module = "vendor_sub_outsourcing"
+function = "vendor_sub_outsourcing_updated"
+entity_type = "VENDOR_SUB_OUTSOURCING"
+action = "UPDATE"
+
+[[adapter]]
+module = "vendor_sub_outsourcing"
+function = "vendor_sub_outsourcing_archived"
+entity_type = "VENDOR_SUB_OUTSOURCING"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "vendor_sub_outsourcing"
+function = "vendor_sub_outsourcing_restored"
+entity_type = "VENDOR_SUB_OUTSOURCING"
+action = "UPDATE"
+
+[[adapter]]
 module = "issue"
 function = "issue_created"
 entity_type = "ISSUE"

@@ -207,6 +207,8 @@ class VendorCapabilities(BaseModel):
     can_create_issue: bool
     can_view_contracts: bool
     can_manage_contracts: bool
+    can_view_sub_outsourcing: bool
+    can_manage_sub_outsourcing: bool
 
 
 class VendorRead(VendorBase):

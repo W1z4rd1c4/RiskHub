@@ -211,7 +211,9 @@
         "can_view_linked_kris",
         "can_create_issue",
         "can_view_contracts",
-        "can_manage_contracts"
+        "can_manage_contracts",
+        "can_view_sub_outsourcing",
+        "can_manage_sub_outsourcing"
       ]
     },
     {
@@ -223,6 +225,23 @@
       "frontend": {
         "path": "frontend/src/services/api/schemas/entities/vendors.ts",
         "schema": "vendorContractCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_update",
+        "can_archive",
+        "can_restore"
+      ]
+    },
+    {
+      "id": "vendor_sub_outsourcing",
+      "backend": {
+        "path": "backend/app/schemas/vendor_sub_outsourcing.py",
+        "class": "VendorSubOutsourcingCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/vendors.ts",
+        "schema": "vendorSubOutsourcingCapabilitiesSchema"
       },
       "fields": [
         "can_read",
