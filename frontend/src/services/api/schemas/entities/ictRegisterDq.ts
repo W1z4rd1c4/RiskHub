@@ -20,6 +20,8 @@ export const ictDqCheckSchema: z.ZodType<IctDqCheck> = passthroughObject({
     threshold: z.number(),
     count: z.number(),
     status: z.string(),
+    production_inert: z.boolean().optional(),
+    production_inert_reason: z.string().nullable().optional(),
     violating_rows: z.array(ictDqViolatingRowSchema),
 });
 

@@ -1,10 +1,11 @@
-"""ICT Register reference-data + data-quality endpoints (read-only).
+"""ICT Register reference-data, data-quality, and committee endpoints (read-only).
 
 Serves the workbook's closed lists, ICT service taxonomy, country categories,
-CZ->EN RoI maps, the versioned workbook parameter set, and the 52-check
-data-quality read model (issue #50) to the frontend. The surface is
-read-only; reference data is maintained in the reference registry and DQ
-findings are computed on read, never persisted.
+CZ->EN RoI maps, the versioned workbook parameter set, the 52-check
+data-quality read model (issue #50), and the ICT Risk Committee read model
+(issue #51) to the frontend. The surface is read-only; reference data is
+maintained in the reference registry and DQ findings and committee tiles are
+computed on read, never persisted.
 """
 
 from __future__ import annotations
@@ -20,6 +21,21 @@ from app.models import User
 from app.schemas.ict_register import (
     IctClosedListCollectionRead,
     IctClosedListRead,
+    IctCommitteeBandCountRead,
+    IctCommitteeCroKpiRead,
+    IctCommitteeCroRead,
+    IctCommitteeDashboardRead,
+    IctCommitteeHeatmapRead,
+    IctCommitteeHeatmapRowRead,
+    IctCommitteeKeyMetricsRead,
+    IctCommitteeMigrationMatrixRead,
+    IctCommitteeMigrationRowRead,
+    IctCommitteeNarrativesRead,
+    IctCommitteeRead,
+    IctCommitteeRegisterStateRead,
+    IctCommitteeRiskBandCountsRead,
+    IctCommitteeTopRiskRead,
+    IctCommitteeTopVendorRead,
     IctCountryCategoryCollectionRead,
     IctCountryCategoryRead,
     IctDqCheckRead,
@@ -33,8 +49,13 @@ from app.schemas.ict_register import (
     IctWorkbookParameterRead,
     IctWorkbookParameterSetRead,
 )
-from app.services._ict_register_lifecycle.derivation_inputs import load_ict_register_dq_graph
-from app.services._ict_register_lifecycle.dq import derive_ict_register_dq
+from app.services._ict_register_lifecycle.committee import derive_ict_register_committee
+from app.services._ict_register_lifecycle.derivation_inputs import (
+    load_dq_viewer_scope,
+    load_ict_register_committee_graph,
+    load_ict_register_dq_graph,
+)
+from app.services._ict_register_lifecycle.dq import derive_ict_register_dq, visible_dq_result
 from app.services._ict_register_reference.closed_lists import CLOSED_LISTS, closed_list_values
 from app.services._ict_register_reference.country_categories import COUNTRY_CATEGORIES
 from app.services._ict_register_reference.ict_service_taxonomy import (
@@ -144,10 +165,20 @@ async def get_data_quality_checks(
     spec #38): threshold 0, OK/NÁLEZ status, and per-check drill-down to the
     violating rows. Mandatory-if rules surface here as findings only — the
     write paths never block them.
+
+    Counts and statuses are GLOBAL (oversight semantics), but the listed
+    violating rows are filtered per caller through each entity's canonical
+    read predicate (permission gates; Vendor/Risk row visibility): a
+    dept-scoped user sees that a check found N rows without learning
+    anything a browse of that entity's own endpoints would not show them.
+    Checks marked ``production_inert`` have no app column feeding their
+    trigger (DQ-23) and read "not yet measurable" rather than a false OK.
     """
     dq_graph = await load_ict_register_dq_graph(db)
     parameter_set = await load_ict_workbook_parameter_set(db)
     result = derive_ict_register_dq(dq_graph, parameter_set)
+    viewer_scope = await load_dq_viewer_scope(db, current_user, result)
+    result = visible_dq_result(result, viewer_scope)
     return IctRegisterDqRead(
         checks=[
             IctDqCheckRead(
@@ -158,6 +189,8 @@ async def get_data_quality_checks(
                 threshold=check.threshold,
                 count=check.count,
                 status=check.status,
+                production_inert=check.production_inert,
+                production_inert_reason=check.production_inert_reason,
                 violating_rows=[
                     IctDqViolatingRowRead(
                         entity_type=row.entity_type,
@@ -201,4 +234,58 @@ async def get_workbook_parameter_set(
             )
             for parameter in ICT_WORKBOOK_PARAMETERS
         ],
+    )
+
+
+@router.get("/committee", response_model=IctCommitteeRead)
+async def get_committee_overview(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("ict_committee", "read")),
+) -> IctCommitteeRead:
+    """Return the ICT Risk Committee read model (issue #51).
+
+    Reproduces the workbook's 16_Dashboard and 18_CRO_přehled per the tile
+    inventory contract, computed on read over the whole register graph.
+    Gated by the committee's OWN resource permission (executive/oversight
+    roles; platform admins hold no business permissions): every figure is a
+    register-global aggregate — the workbook sheets the committee saw — so no
+    per-row scoping applies here; drill-downs land on row-scoped surfaces.
+    """
+    committee_graph = await load_ict_register_committee_graph(db)
+    parameter_set = await load_ict_workbook_parameter_set(db)
+    committee = derive_ict_register_committee(committee_graph, parameter_set)
+    return IctCommitteeRead(
+        dashboard=IctCommitteeDashboardRead(
+            register_state=IctCommitteeRegisterStateRead(
+                **vars(committee.dashboard.register_state)
+            ),
+            key_metrics=IctCommitteeKeyMetricsRead(**vars(committee.dashboard.key_metrics)),
+        ),
+        cro=IctCommitteeCroRead(
+            kpi=IctCommitteeCroKpiRead(**vars(committee.cro.kpi)),
+            heatmap=IctCommitteeHeatmapRead(
+                rows=[
+                    IctCommitteeHeatmapRowRead(probability=row.probability, cells=list(row.cells))
+                    for row in committee.cro.heatmap.rows
+                ]
+            ),
+            migration_matrix=IctCommitteeMigrationMatrixRead(
+                rows=[
+                    IctCommitteeMigrationRowRead(gross_band=row.gross_band, cells=list(row.cells))
+                    for row in committee.cro.migration_matrix.rows
+                ]
+            ),
+            top_risks=[IctCommitteeTopRiskRead(**vars(entry)) for entry in committee.cro.top_risks],
+            top_vendors=[
+                IctCommitteeTopVendorRead(**vars(entry)) for entry in committee.cro.top_vendors
+            ],
+            narratives=IctCommitteeNarrativesRead(**vars(committee.cro.narratives)),
+            assets_by_criticality=[
+                IctCommitteeBandCountRead(**vars(entry))
+                for entry in committee.cro.assets_by_criticality
+            ],
+            risks_by_band=[
+                IctCommitteeRiskBandCountsRead(**vars(entry)) for entry in committee.cro.risks_by_band
+            ],
+        ),
     )

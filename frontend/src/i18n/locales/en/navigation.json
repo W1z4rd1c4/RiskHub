@@ -10,6 +10,7 @@
         "assets": "Assets",
         "threats": "Threats",
         "ict_register_dq": "ICT Data Quality",
+        "ict_register_committee": "ICT Risk Committee",
         "approvals": "Workflow",
         "activity_log": "Audit Trail",
         "reports": "Reports",

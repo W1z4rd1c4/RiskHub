@@ -20,6 +20,10 @@ export interface IctDqCheck {
     threshold: number;
     count: number;
     status: string;
+    /** True when the check's trigger has no app column (DQ-23): permanently
+     * quiet on production data — render "not yet measurable", not OK. */
+    production_inert?: boolean;
+    production_inert_reason?: string | null;
     violating_rows: IctDqViolatingRow[];
 }
 

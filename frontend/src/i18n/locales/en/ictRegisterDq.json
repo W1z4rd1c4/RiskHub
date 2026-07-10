@@ -16,7 +16,9 @@
     },
     "status": {
         "ok": "OK",
-        "finding": "Finding"
+        "finding": "Finding",
+        "not_measurable": "Not yet measurable",
+        "not_measurable_hint": "The app does not track this check's inputs yet, so it cannot fire on production data."
     },
     "severity": {
         "critical": "Critical",

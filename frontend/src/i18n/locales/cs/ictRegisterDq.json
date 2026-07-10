@@ -16,7 +16,9 @@
     },
     "status": {
         "ok": "OK",
-        "finding": "NÁLEZ"
+        "finding": "NÁLEZ",
+        "not_measurable": "Zatím neměřitelné",
+        "not_measurable_hint": "Vstupy této kontroly aplikace zatím neeviduje, na produkčních datech se proto nemůže spustit."
     },
     "severity": {
         "critical": "Kritická",

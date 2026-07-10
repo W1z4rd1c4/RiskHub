@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, RefreshCw } from 'lucide-react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
@@ -14,6 +14,8 @@ import {
     dqSeverityKey,
     filterChecks,
     isFinding,
+    isProductionInert,
+    parseDqPageQueryParams,
     summarizeChecks,
     violatingRowPath,
 } from './ictRegisterDq/dqPresentation';
@@ -29,6 +31,20 @@ function StatusPill({ check }: { check: IctDqCheck }) {
             >
                 <AlertCircle className="h-3.5 w-3.5" />
                 {t('status.finding')}
+            </span>
+        );
+    }
+    if (isProductionInert(check)) {
+        // A quiet check with no app column feeding it (DQ-23): muted "not
+        // yet measurable", never a false OK.
+        return (
+            <span
+                data-testid={`dq-status-${check.check_id}`}
+                title={t('status.not_measurable_hint')}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-white/5 text-slate-400"
+            >
+                <CircleDashed className="h-3.5 w-3.5" />
+                {t('status.not_measurable')}
             </span>
         );
     }
@@ -97,12 +113,18 @@ function ViolatingRows({ check }: { check: IctDqCheck }) {
 
 export function IctRegisterDqPage() {
     const { t } = useTranslation('ictRegisterDq');
+    // Committee drill-down deep links (#51): ?check= pre-expands the
+    // producing check; ?status=findings pre-applies the findings filter.
+    const [searchParams] = useSearchParams();
+    const [initialQueryState] = useState(() => parseDqPageQueryParams(searchParams));
     const [data, setData] = useState<IctRegisterDq | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [isAccessDenied, setIsAccessDenied] = useState(false);
-    const [statusFilter, setStatusFilter] = useState<DqStatusFilter>('all');
-    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    const [statusFilter, setStatusFilter] = useState<DqStatusFilter>(initialQueryState.statusFilter);
+    const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
+        initialQueryState.expandedCheckId ? { [initialQueryState.expandedCheckId]: true } : {}
+    );
 
     const fetchDq = useCallback(async () => {
         setIsLoading(true);

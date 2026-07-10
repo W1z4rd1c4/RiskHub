@@ -5,6 +5,7 @@ export * from './processes';
 export * from './assets';
 export * from './threats';
 export * from './ictRegisterDq';
+export * from './ictRegisterCommittee';
 export * from './dashboard';
 export * from './preferences';
 export * from './approvals';

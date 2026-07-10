@@ -1046,6 +1046,22 @@
    ],
    "status": "authoritative",
    "findings": []
+  },
+  {
+   "id": "AUTHZ-ICT-COMMITTEE-READ",
+   "surface": "ICT Register",
+   "action": "Read the ICT Risk Committee page read model: the workbook's 16_Dashboard and 18_CRO_přehled tile inventory (register-state tiles, key metrics, CRO KPI strip, gross heatmap, gross→net migration matrix, Top-10 risks, Top-5 vendor concentration, narrative values, band aggregates), computed on read",
+   "actor_scope": "Requires ict_committee:read — the committee page's OWN resource permission, granted by the RBAC seed to the executive/oversight roles only (ceo, cfo, coo, risk_manager, compliance, internal_audit; CRO via wildcard); employee, department_head, and viewer are not granted, and platform admins hold no business permissions and are denied; every figure is a register-global aggregate (the workbook sheets the committee saw), so no per-row or department scope applies — drill-downs land on row-scoped surfaces that enforce their own visibility",
+   "backend_authority": "backend/app/api/v1/endpoints/ict_register.py GET /api/v1/ict-register/committee",
+   "service_policy": "backend/app/services/_ict_register_lifecycle/committee.py owns the pure committee engine over the derivation and DQ outputs (never recomputing their rules); backend/app/services/_ict_register_lifecycle/derivation_inputs.py owns the committee graph load (the DQ graph plus threat labels); grants live in backend/app/db/rbac_seed_contract.py and the b3c4d5e6f7a8 permission-sync data migration (parity-pinned by the backend test)",
+   "response_capability": "None — a compute-on-read model in backend/app/schemas/ict_register.py (IctCommitteeRead); tiles carry no per-user state, so no per-row action metadata is exposed",
+   "frontend_gate": "frontend/src/routing/business.tsx gates the /ict-register/committee route and sidebar entry on the ict_committee:read projection (me_capabilities.resource_permissions); frontend/src/pages/IctRegisterCommitteePage.tsx renders backend read authority and denies on backend 403",
+   "tests": [
+    "tests/backend/pytest/test_ict_register_committee.py",
+    "tests/frontend/unit/src/pages/__tests__/IctRegisterCommitteePage.presentation.test.tsx"
+   ],
+   "status": "authoritative",
+   "findings": []
   }
  ]
 }

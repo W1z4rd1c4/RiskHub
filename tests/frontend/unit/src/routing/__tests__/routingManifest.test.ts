@@ -105,6 +105,7 @@ describe('routing manifest parity', () => {
         'users:write',
         'vendors:read',
         'departments:read',
+        'ict_committee:read',
       ],
     );
 
@@ -117,6 +118,7 @@ describe('routing manifest parity', () => {
       '/kris',
       '/vendors',
       '/ict-register/data-quality',
+      '/ict-register/committee',
       '/departments',
       '/governance',
       '/activity-log',
@@ -129,7 +131,15 @@ describe('routing manifest parity', () => {
   it('matches risk-manager sidebar visibility contract', () => {
     const hrefs = visibleSidebarHrefs(
       { role: 'risk_manager', access_scope: 'global' },
-      ['activity_log:read', 'controls:read', 'risks:read', 'issues:read', 'vendors:read', 'departments:read'],
+      [
+        'activity_log:read',
+        'controls:read',
+        'risks:read',
+        'issues:read',
+        'vendors:read',
+        'departments:read',
+        'ict_committee:read',
+      ],
     );
 
     expect(hrefs).toEqual([
@@ -141,11 +151,40 @@ describe('routing manifest parity', () => {
       '/kris',
       '/vendors',
       '/ict-register/data-quality',
+      '/ict-register/committee',
       '/departments',
       '/activity-log',
       '/settings',
       '/users',
     ]);
+  });
+
+  it('hides the ICT Risk Committee entry without ict_committee:read (employee manifest)', () => {
+    // The #51 grant set: executive/oversight roles only — an employee holds
+    // the register reads but NOT the committee resource.
+    const hrefs = visibleSidebarHrefs(
+      { role: 'employee', access_scope: 'department' },
+      ['controls:read', 'risks:read', 'vendors:read', 'processes:read', 'assets:read', 'threats:read'],
+    );
+
+    expect(hrefs).not.toContain('/ict-register/committee');
+    expect(hrefs).toContain('/ict-register/data-quality');
+  });
+
+  it('shows the ICT Risk Committee entry from strict MeCapabilities ict_committee:read', () => {
+    const hasPermission = createPermissionChecker([]);
+    const authz = buildAuthz(
+      { role: 'ceo', access_scope: 'global' },
+      hasPermission,
+      meCapabilities({
+        resource_permissions: { 'ict_committee:read': true },
+      }),
+      true,
+    );
+
+    const hrefs = getSidebarNavRoutes({ authz, hasPermission }).map((route) => route.nav.href);
+
+    expect(hrefs).toContain('/ict-register/committee');
   });
 
   it('hides core entity navigation without matching read permissions', () => {

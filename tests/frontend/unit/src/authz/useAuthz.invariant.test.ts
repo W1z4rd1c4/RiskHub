@@ -60,7 +60,17 @@ describe('useAuthz invariants', () => {
         );
 
         expect(routeResources).toEqual(
-            new Set(['controls', 'risks', 'issues', 'vendors', 'processes', 'assets', 'threats', 'departments']),
+            new Set([
+                'controls',
+                'risks',
+                'issues',
+                'vendors',
+                'processes',
+                'assets',
+                'threats',
+                'ict_committee',
+                'departments',
+            ]),
         );
 
         const resource_permissions = Object.fromEntries(

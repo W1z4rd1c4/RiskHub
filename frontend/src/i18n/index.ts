@@ -18,6 +18,7 @@ import processesEN from './locales/en/processes.json';
 import assetsEN from './locales/en/assets.json';
 import threatsEN from './locales/en/threats.json';
 import ictRegisterDqEN from './locales/en/ictRegisterDq.json';
+import ictRegisterCommitteeEN from './locales/en/ictRegisterCommittee.json';
 import issuesEN from './locales/en/issues.json';
 import errorKeysEN from './locales/en/errorKeys.json';
 import notificationsEN from './locales/en/notifications.json';
@@ -38,6 +39,7 @@ import processesCS from './locales/cs/processes.json';
 import assetsCS from './locales/cs/assets.json';
 import threatsCS from './locales/cs/threats.json';
 import ictRegisterDqCS from './locales/cs/ictRegisterDq.json';
+import ictRegisterCommitteeCS from './locales/cs/ictRegisterCommittee.json';
 import issuesCS from './locales/cs/issues.json';
 import errorKeysCS from './locales/cs/errorKeys.json';
 import notificationsCS from './locales/cs/notifications.json';
@@ -64,6 +66,7 @@ export const resources = {
         assets: assetsEN,
         threats: threatsEN,
         ictRegisterDq: ictRegisterDqEN,
+        ictRegisterCommittee: ictRegisterCommitteeEN,
         issues: issuesEN,
         errorKeys: errorKeysEN,
         notifications: notificationsEN,
@@ -84,6 +87,7 @@ export const resources = {
         assets: assetsCS,
         threats: threatsCS,
         ictRegisterDq: ictRegisterDqCS,
+        ictRegisterCommittee: ictRegisterCommitteeCS,
         issues: issuesCS,
         errorKeys: errorKeysCS,
         notifications: notificationsCS,
@@ -105,6 +109,7 @@ export const namespaces = [
     'processes',
     'assets',
     'threats',
+    'ictRegisterCommittee',
     'issues',
     'errorKeys',
     'notifications',

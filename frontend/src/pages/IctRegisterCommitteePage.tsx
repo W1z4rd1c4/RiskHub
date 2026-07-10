@@ -1,0 +1,647 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Legend,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+
+import { useChartTheme } from '@/hooks/useChartTheme';
+import { useTranslation } from '@/i18n/hooks';
+import { apiClient, isForbiddenApiError } from '@/services/apiClient';
+import { ictRegisterCommitteeApi } from '@/services/ictRegisterCommitteeApi';
+import type {
+    IctCommittee,
+    IctCommitteeKeyMetrics,
+    IctCommitteeRegisterState,
+    IctCommitteeTopRisk,
+    IctCommitteeTopVendor,
+} from '@/types/ictRegisterCommittee';
+
+import {
+    HEATMAP_SUBJECT_VALUES,
+    heatmapCellFill,
+    metricDrilldownPath,
+    migrationCellFill,
+    narrativeParams,
+    netBandStyle,
+    riskBandChartRows,
+    stateTileDrilldownPath,
+    tierStyle,
+    toleranceStyle,
+    topRiskPath,
+    topVendorPath,
+} from './ictRegisterCommittee/committeePresentation';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+
+// 16_Dashboard §1.1 tile order (inventory rows 7-16).
+const STATE_TILE_KEYS: (keyof IctCommitteeRegisterState)[] = [
+    'process_count',
+    'asset_count',
+    'process_asset_link_count',
+    'vendor_count',
+    'assets_pending_review_count',
+    'direct_process_vendor_link_count',
+    'contracts_in_roi_scope_count',
+    'sub_outsourcing_link_count',
+    'assets_without_data_classification_count',
+    'top_tier_vendors_without_orderly_exit_count',
+];
+
+// 16_Dashboard §1.2 metric-row order (inventory rows 19-24).
+const METRIC_KEYS: (keyof IctCommitteeKeyMetrics)[] = [
+    'cif_process_count',
+    'processes_without_impact_assessment_count',
+    'critical_asset_count',
+    'critical_vendor_count',
+    'risks_above_tolerance_count',
+    'open_dq_finding_count',
+];
+
+// 18_CRO_přehled §2.1 KPI order (cells A7-K7).
+const KPI_KEYS = [
+    'risk_count',
+    'material_risk_count',
+    'risks_above_tolerance_count',
+    'accepted_above_tolerance_count',
+    'cif_without_bcm_count',
+    'open_dq_finding_count',
+] as const;
+
+const NET_BANDS = ['Nízké', 'Střední', 'Vysoké', 'Kritické'];
+
+function CellPill({
+    value,
+    style,
+    testId,
+}: {
+    value: string | null;
+    style: { backgroundColor: string; color: string } | null;
+    testId?: string;
+}) {
+    if (!value) {
+        return <span data-testid={testId} />;
+    }
+    return (
+        <span
+            data-testid={testId}
+            style={style ?? undefined}
+            className="inline-block px-2 py-0.5 rounded-lg text-xs font-semibold whitespace-nowrap"
+        >
+            {value}
+        </span>
+    );
+}
+
+function MatrixCell({ fill, count, testId }: { fill: string | null; count: number; testId: string }) {
+    return (
+        <div
+            data-testid={testId}
+            style={fill ? { backgroundColor: fill, color: '#0F172A' } : undefined}
+            className={`h-10 min-w-10 flex items-center justify-center rounded-lg text-sm font-bold tabular-nums ${
+                fill ? '' : 'bg-white/5 text-slate-500'
+            }`}
+        >
+            {count}
+        </div>
+    );
+}
+
+function TopRisksTable({ risks }: { risks: IctCommitteeTopRisk[] }) {
+    const { t } = useTranslation('ictRegisterCommittee');
+    const emptyRanks = Array.from({ length: 10 - risks.length }, (_, index) => risks.length + index + 1);
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+                <thead>
+                    <tr className="text-left text-slate-500 text-xs uppercase tracking-wide">
+                        <th className="py-2 pr-3">{t('top_risks_columns.rank')}</th>
+                        <th className="py-2 pr-3">{t('top_risks_columns.id')}</th>
+                        <th className="py-2 pr-3">{t('top_risks_columns.subject')}</th>
+                        <th className="py-2 pr-3">{t('top_risks_columns.threat')}</th>
+                        <th className="py-2 pr-3 text-right">{t('top_risks_columns.gross')}</th>
+                        <th className="py-2 pr-3 text-right">{t('top_risks_columns.net')}</th>
+                        <th className="py-2 pr-3">{t('top_risks_columns.band')}</th>
+                        <th className="py-2 pr-3">{t('top_risks_columns.tolerance')}</th>
+                        <th className="py-2">{t('top_risks_columns.status')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {risks.map((risk) => (
+                        <tr
+                            key={risk.rank}
+                            data-testid={`committee-top-risk-${risk.rank}`}
+                            className="border-t border-white/5"
+                        >
+                            <td className="py-2 pr-3 text-slate-500 font-bold">{risk.rank}</td>
+                            <td className="py-2 pr-3">
+                                <Link
+                                    to={topRiskPath(risk.risk_id)}
+                                    className="text-slate-200 font-semibold hover:text-accent underline decoration-white/20 hover:decoration-accent"
+                                >
+                                    {risk.code ?? `#${risk.risk_id}`}
+                                </Link>
+                            </td>
+                            <td className="py-2 pr-3 text-slate-300">{risk.subject_label}</td>
+                            <td className="py-2 pr-3 text-slate-300">{risk.threat_label}</td>
+                            <td className="py-2 pr-3 text-right tabular-nums text-slate-300">
+                                {risk.gross_score}
+                            </td>
+                            <td className="py-2 pr-3 text-right tabular-nums font-bold text-white">
+                                {risk.net_score}
+                            </td>
+                            <td className="py-2 pr-3">
+                                <CellPill value={risk.net_band} style={netBandStyle(risk.net_band)} />
+                            </td>
+                            <td className="py-2 pr-3">
+                                <CellPill
+                                    value={risk.vs_tolerance}
+                                    style={toleranceStyle(risk.vs_tolerance)}
+                                />
+                            </td>
+                            <td className="py-2 text-slate-300">{risk.status_label}</td>
+                        </tr>
+                    ))}
+                    {emptyRanks.map((rank) => (
+                        <tr
+                            key={rank}
+                            data-testid={`committee-top-risk-empty-${rank}`}
+                            className="border-t border-white/5"
+                        >
+                            <td className="py-2 pr-3 text-slate-600 font-bold">{rank}</td>
+                            <td className="py-2 text-slate-600" colSpan={8} />
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+function TopVendorsTable({ vendors }: { vendors: IctCommitteeTopVendor[] }) {
+    const { t } = useTranslation('ictRegisterCommittee');
+    const emptyRanks = Array.from({ length: 5 - vendors.length }, (_, index) => vendors.length + index + 1);
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+                <thead>
+                    <tr className="text-left text-slate-500 text-xs uppercase tracking-wide">
+                        <th className="py-2 pr-3">{t('top_vendors_columns.rank')}</th>
+                        <th className="py-2 pr-3">{t('top_vendors_columns.vendor')}</th>
+                        <th className="py-2 pr-3 text-right">{t('top_vendors_columns.cif_processes')}</th>
+                        <th className="py-2">{t('top_vendors_columns.tier')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {vendors.map((vendor) => (
+                        <tr
+                            key={vendor.rank}
+                            data-testid={`committee-top-vendor-${vendor.rank}`}
+                            className="border-t border-white/5"
+                        >
+                            <td className="py-2 pr-3 text-slate-500 font-bold">{vendor.rank}</td>
+                            <td className="py-2 pr-3">
+                                <Link
+                                    to={topVendorPath(vendor.vendor_id)}
+                                    className="text-slate-200 font-semibold hover:text-accent underline decoration-white/20 hover:decoration-accent"
+                                >
+                                    {vendor.name}
+                                </Link>
+                            </td>
+                            <td className="py-2 pr-3 text-right tabular-nums font-bold text-white">
+                                {vendor.cif_process_count}
+                            </td>
+                            <td className="py-2">
+                                <CellPill value={vendor.tier} style={tierStyle(vendor.tier)} />
+                            </td>
+                        </tr>
+                    ))}
+                    {emptyRanks.map((rank) => (
+                        <tr
+                            key={rank}
+                            data-testid={`committee-top-vendor-empty-${rank}`}
+                            className="border-t border-white/5"
+                        >
+                            <td className="py-2 pr-3 text-slate-600 font-bold">{rank}</td>
+                            <td className="py-2 text-slate-600" colSpan={3} />
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+export function IctRegisterCommitteePage() {
+    const { t } = useTranslation('ictRegisterCommittee');
+    const chartTheme = useChartTheme();
+    const [data, setData] = useState<IctCommittee | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
+
+    const fetchCommittee = useCallback(async () => {
+        setIsLoading(true);
+        setErrorKey(null);
+        try {
+            setData(await ictRegisterCommitteeApi.getCommittee());
+            setIsAccessDenied(false);
+        } catch (error) {
+            if (isForbiddenApiError(error)) {
+                setIsAccessDenied(true);
+            } else {
+                setErrorKey(apiClient.toUiMessageKey(error));
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void fetchCommittee();
+    }, [fetchCommittee]);
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
+    }
+
+    const narrativeValues = data ? narrativeParams(data.cro.narratives) : null;
+
+    return (
+        <div className="space-y-8">
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
+                    <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => void fetchCommittee()}
+                    data-testid="committee-refresh-button"
+                    className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 font-bold hover:bg-white/10 transition-all flex items-center gap-2"
+                >
+                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    {t('actions.refresh')}
+                </button>
+            </div>
+
+            {errorKey && (
+                <div className="glass-card border border-red-500/30 text-red-400 flex items-center gap-3">
+                    <AlertCircle className="h-5 w-5" />
+                    {t(errorKey)}
+                </div>
+            )}
+
+            {data && (
+                <>
+                    {/* 16_Dashboard — Provozní přehled správce registru */}
+                    <section className="space-y-4" data-testid="committee-dashboard">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                            <h2 className="text-xl font-bold text-white">{t('dashboard.title')}</h2>
+                            {/* The workbook's row-5 nav chrome, mapped in-app. */}
+                            <div className="flex gap-4 text-sm font-semibold">
+                                <Link
+                                    to="/ict-register/data-quality"
+                                    data-testid="committee-nav-dq"
+                                    className="text-slate-400 hover:text-accent transition-colors"
+                                >
+                                    {t('nav.dq')}
+                                </Link>
+                                <a
+                                    href="#cro"
+                                    data-testid="committee-nav-cro"
+                                    className="text-slate-400 hover:text-accent transition-colors"
+                                >
+                                    {t('nav.cro')}
+                                </a>
+                            </div>
+                        </div>
+
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+                            {t('dashboard.state_heading')}
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            {STATE_TILE_KEYS.map((key) => (
+                                <Link key={key} to={stateTileDrilldownPath(key)} className="glass-card block hover:bg-white/5 transition-colors">
+                                    <div data-testid={`committee-state-${key}`}>
+                                        <p className="text-slate-500 text-xs font-medium min-h-8">
+                                            {t(`state.${key}`)}
+                                        </p>
+                                        <p className="text-2xl font-bold text-white mt-1 tabular-nums">
+                                            {data.dashboard.register_state[key]}
+                                        </p>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+                            {t('dashboard.metrics_heading')}
+                        </h3>
+                        <div className="glass-card overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-slate-500 text-xs uppercase tracking-wide">
+                                        <th className="py-2 pr-3">{t('dashboard.metrics_columns.metric')}</th>
+                                        <th className="py-2 pr-3 text-right">
+                                            {t('dashboard.metrics_columns.value')}
+                                        </th>
+                                        <th className="py-2 pr-3">
+                                            {t('dashboard.metrics_columns.interpretation')}
+                                        </th>
+                                        <th className="py-2 pr-3">{t('dashboard.metrics_columns.source')}</th>
+                                        <th className="py-2">{t('dashboard.metrics_columns.action')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {METRIC_KEYS.map((key) => (
+                                        <tr
+                                            key={key}
+                                            data-testid={`committee-metric-${key}`}
+                                            className="border-t border-white/5"
+                                        >
+                                            <td className="py-2.5 pr-3 text-slate-200 font-semibold">
+                                                {t(`metrics.${key}.label`)}
+                                            </td>
+                                            <td className="py-2.5 pr-3 text-right">
+                                                <Link
+                                                    to={metricDrilldownPath(key)}
+                                                    className="text-lg font-bold text-white tabular-nums hover:text-accent underline decoration-white/20 hover:decoration-accent"
+                                                >
+                                                    {data.dashboard.key_metrics[key]}
+                                                </Link>
+                                            </td>
+                                            <td className="py-2.5 pr-3 text-slate-400">
+                                                {t(`metrics.${key}.interpretation`)}
+                                            </td>
+                                            <td className="py-2.5 pr-3">
+                                                <Link
+                                                    to={metricDrilldownPath(key)}
+                                                    className="text-slate-400 hover:text-accent underline decoration-white/20 hover:decoration-accent"
+                                                >
+                                                    {t(`metrics.${key}.source`)}
+                                                </Link>
+                                            </td>
+                                            <td className="py-2.5 text-slate-400">{t(`metrics.${key}.action`)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    {/* 18_CRO_přehled — Manažerské shrnutí */}
+                    <section id="cro" className="space-y-4" data-testid="committee-cro">
+                        <h2 className="text-xl font-bold text-white">{t('cro.title')}</h2>
+
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                            {KPI_KEYS.map((key) => {
+                                const path =
+                                    key === 'cif_without_bcm_count'
+                                        ? '/ict-register/data-quality?check=DQ-05'
+                                        : key === 'open_dq_finding_count'
+                                          ? '/ict-register/data-quality?status=findings'
+                                          : '/risks';
+                                return (
+                                    <Link key={key} to={path} className="glass-card block hover:bg-white/5 transition-colors">
+                                        <div data-testid={`committee-kpi-${key}`}>
+                                            <p className="text-slate-500 text-xs font-bold text-center min-h-8">
+                                                {t(`kpi.${key}`)}
+                                            </p>
+                                            <p className="text-3xl font-bold text-white text-center mt-1 tabular-nums">
+                                                {data.cro.kpi[key]}
+                                            </p>
+                                        </div>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                            {/* Heatmap (§2.2): full 5×5, probability 5..1 down. */}
+                            <div className="glass-card" data-testid="committee-heatmap">
+                                <h3 className="text-white font-bold">{t('cro.heatmap_title')}</h3>
+                                <p className="text-slate-500 text-xs font-medium mt-1">{t('cro.heatmap_axis')}</p>
+                                <div className="mt-3 space-y-1.5">
+                                    {data.cro.heatmap.rows.map((row) => (
+                                        <div key={row.probability} className="flex items-center gap-1.5">
+                                            <span className="w-5 text-right text-xs text-slate-500 font-bold">
+                                                {row.probability}
+                                            </span>
+                                            <div className="grid grid-cols-5 gap-1.5 flex-1">
+                                                {row.cells.map((count, index) => (
+                                                    <Link
+                                                        key={index}
+                                                        to="/risks"
+                                                        className="block"
+                                                    >
+                                                        <MatrixCell
+                                                            fill={heatmapCellFill(count)}
+                                                            count={count}
+                                                            testId={`committee-heatmap-cell-${row.probability}-${index + 1}`}
+                                                        />
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-5" />
+                                        <div className="grid grid-cols-5 gap-1.5 flex-1">
+                                            {HEATMAP_SUBJECT_VALUES.map((value) => (
+                                                <span
+                                                    key={value}
+                                                    className="text-center text-xs text-slate-500 font-bold"
+                                                >
+                                                    {value}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Migration matrix (§2.3): gross bands down, net bands across. */}
+                            <div className="glass-card" data-testid="committee-migration">
+                                <h3 className="text-white font-bold">{t('cro.migration_title')}</h3>
+                                <p className="text-slate-500 text-xs font-medium mt-1">{t('cro.migration_axis')}</p>
+                                <div className="mt-3 space-y-1.5">
+                                    {data.cro.migration_matrix.rows.map((row) => (
+                                        <div key={row.gross_band} className="flex items-center gap-1.5">
+                                            <span className="w-16 text-right text-xs text-slate-500 font-bold">
+                                                {row.gross_band}
+                                            </span>
+                                            <div className="grid grid-cols-4 gap-1.5 flex-1">
+                                                {row.cells.map((count, index) => (
+                                                    <Link key={index} to="/risks" className="block">
+                                                        <MatrixCell
+                                                            fill={migrationCellFill(count)}
+                                                            count={count}
+                                                            testId={`committee-migration-cell-${row.gross_band}-${NET_BANDS[index]}`}
+                                                        />
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-16" />
+                                        <div className="grid grid-cols-4 gap-1.5 flex-1">
+                                            {NET_BANDS.map((band) => (
+                                                <span
+                                                    key={band}
+                                                    className="text-center text-xs text-slate-500 font-bold"
+                                                >
+                                                    {band}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                            <div className="glass-card">
+                                <h3 className="text-white font-bold mb-3">{t('cro.top_risks_title')}</h3>
+                                <TopRisksTable risks={data.cro.top_risks} />
+                            </div>
+                            <div className="glass-card">
+                                <h3 className="text-white font-bold mb-3">{t('cro.top_vendors_title')}</h3>
+                                <TopVendorsTable vendors={data.cro.top_vendors} />
+                            </div>
+                        </div>
+
+                        {/* Narratives (§2.6): five live sentences from structured values. */}
+                        <div className="glass-card space-y-2" data-testid="committee-narratives">
+                            <h3 className="text-white font-bold">{t('cro.narratives_title')}</h3>
+                            {narrativeValues && (
+                                <>
+                                    <p data-testid="committee-narrative-a34" className="text-slate-300 text-sm">
+                                        {t('narratives.a34', narrativeValues.a34)}
+                                    </p>
+                                    <p data-testid="committee-narrative-a35" className="text-slate-300 text-sm">
+                                        {t('narratives.a35', narrativeValues.a35)}
+                                    </p>
+                                    <p data-testid="committee-narrative-a36" className="text-slate-300 text-sm">
+                                        {t('narratives.a36', narrativeValues.a36)}
+                                    </p>
+                                    <p data-testid="committee-narrative-a37" className="text-slate-300 text-sm">
+                                        {t('narratives.a37', narrativeValues.a37)}
+                                    </p>
+                                    <p data-testid="committee-narrative-a38" className="text-slate-500 text-sm italic">
+                                        {t('narratives.a38', narrativeValues.a38)}
+                                    </p>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Aggregates (§2.7) feeding the two bar charts. */}
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                            <div className="glass-card" data-testid="committee-chart-assets">
+                                <h3 className="text-white font-bold mb-3">{t('cro.assets_chart_title')}</h3>
+                                <ResponsiveContainer width="100%" height={240} initialDimension={{ width: 1, height: 240 }}>
+                                    <BarChart
+                                        data={data.cro.assets_by_criticality}
+                                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                                    >
+                                        <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            stroke={chartTheme.gridStroke}
+                                            vertical={false}
+                                        />
+                                        <XAxis
+                                            dataKey="band"
+                                            tick={{ fill: chartTheme.axisTickFill, fontSize: 11, fontWeight: 600 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <YAxis
+                                            allowDecimals={false}
+                                            tick={{ fill: chartTheme.axisTickFill, fontSize: 11 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: chartTheme.tooltipBackground,
+                                                border: `1px solid ${chartTheme.tooltipBorder}`,
+                                                borderRadius: '12px',
+                                            }}
+                                            itemStyle={{ color: chartTheme.tooltipTextPrimary }}
+                                            cursor={{ fill: 'transparent' }}
+                                        />
+                                        {/* ch1 is legendless (inventory §2.7). */}
+                                        <Bar dataKey="count" fill={chartTheme.series.primary} radius={[6, 6, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="glass-card" data-testid="committee-chart-risk-bands">
+                                <h3 className="text-white font-bold mb-3">{t('cro.risk_bands_chart_title')}</h3>
+                                <ResponsiveContainer width="100%" height={240} initialDimension={{ width: 1, height: 240 }}>
+                                    <BarChart
+                                        data={riskBandChartRows(data.cro.risks_by_band)}
+                                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                                    >
+                                        <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            stroke={chartTheme.gridStroke}
+                                            vertical={false}
+                                        />
+                                        <XAxis
+                                            dataKey="band"
+                                            tick={{ fill: chartTheme.axisTickFill, fontSize: 11, fontWeight: 600 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <YAxis
+                                            allowDecimals={false}
+                                            tick={{ fill: chartTheme.axisTickFill, fontSize: 11 }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: chartTheme.tooltipBackground,
+                                                border: `1px solid ${chartTheme.tooltipBorder}`,
+                                                borderRadius: '12px',
+                                            }}
+                                            itemStyle={{ color: chartTheme.tooltipTextPrimary }}
+                                            cursor={{ fill: 'transparent' }}
+                                        />
+                                        {/* ch2 keeps its legend (inventory §2.7). */}
+                                        <Legend />
+                                        <Bar
+                                            dataKey="gross"
+                                            name={t('cro.risk_bands_gross')}
+                                            fill={chartTheme.series.neutral}
+                                            radius={[6, 6, 0, 0]}
+                                        />
+                                        <Bar
+                                            dataKey="net"
+                                            name={t('cro.risk_bands_net')}
+                                            fill={chartTheme.series.primary}
+                                            radius={[6, 6, 0, 0]}
+                                        />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </section>
+                </>
+            )}
+
+            {!isLoading && !data && !errorKey && (
+                <div className="glass-card text-slate-500 text-center py-8">{t('empty')}</div>
+            )}
+        </div>
+    );
+}
+
+export default IctRegisterCommitteePage;

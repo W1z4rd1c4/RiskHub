@@ -1,0 +1,121 @@
+{
+    "title": "ICT Risk Committee",
+    "subtitle": "Manažerské shrnutí ICT registru — provozní přehled a podklad pro CRO / VŘR / představenstvo, počítáno živě",
+    "actions": {
+        "refresh": "Obnovit"
+    },
+    "nav": {
+        "dq": "◀ Kontroly kvality",
+        "cro": "Pokračujte: Manažerské shrnutí ▶"
+    },
+    "dashboard": {
+        "title": "Provozní přehled správce registru",
+        "state_heading": "Stav registrů",
+        "metrics_heading": "Klíčové metriky",
+        "metrics_columns": {
+            "metric": "Metrika",
+            "value": "Hodnota",
+            "interpretation": "Interpretace",
+            "source": "Zdroj",
+            "action": "Akce"
+        }
+    },
+    "state": {
+        "process_count": "Procesy",
+        "asset_count": "Aktiva",
+        "process_asset_link_count": "Vazby proces–aktivum",
+        "vendor_count": "Dodavatelé",
+        "assets_pending_review_count": "Záznamy aktiv k revizi",
+        "direct_process_vendor_link_count": "Přímé vazby k revizi (list 11)",
+        "contracts_in_roi_scope_count": "Smlouvy (v rozsahu RoI)",
+        "sub_outsourcing_link_count": "Subdodavatelské vazby (řetězce)",
+        "assets_without_data_classification_count": "Aktiva bez klasifikace dat",
+        "top_tier_vendors_without_orderly_exit_count": "Krit./význ. dodavatelé bez exit plánu"
+    },
+    "metrics": {
+        "cif_process_count": {
+            "label": "CIF funkce",
+            "interpretation": "Zásadní nebo důležité funkce (DORA čl. 3(22))",
+            "source": "Procesy",
+            "action": "Potvrdit s business + MŘR"
+        },
+        "processes_without_impact_assessment_count": {
+            "label": "Procesy bez ohodnocení dopadů",
+            "interpretation": "Dokud platí Předběžná třída",
+            "source": "Procesy",
+            "action": "Krok 2: ohodnotit dopady"
+        },
+        "critical_asset_count": {
+            "label": "Kritická aktiva",
+            "interpretation": "Evidence kritických aktiv dle čl. 8(4)",
+            "source": "Aktiva",
+            "action": "Prioritní ochrana a DR"
+        },
+        "critical_vendor_count": {
+            "label": "Kritičtí dodavatelé",
+            "interpretation": "Podporují CIF → čl. 30(3) + exit plán",
+            "source": "Dodavatelé",
+            "action": "Doplnit právní údaje, exit, ex-ante"
+        },
+        "risks_above_tolerance_count": {
+            "label": "Rizika nad toleranci",
+            "interpretation": "Čisté riziko > P_Tolerance",
+            "source": "Rizika",
+            "action": "Akční plán nebo formální akceptace"
+        },
+        "open_dq_finding_count": {
+            "label": "Otevřené kontroly",
+            "interpretation": "Pracovní zásoba registru",
+            "source": "Kontroly kvality",
+            "action": "Odpracovat dle vlastníků"
+        }
+    },
+    "cro": {
+        "title": "Manažerské shrnutí pro CRO / VŘR / představenstvo",
+        "heatmap_title": "Heatmapa hrubého rizika (pravděpodobnost × hodnota subjektu, počty rizik)",
+        "heatmap_axis": "Pravděpodobnost ↓ / Hodnota →",
+        "migration_title": "Migrační matice: pásmo hrubého → pásmo čistého rizika (efekt kontrol)",
+        "migration_axis": "Hrubé ↓ / Čisté →",
+        "top_risks_title": "Top 10 rizik podle čistého rizika",
+        "top_vendors_title": "Koncentrace: top 5 dodavatelů dle CIF vazeb (čl. 29)",
+        "narratives_title": "CIF pokrytí, BCM a manažerské závěry",
+        "assets_chart_title": "Aktiva dle výsledné kritičnosti",
+        "risk_bands_chart_title": "Rizika dle pásem: hrubé vs. čisté",
+        "risk_bands_gross": "Hrubé",
+        "risk_bands_net": "Čisté"
+    },
+    "kpi": {
+        "risk_count": "Rizik celkem",
+        "material_risk_count": "Materiální",
+        "risks_above_tolerance_count": "Nad toleranci",
+        "accepted_above_tolerance_count": "Akceptovaná nad toleranci",
+        "cif_without_bcm_count": "CIF bez BCM",
+        "open_dq_finding_count": "Otevřené kontroly kvality"
+    },
+    "top_risks_columns": {
+        "rank": "#",
+        "id": "ID",
+        "subject": "Subjekt",
+        "threat": "Hrozba",
+        "gross": "Hrubé",
+        "net": "Čisté",
+        "band": "Pásmo",
+        "tolerance": "Tolerance",
+        "status": "Stav"
+    },
+    "top_vendors_columns": {
+        "rank": "#",
+        "vendor": "Dodavatel",
+        "cif_processes": "CIF procesů",
+        "tier": "Klasifikace"
+    },
+    "narratives": {
+        "a34": "CIF funkcí: {{cif}} z {{total}} procesů; s BCM evidencí: {{bcm}}",
+        "a35": "Kritických dodavatelů: {{critical}}; se schváleným či testovaným exit plánem: {{exit}}; s doplněnými právními údaji: {{legal}}",
+        "a36": "Rizika nad přípustnou odchylkou ({{tolerance}}): {{above}}, z toho formálně akceptováno: {{accepted}}",
+        "a37": "Subdodavatelské řetězce (list 09): {{links}} článků; dodavatelů v roli subdodavatele: {{subRole}} (RTS 2025/532: řetězec musí být identifikovatelný).",
+        "a38": "Poznámka: přípustná odchylka rizika (P_Tolerance = {{tolerance}}) je výchozí hodnota, kterou musí schválit představenstvo v návaznosti na rizikový apetit (DORA čl. 6(8)(b))."
+    },
+    "empty": "Registr je prázdný — dlaždice se naplní s daty.",
+    "loading": "Načítání…"
+}

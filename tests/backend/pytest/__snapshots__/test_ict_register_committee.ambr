@@ -1,0 +1,219 @@
+# serializer version: 1
+# name: test_committee_endpoint_over_an_api_seeded_register
+  dict({
+    'cro': dict({
+      'assets_by_criticality': list([
+        dict({
+          'band': 'Nízká',
+          'count': 0,
+        }),
+        dict({
+          'band': 'Střední',
+          'count': 0,
+        }),
+        dict({
+          'band': 'Vysoká',
+          'count': 0,
+        }),
+        dict({
+          'band': 'Kritická',
+          'count': 1,
+        }),
+      ]),
+      'heatmap': dict({
+        'rows': list([
+          dict({
+            'cells': list([
+              0,
+              0,
+              0,
+              0,
+              1,
+            ]),
+            'probability': 5,
+          }),
+          dict({
+            'cells': list([
+              0,
+              0,
+              0,
+              0,
+              0,
+            ]),
+            'probability': 4,
+          }),
+          dict({
+            'cells': list([
+              0,
+              0,
+              0,
+              0,
+              0,
+            ]),
+            'probability': 3,
+          }),
+          dict({
+            'cells': list([
+              0,
+              1,
+              0,
+              0,
+              0,
+            ]),
+            'probability': 2,
+          }),
+          dict({
+            'cells': list([
+              0,
+              0,
+              0,
+              0,
+              0,
+            ]),
+            'probability': 1,
+          }),
+        ]),
+      }),
+      'kpi': dict({
+        'accepted_above_tolerance_count': 1,
+        'cif_without_bcm_count': 1,
+        'material_risk_count': 0,
+        'open_dq_finding_count': 24,
+        'risk_count': 2,
+        'risks_above_tolerance_count': 1,
+      }),
+      'migration_matrix': dict({
+        'rows': list([
+          dict({
+            'cells': list([
+              1,
+              0,
+              0,
+              0,
+            ]),
+            'gross_band': 'Nízké',
+          }),
+          dict({
+            'cells': list([
+              0,
+              0,
+              0,
+              0,
+            ]),
+            'gross_band': 'Střední',
+          }),
+          dict({
+            'cells': list([
+              0,
+              0,
+              1,
+              0,
+            ]),
+            'gross_band': 'Vysoké',
+          }),
+          dict({
+            'cells': list([
+              0,
+              0,
+              0,
+              0,
+            ]),
+            'gross_band': 'Kritické',
+          }),
+        ]),
+      }),
+      'narratives': dict({
+        'accepted_above_tolerance_count': 1,
+        'cif_process_count': 1,
+        'cif_with_bcm_count': 0,
+        'critical_vendor_count': 1,
+        'critical_vendors_with_functional_exit_count': 0,
+        'critical_vendors_with_identifier_count': 0,
+        'process_count': 1,
+        'risks_above_tolerance_count': 1,
+        'sub_outsourcing_link_count': 0,
+        'tolerance': 15,
+        'vendors_in_sub_role_count': 0,
+      }),
+      'risks_by_band': list([
+        dict({
+          'band': 'Nízké',
+          'gross_count': 1,
+          'net_count': 1,
+        }),
+        dict({
+          'band': 'Střední',
+          'gross_count': 0,
+          'net_count': 0,
+        }),
+        dict({
+          'band': 'Vysoké',
+          'gross_count': 1,
+          'net_count': 1,
+        }),
+        dict({
+          'band': 'Kritické',
+          'gross_count': 0,
+          'net_count': 0,
+        }),
+      ]),
+      'top_risks': list([
+        dict({
+          'code': 'SPRÁ-R01',
+          'gross_score': 25,
+          'net_band': 'Vysoké',
+          'net_score': 25,
+          'rank': 1,
+          'risk_id': 1,
+          'status_label': None,
+          'subject_label': 'Správa pojistných smluv',
+          'threat_label': 'Ransomware',
+          'vs_tolerance': 'NAD TOLERANCI',
+        }),
+        dict({
+          'code': 'SPRÁ-R02',
+          'gross_score': 4,
+          'net_band': 'Nízké',
+          'net_score': 2,
+          'rank': 2,
+          'risk_id': 2,
+          'status_label': None,
+          'subject_label': 'Veris',
+          'threat_label': None,
+          'vs_tolerance': 'V toleranci',
+        }),
+      ]),
+      'top_vendors': list([
+        dict({
+          'cif_process_count': 1,
+          'name': 'BIZ DATA',
+          'rank': 1,
+          'tier': 'Kritický dodavatel',
+          'vendor_id': 1,
+        }),
+      ]),
+    }),
+    'dashboard': dict({
+      'key_metrics': dict({
+        'cif_process_count': 1,
+        'critical_asset_count': 1,
+        'critical_vendor_count': 1,
+        'open_dq_finding_count': 24,
+        'processes_without_impact_assessment_count': 0,
+        'risks_above_tolerance_count': 1,
+      }),
+      'register_state': dict({
+        'asset_count': 1,
+        'assets_pending_review_count': 0,
+        'assets_without_data_classification_count': 1,
+        'contracts_in_roi_scope_count': 0,
+        'direct_process_vendor_link_count': 0,
+        'process_asset_link_count': 1,
+        'process_count': 1,
+        'sub_outsourcing_link_count': 0,
+        'top_tier_vendors_without_orderly_exit_count': 1,
+        'vendor_count': 1,
+      }),
+    }),
+  })
+# ---

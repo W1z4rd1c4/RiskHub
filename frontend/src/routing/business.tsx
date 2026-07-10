@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Command,
   Handshake,
+  Landmark,
   Scale,
   Server,
   ShieldAlert,
@@ -50,6 +51,7 @@ const AssetDetailPage = lazy(() => import('@/pages/AssetDetailPage'));
 const ThreatsPage = lazy(() => import('@/pages/ThreatsPage'));
 const ThreatDetailPage = lazy(() => import('@/pages/ThreatDetailPage'));
 const IctRegisterDqPage = lazy(() => import('@/pages/IctRegisterDqPage'));
+const IctRegisterCommitteePage = lazy(() => import('@/pages/IctRegisterCommitteePage'));
 const VendorReportsPage = lazy(() => import('@/pages/VendorReportsPage'));
 const AuditTrailPage = lazy(() => import('@/pages/AuditTrailPage'));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
@@ -214,6 +216,20 @@ export const businessRoutes: AppRouteDef[] = [
       icon: ShieldCheck,
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'vendors'),
       order: 78,
+    },
+  },
+  {
+    // ICT Risk Committee page (#51): the register's executive read model,
+    // gated by its OWN resource permission (executive/oversight roles only).
+    key: 'ict-register-committee',
+    path: 'ict-register/committee',
+    element: <IctRegisterCommitteePage />,
+    nav: {
+      href: '/ict-register/committee',
+      labelKey: 'ict_register_committee',
+      icon: Landmark,
+      isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'ict_committee'),
+      order: 79,
     },
   },
   {

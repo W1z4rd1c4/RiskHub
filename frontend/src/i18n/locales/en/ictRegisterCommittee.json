@@ -1,0 +1,121 @@
+{
+    "title": "ICT Risk Committee",
+    "subtitle": "Executive summary of the ICT register — the operational overview and the CRO / risk committee / board briefing, computed live",
+    "actions": {
+        "refresh": "Refresh"
+    },
+    "nav": {
+        "dq": "◀ Data quality checks",
+        "cro": "Continue: Executive summary ▶"
+    },
+    "dashboard": {
+        "title": "Register steward's operational overview",
+        "state_heading": "Register state",
+        "metrics_heading": "Key metrics",
+        "metrics_columns": {
+            "metric": "Metric",
+            "value": "Value",
+            "interpretation": "Interpretation",
+            "source": "Source",
+            "action": "Action"
+        }
+    },
+    "state": {
+        "process_count": "Processes",
+        "asset_count": "Assets",
+        "process_asset_link_count": "Process–asset links",
+        "vendor_count": "Vendors",
+        "assets_pending_review_count": "Asset records pending review",
+        "direct_process_vendor_link_count": "Direct links pending review",
+        "contracts_in_roi_scope_count": "Contracts (in RoI scope)",
+        "sub_outsourcing_link_count": "Sub-outsourcing links (chains)",
+        "assets_without_data_classification_count": "Assets without data classification",
+        "top_tier_vendors_without_orderly_exit_count": "Crit./sig. vendors without an exit plan"
+    },
+    "metrics": {
+        "cif_process_count": {
+            "label": "CIF functions",
+            "interpretation": "Critical or important functions (DORA art. 3(22))",
+            "source": "Processes",
+            "action": "Confirm with business + risk management"
+        },
+        "processes_without_impact_assessment_count": {
+            "label": "Processes without impact assessment",
+            "interpretation": "While the preliminary class applies",
+            "source": "Processes",
+            "action": "Step 2: assess the impacts"
+        },
+        "critical_asset_count": {
+            "label": "Critical assets",
+            "interpretation": "Critical-asset records per art. 8(4)",
+            "source": "Assets",
+            "action": "Priority protection and DR"
+        },
+        "critical_vendor_count": {
+            "label": "Critical vendors",
+            "interpretation": "Support CIF → art. 30(3) + exit plan",
+            "source": "Vendors",
+            "action": "Complete legal data, exit, ex-ante"
+        },
+        "risks_above_tolerance_count": {
+            "label": "Risks above tolerance",
+            "interpretation": "Net risk > P_Tolerance",
+            "source": "Risks",
+            "action": "Action plan or formal acceptance"
+        },
+        "open_dq_finding_count": {
+            "label": "Open checks",
+            "interpretation": "The register's working backlog",
+            "source": "Data quality",
+            "action": "Work off by owner"
+        }
+    },
+    "cro": {
+        "title": "Executive summary for the CRO / risk committee / board",
+        "heatmap_title": "Gross risk heatmap (probability × subject value, risk counts)",
+        "heatmap_axis": "Probability ↓ / Value →",
+        "migration_title": "Migration matrix: gross band → net band (control effect)",
+        "migration_axis": "Gross ↓ / Net →",
+        "top_risks_title": "Top 10 risks by net risk",
+        "top_vendors_title": "Concentration: top 5 vendors by CIF links (art. 29)",
+        "narratives_title": "CIF coverage, BCM and management conclusions",
+        "assets_chart_title": "Assets by resulting criticality",
+        "risk_bands_chart_title": "Risks by band: gross vs. net",
+        "risk_bands_gross": "Gross",
+        "risk_bands_net": "Net"
+    },
+    "kpi": {
+        "risk_count": "Total risks",
+        "material_risk_count": "Material",
+        "risks_above_tolerance_count": "Above tolerance",
+        "accepted_above_tolerance_count": "Accepted above tolerance",
+        "cif_without_bcm_count": "CIF without BCM",
+        "open_dq_finding_count": "Open data-quality checks"
+    },
+    "top_risks_columns": {
+        "rank": "#",
+        "id": "ID",
+        "subject": "Subject",
+        "threat": "Threat",
+        "gross": "Gross",
+        "net": "Net",
+        "band": "Band",
+        "tolerance": "Tolerance",
+        "status": "Status"
+    },
+    "top_vendors_columns": {
+        "rank": "#",
+        "vendor": "Vendor",
+        "cif_processes": "CIF processes",
+        "tier": "Classification"
+    },
+    "narratives": {
+        "a34": "CIF functions: {{cif}} of {{total}} processes; with BCM evidence: {{bcm}}",
+        "a35": "Critical vendors: {{critical}}; with an approved or tested exit plan: {{exit}}; with completed legal data: {{legal}}",
+        "a36": "Risks above the tolerance ({{tolerance}}): {{above}}, of which formally accepted: {{accepted}}",
+        "a37": "Sub-outsourcing chains: {{links}} links; vendors in a sub-outsourcer role: {{subRole}} (RTS 2025/532: the chain must be identifiable).",
+        "a38": "Note: the risk tolerance (P_Tolerance = {{tolerance}}) is a default that the board must approve in line with the risk appetite (DORA art. 6(8)(b))."
+    },
+    "empty": "The register is empty — tiles fill in with data.",
+    "loading": "Loading…"
+}

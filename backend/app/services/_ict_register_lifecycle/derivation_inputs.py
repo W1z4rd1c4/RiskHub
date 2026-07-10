@@ -35,6 +35,13 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, select
 
+from app.core.permissions import (
+    risk_visibility_clause,
+    vendor_visibility_clause,
+    visible_risk_ids,
+    visible_vendor_ids,
+)
+from app.core.security import check_permission
 from app.models import (
     Asset,
     AssetAssetLink,
@@ -45,12 +52,16 @@ from app.models import (
     Risk,
     RiskAssetLink,
     RiskProcessLink,
+    Threat,
+    ThreatRiskLink,
+    User,
     Vendor,
     VendorContract,
     VendorRiskLink,
     VendorSubOutsourcing,
 )
 
+from .committee import IctCommitteeGraph
 from .derivation import (
     AssetAssetLinkInput,
     AssetDerivationInput,
@@ -67,7 +78,9 @@ from .dq import (
     RISK_RESPONSE_ACCEPTANCE,
     RISK_STATUS_ACCEPTED,
     RISK_STATUS_CLOSED,
+    DqViewerScope,
     IctRegisterDqGraph,
+    IctRegisterDqResult,
     RiskAssetLinkDqInput,
     RiskDqInput,
     RiskProcessLinkDqInput,
@@ -384,6 +397,11 @@ def risk_dq_input(risk: Risk) -> RiskDqInput:
     is the "Akceptováno" state; archiving is the "Uzavřené" closure (archival
     wins when both hold); the workbook's action-plan/assessment columns have
     no app analog and load as ``None``.
+
+    The committee columns (#51) map the gross block: ``probability`` is
+    13!pravdep, ``subject_value`` is 13!hodnota_subj, ``gross_score`` is
+    13!hrube, ``code`` is 13!id — see the ``RiskDqInput`` docstring for the
+    disposition.
     """
     trio = (risk.acceptance_approver, risk.acceptance_justification, risk.acceptance_date)
     status_label: str | None = None
@@ -403,6 +421,10 @@ def risk_dq_input(risk: Risk) -> RiskDqInput:
         acceptance_date=risk.acceptance_date,
         assessment_date=None,
         is_material=None,
+        code=risk.risk_id_code,
+        probability=risk.gross_probability,
+        subject_value=risk.gross_impact,
+        gross_score=risk.gross_score,
     )
 
 
@@ -518,3 +540,73 @@ async def load_ict_register_dq_graph(db: "AsyncSession") -> IctRegisterDqGraph:
             for link in risk_vendor_links
         ),
     )
+
+
+async def load_dq_viewer_scope(
+    db: "AsyncSession", current_user: User, result: IctRegisterDqResult
+) -> DqViewerScope:
+    """Resolve the caller's DQ row visibility from the CANONICAL predicates.
+
+    Permission-only gates use ``check_permission`` — the same checks the
+    gated entities' own endpoints depend on; Vendor/Risk row scope reuses
+    the register-wide visibility clauses (``None`` = unrestricted) and the
+    shared visible-id helpers, evaluated over just the ids the DQ result
+    references. Feed the result to :func:`~.dq.visible_dq_result`.
+    """
+    candidate_vendor_ids = {
+        vendor_id
+        for check in result.checks
+        for row in check.violating_rows
+        for vendor_id in row.vendor_scope_ids
+    }
+    candidate_risk_ids = {
+        risk_id
+        for check in result.checks
+        for row in check.violating_rows
+        for risk_id in row.risk_scope_ids
+    }
+
+    readable_resources = frozenset(
+        resource
+        for resource in ("processes", "assets", "vendor_contracts")
+        if check_permission(current_user, resource, "read")
+    )
+    vendors_unrestricted = vendor_visibility_clause(current_user) is None
+    risks_unrestricted = (await risk_visibility_clause(db, current_user)) is None
+    return DqViewerScope(
+        readable_resources=readable_resources,
+        vendors_unrestricted=vendors_unrestricted,
+        visible_vendor_ids=(
+            frozenset()
+            if vendors_unrestricted
+            else frozenset(await visible_vendor_ids(db, current_user, candidate_vendor_ids))
+        ),
+        risks_unrestricted=risks_unrestricted,
+        visible_risk_ids=(
+            frozenset()
+            if risks_unrestricted
+            else frozenset(await visible_risk_ids(db, current_user, candidate_risk_ids))
+        ),
+    )
+
+
+async def load_ict_register_committee_graph(db: "AsyncSession") -> IctCommitteeGraph:
+    """Load the whole register plus the 12_Hrozby name feed for the ICT Risk
+    Committee page (issue #51).
+
+    The committee graph is the DQ graph (both output sheets read the same
+    registers and the ICT-linked Risk slice) extended with each risk's FIRST
+    linked Threat name in Link-relation order — the in-app 13!hrozba_nazev
+    (the workbook row references exactly one threat; the deterministic pick
+    is the earliest link).
+    """
+    dq_graph = await load_ict_register_dq_graph(db)
+    threat_label_rows = await db.execute(
+        select(ThreatRiskLink.risk_id, Threat.name)
+        .join(Threat, Threat.id == ThreatRiskLink.threat_id)
+        .order_by(ThreatRiskLink.id)
+    )
+    risk_threat_labels: dict[int, str] = {}
+    for risk_id, threat_name in threat_label_rows.all():
+        risk_threat_labels.setdefault(risk_id, threat_name)
+    return IctCommitteeGraph(dq_graph=dq_graph, risk_threat_labels=risk_threat_labels)

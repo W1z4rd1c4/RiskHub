@@ -49,6 +49,8 @@ from app.services._ict_register_lifecycle.dq import (
     DQ_STATUS_FINDING,
     DQ_STATUS_OK,
     DqCheckResult,
+    DqViewerScope,
+    DqViolatingRow,
     IctRegisterDqGraph,
     IctRegisterDqResult,
     RiskAssetLinkDqInput,
@@ -58,6 +60,7 @@ from app.services._ict_register_lifecycle.dq import (
     acceptance_review_due,
     derive_ict_register_dq,
     next_assessment_date,
+    visible_dq_result,
 )
 from app.services._ict_register_reference.parameters import (
     ICT_WORKBOOK_PARAMETERS,
@@ -1447,3 +1450,270 @@ async def test_dq_endpoint_follows_the_vendors_read_authz_pattern(
     async with client_factory() as client:
         resp = await client.get("/api/v1/ict-register/dq")
         assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Production-inert marking (DQ-23)
+# ---------------------------------------------------------------------------
+
+
+def test_dq23_is_the_only_production_inert_check():
+    """DQ-23's trigger pair (13!datum_pos/material) has no app column — the
+    loader maps it None forever, so the result marks DQ-23 production_inert
+    with a reason. The audit over the other risk checks holds: DQ-20/21/22
+    read real app columns and stay live."""
+    quiet = run_dq()
+    assert [c.check_id for c in quiet.checks if c.production_inert] == ["DQ-23"]
+    dq23 = check(quiet, "DQ-23")
+    assert dq23.production_inert_reason
+    assert dq23.status == DQ_STATUS_OK
+    assert all(c.production_inert_reason is None for c in quiet.checks if c.check_id != "DQ-23")
+
+    # The flag is a static property of the check, not of its outcome: it
+    # stays set even when goldens drive the verbatim rule through direct
+    # engine input.
+    fired = run_dq(risks=(risk_input(1, assessment_date=date(2025, 5, 1)),))
+    assert check(fired, "DQ-23").status == DQ_STATUS_FINDING
+    assert check(fired, "DQ-23").production_inert is True
+
+    # And the production shape (loader maps None) never fires it.
+    production_shaped = run_dq(risks=(risk_input(1, net_score=80),))
+    assert check(production_shaped, "DQ-23").status == DQ_STATUS_OK
+
+
+# ---------------------------------------------------------------------------
+# Per-viewer row visibility (counts global, rows filtered)
+# ---------------------------------------------------------------------------
+
+
+def test_visible_dq_result_filters_rows_but_keeps_global_counts():
+    """Rows survive only when the caller passes the entity kind's permission
+    gates AND every referenced row-scoped Vendor/Risk is visible; counts,
+    statuses, and the finding tally never change."""
+    result = run_dq(
+        graph=IctRegisterGraph(
+            processes=(process_row(1, owner=None),),  # DQ-01: process row
+            assets=(asset_row(2),),
+            asset_vendor_links=(avl(2, 7),),  # DQ-41: vendor 7 has links, no contract
+            vendors=(vendor_row(7),),
+        ),
+        risks=(risk_input(31, net_score=80), risk_input(32, net_score=80)),  # DQ-20 x2
+    )
+    assert check(result, "DQ-01").count == 1
+    assert check(result, "DQ-41").count == 1
+    assert check(result, "DQ-20").count == 2
+
+    scoped = DqViewerScope(
+        readable_resources=frozenset({"processes", "assets", "vendor_contracts"}),
+        vendors_unrestricted=False,
+        visible_vendor_ids=frozenset(),  # vendor 7 out of scope
+        risks_unrestricted=False,
+        visible_risk_ids=frozenset({31}),  # risk 32 out of scope
+    )
+    filtered = visible_dq_result(result, scoped)
+
+    # Counts/statuses/tally are the global ones, verbatim.
+    assert [(c.check_id, c.count, c.status) for c in filtered.checks] == [
+        (c.check_id, c.count, c.status) for c in result.checks
+    ]
+    assert filtered.finding_count == result.finding_count
+
+    # Unscoped process rows stay; the vendor-scoped and risk-scoped rows hide.
+    assert [row.entity_id for row in check(filtered, "DQ-01").violating_rows] == [1]
+    assert check(filtered, "DQ-41").violating_rows == ()
+    assert [row.entity_id for row in check(filtered, "DQ-20").violating_rows] == [31]
+
+    # Permission gates: without processes:read the process rows hide too.
+    no_process_read = DqViewerScope(
+        readable_resources=frozenset({"assets", "vendor_contracts"}),
+        vendors_unrestricted=True,
+        risks_unrestricted=True,
+    )
+    assert check(visible_dq_result(result, no_process_read), "DQ-01").violating_rows == ()
+
+    # The unrestricted (privileged) scope keeps every row.
+    unrestricted = DqViewerScope(
+        readable_resources=frozenset({"processes", "assets", "vendor_contracts"}),
+        vendors_unrestricted=True,
+        risks_unrestricted=True,
+    )
+    assert visible_dq_result(result, unrestricted) == result
+
+
+def test_visible_dq_result_gates_contract_rows_on_vendor_contracts_read():
+    """Contract/sub-outsourcing rows follow their own read surface
+    (vendor_contracts:read + the owning Vendor's row visibility)."""
+    contract_check = DqCheckResult(
+        check_id="DQ-40",
+        area="Vazby",
+        title_cs="Vazba na neexistující ID (listy 06/08/09)",
+        severity="Vysoká",
+        threshold=0,
+        count=1,
+        status=DQ_STATUS_FINDING,
+        violating_rows=(
+            DqViolatingRow("contract", 1, "SML-2020-001 → ?", "vendor", 7, vendor_scope_ids=(7,)),
+        ),
+    )
+    synthetic = IctRegisterDqResult(checks=(contract_check,), finding_count=1)
+
+    no_contract_read = DqViewerScope(
+        readable_resources=frozenset({"processes", "assets"}),
+        vendors_unrestricted=True,
+        risks_unrestricted=True,
+    )
+    assert visible_dq_result(synthetic, no_contract_read).checks[0].violating_rows == ()
+
+    vendor_out_of_scope = DqViewerScope(
+        readable_resources=frozenset({"processes", "assets", "vendor_contracts"}),
+        vendors_unrestricted=False,
+        visible_vendor_ids=frozenset({8}),
+        risks_unrestricted=True,
+    )
+    assert visible_dq_result(synthetic, vendor_out_of_scope).checks[0].violating_rows == ()
+
+    vendor_visible = DqViewerScope(
+        readable_resources=frozenset({"processes", "assets", "vendor_contracts"}),
+        vendors_unrestricted=False,
+        visible_vendor_ids=frozenset({7}),
+        risks_unrestricted=True,
+    )
+    assert visible_dq_result(synthetic, vendor_visible).checks[0].violating_rows == contract_check.violating_rows
+
+
+@pytest.mark.asyncio
+async def test_dq_endpoint_scopes_rows_per_viewer_but_reports_global_counts(
+    client_factory, db_session, test_user_cro: User, test_user_employee: User, seed_risk_types
+):
+    """Oversight semantics at the HTTP seam: a dept-scoped employee sees the
+    GLOBAL finding counts, but the listed rows are filtered through each
+    entity's canonical visibility — an out-of-scope Risk's name/id and an
+    unassigned Vendor's row never reach them."""
+    from app.models import Department, GlobalConfig
+
+    other_dept = Department(name="Jiný útvar", code="OTHER", description="Out of the employee's scope")
+    db_session.add(other_dept)
+    # The app's 1-25 net scale (ADR-008 seeded rows, as the #50 endpoint test).
+    db_session.add_all(
+        [
+            GlobalConfig(
+                key="ict_register_riz_vys",
+                value="20",
+                value_type="int",
+                category="ict_register_parameters",
+                display_name="P_RizVys",
+                is_editable=False,
+            ),
+            GlobalConfig(
+                key="ict_register_tolerance",
+                value="15",
+                value_type="int",
+                category="ict_register_parameters",
+                display_name="P_Tolerance",
+                is_editable=False,
+            ),
+        ]
+    )
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+    other_dept_id = other_dept.id
+    employee_department_id = test_user_employee.department_id
+    cro_user_id = test_user_cro.id
+    clear_config_cache()
+
+    async with client_factory(user=test_user_cro) as client:
+        process = (
+            await client.post(
+                "/api/v1/processes",
+                json={"l0_area": "Provoz a služby klientům", "l1_process": "Správa pojistných smluv"},
+            )
+        ).json()
+        # An unassigned Vendor (department_id None): visible to privileged
+        # users only, so its DQ rows must hide from the dept-scoped employee.
+        vendor_resp = await client.post(
+            "/api/v1/vendors",
+            json={
+                "name": "BIZ DATA",
+                "process": "IT",
+                "department_id": None,
+                "outsourcing_owner_user_id": cro_user_id,
+            },
+        )
+        assert vendor_resp.status_code == 201, vendor_resp.text
+
+        def scoped_risk(name: str, department_id: int | None) -> dict[str, object]:
+            return _risk_payload(
+                name=name,
+                department_id=department_id,
+                net_probability=5,
+                net_impact=5,
+                acceptance_approver="CRO",
+            )
+
+        # Linking the vendor to the process (sheet 11 §1) with no contract on
+        # record fires DQ-41 with the vendor as the violating row.
+        vendor_link = await client.post(
+            f"/api/v1/processes/{process['id']}/vendor-links",
+            json={"vendor_id": vendor_resp.json()["id"]},
+        )
+        assert vendor_link.status_code == 201, vendor_link.text
+
+        in_scope = (
+            await client.post("/api/v1/risks", json=scoped_risk("Viditelné riziko", employee_department_id))
+        ).json()
+        out_of_scope = (
+            await client.post("/api/v1/risks", json=scoped_risk("Skryté riziko jiného útvaru", other_dept_id))
+        ).json()
+        for risk_id in (in_scope["id"], out_of_scope["id"]):
+            link = await client.post(
+                f"/api/v1/risks/{risk_id}/process-links", json={"process_id": process["id"]}
+            )
+            assert link.status_code == 201, link.text
+
+        cro_resp = await client.get("/api/v1/ict-register/dq")
+
+    assert cro_resp.status_code == 200
+    cro_checks = {entry["check_id"]: entry for entry in cro_resp.json()["checks"]}
+    # Both over-tolerance partial acceptances fire DQ-21 for the global view.
+    assert cro_checks["DQ-21"]["count"] == 2
+    assert len(cro_checks["DQ-21"]["violating_rows"]) == 2
+    assert cro_checks["DQ-41"]["count"] == 1
+    assert len(cro_checks["DQ-41"]["violating_rows"]) == 1
+
+    async with client_factory(user=test_user_employee) as client:
+        resp = await client.get("/api/v1/ict-register/dq")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    checks_by_id = {entry["check_id"]: entry for entry in body["checks"]}
+
+    # Counts and the finding tally are the same GLOBAL numbers the CRO sees.
+    assert body["finding_count"] == cro_resp.json()["finding_count"]
+    assert checks_by_id["DQ-21"]["count"] == 2
+    assert checks_by_id["DQ-21"]["status"] == "NÁLEZ"
+
+    # ... but the row list is the employee's visible slice: the in-scope Risk
+    # only, and the out-of-scope Risk's name/id appear nowhere in the payload.
+    dq21_rows = checks_by_id["DQ-21"]["violating_rows"]
+    assert [row["entity_id"] for row in dq21_rows] == [in_scope["id"]]
+    assert "Skryté riziko jiného útvaru" not in resp.text
+    assert all(
+        row["entity_id"] != out_of_scope["id"]
+        for entry in body["checks"]
+        for row in entry["violating_rows"]
+        if row["entity_type"] == "risk"
+    )
+
+    # The unassigned Vendor: global count 1, zero rows for the employee.
+    assert checks_by_id["DQ-41"]["count"] == 1
+    assert checks_by_id["DQ-41"]["violating_rows"] == []
+    assert "BIZ DATA" not in resp.text
+
+    # Unscoped entities stay visible: the ownerless process row lists as-is.
+    assert checks_by_id["DQ-01"]["count"] == 1
+    assert [row["entity_id"] for row in checks_by_id["DQ-01"]["violating_rows"]] == [process["id"]]
+
+    # The production-inert marking rides along at the HTTP seam.
+    assert checks_by_id["DQ-23"]["production_inert"] is True
+    assert checks_by_id["DQ-23"]["production_inert_reason"]
+    assert checks_by_id["DQ-22"]["production_inert"] is False

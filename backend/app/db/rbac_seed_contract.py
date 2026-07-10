@@ -18,6 +18,23 @@ RBAC_ROLES: tuple[dict[str, object], ...] = (
         "description": "Full access, risk oversight, reporting",
         "is_system": True,
     },
+    # Executive roles (issue #51): seeded for the ICT Risk Committee page —
+    # the committee read-model is their only seeded grant.
+    {
+        "name": "ceo",
+        "display_name": "Chief Executive Officer",
+        "description": "Executive oversight, ICT Risk Committee",
+    },
+    {
+        "name": "cfo",
+        "display_name": "Chief Financial Officer",
+        "description": "Executive oversight, ICT Risk Committee",
+    },
+    {
+        "name": "coo",
+        "display_name": "Chief Operating Officer",
+        "description": "Executive oversight, ICT Risk Committee",
+    },
     {
         "name": "risk_manager",
         "display_name": "Risk Manager",
@@ -77,6 +94,8 @@ RBAC_PERMISSIONS: tuple[dict[str, str], ...] = (
     # ICT Register Contracts inside the Vendor domain (issue #44).
     {"resource": "vendor_contracts", "action": "read", "description": "View vendor contracts and DORA clauses"},
     {"resource": "vendor_contracts", "action": "write", "description": "Create/edit vendor contracts and DORA clauses"},
+    # ICT Risk Committee page (issue #51): executive/oversight read-model.
+    {"resource": "ict_committee", "action": "read", "description": "View the ICT Risk Committee page"},
     {"resource": "departments", "action": "read", "description": "View departments"},
     {"resource": "departments", "action": "write", "description": "Create/edit departments"},
     {"resource": "reports", "action": "read", "description": "View and export reports"},
@@ -91,6 +110,11 @@ RBAC_PERMISSIONS: tuple[dict[str, str], ...] = (
 RBAC_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "admin": ("users:*", "departments:read", "admin:session.revoke"),
     "cro": ("*:*",),
+    # ICT Risk Committee page (#51): executive/oversight roles only — NOT
+    # employee, NOT department_head, NOT viewer; admin stays platform-only.
+    "ceo": ("ict_committee:read",),
+    "cfo": ("ict_committee:read",),
+    "coo": ("ict_committee:read",),
     "risk_manager": (
         "controls:*",
         "risks:*",
@@ -100,6 +124,7 @@ RBAC_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "processes:*",
         "assets:*",
         "threats:*",
+        "ict_committee:read",
         "departments:read",
         "reports:*",
         "users:read",
@@ -130,6 +155,7 @@ RBAC_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "processes:read",
         "assets:read",
         "threats:read",
+        "ict_committee:read",
         "reports:read",
     ),
     "internal_audit": (
@@ -142,6 +168,7 @@ RBAC_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "processes:read",
         "assets:read",
         "threats:read",
+        "ict_committee:read",
         "departments:read",
         "reports:read",
     ),

@@ -52,8 +52,8 @@ in-app analog of "a 13_Rizika row".
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Callable
-from dataclasses import dataclass, field
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 
 from app.services._ict_register_reference.parameters import IctWorkbookParameterSet
@@ -112,11 +112,21 @@ _TOP_TIERS = (TIER_CRITICAL, TIER_SIGNIFICANT)
 
 @dataclass(frozen=True)
 class RiskDqInput:
-    """One ICT-linked Risk row — the 13_Rizika columns the DQ checks read.
+    """One ICT-linked Risk row — the 13_Rizika columns the DQ checks and the
+    committee page (#51) read.
 
     ``response``/``status_label``/``action_plan_date``/``assessment_date``/
     ``is_material`` are workbook-shaped; the production loader maps them per
     the module docstring (``None`` where the app has no column).
+
+    The committee columns (read only by ``committee.py``, never by the 52
+    checks): ``code`` is the register row ID (13!id, app ``risk_id_code``);
+    ``probability``/``subject_value``/``gross_score`` are the heatmap and
+    gross-side columns (13!pravdep, 13!hodnota_subj, 13!hrube), mapped from
+    the production Risk's gross block (``gross_probability``/``gross_impact``/
+    ``gross_score``) — the app enters probability × impact directly where the
+    workbook derived hodnota_subj from the subject and multiplied in
+    ``zranit``.
     """
 
     id: int
@@ -130,6 +140,11 @@ class RiskDqInput:
     acceptance_date: date | None = None
     assessment_date: date | None = None
     is_material: str | None = None
+    # Committee-page columns (#51).
+    code: str | None = None
+    probability: int | None = None
+    subject_value: int | None = None
+    gross_score: int | None = None
 
 
 @dataclass(frozen=True)
@@ -173,6 +188,13 @@ class DqViolatingRow:
     ``entity_type`` names the register row kind; ``route_entity_type``/``id``
     anchor the row on a routable detail page (contracts and sub-outsourcing
     rows anchor on their owning Vendor; link rows anchor on one end).
+
+    ``vendor_scope_ids``/``risk_scope_ids`` list the EXISTING row-scoped
+    entities the row references (owning Vendor, linked Vendor/Risk — whether
+    by id or by name in the label). The per-viewer filter
+    (:func:`visible_dq_result`) hides the row unless every one is visible to
+    the caller, so a DQ row never reveals more than the entity's own read
+    endpoints would.
     """
 
     entity_type: str
@@ -180,12 +202,21 @@ class DqViolatingRow:
     label: str
     route_entity_type: str
     route_entity_id: int
+    vendor_scope_ids: tuple[int, ...] = ()
+    risk_scope_ids: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
 class DqCheckResult:
     """One 15_Kontroly_kvality row: id, area, CZ title verbatim, severity,
-    the literal 0 threshold, the violating-row count, and OK/NÁLEZ."""
+    the literal 0 threshold, the violating-row count, and OK/NÁLEZ.
+
+    ``production_inert`` marks checks whose trigger inputs have NO app column
+    (the loader maps them ``None`` forever — module docstring): the verbatim
+    rule stays golden-covered through direct engine input, but on production
+    data the check can never fire, so the UI renders it as "not yet
+    measurable" instead of a false OK.
+    """
 
     check_id: str
     area: str
@@ -195,6 +226,8 @@ class DqCheckResult:
     count: int
     status: str
     violating_rows: tuple[DqViolatingRow, ...]
+    production_inert: bool = False
+    production_inert_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -203,6 +236,101 @@ class IctRegisterDqResult:
 
     checks: tuple[DqCheckResult, ...]
     finding_count: int
+
+
+# Checks whose trigger input has no app column (the loader maps it None
+# forever) — audited across the 13_Rizika slice: DQ-20/21/22 read real app
+# columns (net score, archival, the acceptance trio) and can all fire;
+# DQ-23's datum_pos/material pair is the only trigger without an app analog.
+PRODUCTION_INERT_REASONS: Mapping[str, str] = {
+    "DQ-23": (
+        "The app Risk register tracks no assessment date or materiality; the "
+        "loader maps them empty, so this check cannot fire on production data."
+    ),
+}
+
+
+@dataclass(frozen=True)
+class DqViewerScope:
+    """The caller's per-entity visibility, resolved by the loader
+    (``derivation_inputs.load_dq_viewer_scope``) from each entity's CANONICAL
+    read predicate — the same permission checks and row-visibility clauses
+    the entities' own list/detail endpoints apply.
+
+    ``readable_resources`` holds the permission-only gates (``processes``,
+    ``assets``, ``vendor_contracts``); the ``*_unrestricted`` flags are True
+    when the row-scoped entity's visibility clause is unrestricted for the
+    caller (privileged users), in which case the id sets are ignored.
+    """
+
+    readable_resources: frozenset[str] = frozenset()
+    vendors_unrestricted: bool = False
+    visible_vendor_ids: frozenset[int] = frozenset()
+    risks_unrestricted: bool = False
+    visible_risk_ids: frozenset[int] = frozenset()
+
+
+# Permission-only read gates per row/route entity kind: the resources whose
+# own endpoints gate reading that kind (link rows follow the #43
+# dual-permission precedent; vendors:read is the DQ endpoint's own
+# dependency, and Vendor/Risk row visibility rides on the scope id sets).
+_DQ_ENTITY_READ_GATES: Mapping[str, frozenset[str]] = {
+    "process": frozenset({"processes"}),
+    "asset": frozenset({"assets"}),
+    "vendor": frozenset(),
+    "risk": frozenset(),
+    "contract": frozenset({"vendor_contracts"}),
+    "sub_outsourcing": frozenset({"vendor_contracts"}),
+    "process_asset_link": frozenset({"processes", "assets"}),
+    "asset_asset_link": frozenset({"assets"}),
+    "asset_vendor_link": frozenset({"assets"}),
+    "process_vendor_link": frozenset({"processes"}),
+}
+
+_DQ_ROUTE_READ_GATES: Mapping[str, frozenset[str]] = {
+    "process": frozenset({"processes"}),
+    "asset": frozenset({"assets"}),
+    "vendor": frozenset(),
+    "risk": frozenset(),
+}
+
+
+def _dq_row_visible(row: DqViolatingRow, scope: DqViewerScope) -> bool:
+    gates = _DQ_ENTITY_READ_GATES.get(row.entity_type, frozenset()) | _DQ_ROUTE_READ_GATES.get(
+        row.route_entity_type, frozenset()
+    )
+    if not gates <= scope.readable_resources:
+        return False
+    if not scope.vendors_unrestricted and any(
+        vendor_id not in scope.visible_vendor_ids for vendor_id in row.vendor_scope_ids
+    ):
+        return False
+    if not scope.risks_unrestricted and any(
+        risk_id not in scope.visible_risk_ids for risk_id in row.risk_scope_ids
+    ):
+        return False
+    return True
+
+
+def visible_dq_result(result: IctRegisterDqResult, scope: DqViewerScope) -> IctRegisterDqResult:
+    """Filter every check's violating rows to the caller-visible slice.
+
+    Counts, statuses, and the finding tally stay GLOBAL (oversight
+    semantics): a scoped user still sees that a check found N rows — they
+    just cannot drill into rows their own entity endpoints would not show.
+    """
+    return IctRegisterDqResult(
+        checks=tuple(
+            replace(
+                check,
+                violating_rows=tuple(
+                    row for row in check.violating_rows if _dq_row_visible(row, scope)
+                ),
+            )
+            for check in result.checks
+        ),
+        finding_count=result.finding_count,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -384,6 +512,10 @@ def derive_ict_register_dq(
         row = vendors_by_id.get(vendor_id)
         return row.name if row else UNKNOWN_LOOKUP
 
+    def vendor_scope(*vendor_ids: int) -> tuple[int, ...]:
+        """The EXISTING vendors among the row's references (dangling ids scope nothing)."""
+        return tuple(vendor_id for vendor_id in vendor_ids if vendor_id in vendors_by_id)
+
     def process_row(process_id: int, label: str | None = None) -> DqViolatingRow:
         return DqViolatingRow("process", process_id, label or process_label(process_id), "process", process_id)
 
@@ -391,18 +523,29 @@ def derive_ict_register_dq(
         return DqViolatingRow("asset", asset_id, label or asset_label(asset_id), "asset", asset_id)
 
     def vendor_row(vendor_id: int, label: str | None = None) -> DqViolatingRow:
-        return DqViolatingRow("vendor", vendor_id, label or vendor_label(vendor_id), "vendor", vendor_id)
+        return DqViolatingRow(
+            "vendor",
+            vendor_id,
+            label or vendor_label(vendor_id),
+            "vendor",
+            vendor_id,
+            vendor_scope_ids=vendor_scope(vendor_id),
+        )
 
     def risk_row(risk: RiskDqInput) -> DqViolatingRow:
-        return DqViolatingRow("risk", risk.id, risk.label, "risk", risk.id)
+        return DqViolatingRow("risk", risk.id, risk.label, "risk", risk.id, risk_scope_ids=(risk.id,))
 
     def contract_row(contract_id: int, label: str) -> DqViolatingRow:
         contract = contracts_by_id.get(contract_id)
         vendor_id = contract.vendor_id if contract else 0
-        return DqViolatingRow("contract", contract_id, label, "vendor", vendor_id)
+        return DqViolatingRow(
+            "contract", contract_id, label, "vendor", vendor_id, vendor_scope_ids=vendor_scope(vendor_id)
+        )
 
     def sub_row(sub_id: int, vendor_id: int, label: str) -> DqViolatingRow:
-        return DqViolatingRow("sub_outsourcing", sub_id, label, "vendor", vendor_id)
+        return DqViolatingRow(
+            "sub_outsourcing", sub_id, label, "vendor", vendor_id, vendor_scope_ids=vendor_scope(vendor_id)
+        )
 
     # --- Link tallies the DQ sheet takes from raw columns (plain COUNTIFs).
     risk_count_by_asset = Counter(link.asset_id for link in dq_graph.risk_asset_links)
@@ -595,6 +738,7 @@ def derive_ict_register_dq(
             f"{asset_label(link.asset_id)} ↔ {vendor_label(link.vendor_id)} ({link.ict_service_code or ''})",
             "asset",
             link.asset_id,
+            vendor_scope_ids=vendor_scope(link.vendor_id),
         )
         for link in graph.asset_vendor_links
         if avl_triple_counts[(link.asset_id, link.vendor_id, link.ict_service_code)] > 1
@@ -634,6 +778,7 @@ def derive_ict_register_dq(
             f"{asset_label(link.asset_id)} ↔ {vendor_label(link.vendor_id)}",
             "asset",
             link.asset_id,
+            vendor_scope_ids=vendor_scope(link.vendor_id),
         )
         for link in graph.asset_vendor_links
         if link.asset_id in derivation.assets
@@ -649,6 +794,7 @@ def derive_ict_register_dq(
             f"{process_label(link.process_id)} ↔ {vendor_label(link.vendor_id)}",
             "vendor",
             link.vendor_id,
+            vendor_scope_ids=vendor_scope(link.vendor_id),
         )
         for link in graph.process_vendor_links
         if av_link_count_by_vendor[link.vendor_id] == 0
@@ -893,6 +1039,7 @@ def derive_ict_register_dq(
                             f" (přes {asset_label(av_link.asset_id)})",
                             "asset",
                             av_link.asset_id,
+                            vendor_scope_ids=vendor_scope(av_link.vendor_id),
                         )
                     )
     checks["DQ-25"] = tuple(dq25)
@@ -943,6 +1090,8 @@ def derive_ict_register_dq(
             # F — =IF(D="","",IF(D>E,"NÁLEZ","OK")) (sheets_out.py:570).
             status=DQ_STATUS_FINDING if len(checks[check_id]) > 0 else DQ_STATUS_OK,
             violating_rows=checks[check_id],
+            production_inert=check_id in PRODUCTION_INERT_REASONS,
+            production_inert_reason=PRODUCTION_INERT_REASONS.get(check_id),
         )
         for check_id, area, title_cs, severity in DQ_CHECK_CATALOG
     )
