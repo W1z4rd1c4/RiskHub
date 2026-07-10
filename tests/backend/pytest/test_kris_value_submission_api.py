@@ -30,6 +30,7 @@ from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope
+from app.services._kri_history.periods import latest_closed_period_for_date
 from app.services._kri_history.service import KRIHistoryService
 from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES, set_approval_scenario_roles
 
@@ -522,9 +523,16 @@ async def test_non_privileged_value_submission_returns_202(
     db_session: AsyncSession,
     test_risk,
     test_role_employee,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """Test POST /kris/{id}/values by non-privileged user returns 202 with approval."""
+    import app.services._kri_history.clock as kri_clock
     from app.models import Department, Permission, RolePermission, User
+
+    # Pin the submission date; the queued period_end expectation is derived from
+    # it below via the period SSOT, so this test cannot rot with the calendar.
+    submission_date = date(2026, 5, 10)
+    monkeypatch.setattr(kri_clock, "today", lambda: submission_date)
 
     kri_submit = Permission(resource="kri", action="submit", description="Submit KRI values")
     db_session.add(kri_submit)
@@ -586,6 +594,13 @@ async def test_non_privileged_value_submission_returns_202(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
+
+    # The queued change targets the latest closed reporting period for the KRI's
+    # frequency at the (pinned) submission date -- the same period-SSOT math the
+    # endpoint uses (workflow.latest_closed_period_end). Resolves to 2026-04-30:
+    # April is the latest closed month on 2026-05-10.
+    _, expected_period_end = latest_closed_period_for_date(submission_date, kri.frequency)
+
     # Submit value as non-privileged user
     response = await client.post(
         f"/api/v1/kris/{kri.id}/values", headers={"X-Mock-User-Id": str(employee.id)}, json={"value": 75.0}
@@ -597,7 +612,7 @@ async def test_non_privileged_value_submission_returns_202(
     assert data["action_type"] == "edit"
     assert data["pending_changes"]["current_value"]["new"] == 75.0
     assert data["pending_changes"]["period_end"]["old"] is None
-    assert data["pending_changes"]["period_end"]["new"] == "2026-04-30"
+    assert data["pending_changes"]["period_end"]["new"] == expected_period_end.isoformat()
     assert data["pending_changes"]["recorded_at"]["old"] is None
     assert data["pending_changes"]["recorded_at"]["new"]
 
