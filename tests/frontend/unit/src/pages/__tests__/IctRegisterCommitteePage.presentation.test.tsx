@@ -1,22 +1,23 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProviderWithReady } from '@test/authBootstrap';
 import {
-    assetBandStyle,
     heatmapCellFill,
+    kpiDrilldownPath,
     metricDrilldownPath,
     migrationCellFill,
     narrativeParams,
     netBandStyle,
     riskBandChartRows,
+    roiGapRoutePath,
     stateTileDrilldownPath,
     tierStyle,
     toleranceStyle,
 } from '@/pages/ictRegisterCommittee/committeePresentation';
-import type { IctCommittee } from '@/types/ictRegisterCommittee';
+import type { IctCommittee, IctRoiTemplateReadiness } from '@/types/ictRegisterCommittee';
 
 const getCommittee = vi.fn();
 
@@ -25,6 +26,24 @@ vi.mock('@/services/ictRegisterCommitteeApi', () => ({
         getCommittee: (...args: unknown[]) => getCommittee(...args),
     },
 }));
+
+function roiTemplate(overrides: Partial<IctRoiTemplateReadiness>): IctRoiTemplateReadiness {
+    return {
+        code: 'B_06.01',
+        name_en: 'Functions identification',
+        name_cs: 'Určení funkcí',
+        feed: 'processes',
+        gate: 'presence',
+        coverage: 'full',
+        row_count: 0,
+        required_field_count: 0,
+        populated_field_count: 0,
+        readiness_pct: null,
+        gap_row_count: 0,
+        gap_rows: [],
+        ...overrides,
+    };
+}
 
 function samplePayload(): IctCommittee {
     return {
@@ -53,11 +72,14 @@ function samplePayload(): IctCommittee {
         cro: {
             kpi: {
                 risk_count: 8,
-                material_risk_count: 1,
+                material_risk_count: 0,
                 risks_above_tolerance_count: 3,
                 accepted_above_tolerance_count: 1,
                 cif_without_bcm_count: 3,
                 open_dq_finding_count: 23,
+                material_risk_count_production_inert: true,
+                material_risk_count_production_inert_reason:
+                    'The app Risk register tracks no materiality flag; the loader maps it empty, so this KPI cannot count on production data.',
             },
             heatmap: {
                 rows: [5, 4, 3, 2, 1].map((probability) => ({
@@ -134,6 +156,63 @@ function samplePayload(): IctCommittee {
                 { band: 'Kritické', gross_count: 3, net_count: 1 },
             ],
         },
+        roi_readiness: {
+            templates: [
+                roiTemplate({
+                    code: 'B_01.01',
+                    name_en: 'Entity maintaining the register',
+                    name_cs: 'Entita vedoucí registr',
+                    feed: 'entity',
+                    gate: 'documentary',
+                    coverage: 'documentary',
+                }),
+                roiTemplate({
+                    code: 'B_06.01',
+                    row_count: 148,
+                    required_field_count: 1332,
+                    populated_field_count: 1184,
+                    readiness_pct: 88.9,
+                    gap_row_count: 148,
+                    gap_rows: [
+                        {
+                            entity_type: 'process',
+                            entity_id: 12,
+                            label: 'F12 — Správa pojistných smluv',
+                            route_entity_type: 'process',
+                            route_entity_id: 12,
+                            missing: [
+                                { key: 'licensed_activity', code: 'B_06.01.0020' },
+                                { key: 'rto_hours', code: 'B_06.01.0080' },
+                            ],
+                        },
+                    ],
+                }),
+                roiTemplate({
+                    code: 'B_05.01',
+                    name_en: 'ICT third-party service providers',
+                    name_cs: 'Poskytovatelé',
+                    feed: 'vendors',
+                    gate: 'presence',
+                    coverage: 'partial',
+                    row_count: 30,
+                    required_field_count: 180,
+                    populated_field_count: 180,
+                    readiness_pct: 100.0,
+                }),
+                roiTemplate({
+                    code: 'B_02.01',
+                    name_en: 'Contractual arrangements — general information',
+                    name_cs: 'Smluvní ujednání',
+                    feed: 'contracts',
+                    gate: 'roi_scope',
+                    coverage: 'partial',
+                    row_count: 0,
+                    readiness_pct: null,
+                }),
+            ],
+            overall_readiness_pct: 90.4,
+            total_gap_row_count: 148,
+        },
     };
 }
 
@@ -170,9 +249,6 @@ describe('ICT Risk Committee presentation helpers', () => {
         expect(tierStyle('Kritický dodavatel')).toEqual({ backgroundColor: '#FFC7CE', color: '#9C0006' });
         expect(tierStyle('Významný dodavatel')).toEqual({ backgroundColor: '#FCE4D6', color: '#C55A11' });
         expect(tierStyle('Standardní dodavatel')).toEqual({ backgroundColor: '#C6EFCE', color: '#006100' });
-
-        // Asset criticality bands reuse the CRIT_N palette on the CZ feminine labels.
-        expect(assetBandStyle('Kritická')).toEqual({ backgroundColor: '#FFC7CE', color: '#9C0006' });
     });
 
     it('drills every dashboard tile down to the register view behind it', () => {
@@ -207,6 +283,64 @@ describe('ICT Risk Committee presentation helpers', () => {
         );
     });
 
+    it('drills every CRO KPI tile down to the surface behind it', () => {
+        // The DQ-equivalent tiles land on the DQ page (I7 ≡ DQ-05; K7 = the
+        // findings tally); the risk-fed tiles land on the risk register.
+        expect(kpiDrilldownPath('risk_count')).toBe('/risks');
+        expect(kpiDrilldownPath('material_risk_count')).toBe('/risks');
+        expect(kpiDrilldownPath('risks_above_tolerance_count')).toBe('/risks');
+        expect(kpiDrilldownPath('accepted_above_tolerance_count')).toBe('/risks');
+        expect(kpiDrilldownPath('cif_without_bcm_count')).toBe(
+            '/ict-register/data-quality?check=DQ-05'
+        );
+        expect(kpiDrilldownPath('open_dq_finding_count')).toBe(
+            '/ict-register/data-quality?status=findings'
+        );
+    });
+
+    it('anchors RoI gap rows on their register detail pages (the DQ route shape)', () => {
+        expect(
+            roiGapRoutePath({
+                entity_type: 'process',
+                entity_id: 12,
+                label: 'F12',
+                route_entity_type: 'process',
+                route_entity_id: 12,
+                missing: [],
+            })
+        ).toBe('/processes/12');
+        expect(
+            roiGapRoutePath({
+                entity_type: 'contract',
+                entity_id: 3,
+                label: 'SML-1',
+                route_entity_type: 'vendor',
+                route_entity_id: 9,
+                missing: [],
+            })
+        ).toBe('/vendors/9');
+        expect(
+            roiGapRoutePath({
+                entity_type: 'asset_vendor_link',
+                entity_id: 4,
+                label: 'Veris ↔ BIZ DATA',
+                route_entity_type: 'asset',
+                route_entity_id: 7,
+                missing: [],
+            })
+        ).toBe('/assets/7');
+        expect(
+            roiGapRoutePath({
+                entity_type: 'x',
+                entity_id: 1,
+                label: 'x',
+                route_entity_type: 'unknown',
+                route_entity_id: 1,
+                missing: [],
+            })
+        ).toBeNull();
+    });
+
     it('stages the gross-vs-net chart rows from the band aggregate', () => {
         const rows = riskBandChartRows(samplePayload().cro.risks_by_band);
         expect(rows).toEqual([
@@ -228,9 +362,7 @@ describe('ICT Risk Committee presentation helpers', () => {
 });
 
 describe('IctRegisterCommitteePage', () => {
-    it('renders both sheets: tiles, matrices, tables, narratives, and drill-downs', async () => {
-        getCommittee.mockResolvedValue(samplePayload());
-
+    async function renderPage() {
         const { IctRegisterCommitteePage } = await import('@/pages/IctRegisterCommitteePage');
         render(
             <MemoryRouter>
@@ -241,6 +373,11 @@ describe('IctRegisterCommitteePage', () => {
                 </AuthProviderWithReady>
             </MemoryRouter>
         );
+    }
+
+    it('renders both sheets: tiles, matrices, tables, narratives, and drill-downs', async () => {
+        getCommittee.mockResolvedValue(samplePayload());
+        await renderPage();
 
         // 16_Dashboard register-state tiles carry their values and drill down.
         expect(await screen.findByTestId('committee-state-process_count')).toHaveTextContent('148');
@@ -258,13 +395,21 @@ describe('IctRegisterCommitteePage', () => {
         expect(cifRow).toHaveTextContent('Critical or important functions (DORA art. 3(22))');
         expect(screen.getByTestId('committee-metric-open_dq_finding_count')).toHaveTextContent('23');
 
-        // CRO KPI strip.
+        // CRO KPI strip; tiles drill down (I7 lands on its DQ check).
         expect(screen.getByTestId('committee-kpi-risk_count')).toHaveTextContent('8');
         expect(screen.getByTestId('committee-kpi-accepted_above_tolerance_count')).toHaveTextContent('1');
+        expect(
+            screen.getByTestId('committee-kpi-cif_without_bcm_count').closest('a')
+        ).toHaveAttribute('href', '/ict-register/data-quality?check=DQ-05');
 
-        // Heatmap renders the full 5×5 grid in probability 5..1 order.
+        // Heatmap renders the full 5×5 grid in probability 5..1 order, and its
+        // caption states what the app actually plots (gross probability ×
+        // gross impact — the loader's mapping of the workbook's subject axis).
         expect(screen.getByTestId('committee-heatmap-cell-5-5')).toHaveTextContent('2');
         expect(screen.getByTestId('committee-heatmap-cell-1-1')).toHaveTextContent('0');
+        expect(screen.getByTestId('committee-heatmap')).toHaveTextContent(
+            'Gross probability ↓ / Gross impact →'
+        );
 
         // Migration matrix band edges.
         expect(screen.getByTestId('committee-migration-cell-Kritické-Kritické')).toHaveTextContent('2');
@@ -301,5 +446,52 @@ describe('IctRegisterCommitteePage', () => {
             'href',
             '/ict-register/data-quality'
         );
+    });
+
+    it('mutes the material KPI as not yet measurable — never a silent 0', async () => {
+        getCommittee.mockResolvedValue(samplePayload());
+        await renderPage();
+
+        const materialTile = await screen.findByTestId('committee-kpi-material_risk_count');
+        expect(materialTile).toHaveTextContent('—');
+        expect(materialTile).not.toHaveTextContent(/\b0\b/);
+        expect(materialTile).toHaveTextContent('Not yet measurable');
+    });
+
+    it('renders the RoI-readiness element: per-template rows, coverage badges, gaps', async () => {
+        getCommittee.mockResolvedValue(samplePayload());
+        await renderPage();
+
+        const section = await screen.findByTestId('committee-roi');
+        expect(section).toHaveTextContent('90.4');
+        expect(section).toHaveTextContent('148'); // total rows with gaps
+
+        // A computed template row: code, official EN name, % and row count.
+        const functions = screen.getByTestId('committee-roi-template-B_06.01');
+        expect(functions).toHaveTextContent('B_06.01');
+        expect(functions).toHaveTextContent('Functions identification');
+        expect(functions).toHaveTextContent('88.9');
+        expect(functions).toHaveTextContent('Full');
+
+        // A documentary template renders distinctly: badge + note, no percent.
+        const entity = screen.getByTestId('committee-roi-template-B_01.01');
+        expect(entity).toHaveTextContent('Documentary');
+        expect(entity).not.toHaveTextContent('%');
+
+        // A gated template with no feeding rows shows the empty affordance.
+        expect(screen.getByTestId('committee-roi-template-B_02.01')).toHaveTextContent(
+            'No feeding rows'
+        );
+
+        // The gap drill-down expands to the rows and their missing field codes,
+        // linking each row to its register detail page.
+        fireEvent.click(screen.getByTestId('committee-roi-toggle-B_06.01'));
+        const gaps = screen.getByTestId('committee-roi-gaps-B_06.01');
+        expect(gaps).toHaveTextContent('F12 — Správa pojistných smluv');
+        expect(gaps).toHaveTextContent('B_06.01.0020');
+        expect(gaps).toHaveTextContent('B_06.01.0080');
+        expect(
+            screen.getByRole('link', { name: /F12 — Správa pojistných smluv/ })
+        ).toHaveAttribute('href', '/processes/12');
     });
 });

@@ -69,6 +69,7 @@ from .derivation import (
     TIER_SIGNIFICANT,
     UNKNOWN_LOOKUP,
     AssetDerivationInput,
+    IctRegisterDerivation,
     IctRegisterGraph,
     _date_parameter,
     _int_parameter,
@@ -481,11 +482,20 @@ def _asset_level_char(asset_level: str | None, *, row_exists: bool) -> str | Non
 
 
 def derive_ict_register_dq(
-    dq_graph: IctRegisterDqGraph, parameters: IctWorkbookParameterSet
+    dq_graph: IctRegisterDqGraph,
+    parameters: IctWorkbookParameterSet,
+    *,
+    derivation: IctRegisterDerivation | None = None,
 ) -> IctRegisterDqResult:
-    """Compute all 52 checks over the graph, workbook-verbatim, on read."""
+    """Compute all 52 checks over the graph, workbook-verbatim, on read.
+
+    ``derivation`` lets a caller that already derived the SAME graph (the
+    committee read model, #51/#52) hand its result in — one derivation per
+    request instead of two. Behaviour is identical either way.
+    """
     graph = dq_graph.graph
-    derivation = derive_ict_register(graph, parameters)
+    if derivation is None:
+        derivation = derive_ict_register(graph, parameters)
 
     gdpr_min_c = _int_parameter(parameters, "P_GdprMinC")
     reference_date = _date_parameter(parameters, "P_RefDatum")

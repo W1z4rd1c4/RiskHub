@@ -86,6 +86,13 @@ from .dq import (
     RiskProcessLinkDqInput,
     RiskVendorLinkDqInput,
 )
+from .roi_readiness import (
+    RoiContractSupplement,
+    RoiProcessSupplement,
+    RoiRegisterSupplement,
+    RoiSubOutsourcingSupplement,
+    RoiVendorSupplement,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -592,13 +599,17 @@ async def load_dq_viewer_scope(
 
 async def load_ict_register_committee_graph(db: "AsyncSession") -> IctCommitteeGraph:
     """Load the whole register plus the 12_Hrozby name feed for the ICT Risk
-    Committee page (issue #51).
+    Committee page (issue #51) and the RoI-readiness supplement (issue #52).
 
     The committee graph is the DQ graph (both output sheets read the same
     registers and the ICT-linked Risk slice) extended with each risk's FIRST
     linked Threat name in Link-relation order — the in-app 13!hrozba_nazev
     (the workbook row references exactly one threat; the deterministic pick
-    is the earliest link).
+    is the earliest link) — and with the entered register columns the engine
+    graph omits but the RoI templates consume: the Process F-code and licensed
+    activity (B_06.01/B_02.02), the Vendor B_05.01/B_07.01 master-data and
+    assessment columns, the Contract monetary/notice/law columns (B_02.01),
+    and the Sub-outsourcing S-code and identifier (B_05.02).
     """
     dq_graph = await load_ict_register_dq_graph(db)
     threat_label_rows = await db.execute(
@@ -609,4 +620,90 @@ async def load_ict_register_committee_graph(db: "AsyncSession") -> IctCommitteeG
     risk_threat_labels: dict[int, str] = {}
     for risk_id, threat_name in threat_label_rows.all():
         risk_threat_labels.setdefault(risk_id, threat_name)
-    return IctCommitteeGraph(dq_graph=dq_graph, risk_threat_labels=risk_threat_labels)
+
+    process_supplements = {
+        process_id: RoiProcessSupplement(f_code=f_code, licensed_activity=licensed_activity)
+        for process_id, f_code, licensed_activity in (
+            await db.execute(select(Process.id, Process.f_code, Process.licensed_activity))
+        ).all()
+    }
+    vendor_supplements = {
+        row.id: RoiVendorSupplement(
+            latin_name=row.latin_name,
+            substitutability_reason=row.substitutability_reason,
+            last_audit_date=row.last_audit_date,
+            reintegration=row.reintegration,
+            service_disruption_impact=row.service_disruption_impact,
+            alternative_providers=row.alternative_providers,
+            alternative_providers_names=row.alternative_providers_names,
+            service_country=row.service_country,
+            data_storage=row.data_storage,
+            data_location=row.data_location,
+            data_sensitivity=row.data_sensitivity,
+        )
+        for row in (
+            await db.execute(
+                select(
+                    Vendor.id,
+                    Vendor.latin_name,
+                    Vendor.substitutability_reason,
+                    Vendor.last_audit_date,
+                    Vendor.reintegration,
+                    Vendor.service_disruption_impact,
+                    Vendor.alternative_providers,
+                    Vendor.alternative_providers_names,
+                    Vendor.service_country,
+                    Vendor.data_storage,
+                    Vendor.data_location,
+                    Vendor.data_sensitivity,
+                )
+            )
+        ).all()
+    }
+    contract_supplements = {
+        row.id: RoiContractSupplement(
+            overarching_reference=row.overarching_arrangement_reference,
+            notice_period_entity_days=row.notice_period_entity_days,
+            notice_period_provider_days=row.notice_period_provider_days,
+            governing_law_country=row.governing_law_country,
+            annual_cost=row.annual_cost,
+            currency=row.currency,
+        )
+        for row in (
+            await db.execute(
+                select(
+                    VendorContract.id,
+                    VendorContract.overarching_arrangement_reference,
+                    VendorContract.notice_period_entity_days,
+                    VendorContract.notice_period_provider_days,
+                    VendorContract.governing_law_country,
+                    VendorContract.annual_cost,
+                    VendorContract.currency,
+                )
+            )
+        ).all()
+    }
+    sub_supplements = {
+        sub_id: RoiSubOutsourcingSupplement(
+            ict_service_code=ict_service_code, identifier_value=identifier_value
+        )
+        for sub_id, ict_service_code, identifier_value in (
+            await db.execute(
+                select(
+                    VendorSubOutsourcing.id,
+                    VendorSubOutsourcing.ict_service_code,
+                    VendorSubOutsourcing.identifier_value,
+                )
+            )
+        ).all()
+    }
+    return IctCommitteeGraph(
+        dq_graph=dq_graph,
+        risk_threat_labels=risk_threat_labels,
+        roi_supplement=RoiRegisterSupplement(
+            processes=process_supplements,
+            vendors=vendor_supplements,
+            contracts=contract_supplements,
+            sub_outsourcing=sub_supplements,
+        ),
+    )

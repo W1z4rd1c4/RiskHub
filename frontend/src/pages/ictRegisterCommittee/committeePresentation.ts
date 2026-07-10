@@ -1,8 +1,10 @@
 import type {
+    IctCommitteeCroKpi,
     IctCommitteeKeyMetrics,
     IctCommitteeNarratives,
     IctCommitteeRegisterState,
     IctCommitteeRiskBandCounts,
+    IctRoiGapRow,
 } from '@/types/ictRegisterCommittee';
 
 // Presentation helpers for the ICT Risk Committee page (issue #51). The five
@@ -67,14 +69,6 @@ const NET_BAND_STYLES: Record<string, CellStyle> = {
     Kritické: FILL_RED,
 };
 
-// The asset-criticality bands reuse the palette on the CZ feminine labels.
-const ASSET_BAND_STYLES: Record<string, CellStyle> = {
-    Nízká: FILL_GREEN,
-    Střední: FILL_YELLOW,
-    Vysoká: FILL_ORANGE,
-    Kritická: FILL_RED,
-};
-
 // TOL (H21:H30): V toleranci green, NAD TOLERANCI red (ui.py:196).
 const TOLERANCE_STYLES: Record<string, CellStyle> = {
     'V toleranci': FILL_GREEN,
@@ -90,10 +84,6 @@ const TIER_STYLES: Record<string, CellStyle> = {
 
 export function netBandStyle(band: string | null): CellStyle | null {
     return band ? (NET_BAND_STYLES[band] ?? null) : null;
-}
-
-export function assetBandStyle(band: string | null): CellStyle | null {
-    return band ? (ASSET_BAND_STYLES[band] ?? null) : null;
 }
 
 export function toleranceStyle(vsTolerance: string | null): CellStyle | null {
@@ -142,12 +132,51 @@ const METRIC_PATHS: Record<keyof IctCommitteeKeyMetrics, string> = {
     open_dq_finding_count: DQ_FINDINGS_PATH,
 };
 
+// CRO KPI strip (§2.1): I7 ≡ DQ-05 lands on its check, K7 on the findings
+// filter, the risk-fed tiles on the risk register.
+export type CommitteeKpiKey = keyof Pick<
+    IctCommitteeCroKpi,
+    | 'risk_count'
+    | 'material_risk_count'
+    | 'risks_above_tolerance_count'
+    | 'accepted_above_tolerance_count'
+    | 'cif_without_bcm_count'
+    | 'open_dq_finding_count'
+>;
+
+const KPI_PATHS: Record<CommitteeKpiKey, string> = {
+    risk_count: '/risks',
+    material_risk_count: '/risks',
+    risks_above_tolerance_count: '/risks',
+    accepted_above_tolerance_count: '/risks',
+    cif_without_bcm_count: dqCheckPath('DQ-05'),
+    open_dq_finding_count: DQ_FINDINGS_PATH,
+};
+
 export function stateTileDrilldownPath(key: keyof IctCommitteeRegisterState): string {
     return STATE_TILE_PATHS[key];
 }
 
 export function metricDrilldownPath(key: keyof IctCommitteeKeyMetrics): string {
     return METRIC_PATHS[key];
+}
+
+export function kpiDrilldownPath(key: CommitteeKpiKey): string {
+    return KPI_PATHS[key];
+}
+
+// RoI gap rows anchor on a routable register detail page, the DQ route shape
+// (contracts and sub-outsourcing rows anchor on their owning Vendor; link
+// rows anchor on their Asset end).
+const ROI_ROUTE_PATHS: Record<string, (id: number) => string> = {
+    process: (id) => `/processes/${id}`,
+    asset: (id) => `/assets/${id}`,
+    vendor: (id) => `/vendors/${id}`,
+};
+
+export function roiGapRoutePath(row: IctRoiGapRow): string | null {
+    const build = ROI_ROUTE_PATHS[row.route_entity_type];
+    return build ? build(row.route_entity_id) : null;
 }
 
 export function topRiskPath(riskId: number): string {

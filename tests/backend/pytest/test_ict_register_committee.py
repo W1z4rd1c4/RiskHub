@@ -55,6 +55,10 @@ from app.services._ict_register_lifecycle.dq import (
     RiskVendorLinkDqInput,
     derive_ict_register_dq,
 )
+from app.services._ict_register_lifecycle.roi_readiness import (
+    RoiProcessSupplement,
+    RoiRegisterSupplement,
+)
 from app.services._ict_register_reference.parameters import (
     ICT_WORKBOOK_PARAMETERS,
     IctParameterValue,
@@ -81,6 +85,7 @@ def run_committee(
     risk_asset_links: tuple[RiskAssetLinkDqInput, ...] = (),
     risk_vendor_links: tuple[RiskVendorLinkDqInput, ...] = (),
     risk_threat_labels: dict[int, str] | None = None,
+    roi_supplement: RoiRegisterSupplement | None = None,
     parameters: IctWorkbookParameterSet | None = None,
 ) -> IctRegisterCommittee:
     return derive_ict_register_committee(
@@ -93,6 +98,7 @@ def run_committee(
                 risk_vendor_links=risk_vendor_links,
             ),
             risk_threat_labels=risk_threat_labels or {},
+            roi_supplement=roi_supplement or RoiRegisterSupplement(),
         ),
         parameters or parameter_set(),
     )
@@ -710,6 +716,70 @@ def test_risks_by_band_gross_vs_net_aggregate():
 
 
 # ---------------------------------------------------------------------------
+# RoI-readiness element (issue #52) + the committee-adjacent review items.
+# ---------------------------------------------------------------------------
+
+
+def test_committee_carries_the_roi_readiness_element():
+    """#52: the committee read model gains the 15-template RoI-readiness
+    block, computed over the SAME graph and derivation as the tiles (the
+    per-template mechanics are golden-covered in the dedicated suite)."""
+    result = run_committee(
+        IctRegisterGraph(processes=(process_row(1, rto_hours=None),)),
+        roi_supplement=RoiRegisterSupplement(
+            processes={1: RoiProcessSupplement(f_code="F1", licensed_activity="Pojišťovací činnost")}
+        ),
+    )
+    roi = result.roi_readiness
+
+    assert [template.code for template in roi.templates][:3] == ["B_01.01", "B_01.02", "B_01.03"]
+    assert len(roi.templates) == 15
+    by_code = {template.code: template for template in roi.templates}
+    assert by_code["B_06.01"].row_count == 1
+    (gap,) = by_code["B_06.01"].gap_rows
+    assert gap.label == "F1 — Proces 1"
+    assert [missing.code for missing in gap.missing] == ["B_06.01.0080"]
+
+
+def test_material_kpi_is_marked_production_inert_never_a_silent_zero():
+    """Review item: 13!material has NO app column (the loader maps it None
+    forever — the DQ-23 disposition). The flag derives from the DATA — inert
+    iff no risk row carries a materiality signal — so the production-shaped
+    graph reads "not yet measurable" (never a silent 0), while wiring a
+    future materiality column automatically un-mutes the KPI."""
+    production_shaped = run_committee(risks=(risk_input(1), risk_input(2))).cro.kpi
+    assert production_shaped.material_risk_count == 0
+    assert production_shaped.material_risk_count_production_inert is True
+    assert production_shaped.material_risk_count_production_inert_reason
+    assert "materiality" in production_shaped.material_risk_count_production_inert_reason
+
+    measured = run_committee(
+        risks=(risk_input(1, is_material="Ano"), risk_input(2))
+    ).cro.kpi
+    assert measured.material_risk_count == 1  # the verbatim rule, golden-covered
+    assert measured.material_risk_count_production_inert is False
+    assert measured.material_risk_count_production_inert_reason is None
+
+
+def test_dq_engine_accepts_a_precomputed_derivation_with_identical_results():
+    """Perf seam (#52 review item): the committee derives the register once
+    and hands the result to the DQ engine — behaviour must be IDENTICAL to
+    the DQ engine deriving for itself."""
+    from app.services._ict_register_lifecycle.derivation import derive_ict_register
+
+    graph = _key_metric_graph()
+    dq_graph = IctRegisterDqGraph(graph=graph, risks=(risk_input(1, net_score=40),))
+    params = parameter_set()
+
+    self_derived = derive_ict_register_dq(dq_graph, params)
+    pre_derived = derive_ict_register_dq(
+        dq_graph, params, derivation=derive_ict_register(graph, params)
+    )
+
+    assert pre_derived == self_derived
+
+
+# ---------------------------------------------------------------------------
 # HTTP seam — the NEW ict_committee resource permission (#38 authz decision:
 # executive/oversight roles only; platform admin stays excluded).
 # ---------------------------------------------------------------------------
@@ -773,6 +843,9 @@ async def test_committee_endpoint_denies_ungranted_and_anonymous_callers(
     async with client_factory(user=test_user_employee) as client:
         resp = await client.get("/api/v1/ict-register/committee")
         assert resp.status_code == 403
+        # The RoI-readiness element rides the same permission (#52): a denied
+        # caller gets no committee payload at all.
+        assert "roi_readiness" not in resp.json()
 
     for role_name in ("department_head", "viewer"):
         user = await _seed_contract_user(db_session, role_name)
@@ -1039,5 +1112,32 @@ async def test_committee_endpoint_over_an_api_seeded_register(
     assert body["cro"]["top_vendors"][0]["name"] == "BIZ DATA"
     assert body["cro"]["top_vendors"][0]["cif_process_count"] == 1
     assert body["cro"]["top_vendors"][0]["tier"] == "Kritický dodavatel"
+
+    # The material KPI ships its production-inert affordance (#52 review item).
+    assert kpi["material_risk_count_production_inert"] is True
+    assert kpi["material_risk_count_production_inert_reason"]
+
+    # RoI-readiness (#52) rides the same payload: 15 templates in annex order;
+    # the API-created Process gaps only on its unposted licensed activity (the
+    # server-assigned F-code and the engine CIF populate the rest), and the
+    # loader's supplement path feeds the VAD-driven templates.
+    roi = body["roi_readiness"]
+    assert [template["code"] for template in roi["templates"]] == [
+        "B_01.01", "B_01.02", "B_01.03", "B_02.01", "B_02.02", "B_02.03",
+        "B_03.01", "B_03.02", "B_03.03", "B_04.01", "B_05.01", "B_05.02",
+        "B_06.01", "B_07.01", "B_99.01",
+    ]
+    roi_by_code = {template["code"]: template for template in roi["templates"]}
+    b0601 = roi_by_code["B_06.01"]
+    assert b0601["row_count"] == 1
+    (b0601_gap,) = b0601["gap_rows"]
+    assert b0601_gap["label"].startswith("F")  # the server-assigned F-code
+    assert [missing["code"] for missing in b0601_gap["missing"]] == ["B_06.01.0020"]
+    assert b0601["readiness_pct"] == 88.9  # 8 of 9 required fields
+    assert roi_by_code["B_02.02"]["row_count"] == 1
+    assert roi_by_code["B_02.01"]["row_count"] == 0  # no RoI-scope contract seeded
+    assert roi_by_code["B_99.01"]["coverage"] == "documentary"
+    assert roi["overall_readiness_pct"] is not None
+    assert roi["total_gap_row_count"] >= 2
 
     assert body == snapshot

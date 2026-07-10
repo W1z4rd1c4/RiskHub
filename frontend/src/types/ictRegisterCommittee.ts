@@ -36,6 +36,10 @@ export interface IctCommitteeCroKpi {
     accepted_above_tolerance_count: number;
     cif_without_bcm_count: number;
     open_dq_finding_count: number;
+    /** 13!material has no app column (the DQ-23 disposition): the tile is
+     * "not yet measurable" on production data, never a silent 0. */
+    material_risk_count_production_inert?: boolean;
+    material_risk_count_production_inert_reason?: string | null;
 }
 
 export interface IctCommitteeHeatmapRow {
@@ -113,7 +117,46 @@ export interface IctCommitteeCro {
     risks_by_band: IctCommitteeRiskBandCounts[];
 }
 
+// RoI-readiness element (issue #52) — the 15 templates of CIR 2024/2956,
+// post-corrigendum field codes per the primary-annex verification (#40).
+
+export interface IctRoiMissingField {
+    key: string;
+    code: string | null;
+}
+
+export interface IctRoiGapRow {
+    entity_type: string;
+    entity_id: number;
+    label: string;
+    route_entity_type: string;
+    route_entity_id: number;
+    missing: IctRoiMissingField[];
+}
+
+export interface IctRoiTemplateReadiness {
+    code: string;
+    name_en: string;
+    name_cs: string;
+    feed: string;
+    gate: string;
+    coverage: string;
+    row_count: number;
+    required_field_count: number;
+    populated_field_count: number;
+    readiness_pct: number | null;
+    gap_row_count: number;
+    gap_rows: IctRoiGapRow[];
+}
+
+export interface IctRoiReadiness {
+    templates: IctRoiTemplateReadiness[];
+    overall_readiness_pct: number | null;
+    total_gap_row_count: number;
+}
+
 export interface IctCommittee {
     dashboard: IctCommitteeDashboard;
     cro: IctCommitteeCro;
+    roi_readiness: IctRoiReadiness;
 }

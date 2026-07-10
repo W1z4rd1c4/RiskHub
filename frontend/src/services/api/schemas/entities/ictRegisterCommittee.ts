@@ -14,6 +14,10 @@ import type {
     IctCommitteeRiskBandCounts,
     IctCommitteeTopRisk,
     IctCommitteeTopVendor,
+    IctRoiGapRow,
+    IctRoiMissingField,
+    IctRoiReadiness,
+    IctRoiTemplateReadiness,
 } from '@/types/ictRegisterCommittee';
 
 import { passthroughObject, z } from '../common';
@@ -55,6 +59,8 @@ export const ictCommitteeCroKpiSchema: z.ZodType<IctCommitteeCroKpi> = passthrou
     accepted_above_tolerance_count: z.number(),
     cif_without_bcm_count: z.number(),
     open_dq_finding_count: z.number(),
+    material_risk_count_production_inert: z.boolean().optional(),
+    material_risk_count_production_inert_reason: z.string().nullable().optional(),
 });
 
 export const ictCommitteeHeatmapRowSchema: z.ZodType<IctCommitteeHeatmapRow> = passthroughObject({
@@ -132,7 +138,45 @@ export const ictCommitteeCroSchema: z.ZodType<IctCommitteeCro> = passthroughObje
     risks_by_band: z.array(ictCommitteeRiskBandCountsSchema),
 });
 
+// RoI-readiness element (issue #52): 15 templates, post-corrigendum codes.
+
+export const ictRoiMissingFieldSchema: z.ZodType<IctRoiMissingField> = passthroughObject({
+    key: z.string(),
+    code: z.string().nullable(),
+});
+
+export const ictRoiGapRowSchema: z.ZodType<IctRoiGapRow> = passthroughObject({
+    entity_type: z.string(),
+    entity_id: z.number(),
+    label: z.string(),
+    route_entity_type: z.string(),
+    route_entity_id: z.number(),
+    missing: z.array(ictRoiMissingFieldSchema),
+});
+
+export const ictRoiTemplateReadinessSchema: z.ZodType<IctRoiTemplateReadiness> = passthroughObject({
+    code: z.string(),
+    name_en: z.string(),
+    name_cs: z.string(),
+    feed: z.string(),
+    gate: z.string(),
+    coverage: z.string(),
+    row_count: z.number(),
+    required_field_count: z.number(),
+    populated_field_count: z.number(),
+    readiness_pct: z.number().nullable(),
+    gap_row_count: z.number(),
+    gap_rows: z.array(ictRoiGapRowSchema),
+});
+
+export const ictRoiReadinessSchema: z.ZodType<IctRoiReadiness> = passthroughObject({
+    templates: z.array(ictRoiTemplateReadinessSchema),
+    overall_readiness_pct: z.number().nullable(),
+    total_gap_row_count: z.number(),
+});
+
 export const ictCommitteeSchema: z.ZodType<IctCommittee> = passthroughObject({
     dashboard: ictCommitteeDashboardSchema,
     cro: ictCommitteeCroSchema,
+    roi_readiness: ictRoiReadinessSchema,
 });

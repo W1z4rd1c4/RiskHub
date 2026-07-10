@@ -22,16 +22,20 @@ import type {
     IctCommitteeRegisterState,
     IctCommitteeTopRisk,
     IctCommitteeTopVendor,
+    IctRoiReadiness,
+    IctRoiTemplateReadiness,
 } from '@/types/ictRegisterCommittee';
 
 import {
     HEATMAP_SUBJECT_VALUES,
     heatmapCellFill,
+    kpiDrilldownPath,
     metricDrilldownPath,
     migrationCellFill,
     narrativeParams,
     netBandStyle,
     riskBandChartRows,
+    roiGapRoutePath,
     stateTileDrilldownPath,
     tierStyle,
     toleranceStyle,
@@ -181,6 +185,178 @@ function TopRisksTable({ risks }: { risks: IctCommitteeTopRisk[] }) {
                 </tbody>
             </table>
         </div>
+    );
+}
+
+// RoI-readiness element (issue #52) — the 15 templates of CIR 2024/2956 with
+// per-template completeness and the concrete gap drill-down.
+
+const COVERAGE_BADGE_CLASSES: Record<string, string> = {
+    full: 'bg-emerald-500/15 text-emerald-400',
+    partial: 'bg-amber-500/15 text-amber-400',
+    documentary: 'bg-white/5 text-slate-400',
+};
+
+function RoiCoverageBadge({ coverage }: { coverage: string }) {
+    const { t } = useTranslation('ictRegisterCommittee');
+    return (
+        <span
+            title={t(`roi.coverage_hint.${coverage}`)}
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${
+                COVERAGE_BADGE_CLASSES[coverage] ?? 'bg-white/5 text-slate-400'
+            }`}
+        >
+            {t(`roi.coverage.${coverage}`)}
+        </span>
+    );
+}
+
+function RoiTemplateRow({ template }: { template: IctRoiTemplateReadiness }) {
+    const { t, i18n } = useTranslation('ictRegisterCommittee');
+    const [expanded, setExpanded] = useState(false);
+    const documentary = template.coverage === 'documentary';
+    const name = i18n.language?.toLowerCase().startsWith('cs')
+        ? template.name_cs
+        : template.name_en;
+
+    return (
+        <div className="py-3 first:pt-0 last:pb-0" data-testid={`committee-roi-template-${template.code}`}>
+            <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+                <div className="lg:w-2/5">
+                    <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-slate-400">
+                            {template.code}
+                        </span>
+                        <RoiCoverageBadge coverage={template.coverage} />
+                    </div>
+                    <p className={`font-semibold mt-0.5 ${documentary ? 'text-slate-400' : 'text-slate-200'}`}>
+                        {name}
+                    </p>
+                    <p className="text-slate-500 text-xs mt-0.5">
+                        {t(`roi.feed.${template.feed}`)} · {t(`roi.gate.${template.gate}`)}
+                    </p>
+                </div>
+                <div className="flex-1">
+                    {documentary ? (
+                        <p className="text-slate-500 text-sm italic">{t(`roi.notes.${template.code}`)}</p>
+                    ) : template.row_count === 0 ? (
+                        <p className="text-slate-500 text-sm">{t('roi.no_rows')}</p>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full bg-accent"
+                                        style={{ width: `${template.readiness_pct ?? 0}%` }}
+                                    />
+                                </div>
+                                <span className="text-white font-bold tabular-nums text-sm w-16 text-right">
+                                    {template.readiness_pct === null
+                                        ? '—'
+                                        : `${template.readiness_pct} %`}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-slate-500 mt-1.5 font-medium">
+                                <span>{t('roi.row_count', { n: template.row_count })}</span>
+                                {template.gap_row_count > 0 ? (
+                                    <button
+                                        type="button"
+                                        data-testid={`committee-roi-toggle-${template.code}`}
+                                        onClick={() => setExpanded((value) => !value)}
+                                        className="text-slate-400 hover:text-accent font-bold underline decoration-white/20 hover:decoration-accent"
+                                    >
+                                        {expanded ? t('roi.hide_gaps') : t('roi.show_gaps')} (
+                                        {t('roi.gap_count', { n: template.gap_row_count })})
+                                    </button>
+                                ) : (
+                                    <span>{t('roi.no_gaps')}</span>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+            {expanded && template.gap_rows.length > 0 && (
+                <div
+                    data-testid={`committee-roi-gaps-${template.code}`}
+                    className="mt-3 space-y-2 border-t border-white/5 pt-3"
+                >
+                    {template.gap_rows.length < template.gap_row_count && (
+                        <p className="text-slate-500 text-xs italic">
+                            {t('roi.gap_rows_truncated', {
+                                shown: template.gap_rows.length,
+                                total: template.gap_row_count,
+                            })}
+                        </p>
+                    )}
+                    {template.gap_rows.map((row, index) => {
+                        const path = roiGapRoutePath(row);
+                        return (
+                            <div
+                                key={`${row.entity_type}-${row.entity_id}-${index}`}
+                                className="flex flex-col md:flex-row md:items-baseline gap-1.5 md:gap-3"
+                            >
+                                <div className="md:w-2/5 text-sm">
+                                    {path ? (
+                                        <Link
+                                            to={path}
+                                            className="text-slate-200 font-semibold hover:text-accent underline decoration-white/20 hover:decoration-accent"
+                                        >
+                                            {row.label}
+                                        </Link>
+                                    ) : (
+                                        <span className="text-slate-300 font-semibold">{row.label}</span>
+                                    )}
+                                </div>
+                                <div className="flex-1 flex flex-wrap items-center gap-1.5">
+                                    <span className="text-slate-500 text-xs">{t('roi.missing_label')}</span>
+                                    {row.missing.map((missing) => (
+                                        <span
+                                            key={missing.key}
+                                            title={t(`roi.fields.${missing.key}`)}
+                                            className="px-2 py-0.5 rounded-lg bg-white/5 text-slate-300 text-xs font-semibold font-mono whitespace-nowrap"
+                                        >
+                                            {missing.code ?? t(`roi.fields.${missing.key}`)}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function RoiReadinessSection({ roi }: { roi: IctRoiReadiness }) {
+    const { t } = useTranslation('ictRegisterCommittee');
+    return (
+        <section className="space-y-4" data-testid="committee-roi">
+            <div>
+                <h2 className="text-xl font-bold text-white">{t('roi.title')}</h2>
+                <p className="text-slate-500 text-sm font-medium mt-1">{t('roi.subtitle')}</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="glass-card" data-testid="committee-roi-overall">
+                    <p className="text-slate-500 text-xs font-bold min-h-8">{t('roi.overall')}</p>
+                    <p className="text-3xl font-bold text-white mt-1 tabular-nums">
+                        {roi.overall_readiness_pct === null ? '—' : `${roi.overall_readiness_pct} %`}
+                    </p>
+                </div>
+                <div className="glass-card" data-testid="committee-roi-total-gaps">
+                    <p className="text-slate-500 text-xs font-bold min-h-8">{t('roi.total_gaps')}</p>
+                    <p className="text-3xl font-bold text-white mt-1 tabular-nums">
+                        {roi.total_gap_row_count}
+                    </p>
+                </div>
+            </div>
+            <div className="glass-card divide-y divide-white/5">
+                {roi.templates.map((template) => (
+                    <RoiTemplateRow key={template.code} template={template} />
+                ))}
+            </div>
+        </section>
     );
 }
 
@@ -402,21 +578,39 @@ export function IctRegisterCommitteePage() {
 
                         <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                             {KPI_KEYS.map((key) => {
-                                const path =
-                                    key === 'cif_without_bcm_count'
-                                        ? '/ict-register/data-quality?check=DQ-05'
-                                        : key === 'open_dq_finding_count'
-                                          ? '/ict-register/data-quality?status=findings'
-                                          : '/risks';
+                                // C7 "Materiální" is production-inert (no app
+                                // materiality column): muted "not yet
+                                // measurable", never a silent 0.
+                                const inert =
+                                    key === 'material_risk_count' &&
+                                    Boolean(data.cro.kpi.material_risk_count_production_inert);
                                 return (
-                                    <Link key={key} to={path} className="glass-card block hover:bg-white/5 transition-colors">
-                                        <div data-testid={`committee-kpi-${key}`}>
+                                    <Link
+                                        key={key}
+                                        to={kpiDrilldownPath(key)}
+                                        className="glass-card block hover:bg-white/5 transition-colors"
+                                    >
+                                        <div
+                                            data-testid={`committee-kpi-${key}`}
+                                            title={inert ? t('kpi_not_measurable_hint') : undefined}
+                                        >
                                             <p className="text-slate-500 text-xs font-bold text-center min-h-8">
                                                 {t(`kpi.${key}`)}
                                             </p>
-                                            <p className="text-3xl font-bold text-white text-center mt-1 tabular-nums">
-                                                {data.cro.kpi[key]}
-                                            </p>
+                                            {inert ? (
+                                                <>
+                                                    <p className="text-3xl font-bold text-slate-600 text-center mt-1">
+                                                        —
+                                                    </p>
+                                                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 text-center mt-1">
+                                                        {t('kpi_not_measurable')}
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <p className="text-3xl font-bold text-white text-center mt-1 tabular-nums">
+                                                    {data.cro.kpi[key]}
+                                                </p>
+                                            )}
                                         </div>
                                     </Link>
                                 );
@@ -634,6 +828,9 @@ export function IctRegisterCommitteePage() {
                             </div>
                         </div>
                     </section>
+
+                    {/* RoI readiness (#52) — the 15 CIR 2024/2956 templates. */}
+                    <RoiReadinessSection roi={data.roi_readiness} />
                 </>
             )}
 

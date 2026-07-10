@@ -154,7 +154,12 @@ class IctCommitteeDashboardRead(BaseModel):
 
 
 class IctCommitteeCroKpiRead(BaseModel):
-    """18_CRO_přehled KPI strip (§2.1), sheet column order."""
+    """18_CRO_přehled KPI strip (§2.1), sheet column order.
+
+    ``material_risk_count`` carries the DQ-23-style production-inert flag —
+    its 13!material input has no app column, so the UI renders "not yet
+    measurable" instead of a silent 0.
+    """
 
     risk_count: int
     material_risk_count: int
@@ -162,6 +167,8 @@ class IctCommitteeCroKpiRead(BaseModel):
     accepted_above_tolerance_count: int
     cif_without_bcm_count: int
     open_dq_finding_count: int
+    material_risk_count_production_inert: bool = False
+    material_risk_count_production_inert_reason: str | None = None
 
 
 class IctCommitteeHeatmapRowRead(BaseModel):
@@ -259,9 +266,63 @@ class IctCommitteeCroRead(BaseModel):
     risks_by_band: list[IctCommitteeRiskBandCountsRead]
 
 
+# ---------------------------------------------------------------------------
+# RoI-readiness element (issue #52) — the 15 templates of CIR 2024/2956.
+# ---------------------------------------------------------------------------
+
+
+class IctRoiMissingFieldRead(BaseModel):
+    """One missing required column on a gap row: stable key + the
+    post-corrigendum field code where the primary-annex verification (#40)
+    records one, ``None`` otherwise (codes are never fabricated)."""
+
+    key: str
+    code: str | None
+
+
+class IctRoiGapRowRead(BaseModel):
+    """One feeding row with missing required fields, with the DQ-shaped
+    drill-down anchor onto its register detail page."""
+
+    entity_type: str
+    entity_id: int
+    label: str
+    route_entity_type: str
+    route_entity_id: int
+    missing: list[IctRoiMissingFieldRead]
+
+
+class IctRoiTemplateReadinessRead(BaseModel):
+    """One RoI template's readiness: registry identity (bilingual name, feed,
+    gate, honest coverage flag) plus the computed completeness counts. The
+    listed ``gap_rows`` are capped; ``gap_row_count`` carries the total."""
+
+    code: str
+    name_en: str
+    name_cs: str
+    feed: str
+    gate: str
+    coverage: str
+    row_count: int
+    required_field_count: int
+    populated_field_count: int
+    readiness_pct: float | None
+    gap_row_count: int
+    gap_rows: list[IctRoiGapRowRead]
+
+
+class IctRoiReadinessRead(BaseModel):
+    """All 15 RoI templates in annex order plus the overall summary."""
+
+    templates: list[IctRoiTemplateReadinessRead]
+    overall_readiness_pct: float | None
+    total_gap_row_count: int
+
+
 class IctCommitteeRead(BaseModel):
-    """The ICT Risk Committee read model: both workbook output sheets,
-    computed on read (issue #51)."""
+    """The ICT Risk Committee read model: both workbook output sheets
+    (issue #51) plus the RoI-readiness element (issue #52), computed on read."""
 
     dashboard: IctCommitteeDashboardRead
     cro: IctCommitteeCroRead
+    roi_readiness: IctRoiReadinessRead

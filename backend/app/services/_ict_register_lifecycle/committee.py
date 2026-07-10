@@ -70,8 +70,19 @@ from .dq import (
     risk_net_band,
     risk_vs_tolerance,
 )
+from .roi_readiness import RoiReadiness, RoiRegisterSupplement, derive_roi_readiness
 
 _CLASS_CRITICAL = CRITICALITY_CLASSES[3]
+
+# The C7 "Materiální" KPI reads 13!material, which has NO app column (the
+# loader maps it None forever) — the DQ-23 production-inert disposition: the
+# verbatim COUNTIF stays golden-covered through direct engine input, but on
+# production data the tile can never count, so the payload flags it and the
+# UI renders "not yet measurable" instead of a silent 0.
+MATERIAL_RISK_KPI_PRODUCTION_INERT_REASON = (
+    "The app Risk register tracks no materiality flag; the loader maps it "
+    "empty, so this KPI cannot count on production data."
+)
 
 # Heatmap axes (inventory §2.2): rows = probability 5 down to 1, columns =
 # subject value 1 to 5 — the full 5×5 grid, always rendered.
@@ -95,11 +106,13 @@ _NARRATIVE_EXIT_STATES: tuple[str, ...] = ("Schválen", "Testován")
 class IctCommitteeGraph:
     """The whole-register slice both output sheets read: the DQ graph (which
     already carries the 13_Rizika rows and their Link relations) plus the
-    12_Hrozby name feed for the Top-10 "Hrozba" column."""
+    12_Hrozby name feed for the Top-10 "Hrozba" column and the RoI-readiness
+    supplement (#52) — the entered register columns the engine graph omits."""
 
     dq_graph: IctRegisterDqGraph = field(default_factory=IctRegisterDqGraph)
     # risk_id -> first linked Threat name, in Link-relation order (#47).
     risk_threat_labels: Mapping[int, str] = field(default_factory=dict)
+    roi_supplement: RoiRegisterSupplement = field(default_factory=RoiRegisterSupplement)
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +164,12 @@ class CommitteeDashboard:
 
 @dataclass(frozen=True)
 class CommitteeCroKpiStrip:
-    """KPI strip (inventory §2.1, cells A7-K7), in sheet column order."""
+    """KPI strip (inventory §2.1, cells A7-K7), in sheet column order.
+
+    ``material_risk_count`` carries the DQ-23-style production-inert flag:
+    its 13!material input has no app column, so on production data the tile
+    is "not yet measurable", never a silent 0.
+    """
 
     risk_count: int
     material_risk_count: int
@@ -159,6 +177,8 @@ class CommitteeCroKpiStrip:
     accepted_above_tolerance_count: int
     cif_without_bcm_count: int
     open_dq_finding_count: int
+    material_risk_count_production_inert: bool = False
+    material_risk_count_production_inert_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -277,10 +297,11 @@ class CommitteeCroOverview:
 
 @dataclass(frozen=True)
 class IctRegisterCommittee:
-    """Both output sheets, computed on read."""
+    """Both output sheets plus the RoI-readiness element (#52), computed on read."""
 
     dashboard: CommitteeDashboard
     cro: CommitteeCroOverview
+    roi_readiness: RoiReadiness
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +316,8 @@ def derive_ict_register_committee(
     dq_graph = committee_graph.dq_graph
     graph = dq_graph.graph
     derivation = derive_ict_register(graph, parameters)
-    dq_result = derive_ict_register_dq(dq_graph, parameters)
+    # One derivation per request: the DQ engine consumes ours (#52 perf item).
+    dq_result = derive_ict_register_dq(dq_graph, parameters, derivation=derivation)
     dq_count = {check.check_id: check.count for check in dq_result.checks}
 
     tolerance = _int_parameter(parameters, "P_Tolerance")
@@ -372,6 +394,10 @@ def derive_ict_register_committee(
 
     # --- 18_CRO_přehled §2.1 KPI strip (A7-K7). I7 ≡ DQ-05 (inventory §4);
     # K7 repeats the open-findings tally verbatim (sheets_out.py:809).
+    # 13!material has no app column today, so the loader maps every row's
+    # is_material None — derived from the DATA (not hardcoded), the inert flag
+    # un-mutes automatically the moment a materiality input reaches the graph.
+    material_risk_count_inert = all(risk.is_material is None for risk in dq_graph.risks)
     kpi = CommitteeCroKpiStrip(
         # =SUMPRODUCT(--(13!C<>"")) (:804) — a risk row exists iff its subject
         # id is filled; the in-app slice IS the ICT-linked rows.
@@ -385,6 +411,10 @@ def derive_ict_register_committee(
         # =COUNTIF(03.kontrola_bcm,"GAP*") (:808) ≡ DQ-05.
         cif_without_bcm_count=dq_count["DQ-05"],
         open_dq_finding_count=dq_result.finding_count,
+        material_risk_count_production_inert=material_risk_count_inert,
+        material_risk_count_production_inert_reason=(
+            MATERIAL_RISK_KPI_PRODUCTION_INERT_REASON if material_risk_count_inert else None
+        ),
     )
 
     # --- §2.2 heatmap: cell = COUNTIFS(13.pravdep=i, 13.hodnota_subj=j)
@@ -554,5 +584,9 @@ def derive_ict_register_committee(
             narratives=narratives,
             assets_by_criticality=assets_by_criticality,
             risks_by_band=risks_by_band,
+        ),
+        # The RoI-readiness element (#52), fed the SAME derivation.
+        roi_readiness=derive_roi_readiness(
+            graph, committee_graph.roi_supplement, derivation, parameters
         ),
     )

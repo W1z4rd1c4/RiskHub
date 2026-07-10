@@ -41,8 +41,12 @@ from app.schemas.ict_register import (
     IctDqCheckRead,
     IctDqViolatingRowRead,
     IctRegisterDqRead,
+    IctRoiGapRowRead,
     IctRoiMapCollectionRead,
     IctRoiMapRead,
+    IctRoiMissingFieldRead,
+    IctRoiReadinessRead,
+    IctRoiTemplateReadinessRead,
     IctRoiTranslationRead,
     IctServiceTaxonomyRead,
     IctServiceTypeRead,
@@ -242,10 +246,12 @@ async def get_committee_overview(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("ict_committee", "read")),
 ) -> IctCommitteeRead:
-    """Return the ICT Risk Committee read model (issue #51).
+    """Return the ICT Risk Committee read model (issues #51/#52).
 
     Reproduces the workbook's 16_Dashboard and 18_CRO_přehled per the tile
-    inventory contract, computed on read over the whole register graph.
+    inventory contract, plus the RoI-readiness element — per-template field
+    completeness across the 15 CIR 2024/2956 templates with the concrete
+    gaps — computed on read over the whole register graph.
     Gated by the committee's OWN resource permission (executive/oversight
     roles; platform admins hold no business permissions): every figure is a
     register-global aggregate — the workbook sheets the committee saw — so no
@@ -287,5 +293,39 @@ async def get_committee_overview(
             risks_by_band=[
                 IctCommitteeRiskBandCountsRead(**vars(entry)) for entry in committee.cro.risks_by_band
             ],
+        ),
+        roi_readiness=IctRoiReadinessRead(
+            templates=[
+                IctRoiTemplateReadinessRead(
+                    code=template.code,
+                    name_en=template.name_en,
+                    name_cs=template.name_cs,
+                    feed=template.feed,
+                    gate=template.gate,
+                    coverage=template.coverage,
+                    row_count=template.row_count,
+                    required_field_count=template.required_field_count,
+                    populated_field_count=template.populated_field_count,
+                    readiness_pct=template.readiness_pct,
+                    gap_row_count=template.gap_row_count,
+                    gap_rows=[
+                        IctRoiGapRowRead(
+                            entity_type=row.entity_type,
+                            entity_id=row.entity_id,
+                            label=row.label,
+                            route_entity_type=row.route_entity_type,
+                            route_entity_id=row.route_entity_id,
+                            missing=[
+                                IctRoiMissingFieldRead(key=missing.key, code=missing.code)
+                                for missing in row.missing
+                            ],
+                        )
+                        for row in template.gap_rows
+                    ],
+                )
+                for template in committee.roi_readiness.templates
+            ],
+            overall_readiness_pct=committee.roi_readiness.overall_readiness_pct,
+            total_gap_row_count=committee.roi_readiness.total_gap_row_count,
         ),
     )
