@@ -427,6 +427,10 @@ export const E2E_REQUIRED_FIXTURES = {
         E2E_RISKS.CROSS_DEPT_FIN_OWNS_OPS.code,
         E2E_RISKS.OPS_HEAD_CROSS_DEPT_EDITABLE.code,
         E2E_RISKS.ARCHIVE_RESTORE_TARGET.code,
+        // ICT Risk Committee page (#51): the only ICT-linked risk (its
+        // Risk<->Process/Asset links seed the committee's Top-10 + band
+        // visuals), so the committee spec fails fast without it.
+        E2E_ICT_REGISTER_RISK.code,
     ],
     controls: [
         E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name,
