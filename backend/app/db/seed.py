@@ -35,6 +35,7 @@ from app.models import (
 )
 from app.models.user import AccessScope
 from app.services._ict_register_reference import (
+    ICT_APP_SCALE_RISK_BAND_DEFAULTS,
     ICT_PARAMETER_CONFIG_CATEGORY,
     ICT_WORKBOOK_PARAMETERS,
 )
@@ -130,6 +131,17 @@ def _ict_parameter_config_value(value: int | str | date) -> tuple[str, str]:
 async def seed_ict_workbook_parameter_config(db: AsyncSession) -> int:
     """Seed the 23 ICT Register workbook parameters into global_config.
 
+    Nineteen rows are seeded at the registry's verbatim workbook defaults.
+    The four risk-band parameters (P_RizStr/P_RizVys/P_RizKrit/P_Tolerance)
+    are seeded at their APP-SCALE values instead: the registry stays
+    workbook-verbatim (fidelity layer), while the seeded config row is the
+    app's adaptation layer — the workbook defaults 15/40/80/39 live on the
+    workbook's 1-125 three-factor risk scale, unreachable on the app's 1-25
+    net-score scale, so seeding them verbatim would structurally understate
+    the risk bands on any database that never ran the #53 cutover import.
+    Values and derivation (×1/5; tolerance ceiling floors) per
+    docs/dora-ict-register/cutover-record.md §4.
+
     Idempotent: rows already present (by key) are left untouched, so
     re-seeding never duplicates and never resets governed values. Rows are
     seeded non-editable; the parameter set is read-only until explicit
@@ -146,7 +158,18 @@ async def seed_ict_workbook_parameter_config(db: AsyncSession) -> int:
     for parameter in ICT_WORKBOOK_PARAMETERS:
         if parameter.config_key in existing_keys:
             continue
-        value, value_type = _ict_parameter_config_value(parameter.default)
+        app_scale_override = ICT_APP_SCALE_RISK_BAND_DEFAULTS.get(parameter.name)
+        if app_scale_override is not None:
+            value, value_type = str(app_scale_override), "int"
+            description = (
+                f"{parameter.meaning} — app-scale value: the workbook default "
+                f"{parameter.default} is on the workbook's 1-125 three-factor risk scale; "
+                f"rescaled ×1/5 to the app's 1-25 net-score scale "
+                f"(docs/dora-ict-register/cutover-record.md §4)."
+            )
+        else:
+            value, value_type = _ict_parameter_config_value(parameter.default)
+            description = parameter.meaning
         db.add(
             GlobalConfig(
                 key=parameter.config_key,
@@ -154,7 +177,7 @@ async def seed_ict_workbook_parameter_config(db: AsyncSession) -> int:
                 value_type=value_type,
                 category=ICT_PARAMETER_CONFIG_CATEGORY,
                 display_name=parameter.name,
-                description=parameter.meaning,
+                description=description,
                 is_editable=False,
             )
         )
@@ -168,8 +191,12 @@ async def seed_ict_workbook_parameter_config(db: AsyncSession) -> int:
 async def seed_database():
     """Seed the database with initial data."""
     async with session_context(get_settings()) as db:
-        # Check if already seeded
-        result = await db.execute(select(Role))
+        # Check if already seeded. Users are created ONLY by this seed, so
+        # they are the sentinel: on a freshly alembic-migrated database the
+        # permission-sync data migrations already inserted RBAC rows (and
+        # b3c4d5e6f7a8 creates the executive roles), so Role existence no
+        # longer means "seeded".
+        result = await db.execute(select(User))
         if result.scalars().first():
             print("Database already seeded. Skipping roles/permissions/users.")
             risk_type_summary = await seed_default_risk_types(db)
@@ -188,38 +215,58 @@ async def seed_database():
 
         print("Seeding database...")
 
-        # Create permissions
-        permissions = {}
+        # Create permissions missing by (resource, action): the permission-sync
+        # data migrations pre-insert rows on freshly migrated databases.
+        result = await db.execute(select(Permission))
+        permissions = {f"{perm.resource}:{perm.action}": perm for perm in result.scalars().all()}
+        created_permissions = 0
         for perm_data in PERMISSIONS:
+            perm_key = f"{perm_data['resource']}:{perm_data['action']}"
+            if perm_key in permissions:
+                continue
             perm = Permission(**perm_data)
             db.add(perm)
-            permissions[f"{perm_data['resource']}:{perm_data['action']}"] = perm
+            permissions[perm_key] = perm
+            created_permissions += 1
         await db.flush()
-        print(f"Created {len(PERMISSIONS)} permissions")
+        print(f"Created {created_permissions} permissions ({len(PERMISSIONS) - created_permissions} pre-existing)")
 
-        # Create roles
-        roles = {}
+        # Create roles missing by name (roles.name is unique; b3c4d5e6f7a8
+        # pre-creates the executive roles on freshly migrated databases).
+        result = await db.execute(select(Role))
+        roles = {role.name: role for role in result.scalars().all()}
+        created_roles = 0
         for role_data in ROLES:
+            if role_data["name"] in roles:
+                continue
             role = Role(**role_data)
             db.add(role)
             roles[role_data["name"]] = role
+            created_roles += 1
         await db.flush()
-        print(f"Created {len(ROLES)} roles")
+        print(f"Created {created_roles} roles ({len(ROLES) - created_roles} pre-existing)")
 
-        # Create role-permission mappings
+        # Create role-permission mappings missing by (role, permission).
+        result = await db.execute(select(RolePermission))
+        existing_grants = {(rp.role_id, rp.permission_id) for rp in result.scalars().all()}
+
+        def _grant(role_id: int, permission_id: int) -> None:
+            if (role_id, permission_id) in existing_grants:
+                return
+            db.add(RolePermission(role_id=role_id, permission_id=permission_id))
+            existing_grants.add((role_id, permission_id))
+
         for role_name, perm_keys in ROLE_PERMISSIONS.items():
             role = roles[role_name]
             for perm_key in perm_keys:
                 if perm_key in permissions:
-                    rp = RolePermission(role_id=role.id, permission_id=permissions[perm_key].id)
-                    db.add(rp)
+                    _grant(role.id, permissions[perm_key].id)
                 elif perm_key.endswith(":*"):
                     # Handle wildcard action permissions
                     resource = perm_key.split(":")[0]
                     for key, perm in permissions.items():
                         if key.startswith(f"{resource}:"):
-                            rp = RolePermission(role_id=role.id, permission_id=perm.id)
-                            db.add(rp)
+                            _grant(role.id, perm.id)
         await db.flush()
         print("Created role-permission mappings")
 

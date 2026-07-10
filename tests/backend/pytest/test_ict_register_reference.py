@@ -26,6 +26,17 @@ def _clear_config_cache():
     clear_config_cache()
 
 
+def _expected_app_scale_description(parameter) -> str:
+    """The rationale wording both the fresh seed and the c4d5e6f7a8b9 sync
+    migration write on the four app-scale risk-band rows (kept byte-identical
+    so freshly seeded and migrated databases converge)."""
+    return (
+        f"{parameter.meaning} — app-scale value: the workbook default {parameter.default} is on the "
+        f"workbook's 1-125 three-factor risk scale; rescaled ×1/5 to the app's 1-25 "
+        f"net-score scale (docs/dora-ict-register/cutover-record.md §4)."
+    )
+
+
 @pytest.mark.asyncio
 async def test_closed_lists_expose_all_45_workbook_lists_verbatim(client_factory, test_user_cro: User):
     async with client_factory(user=test_user_cro) as client:
@@ -249,6 +260,10 @@ async def test_parameter_set_exposes_all_23_workbook_parameters_with_version(cli
     assert len(parameters) == 23
 
     # Numeric thresholds and MTPD bonuses, verbatim from spec section 6.
+    # (No config rows are seeded in this app context, so the endpoint serves
+    # the registry's workbook-verbatim fallbacks — including the four 1-125
+    # risk-band values that a SEEDED database overlays at app scale; the
+    # seeded behavior is pinned by the seed/band tests below.)
     assert parameters["P_KritSkore"]["value"] == 16
     assert parameters["P_VysSkore"]["value"] == 12
     assert parameters["P_StrSkore"]["value"] == 8
@@ -366,9 +381,108 @@ async def test_parameter_config_seed_is_idempotent_and_read_only(db_session):
     assert rows["ict_register_ref_datum"].value == "2026-07-03"
     assert rows["ict_register_entita"].display_name == "P_Entita"
 
+    # BY DESIGN the four risk-band rows are seeded at the app-scale values,
+    # NOT the workbook defaults: 15/40/80/39 live on the workbook's 1-125
+    # three-factor scale (40/80 unreachable on the app's 1-25 net-score
+    # scale), so config — the app's adaptation layer — carries the ×1/5
+    # derivation from docs/dora-ict-register/cutover-record.md §4 while the
+    # code registry stays workbook-verbatim.
+    assert rows["ict_register_riz_str"].value == "3"
+    assert rows["ict_register_riz_vys"].value == "8"
+    assert rows["ict_register_riz_krit"].value == "16"
+    assert rows["ict_register_tolerance"].value == "7"
+
+    from app.db.seed import _ict_parameter_config_value
+    from app.services._ict_register_reference import (
+        ICT_APP_SCALE_RISK_BAND_DEFAULTS,
+        ICT_WORKBOOK_PARAMETERS,
+        ICT_WORKBOOK_PARAMETERS_BY_NAME,
+    )
+
+    for name in ICT_APP_SCALE_RISK_BAND_DEFAULTS:
+        parameter = ICT_WORKBOOK_PARAMETERS_BY_NAME[name]
+        assert rows[parameter.config_key].value_type == "int"
+        assert rows[parameter.config_key].description == _expected_app_scale_description(parameter), name
+
+    # Every OTHER row still equals the registry's verbatim workbook default.
+    for parameter in ICT_WORKBOOK_PARAMETERS:
+        if parameter.name in ICT_APP_SCALE_RISK_BAND_DEFAULTS:
+            continue
+        value, value_type = _ict_parameter_config_value(parameter.default)
+        assert rows[parameter.config_key].value == value, parameter.name
+        assert rows[parameter.config_key].value_type == value_type, parameter.name
+
     # The parameter set is read-only: no seeded row is editable through the
     # admin global-config surface until explicit governance ships.
     assert all(config.is_editable is False for config in rows.values())
+
+
+def test_app_scale_risk_band_defaults_derive_from_the_workbook_registry():
+    """The app-scale overlay values are the exact ×1/5 (=25/125) rescale of the
+    verbatim registry defaults; the tolerance CEILING floors (7.8 -> 7) so
+    "within tolerance ⇔ below the Vysoké band" survives the rescale."""
+    from app.services._ict_register_reference import (
+        ICT_APP_SCALE_RISK_BAND_DEFAULTS,
+        ICT_WORKBOOK_PARAMETERS_BY_NAME,
+    )
+
+    registry = {
+        name: ICT_WORKBOOK_PARAMETERS_BY_NAME[name].default for name in ICT_APP_SCALE_RISK_BAND_DEFAULTS
+    }
+    # Workbook scale 1-125 (5×5×5), app scale 1-25 (5×5): factor exactly 1/5.
+    assert registry == {"P_RizStr": 15, "P_RizVys": 40, "P_RizKrit": 80, "P_Tolerance": 39}
+
+    # Band floors rescale to exact integers.
+    assert ICT_APP_SCALE_RISK_BAND_DEFAULTS["P_RizStr"] * 5 == registry["P_RizStr"]
+    assert ICT_APP_SCALE_RISK_BAND_DEFAULTS["P_RizVys"] * 5 == registry["P_RizVys"]
+    assert ICT_APP_SCALE_RISK_BAND_DEFAULTS["P_RizKrit"] * 5 == registry["P_RizKrit"]
+
+    # The tolerance ceiling floors: floor(39/5) = 7. The workbook's 39 sits
+    # just under the Vysoké floor (40), so the app value must stay just under
+    # the app-scale Vysoké floor (8) — never round up onto it.
+    assert ICT_APP_SCALE_RISK_BAND_DEFAULTS["P_Tolerance"] == registry["P_Tolerance"] // 5
+    assert ICT_APP_SCALE_RISK_BAND_DEFAULTS["P_Tolerance"] == ICT_APP_SCALE_RISK_BAND_DEFAULTS["P_RizVys"] - 1
+
+
+@pytest.mark.asyncio
+async def test_risk_bands_are_live_on_a_fresh_seeded_database(db_session):
+    """On a fresh seeded database the effective parameter set carries the
+    app-scale band thresholds, so the maximum app net score (5×5=25) lands in
+    Kritické and net scores at/above the Vysoké floor breach tolerance —
+    under the workbook-verbatim values (riz_krit=80 on a 1-25 scale) every
+    score was structurally capped at Střední and always "V toleranci"."""
+    from app.db.seed import seed_ict_workbook_parameter_config
+    from app.services._ict_register_lifecycle.dq import risk_net_band, risk_vs_tolerance
+    from app.services._ict_register_reference import load_ict_workbook_parameter_set
+
+    await seed_ict_workbook_parameter_config(db_session)
+    await db_session.commit()
+    clear_config_cache()
+
+    parameters = await load_ict_workbook_parameter_set(db_session)
+    medium_from = int(parameters.value("P_RizStr"))
+    high_from = int(parameters.value("P_RizVys"))
+    critical_from = int(parameters.value("P_RizKrit"))
+    tolerance = int(parameters.value("P_Tolerance"))
+    assert (medium_from, high_from, critical_from, tolerance) == (3, 8, 16, 7)
+
+    def band(net: int) -> str | None:
+        return risk_net_band(net, medium_from=medium_from, high_from=high_from, critical_from=critical_from)
+
+    # Workbook band literals (13!pasmo_ciste) are reachable across 1-25.
+    assert band(25) == "Kritické"
+    assert band(16) == "Kritické"
+    assert band(8) == "Vysoké"
+    assert band(3) == "Střední"
+    assert band(2) == "Nízké"
+
+    # Tolerance verdicts (13!vs_tolerance): the Vysoké floor breaches, 7 does not.
+    assert risk_vs_tolerance(8, tolerance=tolerance) == "NAD TOLERANCI"
+    assert risk_vs_tolerance(7, tolerance=tolerance) == "V toleranci"
+
+    # Contrast: with the workbook-verbatim values nothing on 1-25 could ever
+    # reach Vysoké (floor 40) — the understatement this seed fixes.
+    assert risk_net_band(25, medium_from=15, high_from=40, critical_from=80) == "Střední"
 
 
 @pytest.mark.asyncio
@@ -419,6 +533,51 @@ def test_parameter_seed_migration_matches_ssot_and_is_forward_only():
         assert row["category"] == "ict_register_parameters"
         assert row["display_name"] == parameter.name
         assert row["description"] == parameter.meaning
+
+    with pytest.raises(NotImplementedError):
+        migration.downgrade()
+
+
+def test_risk_band_app_scale_sync_migration_matches_ssot_and_is_forward_only():
+    """``c4d5e6f7a8b9_sync_ict_risk_band_app_scale_for_existing_dbs.py`` chains
+    onto the committee-permission head, is forward-only, and rewrites exactly
+    the four risk-band rows: WHERE-guarded on the registry's verbatim workbook
+    default (operator-tuned and cutover-import values are never clobbered),
+    SET to the app-scale SSOT values."""
+    import importlib.util
+    from pathlib import Path
+
+    from app.services._ict_register_reference import (
+        ICT_APP_SCALE_RISK_BAND_DEFAULTS,
+        ICT_WORKBOOK_PARAMETERS_BY_NAME,
+    )
+
+    migration_path = (
+        Path(__file__).resolve().parents[3]
+        / "backend/alembic/versions/c4d5e6f7a8b9_sync_ict_risk_band_app_scale_for_existing_dbs.py"
+    )
+    spec = importlib.util.spec_from_file_location("ict_risk_band_app_scale_sync_migration", migration_path)
+    assert spec is not None and spec.loader is not None
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+
+    assert migration.down_revision == "b3c4d5e6f7a8"
+
+    rows = {row["key"]: row for row in migration.ICT_RISK_BAND_APP_SCALE_ROWS}
+    assert set(rows) == {
+        ICT_WORKBOOK_PARAMETERS_BY_NAME[name].config_key for name in ICT_APP_SCALE_RISK_BAND_DEFAULTS
+    }
+
+    for name, app_value in ICT_APP_SCALE_RISK_BAND_DEFAULTS.items():
+        parameter = ICT_WORKBOOK_PARAMETERS_BY_NAME[name]
+        row = rows[parameter.config_key]
+        # The idempotency/no-clobber guard matches the verbatim workbook default only.
+        assert row["workbook_value"] == str(parameter.default), name
+        # The applied value is the app-scale SSOT value.
+        assert row["app_value"] == str(app_value), name
+        # The rewritten description matches the fresh-seed wording, so freshly
+        # seeded and migrated databases converge byte-identically.
+        assert row["description"] == _expected_app_scale_description(parameter), name
 
     with pytest.raises(NotImplementedError):
         migration.downgrade()

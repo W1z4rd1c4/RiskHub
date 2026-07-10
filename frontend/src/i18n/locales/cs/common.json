@@ -363,7 +363,9 @@
     "unknown_link": "Neznámé propojení",
     "unknown_process": "Neznámý proces",
     "unknown_asset": "Neznámé aktivum",
-    "unknown_threat": "Neznámá hrozba"
+    "unknown_threat": "Neznámá hrozba",
+    "unknown_contract": "Neznámá smlouva",
+    "unknown_sub_outsourcing": "Neznámý subdodavatel"
   },
   "audit": {
     "columns": {

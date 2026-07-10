@@ -113,11 +113,28 @@ export function buildSubOutsourcingChainRows(
     return rows;
 }
 
+/**
+ * Resolve the Contract label for a chain row: the contracts collection's
+ * label when known, else the contract reference the entry's derived block
+ * already embeds (a real label even while the contracts query is loading),
+ * else the i18n'd unknown label — never a raw `#<id>` fallback.
+ */
+export function resolveSubOutsourcingContractLabel(
+    entry: Pick<VendorSubOutsourcing, 'contract_id' | 'derived'>,
+    contractLabelById: ReadonlyMap<number, string>,
+    unknownContractLabel: string,
+): string {
+    return (
+        contractLabelById.get(entry.contract_id) ??
+        (entry.derived?.contract_reference || unknownContractLabel)
+    );
+}
+
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 type BuildVendorSubOutsourcingColumnsParams = {
     t: TranslateFn;
-    getContractLabel: (contractId: number) => string;
+    getContractLabel: (entry: VendorSubOutsourcing) => string;
     onEdit: (entry: VendorSubOutsourcing, event?: MouseEvent) => void;
     onArchive: (entry: VendorSubOutsourcing, event?: MouseEvent) => void | Promise<void>;
     onRestore: (entry: VendorSubOutsourcing, event?: MouseEvent) => void | Promise<void>;
@@ -195,7 +212,7 @@ export function buildVendorSubOutsourcingColumns({
             label: t('sub_outsourcing.columns.contract'),
             render: ({ entry }) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-slate-300">{getContractLabel(entry.contract_id)}</span>
+                    <span className="text-sm text-slate-300">{getContractLabel(entry)}</span>
                     {entry.derived?.critical_service === 'Ano' ? (
                         <span
                             className="inline-flex w-fit items-center rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-rose-300"

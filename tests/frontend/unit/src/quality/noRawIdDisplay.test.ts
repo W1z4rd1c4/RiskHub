@@ -29,6 +29,12 @@ const guardedFiles = [
     'frontend/src/pages/threats/threatRiskLinksPresentation.ts',
     'frontend/src/pages/vendors/VendorRegisterLinksSection.tsx',
     'frontend/src/pages/vendors/vendorRegisterLinksPresentation.ts',
+    // Sub-outsourcing chain: contract labels come from the contract reference
+    // (collection row or the entry's embedded derived block), predecessor
+    // labels from the sub-provider name; unresolved ends render the i18n'd
+    // "Unknown contract"/"Unknown sub-outsourcing provider" labels.
+    'frontend/src/pages/vendors/VendorSubOutsourcingSection.tsx',
+    'frontend/src/pages/vendors/vendorSubOutsourcingPresentation.tsx',
 ] as const;
 
 const rawIdFallbackPatterns = [

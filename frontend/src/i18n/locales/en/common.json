@@ -363,7 +363,9 @@
     "unknown_link": "Unknown link",
     "unknown_process": "Unknown process",
     "unknown_asset": "Unknown asset",
-    "unknown_threat": "Unknown threat"
+    "unknown_threat": "Unknown threat",
+    "unknown_contract": "Unknown contract",
+    "unknown_sub_outsourcing": "Unknown sub-outsourcing provider"
   },
   "audit": {
     "columns": {

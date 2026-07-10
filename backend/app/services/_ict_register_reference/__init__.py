@@ -17,6 +17,7 @@ from app.services._ict_register_reference.ict_service_taxonomy import (
     ICT_SERVICE_TAXONOMY,
 )
 from app.services._ict_register_reference.parameters import (
+    ICT_APP_SCALE_RISK_BAND_DEFAULTS,
     ICT_PARAMETER_CONFIG_CATEGORY,
     ICT_WORKBOOK_PARAMETERS,
     ICT_WORKBOOK_PARAMETERS_BY_NAME,
@@ -35,6 +36,7 @@ __all__ = [
     "CLOSED_LISTS",
     "CLOUD_SERVICE_S_CODES",
     "COUNTRY_CATEGORIES",
+    "ICT_APP_SCALE_RISK_BAND_DEFAULTS",
     "ICT_PARAMETER_CONFIG_CATEGORY",
     "ICT_SERVICE_TAXONOMY",
     "ICT_WORKBOOK_PARAMETERS",

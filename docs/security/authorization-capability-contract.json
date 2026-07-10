@@ -1,6 +1,6 @@
 {
  "version": "1.0",
- "last_reviewed": "2026-07-09",
+ "last_reviewed": "2026-07-10",
  "last_architecture_refactor_reviewed": "2026-05-17",
  "architecture_refactor_notes": [
   "2026-05-03: Collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
@@ -587,7 +587,7 @@
    "action": "Create, update, archive, and restore Processes",
    "actor_scope": "Requires processes:write for create/update and processes:delete for archive/restore; the RBAC seed grants maintenance to risk_manager with the CRO wildcard applying; the server-assigned F-code and derived fields are rejected on write; archived Processes reject edits until restored",
    "backend_authority": "backend/app/api/v1/endpoints/processes/ POST, PATCH, DELETE, and restore routes under /api/v1/processes",
-   "service_policy": "backend/app/services/_ict_register_lifecycle/lifecycle.py owns service transaction boundaries and audit facts; backend/app/services/_ict_register_lifecycle/policy.py asserts write and archive authorization; closed-list enforcement comes from backend/app/services/_ict_register_reference/ through backend/app/schemas/process.py",
+   "service_policy": "backend/app/services/_ict_register_lifecycle/lifecycle.py owns service transaction boundaries and audit facts; backend/app/services/_ict_register_lifecycle/policy.py asserts write and archive authorization; the docstring-only package marker backend/app/services/_ict_register_lifecycle/__init__.py holds no policy of its own; closed-list enforcement comes from backend/app/services/_ict_register_reference/ through backend/app/schemas/process.py",
    "response_capability": "backend/app/schemas/process.py ProcessCapabilities.can_update, can_archive, can_restore and ProcessListCapabilities.can_create",
    "frontend_gate": "frontend/src/pages/ProcessesPage.tsx, frontend/src/pages/ProcessDetailPage.tsx, and frontend/src/pages/processes/ gate create, edit, archive, and restore actions on backend capabilities",
    "tests": [
@@ -698,7 +698,7 @@
    "id": "AUTHZ-REGISTER-VENDOR-LINKS-READ",
    "surface": "ICT Register",
    "action": "Read the Asset-Vendor and Process-Vendor Link relations from all three ends (Asset, Process, and Vendor detail)",
-   "actor_scope": "Requires BOTH ends' read permissions per link type — assets:read plus vendors:read for Asset-Vendor rows and processes:read plus vendors:read for Process-Vendor rows; the Vendor-end reads additionally follow the parent Vendor's row visibility (department scope or outsourcing ownership); link rows carry no per-row ownership of their own; platform admins hold no business permissions and are denied",
+   "actor_scope": "Requires BOTH ends' read permissions per link type — assets:read plus vendors:read for Asset-Vendor rows and processes:read plus vendors:read for Process-Vendor rows; the Vendor-end reads additionally follow the parent Vendor's row visibility (department scope or outsourcing ownership); link rows carry no per-row ownership of their own; register-end link rows embed the counterpart Vendor's display name server-side — the contextual name-only exposure documented in the ICT Register read-model visibility notes below this matrix; platform admins hold no business permissions and are denied",
    "backend_authority": "backend/app/api/v1/endpoints/assets/links.py GET /api/v1/assets/{asset_id}/vendor-links, backend/app/api/v1/endpoints/processes/links.py GET /api/v1/processes/{process_id}/vendor-links, and backend/app/api/v1/endpoints/vendors/links.py GET /api/v1/vendors/{vendor_id}/asset-links and process-links",
    "service_policy": "backend/app/services/_ict_register_lifecycle/vendor_links.py asserts the dual-permission reads and parent-Vendor visibility and owns the collection reads; backend/app/services/_authorization_capabilities/register_vendor_links.py owns per-row capability projection",
    "response_capability": "backend/app/schemas/asset.py AssetVendorLinkCapabilities.can_delete and backend/app/schemas/process.py ProcessVendorLinkCapabilities.can_delete ride every link row",
@@ -1035,9 +1035,9 @@
    "id": "AUTHZ-ICT-REGISTER-DQ-READ",
    "surface": "ICT Register",
    "action": "Read the ICT Register data-quality read model: the workbook's 52 DQ checks with OK/NÁLEZ status and violating-row drill-downs, computed on read",
-   "actor_scope": "Requires vendors:read (the standard business-entity read, matching the reference surface it extends); the read model aggregates register rows the same roles already read and carries no per-row or department scope of its own; the surface is read-only with no mutating routes; platform admins hold no business permissions and are denied",
+   "actor_scope": "Requires vendors:read (the standard business-entity read, matching the reference surface it extends); check counts, OK/NÁLEZ statuses, and the finding tally are GLOBAL oversight aggregates over the whole register, while each check's violating-row drill-down is filtered per viewer through the entities' canonical visibility predicates (see the ICT Register read-model visibility notes below this matrix); the surface is read-only with no mutating routes; platform admins hold no business permissions and are denied",
    "backend_authority": "backend/app/api/v1/endpoints/ict_register.py GET /api/v1/ict-register/dq",
-   "service_policy": "backend/app/services/_ict_register_lifecycle/dq.py owns the pure 52-check DQ engine over the derivation outputs; backend/app/services/_ict_register_lifecycle/derivation_inputs.py owns the whole-register graph load including the ICT-linked Risk slice; parameters come from backend/app/services/_ict_register_reference/ (ADR-008 overlay)",
+   "service_policy": "backend/app/services/_ict_register_lifecycle/dq.py owns the pure 52-check DQ engine over the derivation outputs plus the pure visible_dq_result per-viewer row filter; backend/app/services/_ict_register_lifecycle/derivation_inputs.py owns the whole-register graph load including the ICT-linked Risk slice and load_dq_viewer_scope, which resolves the caller's scope from the entities' canonical read predicates; parameters come from backend/app/services/_ict_register_reference/ (ADR-008 overlay)",
    "response_capability": "None — a compute-on-read model in backend/app/schemas/ict_register.py (IctRegisterDqRead); findings carry no per-user state, so no per-row action metadata is exposed",
    "frontend_gate": "frontend/src/routing/business.tsx gates the /ict-register/data-quality route and sidebar entry on the vendors:read projection; frontend/src/pages/IctRegisterDqPage.tsx renders backend read authority and denies on backend 403",
    "tests": [

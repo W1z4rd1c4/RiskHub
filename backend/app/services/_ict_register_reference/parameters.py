@@ -96,6 +96,26 @@ ICT_WORKBOOK_PARAMETERS_BY_NAME: Mapping[str, IctWorkbookParameter] = {
     parameter.name: parameter for parameter in ICT_WORKBOOK_PARAMETERS
 }
 
+# App-scale adaptation of the four risk-band parameters (the config overlay
+# seeded over the verbatim registry above; docs/dora-ict-register/cutover-record.md §4).
+#
+# The registry keeps the workbook-verbatim defaults (15/40/80/39), but those
+# live on the workbook's three-factor 1-125 risk scale (hodnota_subjektu ×
+# zranitelnost × pravděpodobnost, each ≤5) while the app's ``Risk.net_score``
+# is two-factor 1-25 (probability × impact): 40 and 80 are unreachable on
+# 1-25, so seeding the config rows verbatim would structurally understate the
+# risk bands (committee matrix / Top-10 Pásmo, DQ-20/21). The proportional
+# derivation uses scale factor 25/125 = exactly 1/5; the band FLOORS scale to
+# exact integers, and the tolerance CEILING must floor — floor(39 × 1/5) = 7
+# keeps the workbook's semantic invariant "within tolerance ⇔ below the
+# Vysoké band" (rounding up to 8 would flip workbook-flagged scores).
+ICT_APP_SCALE_RISK_BAND_DEFAULTS: Mapping[str, int] = {
+    "P_RizStr": 3,  # 15 × 1/5 — exact
+    "P_RizVys": 8,  # 40 × 1/5 — exact
+    "P_RizKrit": 16,  # 80 × 1/5 — exact
+    "P_Tolerance": 7,  # floor(39 × 1/5) — a ceiling floors, never rounds up
+}
+
 _VERSION_PARAMETER_NAME = "P_Verze"
 
 

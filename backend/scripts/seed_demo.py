@@ -131,11 +131,18 @@ async def seed_all():
         print("🌱 DEMO SEED: Creating 9-user demo environment")
         print("=" * 60)
 
-        # Reset sequences
-        await db.execute(text("ALTER SEQUENCE users_id_seq RESTART WITH 1"))
-        await db.execute(text("ALTER SEQUENCE departments_id_seq RESTART WITH 1"))
-        await db.execute(text("ALTER SEQUENCE roles_id_seq RESTART WITH 1"))
-        await db.execute(text("ALTER SEQUENCE permissions_id_seq RESTART WITH 1"))
+        # Align sequences with existing rows so demo inserts start at MAX(id)+1.
+        # On an EMPTY table this yields id 1 (the original intent: demo users
+        # land on IDs 1-9 to match LoginPage), but a blanket `RESTART WITH 1`
+        # collides on a freshly alembic-migrated database where the
+        # permission-sync migrations already inserted RBAC rows (roles /
+        # permissions / role_permissions) and consumed sequence values.
+        for table in ("users", "departments", "roles", "permissions"):
+            await db.execute(
+                text(
+                    f"SELECT setval('{table}_id_seq', COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, false)"
+                )
+            )
 
         # === 1. CREATE DEPARTMENTS ===
         print("\n📁 Creating departments...")

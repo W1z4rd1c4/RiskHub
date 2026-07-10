@@ -16,6 +16,7 @@ import {
     buildSubOutsourcingChainRows,
     buildVendorSubOutsourcingColumns,
     buildVendorSubOutsourcingPayload,
+    resolveSubOutsourcingContractLabel,
 } from './vendorSubOutsourcingPresentation';
 
 interface VendorSubOutsourcingSectionProps {
@@ -64,7 +65,7 @@ export function VendorSubOutsourcingSection({
     vendorId,
     canManageSubOutsourcing,
 }: VendorSubOutsourcingSectionProps) {
-    const { t } = useTranslation('vendors');
+    const { t } = useTranslation(['vendors', 'common']);
     const queryClient = useQueryClient();
 
     const [formOpen, setFormOpen] = useState(false);
@@ -94,13 +95,15 @@ export function VendorSubOutsourcingSection({
     const entries = useMemo(() => entriesQuery.data ?? [], [entriesQuery.data]);
     const contracts = useMemo(() => contractsQuery.data ?? [], [contractsQuery.data]);
 
+    // Real labels only: the contract reference when entered, the i18n'd
+    // unknown label otherwise — never a raw `#<id>` fallback (guardrail).
     const contractLabelById = useMemo(() => {
         const labels = new Map<number, string>();
         for (const contract of contracts) {
-            labels.set(contract.id, contract.contract_reference || `#${contract.id}`);
+            labels.set(contract.id, contract.contract_reference || t('common:fallbacks.unknown_contract'));
         }
         return labels;
-    }, [contracts]);
+    }, [contracts, t]);
 
     const listOptions = useMemo(() => {
         const lists = closedListsQuery.data ?? {};
@@ -113,14 +116,14 @@ export function VendorSubOutsourcingSection({
                 .filter((contract) => !contract.is_archived || String(contract.id) === fields.contract_id)
                 .map((contract) => ({
                     value: String(contract.id),
-                    label: contract.contract_reference || `#${contract.id}`,
+                    label: contract.contract_reference || t('common:fallbacks.unknown_contract'),
                 })),
             ictServices: (taxonomyQuery.data ?? []).map((service) => ({
                 value: service.code,
                 label: `${service.code} — ${service.label}`,
             })),
         };
-    }, [closedListsQuery.data, contracts, taxonomyQuery.data, fields.contract_id]);
+    }, [closedListsQuery.data, contracts, taxonomyQuery.data, fields.contract_id, t]);
 
     // Predecessors live on the SAME Contract; the entry can never precede itself.
     const predecessorOptions = useMemo(
@@ -133,9 +136,9 @@ export function VendorSubOutsourcingSection({
                 )
                 .map((entry) => ({
                     value: String(entry.id),
-                    label: entry.sub_provider_name || `#${entry.id}`,
+                    label: entry.sub_provider_name || t('common:fallbacks.unknown_sub_outsourcing'),
                 })),
-        [entries, fields.contract_id, editingEntry],
+        [entries, fields.contract_id, editingEntry, t],
     );
 
     const refreshEntries = async () => {
@@ -212,7 +215,12 @@ export function VendorSubOutsourcingSection({
         () =>
             buildVendorSubOutsourcingColumns({
                 t: (key, options) => t(key, options),
-                getContractLabel: (contractId) => contractLabelById.get(contractId) ?? `#${contractId}`,
+                getContractLabel: (entry) =>
+                    resolveSubOutsourcingContractLabel(
+                        entry,
+                        contractLabelById,
+                        t('common:fallbacks.unknown_contract'),
+                    ),
                 onEdit: openEditForm,
                 onArchive: (entry) => archiveEntry.mutate(entry),
                 onRestore: (entry) => restoreEntry.mutate(entry),

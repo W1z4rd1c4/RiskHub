@@ -9,6 +9,7 @@ import {
     buildVendorSubOutsourcingPayload,
     formatSubOutsourcingRank,
     getSubOutsourcingDisplayStatus,
+    resolveSubOutsourcingContractLabel,
 } from '@/pages/vendors/vendorSubOutsourcingPresentation';
 import type {
     VendorSubOutsourcing,
@@ -110,10 +111,43 @@ describe('Vendor sub-outsourcing section presentation helpers', () => {
         expect(rows.map((row) => row.depth)).toEqual([0, 1, 0]);
     });
 
+    it('resolves contract labels from real payload labels, never a raw #id', () => {
+        const labels = new Map([[9, 'SML-2020-001']]);
+
+        // The contracts collection's label wins when the contract is known.
+        expect(resolveSubOutsourcingContractLabel(sampleEntry(), labels, 'Unknown contract')).toBe(
+            'SML-2020-001'
+        );
+
+        // A map miss falls back to the contract reference the entry's derived
+        // block already embeds (real label while the contracts query loads).
+        expect(
+            resolveSubOutsourcingContractLabel(
+                sampleEntry({ contract_id: 12, derived: sampleDerived() }),
+                labels,
+                'Unknown contract'
+            )
+        ).toBe('SML-2020-001');
+
+        // With no real label anywhere the i18n'd unknown label renders —
+        // the raw technical id never does.
+        const unresolved = resolveSubOutsourcingContractLabel(
+            sampleEntry({ contract_id: 12, derived: sampleDerived({ contract_reference: null }) }),
+            labels,
+            'Unknown contract'
+        );
+        expect(unresolved).toBe('Unknown contract');
+        expect(
+            resolveSubOutsourcingContractLabel(sampleEntry({ contract_id: 12 }), labels, 'Unknown contract')
+        ).toBe('Unknown contract');
+        expect(unresolved).not.toContain('#');
+        expect(unresolved).not.toContain('12');
+    });
+
     it('renders the sub-provider identity, country, service code, and contract in the columns', () => {
         const columns = buildVendorSubOutsourcingColumns({
             t: (key: string) => key,
-            getContractLabel: (contractId: number) => `SML-${contractId}`,
+            getContractLabel: (entry: VendorSubOutsourcing) => `SML-${entry.contract_id}`,
             onEdit: () => undefined,
             onArchive: () => undefined,
             onRestore: () => undefined,
