@@ -75,3 +75,34 @@ class IctWorkbookParameterSetRead(BaseModel):
 
     version: str
     parameters: list[IctWorkbookParameterRead]
+
+
+class IctDqViolatingRowRead(BaseModel):
+    """One violating row behind a DQ finding, with its drill-down anchor."""
+
+    entity_type: str
+    entity_id: int
+    label: str
+    route_entity_type: str
+    route_entity_id: int
+
+
+class IctDqCheckRead(BaseModel):
+    """One 15_Kontroly_kvality check: workbook id, area, CZ title verbatim,
+    severity, the literal 0 threshold, count, and OK/NÁLEZ status (#50)."""
+
+    check_id: str
+    area: str
+    title_cs: str
+    severity: str
+    threshold: int
+    count: int
+    status: str
+    violating_rows: list[IctDqViolatingRowRead]
+
+
+class IctRegisterDqRead(BaseModel):
+    """All 52 data-quality checks in workbook order, computed on read."""
+
+    checks: list[IctDqCheckRead]
+    finding_count: int

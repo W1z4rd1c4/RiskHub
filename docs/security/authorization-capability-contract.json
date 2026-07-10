@@ -1030,6 +1030,22 @@
    ],
    "status": "authoritative",
    "findings": []
+  },
+  {
+   "id": "AUTHZ-ICT-REGISTER-DQ-READ",
+   "surface": "ICT Register",
+   "action": "Read the ICT Register data-quality read model: the workbook's 52 DQ checks with OK/NÁLEZ status and violating-row drill-downs, computed on read",
+   "actor_scope": "Requires vendors:read (the standard business-entity read, matching the reference surface it extends); the read model aggregates register rows the same roles already read and carries no per-row or department scope of its own; the surface is read-only with no mutating routes; platform admins hold no business permissions and are denied",
+   "backend_authority": "backend/app/api/v1/endpoints/ict_register.py GET /api/v1/ict-register/dq",
+   "service_policy": "backend/app/services/_ict_register_lifecycle/dq.py owns the pure 52-check DQ engine over the derivation outputs; backend/app/services/_ict_register_lifecycle/derivation_inputs.py owns the whole-register graph load including the ICT-linked Risk slice; parameters come from backend/app/services/_ict_register_reference/ (ADR-008 overlay)",
+   "response_capability": "None — a compute-on-read model in backend/app/schemas/ict_register.py (IctRegisterDqRead); findings carry no per-user state, so no per-row action metadata is exposed",
+   "frontend_gate": "frontend/src/routing/business.tsx gates the /ict-register/data-quality route and sidebar entry on the vendors:read projection; frontend/src/pages/IctRegisterDqPage.tsx renders backend read authority and denies on backend 403",
+   "tests": [
+    "tests/backend/pytest/test_ict_register_dq.py",
+    "tests/frontend/unit/src/pages/__tests__/IctRegisterDqPage.presentation.test.tsx"
+   ],
+   "status": "authoritative",
+   "findings": []
   }
  ]
 }

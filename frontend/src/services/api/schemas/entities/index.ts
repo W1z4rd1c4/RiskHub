@@ -4,6 +4,7 @@ export * from './governance';
 export * from './processes';
 export * from './assets';
 export * from './threats';
+export * from './ictRegisterDq';
 export * from './dashboard';
 export * from './preferences';
 export * from './approvals';

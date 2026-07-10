@@ -1,9 +1,10 @@
-"""ICT Register reference-data endpoints (read-only).
+"""ICT Register reference-data + data-quality endpoints (read-only).
 
 Serves the workbook's closed lists, ICT service taxonomy, country categories,
-CZ->EN RoI maps, and the versioned workbook parameter set to later ICT
-Register slices and the frontend. The surface is read-only; reference data is
-maintained in the reference registry, never through the API.
+CZ->EN RoI maps, the versioned workbook parameter set, and the 52-check
+data-quality read model (issue #50) to the frontend. The surface is
+read-only; reference data is maintained in the reference registry and DQ
+findings are computed on read, never persisted.
 """
 
 from __future__ import annotations
@@ -21,6 +22,9 @@ from app.schemas.ict_register import (
     IctClosedListRead,
     IctCountryCategoryCollectionRead,
     IctCountryCategoryRead,
+    IctDqCheckRead,
+    IctDqViolatingRowRead,
+    IctRegisterDqRead,
     IctRoiMapCollectionRead,
     IctRoiMapRead,
     IctRoiTranslationRead,
@@ -29,6 +33,8 @@ from app.schemas.ict_register import (
     IctWorkbookParameterRead,
     IctWorkbookParameterSetRead,
 )
+from app.services._ict_register_lifecycle.derivation_inputs import load_ict_register_dq_graph
+from app.services._ict_register_lifecycle.dq import derive_ict_register_dq
 from app.services._ict_register_reference.closed_lists import CLOSED_LISTS, closed_list_values
 from app.services._ict_register_reference.country_categories import COUNTRY_CATEGORIES
 from app.services._ict_register_reference.ict_service_taxonomy import (
@@ -124,6 +130,48 @@ async def get_roi_translation(
         source=value,
         value=entries.get(value, value),
         mapped=value in entries,
+    )
+
+
+@router.get("/dq", response_model=IctRegisterDqRead)
+async def get_data_quality_checks(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctRegisterDqRead:
+    """Return all 52 workbook DQ checks with statuses and violating rows (#50).
+
+    Computed on read over the whole register graph (compute-on-read, parent
+    spec #38): threshold 0, OK/NÁLEZ status, and per-check drill-down to the
+    violating rows. Mandatory-if rules surface here as findings only — the
+    write paths never block them.
+    """
+    dq_graph = await load_ict_register_dq_graph(db)
+    parameter_set = await load_ict_workbook_parameter_set(db)
+    result = derive_ict_register_dq(dq_graph, parameter_set)
+    return IctRegisterDqRead(
+        checks=[
+            IctDqCheckRead(
+                check_id=check.check_id,
+                area=check.area,
+                title_cs=check.title_cs,
+                severity=check.severity,
+                threshold=check.threshold,
+                count=check.count,
+                status=check.status,
+                violating_rows=[
+                    IctDqViolatingRowRead(
+                        entity_type=row.entity_type,
+                        entity_id=row.entity_id,
+                        label=row.label,
+                        route_entity_type=row.route_entity_type,
+                        route_entity_id=row.route_entity_id,
+                    )
+                    for row in check.violating_rows
+                ],
+            )
+            for check in result.checks
+        ],
+        finding_count=result.finding_count,
     )
 
 

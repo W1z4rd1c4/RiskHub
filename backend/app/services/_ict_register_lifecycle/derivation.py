@@ -189,6 +189,8 @@ class ProcessDerivationInput:
     l1_process: str
     l2_subprocess: str | None = None
     owner: str | None = None
+    # utvar — entered, read only by DQ-43 (issue #50); no derivation consumes it.
+    owner_department: str | None = None
     impact_client: int | None = None
     impact_market_operations: int | None = None
     impact_regulatory: int | None = None
@@ -232,6 +234,11 @@ class AssetDerivationInput:
     ai_relevance: str | None = None
     data_classification: str | None = None
     internet_exposed: str | None = None
+    # Entered fields read only by the DQ checks (issue #50): utvar (DQ-44),
+    # stav_revize (DQ-09/36), legacy_posl (DQ-10). No derivation consumes them.
+    owner_department: str | None = None
+    review_state: str | None = None
+    last_legacy_risk_assessment_date: date | None = None
 
 
 @dataclass(frozen=True)
@@ -242,6 +249,8 @@ class ProcessAssetLinkInput:
     asset_id: int
     spof: str | None = None
     is_primary: bool = False
+    # 05!vyznam — entered, read only by DQ-45 (issue #50).
+    significance: str | None = None
 
 
 @dataclass(frozen=True)
@@ -261,6 +270,8 @@ class AssetVendorLinkInput:
     vendor_name: str | None = None
     ict_service_code: str | None = None
     contract_reference: str | None = None
+    # 10!mira "Míra závislosti (u CIF)" — entered, read only by DQ-14 (issue #50).
+    reliance: str | None = None
 
 
 @dataclass(frozen=True)
@@ -288,6 +299,8 @@ class VendorDerivationInput:
     substitutability: str | None = None
     exit_plan_state: str | None = None
     ex_ante_assessment_date: date | None = None
+    # dd_stav — entered, read only by DQ-50 (issue #50).
+    due_diligence_state: str | None = None
     significance_authorization_conditions: str | None = None
     significance_regulatory_requirements: str | None = None
     significance_service_quality: str | None = None

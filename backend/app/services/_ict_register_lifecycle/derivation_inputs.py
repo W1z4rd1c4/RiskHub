@@ -42,8 +42,12 @@ from app.models import (
     Process,
     ProcessAssetLink,
     ProcessVendorLink,
+    Risk,
+    RiskAssetLink,
+    RiskProcessLink,
     Vendor,
     VendorContract,
+    VendorRiskLink,
     VendorSubOutsourcing,
 )
 
@@ -59,6 +63,16 @@ from .derivation import (
     VendorContractInput,
     VendorDerivationInput,
 )
+from .dq import (
+    RISK_RESPONSE_ACCEPTANCE,
+    RISK_STATUS_ACCEPTED,
+    RISK_STATUS_CLOSED,
+    IctRegisterDqGraph,
+    RiskAssetLinkDqInput,
+    RiskDqInput,
+    RiskProcessLinkDqInput,
+    RiskVendorLinkDqInput,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,6 +85,7 @@ def process_derivation_input(process: Process) -> ProcessDerivationInput:
         l1_process=process.l1_process,
         l2_subprocess=process.l2_subprocess,
         owner=process.owner,
+        owner_department=process.owner_department,
         impact_client=process.impact_client,
         impact_market_operations=process.impact_market_operations,
         impact_regulatory=process.impact_regulatory,
@@ -113,6 +128,9 @@ def asset_derivation_input(asset: Asset) -> AssetDerivationInput:
         ai_relevance=asset.ai_relevance,
         data_classification=asset.data_classification,
         internet_exposed=asset.internet_exposed,
+        owner_department=asset.owner_department,
+        review_state=asset.review_state,
+        last_legacy_risk_assessment_date=asset.last_legacy_risk_assessment_date,
     )
 
 
@@ -131,6 +149,7 @@ def vendor_derivation_input(vendor: Vendor) -> VendorDerivationInput:
         substitutability=vendor.replaceability,
         exit_plan_state=vendor.exit_plan_state,
         ex_ante_assessment_date=vendor.ex_ante_assessment_date,
+        due_diligence_state=vendor.due_diligence_state,
         significance_authorization_conditions=vendor.significance_authorization_conditions,
         significance_regulatory_requirements=vendor.significance_regulatory_requirements,
         significance_service_quality=vendor.significance_service_quality,
@@ -323,6 +342,7 @@ async def load_ict_register_graph(
                 asset_id=link.asset_id,
                 spof=link.spof,
                 is_primary=link.is_primary,
+                significance=link.significance,
             )
             for link in links
         ),
@@ -340,6 +360,7 @@ async def load_ict_register_graph(
                 vendor_name=vendor_names_by_id.get(link.vendor_id),
                 ict_service_code=link.ict_service_code,
                 contract_reference=link.contract_reference,
+                reliance=link.reliance,
             )
             for link in asset_vendor_links
         ),
@@ -350,4 +371,150 @@ async def load_ict_register_graph(
         vendors=tuple(vendor_derivation_input(vendor) for vendor in vendor_rows),
         contracts=tuple(contract_derivation_input(contract) for contract in contracts),
         sub_outsourcing=tuple(sub_outsourcing_derivation_input(entry) for entry in sub_outsourcing),
+    )
+
+
+def risk_dq_input(risk: Risk) -> RiskDqInput:
+    """Map a Risk row to the DQ engine's 13_Rizika-shaped input (issue #50).
+
+    The app reuses the production Risk register, which carries only part of
+    the workbook's 13_Rizika columns; the mapping dispositions live in the
+    ``dq`` module docstring. In short: ``net_score`` is ``ciste``; entering
+    any acceptance-trio field IS the "Akceptace" response; the complete trio
+    is the "Akceptováno" state; archiving is the "Uzavřené" closure (archival
+    wins when both hold); the workbook's action-plan/assessment columns have
+    no app analog and load as ``None``.
+    """
+    trio = (risk.acceptance_approver, risk.acceptance_justification, risk.acceptance_date)
+    status_label: str | None = None
+    if risk.is_archived:
+        status_label = RISK_STATUS_CLOSED
+    elif all(value is not None for value in trio):
+        status_label = RISK_STATUS_ACCEPTED
+    return RiskDqInput(
+        id=risk.id,
+        label=f"{risk.risk_id_code} — {risk.name}",
+        net_score=risk.net_score,
+        response=RISK_RESPONSE_ACCEPTANCE if any(value is not None for value in trio) else None,
+        status_label=status_label,
+        action_plan_date=None,
+        acceptance_approver=risk.acceptance_approver,
+        acceptance_justification=risk.acceptance_justification,
+        acceptance_date=risk.acceptance_date,
+        assessment_date=None,
+        is_material=None,
+    )
+
+
+async def load_ict_register_dq_graph(db: "AsyncSession") -> IctRegisterDqGraph:
+    """Load the WHOLE register for the 52 DQ checks (issue #50).
+
+    The DQ sheet's COUNTIFs are register-wide by construction, and register
+    scale is hundreds of rows (parent spec #38: compute-on-read), so this is
+    a plain full load: every register row and Link relation, plus the
+    ICT-linked Risk slice (rows joined through Risk<->Process, Risk<->Asset,
+    or Vendor<->Risk links). Archived rows keep feeding the graph, matching
+    the row-loader's stance above.
+    """
+    processes = list((await db.execute(select(Process).order_by(Process.id))).scalars())
+    assets = list((await db.execute(select(Asset).order_by(Asset.id))).scalars())
+    vendors = list((await db.execute(select(Vendor).order_by(Vendor.id))).scalars())
+    pal_links = list(
+        (await db.execute(select(ProcessAssetLink).order_by(ProcessAssetLink.id))).scalars()
+    )
+    aa_links = list(
+        (await db.execute(select(AssetAssetLink).order_by(AssetAssetLink.id))).scalars()
+    )
+    av_links = list(
+        (await db.execute(select(AssetVendorLink).order_by(AssetVendorLink.id))).scalars()
+    )
+    pv_links = list(
+        (await db.execute(select(ProcessVendorLink).order_by(ProcessVendorLink.id))).scalars()
+    )
+    contracts = list(
+        (await db.execute(select(VendorContract).order_by(VendorContract.id))).scalars()
+    )
+    sub_outsourcing = list(
+        (await db.execute(select(VendorSubOutsourcing).order_by(VendorSubOutsourcing.id))).scalars()
+    )
+    risk_process_links = list(
+        (await db.execute(select(RiskProcessLink).order_by(RiskProcessLink.id))).scalars()
+    )
+    risk_asset_links = list(
+        (await db.execute(select(RiskAssetLink).order_by(RiskAssetLink.id))).scalars()
+    )
+    risk_vendor_links = list(
+        (await db.execute(select(VendorRiskLink).order_by(VendorRiskLink.id))).scalars()
+    )
+
+    linked_risk_ids = (
+        {link.risk_id for link in risk_process_links}
+        | {link.risk_id for link in risk_asset_links}
+        | {link.risk_id for link in risk_vendor_links}
+    )
+    risks: list[Risk] = []
+    if linked_risk_ids:
+        risks = list(
+            (
+                await db.execute(
+                    select(Risk).where(Risk.id.in_(linked_risk_ids)).order_by(Risk.id)
+                )
+            ).scalars()
+        )
+
+    vendor_names_by_id = {vendor.id: vendor.name for vendor in vendors}
+    graph = IctRegisterGraph(
+        processes=tuple(process_derivation_input(process) for process in processes),
+        assets=tuple(asset_derivation_input(asset) for asset in assets),
+        process_asset_links=tuple(
+            ProcessAssetLinkInput(
+                process_id=link.process_id,
+                asset_id=link.asset_id,
+                spof=link.spof,
+                is_primary=link.is_primary,
+                significance=link.significance,
+            )
+            for link in pal_links
+        ),
+        asset_asset_links=tuple(
+            AssetAssetLinkInput(
+                dependent_asset_id=link.dependent_asset_id,
+                supporting_asset_id=link.supporting_asset_id,
+            )
+            for link in aa_links
+        ),
+        asset_vendor_links=tuple(
+            AssetVendorLinkInput(
+                asset_id=link.asset_id,
+                vendor_id=link.vendor_id,
+                vendor_name=vendor_names_by_id.get(link.vendor_id),
+                ict_service_code=link.ict_service_code,
+                contract_reference=link.contract_reference,
+                reliance=link.reliance,
+            )
+            for link in av_links
+        ),
+        process_vendor_links=tuple(
+            ProcessVendorLinkInput(process_id=link.process_id, vendor_id=link.vendor_id)
+            for link in pv_links
+        ),
+        vendors=tuple(vendor_derivation_input(vendor) for vendor in vendors),
+        contracts=tuple(contract_derivation_input(contract) for contract in contracts),
+        sub_outsourcing=tuple(sub_outsourcing_derivation_input(entry) for entry in sub_outsourcing),
+    )
+    return IctRegisterDqGraph(
+        graph=graph,
+        risks=tuple(risk_dq_input(risk) for risk in risks),
+        risk_process_links=tuple(
+            RiskProcessLinkDqInput(risk_id=link.risk_id, process_id=link.process_id)
+            for link in risk_process_links
+        ),
+        risk_asset_links=tuple(
+            RiskAssetLinkDqInput(risk_id=link.risk_id, asset_id=link.asset_id)
+            for link in risk_asset_links
+        ),
+        risk_vendor_links=tuple(
+            RiskVendorLinkDqInput(risk_id=link.risk_id, vendor_id=link.vendor_id)
+            for link in risk_vendor_links
+        ),
     )

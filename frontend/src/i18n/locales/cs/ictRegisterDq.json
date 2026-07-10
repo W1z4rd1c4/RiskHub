@@ -1,0 +1,102 @@
+{
+    "title": "ICT registr — Kvalita dat",
+    "subtitle": "52 průběžných kontrol kvality dat z pracovního sešitu, počítaných živě nad registrem",
+    "actions": {
+        "refresh": "Obnovit"
+    },
+    "summary": {
+        "checks": "Kontroly",
+        "findings": "Nálezy",
+        "ok": "V pořádku"
+    },
+    "filters": {
+        "label": "Každá kontrola má práh 0: každý porušující řádek je nález",
+        "all": "Všechny kontroly",
+        "findings": "Pouze nálezy"
+    },
+    "status": {
+        "ok": "OK",
+        "finding": "NÁLEZ"
+    },
+    "severity": {
+        "critical": "Kritická",
+        "high": "Vysoká",
+        "medium": "Střední"
+    },
+    "areas": {
+        "processes": "Procesy",
+        "assets": "Aktiva",
+        "links": "Vazby",
+        "vendors": "Dodavatelé",
+        "risks": "Rizika",
+        "integrity": "Integrita",
+        "contracts": "Smlouvy"
+    },
+    "entities": {
+        "process": "Proces",
+        "asset": "Aktivum",
+        "vendor": "Dodavatel",
+        "risk": "Riziko",
+        "contract": "Smlouva",
+        "sub_outsourcing": "Subdodávka",
+        "process_asset_link": "Vazba proces–aktivum",
+        "asset_asset_link": "Vazba aktivum–aktivum",
+        "asset_vendor_link": "Vazba aktivum–dodavatel",
+        "process_vendor_link": "Vazba proces–dodavatel"
+    },
+    "empty": "Filtru neodpovídá žádná kontrola",
+    "checks": {
+        "DQ-01": "Proces bez vlastníka",
+        "DQ-02": "GAP: RTO > MTPD",
+        "DQ-03": "CIF proces bez navázaného aktiva",
+        "DQ-04": "Proces bez ohodnocení dopadů (bootstrap)",
+        "DQ-05": "CIF proces bez BCM evidence",
+        "DQ-06": "Aktivum bez jakéhokoli vlastníka",
+        "DQ-07": "Primární proces aktiva chybí ve vazbách (list 05)",
+        "DQ-08": "Kritické aktivum bez identifikovaného rizika",
+        "DQ-09": "Záznam aktiva k revizi",
+        "DQ-10": "Legacy aktivum bez posouzení rizika",
+        "DQ-11": "Duplicitní vazba proces–aktivum",
+        "DQ-12": "Duplicitní vazba aktivum–dodavatel",
+        "DQ-13": "Vazba na neexistující ID (05)",
+        "DQ-14": "CIF vazba bez míry závislosti (B_02.02.0180)",
+        "DQ-15": "Přímá vazba (list 11) bez revize v 10",
+        "DQ-16": "Kritický/Významný dodavatel bez ID kódu",
+        "DQ-17": "Kritický dodavatel bez funkčního exit plánu",
+        "DQ-18": "Kritický/Významný dodavatel bez ex-ante posouzení",
+        "DQ-19": "Kritický dodavatel bez průběžného rizika (čl. 9(3))",
+        "DQ-20": "Vysoké/kritické čisté riziko bez akčního plánu",
+        "DQ-21": "Akceptace nad toleranci bez schválení/odůvodnění",
+        "DQ-22": "Přezkum akceptace po termínu (> 12 měsíců)",
+        "DQ-23": "Posouzení rizika po termínu",
+        "DQ-24": "Duplicitní ID v registrech",
+        "DQ-25": "Konzistence odvozených vazeb (list 11)",
+        "DQ-26": "Chybové buňky ve vzorcích (#NAME?, #REF!, …)",
+        "DQ-27": "GDPR relevance chybí nebo Neurčeno",
+        "DQ-28": "AI relevance chybí nebo Neurčeno",
+        "DQ-29": "Neúplné hodnocení CIAA (C/I/A/Au)",
+        "DQ-30": "Neúplné hodnocení business dopadů",
+        "DQ-31": "Nekonzistence CIF: odvozeno=Ano, ale počet CIF procesů=0",
+        "DQ-32": "Kritický/Významný dodavatel bez hlavní smlouvy",
+        "DQ-33": "Aktivum vystavené internetu bez úplného CIAA",
+        "DQ-34": "AI-relevantní aktivum bez vlastníka",
+        "DQ-35": "GDPR aktivum s důvěrností pod prahem (P_GdprMinC)",
+        "DQ-36": "SPOF aktivum bez revize záznamu",
+        "DQ-37": "Podezřelý směr závislosti aktiv (úroveň podpůrného < závislého)",
+        "DQ-38": "Chyba v řetězci subdodávek (rank nelze odvodit)",
+        "DQ-39": "Dodavatel se smlouvami bez právě jedné hlavní",
+        "DQ-40": "Vazba na neexistující ID (listy 06/08/09)",
+        "DQ-41": "Dodavatel s vazbami bez evidované smlouvy",
+        "DQ-42": "Subdodávka na smlouvě mimo rozsah RoI",
+        "DQ-43": "Proces bez vlastnického útvaru",
+        "DQ-44": "Aktivum bez vlastnického útvaru",
+        "DQ-45": "Vazba proces–aktivum bez posouzeného významu",
+        "DQ-46": "Aktivum bez klasifikace dat",
+        "DQ-47": "Vysoce důvěrná data s důvěrností C pod prahem",
+        "DQ-48": "Aktivum bez modelu nasazení",
+        "DQ-49": "Kritický/Významný dodavatel bez exit plánu v řádném stavu",
+        "DQ-50": "Kritický/Významný dodavatel s nezahájenou due diligence",
+        "DQ-51": "Rozpor: GDPR aktivum s klasifikací „Bez dat“ / „Veřejná data“",
+        "DQ-52": "Kritický/Významný dodavatel bez posouzené významnosti outsourcingu"
+    }
+}

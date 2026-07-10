@@ -9,6 +9,7 @@
         "processes": "Processes",
         "assets": "Assets",
         "threats": "Threats",
+        "ict_register_dq": "ICT Data Quality",
         "approvals": "Workflow",
         "activity_log": "Audit Trail",
         "reports": "Reports",

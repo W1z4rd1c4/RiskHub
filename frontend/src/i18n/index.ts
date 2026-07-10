@@ -17,6 +17,7 @@ import vendorsEN from './locales/en/vendors.json';
 import processesEN from './locales/en/processes.json';
 import assetsEN from './locales/en/assets.json';
 import threatsEN from './locales/en/threats.json';
+import ictRegisterDqEN from './locales/en/ictRegisterDq.json';
 import issuesEN from './locales/en/issues.json';
 import errorKeysEN from './locales/en/errorKeys.json';
 import notificationsEN from './locales/en/notifications.json';
@@ -36,6 +37,7 @@ import vendorsCS from './locales/cs/vendors.json';
 import processesCS from './locales/cs/processes.json';
 import assetsCS from './locales/cs/assets.json';
 import threatsCS from './locales/cs/threats.json';
+import ictRegisterDqCS from './locales/cs/ictRegisterDq.json';
 import issuesCS from './locales/cs/issues.json';
 import errorKeysCS from './locales/cs/errorKeys.json';
 import notificationsCS from './locales/cs/notifications.json';
@@ -61,6 +63,7 @@ export const resources = {
         processes: processesEN,
         assets: assetsEN,
         threats: threatsEN,
+        ictRegisterDq: ictRegisterDqEN,
         issues: issuesEN,
         errorKeys: errorKeysEN,
         notifications: notificationsEN,
@@ -80,6 +83,7 @@ export const resources = {
         processes: processesCS,
         assets: assetsCS,
         threats: threatsCS,
+        ictRegisterDq: ictRegisterDqCS,
         issues: issuesCS,
         errorKeys: errorKeysCS,
         notifications: notificationsCS,

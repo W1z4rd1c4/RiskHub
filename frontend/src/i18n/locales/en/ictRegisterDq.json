@@ -1,0 +1,102 @@
+{
+    "title": "ICT Register — Data Quality",
+    "subtitle": "The workbook's 52 continuous data-quality checks, computed live over the register",
+    "actions": {
+        "refresh": "Refresh"
+    },
+    "summary": {
+        "checks": "Checks",
+        "findings": "Findings",
+        "ok": "Passing"
+    },
+    "filters": {
+        "label": "Every check has threshold 0: any violating row is a finding",
+        "all": "All checks",
+        "findings": "Findings only"
+    },
+    "status": {
+        "ok": "OK",
+        "finding": "Finding"
+    },
+    "severity": {
+        "critical": "Critical",
+        "high": "High",
+        "medium": "Medium"
+    },
+    "areas": {
+        "processes": "Processes",
+        "assets": "Assets",
+        "links": "Links",
+        "vendors": "Vendors",
+        "risks": "Risks",
+        "integrity": "Integrity",
+        "contracts": "Contracts"
+    },
+    "entities": {
+        "process": "Process",
+        "asset": "Asset",
+        "vendor": "Vendor",
+        "risk": "Risk",
+        "contract": "Contract",
+        "sub_outsourcing": "Sub-outsourcing",
+        "process_asset_link": "Process–asset link",
+        "asset_asset_link": "Asset–asset link",
+        "asset_vendor_link": "Asset–vendor link",
+        "process_vendor_link": "Process–vendor link"
+    },
+    "empty": "No checks match the filter",
+    "checks": {
+        "DQ-01": "Process without an owner",
+        "DQ-02": "GAP: RTO > MTPD",
+        "DQ-03": "CIF process without a linked asset",
+        "DQ-04": "Process without impact assessment (bootstrap)",
+        "DQ-05": "CIF process without BCM evidence",
+        "DQ-06": "Asset without any owner",
+        "DQ-07": "Asset's primary process missing among its links (sheet 05)",
+        "DQ-08": "Critical asset without an identified risk",
+        "DQ-09": "Asset record pending review",
+        "DQ-10": "Legacy asset without a risk assessment",
+        "DQ-11": "Duplicate process–asset link",
+        "DQ-12": "Duplicate asset–vendor link",
+        "DQ-13": "Link to a non-existent ID (05)",
+        "DQ-14": "CIF link without a reliance level (B_02.02.0180)",
+        "DQ-15": "Direct link (sheet 11) not reviewed into sheet 10",
+        "DQ-16": "Critical/Significant vendor without an ID code",
+        "DQ-17": "Critical vendor without a functional exit plan",
+        "DQ-18": "Critical/Significant vendor without an ex-ante assessment",
+        "DQ-19": "Critical vendor without an ongoing risk (art. 9(3))",
+        "DQ-20": "High/critical net risk without an action plan",
+        "DQ-21": "Acceptance above tolerance without approval/justification",
+        "DQ-22": "Acceptance review overdue (> 12 months)",
+        "DQ-23": "Risk assessment overdue",
+        "DQ-24": "Duplicate IDs in the registers",
+        "DQ-25": "Consistency of derived links (sheet 11)",
+        "DQ-26": "Error cells in formulas (#NAME?, #REF!, …)",
+        "DQ-27": "GDPR relevance missing or Undetermined",
+        "DQ-28": "AI relevance missing or Undetermined",
+        "DQ-29": "Incomplete CIAA rating (C/I/A/Au)",
+        "DQ-30": "Incomplete business-impact rating",
+        "DQ-31": "CIF inconsistency: derived=Yes but CIF process count=0",
+        "DQ-32": "Critical/Significant vendor without a main contract",
+        "DQ-33": "Internet-exposed asset without a complete CIAA rating",
+        "DQ-34": "AI-relevant asset without an owner",
+        "DQ-35": "GDPR asset with confidentiality below the threshold (P_GdprMinC)",
+        "DQ-36": "SPOF asset without a reviewed record",
+        "DQ-37": "Suspicious asset dependency direction (supporting level < dependent)",
+        "DQ-38": "Sub-outsourcing chain error (rank cannot be derived)",
+        "DQ-39": "Vendor with contracts but not exactly one main contract",
+        "DQ-40": "Link to a non-existent ID (sheets 06/08/09)",
+        "DQ-41": "Vendor with links but no contract on record",
+        "DQ-42": "Sub-outsourcing on a contract outside RoI scope",
+        "DQ-43": "Process without an owning department",
+        "DQ-44": "Asset without an owning department",
+        "DQ-45": "Process–asset link without an assessed significance",
+        "DQ-46": "Asset without a data classification",
+        "DQ-47": "Highly confidential data with confidentiality below the threshold",
+        "DQ-48": "Asset without a deployment model",
+        "DQ-49": "Critical/Significant vendor without an exit plan in an orderly state",
+        "DQ-50": "Critical/Significant vendor with due diligence not started",
+        "DQ-51": "Conflict: GDPR asset classified \"No data\" / \"Public data\"",
+        "DQ-52": "Critical/Significant vendor without an assessed outsourcing significance"
+    }
+}

@@ -11,6 +11,7 @@ import {
   Scale,
   Server,
   ShieldAlert,
+  ShieldCheck,
   Target,
   Workflow,
 } from 'lucide-react';
@@ -48,6 +49,7 @@ const AssetsPage = lazy(() => import('@/pages/AssetsPage'));
 const AssetDetailPage = lazy(() => import('@/pages/AssetDetailPage'));
 const ThreatsPage = lazy(() => import('@/pages/ThreatsPage'));
 const ThreatDetailPage = lazy(() => import('@/pages/ThreatDetailPage'));
+const IctRegisterDqPage = lazy(() => import('@/pages/IctRegisterDqPage'));
 const VendorReportsPage = lazy(() => import('@/pages/VendorReportsPage'));
 const AuditTrailPage = lazy(() => import('@/pages/AuditTrailPage'));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
@@ -199,6 +201,21 @@ export const businessRoutes: AppRouteDef[] = [
   { key: 'threats-new', path: 'threats/new', element: <ThreatDetailPage mode="new" /> },
   { key: 'threats-detail', path: 'threats/:id', element: <ThreatDetailPage /> },
   { key: 'threats-edit', path: 'threats/:id/edit', element: <ThreatDetailPage mode="edit" /> },
+  {
+    // ICT Register data quality (#50): a read model over the register graph,
+    // gated like the reference data it aggregates (the vendors:read pattern
+    // of the /ict-register API surface).
+    key: 'ict-register-dq',
+    path: 'ict-register/data-quality',
+    element: <IctRegisterDqPage />,
+    nav: {
+      href: '/ict-register/data-quality',
+      labelKey: 'ict_register_dq',
+      icon: ShieldCheck,
+      isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'vendors'),
+      order: 78,
+    },
+  },
   {
     key: 'departments',
     path: 'departments',
