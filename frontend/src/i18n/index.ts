@@ -109,6 +109,7 @@ export const namespaces = [
     'processes',
     'assets',
     'threats',
+    'ictRegisterDq',
     'ictRegisterCommittee',
     'issues',
     'errorKeys',
