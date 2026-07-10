@@ -2,6 +2,7 @@ import { lazy } from 'react';
 import {
   Activity,
   AlertOctagon,
+  AlertTriangle,
   Building2,
   ClipboardCheck,
   ClipboardList,
@@ -45,6 +46,8 @@ const ProcessesPage = lazy(() => import('@/pages/ProcessesPage'));
 const ProcessDetailPage = lazy(() => import('@/pages/ProcessDetailPage'));
 const AssetsPage = lazy(() => import('@/pages/AssetsPage'));
 const AssetDetailPage = lazy(() => import('@/pages/AssetDetailPage'));
+const ThreatsPage = lazy(() => import('@/pages/ThreatsPage'));
+const ThreatDetailPage = lazy(() => import('@/pages/ThreatDetailPage'));
 const VendorReportsPage = lazy(() => import('@/pages/VendorReportsPage'));
 const AuditTrailPage = lazy(() => import('@/pages/AuditTrailPage'));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
@@ -181,6 +184,21 @@ export const businessRoutes: AppRouteDef[] = [
   { key: 'assets-new', path: 'assets/new', element: <AssetDetailPage mode="new" /> },
   { key: 'assets-detail', path: 'assets/:id', element: <AssetDetailPage /> },
   { key: 'assets-edit', path: 'assets/:id/edit', element: <AssetDetailPage mode="edit" /> },
+  {
+    key: 'threats',
+    path: 'threats',
+    element: <ThreatsPage />,
+    nav: {
+      href: '/threats',
+      labelKey: 'threats',
+      icon: AlertTriangle,
+      isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'threats'),
+      order: 77,
+    },
+  },
+  { key: 'threats-new', path: 'threats/new', element: <ThreatDetailPage mode="new" /> },
+  { key: 'threats-detail', path: 'threats/:id', element: <ThreatDetailPage /> },
+  { key: 'threats-edit', path: 'threats/:id/edit', element: <ThreatDetailPage mode="edit" /> },
   {
     key: 'departments',
     path: 'departments',

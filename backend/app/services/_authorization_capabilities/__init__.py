@@ -19,6 +19,12 @@ from app.services._authorization_capabilities.riskhub_config import (
     role_capabilities,
 )
 from app.services._authorization_capabilities.risks import risk_capabilities
+from app.services._authorization_capabilities.threats import (
+    risk_asset_link_capabilities,
+    risk_process_link_capabilities,
+    threat_capabilities,
+    threat_risk_link_capabilities,
+)
 from app.services._authorization_capabilities.vendor_contracts import vendor_contract_capabilities
 from app.services._authorization_capabilities.vendor_sub_outsourcing import (
     vendor_sub_outsourcing_capabilities,
@@ -46,8 +52,12 @@ __all__ = [
     "preload_issue_capabilities",
     "process_capabilities",
     "process_vendor_link_capabilities",
+    "risk_asset_link_capabilities",
     "risk_capabilities",
+    "risk_process_link_capabilities",
     "risk_type_capabilities",
+    "threat_capabilities",
+    "threat_risk_link_capabilities",
     "require_capability",
     "role_capabilities",
     "vendor_capabilities",

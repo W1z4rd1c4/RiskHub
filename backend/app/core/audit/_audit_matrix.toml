@@ -358,3 +358,55 @@ function = "asset_link_deleted"
 entity_type = "ASSET_LINK"
 action = "DELETE"
 rationale = "Asset unlink mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "threat"
+function = "threat_created"
+entity_type = "THREAT"
+action = "CREATE"
+
+[[adapter]]
+module = "threat"
+function = "threat_updated"
+entity_type = "THREAT"
+action = "UPDATE"
+
+[[adapter]]
+module = "threat"
+function = "threat_archived"
+entity_type = "THREAT"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "threat"
+function = "threat_restored"
+entity_type = "THREAT"
+action = "UPDATE"
+
+[[adapter]]
+module = "threat"
+function = "threat_link_created"
+entity_type = "THREAT_LINK"
+action = "CREATE"
+rationale = "Threat link mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "threat"
+function = "threat_link_deleted"
+entity_type = "THREAT_LINK"
+action = "DELETE"
+rationale = "Threat unlink mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "risk"
+function = "risk_link_created"
+entity_type = "RISK_LINK"
+action = "CREATE"
+rationale = "ICT Register link mutations managed from the Risk end are auditable relationship changes."
+
+[[adapter]]
+module = "risk"
+function = "risk_link_deleted"
+entity_type = "RISK_LINK"
+action = "DELETE"
+rationale = "ICT Register unlink mutations managed from the Risk end are auditable relationship changes."

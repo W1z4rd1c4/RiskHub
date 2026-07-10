@@ -63,11 +63,27 @@ name = "process_vendor_link_capabilities"
 expires_at = "2026-09-01"
 
 [[public_names]]
+name = "risk_asset_link_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
 name = "risk_capabilities"
 expires_at = "2026-09-01"
 
 [[public_names]]
+name = "risk_process_link_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
 name = "risk_type_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "threat_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "threat_risk_link_capabilities"
 expires_at = "2026-09-01"
 
 [[public_names]]

@@ -125,6 +125,9 @@ async def create_risk_detail(
                 net_score=risk_data.net_probability * risk_data.net_impact,
                 status=risk_data.status.value,
                 is_priority=risk_data.is_priority,
+                acceptance_approver=risk_data.acceptance_approver,
+                acceptance_justification=risk_data.acceptance_justification,
+                acceptance_date=risk_data.acceptance_date,
             )
 
             db.add(risk)

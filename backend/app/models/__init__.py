@@ -25,13 +25,23 @@ from app.models.outbox_event import OutboxEvent
 from app.models.process import Process, ProcessVendorLink
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
 from app.models.refresh_token import RefreshToken
-from app.models.risk import ControlEffectiveness, ControlRiskLink, Risk, RiskStatus, RiskType
+from app.models.risk import (
+    ControlEffectiveness,
+    ControlRiskLink,
+    Risk,
+    RiskAssetLink,
+    RiskProcessLink,
+    RiskStatus,
+    RiskType,
+    ThreatRiskLink,
+)
 from app.models.risk_questionnaire import RiskQuestionnaire, RiskQuestionnaireClarification, RiskQuestionnaireStatus
 
 # Risk Hub models
 from app.models.risk_type import RiskTypeConfig
 from app.models.role import Permission, Role, RolePermission, RoleType
 from app.models.scheduler_job_run import SchedulerJobRun
+from app.models.threat import Threat
 from app.models.user import User
 from app.models.vendor import Vendor, VendorReplaceability, VendorType
 from app.models.vendor_contract import VendorContract
@@ -70,10 +80,14 @@ __all__ = [
     "OutboxEvent",
     "Process",
     "Asset",
+    "Threat",
     "ProcessAssetLink",
     "AssetAssetLink",
     "AssetVendorLink",
     "ProcessVendorLink",
+    "ThreatRiskLink",
+    "RiskProcessLink",
+    "RiskAssetLink",
     "Issue",
     "IssueSeverity",
     "IssueStatus",

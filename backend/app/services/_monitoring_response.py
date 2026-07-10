@@ -115,6 +115,10 @@ def _serialize_risk_base(risk) -> dict[str, Any]:
         "net_impact": risk.net_impact,
         "status": risk.status,
         "is_priority": risk.is_priority,
+        # ICT Register acceptance governance (issue #47) — additive entered fields.
+        "acceptance_approver": risk.acceptance_approver,
+        "acceptance_justification": risk.acceptance_justification,
+        "acceptance_date": risk.acceptance_date,
     }
 
 

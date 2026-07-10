@@ -158,6 +158,54 @@ export function RiskFormScoringStep({
           />
         </section>
       </div>
+
+      {/* ICT Register acceptance governance (issue #47) — entered fields; the
+          required-together rule above tolerance is a DQ finding, never a
+          client-side block. */}
+      <section className="space-y-4 border-t border-white/10 pt-6" data-testid="risk-acceptance-section">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+          {t('risks:acceptance.title')}
+        </h4>
+        <div className="grid md:grid-cols-3 gap-6">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">
+              {t('risks:acceptance.approver')}
+            </label>
+            <input
+              type="text"
+              data-testid="risk-acceptance-approver"
+              value={formData.acceptance_approver ?? ''}
+              onChange={(e) => handleInputChange('acceptance_approver', e.target.value || null)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">
+              {t('risks:acceptance.date')}
+            </label>
+            <input
+              type="date"
+              data-testid="risk-acceptance-date"
+              value={formData.acceptance_date ?? ''}
+              onChange={(e) => handleInputChange('acceptance_date', e.target.value || null)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
+            />
+          </div>
+          <div className="md:col-span-3">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">
+              {t('risks:acceptance.justification')}
+            </label>
+            <textarea
+              rows={2}
+              data-testid="risk-acceptance-justification"
+              value={formData.acceptance_justification ?? ''}
+              onChange={(e) => handleInputChange('acceptance_justification', e.target.value || null)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600 resize-y"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-slate-500">{t('risks:acceptance.hint')}</p>
+      </section>
     </div>
   );
 }

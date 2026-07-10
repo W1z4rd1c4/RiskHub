@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -106,6 +106,14 @@ class Risk(ArchivableMixin, Base):
     kri_threshold_yellow: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Elevated risk
     kri_threshold_red: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Critical
 
+    # ICT Register acceptance governance (issue #47; workbook 13_Rizika block
+    # E·ODEZVA A AKCEPTACE: akc_schval / akc_oduv / akc_datum). Entered fields,
+    # always optional at the write boundary — their required-together rule when
+    # accepting above tolerance is a DQ finding (#50), never a write block.
+    acceptance_approver: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    acceptance_justification: Mapped[str | None] = mapped_column(Text, nullable=True)
+    acceptance_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -149,3 +157,73 @@ class ControlRiskLink(Base):
     # Relationships
     control: Mapped["Control"] = relationship("Control", back_populates="risk_links")
     risk: Mapped["Risk"] = relationship("Risk", back_populates="control_links")
+
+
+class ThreatRiskLink(Base):
+    """Threat<->Risk Link relation (issue #47; workbook 13_Rizika id_hrozby).
+
+    One row = the Risk arises from the Threat. The pair is unique; the row
+    carries no entered columns of its own (the workbook's threat reference is
+    a bare ID lookup). Manageable from BOTH ends — the Threat page under
+    threats:write and the Risk detail under risks:write.
+    """
+
+    __tablename__ = "threat_risk_links"
+    __table_args__ = (UniqueConstraint("threat_id", "risk_id", name="uq_threat_risk_link"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    threat_id: Mapped[int] = mapped_column(
+        ForeignKey("threats.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    risk_id: Mapped[int] = mapped_column(
+        ForeignKey("risks.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RiskProcessLink(Base):
+    """Risk<->Process Link relation (issue #47; workbook 13_Rizika subject Proces).
+
+    One row = the Risk concerns the Process. The pair is unique and the row
+    carries no entered columns. Managed from the Risk detail (risks:write);
+    readable from the Process end.
+    """
+
+    __tablename__ = "risk_process_links"
+    __table_args__ = (UniqueConstraint("risk_id", "process_id", name="uq_risk_process_link"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    risk_id: Mapped[int] = mapped_column(
+        ForeignKey("risks.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    process_id: Mapped[int] = mapped_column(
+        ForeignKey("processes.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RiskAssetLink(Base):
+    """Risk<->Asset Link relation (issue #47; workbook 13_Rizika subject Aktivum).
+
+    One row = the Risk concerns the Asset. The pair is unique and the row
+    carries no entered columns. Managed from the Risk detail (risks:write);
+    readable from the Asset end.
+    """
+
+    __tablename__ = "risk_asset_links"
+    __table_args__ = (UniqueConstraint("risk_id", "asset_id", name="uq_risk_asset_link"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    risk_id: Mapped[int] = mapped_column(
+        ForeignKey("risks.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey("assets.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

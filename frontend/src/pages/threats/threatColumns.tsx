@@ -1,0 +1,97 @@
+import type { MouseEvent } from 'react';
+import { ArchiveRestore, ChevronRight } from 'lucide-react';
+
+import type { Column } from '@/components/tables/SortableTable';
+import type { Threat } from '@/types/threat';
+
+import { getThreatDisplayStatus, type ThreatDisplayStatus } from './threatsPagePresentation';
+
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
+
+type BuildThreatColumnsParams = {
+    t: TranslateFn;
+    onRestore: (threatId: number, event: MouseEvent) => void | Promise<void>;
+    canRestoreThreat: (threat: Threat) => boolean;
+};
+
+export function getThreatStatusColor(status: ThreatDisplayStatus): string {
+    return status === 'archived' ? 'text-slate-400 bg-slate-400/10' : 'text-emerald-400 bg-emerald-400/10';
+}
+
+export function buildThreatColumns({
+    t,
+    onRestore,
+    canRestoreThreat,
+}: BuildThreatColumnsParams): Column<Threat>[] {
+    return [
+        {
+            key: 'name',
+            label: t('columns.name'),
+            sortable: true,
+            className: 'w-[300px] min-w-[220px]',
+            render: (threat) => (
+                <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-bold text-white">{threat.name}</span>
+                    {threat.description ? (
+                        <span className="text-xs text-slate-500 truncate max-w-[280px]">{threat.description}</span>
+                    ) : null}
+                </div>
+            ),
+        },
+        {
+            key: 'category',
+            label: t('columns.category'),
+            sortable: true,
+            render: (threat) => <span className="text-sm text-slate-300">{threat.category ?? '—'}</span>,
+        },
+        {
+            key: 'typical_weaknesses',
+            label: t('columns.typical_weaknesses'),
+            render: (threat) => (
+                <span className="text-sm text-slate-300 truncate block max-w-[260px]">
+                    {threat.typical_weaknesses ?? '—'}
+                </span>
+            ),
+        },
+        {
+            key: 'relevant_subject',
+            label: t('columns.relevant_subject'),
+            sortable: true,
+            render: (threat) => <span className="text-sm text-slate-300">{threat.relevant_subject ?? '—'}</span>,
+        },
+        {
+            key: 'status',
+            label: t('columns.status'),
+            className: 'w-[130px]',
+            render: (threat) => {
+                const status = getThreatDisplayStatus(threat);
+                return (
+                    <div className="flex items-center gap-2">
+                        <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getThreatStatusColor(status)}`}
+                        >
+                            {t(`status.${status}`)}
+                        </span>
+                        {status === 'archived' && canRestoreThreat(threat) ? (
+                            <button
+                                type="button"
+                                data-testid={`threat-restore-${threat.id}`}
+                                onClick={(event) => void onRestore(threat.id, event)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                                title={t('actions.restore')}
+                            >
+                                <ArchiveRestore className="h-4 w-4" />
+                            </button>
+                        ) : null}
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'chevron',
+            label: '',
+            className: 'w-[40px]',
+            render: () => <ChevronRight className="h-4 w-4 text-slate-600" />,
+        },
+    ];
+}

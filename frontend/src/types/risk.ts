@@ -81,6 +81,12 @@ export interface Risk {
     kri_threshold_yellow?: string;
     kri_threshold_red?: string;
 
+    // ICT Register acceptance governance (issue #47) — entered, always optional;
+    // the required-together rule above tolerance is a DQ finding, not a write block.
+    acceptance_approver?: string | null;
+    acceptance_justification?: string | null;
+    acceptance_date?: string | null;
+
     created_at: string;
     updated_at: string;
 
@@ -148,6 +154,9 @@ export interface RiskCreate {
     net_impact: number;
     status?: RiskStatus;
     is_priority?: boolean;
+    acceptance_approver?: string | null;
+    acceptance_justification?: string | null;
+    acceptance_date?: string | null;
 }
 
 export type RiskUpdate = Partial<RiskCreate>;

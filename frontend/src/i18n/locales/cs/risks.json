@@ -325,5 +325,35 @@
     "aggregated_kri_history": "Agregovaná historie KRI",
     "no_kri_values": "Zatím nejsou k dispozici žádné hodnoty KRI.",
     "no_kris_configured": "Pro toto riziko nejsou nakonfigurované žádné KRI."
+  },
+  "acceptance": {
+    "title": "Akceptace rizika",
+    "approver": "Akceptace: schvalovatel",
+    "justification": "Akceptace: odůvodnění",
+    "date": "Akceptace: datum",
+    "hint": "Při akceptaci rizika nad toleranci se vyžadují společně — hlídá kontrola kvality dat, zápis neblokuje."
+  },
+  "register_links": {
+    "title": "Vazby ICT registru",
+    "add": "Provázat",
+    "remove": "Odebrat vazbu",
+    "threats": {
+      "title": "Hrozby",
+      "empty": "K tomuto riziku zatím nejsou provázány žádné hrozby.",
+      "select_placeholder": "Vyberte hrozbu k provázání..."
+    },
+    "processes": {
+      "title": "Procesy",
+      "empty": "K tomuto riziku zatím nejsou provázány žádné procesy.",
+      "select_placeholder": "Vyberte proces k provázání..."
+    },
+    "assets": {
+      "title": "Aktiva",
+      "empty": "K tomuto riziku zatím nejsou provázána žádná aktiva.",
+      "select_placeholder": "Vyberte aktivum k provázání..."
+    },
+    "errors": {
+      "mutation_failed": "Změna vazby se nezdařila. Zkuste to prosím znovu."
+    }
   }
 }

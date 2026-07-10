@@ -26,6 +26,7 @@ from app.api.v1.endpoints import (
     riskhub,
     riskhub_questionnaires,
     risks,
+    threats,
     users,
     vendor_contracts,
     vendor_links,
@@ -46,6 +47,7 @@ api_router.include_router(issues.router, tags=["issues"])
 api_router.include_router(vendors.router, prefix="/vendors", tags=["vendors"])
 api_router.include_router(processes.router, prefix="/processes", tags=["processes"])
 api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
+api_router.include_router(threats.router, prefix="/threats", tags=["threats"])
 api_router.include_router(vendor_links.router, tags=["vendor-links"])
 api_router.include_router(vendor_contracts.router, tags=["vendor-contracts"])
 api_router.include_router(vendor_sub_outsourcing.router, tags=["vendor-sub-outsourcing"])

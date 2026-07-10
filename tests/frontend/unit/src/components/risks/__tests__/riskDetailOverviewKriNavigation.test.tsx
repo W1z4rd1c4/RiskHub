@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { ComponentProps, HTMLAttributes } from 'react';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
@@ -174,8 +175,13 @@ describe('RiskDetailOverviewTab KRI navigation', () => {
         const onNavigateToNewKri = vi.fn();
         const onNavigateToKri = vi.fn();
 
+        // The ICT Register links section (issue #47) reads through react-query.
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false, enabled: false } },
+        });
         render(
-            <RiskDetailOverviewTab
+            <QueryClientProvider client={queryClient}>
+                <RiskDetailOverviewTab
                 risk={riskWithKri}
                 linkedControls={[]}
                 linkedVendors={[]}
@@ -196,8 +202,9 @@ describe('RiskDetailOverviewTab KRI navigation', () => {
                 setDialogMode={vi.fn()}
                 isCreateDialogOpen={false}
                 setIsCreateDialogOpen={vi.fn()}
-                {...overrides}
-            />
+                    {...overrides}
+                />
+            </QueryClientProvider>
         );
 
         return { onNavigateToNewKri, onNavigateToKri };

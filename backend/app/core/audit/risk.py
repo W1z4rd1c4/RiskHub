@@ -127,3 +127,61 @@ async def risk_restored(
         description=f"Restored risk {risk.risk_id_code}",
         log_activity_func=log_activity_func,
     )
+
+
+async def risk_link_created(
+    db: AsyncSession,
+    *,
+    actor: User,
+    risk: Risk,
+    link_kind: str,
+    target_id: int,
+    log_activity_func: AuditLogActivity = log_activity,
+) -> None:
+    """ICT Register link mutations managed from the Risk end (issue #47)."""
+    await emit_adapter(
+        db,
+        entity_type=ActivityEntityType.RISK_LINK,
+        entity_id=risk.id,
+        entity_name=f"{risk_display_name(risk)} {link_kind} link {target_id}",
+        safe_entity_label=f"{risk.risk_id_code}-LINK",
+        action=ActivityAction.CREATE,
+        actor=actor,
+        department_id=risk.department_id,
+        changes={
+            "link_kind": {"old": None, "new": link_kind},
+            "target_id": {"old": None, "new": target_id},
+            "risk_id": {"old": None, "new": risk.id},
+        },
+        description=f"Created risk {link_kind} link",
+        log_activity_func=log_activity_func,
+    )
+
+
+async def risk_link_deleted(
+    db: AsyncSession,
+    *,
+    actor: User,
+    risk: Risk,
+    link_kind: str,
+    target_id: int,
+    log_activity_func: AuditLogActivity = log_activity,
+) -> None:
+    """ICT Register unlink mutations managed from the Risk end (issue #47)."""
+    await emit_adapter(
+        db,
+        entity_type=ActivityEntityType.RISK_LINK,
+        entity_id=risk.id,
+        entity_name=f"{risk_display_name(risk)} {link_kind} link {target_id}",
+        safe_entity_label=f"{risk.risk_id_code}-LINK",
+        action=ActivityAction.DELETE,
+        actor=actor,
+        department_id=risk.department_id,
+        changes={
+            "link_kind": {"old": None, "new": link_kind},
+            "target_id": {"old": None, "new": target_id},
+            "risk_id": {"old": None, "new": risk.id},
+        },
+        description=f"Deleted risk {link_kind} link",
+        log_activity_func=log_activity_func,
+    )

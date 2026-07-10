@@ -8,6 +8,7 @@ import { RiskAssessmentSection } from './detail-overview/RiskAssessmentSection';
 import { RiskKriSection } from './detail-overview/RiskKriSection';
 import { RiskLinkedControlsSection } from './detail-overview/RiskLinkedControlsSection';
 import { RiskLinkedVendorsSection } from './detail-overview/RiskLinkedVendorsSection';
+import { RiskRegisterLinksSection } from './detail-overview/RiskRegisterLinksSection';
 import { RiskSummaryCards } from './detail-overview/RiskSummaryCards';
 import { RiskTimestamps } from './detail-overview/RiskTimestamps';
 import { groupLinkedControls } from './detail-overview/riskOverviewHelpers';
@@ -107,6 +108,10 @@ export function RiskDetailOverviewTab({
             <RiskLinkedVendorsSection
                 linkedVendors={linkedVendors}
                 onNavigateToVendor={onNavigateToVendor}
+            />
+            <RiskRegisterLinksSection
+                risk={risk}
+                canManageLinks={resolveCapabilityFlag(risk.capabilities, 'can_update')}
             />
             <RiskTimestamps createdAt={risk.created_at} updatedAt={risk.updated_at} />
         </>

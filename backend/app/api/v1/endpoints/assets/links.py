@@ -15,6 +15,7 @@ from app.schemas.asset import (
     ProcessAssetLinkRead,
     ProcessAssetLinkUpdate,
 )
+from app.schemas.risk import RiskAssetLinkRead
 from app.services._ict_register_lifecycle.asset_links import (
     add_asset_asset_link,
     add_asset_process_link,
@@ -24,6 +25,7 @@ from app.services._ict_register_lifecycle.asset_links import (
     remove_asset_process_link,
     update_asset_process_link,
 )
+from app.services._ict_register_lifecycle.risk_links import list_asset_risk_links
 from app.services._ict_register_lifecycle.vendor_links import (
     add_asset_vendor_link,
     list_asset_vendor_links,
@@ -31,6 +33,16 @@ from app.services._ict_register_lifecycle.vendor_links import (
 )
 
 router = APIRouter()
+
+
+@router.get("/{asset_id}/risk-links", response_model=list[RiskAssetLinkRead])
+async def list_asset_risk_links_route(
+    asset_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("assets", "read")),
+):
+    """The Asset-end read of the Risk<->Asset Link relation (issue #47, read-only)."""
+    return await list_asset_risk_links(db, asset_id=asset_id, current_user=current_user)
 
 
 @router.get("/{asset_id}/process-links", response_model=list[ProcessAssetLinkRead])

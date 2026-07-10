@@ -1,0 +1,69 @@
+{
+    "title": "Hrozby",
+    "subtitle": "ICT registr — zdroje hrozeb za registrem rizik",
+    "actions": {
+        "new": "Nová hrozba",
+        "edit": "Upravit hrozbu",
+        "create": "Vytvořit hrozbu",
+        "save": "Uložit změny",
+        "cancel": "Zrušit",
+        "restore": "Obnovit",
+        "retry": "Zkusit znovu",
+        "back_to_register": "Zpět na hrozby"
+    },
+    "filters": {
+        "search_placeholder": "Hledat podle názvu, kategorie nebo relevantního subjektu...",
+        "all_statuses": "Všechny stavy"
+    },
+    "status": {
+        "active": "Aktivní",
+        "archived": "Archivováno"
+    },
+    "columns": {
+        "name": "Hrozba",
+        "category": "Kategorie",
+        "typical_weaknesses": "Typické zranitelnosti",
+        "relevant_subject": "Relevantní subjekt",
+        "status": "Stav"
+    },
+    "form": {
+        "sections": {
+            "identity": "Identifikace",
+            "details": "Popis"
+        },
+        "name": "Hrozba",
+        "category": "Kategorie",
+        "description": "Popis",
+        "typical_weaknesses": "Typické zranitelnosti",
+        "relevant_subject": "Relevantní subjekt",
+        "notes": "Poznámka",
+        "not_set": "Nevyplněno",
+        "errors": {
+            "name_required": "Název hrozby je povinný.",
+            "save_failed": "Uložení hrozby se nezdařilo. Zkuste to prosím znovu."
+        }
+    },
+    "links": {
+        "add": "Provázat",
+        "remove": "Odebrat vazbu",
+        "risks": {
+            "title": "Provázaná rizika",
+            "empty": "K této hrozbě zatím nejsou provázána žádná rizika.",
+            "select_placeholder": "Vyberte riziko k provázání..."
+        },
+        "errors": {
+            "mutation_failed": "Změna vazby se nezdařila. Zkuste to prosím znovu."
+        }
+    },
+    "empty": {
+        "no_threats": "Nebyly nalezeny žádné hrozby."
+    },
+    "errors": {
+        "not_found": "Hrozba nenalezena.",
+        "load_failed": "Načtení hrozeb se nezdařilo.",
+        "archive_failed": "Archivace hrozby se nezdařila. Zkuste to prosím znovu."
+    },
+    "messages": {
+        "archive_confirm": "Archivovat hrozbu „{{threatName}}“? Zůstane dostupná v archivovaném zobrazení."
+    }
+}

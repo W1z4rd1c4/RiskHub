@@ -1,3 +1,4 @@
+from datetime import date
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
@@ -74,6 +75,14 @@ class RiskBase(BaseModel):
     status: RiskStatusEnum = Field(RiskStatusEnum.active)
     is_priority: bool = Field(False, description="In Risk Catalog (high priority)")
 
+    # ICT Register acceptance governance (issue #47; workbook 13_Rizika block
+    # E: akc_schval / akc_oduv / akc_datum). Entered, always optional — the
+    # required-together rule above tolerance is a DQ finding (#50), not a
+    # write block.
+    acceptance_approver: Optional[str] = Field(None, max_length=255, description="Acceptance approver")
+    acceptance_justification: Optional[str] = Field(None, description="Acceptance justification")
+    acceptance_date: Optional[date] = Field(None, description="Acceptance date")
+
     @field_validator("gross_probability", "gross_impact", "net_probability", "net_impact")
     @classmethod
     def validate_score_range(cls, v):
@@ -106,6 +115,9 @@ class RiskUpdate(BaseModel):
     net_impact: Optional[int] = Field(None, ge=1, le=5)
     status: Optional[RiskStatusEnum] = None
     is_priority: Optional[bool] = None
+    acceptance_approver: Optional[str] = Field(None, max_length=255)
+    acceptance_justification: Optional[str] = None
+    acceptance_date: Optional[date] = None
 
 
 class UserBriefForRisk(BaseModel):
@@ -289,6 +301,57 @@ class ControlRiskLinkRead(BaseModel):
     notes: Optional[str] = None
     control: Optional[ControlBriefForLink] = None
     risk: Optional[RiskBriefForLink] = None
+    created_at: UtcAwareDatetime
+
+    model_config = {"from_attributes": True}
+
+
+# ============== ICT Register Risk Link Schemas (issue #47) ==============
+
+
+class RiskProcessLinkCreate(BaseModel):
+    """Risk-end create payload: link this Risk to a Process."""
+
+    model_config = {"extra": "forbid"}
+
+    process_id: int = Field(..., ge=1)
+
+
+class RiskProcessLinkCapabilities(BaseModel):
+    """Per-row link actions: mutations follow the Risk end (risks:write)."""
+
+    can_delete: bool
+
+
+class RiskProcessLinkRead(BaseModel):
+    id: int
+    risk_id: int
+    process_id: int
+    capabilities: Optional[RiskProcessLinkCapabilities] = None
+    created_at: UtcAwareDatetime
+
+    model_config = {"from_attributes": True}
+
+
+class RiskAssetLinkCreate(BaseModel):
+    """Risk-end create payload: link this Risk to an Asset."""
+
+    model_config = {"extra": "forbid"}
+
+    asset_id: int = Field(..., ge=1)
+
+
+class RiskAssetLinkCapabilities(BaseModel):
+    """Per-row link actions: mutations follow the Risk end (risks:write)."""
+
+    can_delete: bool
+
+
+class RiskAssetLinkRead(BaseModel):
+    id: int
+    risk_id: int
+    asset_id: int
+    capabilities: Optional[RiskAssetLinkCapabilities] = None
     created_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}

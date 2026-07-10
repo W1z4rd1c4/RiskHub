@@ -8,7 +8,9 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas.asset import ProcessAssetLinkRead
 from app.schemas.process import ProcessVendorLinkCreate, ProcessVendorLinkRead
+from app.schemas.risk import RiskProcessLinkRead
 from app.services._ict_register_lifecycle.asset_links import list_process_asset_links
+from app.services._ict_register_lifecycle.risk_links import list_process_risk_links
 from app.services._ict_register_lifecycle.vendor_links import (
     add_process_vendor_link,
     list_process_vendor_links,
@@ -26,6 +28,16 @@ async def list_process_asset_links_route(
 ):
     """The Process-end read of the Process<->Asset Link relation (issue #43)."""
     return await list_process_asset_links(db, process_id=process_id, current_user=current_user)
+
+
+@router.get("/{process_id}/risk-links", response_model=list[RiskProcessLinkRead])
+async def list_process_risk_links_route(
+    process_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("processes", "read")),
+):
+    """The Process-end read of the Risk<->Process Link relation (issue #47, read-only)."""
+    return await list_process_risk_links(db, process_id=process_id, current_user=current_user)
 
 
 @router.get("/{process_id}/vendor-links", response_model=list[ProcessVendorLinkRead])

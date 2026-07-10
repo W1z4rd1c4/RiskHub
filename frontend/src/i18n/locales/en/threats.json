@@ -1,0 +1,69 @@
+{
+    "title": "Threats",
+    "subtitle": "ICT Register — threat sources behind the risk register",
+    "actions": {
+        "new": "New Threat",
+        "edit": "Edit Threat",
+        "create": "Create Threat",
+        "save": "Save Changes",
+        "cancel": "Cancel",
+        "restore": "Restore",
+        "retry": "Retry",
+        "back_to_register": "Back to Threats"
+    },
+    "filters": {
+        "search_placeholder": "Search by name, category, or relevant subject...",
+        "all_statuses": "All statuses"
+    },
+    "status": {
+        "active": "Active",
+        "archived": "Archived"
+    },
+    "columns": {
+        "name": "Threat",
+        "category": "Category",
+        "typical_weaknesses": "Typical weaknesses",
+        "relevant_subject": "Relevant subject",
+        "status": "Status"
+    },
+    "form": {
+        "sections": {
+            "identity": "Identification",
+            "details": "Description"
+        },
+        "name": "Threat",
+        "category": "Category",
+        "description": "Description",
+        "typical_weaknesses": "Typical weaknesses",
+        "relevant_subject": "Relevant subject",
+        "notes": "Notes",
+        "not_set": "Not set",
+        "errors": {
+            "name_required": "The threat name is required.",
+            "save_failed": "Saving the threat failed. Please try again."
+        }
+    },
+    "links": {
+        "add": "Link",
+        "remove": "Remove link",
+        "risks": {
+            "title": "Linked risks",
+            "empty": "No risks are linked to this threat yet.",
+            "select_placeholder": "Select a risk to link..."
+        },
+        "errors": {
+            "mutation_failed": "Updating the link failed. Please try again."
+        }
+    },
+    "empty": {
+        "no_threats": "No threats found."
+    },
+    "errors": {
+        "not_found": "Threat not found.",
+        "load_failed": "Loading threats failed.",
+        "archive_failed": "Archiving the threat failed. Please try again."
+    },
+    "messages": {
+        "archive_confirm": "Archive threat \"{{threatName}}\"? It stays available in the archived view."
+    }
+}
