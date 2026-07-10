@@ -958,6 +958,71 @@ async def test_threat_end_link_add_404s_for_out_of_scope_risk(
 
 
 @pytest.mark.asyncio
+async def test_threat_end_link_remove_404s_for_out_of_scope_risk_without_deleting(
+    client_factory,
+    test_user_cro: User,
+    test_user_scoped_threat_maintainer: User,
+    test_department,
+    other_department,
+    seed_risk_types,
+):
+    """Unlinking a link whose Risk is out of scope from the Threat page is
+    indistinguishable from unlinking a nonexistent link_id (404
+    anti-enumeration, same rule as the add-path), never deletes the hidden
+    relationship, and leaves legitimate in-scope and global unlinks working."""
+    async with client_factory(user=test_user_cro) as client:
+        threat = (await client.post("/api/v1/threats", json=_minimal_payload())).json()
+        in_scope = (
+            await client.post(
+                "/api/v1/risks", json=_risk_payload(department_id=test_department.id)
+            )
+        ).json()
+        out_of_scope = (
+            await client.post(
+                "/api/v1/risks",
+                json=_risk_payload(name="Skryté riziko jiného útvaru", department_id=other_department.id),
+            )
+        ).json()
+        in_scope_link = (
+            await client.post(
+                f"/api/v1/threats/{threat['id']}/risk-links", json={"risk_id": in_scope["id"]}
+            )
+        ).json()
+        out_of_scope_link = (
+            await client.post(
+                f"/api/v1/threats/{threat['id']}/risk-links", json={"risk_id": out_of_scope["id"]}
+            )
+        ).json()
+
+    async with client_factory(user=test_user_scoped_threat_maintainer) as client:
+        denied = await client.delete(
+            f"/api/v1/threats/{threat['id']}/risk-links/{out_of_scope_link['id']}"
+        )
+        missing = await client.delete(
+            f"/api/v1/threats/{threat['id']}/risk-links/999999"
+        )
+        assert denied.status_code == 404, denied.text
+        assert missing.status_code == 404, missing.text
+        # No enumeration oracle: byte-identical body for hidden vs nonexistent.
+        assert denied.json() == missing.json()
+
+        # A legitimate in-scope unlink by the same scoped maintainer still works.
+        ok = await client.delete(
+            f"/api/v1/threats/{threat['id']}/risk-links/{in_scope_link['id']}"
+        )
+        assert ok.status_code == 204, ok.text
+
+    # The hidden relationship was NOT deleted, and a global/CRO user unlinks it.
+    async with client_factory(user=test_user_cro) as client:
+        rows = (await client.get(f"/api/v1/threats/{threat['id']}/risk-links")).json()
+        assert {row["id"] for row in rows} == {out_of_scope_link["id"]}
+        removed = await client.delete(
+            f"/api/v1/threats/{threat['id']}/risk-links/{out_of_scope_link['id']}"
+        )
+        assert removed.status_code == 204, removed.text
+
+
+@pytest.mark.asyncio
 async def test_register_far_end_lists_filter_risks_by_visibility(
     client_factory, test_user_cro: User, test_user_employee: User, other_department, seed_risk_types
 ):

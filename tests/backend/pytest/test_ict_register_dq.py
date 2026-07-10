@@ -26,6 +26,7 @@ acceptance trio becomes the workbook's response/status columns.
 
 from __future__ import annotations
 
+import re
 from datetime import date
 
 import pytest
@@ -745,6 +746,33 @@ def test_dq40_existence_checks_across_06_08_09():
     )
     result = run_dq(graph)
     assert check(result, "DQ-40").count == 5
+
+
+def test_dq_drilldown_labels_never_synthesize_raw_ids_for_absent_business_labels():
+    """A dangling-reference row whose OWN business label is genuinely absent
+    (a contract without a reference, a sub-provider without a name) emits a
+    localizable {{unknown_*}} token, never a raw #<pk>/SUB-<pk> string
+    (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md); the workbook "?" for the
+    dangling target is fine — only the PK-derived form is the violation."""
+    graph = IctRegisterGraph(
+        contracts=(
+            # DQ-40: vendor missing AND the contract carries no reference.
+            VendorContractInput(id=1, vendor_id=999, contract_reference=None),
+        ),
+        sub_outsourcing=(
+            # DQ-40: predecessor missing AND the sub carries no provider name.
+            SubOutsourcingInput(
+                id=1, vendor_id=1, contract_id=1, predecessor_id=888, sub_provider_name=None
+            ),
+        ),
+    )
+    labels = [row.label for row in check(run_dq(graph), "DQ-40").violating_rows]
+
+    assert any("{{unknown_contract}}" in label for label in labels), labels
+    assert any("{{unknown_sub_outsourcing}}" in label for label in labels), labels
+    for label in labels:
+        assert not re.search(r"#\d+", label), label
+        assert not re.search(r"SUB-\d+", label), label
 
 
 def test_dq45_link_significance_unassessed_or_blank():

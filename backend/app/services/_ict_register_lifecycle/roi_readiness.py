@@ -58,7 +58,10 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
-from app.services._ict_register_reference.parameters import IctWorkbookParameterSet
+from app.services._ict_register_reference.parameters import (
+    ICT_WORKBOOK_PARAMETERS_BY_NAME,
+    IctWorkbookParameterSet,
+)
 
 from .derivation import (
     ANO,
@@ -86,6 +89,16 @@ ROI_REQUIRED_WHEN_CIF = "required_when_cif"
 
 # Listed gap rows are capped per template; ``gap_row_count`` carries the total.
 ROI_GAP_ROW_CAP = 20
+
+# Display fallbacks — FRONTEND_DISPLAY_GUARDRAILS (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md):
+# a gap row whose OWN business label (contract reference, vendor/sub-provider
+# name) is genuinely absent emits a localizable ``{{key}}`` token the client
+# resolves to ``common:fallbacks.<entity>`` ("Unknown <entity>"), never a raw
+# ``#<pk>``/``SUB-<pk>`` string. The workbook "?" (UNKNOWN_LOOKUP) for a
+# DANGLING target is a separate, allowed signal.
+UNKNOWN_CONTRACT_LABEL = "{{unknown_contract}}"
+UNKNOWN_VENDOR_LABEL = "{{unknown_vendor}}"
+UNKNOWN_SUB_OUTSOURCING_LABEL = "{{unknown_sub_outsourcing}}"
 
 
 # ---------------------------------------------------------------------------
@@ -498,6 +511,26 @@ def _filled(value: object) -> bool:
     return True
 
 
+def _lei_is_filled(parameters: IctWorkbookParameterSet) -> bool:
+    """The entity LEI (B_06.01.0040 and the B_02.02/B_03.01/B_04.01 signatory
+    templates) counts as populated only once the workbook placeholder default
+    has been REPLACED with a real value.
+
+    The P_LEI registry default is the spec's 'fill me in' placeholder
+    (``LEI-DOPLNIT``; functional spec section 6 / the RoI notes at
+    docs/dora-ict-register/dora-excel-functional-spec.md:960) — sourced here
+    from the parameter registry, never hardcoded in this module — so a fresh
+    DB reads every LEI-bearing required field as a GAP until a real value is
+    configured through the ADR-008 overlay. P_LEI is the only placeholder-
+    defaulted parameter this element consumes.
+    """
+    value = parameters.value("P_LEI")
+    stripped = value.strip() if isinstance(value, str) else value
+    placeholder = ICT_WORKBOOK_PARAMETERS_BY_NAME["P_LEI"].default
+    placeholder = placeholder.strip() if isinstance(placeholder, str) else placeholder
+    return _filled(stripped) and stripped != placeholder
+
+
 @dataclass(frozen=True)
 class _RowAnchor:
     entity_type: str
@@ -525,8 +558,7 @@ def derive_roi_readiness(
     parameters: IctWorkbookParameterSet,
 ) -> RoiReadiness:
     """Compute per-template readiness over the gated row sets, on read."""
-    lei_value = parameters.value("P_LEI")
-    lei_filled = _filled(lei_value if not isinstance(lei_value, str) else lei_value.strip())
+    lei_filled = _lei_is_filled(parameters)
 
     processes_by_id = {row.id: row for row in graph.processes}
     vendors_by_id = {row.id: row for row in graph.vendors}
@@ -562,7 +594,7 @@ def derive_roi_readiness(
 
     def contract_anchor(contract_id: int, vendor_id: int, reference: str | None) -> _RowAnchor:
         return _RowAnchor(
-            "contract", contract_id, reference or f"#{contract_id}", "vendor", vendor_id
+            "contract", contract_id, reference or UNKNOWN_CONTRACT_LABEL, "vendor", vendor_id
         )
 
     def link_anchor(asset_id: int, vendor_id: int, ict_service_code: str | None) -> _RowAnchor:
@@ -605,7 +637,7 @@ def derive_roi_readiness(
             extra = vendor_supplement(row.id)
             rows.append(
                 (
-                    _RowAnchor("vendor", row.id, row.name or f"#{row.id}", "vendor", row.id),
+                    _RowAnchor("vendor", row.id, row.name or UNKNOWN_VENDOR_LABEL, "vendor", row.id),
                     {
                         "provider_identification_code": _filled(row.identifier_value),
                         "provider_identification_type": _filled(row.identifier_type),
@@ -763,7 +795,7 @@ def derive_roi_readiness(
                     _RowAnchor(
                         "sub_outsourcing",
                         sub.id,
-                        sub.sub_provider_name or f"SUB-{sub.id}",
+                        sub.sub_provider_name or UNKNOWN_SUB_OUTSOURCING_LABEL,
                         "vendor",
                         sub.vendor_id,
                     ),

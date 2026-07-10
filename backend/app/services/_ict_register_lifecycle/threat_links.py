@@ -266,7 +266,14 @@ async def remove_threat_risk_link(
     link_id: int,
     current_user: User,
 ) -> None:
-    """Remove the link from the Threat page (threats:write)."""
+    """Remove the link from the Threat page (threats:write).
+
+    The link's Risk end follows Risk row visibility with the SAME 404
+    anti-enumeration as the add-path (``add_threat_risk_link``): a link onto a
+    Risk the caller cannot see is indistinguishable from a nonexistent link, so
+    a dept-scoped maintainer can never mutate — or probe — a hidden Risk
+    relationship by guessing the link id.
+    """
     threat = await _require_threat_end_access(
         db, threat_id=threat_id, current_user=current_user, require_write=True
     )
@@ -274,6 +281,8 @@ async def remove_threat_risk_link(
     result = await db.execute(select(ThreatRiskLink).where(ThreatRiskLink.id == link_id))
     link = result.scalar_one_or_none()
     if not link or link.threat_id != threat_id:
+        raise NotFoundError("Link not found")
+    if not await can_read_risk_id(db, current_user, link.risk_id):
         raise NotFoundError("Link not found")
 
     risk_id = link.risk_id

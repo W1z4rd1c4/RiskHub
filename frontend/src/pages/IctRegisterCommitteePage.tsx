@@ -30,6 +30,7 @@ import {
     HEATMAP_SUBJECT_VALUES,
     heatmapCellFill,
     kpiDrilldownPath,
+    localizeRegisterRowLabel,
     metricDrilldownPath,
     migrationCellFill,
     narrativeParams,
@@ -149,7 +150,7 @@ function TopRisksTable({ risks }: { risks: IctCommitteeTopRisk[] }) {
                                     to={topRiskPath(risk.risk_id)}
                                     className="text-slate-200 font-semibold hover:text-accent underline decoration-white/20 hover:decoration-accent"
                                 >
-                                    {risk.code ?? `#${risk.risk_id}`}
+                                    {risk.code ?? t('common:fallbacks.unknown_risk')}
                                 </Link>
                             </td>
                             <td className="py-2 pr-3 text-slate-300">{risk.subject_label}</td>
@@ -302,10 +303,12 @@ function RoiTemplateRow({ template }: { template: IctRoiTemplateReadiness }) {
                                             to={path}
                                             className="text-slate-200 font-semibold hover:text-accent underline decoration-white/20 hover:decoration-accent"
                                         >
-                                            {row.label}
+                                            {localizeRegisterRowLabel(row.label, t)}
                                         </Link>
                                     ) : (
-                                        <span className="text-slate-300 font-semibold">{row.label}</span>
+                                        <span className="text-slate-300 font-semibold">
+                                            {localizeRegisterRowLabel(row.label, t)}
+                                        </span>
                                     )}
                                 </div>
                                 <div className="flex-1 flex flex-wrap items-center gap-1.5">

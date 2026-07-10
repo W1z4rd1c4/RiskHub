@@ -35,6 +35,14 @@ const guardedFiles = [
     // "Unknown contract"/"Unknown sub-outsourcing provider" labels.
     'frontend/src/pages/vendors/VendorSubOutsourcingSection.tsx',
     'frontend/src/pages/vendors/vendorSubOutsourcingPresentation.tsx',
+    // ICT Register data-quality + committee drill-down labels: server rows
+    // carry the business label or a {{unknown_<entity>}} token localized on the
+    // client (localizeRegisterRowLabel), never a `#<id>`/`SUB-<id>` fallback;
+    // the committee Top-10 id likewise falls back to the Unknown-risk label.
+    'frontend/src/pages/IctRegisterDqPage.tsx',
+    'frontend/src/pages/ictRegisterDq/dqPresentation.ts',
+    'frontend/src/pages/IctRegisterCommitteePage.tsx',
+    'frontend/src/pages/ictRegisterCommittee/committeePresentation.ts',
 ] as const;
 
 const rawIdFallbackPatterns = [

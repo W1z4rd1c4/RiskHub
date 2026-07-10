@@ -77,6 +77,12 @@ def parameter_set(**overrides: IctParameterValue) -> IctWorkbookParameterSet:
     return IctWorkbookParameterSet(version=str(values["P_Verze"]), values=values)
 
 
+# A filled entity LEI standing in for a register whose P_LEI placeholder has
+# been replaced; the fresh-DB placeholder default gaps the LEI-bearing RoI
+# templates and is pinned in test_ict_register_roi_readiness.py.
+REAL_LEI = "315700FFGL2JGHVWJC12"
+
+
 def run_committee(
     graph: IctRegisterGraph | None = None,
     *,
@@ -100,7 +106,9 @@ def run_committee(
             risk_threat_labels=risk_threat_labels or {},
             roi_supplement=roi_supplement or RoiRegisterSupplement(),
         ),
-        parameters or parameter_set(),
+        # The harness exercises a register whose entity LEI has been filled in;
+        # the fresh-DB placeholder default is pinned in the RoI-readiness tests.
+        parameters or parameter_set(P_LEI=REAL_LEI),
     )
 
 
@@ -964,6 +972,17 @@ async def test_committee_endpoint_over_an_api_seeded_register(
                 value_type="int",
                 category="ict_register_parameters",
                 display_name="P_Tolerance",
+                is_editable=False,
+            ),
+            # Replace the P_LEI placeholder with a real LEI through the ADR-008
+            # config overlay: the entity LEI then counts as populated on the
+            # LEI-bearing RoI templates (a fresh-DB placeholder would gap it).
+            GlobalConfig(
+                key="ict_register_lei",
+                value="315700FFGL2JGHVWJC12",
+                value_type="string",
+                category="ict_register_parameters",
+                display_name="P_LEI",
                 is_editable=False,
             ),
         ]

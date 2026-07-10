@@ -179,6 +179,18 @@ export function roiGapRoutePath(row: IctRoiGapRow): string | null {
     return build ? build(row.route_entity_id) : null;
 }
 
+/**
+ * Localize server-embedded `{{unknown_<entity>}}` tokens to the guardrail's
+ * `common:fallbacks.<entity>` label ("Unknown <entity>"). Server RoI gap-row
+ * labels never carry a raw `#<id>`/`SUB-<id>` fallback
+ * (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md): a genuinely-absent business
+ * label (unnamed vendor/contract/sub-provider) arrives as a token this
+ * resolves. Other text passes through untouched.
+ */
+export function localizeRegisterRowLabel(label: string, t: (key: string) => string): string {
+    return label.replace(/\{\{(\w+)\}\}/g, (_full, key: string) => t(`common:fallbacks.${key}`));
+}
+
 export function topRiskPath(riskId: number): string {
     return `/risks/${riskId}`;
 }

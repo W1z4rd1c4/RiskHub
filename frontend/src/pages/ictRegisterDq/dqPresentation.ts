@@ -60,6 +60,18 @@ export function violatingRowPath(row: IctDqViolatingRow): string | null {
     return build ? build(row.route_entity_id) : null;
 }
 
+/**
+ * Localize server-embedded `{{unknown_<entity>}}` tokens to the guardrail's
+ * `common:fallbacks.<entity>` label ("Unknown <entity>"). Server drill-down
+ * labels never carry a raw `#<id>`/`SUB-<id>` fallback
+ * (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md): a genuinely-absent business
+ * label (unnamed contract/sub-provider) arrives as a token this resolves.
+ * Other text — including the workbook "?" for a dangling end — passes through.
+ */
+export function localizeRegisterRowLabel(label: string, t: (key: string) => string): string {
+    return label.replace(/\{\{(\w+)\}\}/g, (_full, key: string) => t(`common:fallbacks.${key}`));
+}
+
 export function filterChecks(checks: IctDqCheck[], filter: DqStatusFilter): IctDqCheck[] {
     if (filter === 'findings') {
         return checks.filter(isFinding);

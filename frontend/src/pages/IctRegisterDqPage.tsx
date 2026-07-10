@@ -15,6 +15,7 @@ import {
     filterChecks,
     isFinding,
     isProductionInert,
+    localizeRegisterRowLabel,
     parseDqPageQueryParams,
     summarizeChecks,
     violatingRowPath,
@@ -89,7 +90,7 @@ function ViolatingRows({ check }: { check: IctDqCheck }) {
                         <span className="text-slate-500 text-xs uppercase tracking-wide mr-2">
                             {t(`entities.${row.entity_type}`, { defaultValue: row.entity_type })}
                         </span>
-                        {row.label}
+                        {localizeRegisterRowLabel(row.label, t)}
                     </>
                 );
                 return (

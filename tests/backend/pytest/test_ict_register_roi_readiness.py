@@ -21,6 +21,7 @@ Two concerns, both pure:
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from decimal import Decimal
 
@@ -56,9 +57,15 @@ from app.services._ict_register_lifecycle.roi_readiness import (
 )
 from app.services._ict_register_reference.parameters import (
     ICT_WORKBOOK_PARAMETERS,
+    ICT_WORKBOOK_PARAMETERS_BY_NAME,
     IctParameterValue,
     IctWorkbookParameterSet,
 )
+
+# A filled entity LEI (20-char) standing in for a register whose P_LEI
+# placeholder has been replaced; the fresh-DB placeholder default is pinned
+# explicitly in the LEI tests below.
+REAL_LEI = "315700FFGL2JGHVWJC12"
 
 
 def parameter_set(**overrides: IctParameterValue) -> IctWorkbookParameterSet:
@@ -226,7 +233,9 @@ def run_readiness(
     supplement: RoiRegisterSupplement | None = None,
     parameters=None,
 ):
-    params = parameters or parameter_set()
+    # The harness exercises a register whose entity LEI has been filled in; the
+    # fresh-DB P_LEI placeholder default is pinned explicitly in the LEI tests.
+    params = parameters or parameter_set(P_LEI=REAL_LEI)
     resolved_graph = graph or IctRegisterGraph()
     return derive_roi_readiness(
         resolved_graph,
@@ -750,3 +759,147 @@ def test_overall_summary_weights_by_required_fields_across_templates():
     # B_06.01: 9/9; B_05.01: 1/6 (name only) -> 10 of 15 = 66.7 %.
     assert result.overall_readiness_pct == 66.7
     assert result.total_gap_row_count == 1
+
+
+# ---------------------------------------------------------------------------
+# P_LEI placeholder handling — the entity LEI counts as populated only once the
+# workbook 'LEI-DOPLNIT' placeholder default is replaced (functional spec §6;
+# a fresh DB must not inflate readiness on the LEI-bearing templates).
+# ---------------------------------------------------------------------------
+
+# Every template that carries the entity_lei required field.
+LEI_BEARING_TEMPLATES = frozenset({"B_02.02", "B_03.01", "B_04.01", "B_06.01"})
+
+
+def _lei_gapped_templates(result) -> set[str]:
+    """Templates whose gap rows list the entity_lei field among the missing."""
+    return {
+        template.code
+        for template in result.templates
+        for row in template.gap_rows
+        if any(missing.key == "entity_lei" for missing in row.missing)
+    }
+
+
+def _lei_probe_graph() -> IctRegisterGraph:
+    """A register feeding all four LEI-bearing templates: one Process (B_06.01),
+    one Asset<->Vendor link (B_02.02), one RoI-scope Contract (B_03.01/B_04.01)."""
+    return IctRegisterGraph(
+        processes=(_process(1),),
+        assets=(AssetDerivationInput(id=1, name="Veris"),),
+        vendors=(_filled_vendor(1),),
+        asset_vendor_links=(
+            AssetVendorLinkInput(
+                asset_id=1, vendor_id=1, ict_service_code="S02", contract_reference="SML-1"
+            ),
+        ),
+        contracts=(
+            VendorContractInput(
+                id=1,
+                vendor_id=1,
+                contract_reference="SML-1",
+                arrangement_type="Samostatné ujednání",
+                main_contract="Ano",
+                roi_scope="Ano",
+                start_date=date(2020, 1, 1),
+            ),
+        ),
+    )
+
+
+def test_placeholder_entity_lei_default_gaps_every_lei_bearing_template():
+    """A fresh DB reads P_LEI at its registry placeholder default; until it is
+    replaced the entity LEI is a GAP on every template that carries it —
+    B_02.02, B_03.01, B_04.01, B_06.01 (functional spec §6, the workbook
+    'LEI-DOPLNIT' placeholder)."""
+    placeholder = run_readiness(
+        _lei_probe_graph(),
+        supplement=RoiRegisterSupplement(processes={1: PROCESS_SUPPLEMENT}),
+        parameters=parameter_set(),  # P_LEI at its verbatim placeholder default
+    )
+
+    assert _lei_gapped_templates(placeholder) == LEI_BEARING_TEMPLATES
+
+
+def test_placeholder_lei_is_sourced_from_the_registry_default_not_a_literal():
+    """The rejected placeholder is the registry's declared P_LEI default (read
+    from ICT_WORKBOOK_PARAMETERS), never a string hardcoded in the readiness
+    module: setting P_LEI to that exact declared default still gaps."""
+    declared_default = ICT_WORKBOOK_PARAMETERS_BY_NAME["P_LEI"].default
+    at_declared_default = run_readiness(
+        _lei_probe_graph(),
+        supplement=RoiRegisterSupplement(processes={1: PROCESS_SUPPLEMENT}),
+        parameters=parameter_set(P_LEI=declared_default),
+    )
+
+    assert _lei_gapped_templates(at_declared_default) == LEI_BEARING_TEMPLATES
+
+
+def test_replacing_the_placeholder_lei_fills_the_field_and_lifts_readiness():
+    """Overriding P_LEI to a real value (the ADR-008 config overlay) fills the
+    LEI on every bearing template and raises both per-template and overall %."""
+    graph = _lei_probe_graph()
+    supplement = RoiRegisterSupplement(processes={1: PROCESS_SUPPLEMENT})
+
+    placeholder = run_readiness(graph, supplement=supplement, parameters=parameter_set())
+    filled = run_readiness(
+        graph, supplement=supplement, parameters=parameter_set(P_LEI=REAL_LEI)
+    )
+
+    assert _lei_gapped_templates(filled) == set()
+
+    placeholder_by_code = readiness_by_code(placeholder)
+    filled_by_code = readiness_by_code(filled)
+    for code in LEI_BEARING_TEMPLATES:
+        assert (
+            filled_by_code[code].readiness_pct > placeholder_by_code[code].readiness_pct
+        ), code
+
+    assert filled.overall_readiness_pct is not None
+    assert placeholder.overall_readiness_pct is not None
+    assert filled.overall_readiness_pct > placeholder.overall_readiness_pct
+
+
+def test_blank_and_whitespace_lei_are_not_confused_with_the_placeholder():
+    """A blank/whitespace LEI still gaps (never 'filled'); a real value fills —
+    the placeholder check is an AND over presence, not a replacement of it."""
+    graph = _lei_probe_graph()
+    supplement = RoiRegisterSupplement(processes={1: PROCESS_SUPPLEMENT})
+
+    for blank in ("", "   "):
+        blank_result = run_readiness(
+            graph, supplement=supplement, parameters=parameter_set(P_LEI=blank)
+        )
+        assert _lei_gapped_templates(blank_result) == LEI_BEARING_TEMPLATES, blank
+
+
+def test_roi_gap_labels_never_synthesize_raw_ids_for_absent_business_labels():
+    """A gap row whose OWN business label is genuinely absent (an unnamed
+    vendor, a contract without a reference, an unnamed sub-provider) emits a
+    localizable {{unknown_*}} token, never a raw #<pk>/SUB-<pk> string
+    (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md)."""
+    graph = IctRegisterGraph(
+        # A named vendor 1 owns the reference-less contract and the unnamed sub;
+        # an unnamed vendor 2 (no chain) exercises the B_05.01 vendor fallback.
+        vendors=(_vendor(1, name="Dodavatel 1"), _vendor(2, name=None)),
+        contracts=(
+            # B_02.01/B_03.01/B_03.02/B_04.01 — RoI-scope contract, no reference.
+            VendorContractInput(id=1, vendor_id=1, contract_reference=None, roi_scope="Ano"),
+        ),
+        sub_outsourcing=(
+            # B_05.02 — sub-outsourcing entry with no provider name.
+            SubOutsourcingInput(id=1, vendor_id=1, contract_id=1, sub_provider_name=None),
+        ),
+    )
+    labels = [
+        row.label
+        for template in run_readiness(graph).templates
+        for row in template.gap_rows
+    ]
+
+    assert any("{{unknown_vendor}}" in label for label in labels), labels
+    assert any("{{unknown_contract}}" in label for label in labels), labels
+    assert any("{{unknown_sub_outsourcing}}" in label for label in labels), labels
+    for label in labels:
+        assert not re.search(r"#\d+", label), label
+        assert not re.search(r"SUB-\d+", label), label

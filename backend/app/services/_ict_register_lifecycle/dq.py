@@ -105,6 +105,14 @@ _DATA_CLASS_CONFLICTS_WITH_GDPR = ("Bez dat / nerelevantní", "Veřejná data") 
 _CLASS_CRITICAL = CRITICALITY_CLASSES[3]
 _TOP_TIERS = (TIER_CRITICAL, TIER_SIGNIFICANT)
 
+# Display fallbacks — FRONTEND_DISPLAY_GUARDRAILS (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md):
+# a violating row whose OWN business label (contract reference, sub-provider
+# name) is genuinely absent emits a localizable ``{{key}}`` token the client
+# resolves to ``common:fallbacks.<entity>``, never a raw ``#<pk>``/``SUB-<pk>``
+# string. UNKNOWN_LOOKUP ("?") for a DANGLING target is a separate, allowed signal.
+UNKNOWN_CONTRACT_LABEL = "{{unknown_contract}}"
+UNKNOWN_SUB_OUTSOURCING_LABEL = "{{unknown_sub_outsourcing}}"
+
 
 # ---------------------------------------------------------------------------
 # Risk-side inputs (13_Rizika slice; loader: derivation_inputs.risk_dq_input).
@@ -842,7 +850,7 @@ def derive_ict_register_dq(
         sub_row(
             sub_id,
             subs_by_id[sub_id].vendor_id,
-            subs_by_id[sub_id].sub_provider_name or f"SUB-{sub_id}",
+            subs_by_id[sub_id].sub_provider_name or UNKNOWN_SUB_OUTSOURCING_LABEL,
         )
         for sub_id, d in derivation.sub_outsourcing.items()
         if d.chain_check == CHAIN_BREAK_CHECK
@@ -873,20 +881,27 @@ def derive_ict_register_dq(
     for contract in graph.contracts:
         if contract.vendor_id not in vendors_by_id:
             dq40.append(
-                contract_row(contract.id, f"{contract.contract_reference or f'#{contract.id}'} → {UNKNOWN_LOOKUP}")
+                contract_row(
+                    contract.id,
+                    f"{contract.contract_reference or UNKNOWN_CONTRACT_LABEL} → {UNKNOWN_LOOKUP}",
+                )
             )
     sub_ids = {sub.id for sub in graph.sub_outsourcing}
     for sub in graph.sub_outsourcing:
         if sub.predecessor_id is not None and sub.predecessor_id not in sub_ids:
             dq40.append(
-                sub_row(sub.id, sub.vendor_id, f"{sub.sub_provider_name or f'SUB-{sub.id}'} → {UNKNOWN_LOOKUP}")
+                sub_row(
+                    sub.id,
+                    sub.vendor_id,
+                    f"{sub.sub_provider_name or UNKNOWN_SUB_OUTSOURCING_LABEL} → {UNKNOWN_LOOKUP}",
+                )
             )
         if sub.sub_provider_vendor_id is not None and sub.sub_provider_vendor_id not in vendors_by_id:
             dq40.append(
                 sub_row(
                     sub.id,
                     sub.vendor_id,
-                    f"{sub.sub_provider_name or f'SUB-{sub.id}'} ({UNKNOWN_LOOKUP})",
+                    f"{sub.sub_provider_name or UNKNOWN_SUB_OUTSOURCING_LABEL} ({UNKNOWN_LOOKUP})",
                 )
             )
     checks["DQ-40"] = tuple(dq40)
@@ -1066,11 +1081,14 @@ def derive_ict_register_dq(
         if contract_result.vendor_name == UNKNOWN_LOOKUP:
             contract = contracts_by_id[cid]
             dq26.append(
-                contract_row(cid, f"{contract.contract_reference or f'#{cid}'} → {UNKNOWN_LOOKUP}")
+                contract_row(
+                    cid,
+                    f"{contract.contract_reference or UNKNOWN_CONTRACT_LABEL} → {UNKNOWN_LOOKUP}",
+                )
             )
     for sid, sub_result in derivation.sub_outsourcing.items():
         entry = subs_by_id[sid]
-        entry_label = entry.sub_provider_name or f"SUB-{sid}"
+        entry_label = entry.sub_provider_name or UNKNOWN_SUB_OUTSOURCING_LABEL
         if sub_result.contract_reference == UNKNOWN_LOOKUP:
             dq26.append(sub_row(sid, entry.vendor_id, f"{entry_label} (smlouva {UNKNOWN_LOOKUP})"))
         if sub_result.contract_vendor_name == UNKNOWN_LOOKUP:
@@ -1083,7 +1101,7 @@ def derive_ict_register_dq(
         sub_row(
             sid,
             subs_by_id[sid].vendor_id,
-            subs_by_id[sid].sub_provider_name or f"SUB-{sid}",
+            subs_by_id[sid].sub_provider_name or UNKNOWN_SUB_OUTSOURCING_LABEL,
         )
         for sid, d in derivation.sub_outsourcing.items()
         if d.roi_scope == NE

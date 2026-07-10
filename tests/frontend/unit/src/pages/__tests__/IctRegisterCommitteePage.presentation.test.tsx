@@ -7,6 +7,7 @@ import { AuthProviderWithReady } from '@test/authBootstrap';
 import {
     heatmapCellFill,
     kpiDrilldownPath,
+    localizeRegisterRowLabel,
     metricDrilldownPath,
     migrationCellFill,
     narrativeParams,
@@ -341,6 +342,22 @@ describe('ICT Risk Committee presentation helpers', () => {
         ).toBeNull();
     });
 
+    it('localizes {{unknown_<entity>}} RoI gap-row tokens to the guardrail fallback', () => {
+        const t = (key: string) =>
+            ({
+                'common:fallbacks.unknown_vendor': 'Unknown vendor',
+                'common:fallbacks.unknown_sub_outsourcing': 'Unknown sub-outsourcing provider',
+            })[key] ?? key;
+        expect(localizeRegisterRowLabel('{{unknown_vendor}}', t)).toBe('Unknown vendor');
+        expect(localizeRegisterRowLabel('{{unknown_sub_outsourcing}}', t)).toBe(
+            'Unknown sub-outsourcing provider'
+        );
+        // Real business labels pass through untouched.
+        expect(localizeRegisterRowLabel('F12 — Správa pojistných smluv', t)).toBe(
+            'F12 — Správa pojistných smluv'
+        );
+    });
+
     it('stages the gross-vs-net chart rows from the band aggregate', () => {
         const rows = riskBandChartRows(samplePayload().cro.risks_by_band);
         expect(rows).toEqual([
@@ -493,5 +510,29 @@ describe('IctRegisterCommitteePage', () => {
         expect(
             screen.getByRole('link', { name: /F12 — Správa pojistných smluv/ })
         ).toHaveAttribute('href', '/processes/12');
+    });
+
+    it('renders a tokenized RoI gap-row label as the localized Unknown fallback, never the token', async () => {
+        const payload = samplePayload();
+        const b0501 = payload.roi_readiness.templates.find((tpl) => tpl.code === 'B_05.01')!;
+        b0501.readiness_pct = 50;
+        b0501.gap_row_count = 1;
+        b0501.gap_rows = [
+            {
+                entity_type: 'vendor',
+                entity_id: 7,
+                label: '{{unknown_vendor}}',
+                route_entity_type: 'vendor',
+                route_entity_id: 7,
+                missing: [{ key: 'legal_name', code: null }],
+            },
+        ];
+        getCommittee.mockResolvedValue(payload);
+        await renderPage();
+
+        fireEvent.click(await screen.findByTestId('committee-roi-toggle-B_05.01'));
+        const gaps = screen.getByTestId('committee-roi-gaps-B_05.01');
+        expect(gaps).toHaveTextContent('Unknown vendor');
+        expect(gaps).not.toHaveTextContent('{{unknown_vendor}}');
     });
 });

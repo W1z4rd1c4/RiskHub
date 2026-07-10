@@ -10,6 +10,7 @@ import {
     filterChecks,
     isFinding,
     isProductionInert,
+    localizeRegisterRowLabel,
     parseDqPageQueryParams,
     summarizeChecks,
     violatingRowPath,
@@ -74,6 +75,16 @@ describe('ICT Register DQ presentation helpers', () => {
             '/risks/9'
         );
         expect(violatingRowPath({ ...row, route_entity_type: 'unknown' })).toBeNull();
+    });
+
+    it('localizes {{unknown_<entity>}} label tokens to the guardrail fallback, never a raw id', () => {
+        const t = (key: string) =>
+            key === 'common:fallbacks.unknown_contract' ? 'Unknown contract' : key;
+        // A genuinely-absent business label arrives as a token, resolved to
+        // "Unknown <entity>"; the workbook "?" for the dangling end stays.
+        expect(localizeRegisterRowLabel('{{unknown_contract}} → ?', t)).toBe('Unknown contract → ?');
+        // Real business labels pass through untouched.
+        expect(localizeRegisterRowLabel('SML-2020-001', t)).toBe('SML-2020-001');
     });
 
     it('filters to findings and summarizes counts', () => {
@@ -259,5 +270,44 @@ describe('IctRegisterDqPage', () => {
             expect(screen.getByTestId('dq-rows-DQ-16')).toBeInTheDocument();
         });
         expect(screen.getByRole('link', { name: /BIZ DATA/ })).toHaveAttribute('href', '/vendors/3');
+    });
+
+    it('renders a tokenized violating-row label as the localized Unknown fallback, never the token', async () => {
+        getDataQuality.mockResolvedValue({
+            checks: [
+                sampleCheck({
+                    check_id: 'DQ-40',
+                    area: 'Vazby',
+                    title_cs: 'Vazba na neexistující ID (listy 06/08/09)',
+                    status: DQ_STATUS_FINDING,
+                    count: 1,
+                    violating_rows: [
+                        {
+                            entity_type: 'contract',
+                            entity_id: 5,
+                            label: '{{unknown_contract}} → ?',
+                            route_entity_type: 'vendor',
+                            route_entity_id: 5,
+                        },
+                    ],
+                }),
+            ],
+            finding_count: 1,
+        });
+
+        const { IctRegisterDqPage } = await import('@/pages/IctRegisterDqPage');
+        render(
+            <MemoryRouter>
+                <IctRegisterDqPage />
+            </MemoryRouter>
+        );
+
+        fireEvent.click(await screen.findByTestId('dq-check-DQ-40'));
+        await waitFor(() => {
+            expect(screen.getByTestId('dq-rows-DQ-40')).toBeInTheDocument();
+        });
+        const rows = screen.getByTestId('dq-rows-DQ-40');
+        expect(rows).toHaveTextContent('Unknown contract → ?');
+        expect(rows).not.toHaveTextContent('{{unknown_contract}}');
     });
 });
