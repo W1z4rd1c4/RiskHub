@@ -1,13 +1,19 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
 from app.schemas.asset import ProcessAssetLinkRead
+from app.schemas.process import ProcessVendorLinkCreate, ProcessVendorLinkRead
 from app.services._ict_register_lifecycle.asset_links import list_process_asset_links
+from app.services._ict_register_lifecycle.vendor_links import (
+    add_process_vendor_link,
+    list_process_vendor_links,
+    remove_process_vendor_link,
+)
 
 router = APIRouter()
 
@@ -20,3 +26,39 @@ async def list_process_asset_links_route(
 ):
     """The Process-end read of the Process<->Asset Link relation (issue #43)."""
     return await list_process_asset_links(db, process_id=process_id, current_user=current_user)
+
+
+@router.get("/{process_id}/vendor-links", response_model=list[ProcessVendorLinkRead])
+async def list_process_vendor_links_route(
+    process_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("processes", "read")),
+):
+    return await list_process_vendor_links(db, process_id=process_id, current_user=current_user)
+
+
+@router.post(
+    "/{process_id}/vendor-links",
+    response_model=ProcessVendorLinkRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_process_vendor_link(
+    process_id: int,
+    payload: ProcessVendorLinkCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("processes", "write")),
+):
+    return await add_process_vendor_link(
+        db, process_id=process_id, payload=payload, current_user=current_user
+    )
+
+
+@router.delete("/{process_id}/vendor-links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_process_vendor_link(
+    process_id: int,
+    link_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("processes", "write")),
+):
+    await remove_process_vendor_link(db, process_id=process_id, link_id=link_id, current_user=current_user)
+    return None

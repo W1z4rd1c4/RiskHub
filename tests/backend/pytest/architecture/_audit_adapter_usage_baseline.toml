@@ -5,5 +5,6 @@
 "backend/app/services/_ict_register_lifecycle/lifecycle.py" = ["process_created", "process_updated", "process_archived", "process_restored"]
 "backend/app/services/_ict_register_lifecycle/asset_lifecycle.py" = ["asset_created", "asset_updated", "asset_archived", "asset_restored"]
 "backend/app/services/_ict_register_lifecycle/asset_links.py" = ["asset_link_created", "asset_link_updated", "asset_link_deleted"]
+"backend/app/services/_ict_register_lifecycle/vendor_links.py" = ["asset_link_created", "asset_link_deleted", "process_link_created", "process_link_deleted"]
 "backend/app/services/_vendor_governance/contract_lifecycle.py" = ["vendor_contract_created", "vendor_contract_updated", "vendor_contract_archived", "vendor_contract_restored"]
 "backend/app/services/_vendor_governance/sub_outsourcing_lifecycle.py" = ["vendor_sub_outsourcing_created", "vendor_sub_outsourcing_updated", "vendor_sub_outsourcing_archived", "vendor_sub_outsourcing_restored"]

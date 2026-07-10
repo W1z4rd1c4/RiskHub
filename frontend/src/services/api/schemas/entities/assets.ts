@@ -1,4 +1,4 @@
-import type { Asset, AssetAssetLink, AssetListResponse, ProcessAssetLink } from '@/types/asset';
+import type { Asset, AssetAssetLink, AssetListResponse, AssetVendorLink, ProcessAssetLink } from '@/types/asset';
 
 import { collectionPaginationSchema, passthroughObject, z } from '../common';
 
@@ -149,3 +149,22 @@ export const assetAssetLinkSchema: z.ZodType<AssetAssetLink> = passthroughObject
 });
 
 export const assetAssetLinkListSchema = z.array(assetAssetLinkSchema);
+
+export const assetVendorLinkCapabilitiesSchema = passthroughObject({
+    can_delete: z.boolean(),
+});
+
+export const assetVendorLinkSchema: z.ZodType<AssetVendorLink> = passthroughObject({
+    id: z.number(),
+    asset_id: z.number(),
+    vendor_id: z.number(),
+    vendor_role: z.string().nullable().optional(),
+    ict_service_code: z.string(),
+    contract_reference: z.string().nullable().optional(),
+    reliance: z.string().nullable().optional(),
+    note: z.string().nullable().optional(),
+    capabilities: assetVendorLinkCapabilitiesSchema.nullable().optional(),
+    created_at: z.string(),
+});
+
+export const assetVendorLinkListSchema = z.array(assetVendorLinkSchema);

@@ -1,7 +1,7 @@
 from app.models.activity_log import ActivityAction, ActivityEntityType, ActivityLog
 from app.models.approval_request import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 from app.models.approval_scenario import ApprovalScenario
-from app.models.asset import Asset, AssetAssetLink, ProcessAssetLink
+from app.models.asset import Asset, AssetAssetLink, AssetVendorLink, ProcessAssetLink
 from app.models.control import Control, ControlForm, ControlFrequency, ControlStatus
 from app.models.control_execution import ControlExecution, ExecutionResult
 from app.models.department import Department
@@ -22,7 +22,7 @@ from app.models.kri_history import KRIValueHistory
 from app.models.notification import Notification, NotificationType
 from app.models.orphaned_item import OrphanedItem
 from app.models.outbox_event import OutboxEvent
-from app.models.process import Process
+from app.models.process import Process, ProcessVendorLink
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
 from app.models.refresh_token import RefreshToken
 from app.models.risk import ControlEffectiveness, ControlRiskLink, Risk, RiskStatus, RiskType
@@ -72,6 +72,8 @@ __all__ = [
     "Asset",
     "ProcessAssetLink",
     "AssetAssetLink",
+    "AssetVendorLink",
+    "ProcessVendorLink",
     "Issue",
     "IssueSeverity",
     "IssueStatus",

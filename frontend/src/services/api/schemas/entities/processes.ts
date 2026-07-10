@@ -1,4 +1,4 @@
-import type { Process, ProcessListResponse } from '@/types/process';
+import type { Process, ProcessListResponse, ProcessVendorLink } from '@/types/process';
 
 import { collectionPaginationSchema, passthroughObject, z } from '../common';
 
@@ -109,3 +109,19 @@ export const ictClosedListSchema = passthroughObject({
 export const ictClosedListCollectionSchema = passthroughObject({
     lists: z.array(ictClosedListSchema),
 });
+
+export const processVendorLinkCapabilitiesSchema = passthroughObject({
+    can_delete: z.boolean(),
+});
+
+export const processVendorLinkSchema: z.ZodType<ProcessVendorLink> = passthroughObject({
+    id: z.number(),
+    process_id: z.number(),
+    vendor_id: z.number(),
+    direct_service_description: z.string().nullable().optional(),
+    note: z.string().nullable().optional(),
+    capabilities: processVendorLinkCapabilitiesSchema.nullable().optional(),
+    created_at: z.string(),
+});
+
+export const processVendorLinkListSchema = z.array(processVendorLinkSchema);

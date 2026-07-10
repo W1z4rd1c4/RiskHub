@@ -13,9 +13,9 @@ Archived rows keep feeding the graph: Link relations survive archiving (they
 are only removed explicitly), and the link sections of the register UI show
 them either way — the derivation stays consistent with the visible graph.
 
-Asset<->Vendor and Process<->Vendor links ship with tickets #46/#49; until
-then the corresponding graph inputs stay empty collections, which the engine
-treats as verbatim rule inputs (``ext_zavis`` = "Ne", vendor counts 0).
+The Asset<->Vendor (sheet 10) and manual Process<->Vendor (sheet 11 §1)
+links are LIVE inputs (issue #46): loaded for the target rows only, with the
+Vendor name lookup resolved here so the engine stays persistence-free.
 """
 
 from __future__ import annotations
@@ -25,14 +25,16 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, select
 
-from app.models import Asset, AssetAssetLink, Process, ProcessAssetLink
+from app.models import Asset, AssetAssetLink, AssetVendorLink, Process, ProcessAssetLink, ProcessVendorLink, Vendor
 
 from .derivation import (
     AssetAssetLinkInput,
     AssetDerivationInput,
+    AssetVendorLinkInput,
     IctRegisterGraph,
     ProcessAssetLinkInput,
     ProcessDerivationInput,
+    ProcessVendorLinkInput,
 )
 
 if TYPE_CHECKING:
@@ -135,6 +137,41 @@ async def load_ict_register_graph(
             (await db.execute(select(Asset).where(Asset.id.in_(missing_asset_ids)))).scalars()
         )
 
+    # Sheet-10 links for the target assets (the vendor aggregates and
+    # ext_zavis are per-asset rules), plus the Vendor name lookups the
+    # dod_seznam TEXTJOIN needs — resolved here, the engine stays pure.
+    asset_vendor_links: list[AssetVendorLink] = []
+    if asset_ids:
+        asset_vendor_links = list(
+            (
+                await db.execute(
+                    select(AssetVendorLink)
+                    .where(AssetVendorLink.asset_id.in_(asset_ids))
+                    .order_by(AssetVendorLink.id)
+                )
+            ).scalars()
+        )
+    vendor_names_by_id: dict[int, str] = {}
+    linked_vendor_ids = {link.vendor_id for link in asset_vendor_links}
+    if linked_vendor_ids:
+        vendor_name_rows = await db.execute(
+            select(Vendor.id, Vendor.name).where(Vendor.id.in_(linked_vendor_ids))
+        )
+        vendor_names_by_id = {vendor_id: name for vendor_id, name in vendor_name_rows.all()}
+
+    # Sheet-11 §1 manual pairs for the target processes (dod_n counts them).
+    process_vendor_links: list[ProcessVendorLink] = []
+    if process_ids:
+        process_vendor_links = list(
+            (
+                await db.execute(
+                    select(ProcessVendorLink)
+                    .where(ProcessVendorLink.process_id.in_(process_ids))
+                    .order_by(ProcessVendorLink.id)
+                )
+            ).scalars()
+        )
+
     return IctRegisterGraph(
         processes=tuple(process_derivation_input(process) for process in process_rows),
         assets=tuple(asset_derivation_input(asset) for asset in asset_rows),
@@ -154,7 +191,18 @@ async def load_ict_register_graph(
             )
             for link in asset_asset_links
         ),
-        # Vendor-side links arrive with tickets #46/#49 — verbatim emptiness here.
-        asset_vendor_links=(),
-        process_vendor_links=(),
+        asset_vendor_links=tuple(
+            AssetVendorLinkInput(
+                asset_id=link.asset_id,
+                vendor_id=link.vendor_id,
+                vendor_name=vendor_names_by_id.get(link.vendor_id),
+                ict_service_code=link.ict_service_code,
+                contract_reference=link.contract_reference,
+            )
+            for link in asset_vendor_links
+        ),
+        process_vendor_links=tuple(
+            ProcessVendorLinkInput(process_id=link.process_id, vendor_id=link.vendor_id)
+            for link in process_vendor_links
+        ),
     )

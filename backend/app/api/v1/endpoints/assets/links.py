@@ -9,6 +9,8 @@ from app.models import User
 from app.schemas.asset import (
     AssetAssetLinkCreate,
     AssetAssetLinkRead,
+    AssetVendorLinkCreate,
+    AssetVendorLinkRead,
     ProcessAssetLinkCreate,
     ProcessAssetLinkRead,
     ProcessAssetLinkUpdate,
@@ -21,6 +23,11 @@ from app.services._ict_register_lifecycle.asset_links import (
     remove_asset_asset_link,
     remove_asset_process_link,
     update_asset_process_link,
+)
+from app.services._ict_register_lifecycle.vendor_links import (
+    add_asset_vendor_link,
+    list_asset_vendor_links,
+    remove_asset_vendor_link,
 )
 
 router = APIRouter()
@@ -104,4 +111,38 @@ async def delete_asset_asset_link(
     current_user: User = Depends(require_permission("assets", "write")),
 ):
     await remove_asset_asset_link(db, asset_id=asset_id, link_id=link_id, current_user=current_user)
+    return None
+
+
+@router.get("/{asset_id}/vendor-links", response_model=list[AssetVendorLinkRead])
+async def list_asset_vendor_links_route(
+    asset_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("assets", "read")),
+):
+    return await list_asset_vendor_links(db, asset_id=asset_id, current_user=current_user)
+
+
+@router.post(
+    "/{asset_id}/vendor-links",
+    response_model=AssetVendorLinkRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_asset_vendor_link(
+    asset_id: int,
+    payload: AssetVendorLinkCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("assets", "write")),
+):
+    return await add_asset_vendor_link(db, asset_id=asset_id, payload=payload, current_user=current_user)
+
+
+@router.delete("/{asset_id}/vendor-links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_asset_vendor_link(
+    asset_id: int,
+    link_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("assets", "write")),
+):
+    await remove_asset_vendor_link(db, asset_id=asset_id, link_id=link_id, current_user=current_user)
     return None

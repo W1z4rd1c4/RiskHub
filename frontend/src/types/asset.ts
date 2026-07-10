@@ -212,3 +212,31 @@ export interface AssetAssetLinkCreatePayload {
     spof?: string | null;
     note?: string | null;
 }
+
+export interface AssetVendorLinkCapabilities {
+    /** Mutations follow the REGISTER end: assets:write (plus both reads). */
+    can_delete: boolean;
+}
+
+/** Asset<->Vendor Link relation (workbook sheet 10_VAD), typed by an S-code. */
+export interface AssetVendorLink {
+    id: number;
+    asset_id: number;
+    vendor_id: number;
+    vendor_role?: string | null;
+    ict_service_code: string;
+    contract_reference?: string | null;
+    reliance?: string | null;
+    note?: string | null;
+    capabilities?: AssetVendorLinkCapabilities | null;
+    created_at: string;
+}
+
+export interface AssetVendorLinkCreatePayload {
+    vendor_id: number;
+    vendor_role?: string | null;
+    ict_service_code: string;
+    contract_reference?: string | null;
+    reliance?: string | null;
+    note?: string | null;
+}

@@ -1,6 +1,14 @@
 import { apiClient } from './apiClient';
 import { buildCollectionParams, normalizeCollectionResponse } from './collectionApi';
-import { vendorListResponseSchema, vendorSchema, voidSchema } from '@/services/api/schemas';
+import {
+    assetVendorLinkListSchema,
+    processVendorLinkListSchema,
+    vendorListResponseSchema,
+    vendorSchema,
+    voidSchema,
+} from '@/services/api/schemas';
+import type { AssetVendorLink } from '@/types/asset';
+import type { ProcessVendorLink } from '@/types/process';
 import type { Vendor, VendorCreate, VendorListParams, VendorListResponse, VendorUpdate } from '@/types/vendor';
 
 export const vendorApi = {
@@ -49,5 +57,14 @@ export const vendorApi = {
 
     async restoreVendor(id: number): Promise<Vendor> {
         return apiClient.post(`/vendors/${id}/restore`, {}, { schema: vendorSchema });
+    },
+
+    /** The Vendor-end reads of the ICT Register Link relations (issue #46). */
+    async getAssetLinks(vendorId: number): Promise<AssetVendorLink[]> {
+        return apiClient.get(`/vendors/${vendorId}/asset-links`, { schema: assetVendorLinkListSchema });
+    },
+
+    async getProcessLinks(vendorId: number): Promise<ProcessVendorLink[]> {
+        return apiClient.get(`/vendors/${vendorId}/process-links`, { schema: processVendorLinkListSchema });
     },
 };

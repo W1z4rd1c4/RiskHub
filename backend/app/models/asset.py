@@ -162,3 +162,42 @@ class AssetAssetLink(Base):
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AssetVendorLink(Base):
+    """Asset<->Vendor Link relation (workbook sheet 10_Vazby_aktivum_dodavatel).
+
+    One row = the Asset depends on the Vendor for one typed ICT service.
+    Carries the entered 10_VAD columns only — vendor role, the S-code, the
+    contract reference, reliance, note (functional spec section 1.8). Lookup
+    and helper columns (names, the ICT-service label, resulting criticality,
+    CIF, duplicate check, hidden helpers) derive on read. The identity tuple
+    is (asset, vendor, S-code): one Vendor can serve one Asset with several
+    typed services.
+    """
+
+    __tablename__ = "asset_vendor_links"
+    __table_args__ = (
+        UniqueConstraint("asset_id", "vendor_id", "ict_service_code", name="uq_asset_vendor_link"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey("assets.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    vendor_id: Mapped[int] = mapped_column(
+        ForeignKey("vendors.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+
+    # "Role dodavatele" — closed list RoleDodavatele.
+    vendor_role: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # "Typ ICT služby (S-kód)" — S01-S19 taxonomy; part of the link identity.
+    ict_service_code: Mapped[str] = mapped_column(String(3), nullable=False)
+    # "Ref. smlouvy" — entered contract reference (workbook list SmlouvyRef).
+    contract_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # "Míra závislosti (u CIF)" — closed list Reliance.
+    reliance: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

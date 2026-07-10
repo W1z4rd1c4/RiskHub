@@ -108,5 +108,19 @@
         "not_found": "Process not found.",
         "load_failed": "Failed to load processes.",
         "archive_failed": "Failed to archive the process."
+    },
+    "links": {
+        "add": "Link",
+        "remove": "Remove link",
+        "errors": {
+            "mutation_failed": "Failed to update the link."
+        },
+        "vendors": {
+            "title": "Direct Vendor dependencies",
+            "empty": "No Vendors linked yet.",
+            "select_placeholder": "Select a Vendor...",
+            "description": "Direct service description",
+            "no_metadata": "No link details"
+        }
     }
 }

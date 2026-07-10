@@ -3,12 +3,16 @@ import {
     ictClosedListCollectionSchema,
     processListResponseSchema,
     processSchema,
+    processVendorLinkListSchema,
+    processVendorLinkSchema,
     voidSchema,
 } from '@/services/api/schemas';
 import type {
     Process,
     ProcessListParams,
     ProcessListResponse,
+    ProcessVendorLink,
+    ProcessVendorLinkCreatePayload,
     ProcessWritePayload,
 } from '@/types/process';
 
@@ -45,6 +49,19 @@ export const processApi = {
 
     async restoreProcess(id: number): Promise<Process> {
         return apiClient.post(`/processes/${id}/restore`, {}, { schema: processSchema });
+    },
+
+    /** Process<->Vendor Link relations (sheet 11 §1), managed from the Process detail. */
+    async getVendorLinks(processId: number): Promise<ProcessVendorLink[]> {
+        return apiClient.get(`/processes/${processId}/vendor-links`, { schema: processVendorLinkListSchema });
+    },
+
+    async addVendorLink(processId: number, data: ProcessVendorLinkCreatePayload): Promise<ProcessVendorLink> {
+        return apiClient.post(`/processes/${processId}/vendor-links`, data, { schema: processVendorLinkSchema });
+    },
+
+    async removeVendorLink(processId: number, linkId: number): Promise<void> {
+        return apiClient.delete(`/processes/${processId}/vendor-links/${linkId}`, { schema: voidSchema });
     },
 
     /** Workbook closed lists from the ICT Register reference registry (issue #41). */

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Integer, String, Text, func
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -67,3 +67,33 @@ class Process(ArchivableMixin, Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ProcessVendorLink(Base):
+    """Process<->Vendor Link relation (workbook sheet 11 §1, the manual set).
+
+    One row = one entered direct Process->Vendor dependency. Carries the
+    entered §1 columns only — the direct-service description and note
+    (functional spec section 1.8); name/CIF lookups and the revision helper
+    derive on read. The pair is unique (§1 has no service column). The §2
+    transitive expansion — every (process, asset, vendor) triple implied by
+    sheets 05 + 10 — stays derived-only and is never persisted here.
+    """
+
+    __tablename__ = "process_vendor_links"
+    __table_args__ = (UniqueConstraint("process_id", "vendor_id", name="uq_process_vendor_link"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    process_id: Mapped[int] = mapped_column(
+        ForeignKey("processes.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    vendor_id: Mapped[int] = mapped_column(
+        ForeignKey("vendors.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+
+    # "Popis přímé služby"
+    direct_service_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

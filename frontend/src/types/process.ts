@@ -135,3 +135,25 @@ export interface ProcessListResponse {
     limit: number;
     capabilities?: ProcessListCapabilities | null;
 }
+
+export interface ProcessVendorLinkCapabilities {
+    /** Mutations follow the REGISTER end: processes:write (plus both reads). */
+    can_delete: boolean;
+}
+
+/** Process<->Vendor Link relation (workbook sheet 11 §1, the manual set). */
+export interface ProcessVendorLink {
+    id: number;
+    process_id: number;
+    vendor_id: number;
+    direct_service_description?: string | null;
+    note?: string | null;
+    capabilities?: ProcessVendorLinkCapabilities | null;
+    created_at: string;
+}
+
+export interface ProcessVendorLinkCreatePayload {
+    vendor_id: number;
+    direct_service_description?: string | null;
+    note?: string | null;
+}

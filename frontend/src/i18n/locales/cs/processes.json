@@ -108,5 +108,19 @@
         "not_found": "Proces nenalezen.",
         "load_failed": "Načtení procesů se nezdařilo.",
         "archive_failed": "Archivace procesu se nezdařila."
+    },
+    "links": {
+        "add": "Propojit",
+        "remove": "Odebrat vazbu",
+        "errors": {
+            "mutation_failed": "Aktualizace vazby se nezdařila."
+        },
+        "vendors": {
+            "title": "Přímé závislosti na dodavatelích",
+            "empty": "Zatím žádní propojení dodavatelé.",
+            "select_placeholder": "Vyberte dodavatele...",
+            "description": "Popis přímé služby",
+            "no_metadata": "Bez detailů vazby"
+        }
     }
 }

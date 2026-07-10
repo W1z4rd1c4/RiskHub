@@ -257,3 +257,31 @@ class ProcessListResponse(BaseModel):
     @computed_field
     def skip(self) -> int:
         return self.offset
+
+
+class ProcessVendorLinkCreate(BaseModel):
+    """Process<->Vendor link (sheet 11 §1): the entered manual columns only."""
+
+    model_config = {"extra": "forbid"}
+
+    vendor_id: int = Field(..., ge=1)
+    direct_service_description: str | None = None
+    note: str | None = None
+
+
+class ProcessVendorLinkCapabilities(BaseModel):
+    """Per-row link actions: mutations follow the REGISTER end (processes:write)."""
+
+    can_delete: bool
+
+
+class ProcessVendorLinkRead(BaseModel):
+    id: int
+    process_id: int
+    vendor_id: int
+    direct_service_description: str | None = None
+    note: str | None = None
+    capabilities: ProcessVendorLinkCapabilities | None = None
+    created_at: UtcAwareDatetime
+
+    model_config = {"from_attributes": True}

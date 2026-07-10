@@ -301,6 +301,20 @@ entity_type = "PROCESS"
 action = "UPDATE"
 
 [[adapter]]
+module = "process"
+function = "process_link_created"
+entity_type = "PROCESS_LINK"
+action = "CREATE"
+rationale = "Process link mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "process"
+function = "process_link_deleted"
+entity_type = "PROCESS_LINK"
+action = "DELETE"
+rationale = "Process unlink mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
 module = "asset"
 function = "asset_created"
 entity_type = "ASSET"

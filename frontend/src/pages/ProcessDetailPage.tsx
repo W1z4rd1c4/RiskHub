@@ -13,6 +13,7 @@ import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ProcessForm } from './processes/ProcessForm';
+import { ProcessVendorLinksSection } from './processes/ProcessVendorLinksSection';
 import { getProcessDisplayStatus } from './processes/processesPagePresentation';
 import { getProcessStatusColor } from './processes/processColumns';
 import { useProcessDetailState, type ProcessDetailMode } from './processes/useProcessDetailState';
@@ -72,6 +73,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         canEdit,
         canRestore,
         error,
+        fetchProcess,
         isAccessDenied,
         isLoading,
         process,
@@ -439,6 +441,12 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     </div>
                 ) : null}
             </div>
+
+            <ProcessVendorLinksSection
+                process={process}
+                canManageLinks={canEdit === true}
+                onLinksChanged={() => fetchProcess()}
+            />
 
             <ConfirmDialog
                 isOpen={isArchiveDialogOpen}

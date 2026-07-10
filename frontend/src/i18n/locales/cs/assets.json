@@ -102,6 +102,16 @@
             "select_placeholder": "Vyberte aktivum...",
             "dependency_type": "Typ závislosti",
             "no_metadata": "Bez podrobností vazby"
+        },
+        "vendors": {
+            "title": "Závislosti na dodavatelích",
+            "empty": "Zatím žádní propojení dodavatelé.",
+            "select_placeholder": "Vyberte dodavatele...",
+            "s_code": "ICT služba (S-kód)",
+            "role": "Role dodavatele",
+            "reliance": "Míra závislosti (u CIF)",
+            "contract_ref": "Ref. smlouvy",
+            "no_metadata": "Bez detailů vazby"
         }
     },
     "messages": {

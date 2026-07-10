@@ -328,5 +328,21 @@
     "errors": {
       "mutation_failed": "Saving the sub-outsourcing entry failed."
     }
+  },
+  "register_links": {
+    "title": "ICT Register links",
+    "assets_title": "Linked Assets",
+    "assets_empty": "No Assets depend on this Vendor yet.",
+    "processes_title": "Linked Processes (direct)",
+    "processes_empty": "No Processes are linked to this Vendor yet.",
+    "select_asset_placeholder": "Select an Asset...",
+    "select_process_placeholder": "Select a Process...",
+    "s_code": "ICT service (S-code)",
+    "add": "Link",
+    "remove": "Remove link",
+    "no_metadata": "No link details",
+    "errors": {
+      "mutation_failed": "Failed to update the link."
+    }
   }
 }

@@ -1,7 +1,7 @@
 # _ict_register_lifecycle
 
 ICT Register write-side lifecycles — the Process register (issue #42) and the
-Asset register with its Link relations (issue #43) — plus the derivation
+Asset register with its Link relations (issues #43/#46) — plus the derivation
 engine (issue #48), the register's one deep read-side module; the Threat
 lifecycle joins in a later slice (#47).
 
@@ -25,6 +25,17 @@ lifecycle joins in a later slice (#47).
   at most one primary per Asset, enforced here — designating a new primary
   atomically demotes the previous one in the same transaction; removing the
   primary link leaves the Asset with no primary.
+- **Vendor link relations** (issue #46): `vendor_links.py` owns the
+  Asset<->Vendor (sheet 10_VAD: vendor role, the S01-S19 S-code, contract
+  reference, reliance, note; unique per asset+vendor+S-code) and the manual
+  Process<->Vendor (sheet 11 §1: direct-service description, note; unique
+  pair) junctions. Reads need BOTH ends' read permissions (the Vendor end
+  additionally follows the Vendor row's visibility); mutations need the
+  REGISTER end's write permission; per-row `can_delete` capabilities come
+  from `_authorization_capabilities.register_vendor_links`. Archived-end
+  stance is STRICT per #43: archived register end conflicts every mutation,
+  archived Vendor target conflicts NEW links while unlinking stays possible.
+  The §2 transitive Process<->Vendor expansion stays derived-only.
 - **F-codes** (RoI B_06.01) are server-assigned at creation (`F{id}`), stable,
   never reassigned; archive never frees a code.
 - **Entered fields only** on the write side: the workbook's entered
@@ -40,8 +51,10 @@ lifecycle joins in a later slice (#47).
   set from `_ict_register_reference.parameters`. **Compute-on-read**: nothing
   is persisted; `derivation_inputs.py` loads the graph closure and the
   projections attach a typed `derived` block (with an `inputs` explain
-  object) to every Process/Asset Read payload. Vendor-side inputs stay empty
-  collections until tickets #46/#49 extend the graph. Golden fidelity suite:
+  object) to every Process/Asset Read payload. The sheet-10/11 §1 vendor-link
+  inputs are LIVE (issue #46): `ext_zavis`, the vendor TEXTJOIN aggregates,
+  and the Process/Asset vendor counts derive from the persisted junctions
+  (Sub-outsourcing inputs join with #49). Golden fidelity suite:
   `tests/backend/pytest/test_ict_register_derivation.py`.
 - **Closed lists** come from `_ict_register_reference` (issue #41) via the
   write-schema validators in `app/schemas/process.py` and

@@ -4,6 +4,8 @@ import {
     assetAssetLinkSchema,
     assetListResponseSchema,
     assetSchema,
+    assetVendorLinkListSchema,
+    assetVendorLinkSchema,
     ictClosedListCollectionSchema,
     processAssetLinkListSchema,
     processAssetLinkSchema,
@@ -15,6 +17,8 @@ import type {
     AssetAssetLinkCreatePayload,
     AssetListParams,
     AssetListResponse,
+    AssetVendorLink,
+    AssetVendorLinkCreatePayload,
     AssetWritePayload,
     ProcessAssetLink,
     ProcessAssetLinkCreatePayload,
@@ -91,6 +95,19 @@ export const assetApi = {
 
     async removeAssetLink(assetId: number, linkId: number): Promise<void> {
         return apiClient.delete(`/assets/${assetId}/asset-links/${linkId}`, { schema: voidSchema });
+    },
+
+    /** Asset<->Vendor Link relations (sheet 10_VAD), managed from the Asset detail. */
+    async getVendorLinks(assetId: number): Promise<AssetVendorLink[]> {
+        return apiClient.get(`/assets/${assetId}/vendor-links`, { schema: assetVendorLinkListSchema });
+    },
+
+    async addVendorLink(assetId: number, data: AssetVendorLinkCreatePayload): Promise<AssetVendorLink> {
+        return apiClient.post(`/assets/${assetId}/vendor-links`, data, { schema: assetVendorLinkSchema });
+    },
+
+    async removeVendorLink(assetId: number, linkId: number): Promise<void> {
+        return apiClient.delete(`/assets/${assetId}/vendor-links/${linkId}`, { schema: voidSchema });
     },
 
     /** Workbook closed lists from the ICT Register reference registry (issue #41). */

@@ -20,6 +20,7 @@ import { VendorLinkedKRIsTab } from '@/components/vendors/VendorLinkedKRIsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 
 import { VendorContractsSection } from './VendorContractsSection';
+import { VendorRegisterLinksSection } from './VendorRegisterLinksSection';
 import { VendorSubOutsourcingSection } from './VendorSubOutsourcingSection';
 import { getVendorDisplayStatus } from './vendorsPagePresentation';
 
@@ -348,6 +349,10 @@ export function VendorOverviewTab({
                     />
                 </div>
             ) : null}
+
+            <div id="vendor-register-links">
+                <VendorRegisterLinksSection vendorId={vendor.id} />
+            </div>
 
             <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">
                 <div className="flex items-center gap-1">

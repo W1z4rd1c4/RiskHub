@@ -127,3 +127,59 @@ async def process_restored(
         description=f"Restored process {_process_entity_name(process)}",
         log_activity_func=log_activity_func,
     )
+
+
+async def process_link_created(
+    db: AsyncSession,
+    *,
+    actor: User,
+    process: Process,
+    link_kind: str,
+    target_id: int,
+    log_activity_func: AuditLogActivity = log_activity,
+) -> None:
+    await emit_adapter(
+        db,
+        entity_type=ActivityEntityType.PROCESS_LINK,
+        entity_id=process.id,
+        entity_name=f"{_process_entity_name(process)} {link_kind} link {target_id}",
+        safe_entity_label=safe_entity_label("PROCLINK", process.id),
+        action=ActivityAction.CREATE,
+        actor=actor,
+        department_id=None,
+        changes={
+            "link_kind": {"old": None, "new": link_kind},
+            "target_id": {"old": None, "new": target_id},
+            "process_id": {"old": None, "new": process.id},
+        },
+        description=f"Created process {link_kind} link",
+        log_activity_func=log_activity_func,
+    )
+
+
+async def process_link_deleted(
+    db: AsyncSession,
+    *,
+    actor: User,
+    process: Process,
+    link_kind: str,
+    target_id: int,
+    log_activity_func: AuditLogActivity = log_activity,
+) -> None:
+    await emit_adapter(
+        db,
+        entity_type=ActivityEntityType.PROCESS_LINK,
+        entity_id=process.id,
+        entity_name=f"{_process_entity_name(process)} {link_kind} link {target_id}",
+        safe_entity_label=safe_entity_label("PROCLINK", process.id),
+        action=ActivityAction.DELETE,
+        actor=actor,
+        department_id=None,
+        changes={
+            "link_kind": {"old": None, "new": link_kind},
+            "target_id": {"old": None, "new": target_id},
+            "process_id": {"old": None, "new": process.id},
+        },
+        description=f"Deleted process {link_kind} link",
+        log_activity_func=log_activity_func,
+    )

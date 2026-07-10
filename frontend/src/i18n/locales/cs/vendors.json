@@ -328,5 +328,21 @@
     "errors": {
       "mutation_failed": "Uložení subdodávky se nezdařilo."
     }
+  },
+  "register_links": {
+    "title": "Vazby ICT registru",
+    "assets_title": "Propojená aktiva",
+    "assets_empty": "Na tohoto dodavatele zatím nezávisí žádná aktiva.",
+    "processes_title": "Propojené procesy (přímé)",
+    "processes_empty": "S tímto dodavatelem zatím nejsou propojeny žádné procesy.",
+    "select_asset_placeholder": "Vyberte aktivum...",
+    "select_process_placeholder": "Vyberte proces...",
+    "s_code": "ICT služba (S-kód)",
+    "add": "Propojit",
+    "remove": "Odebrat vazbu",
+    "no_metadata": "Bez detailů vazby",
+    "errors": {
+      "mutation_failed": "Aktualizace vazby se nezdařila."
+    }
   }
 }

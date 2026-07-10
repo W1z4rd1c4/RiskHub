@@ -15,6 +15,10 @@ name = "asset_capabilities"
 expires_at = "2026-09-01"
 
 [[public_names]]
+name = "asset_vendor_link_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
 name = "build_me_capabilities"
 expires_at = "2026-09-01"
 
@@ -52,6 +56,10 @@ expires_at = "2026-09-01"
 
 [[public_names]]
 name = "process_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "process_vendor_link_capabilities"
 expires_at = "2026-09-01"
 
 [[public_names]]

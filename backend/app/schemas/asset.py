@@ -21,7 +21,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
-from app.services._ict_register_reference import is_closed_list_value
+from app.services._ict_register_reference import ICT_SERVICE_TAXONOMY, is_closed_list_value
 
 # Ratings and manual impacts are Skala15 integers (1-5); strict, so "5" is rejected.
 RatingDimension = Annotated[int, Field(strict=True)]
@@ -400,6 +400,61 @@ class AssetAssetLinkRead(BaseModel):
     dependency_type: str | None = None
     spof: str | None = None
     note: str | None = None
+    created_at: UtcAwareDatetime
+
+    model_config = {"from_attributes": True}
+
+
+class AssetVendorLinkCreate(BaseModel):
+    """Asset<->Vendor link (sheet 10_VAD): the entered columns, S-code required."""
+
+    model_config = {"extra": "forbid"}
+
+    vendor_id: int = Field(..., ge=1)
+    vendor_role: str | None = Field(None, max_length=50)
+    ict_service_code: str = Field(..., max_length=3)
+    contract_reference: str | None = Field(None, max_length=100)
+    reliance: str | None = Field(None, max_length=50)
+    note: str | None = None
+
+    @field_validator("ict_service_code")
+    @classmethod
+    def _validate_ict_service_code(cls, value: str) -> str:
+        if value not in ICT_SERVICE_TAXONOMY:
+            raise ValueError("Value must be an S01-S19 ICT service taxonomy code")
+        return value
+
+    @field_validator("vendor_role")
+    @classmethod
+    def _validate_vendor_role(cls, value: str | None) -> str | None:
+        if value is not None and not is_closed_list_value("RoleDodavatele", value):
+            raise ValueError("Value must come from the workbook closed list RoleDodavatele")
+        return value
+
+    @field_validator("reliance")
+    @classmethod
+    def _validate_reliance(cls, value: str | None) -> str | None:
+        if value is not None and not is_closed_list_value("Reliance", value):
+            raise ValueError("Value must come from the workbook closed list Reliance")
+        return value
+
+
+class AssetVendorLinkCapabilities(BaseModel):
+    """Per-row link actions: mutations follow the REGISTER end (assets:write)."""
+
+    can_delete: bool
+
+
+class AssetVendorLinkRead(BaseModel):
+    id: int
+    asset_id: int
+    vendor_id: int
+    vendor_role: str | None = None
+    ict_service_code: str
+    contract_reference: str | None = None
+    reliance: str | None = None
+    note: str | None = None
+    capabilities: AssetVendorLinkCapabilities | None = None
     created_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}

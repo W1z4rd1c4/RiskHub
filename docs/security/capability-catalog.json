@@ -251,6 +251,34 @@
       ]
     },
     {
+      "id": "asset_vendor_link",
+      "backend": {
+        "path": "backend/app/schemas/asset.py",
+        "class": "AssetVendorLinkCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/assets.ts",
+        "schema": "assetVendorLinkCapabilitiesSchema"
+      },
+      "fields": [
+        "can_delete"
+      ]
+    },
+    {
+      "id": "process_vendor_link",
+      "backend": {
+        "path": "backend/app/schemas/process.py",
+        "class": "ProcessVendorLinkCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/processes.ts",
+        "schema": "processVendorLinkCapabilitiesSchema"
+      },
+      "fields": [
+        "can_delete"
+      ]
+    },
+    {
       "id": "risk_list",
       "backend": {
         "path": "backend/app/schemas/risk.py",

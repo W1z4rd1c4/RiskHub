@@ -102,6 +102,16 @@
             "select_placeholder": "Select an Asset...",
             "dependency_type": "Dependency type",
             "no_metadata": "No link details"
+        },
+        "vendors": {
+            "title": "Vendor dependencies",
+            "empty": "No Vendors linked yet.",
+            "select_placeholder": "Select a Vendor...",
+            "s_code": "ICT service (S-code)",
+            "role": "Vendor role",
+            "reliance": "Reliance (for CIF)",
+            "contract_ref": "Contract reference",
+            "no_metadata": "No link details"
         }
     },
     "messages": {

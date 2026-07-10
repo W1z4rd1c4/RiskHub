@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link2, Plus, Star, Trash2, Workflow } from 'lucide-react';
+import { Building2, Link2, Plus, Star, Trash2, Workflow } from 'lucide-react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
@@ -8,7 +8,16 @@ import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
 import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
+import { vendorApi } from '@/services/vendorApi';
+import { vendorContractApi } from '@/services/vendorContractApi';
+import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
 import type { Asset } from '@/types/asset';
+
+import {
+    buildAssetVendorLinkPayload,
+    canDeleteAssetVendorLink,
+    formatAssetVendorLinkMeta,
+} from './assetVendorLinksPresentation';
 
 interface AssetLinkSectionsProps {
     asset: Asset;
@@ -49,6 +58,13 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
     const [assetLinkDependencyType, setAssetLinkDependencyType] = useState('');
     const [assetLinkSpof, setAssetLinkSpof] = useState('');
 
+    // Add-form state: Vendor link (sheet 10_VAD).
+    const [vendorToLink, setVendorToLink] = useState('');
+    const [vendorLinkServiceCode, setVendorLinkServiceCode] = useState('');
+    const [vendorLinkRole, setVendorLinkRole] = useState('');
+    const [vendorLinkReliance, setVendorLinkReliance] = useState('');
+    const [vendorLinkContractRef, setVendorLinkContractRef] = useState('');
+
     const processLinksQuery = useQuery({
         queryKey: ictRegisterKeys.assetProcessLinks(asset.id),
         queryFn: () => assetApi.getProcessLinks(asset.id),
@@ -72,6 +88,26 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         queryFn: () => assetApi.getClosedLists(),
         staleTime: 5 * 60_000,
     });
+    const vendorLinksQuery = useQuery({
+        queryKey: ictRegisterKeys.assetVendorLinks(asset.id),
+        queryFn: () => assetApi.getVendorLinks(asset.id),
+    });
+    const vendorOptionsQuery = useQuery({
+        queryKey: ictRegisterKeys.vendorOptions(),
+        queryFn: () => vendorApi.getVendors({ offset: 0, limit: 100 }),
+        staleTime: 60_000,
+    });
+    const taxonomyQuery = useQuery({
+        queryKey: ictRegisterKeys.ictServiceTaxonomy(),
+        queryFn: () => vendorSubOutsourcingApi.getIctServiceTaxonomy(),
+        staleTime: 5 * 60_000,
+    });
+    const vendorContractsQuery = useQuery({
+        queryKey: ictRegisterKeys.vendorContracts(Number(vendorToLink)),
+        queryFn: () => vendorContractApi.getContracts(Number(vendorToLink)),
+        enabled: vendorToLink !== '',
+        staleTime: 60_000,
+    });
 
     const listOptions = useMemo(() => {
         const lists = closedListsQuery.data ?? {};
@@ -81,8 +117,38 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             significances: toOptions('VyznamVazby'),
             yesNo: toOptions('AnoNe'),
             dependencyTypes: toOptions('TypZavislostiAktiv'),
+            vendorRoles: toOptions('RoleDodavatele'),
+            reliances: toOptions('Reliance'),
         };
     }, [closedListsQuery.data]);
+
+    const ictServiceOptions = useMemo(
+        () =>
+            (taxonomyQuery.data ?? []).map((service) => ({
+                value: service.code,
+                label: `${service.code} — ${service.label}`,
+            })),
+        [taxonomyQuery.data],
+    );
+
+    const contractRefOptions = useMemo(
+        () =>
+            (vendorContractsQuery.data ?? [])
+                .filter((contract) => !contract.is_archived && contract.contract_reference)
+                .map((contract) => ({
+                    value: contract.contract_reference as string,
+                    label: contract.contract_reference as string,
+                })),
+        [vendorContractsQuery.data],
+    );
+
+    const vendorNameById = useMemo(() => {
+        const map = new Map<number, string>();
+        for (const vendor of vendorOptionsQuery.data?.items ?? []) {
+            map.set(vendor.id, vendor.name);
+        }
+        return map;
+    }, [vendorOptionsQuery.data]);
 
     const processNameById = useMemo(() => {
         const map = new Map<number, string>();
@@ -110,6 +176,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: ictRegisterKeys.assetProcessLinks(asset.id) }),
             queryClient.invalidateQueries({ queryKey: ictRegisterKeys.assetAssetLinks(asset.id) }),
+            queryClient.invalidateQueries({ queryKey: ictRegisterKeys.assetVendorLinks(asset.id) }),
         ]);
         await onLinksChanged?.();
     };
@@ -184,8 +251,45 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         onError: handleMutationError,
     });
 
+    const vendorLinkPayload = buildAssetVendorLinkPayload({
+        vendor_id: vendorToLink,
+        ict_service_code: vendorLinkServiceCode,
+        vendor_role: vendorLinkRole,
+        contract_reference: vendorLinkContractRef,
+        reliance: vendorLinkReliance,
+    });
+
+    const addVendorLink = useMutation({
+        mutationFn: () => {
+            if (!vendorLinkPayload) {
+                return Promise.reject(new Error('Vendor and S-code are required'));
+            }
+            return assetApi.addVendorLink(asset.id, vendorLinkPayload);
+        },
+        onSuccess: async () => {
+            setLinkError(null);
+            setVendorToLink('');
+            setVendorLinkServiceCode('');
+            setVendorLinkRole('');
+            setVendorLinkReliance('');
+            setVendorLinkContractRef('');
+            await refreshLinks();
+        },
+        onError: handleMutationError,
+    });
+
+    const removeVendorLink = useMutation({
+        mutationFn: (linkId: number) => assetApi.removeVendorLink(asset.id, linkId),
+        onSuccess: async () => {
+            setLinkError(null);
+            await refreshLinks();
+        },
+        onError: handleMutationError,
+    });
+
     const processLinks = processLinksQuery.data ?? [];
     const assetLinks = assetLinksQuery.data ?? [];
+    const vendorLinks = vendorLinksQuery.data ?? [];
 
     const linkedProcessIds = new Set(processLinks.map((link) => link.process_id));
     const processOptions = (processOptionsQuery.data?.items ?? [])
@@ -197,6 +301,9 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
     const assetOptions = (assetOptionsQuery.data?.items ?? [])
         .filter((row) => !row.is_archived && row.id !== asset.id)
         .map((row) => ({ value: String(row.id), label: row.name }));
+    const vendorOptions = (vendorOptionsQuery.data?.items ?? [])
+        .filter((vendor) => !vendor.is_archived)
+        .map((vendor) => ({ value: String(vendor.id), label: vendor.name }));
 
     return (
         <>
@@ -418,6 +525,108 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                     data-testid="asset-asset-link-add"
                                     disabled={!assetToLink || addAssetLink.isPending}
                                     onClick={() => addAssetLink.mutate()}
+                                    className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    {t('links.add')}
+                                </button>
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
+            )}
+
+            {sectionShell(
+                <Building2 className="h-5 w-5 text-emerald-400" />,
+                t('links.vendors.title'),
+                <div className="space-y-4">
+                    {vendorLinks.length === 0 ? (
+                        <p className="text-xs text-slate-500">{t('links.vendors.empty')}</p>
+                    ) : (
+                        <ul className="space-y-2" data-testid="asset-vendor-links">
+                            {vendorLinks.map((link) => (
+                                <li
+                                    key={link.id}
+                                    className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                                >
+                                    <div className="min-w-0">
+                                        <span className="text-sm font-bold text-white truncate">
+                                            {vendorNameById.get(link.vendor_id) ?? `#${link.vendor_id}`}
+                                        </span>
+                                        <p className="text-xs text-slate-500">
+                                            {formatAssetVendorLinkMeta(link) || t('links.vendors.no_metadata')}
+                                        </p>
+                                    </div>
+                                    {canManageLinks && canDeleteAssetVendorLink(link) ? (
+                                        <button
+                                            type="button"
+                                            data-testid={`asset-vendor-link-remove-${link.id}`}
+                                            onClick={() => removeVendorLink.mutate(link.id)}
+                                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                                            title={t('links.remove')}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    ) : null}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
+                    {canManageLinks ? (
+                        <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+                            <div className="md:col-span-2">
+                                <ThemedSelect
+                                    value={vendorToLink}
+                                    onValueChange={(value) => {
+                                        setVendorToLink(value);
+                                        setVendorLinkContractRef('');
+                                    }}
+                                    options={vendorOptions}
+                                    placeholder={t('links.vendors.select_placeholder')}
+                                    triggerTestId="asset-vendor-link-select"
+                                />
+                            </div>
+                            <ThemedSelect
+                                value={vendorLinkServiceCode}
+                                onValueChange={setVendorLinkServiceCode}
+                                options={ictServiceOptions}
+                                placeholder={t('links.vendors.s_code')}
+                                triggerTestId="asset-vendor-link-s-code"
+                            />
+                            <ThemedSelect
+                                value={vendorLinkRole}
+                                onValueChange={setVendorLinkRole}
+                                options={listOptions.vendorRoles}
+                                allowEmpty
+                                emptyLabel={t('form.not_set')}
+                                placeholder={t('links.vendors.role')}
+                                triggerTestId="asset-vendor-link-role"
+                            />
+                            <ThemedSelect
+                                value={vendorLinkReliance}
+                                onValueChange={setVendorLinkReliance}
+                                options={listOptions.reliances}
+                                allowEmpty
+                                emptyLabel={t('form.not_set')}
+                                placeholder={t('links.vendors.reliance')}
+                                triggerTestId="asset-vendor-link-reliance"
+                            />
+                            <div className="flex items-center gap-3">
+                                <ThemedSelect
+                                    value={vendorLinkContractRef}
+                                    onValueChange={setVendorLinkContractRef}
+                                    options={contractRefOptions}
+                                    allowEmpty
+                                    emptyLabel={t('form.not_set')}
+                                    placeholder={t('links.vendors.contract_ref')}
+                                    triggerTestId="asset-vendor-link-contract-ref"
+                                />
+                                <button
+                                    type="button"
+                                    data-testid="asset-vendor-link-add"
+                                    disabled={!vendorLinkPayload || addVendorLink.isPending}
+                                    onClick={() => addVendorLink.mutate()}
                                     className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
                                 >
                                     <Plus className="h-4 w-4" />
