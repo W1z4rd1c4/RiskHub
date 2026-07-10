@@ -1,12 +1,12 @@
 /**
- * ICT Register — Asset register E2E (issue #43, deterministic fixtures).
+ * ICT Register — Asset register E2E (issues #43 + #48, deterministic fixtures).
  *
- * Asserts CURRENT behavior only: entered 04_Aktiva fields round-trip through
+ * Asserts CURRENT behavior: entered 04_Aktiva fields round-trip through
  * the UI, closed lists come verbatim from the workbook reference registry,
  * Process<->Asset links carry at most one primary designation per asset, and
- * Asset<->Asset links are directional. Derived values (CIAA value, weighted
- * score, resulting criticality, CIF, SPOF rollups) are NOT yet computed —
- * ticket #48 extends these specs with derivation assertions later.
+ * Asset<->Asset links are directional. The ENGINE-DERIVED values (CIAA value,
+ * weighted score, resulting criticality, CIF, SPOF rollups — ticket #48)
+ * render read-only on the register and the detail, never as inputs.
  */
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ASSETS, E2E_PROCESSES } from './fixtures/e2e-data';
@@ -260,6 +260,16 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(assetLinks).toBeVisible();
         await expect(assetLinks.getByText(E2E_ASSETS.CLAIMS_DATABASE.name).first()).toBeVisible();
         await expect(assetLinks.getByText(E2E_ASSETS.INTEGRATION_BUS.name).first()).toBeVisible();
+
+        // Ticket #48: the engine-derived block reflects the seeded graph
+        // read-only. E2E-ASSET-001's primary Process (E2E-PROC-001, score 17)
+        // is Kritická and its own weighted score 4.05 bands Kritická too, so
+        // the MAX cascade lands on Kritická; CIF is Ano by any-true across the
+        // linked Processes (E2E-PROC-001 carries the seeded CIF override).
+        const derivedSection = riskManagerPage.getByTestId('asset-derived-section');
+        await expect(derivedSection).toBeVisible();
+        await expect(derivedSection.getByTestId('asset-derived-resulting-criticality')).toContainText('Kritická');
+        await expect(derivedSection.getByTestId('asset-derived-cif')).toHaveText('Ano');
     });
 
     test('Process link management: add, set primary, swap primary, remove', async ({ riskManagerPage }) => {

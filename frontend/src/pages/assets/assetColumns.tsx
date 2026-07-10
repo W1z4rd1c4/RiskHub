@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react';
 import { ArchiveRestore, ChevronRight } from 'lucide-react';
 
+import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import type { Column } from '@/components/tables/SortableTable';
 import type { Asset } from '@/types/asset';
 
@@ -17,13 +18,6 @@ type BuildAssetColumnsParams = {
 export function getAssetStatusColor(status: AssetDisplayStatus): string {
     return status === 'archived' ? 'text-slate-400 bg-slate-400/10' : 'text-emerald-400 bg-emerald-400/10';
 }
-
-const CRITICALITY_PILLS: Record<string, string> = {
-    ['Nízká']: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-    ['Střední']: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-    ['Vysoká']: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
-    ['Kritická']: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-};
 
 export function buildAssetColumns({
     t,
@@ -64,21 +58,21 @@ export function buildAssetColumns({
             ),
         },
         {
-            key: 'preliminary_criticality',
-            label: t('columns.preliminary_criticality'),
-            render: (asset) =>
-                asset.preliminary_criticality ? (
-                    <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${
-                            CRITICALITY_PILLS[asset.preliminary_criticality] ??
-                            'text-slate-300 bg-slate-400/10 border-slate-400/20'
-                        }`}
-                    >
-                        {asset.preliminary_criticality}
-                    </span>
-                ) : (
-                    <span className="text-sm text-slate-500">—</span>
-                ),
+            // Engine-derived resulting criticality (vysledna, ticket #48) — read-only.
+            key: 'derived_resulting_criticality',
+            label: t('columns.resulting_criticality'),
+            render: (asset) => (
+                <CriticalityClassPill criticalityClass={asset.derived?.resulting_criticality} />
+            ),
+        },
+        {
+            // Engine-derived CIF support (ticket #48) — read-only.
+            key: 'derived_cif',
+            label: t('columns.cif'),
+            className: 'w-[90px]',
+            render: (asset) => (
+                <span className="text-sm text-slate-300">{asset.derived?.cif ?? '—'}</span>
+            ),
         },
         {
             key: 'lifecycle_state',

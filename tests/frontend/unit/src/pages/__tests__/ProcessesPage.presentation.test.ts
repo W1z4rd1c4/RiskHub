@@ -8,7 +8,46 @@ import {
     buildProcessWritePayload,
     getProcessDisplayStatus,
 } from '@/pages/processes/processesPagePresentation';
-import type { Process } from '@/types/process';
+import type { Process, ProcessDerived } from '@/types/process';
+
+function sampleProcessDerived(overrides: Partial<ProcessDerived> = {}): ProcessDerived {
+    return {
+        criticality_score: 17,
+        criticality_class: 'Kritická',
+        cif: 'Ano',
+        rto_mtpd_check: 'OK',
+        bcm_check: 'OK',
+        next_review_date: null,
+        linked_asset_count: 1,
+        linked_vendor_count: 0,
+        is_complete: false,
+        is_duplicate: false,
+        inputs: {
+            impact_client: 4,
+            impact_market_operations: 4,
+            impact_regulatory: 4,
+            impact_financial: 5,
+            mtpd_hours: 24,
+            mtpd_bonus: 3,
+            threshold_critical_score: 16,
+            threshold_high_score: 12,
+            threshold_medium_score: 8,
+            mtpd_critical_hours: 4,
+            mtpd_medium_hours: 24,
+            preliminary_criticality: 'Vysoká',
+            criticality_class_source: 'score',
+            cif_override: null,
+            cif_class_critical: true,
+            cif_mtpd_within_critical: false,
+            cif_any_impact_maximal: true,
+            rto_hours: 8,
+            bcm_link: 'Ano',
+            assessment_date: null,
+            missing_for_completeness: ['owner'],
+        },
+        ...overrides,
+    };
+}
 
 function sampleProcess(overrides: Partial<Process> = {}): Process {
     return {
@@ -36,6 +75,7 @@ function sampleProcess(overrides: Partial<Process> = {}): Process {
         interruption_impact: null,
         assessment_date: null,
         notes: null,
+        derived: sampleProcessDerived(),
         is_archived: false,
         archived_at: null,
         archived_by_id: null,
@@ -129,7 +169,7 @@ describe('Processes page presentation helpers', () => {
         expect(screen.getByText('status.archived')).toBeInTheDocument();
     });
 
-    it('exposes MTPD and the preliminary class in the criticality column set', () => {
+    it('exposes MTPD and the derived criticality columns in the register column set', () => {
         const columns = buildProcessColumns({
             t: (key: string) => key,
             onRestore: () => undefined,
@@ -138,10 +178,46 @@ describe('Processes page presentation helpers', () => {
         const keys = columns.map((column) => column.key);
 
         expect(keys).toContain('mtpd_hours');
-        expect(keys).toContain('preliminary_criticality');
+        // Ticket #48: the register shows the ENGINE-derived class and CIF; the
+        // entered preliminary class stays a form/detail field only.
+        expect(keys).toContain('derived_criticality_class');
+        expect(keys).toContain('derived_cif');
+        expect(keys).not.toContain('preliminary_criticality');
+        expect(keys).not.toContain('cif_override');
 
         const mtpdColumn = columns.find((column) => column.key === 'mtpd_hours');
         render(mtpdColumn?.render?.(sampleProcess(), 0) as ReactElement);
         expect(screen.getByText('24')).toBeInTheDocument();
+    });
+
+    it('renders the derived criticality class pill and CIF read-only', () => {
+        const columns = buildProcessColumns({
+            t: (key: string) => key,
+            onRestore: () => undefined,
+            canRestoreProcess: () => false,
+        });
+
+        const classColumn = columns.find((column) => column.key === 'derived_criticality_class');
+        render(classColumn?.render?.(sampleProcess(), 0) as ReactElement);
+        expect(screen.getByText('Kritická')).toBeInTheDocument();
+
+        const cifColumn = columns.find((column) => column.key === 'derived_cif');
+        render(cifColumn?.render?.(sampleProcess(), 0) as ReactElement);
+        expect(screen.getByText('Ano')).toBeInTheDocument();
+    });
+
+    it('renders placeholders when the derived block is absent', () => {
+        const columns = buildProcessColumns({
+            t: (key: string) => key,
+            onRestore: () => undefined,
+            canRestoreProcess: () => false,
+        });
+        const bare = sampleProcess({ derived: null });
+
+        const classColumn = columns.find((column) => column.key === 'derived_criticality_class');
+        render(classColumn?.render?.(bare, 0) as ReactElement);
+        const cifColumn = columns.find((column) => column.key === 'derived_cif');
+        render(cifColumn?.render?.(bare, 0) as ReactElement);
+        expect(screen.getAllByText('—')).toHaveLength(2);
     });
 });

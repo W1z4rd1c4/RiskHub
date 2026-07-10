@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
@@ -20,11 +21,40 @@ interface ProcessDetailPageProps {
     mode?: ProcessDetailMode;
 }
 
-function DetailField({ label, value }: { label: string; value: string | number | null | undefined }) {
+function DetailField({
+    label,
+    value,
+    testId,
+}: {
+    label: string;
+    value: string | number | null | undefined;
+    testId?: string;
+}) {
     return (
         <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
-            <p className="text-sm text-white">{value === null || value === undefined || value === '' ? '—' : value}</p>
+            <p className="text-sm text-white" data-testid={testId}>
+                {value === null || value === undefined || value === '' ? '—' : value}
+            </p>
+        </div>
+    );
+}
+
+function DerivedCheckField({ label, value }: { label: string; value: string | null | undefined }) {
+    // Blank check (workbook: OR(rto="",mtpd="") guard) renders a neutral dash.
+    if (value === null || value === undefined) {
+        return (
+            <div className="space-y-1">
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
+                <p className="text-sm text-slate-500">—</p>
+            </div>
+        );
+    }
+    const isOk = value === 'OK';
+    return (
+        <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
+            <p className={`text-sm font-semibold ${isOk ? 'text-emerald-400' : 'text-rose-300'}`}>{value}</p>
         </div>
     );
 }
@@ -262,8 +292,124 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     <DetailField label={t('form.preliminary_criticality')} value={process.preliminary_criticality} />
                     <DetailField label={t('form.cif_override')} value={process.cif_override} />
                 </div>
-                <p className="text-xs text-slate-500">{t('detail.derived_fields_note')}</p>
             </div>
+
+            {process.derived ? (
+                <div className="glass-card space-y-5" data-testid="process-derived-section">
+                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                        {t('derived.title')}
+                    </h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                        <DetailField
+                            label={t('derived.criticality_score')}
+                            value={process.derived.criticality_score}
+                            testId="process-derived-score"
+                        />
+                        <div className="space-y-1">
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                                {t('derived.criticality_class')}
+                            </p>
+                            <CriticalityClassPill criticalityClass={process.derived.criticality_class} />
+                        </div>
+                        <DetailField
+                            label={t('derived.cif')}
+                            value={process.derived.cif}
+                            testId="process-derived-cif"
+                        />
+                        <DetailField
+                            label={t('derived.completeness')}
+                            value={
+                                process.derived.is_complete
+                                    ? `✓ ${t('derived.complete')}`
+                                    : `⚠ ${t('derived.incomplete')}`
+                            }
+                        />
+                        <DerivedCheckField
+                            label={t('derived.rto_mtpd_check')}
+                            value={process.derived.rto_mtpd_check}
+                        />
+                        <DerivedCheckField label={t('derived.bcm_check')} value={process.derived.bcm_check} />
+                        <DetailField label={t('derived.next_review_date')} value={process.derived.next_review_date} />
+                        <DetailField label={t('derived.linked_asset_count')} value={process.derived.linked_asset_count} />
+                        <DetailField
+                            label={t('derived.linked_vendor_count')}
+                            value={process.derived.linked_vendor_count}
+                        />
+                    </div>
+
+                    <div className="space-y-4 border-t border-white/5 pt-4">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                            {t('derived.inputs.title')}
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                            <DetailField
+                                label={t('derived.inputs.impacts')}
+                                value={[
+                                    process.derived.inputs.impact_client,
+                                    process.derived.inputs.impact_market_operations,
+                                    process.derived.inputs.impact_regulatory,
+                                    process.derived.inputs.impact_financial,
+                                ]
+                                    .map((axis) => axis ?? '—')
+                                    .join(' / ')}
+                            />
+                            <DetailField
+                                label={t('derived.inputs.mtpd_bonus')}
+                                value={
+                                    process.derived.inputs.mtpd_bonus != null
+                                        ? `+${process.derived.inputs.mtpd_bonus}`
+                                        : null
+                                }
+                            />
+                            <DetailField
+                                label={t('derived.inputs.thresholds')}
+                                value={`≥${process.derived.inputs.threshold_critical_score} / ≥${process.derived.inputs.threshold_high_score} / ≥${process.derived.inputs.threshold_medium_score}`}
+                            />
+                            <DetailField
+                                label={t('derived.inputs.class_source')}
+                                value={t(
+                                    process.derived.inputs.criticality_class_source === 'score'
+                                        ? 'derived.inputs.class_source_score'
+                                        : 'derived.inputs.class_source_preliminary'
+                                )}
+                            />
+                            <DetailField
+                                label={t('derived.inputs.cif_override')}
+                                value={process.derived.inputs.cif_override}
+                            />
+                            <DetailField
+                                label={t('derived.inputs.missing')}
+                                value={
+                                    process.derived.inputs.missing_for_completeness.length
+                                        ? process.derived.inputs.missing_for_completeness
+                                              .map((field) => t(`form.${field}`))
+                                              .join(', ')
+                                        : t('derived.inputs.none')
+                                }
+                            />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {(
+                                [
+                                    ['cif_class_critical', process.derived.inputs.cif_class_critical],
+                                    ['cif_mtpd_within_critical', process.derived.inputs.cif_mtpd_within_critical],
+                                    ['cif_any_impact_maximal', process.derived.inputs.cif_any_impact_maximal],
+                                ] as const
+                            )
+                                .filter(([, active]) => active)
+                                .map(([key]) => (
+                                    <span
+                                        key={key}
+                                        className="inline-flex items-center rounded-full border border-rose-400/20 bg-rose-400/10 px-2.5 py-0.5 text-xs font-bold text-rose-300"
+                                    >
+                                        {t(`derived.inputs.${key}`)}
+                                    </span>
+                                ))}
+                        </div>
+                    </div>
+                    <p className="text-xs text-slate-500">{t('detail.derived_fields_note')}</p>
+                </div>
+            ) : null}
 
             <div className="glass-card space-y-5">
                 <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">

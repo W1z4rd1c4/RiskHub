@@ -19,7 +19,7 @@ from .policy import (
     assert_process_restore_allowed,
     assert_process_update_allowed,
 )
-from .projection import serialize_process_detail, serialize_process_list
+from .projection import serialize_process_detail_with_derived, serialize_process_list
 
 _SORT_COLUMNS = {
     "f_code": Process.id,  # F-codes are "F{id}"; numeric order, not lexicographic
@@ -51,7 +51,7 @@ async def create_process_detail(
     await audit_process.process_created(db, actor=current_user, process=process)
     await commit_service_boundary(db, boundary="ict_register_process_create")
     await db.refresh(process)
-    return serialize_process_detail(process, current_user=current_user)
+    return await serialize_process_detail_with_derived(db, process, current_user=current_user)
 
 
 async def read_process_detail(
@@ -61,7 +61,7 @@ async def read_process_detail(
     current_user: User,
 ) -> ProcessRead:
     process = await assert_process_readable(db, process_id=process_id, current_user=current_user)
-    return serialize_process_detail(process, current_user=current_user)
+    return await serialize_process_detail_with_derived(db, process, current_user=current_user)
 
 
 async def update_process_detail(
@@ -77,7 +77,7 @@ async def update_process_detail(
         if field in updates and updates[field] is None:
             raise ValidationError(f"{field} cannot be null")
     if not updates:
-        return serialize_process_detail(process, current_user=current_user)
+        return await serialize_process_detail_with_derived(db, process, current_user=current_user)
 
     changes = audit_process.process_update_changes(process, updates)
     for field, value in updates.items():
@@ -86,7 +86,7 @@ async def update_process_detail(
     await audit_process.process_updated(db, actor=current_user, process=process, changes=changes)
     await commit_service_boundary(db, boundary="ict_register_process_update")
     await db.refresh(process)
-    return serialize_process_detail(process, current_user=current_user)
+    return await serialize_process_detail_with_derived(db, process, current_user=current_user)
 
 
 async def archive_process_detail(
@@ -116,7 +116,7 @@ async def restore_process_detail(
     await audit_process.process_restored(db, actor=current_user, process=process, changes=changes)
     await commit_service_boundary(db, boundary="ict_register_process_restore")
     await db.refresh(process)
-    return serialize_process_detail(process, current_user=current_user)
+    return await serialize_process_detail_with_derived(db, process, current_user=current_user)
 
 
 async def list_process_register(
@@ -153,7 +153,8 @@ async def list_process_register(
     query = query.order_by(desc(order_column) if sort_order == "desc" else asc(order_column))
 
     rows = (await db.execute(query.offset(offset).limit(limit))).scalars().all()
-    return serialize_process_list(
+    return await serialize_process_list(
+        db,
         list(rows),
         current_user=current_user,
         total=total,

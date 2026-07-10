@@ -1,9 +1,12 @@
-"""ICT Register Process schemas (issue #42).
+"""ICT Register Process schemas (issues #42, #48).
 
 Write schemas carry the workbook's entered 03_Procesy fields only and forbid
-unknown keys, so derived fields (score, class, CIF, gap checks, next review,
-counts, completeness — ticket #48) and the server-assigned F-code are rejected
-at the API boundary. Coded fields are validated against the workbook closed
+unknown keys, so every derived field (the ``derived`` block below and any of
+its member names) and the server-assigned F-code are rejected at the API
+boundary. Derived values ride the Read payloads as a typed ``derived`` block
+computed on read by ``app.services._ict_register_lifecycle.derivation`` —
+never persisted, never writable — with an ``inputs`` explain object exposing
+what produced them. Coded fields are validated against the workbook closed
 lists in ``app.services._ict_register_reference`` instead of redefining them.
 """
 
@@ -144,6 +147,53 @@ class ProcessCapabilities(BaseModel):
     can_restore: bool
 
 
+class ProcessDerivedInputs(BaseModel):
+    """The inputs (and parameter values) that produced the derived block."""
+
+    impact_client: int | None = None
+    impact_market_operations: int | None = None
+    impact_regulatory: int | None = None
+    impact_financial: int | None = None
+    mtpd_hours: int | None = None
+    mtpd_bonus: int | None = None
+    threshold_critical_score: int
+    threshold_high_score: int
+    threshold_medium_score: int
+    mtpd_critical_hours: int
+    mtpd_medium_hours: int
+    preliminary_criticality: str | None = None
+    criticality_class_source: str
+    cif_override: str | None = None
+    cif_class_critical: bool
+    cif_mtpd_within_critical: bool
+    cif_any_impact_maximal: bool
+    rto_hours: int | None = None
+    bcm_link: str | None = None
+    assessment_date: date | None = None
+    missing_for_completeness: list[str]
+
+    model_config = {"from_attributes": True}
+
+
+class ProcessDerived(BaseModel):
+    """Engine-derived 03_Procesy values (spec 1.1/2.1) — read-only, computed on read."""
+
+    criticality_score: int | None = None
+    criticality_class: str | None = None
+    cif: str
+    # Blank when RTO or MTPD is missing (the workbook formula's blank guard).
+    rto_mtpd_check: str | None = None
+    bcm_check: str
+    next_review_date: date | None = None
+    linked_asset_count: int
+    linked_vendor_count: int
+    is_complete: bool
+    is_duplicate: bool
+    inputs: ProcessDerivedInputs
+
+    model_config = {"from_attributes": True}
+
+
 class ProcessRead(BaseModel):
     id: int
     f_code: str
@@ -176,6 +226,10 @@ class ProcessRead(BaseModel):
     interruption_impact: str | None = None
     assessment_date: date | None = None
     notes: str | None = None
+
+    # Engine-derived block (ticket #48): populated by the projection on every
+    # read surface, absent from the persistence model, rejected on write.
+    derived: ProcessDerived | None = None
 
     is_archived: bool = False
     archived_at: UtcAwareDatetime | None = None

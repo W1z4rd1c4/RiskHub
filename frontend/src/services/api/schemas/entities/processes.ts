@@ -13,6 +13,46 @@ export const processListCapabilitiesSchema = passthroughObject({
     can_create: z.boolean().optional(),
 });
 
+// Engine-derived block (ticket #48): read-only values computed on read, with
+// the explain inputs that produced them.
+export const processDerivedInputsSchema = passthroughObject({
+    impact_client: z.number().nullable().optional(),
+    impact_market_operations: z.number().nullable().optional(),
+    impact_regulatory: z.number().nullable().optional(),
+    impact_financial: z.number().nullable().optional(),
+    mtpd_hours: z.number().nullable().optional(),
+    mtpd_bonus: z.number().nullable().optional(),
+    threshold_critical_score: z.number(),
+    threshold_high_score: z.number(),
+    threshold_medium_score: z.number(),
+    mtpd_critical_hours: z.number(),
+    mtpd_medium_hours: z.number(),
+    preliminary_criticality: z.string().nullable().optional(),
+    criticality_class_source: z.string(),
+    cif_override: z.string().nullable().optional(),
+    cif_class_critical: z.boolean(),
+    cif_mtpd_within_critical: z.boolean(),
+    cif_any_impact_maximal: z.boolean(),
+    rto_hours: z.number().nullable().optional(),
+    bcm_link: z.string().nullable().optional(),
+    assessment_date: z.string().nullable().optional(),
+    missing_for_completeness: z.array(z.string()),
+});
+
+export const processDerivedSchema = passthroughObject({
+    criticality_score: z.number().nullable().optional(),
+    criticality_class: z.string().nullable().optional(),
+    cif: z.string(),
+    rto_mtpd_check: z.string().nullable().optional(),
+    bcm_check: z.string(),
+    next_review_date: z.string().nullable().optional(),
+    linked_asset_count: z.number(),
+    linked_vendor_count: z.number(),
+    is_complete: z.boolean(),
+    is_duplicate: z.boolean(),
+    inputs: processDerivedInputsSchema,
+});
+
 export const processSchema: z.ZodType<Process> = passthroughObject({
     id: z.number(),
     f_code: z.string(),
@@ -45,6 +85,8 @@ export const processSchema: z.ZodType<Process> = passthroughObject({
     interruption_impact: z.string().nullable().optional(),
     assessment_date: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
+
+    derived: processDerivedSchema.nullable().optional(),
 
     is_archived: z.boolean(),
     archived_at: z.string().nullable().optional(),

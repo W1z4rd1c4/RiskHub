@@ -17,11 +17,7 @@ from .asset_policy import (
     assert_asset_restore_allowed,
     assert_asset_update_allowed,
 )
-from .asset_projection import (
-    serialize_asset_detail,
-    serialize_asset_detail_with_primary,
-    serialize_asset_list,
-)
+from .asset_projection import serialize_asset_detail_with_primary, serialize_asset_list
 
 _SORT_COLUMNS = {
     "name": Asset.name,
@@ -47,8 +43,9 @@ async def create_asset_detail(
     await audit_asset.asset_created(db, actor=current_user, asset=asset)
     await commit_service_boundary(db, boundary="ict_register_asset_create")
     await db.refresh(asset)
-    # A freshly created Asset has no Link relations, hence no primary Process.
-    return serialize_asset_detail(asset, current_user=current_user, primary_process_id=None)
+    # A freshly created Asset has no Link relations yet; the derived block
+    # still rides the payload with its empty-links shape (compute-on-read).
+    return await serialize_asset_detail_with_primary(db, asset, current_user=current_user)
 
 
 async def read_asset_detail(

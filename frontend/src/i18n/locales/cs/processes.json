@@ -25,8 +25,8 @@
         "l0_area": "L0 oblast",
         "owner": "Vlastník",
         "mtpd": "MTPD (hod)",
-        "preliminary_criticality": "Předběžná třída",
-        "cif_override": "CIF override",
+        "criticality_class": "Třída kritičnosti",
+        "cif": "CIF",
         "status": "Stav"
     },
     "form": {
@@ -68,6 +68,35 @@
     },
     "detail": {
         "derived_fields_note": "Skóre kritičnosti, třída a CIF jsou odvozovány registrem a nelze je zadat ručně."
+    },
+    "derived": {
+        "title": "Odvozeno registrem",
+        "criticality_score": "Skóre kritičnosti",
+        "criticality_class": "Třída kritičnosti",
+        "cif": "CIF – zásadní nebo důležitá funkce",
+        "rto_mtpd_check": "Kontrola RTO vs MTPD",
+        "bcm_check": "Kontrola BCM",
+        "next_review_date": "Příští posouzení",
+        "linked_asset_count": "Aktiva (počet)",
+        "linked_vendor_count": "Dodavatelé (počet)",
+        "completeness": "Hotovo?",
+        "complete": "Hotovo",
+        "incomplete": "Neúplné",
+        "inputs": {
+            "title": "Proč — vstupy výpočtu",
+            "impacts": "Dopadové osy (klient / trh / regulace / finance)",
+            "mtpd_bonus": "Bonus za MTPD",
+            "thresholds": "Prahy tříd (Kritická / Vysoká / Střední)",
+            "class_source": "Zdroj třídy",
+            "class_source_score": "Živé skóre (pásma)",
+            "class_source_preliminary": "Předběžná třída (záložní)",
+            "cif_override": "CIF override",
+            "cif_class_critical": "CIF spouštěč: třída Kritická",
+            "cif_mtpd_within_critical": "CIF spouštěč: MTPD v kritickém limitu",
+            "cif_any_impact_maximal": "CIF spouštěč: dopadová osa = 5",
+            "missing": "Chybí pro úplnost",
+            "none": "Nic"
+        }
     },
     "messages": {
         "archive_confirm": "Archivovat proces „{{processName}}“? Zůstane v historii registru a lze jej obnovit."

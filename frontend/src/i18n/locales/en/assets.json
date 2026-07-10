@@ -23,7 +23,8 @@
         "name": "Asset",
         "asset_type": "Type",
         "owner": "Owner",
-        "preliminary_criticality": "Preliminary criticality",
+        "resulting_criticality": "Resulting criticality",
+        "cif": "CIF",
         "lifecycle_state": "Lifecycle",
         "status": "Status"
     },
@@ -113,5 +114,40 @@
         "not_found": "Asset not found.",
         "load_failed": "Failed to load assets.",
         "archive_failed": "Failed to archive the asset."
+    },
+    "derived": {
+        "title": "Derived by the register engine",
+        "ciaa_value": "Asset value (CIAA)",
+        "weighted_score": "Weighted asset score",
+        "score_criticality": "Criticality from score",
+        "business_criticality": "Business criticality",
+        "resulting_criticality": "Resulting criticality",
+        "article8_classification": "Classification (Art. 8(1))",
+        "cif": "Supports CIF — derived",
+        "cif_process_count": "CIF processes (count)",
+        "cif_process_names": "Supported CIF processes",
+        "spof": "SPOF",
+        "external_dependency": "External dependency",
+        "legacy": "Legacy system",
+        "primary_process_name": "Primary process (name)",
+        "primary_process_criticality": "Primary process criticality",
+        "inherited_impact_operations": "Operational impact (from process)",
+        "inherited_impact_financial": "Financial impact (from process)",
+        "inherited_rto_hours": "RTO inherited from process (h)",
+        "linked_process_count": "Processes (count)",
+        "linked_vendor_count": "Vendors (count)",
+        "linked_asset_names": "Links to other assets (derived)",
+        "inputs": {
+            "title": "Why — the h_rank signals behind the resulting criticality",
+            "rank_primary": "Primary process class (rank)",
+            "rank_score": "Weighted score class (rank)",
+            "rank_preliminary": "Preliminary criticality (rank)",
+            "rank_business": "Business criticality (rank)",
+            "rank_cif_floor": "CIF floor (rank)",
+            "h_rank": "h_rank (MAX)",
+            "reference_date": "Reference date (P_RefDatum)",
+            "thresholds": "Score thresholds (Nízká / Střední / Vysoká)",
+            "none": "None"
+        }
     }
 }

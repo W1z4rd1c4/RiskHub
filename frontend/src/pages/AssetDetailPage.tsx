@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
 import { assetApi } from '@/services/assetApi';
@@ -21,11 +22,38 @@ interface AssetDetailPageProps {
     mode?: AssetDetailMode;
 }
 
-function DetailField({ label, value }: { label: string; value: string | number | null | undefined }) {
+function DetailField({
+    label,
+    value,
+    testId,
+}: {
+    label: string;
+    value: string | number | null | undefined;
+    testId?: string;
+}) {
     return (
         <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
-            <p className="text-sm text-white">{value === null || value === undefined || value === '' ? '—' : value}</p>
+            <p className="text-sm text-white" data-testid={testId}>
+                {value === null || value === undefined || value === '' ? '—' : value}
+            </p>
+        </div>
+    );
+}
+
+function DerivedPillField({
+    label,
+    criticalityClass,
+    testId,
+}: {
+    label: string;
+    criticalityClass: string | null | undefined;
+    testId?: string;
+}) {
+    return (
+        <div className="space-y-1" data-testid={testId}>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
+            <CriticalityClassPill criticalityClass={criticalityClass} />
         </div>
     );
 }
@@ -276,8 +304,136 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     <DetailField label={t('form.availability_rating')} value={asset.availability_rating} />
                     <DetailField label={t('form.authenticity_rating')} value={asset.authenticity_rating} />
                 </div>
-                <p className="text-xs text-slate-500">{t('detail.derived_fields_note')}</p>
             </div>
+
+            {asset.derived ? (
+                <div className="glass-card space-y-5" data-testid="asset-derived-section">
+                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                        {t('derived.title')}
+                    </h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                        <DetailField label={t('derived.ciaa_value')} value={asset.derived.ciaa_value} />
+                        <DetailField label={t('derived.weighted_score')} value={asset.derived.weighted_score} />
+                        <DerivedPillField
+                            label={t('derived.score_criticality')}
+                            criticalityClass={asset.derived.score_criticality}
+                        />
+                        <DerivedPillField
+                            label={t('derived.business_criticality')}
+                            criticalityClass={asset.derived.business_criticality}
+                        />
+                        <DerivedPillField
+                            label={t('derived.resulting_criticality')}
+                            criticalityClass={asset.derived.resulting_criticality}
+                            testId="asset-derived-resulting-criticality"
+                        />
+                        <DetailField
+                            label={t('derived.article8_classification')}
+                            value={asset.derived.article8_classification}
+                        />
+                        <DetailField
+                            label={t('derived.cif')}
+                            value={asset.derived.cif}
+                            testId="asset-derived-cif"
+                        />
+                        <DetailField label={t('derived.spof')} value={asset.derived.spof} />
+                        <DetailField
+                            label={t('derived.external_dependency')}
+                            value={asset.derived.external_dependency}
+                        />
+                        <DetailField label={t('derived.legacy')} value={asset.derived.legacy} />
+                        <DetailField
+                            label={t('derived.linked_process_count')}
+                            value={asset.derived.linked_process_count}
+                        />
+                        <DetailField
+                            label={t('derived.linked_vendor_count')}
+                            value={asset.derived.linked_vendor_count}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-5 border-t border-white/5 pt-4">
+                        <DetailField
+                            label={t('derived.primary_process_name')}
+                            value={asset.derived.primary_process_name}
+                        />
+                        <DerivedPillField
+                            label={t('derived.primary_process_criticality')}
+                            criticalityClass={asset.derived.primary_process_criticality}
+                        />
+                        <DetailField
+                            label={t('derived.inherited_rto_hours')}
+                            value={asset.derived.inherited_rto_hours}
+                        />
+                        <DetailField
+                            label={t('derived.inherited_impact_operations')}
+                            value={asset.derived.inherited_impact_operations}
+                        />
+                        <DetailField
+                            label={t('derived.inherited_impact_financial')}
+                            value={asset.derived.inherited_impact_financial}
+                        />
+                        <DetailField
+                            label={t('derived.cif_process_count')}
+                            value={asset.derived.cif_process_count}
+                        />
+                        <DetailField
+                            label={t('derived.cif_process_names')}
+                            value={
+                                asset.derived.cif_process_names.length
+                                    ? asset.derived.cif_process_names.join(', ')
+                                    : t('derived.inputs.none')
+                            }
+                        />
+                        <DetailField
+                            label={t('derived.linked_asset_names')}
+                            value={
+                                asset.derived.linked_asset_names.length
+                                    ? asset.derived.linked_asset_names.join(', ')
+                                    : t('derived.inputs.none')
+                            }
+                        />
+                    </div>
+
+                    <div className="space-y-4 border-t border-white/5 pt-4">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                            {t('derived.inputs.title')}
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                            <DetailField
+                                label={t('derived.inputs.rank_primary')}
+                                value={asset.derived.inputs.rank_primary_process_criticality}
+                            />
+                            <DetailField
+                                label={t('derived.inputs.rank_score')}
+                                value={asset.derived.inputs.rank_score_criticality}
+                            />
+                            <DetailField
+                                label={t('derived.inputs.rank_preliminary')}
+                                value={asset.derived.inputs.rank_preliminary_criticality}
+                            />
+                            <DetailField
+                                label={t('derived.inputs.rank_business')}
+                                value={asset.derived.inputs.rank_business_criticality}
+                            />
+                            <DetailField
+                                label={t('derived.inputs.rank_cif_floor')}
+                                value={asset.derived.inputs.rank_cif_floor}
+                            />
+                            <DetailField label={t('derived.inputs.h_rank')} value={asset.derived.h_rank} />
+                            <DetailField
+                                label={t('derived.inputs.thresholds')}
+                                value={`≤${asset.derived.inputs.threshold_low_score} / ≤${asset.derived.inputs.threshold_medium_score} / ≤${asset.derived.inputs.threshold_high_score}`}
+                            />
+                            <DetailField
+                                label={t('derived.inputs.reference_date')}
+                                value={asset.derived.inputs.reference_date}
+                            />
+                        </div>
+                    </div>
+                    <p className="text-xs text-slate-500">{t('detail.derived_fields_note')}</p>
+                </div>
+            ) : null}
 
             <div className="glass-card space-y-5">
                 <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">

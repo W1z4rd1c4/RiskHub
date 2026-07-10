@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react';
 import { ArchiveRestore, ChevronRight } from 'lucide-react';
 
+import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import type { Column } from '@/components/tables/SortableTable';
 import type { Process } from '@/types/process';
 
@@ -17,13 +18,6 @@ type BuildProcessColumnsParams = {
 export function getProcessStatusColor(status: ProcessDisplayStatus): string {
     return status === 'archived' ? 'text-slate-400 bg-slate-400/10' : 'text-emerald-400 bg-emerald-400/10';
 }
-
-const CRITICALITY_PILLS: Record<string, string> = {
-    ['Nízká']: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-    ['Střední']: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-    ['Vysoká']: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
-    ['Kritická']: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-};
 
 export function buildProcessColumns({
     t,
@@ -84,28 +78,20 @@ export function buildProcessColumns({
             ),
         },
         {
-            key: 'preliminary_criticality',
-            label: t('columns.preliminary_criticality'),
-            render: (process) =>
-                process.preliminary_criticality ? (
-                    <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${
-                            CRITICALITY_PILLS[process.preliminary_criticality] ??
-                            'text-slate-300 bg-slate-400/10 border-slate-400/20'
-                        }`}
-                    >
-                        {process.preliminary_criticality}
-                    </span>
-                ) : (
-                    <span className="text-sm text-slate-500">—</span>
-                ),
+            // Engine-derived Criticality class (trida, ticket #48) — read-only.
+            key: 'derived_criticality_class',
+            label: t('columns.criticality_class'),
+            render: (process) => (
+                <CriticalityClassPill criticalityClass={process.derived?.criticality_class} />
+            ),
         },
         {
-            key: 'cif_override',
-            label: t('columns.cif_override'),
-            className: 'w-[110px]',
+            // Engine-derived CIF (ticket #48) — read-only.
+            key: 'derived_cif',
+            label: t('columns.cif'),
+            className: 'w-[90px]',
             render: (process) => (
-                <span className="text-sm text-slate-300">{process.cif_override ?? '—'}</span>
+                <span className="text-sm text-slate-300">{process.derived?.cif ?? '—'}</span>
             ),
         },
         {

@@ -1,10 +1,10 @@
 /**
- * ICT Register — Process register E2E (issue #42, deterministic fixtures).
+ * ICT Register — Process register E2E (issues #42 + #48, deterministic fixtures).
  *
- * Asserts CURRENT behavior only: entered 03_Procesy fields round-trip through
+ * Asserts CURRENT behavior: entered 03_Procesy fields round-trip through
  * the UI, closed lists come verbatim from the workbook reference registry,
- * and derived values (score, criticality class, CIF) are NOT yet computed —
- * ticket #48 extends these specs with derivation assertions later.
+ * and the ENGINE-DERIVED values (score, criticality class, CIF — ticket #48)
+ * render read-only on the register and the detail, never as inputs.
  */
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_PROCESSES } from './fixtures/e2e-data';
@@ -67,10 +67,19 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await expect(processesPage.rowByText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process)).toBeVisible();
         await expect(processesPage.rowByText(E2E_PROCESSES.REGULATORY_REPORTING.l1_process)).toBeVisible();
         await expect(processesPage.rowByText(E2E_PROCESSES.PORTAL_SUPPORT.l1_process)).toBeVisible();
-        // The seeded criticality class renders verbatim in the register column.
-        await expect(
-            processesPage.rowByText(E2E_PROCESSES.REGULATORY_REPORTING.l1_process).getByText('Kritická', { exact: true }),
-        ).toBeVisible();
+        // Ticket #48: the register shows the ENGINE-derived class, verbatim
+        // Czech. E2E-PROC-003 is seeded with impacts 2/2/5/4 + MTPD 72h:
+        // score 13 + default bonus 1 = 14 -> Vysoká — the live score WINS over
+        // its entered preliminary class "Kritická".
+        const reportingRow = processesPage.rowByText(E2E_PROCESSES.REGULATORY_REPORTING.l1_process);
+        await expect(reportingRow.getByText('Vysoká', { exact: true })).toBeVisible();
+        // Its derived CIF is Ano: the seeded override "Ano" takes precedence
+        // (and the regulatory axis at 5 would trigger it anyway).
+        await expect(reportingRow.getByText('Ano', { exact: true })).toBeVisible();
+        // E2E-PROC-001 (impacts 4/3/4/3 + MTPD 24h -> 14 + bonus 3 = 17) bands
+        // Kritická from the live score.
+        const claimsRow = processesPage.rowByText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
+        await expect(claimsRow.getByText('Kritická', { exact: true })).toBeVisible();
     });
 
     test('Search narrows the register to the matching seeded row', async ({ riskManagerPage }) => {
@@ -192,10 +201,17 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await expect(riskManagerPage.getByText(seeded!.f_code, { exact: true })).toBeVisible();
         await expect(riskManagerPage.getByText(E2E_PROCESSES.CLAIMS_INTAKE.l0_area).first()).toBeVisible();
         await expect(riskManagerPage.getByText('Vysoká', { exact: true }).first()).toBeVisible();
-        // Derived values are engine-owned (ticket #48) — the detail only carries the note.
-        await expect(
-            riskManagerPage.getByText(/derived by the register engine|odvozovány registrem/),
-        ).toBeVisible();
+        // Ticket #48: the engine-derived block renders read-only on the detail.
+        // E2E-PROC-001 is seeded with impacts 4/3/4/3 and MTPD 24h: score
+        // 14 + MTPD bonus 3 (24h <= P_MTPDStr) = 17 -> Kritická (>= 16); the
+        // live score wins over the entered preliminary class "Vysoká".
+        const derivedSection = riskManagerPage.getByTestId('process-derived-section');
+        await expect(derivedSection).toBeVisible();
+        await expect(derivedSection.getByTestId('process-derived-score')).toHaveText('17');
+        await expect(derivedSection.getByText('Kritická', { exact: true })).toBeVisible();
+        // CIF Ano: the seeded override "Ano" takes precedence (the Kritická
+        // class would trigger it anyway).
+        await expect(derivedSection.getByTestId('process-derived-cif')).toHaveText('Ano');
     });
 
     test('Edit round-trip persists entered field changes', async ({ riskManagerPage }) => {

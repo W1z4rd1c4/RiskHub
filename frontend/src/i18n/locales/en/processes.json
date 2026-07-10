@@ -25,8 +25,8 @@
         "l0_area": "L0 area",
         "owner": "Owner",
         "mtpd": "MTPD (h)",
-        "preliminary_criticality": "Preliminary class",
-        "cif_override": "CIF override",
+        "criticality_class": "Criticality class",
+        "cif": "CIF",
         "status": "Status"
     },
     "form": {
@@ -68,6 +68,35 @@
     },
     "detail": {
         "derived_fields_note": "Criticality score, class, and CIF are derived by the register engine and cannot be entered by hand."
+    },
+    "derived": {
+        "title": "Derived by the register engine",
+        "criticality_score": "Criticality score",
+        "criticality_class": "Criticality class",
+        "cif": "CIF — critical or important function",
+        "rto_mtpd_check": "RTO vs MTPD check",
+        "bcm_check": "BCM check",
+        "next_review_date": "Next assessment",
+        "linked_asset_count": "Assets (count)",
+        "linked_vendor_count": "Vendors (count)",
+        "completeness": "Complete?",
+        "complete": "Complete",
+        "incomplete": "Incomplete",
+        "inputs": {
+            "title": "Why — the inputs behind it",
+            "impacts": "Impact axes (client / market / regulatory / financial)",
+            "mtpd_bonus": "MTPD bonus applied",
+            "thresholds": "Class thresholds (Kritická / Vysoká / Střední)",
+            "class_source": "Class source",
+            "class_source_score": "Live score banding",
+            "class_source_preliminary": "Entered preliminary class (fallback)",
+            "cif_override": "CIF override",
+            "cif_class_critical": "CIF trigger: class Kritická",
+            "cif_mtpd_within_critical": "CIF trigger: MTPD within the critical bound",
+            "cif_any_impact_maximal": "CIF trigger: an impact axis at 5",
+            "missing": "Missing for completeness",
+            "none": "None"
+        }
     },
     "messages": {
         "archive_confirm": "Archive process \"{{processName}}\"? It stays in the register history and can be restored."

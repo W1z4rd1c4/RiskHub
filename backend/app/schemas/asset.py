@@ -1,11 +1,16 @@
-"""ICT Register Asset and Link relation schemas (issue #43).
+"""ICT Register Asset and Link relation schemas (issues #43, #48).
 
 Write schemas carry the workbook's entered 04_Aktiva fields (and the entered
-sheet 05/06 link columns) only and forbid unknown keys, so derived fields
-(CIAA value, weighted score, resulting criticality, CIF, SPOF rollup, legacy,
-external dependency, TEXTJOIN aggregates, counts, completeness — ticket #48)
-are rejected at the API boundary. Coded fields are validated against the
-workbook closed lists in ``app.services._ict_register_reference``.
+sheet 05/06 link columns) only and forbid unknown keys, so every derived
+field (the ``derived`` block below and any of its member names) is rejected
+at the API boundary. Derived values — CIAA value, the primary-process
+lookups, business criticality, the weighted score, the h_rank MAX cascade
+and resulting criticality, CIF, SPOF, external dependency, legacy, and the
+count/list aggregates — ride the Read payloads as a typed ``derived`` block
+computed on read by ``app.services._ict_register_lifecycle.derivation``,
+never persisted, with an ``inputs`` explain object exposing what produced
+them. Coded fields are validated against the workbook closed lists in
+``app.services._ict_register_reference``.
 """
 
 from __future__ import annotations
@@ -171,6 +176,66 @@ class AssetCapabilities(BaseModel):
     can_restore: bool
 
 
+class AssetDerivedInputs(BaseModel):
+    """The signals, ranks, and parameter values behind the derived block."""
+
+    confidentiality_rating: int | None = None
+    integrity_rating: int | None = None
+    availability_rating: int | None = None
+    authenticity_rating: int | None = None
+    impact_client: int | None = None
+    impact_regulatory: int | None = None
+    substitutability_rating: int | None = None
+    vendor_dependency_rating: int | None = None
+    preliminary_criticality: str | None = None
+    lifecycle_state: str | None = None
+    standard_support_end_date: date | None = None
+    reference_date: date
+    threshold_low_score: int
+    threshold_medium_score: int
+    threshold_high_score: int
+    primary_process_id: int | None = None
+    rank_primary_process_criticality: int
+    rank_score_criticality: int
+    rank_preliminary_criticality: int
+    rank_business_criticality: int
+    rank_cif_floor: int
+
+    model_config = {"from_attributes": True}
+
+
+class AssetDerived(BaseModel):
+    """Engine-derived 04_Aktiva values (spec 1.2/2.2) — read-only, computed on read."""
+
+    ciaa_value: int | None = None
+    primary_process_name: str | None = None
+    primary_process_criticality: str | None = None
+    inherited_impact_operations: int | None = None
+    inherited_impact_financial: int | None = None
+    inherited_rto_hours: int | None = None
+    business_criticality: str | None = None
+    weighted_score: float | None = None
+    score_criticality: str | None = None
+    h_rank: int
+    resulting_criticality: str | None = None
+    article8_classification: str
+    cif: str
+    cif_process_count: int
+    cif_process_names: list[str]
+    spof: str
+    external_dependency: str
+    legacy: str
+    linked_process_count: int
+    linked_vendor_count: int
+    linked_asset_names: list[str]
+    vendor_names: list[str]
+    ict_service_codes: list[str]
+    contract_references: list[str]
+    inputs: AssetDerivedInputs
+
+    model_config = {"from_attributes": True}
+
+
 class AssetRead(BaseModel):
     id: int
 
@@ -215,6 +280,10 @@ class AssetRead(BaseModel):
     # The designated primary Process among this Asset's links (entered on the
     # Process<->Asset Link relation; projected here for the register UI).
     primary_process_id: int | None = None
+
+    # Engine-derived block (ticket #48): populated by the projection on every
+    # read surface, absent from the persistence model, rejected on write.
+    derived: AssetDerived | None = None
 
     is_archived: bool = False
     archived_at: UtcAwareDatetime | None = None

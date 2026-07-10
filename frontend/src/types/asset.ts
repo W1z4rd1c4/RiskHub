@@ -9,6 +9,60 @@ export interface AssetListCapabilities {
     can_create?: boolean;
 }
 
+/** The signals, ranks, and parameter values behind the derived block. */
+export interface AssetDerivedInputs {
+    confidentiality_rating?: number | null;
+    integrity_rating?: number | null;
+    availability_rating?: number | null;
+    authenticity_rating?: number | null;
+    impact_client?: number | null;
+    impact_regulatory?: number | null;
+    substitutability_rating?: number | null;
+    vendor_dependency_rating?: number | null;
+    preliminary_criticality?: string | null;
+    lifecycle_state?: string | null;
+    standard_support_end_date?: string | null;
+    reference_date: string;
+    threshold_low_score: number;
+    threshold_medium_score: number;
+    threshold_high_score: number;
+    primary_process_id?: number | null;
+    rank_primary_process_criticality: number;
+    rank_score_criticality: number;
+    rank_preliminary_criticality: number;
+    rank_business_criticality: number;
+    rank_cif_floor: number;
+}
+
+/** Engine-derived 04_Aktiva values (ticket #48) — read-only, computed on read. */
+export interface AssetDerived {
+    ciaa_value?: number | null;
+    primary_process_name?: string | null;
+    primary_process_criticality?: string | null;
+    inherited_impact_operations?: number | null;
+    inherited_impact_financial?: number | null;
+    inherited_rto_hours?: number | null;
+    business_criticality?: string | null;
+    weighted_score?: number | null;
+    score_criticality?: string | null;
+    h_rank: number;
+    resulting_criticality?: string | null;
+    article8_classification: string;
+    cif: string;
+    cif_process_count: number;
+    cif_process_names: string[];
+    spof: string;
+    external_dependency: string;
+    legacy: string;
+    linked_process_count: number;
+    linked_vendor_count: number;
+    linked_asset_names: string[];
+    vendor_names: string[];
+    ict_service_codes: string[];
+    contract_references: string[];
+    inputs: AssetDerivedInputs;
+}
+
 export interface Asset {
     id: number;
 
@@ -52,6 +106,8 @@ export interface Asset {
 
     /** The designated primary Process among this Asset's links (at most one). */
     primary_process_id?: number | null;
+
+    derived?: AssetDerived | null;
 
     is_archived: boolean;
     archived_at?: string | null;

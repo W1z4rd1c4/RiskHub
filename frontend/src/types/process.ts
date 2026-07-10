@@ -5,6 +5,46 @@ export interface ProcessCapabilities {
     can_restore: boolean;
 }
 
+/** The inputs (and parameter values) that produced the derived block. */
+export interface ProcessDerivedInputs {
+    impact_client?: number | null;
+    impact_market_operations?: number | null;
+    impact_regulatory?: number | null;
+    impact_financial?: number | null;
+    mtpd_hours?: number | null;
+    mtpd_bonus?: number | null;
+    threshold_critical_score: number;
+    threshold_high_score: number;
+    threshold_medium_score: number;
+    mtpd_critical_hours: number;
+    mtpd_medium_hours: number;
+    preliminary_criticality?: string | null;
+    criticality_class_source: string;
+    cif_override?: string | null;
+    cif_class_critical: boolean;
+    cif_mtpd_within_critical: boolean;
+    cif_any_impact_maximal: boolean;
+    rto_hours?: number | null;
+    bcm_link?: string | null;
+    assessment_date?: string | null;
+    missing_for_completeness: string[];
+}
+
+/** Engine-derived 03_Procesy values (ticket #48) — read-only, computed on read. */
+export interface ProcessDerived {
+    criticality_score?: number | null;
+    criticality_class?: string | null;
+    cif: string;
+    rto_mtpd_check?: string | null;
+    bcm_check: string;
+    next_review_date?: string | null;
+    linked_asset_count: number;
+    linked_vendor_count: number;
+    is_complete: boolean;
+    is_duplicate: boolean;
+    inputs: ProcessDerivedInputs;
+}
+
 export interface ProcessListCapabilities {
     can_create?: boolean;
 }
@@ -41,6 +81,8 @@ export interface Process {
     interruption_impact?: string | null;
     assessment_date?: string | null;
     notes?: string | null;
+
+    derived?: ProcessDerived | null;
 
     is_archived: boolean;
     archived_at?: string | null;

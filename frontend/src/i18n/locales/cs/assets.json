@@ -23,7 +23,8 @@
         "name": "Aktivum",
         "asset_type": "Typ aktiva",
         "owner": "Vlastník",
-        "preliminary_criticality": "Předběžná kritičnost",
+        "resulting_criticality": "Výsledná kritičnost",
+        "cif": "CIF",
         "lifecycle_state": "Životní cyklus",
         "status": "Stav"
     },
@@ -113,5 +114,40 @@
         "not_found": "Aktivum nenalezeno.",
         "load_failed": "Načtení aktiv se nezdařilo.",
         "archive_failed": "Archivace aktiva se nezdařila."
+    },
+    "derived": {
+        "title": "Odvozeno registrem",
+        "ciaa_value": "Hodnota aktiva (CIAA)",
+        "weighted_score": "Vážené skóre aktiva",
+        "score_criticality": "Kritičnost ze skóre",
+        "business_criticality": "Business kritičnost",
+        "resulting_criticality": "Výsledná kritičnost",
+        "article8_classification": "Klasifikace (čl. 8 odst. 1)",
+        "cif": "Podporuje CIF – odvozeno",
+        "cif_process_count": "Počet CIF procesů",
+        "cif_process_names": "Podporované CIF procesy",
+        "spof": "SPOF",
+        "external_dependency": "Externí závislost",
+        "legacy": "Legacy systém",
+        "primary_process_name": "Primární proces (název)",
+        "primary_process_criticality": "Kritičnost primárního procesu",
+        "inherited_impact_operations": "Provozní dopad (z procesu)",
+        "inherited_impact_financial": "Finanční dopad (z procesu)",
+        "inherited_rto_hours": "RTO děděné z procesu (hod)",
+        "linked_process_count": "Procesy (počet)",
+        "linked_vendor_count": "Dodavatelé (počet)",
+        "linked_asset_names": "Vazby na jiná aktiva (odvozeno)",
+        "inputs": {
+            "title": "Proč — signály h_rank za výslednou kritičností",
+            "rank_primary": "Třída primárního procesu (rank)",
+            "rank_score": "Třída z váženého skóre (rank)",
+            "rank_preliminary": "Předběžná kritičnost (rank)",
+            "rank_business": "Business kritičnost (rank)",
+            "rank_cif_floor": "CIF minimum (rank)",
+            "h_rank": "h_rank (MAX)",
+            "reference_date": "Referenční datum (P_RefDatum)",
+            "thresholds": "Prahy skóre (Nízká / Střední / Vysoká)",
+            "none": "Nic"
+        }
     }
 }
