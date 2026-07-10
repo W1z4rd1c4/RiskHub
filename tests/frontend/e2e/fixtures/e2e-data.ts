@@ -193,6 +193,74 @@ export const E2E_SUB_OUTSOURCING = {
         ict_service_code: 'S09',
         status: 'active',
     },
+    /**
+     * Deliberately BROKEN (issue #49): sits on E2E-CTR-002 while its
+     * predecessor lives on E2E-CTR-001, so the derived Rank is the "?"
+     * sentinel and the chain check reads CHYBA ŘETĚZCE.
+     */
+    BROKEN: {
+        sub_provider_name: 'E2E-SUB-BROKEN Cross-Contract Orphan',
+        contract_reference: 'E2E-CTR-002',
+        predecessor_name: 'E2E-SUB-001 Primary DC Operator',
+        country: 'PL',
+        ict_service_code: 'S14',
+        status: 'active',
+    },
+} as const;
+
+/**
+ * Sheet-10 Asset<->Vendor links seeded onto E2E_ICT_VENDOR (issue #46).
+ * The S17 cloud link on E2E-ASSET-001 makes the vendor tier derivation
+ * deterministic (Kritický dodavatel via the CIF chain).
+ */
+export const E2E_ASSET_VENDOR_LINKS = {
+    CLAIMS_SYSTEM_S17: {
+        asset_name: 'E2E-ASSET-001 Core Claims System',
+        ict_service_code: 'S17',
+        vendor_role: 'Hostuje',
+        contract_reference: 'E2E-CTR-001',
+        reliance: 'Zásadní závislost',
+    },
+    CLAIMS_DATABASE_S05: {
+        asset_name: 'E2E-ASSET-002 Claims Database',
+        ict_service_code: 'S05',
+        vendor_role: 'Zpracovává data',
+    },
+} as const;
+
+/** Sheet-11 §1 manual Process<->Vendor pair seeded onto E2E_ICT_VENDOR (issue #46). */
+export const E2E_PROCESS_VENDOR_LINKS = {
+    REGULATORY_REPORTING: {
+        process_l1: 'E2E-PROC-003 Regulatory Reporting',
+        direct_service_description: 'Regulatory reporting platform hosting (§1 direct service).',
+    },
+} as const;
+
+/** 12_Hrozby Threats (issue #47); categories on the KategorieHrozeb closed list. */
+export const E2E_THREATS = {
+    RANSOMWARE: {
+        name: 'E2E-THREAT-001 Ransomware Encryption',
+        category: 'Dostupnost',
+        status: 'active',
+    },
+    THIRD_PARTY_LEAK: {
+        name: 'E2E-THREAT-002 Third-Party Data Leak',
+        category: 'Třetí strany',
+        status: 'active',
+    },
+} as const;
+
+/**
+ * The deterministic risk carrying the seeded ICT Register integration links
+ * (Threat E2E-THREAT-001, Process E2E-PROC-003, Asset E2E-ASSET-002).
+ * Seeded by seed_e2e_risks.py; owned by risk.manager (Risk Management).
+ */
+export const E2E_ICT_REGISTER_RISK = {
+    code: 'E2E-RISK-001',
+    name: 'Reinsurer Counterparty Default',
+    owner_email: 'risk.manager@riskhub.local',
+    department: 'Risk Management',
+    status: 'active',
 } as const;
 
 export const E2E_PROCESSES = {
@@ -380,5 +448,9 @@ export const E2E_REQUIRED_FIXTURES = {
     assets: [
         E2E_ASSETS.CORE_CLAIMS_SYSTEM.name,
         E2E_ASSETS.ARCHIVED.name,
+    ],
+    threats: [
+        E2E_THREATS.RANSOMWARE.name,
+        E2E_THREATS.THIRD_PARTY_LEAK.name,
     ],
 } as const;

@@ -371,6 +371,214 @@ export async function createSubOutsourcingViaApi(
     return await response.json() as VendorSubOutsourcingLookup;
 }
 
+// ---------------------------------------------------------------------------
+// Link-relation helpers (issue #46): Asset<->Vendor and Process<->Vendor.
+// Cleanup helpers remove ONLY the given tuple so parallel tests on the same
+// register rows never clobber each other's in-flight fixtures.
+// ---------------------------------------------------------------------------
+
+export interface AssetVendorLinkLookup {
+    id: number;
+    asset_id: number;
+    vendor_id: number;
+    ict_service_code: string;
+    vendor_role: string | null;
+    contract_reference: string | null;
+    reliance: string | null;
+}
+
+export interface ProcessVendorLinkLookup {
+    id: number;
+    process_id: number;
+    vendor_id: number;
+    direct_service_description: string | null;
+}
+
+export async function listAssetVendorLinks(assetId: number): Promise<AssetVendorLinkLookup[]> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(`${apiBase}/api/v1/assets/${assetId}/vendor-links`, { headers });
+    if (!response.ok) {
+        throw new Error(`Failed to list vendor links for asset ${assetId}: ${response.status}`);
+    }
+    return await response.json() as AssetVendorLinkLookup[];
+}
+
+/** Remove the (asset, vendor, S-code) link if it exists (idempotent baseline). */
+export async function removeAssetVendorLinkTuple(
+    assetId: number,
+    vendorId: number,
+    ictServiceCode: string,
+): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const links = await listAssetVendorLinks(assetId);
+    for (const link of links) {
+        if (link.vendor_id !== vendorId || link.ict_service_code !== ictServiceCode) {
+            continue;
+        }
+        const response = await fetch(`${apiBase}/api/v1/assets/${assetId}/vendor-links/${link.id}`, {
+            method: 'DELETE',
+            headers,
+        });
+        if (!response.ok && response.status !== 204 && response.status !== 404) {
+            throw new Error(`Failed to remove vendor link ${link.id} on asset ${assetId}: ${response.status}`);
+        }
+    }
+}
+
+export async function createAssetVendorLinkViaApi(
+    assetId: number,
+    payload: Record<string, string | number | null>,
+): Promise<AssetVendorLinkLookup> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(`${apiBase}/api/v1/assets/${assetId}/vendor-links`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        throw new Error(
+            `Failed to create vendor link on asset ${assetId}: ${response.status} - ${await response.text()}`,
+        );
+    }
+    return await response.json() as AssetVendorLinkLookup;
+}
+
+export async function listProcessVendorLinks(processId: number): Promise<ProcessVendorLinkLookup[]> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(`${apiBase}/api/v1/processes/${processId}/vendor-links`, { headers });
+    if (!response.ok) {
+        throw new Error(`Failed to list vendor links for process ${processId}: ${response.status}`);
+    }
+    return await response.json() as ProcessVendorLinkLookup[];
+}
+
+/** Remove the (process, vendor) §1 pair if it exists (idempotent baseline). */
+export async function removeProcessVendorLinkPair(processId: number, vendorId: number): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const links = await listProcessVendorLinks(processId);
+    for (const link of links) {
+        if (link.vendor_id !== vendorId) {
+            continue;
+        }
+        const response = await fetch(`${apiBase}/api/v1/processes/${processId}/vendor-links/${link.id}`, {
+            method: 'DELETE',
+            headers,
+        });
+        if (!response.ok && response.status !== 204 && response.status !== 404) {
+            throw new Error(`Failed to remove vendor link ${link.id} on process ${processId}: ${response.status}`);
+        }
+    }
+}
+
+/**
+ * Force the vendor's entered Substituce value (idempotent test baseline —
+ * the committed register-extension round-trip test leaves it mutated).
+ */
+export async function ensureVendorReplaceability(vendorId: number, replaceability: string): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ replaceability }),
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to set replaceability on vendor ${vendorId}: ${response.status} - ${await response.text()}`);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Threat + risk-integration helpers (issue #47).
+// ---------------------------------------------------------------------------
+
+export interface ThreatLookup {
+    id: number;
+    name: string;
+    category: string | null;
+    is_archived: boolean;
+}
+
+export interface ThreatRiskLinkLookup {
+    id: number;
+    threat_id: number;
+    risk_id: number;
+}
+
+export async function getThreatByName(name: string): Promise<ThreatLookup | null> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const params = new URLSearchParams({ search: name, include_archived: 'true', limit: '100' });
+    const response = await fetch(`${apiBase}/api/v1/threats?${params.toString()}`, { headers });
+    if (!response.ok) {
+        throw new Error(`Failed to load threats for '${name}': ${response.status}`);
+    }
+    const body = await response.json() as {
+        items: Array<{ id: number; name: string; category: string | null; is_archived: boolean }>;
+    };
+    const threat = body.items.find((item) => item.name === name);
+    return threat
+        ? { id: threat.id, name: threat.name, category: threat.category, is_archived: threat.is_archived }
+        : null;
+}
+
+export async function createThreatViaApi(
+    payload: Record<string, string | null>,
+): Promise<ThreatLookup> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(`${apiBase}/api/v1/threats`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to create threat: ${response.status} - ${await response.text()}`);
+    }
+    const body = await response.json() as { id: number; name: string; category: string | null; is_archived: boolean };
+    return { id: body.id, name: body.name, category: body.category, is_archived: body.is_archived };
+}
+
+export async function getRiskByCode(riskIdCode: string): Promise<{ id: number; name: string } | null> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const params = new URLSearchParams({ search: riskIdCode, include_archived: 'true', limit: '100' });
+    const response = await fetch(`${apiBase}/api/v1/risks?${params.toString()}`, { headers });
+    if (!response.ok) {
+        throw new Error(`Failed to load risks for '${riskIdCode}': ${response.status}`);
+    }
+    const body = await response.json() as {
+        items: Array<{ id: number; name: string; risk_id_code?: string }>;
+    };
+    const risk = body.items.find((item) => item.risk_id_code === riskIdCode);
+    return risk ? { id: risk.id, name: risk.name } : null;
+}
+
+export async function listThreatRiskLinks(threatId: number): Promise<ThreatRiskLinkLookup[]> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(`${apiBase}/api/v1/threats/${threatId}/risk-links`, { headers });
+    if (!response.ok) {
+        throw new Error(`Failed to list risk links for threat ${threatId}: ${response.status}`);
+    }
+    return await response.json() as ThreatRiskLinkLookup[];
+}
+
+/** Fetch one risk as the risk manager (used to verify acceptance-field persistence). */
+export async function getRiskViaApi(riskId: number): Promise<Record<string, unknown>> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(`${apiBase}/api/v1/risks/${riskId}`, { headers });
+    if (!response.ok) {
+        throw new Error(`Failed to load risk ${riskId}: ${response.status}`);
+    }
+    return await response.json() as Record<string, unknown>;
+}
+
 /** Re-point the asset's primary designation at the given process (idempotent). */
 export async function ensureAssetPrimaryProcess(assetId: number, processId: number): Promise<void> {
     const apiBase = getApiBaseUrl();

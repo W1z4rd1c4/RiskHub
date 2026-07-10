@@ -9,7 +9,14 @@ designation per linked Asset, directional Asset<->Asset links, one dedicated
 E2E Vendor carrying the entered 07_Dodavatelé register-extension fields, its
 08_Smlouvy Contracts (two mains — the exactly-one-main rule is a DQ finding,
 never a write constraint — plus an archived row), and a 09_Subdodávky chain
-(two directs plus one deeper link, so the full-depth render shows rank 3).
+(two directs plus one deeper link, so the full-depth render shows rank 3,
+plus one deliberately BROKEN cross-contract row so the CHYBA ŘETĚZCE
+sentinel surfaces deterministically). E2E phase 3 (issues #46/#47/#49) adds
+the 10_VAD Asset<->Vendor links (an S17 cloud link pins the tier
+derivation), one 11 §1 Process<->Vendor pair, the 12_Hrozby Threats, and
+the 13_Rizika integration links (Threat<->Risk, Risk<->Process,
+Risk<->Asset) onto the E2E-RISK-001 risk from seed_e2e_risks.py — used by
+register-links.spec.ts / threats.spec.ts / vendor-derived.spec.ts.
 
 Entered fields only — derived values (scores, classes, CIF, SPOF rollups,
 sub-outsourcing Rank) are computed on read by the derivation engine
@@ -30,8 +37,15 @@ from app.db.session import session_context
 from app.models import (
     Asset,
     AssetAssetLink,
+    AssetVendorLink,
     Process,
     ProcessAssetLink,
+    ProcessVendorLink,
+    Risk,
+    RiskAssetLink,
+    RiskProcessLink,
+    Threat,
+    ThreatRiskLink,
     Vendor,
     VendorContract,
     VendorSubOutsourcing,
@@ -588,6 +602,105 @@ E2E_SUB_OUTSOURCING = [
         "note": "Deeper chain link under E2E-SUB-001 (workbook rank 3).",
         "is_archived": False,
     },
+    {
+        # Deliberately BROKEN chain (issue #49): the predecessor lives on
+        # E2E-CTR-001 while this row sits on E2E-CTR-002, so the engine's
+        # rank walk yields the "?" sentinel and the CHYBA ŘETĚZCE finding.
+        # Write-time integrity rejects this via the API (422), so the seed
+        # persists it directly — exactly the imported-data shape DQ owns.
+        # Keep this row AFTER E2E-SUB-003 so its id stays the highest and
+        # the committed depth-order assertions keep holding.
+        "sub_provider_name": "E2E-SUB-BROKEN Cross-Contract Orphan",
+        "contract": "E2E-CTR-002",
+        "predecessor": "E2E-SUB-001 Primary DC Operator",
+        "identifier_type": "Jiný",
+        "identifier_value": "E2E-BROKEN-1",
+        "country": "PL",
+        "ict_service_code": "S14",
+        "note": "Deterministic broken-chain fixture (cross-contract predecessor).",
+        "is_archived": False,
+    },
+]
+
+# ---------------------------------------------------------------------------
+# E2E phase 3 (issues #46/#47/#49): Link relations, Threats, risk integration.
+# ---------------------------------------------------------------------------
+
+_ASSET_VENDOR_LINK_CLOSED_LIST_FIELDS = {
+    "vendor_role": "RoleDodavatele",
+    "reliance": "Reliance",
+}
+
+_THREAT_CLOSED_LIST_FIELDS = {
+    "category": "KategorieHrozeb",
+}
+
+# Sheet-10 Asset<->Vendor links onto the E2E ICT vendor. The identity tuple
+# is (asset, vendor, S-code). The S17 (cloud IaaS) link makes the vendor tier
+# derivation deterministic: A1's derived CIF is Ano, so the vendor's two-path
+# CIF -> cif_ret -> tier resolves to "Kritický dodavatel"; the cloud S-code
+# additionally pins the tier formula's COUNTIFS(S17..S19) trigger explain.
+E2E_ASSET_VENDOR_LINKS = [
+    {
+        "asset": "E2E-ASSET-001 Core Claims System",
+        "ict_service_code": "S17",
+        "vendor_role": "Hostuje",
+        "contract_reference": "E2E-CTR-001",
+        "reliance": "Zásadní závislost",
+        "note": "Deterministic S17 cloud link — drives the vendor tier derivation.",
+    },
+    {
+        "asset": "E2E-ASSET-002 Claims Database",
+        "ict_service_code": "S05",
+        "vendor_role": "Zpracovává data",
+        "contract_reference": None,
+        "reliance": None,
+        "note": None,
+    },
+]
+
+# Sheet-11 §1 manual Process<->Vendor pairs (unique pair; no service column).
+E2E_PROCESS_VENDOR_LINKS = [
+    {
+        "process": "E2E-PROC-003 Regulatory Reporting",
+        "direct_service_description": "Regulatory reporting platform hosting (§1 direct service).",
+        "note": None,
+    },
+]
+
+# 12_Hrozby Threats (name is the stable natural key; category on KategorieHrozeb).
+E2E_THREATS = [
+    {
+        "name": "E2E-THREAT-001 Ransomware Encryption",
+        "category": "Dostupnost",
+        "description": "Ransomware encrypts production data stores and halts claims processing.",
+        "typical_weaknesses": "Missing offline backups; unpatched endpoints; weak segmentation.",
+        "relevant_subject": "Aktivum",
+        "notes": "Deterministic E2E fixture — carries the seeded Threat<->Risk link.",
+        "is_archived": False,
+    },
+    {
+        "name": "E2E-THREAT-002 Third-Party Data Leak",
+        "category": "Třetí strany",
+        "description": "A sub-outsourcer exfiltrates or mishandles regulated client data.",
+        "typical_weaknesses": "No DLP at the provider; over-broad data shares; stale contracts.",
+        "relevant_subject": "Dodavatel",
+        "notes": None,
+        "is_archived": False,
+    },
+]
+
+# 13_Rizika integration links onto the deterministic risk seeded by
+# seed_e2e_risks.py (step 2 of seed_e2e_all — always present here).
+E2E_ICT_RISK_CODE = "E2E-RISK-001"
+E2E_THREAT_RISK_LINKS = [
+    {"threat": "E2E-THREAT-001 Ransomware Encryption", "risk_code": E2E_ICT_RISK_CODE},
+]
+E2E_RISK_PROCESS_LINKS = [
+    {"risk_code": E2E_ICT_RISK_CODE, "process": "E2E-PROC-003 Regulatory Reporting"},
+]
+E2E_RISK_ASSET_LINKS = [
+    {"risk_code": E2E_ICT_RISK_CODE, "asset": "E2E-ASSET-002 Claims Database"},
 ]
 
 
@@ -853,6 +966,132 @@ async def seed_ict_register():
                 print(f"   ↺ {entry['sub_provider_name']} (sub-outsourcing, {'archived' if is_archived else 'active'})")
             sub_ids[entry["sub_provider_name"]] = sub_entry.id
 
+        # 6) Asset<->Vendor links (sheet 10_VAD, issue #46): upsert by the
+        # identity tuple (asset, vendor, S-code). Entered columns only —
+        # the resulting-criticality/CIF per-link lookups derive on read.
+        av_links = 0
+        for entry in E2E_ASSET_VENDOR_LINKS:
+            _assert_closed_list_values(entry, _ASSET_VENDOR_LINK_CLOSED_LIST_FIELDS, "Asset-Vendor link")
+            if entry["ict_service_code"] not in ICT_SERVICE_TAXONOMY:
+                raise RuntimeError(
+                    f"Asset-Vendor link fixture value ict_service_code={entry['ict_service_code']!r} "
+                    "is not an S01-S19 taxonomy code"
+                )
+            asset_id = asset_ids[entry["asset"]]
+            result = await db.execute(
+                select(AssetVendorLink).where(
+                    AssetVendorLink.asset_id == asset_id,
+                    AssetVendorLink.vendor_id == vendor.id,
+                    AssetVendorLink.ict_service_code == entry["ict_service_code"],
+                )
+            )
+            link = result.scalar_one_or_none()
+            if link is None:
+                link = AssetVendorLink(
+                    asset_id=asset_id,
+                    vendor_id=vendor.id,
+                    ict_service_code=entry["ict_service_code"],
+                )
+                db.add(link)
+            link.vendor_role = entry["vendor_role"]
+            link.contract_reference = entry["contract_reference"]
+            link.reliance = entry["reliance"]
+            link.note = entry["note"]
+            av_links += 1
+        await db.flush()
+
+        # 7) Process<->Vendor §1 links (sheet 11 §1, issue #46): upsert by pair.
+        pv_links = 0
+        for entry in E2E_PROCESS_VENDOR_LINKS:
+            process_id = process_ids[entry["process"]]
+            result = await db.execute(
+                select(ProcessVendorLink).where(
+                    ProcessVendorLink.process_id == process_id,
+                    ProcessVendorLink.vendor_id == vendor.id,
+                )
+            )
+            link = result.scalar_one_or_none()
+            if link is None:
+                link = ProcessVendorLink(process_id=process_id, vendor_id=vendor.id)
+                db.add(link)
+            link.direct_service_description = entry["direct_service_description"]
+            link.note = entry["note"]
+            pv_links += 1
+        await db.flush()
+
+        # 8) Threats (12_Hrozby, issue #47): upsert by name.
+        threat_ids: dict[str, int] = {}
+        for entry in E2E_THREATS:
+            _assert_closed_list_values(entry, _THREAT_CLOSED_LIST_FIELDS, "Threat")
+            is_archived = bool(entry["is_archived"])
+            payload = {key: value for key, value in entry.items() if key != "is_archived"}
+            payload.update(
+                {
+                    "is_archived": is_archived,
+                    "archived_at": now if is_archived else None,
+                    "archived_by_id": archiver_id if is_archived else None,
+                }
+            )
+            result = await db.execute(select(Threat).where(Threat.name == entry["name"]))
+            threat = result.scalar_one_or_none()
+            if threat is None:
+                threat = Threat(**payload)
+                db.add(threat)
+                await db.flush()
+                created += 1
+                print(f"   ✓ {entry['name']} (threat, {'archived' if is_archived else 'active'})")
+            else:
+                for key, value in payload.items():
+                    setattr(threat, key, value)
+                updated += 1
+                print(f"   ↺ {entry['name']} (threat, {'archived' if is_archived else 'active'})")
+            threat_ids[entry["name"]] = threat.id
+
+        # 9) Risk-domain integration links (issue #47) onto the deterministic
+        # risk from seed_e2e_risks.py (step 2 of seed_e2e_all). Upsert by pair.
+        result = await db.execute(select(Risk).where(Risk.risk_id_code == E2E_ICT_RISK_CODE))
+        ict_risk = result.scalar_one_or_none()
+        if ict_risk is None:
+            raise RuntimeError(
+                f"Risk '{E2E_ICT_RISK_CODE}' not found — run scripts.seed_e2e_risks (or seed_e2e_all) first."
+            )
+
+        risk_links = 0
+        for entry in E2E_THREAT_RISK_LINKS:
+            threat_id = threat_ids[entry["threat"]]
+            result = await db.execute(
+                select(ThreatRiskLink).where(
+                    ThreatRiskLink.threat_id == threat_id,
+                    ThreatRiskLink.risk_id == ict_risk.id,
+                )
+            )
+            if result.scalar_one_or_none() is None:
+                db.add(ThreatRiskLink(threat_id=threat_id, risk_id=ict_risk.id))
+            risk_links += 1
+        for entry in E2E_RISK_PROCESS_LINKS:
+            process_id = process_ids[entry["process"]]
+            result = await db.execute(
+                select(RiskProcessLink).where(
+                    RiskProcessLink.risk_id == ict_risk.id,
+                    RiskProcessLink.process_id == process_id,
+                )
+            )
+            if result.scalar_one_or_none() is None:
+                db.add(RiskProcessLink(risk_id=ict_risk.id, process_id=process_id))
+            risk_links += 1
+        for entry in E2E_RISK_ASSET_LINKS:
+            linked_asset_id = asset_ids[entry["asset"]]
+            result = await db.execute(
+                select(RiskAssetLink).where(
+                    RiskAssetLink.risk_id == ict_risk.id,
+                    RiskAssetLink.asset_id == linked_asset_id,
+                )
+            )
+            if result.scalar_one_or_none() is None:
+                db.add(RiskAssetLink(risk_id=ict_risk.id, asset_id=linked_asset_id))
+            risk_links += 1
+        await db.flush()
+
         await db.commit()
 
         processes_active = (
@@ -915,6 +1154,12 @@ async def seed_ict_register():
             )
         ).scalar_one()
 
+        threats_total = (
+            await db.execute(
+                select(func.count(Threat.id)).where(Threat.name.like("E2E-THREAT-%"))
+            )
+        ).scalar_one()
+
         print(
             f"\n✅ ICT Register seeded: processes active={processes_active}, archived={processes_archived}; "
             f"assets active={assets_active}, archived={assets_archived}"
@@ -923,6 +1168,10 @@ async def seed_ict_register():
         print(
             f"   Vendor {E2E_ICT_VENDOR['registration_id']}: contracts active={contracts_active}, "
             f"archived={contracts_archived}; sub-outsourcing rows={sub_outsourcing_total}"
+        )
+        print(
+            f"   Asset-Vendor links={av_links}, Process-Vendor links={pv_links}, "
+            f"threats={threats_total}, risk-integration links={risk_links}"
         )
         print(f"   Created={created}, updated={updated}")
         return {
@@ -935,6 +1184,10 @@ async def seed_ict_register():
             "vendor_contracts_active": contracts_active,
             "vendor_contracts_archived": contracts_archived,
             "vendor_sub_outsourcing": sub_outsourcing_total,
+            "asset_vendor_links": av_links,
+            "process_vendor_links": pv_links,
+            "threats": threats_total,
+            "risk_integration_links": risk_links,
             "created": created,
             "updated": updated,
         }
