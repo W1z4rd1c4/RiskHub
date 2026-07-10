@@ -196,8 +196,8 @@ async def seed_database():
         # permission-sync data migrations already inserted RBAC rows (and
         # b3c4d5e6f7a8 creates the executive roles), so Role existence no
         # longer means "seeded".
-        result = await db.execute(select(User))
-        if result.scalars().first():
+        user_result = await db.execute(select(User))
+        if user_result.scalars().first():
             print("Database already seeded. Skipping roles/permissions/users.")
             risk_type_summary = await seed_default_risk_types(db)
             if risk_type_summary["created"] or risk_type_summary["repaired"]:
@@ -206,8 +206,8 @@ async def seed_database():
             if ict_parameters_created:
                 print(f"Seeded {ict_parameters_created} ICT Register workbook parameters")
             # Still check and seed controls/risks if missing
-            result = await db.execute(select(Control))
-            if not result.scalars().first():
+            control_result = await db.execute(select(Control))
+            if not control_result.scalars().first():
                 await seed_controls_and_risks(db)
             elif risk_type_summary["created"] or risk_type_summary["repaired"] or ict_parameters_created:
                 await db.commit()
@@ -217,8 +217,8 @@ async def seed_database():
 
         # Create permissions missing by (resource, action): the permission-sync
         # data migrations pre-insert rows on freshly migrated databases.
-        result = await db.execute(select(Permission))
-        permissions = {f"{perm.resource}:{perm.action}": perm for perm in result.scalars().all()}
+        permission_result = await db.execute(select(Permission))
+        permissions = {f"{perm.resource}:{perm.action}": perm for perm in permission_result.scalars().all()}
         created_permissions = 0
         for perm_data in PERMISSIONS:
             perm_key = f"{perm_data['resource']}:{perm_data['action']}"
@@ -233,22 +233,22 @@ async def seed_database():
 
         # Create roles missing by name (roles.name is unique; b3c4d5e6f7a8
         # pre-creates the executive roles on freshly migrated databases).
-        result = await db.execute(select(Role))
-        roles = {role.name: role for role in result.scalars().all()}
+        role_result = await db.execute(select(Role))
+        roles = {role.name: role for role in role_result.scalars().all()}
         created_roles = 0
         for role_data in ROLES:
             if role_data["name"] in roles:
                 continue
             role = Role(**role_data)
             db.add(role)
-            roles[role_data["name"]] = role
+            roles[cast(str, role_data["name"])] = role
             created_roles += 1
         await db.flush()
         print(f"Created {created_roles} roles ({len(ROLES) - created_roles} pre-existing)")
 
         # Create role-permission mappings missing by (role, permission).
-        result = await db.execute(select(RolePermission))
-        existing_grants = {(rp.role_id, rp.permission_id) for rp in result.scalars().all()}
+        grant_result = await db.execute(select(RolePermission))
+        existing_grants = {(rp.role_id, rp.permission_id) for rp in grant_result.scalars().all()}
 
         def _grant(role_id: int, permission_id: int) -> None:
             if (role_id, permission_id) in existing_grants:
