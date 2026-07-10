@@ -15,13 +15,14 @@ from sqlalchemy import func, select
 
 from app.core.config import get_settings
 from app.db.session import session_context
-from app.models import ApprovalRequest, Control, Issue, KeyRiskIndicator, Risk, Vendor
+from app.models import ApprovalRequest, Asset, Control, Issue, KeyRiskIndicator, Process, Risk, Vendor
 from scripts.seed_e2e_activity_logs import seed_activity_logs
 from scripts.seed_e2e_approvals import seed_approvals
 from scripts.seed_e2e_archives import seed_archives
 from scripts.seed_e2e_controls import seed_controls
 from scripts.seed_e2e_cross_dept import seed_cross_dept_scenarios
 from scripts.seed_e2e_foundation import seed_foundation
+from scripts.seed_e2e_ict_register import seed_ict_register
 from scripts.seed_e2e_issues import seed_issues
 from scripts.seed_e2e_kris import seed_kris
 from scripts.seed_e2e_permission_actions import seed_permission_actions
@@ -122,6 +123,39 @@ async def _collect_summary_counts():
             )
         ).scalar_one()
 
+        processes_active = (
+            await db.execute(
+                select(func.count(Process.id)).where(
+                    Process.l1_process.like("E2E-PROC-%"),
+                    Process.is_archived.is_(False),
+                )
+            )
+        ).scalar_one()
+        processes_archived = (
+            await db.execute(
+                select(func.count(Process.id)).where(
+                    Process.l1_process.like("E2E-PROC-%"),
+                    Process.is_archived.is_(True),
+                )
+            )
+        ).scalar_one()
+        assets_active = (
+            await db.execute(
+                select(func.count(Asset.id)).where(
+                    Asset.name.like("E2E-ASSET-%"),
+                    Asset.is_archived.is_(False),
+                )
+            )
+        ).scalar_one()
+        assets_archived = (
+            await db.execute(
+                select(func.count(Asset.id)).where(
+                    Asset.name.like("E2E-ASSET-%"),
+                    Asset.is_archived.is_(True),
+                )
+            )
+        ).scalar_one()
+
         return {
             "risks_active": risks_active,
             "risks_archived": risks_archived,
@@ -135,6 +169,10 @@ async def _collect_summary_counts():
             "approvals_total": approvals_total,
             "issues_total": issues_total,
             "issues_non_closed": issues_non_closed,
+            "processes_active": processes_active,
+            "processes_archived": processes_archived,
+            "assets_active": assets_active,
+            "assets_archived": assets_archived,
         }
 
 
@@ -164,6 +202,7 @@ async def seed_e2e_all():
         await _run_step(11, "Seeding Vendors", seed_vendors)
         await _run_step(12, "Seeding Issues", seed_issues)
         await _run_step(13, "Seeding Archive Matrix", seed_archives)
+        await _run_step(14, "Seeding ICT Register (Processes & Assets)", seed_ict_register)
     except Exception as exc:
         print(f"\n❌ E2E seeding failed: {exc}")
         return 1
@@ -180,6 +219,8 @@ async def seed_e2e_all():
     print(f"   • Vendors active/archived: {summary['vendors_active']}/{summary['vendors_archived']}")
     print(f"   • Approval requests with E2E marker: {summary['approvals_total']}")
     print(f"   • Issues total/non-closed: {summary['issues_total']}/{summary['issues_non_closed']}")
+    print(f"   • Processes active/archived: {summary['processes_active']}/{summary['processes_archived']}")
+    print(f"   • Assets active/archived: {summary['assets_active']}/{summary['assets_archived']}")
     print("\n💡 All entities prefixed with 'E2E-' for isolation")
     return 0
 

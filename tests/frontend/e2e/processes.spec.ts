@@ -1,0 +1,261 @@
+/**
+ * ICT Register — Process register E2E (issue #42, deterministic fixtures).
+ *
+ * Asserts CURRENT behavior only: entered 03_Procesy fields round-trip through
+ * the UI, closed lists come verbatim from the workbook reference registry,
+ * and derived values (score, criticality class, CIF) are NOT yet computed —
+ * ticket #48 extends these specs with derivation assertions later.
+ */
+import { test, expect } from './fixtures/auth.fixture';
+import { E2E_PROCESSES } from './fixtures/e2e-data';
+import {
+    createProcessViaApi,
+    ensureProcessArchived,
+    getProcessByL1,
+    postProcessExpectingStatus,
+} from './helpers/ict-register';
+import { waitForDataLoad } from './helpers/wait';
+import { ProcessesPage } from './pages/ProcessesPage';
+
+// TridyKrit — verbatim workbook closed list (docs/dora-ict-register spec section 3.1).
+const TRIDY_KRIT = ['Nízká', 'Střední', 'Vysoká', 'Kritická'];
+// Skala15 — verbatim workbook closed list.
+const SKALA_15 = ['1', '2', '3', '4', '5'];
+
+const ARCHIVE_CONFIRM_BUTTON = /^(Archive|Archivovat)$/;
+
+test.describe('ICT Register — Processes (Deterministic)', () => {
+    test('Risk manager sees Processes in the sidebar and navigates to the register', async ({ riskManagerPage }) => {
+        await riskManagerPage.goto('/');
+        const navLink = riskManagerPage.locator('nav a[href="/processes"]');
+        await expect(navLink).toBeVisible();
+
+        await navLink.click();
+        await riskManagerPage.waitForURL(/.*processes$/);
+        await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage.getByTestId('processes-search-input')).toBeVisible();
+        await expect(riskManagerPage.getByTestId('processes-create-button')).toBeVisible();
+    });
+
+    test('Employee sees the register read-only: no create, edit, or archive actions', async ({ employeePage }) => {
+        await employeePage.goto('/');
+        await expect(employeePage.locator('nav a[href="/processes"]')).toBeVisible();
+
+        const processesPage = new ProcessesPage(employeePage);
+        await processesPage.navigate();
+        await processesPage.search(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
+        await expect(processesPage.rowByText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process)).toBeVisible();
+        await expect(processesPage.createButton).toHaveCount(0);
+
+        await processesPage.openRowByText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
+        await expect(employeePage.getByTestId('process-detail-back')).toBeVisible();
+        await expect(employeePage.getByTestId('process-detail-edit')).toHaveCount(0);
+        await expect(employeePage.getByTestId('process-detail-archive')).toHaveCount(0);
+    });
+
+    test('Platform admin does not see Processes navigation', async ({ adminPage }) => {
+        // Anchor on the admin-only console link before asserting the absence.
+        await expect(adminPage.locator('a[href="/admin"]').first()).toBeVisible();
+        await expect(adminPage.locator('a[href="/processes"]')).toHaveCount(0);
+    });
+
+    test('Register lists the seeded deterministic processes', async ({ riskManagerPage }) => {
+        const processesPage = new ProcessesPage(riskManagerPage);
+        await processesPage.navigate();
+        await processesPage.search('E2E-PROC');
+
+        await expect(processesPage.rowByText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process)).toBeVisible();
+        await expect(processesPage.rowByText(E2E_PROCESSES.REGULATORY_REPORTING.l1_process)).toBeVisible();
+        await expect(processesPage.rowByText(E2E_PROCESSES.PORTAL_SUPPORT.l1_process)).toBeVisible();
+        // The seeded criticality class renders verbatim in the register column.
+        await expect(
+            processesPage.rowByText(E2E_PROCESSES.REGULATORY_REPORTING.l1_process).getByText('Kritická', { exact: true }),
+        ).toBeVisible();
+    });
+
+    test('Search narrows the register to the matching seeded row', async ({ riskManagerPage }) => {
+        const processesPage = new ProcessesPage(riskManagerPage);
+        await processesPage.navigate();
+        await processesPage.search(E2E_PROCESSES.REGULATORY_REPORTING.l1_process);
+
+        await expect(processesPage.rowByText(E2E_PROCESSES.REGULATORY_REPORTING.l1_process)).toBeVisible();
+        await expect(processesPage.tableRows.filter({ hasText: E2E_PROCESSES.CLAIMS_INTAKE.l1_process })).toHaveCount(0);
+    });
+
+    test('Archived process appears only under the Archived status filter', async ({ riskManagerPage }) => {
+        const archivedId = await ensureProcessArchived(E2E_PROCESSES.ARCHIVED.l1_process, true);
+
+        const processesPage = new ProcessesPage(riskManagerPage);
+        await processesPage.navigate();
+        await processesPage.search(E2E_PROCESSES.ARCHIVED.l1_process);
+        await expect(processesPage.tableRows.filter({ hasText: E2E_PROCESSES.ARCHIVED.l1_process })).toHaveCount(0);
+
+        await processesPage.setStatusFilterArchived();
+        await expect(processesPage.rowByText(E2E_PROCESSES.ARCHIVED.l1_process)).toBeVisible();
+        // The archived row exposes its restore affordance to the risk manager.
+        await expect(riskManagerPage.getByTestId(`process-restore-${archivedId}`)).toBeVisible();
+    });
+
+    test('Create flow offers verbatim workbook closed lists and lands on a detail with a stable F-code', async ({ riskManagerPage }) => {
+        const uniqueName = `E2E-PROC-UI Created ${Date.now()}`;
+
+        const processesPage = new ProcessesPage(riskManagerPage);
+        await processesPage.navigate();
+        await processesPage.createButton.click();
+        await riskManagerPage.waitForURL(/.*processes\/new$/);
+
+        // Criticality class dropdown carries the TridyKrit workbook list verbatim.
+        await riskManagerPage.getByTestId('process-form-preliminary-criticality').click();
+        const criticalityOptions = riskManagerPage.getByRole('option');
+        await expect(criticalityOptions).toHaveCount(TRIDY_KRIT.length + 1); // + "Not set"
+        for (const value of TRIDY_KRIT) {
+            await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
+        }
+        await riskManagerPage.getByRole('option', { name: 'Vysoká', exact: true }).click();
+
+        // Impact dimension dropdown carries Skala15 verbatim (1–5 only).
+        await riskManagerPage.getByTestId('process-form-impact-client').click();
+        await expect(riskManagerPage.getByRole('option')).toHaveCount(SKALA_15.length + 1);
+        await riskManagerPage.getByRole('option', { name: '4', exact: true }).click();
+
+        await riskManagerPage.getByTestId('process-form-l0-area').fill('E2E Claims');
+        await riskManagerPage.getByTestId('process-form-l1-process').fill(uniqueName);
+        await riskManagerPage.getByTestId('process-form-l2-subprocess').fill('UI create flow');
+        await riskManagerPage.getByTestId('process-form-submit').click();
+
+        await riskManagerPage.waitForURL(/.*processes\/\d+$/);
+        await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage.locator('h1').first()).toContainText(uniqueName);
+        // Server-assigned stable F-code (F{id}), never entered by hand.
+        await expect(riskManagerPage.getByText(/^F\d+$/).first()).toBeVisible();
+        await expect(riskManagerPage.getByText('Vysoká', { exact: true }).first()).toBeVisible();
+
+        const created = await getProcessByL1(uniqueName);
+        expect(created).not.toBeNull();
+        expect(created!.f_code).toMatch(/^F\d+$/);
+    });
+
+    test('Whitespace-only identity fields surface the required-field validation error', async ({ riskManagerPage }) => {
+        await riskManagerPage.goto('/processes/new');
+        await waitForDataLoad(riskManagerPage);
+
+        await riskManagerPage.getByTestId('process-form-l0-area').fill('   ');
+        await riskManagerPage.getByTestId('process-form-l1-process').fill('   ');
+        await riskManagerPage.getByTestId('process-form-submit').click();
+
+        await expect(
+            riskManagerPage.getByText(/L0 area and L1 process are required|L0 oblast a L1 proces jsou povinné/),
+        ).toBeVisible();
+        await expect(riskManagerPage).toHaveURL(/.*processes\/new$/);
+    });
+
+    test('Impact dimensions outside the 1–5 Skala15 scale are rejected', async ({ riskManagerPage }) => {
+        // The form cannot even offer an out-of-range impact: the dropdown is
+        // the closed Skala15 list (exactly 1–5, no 0 or 6).
+        await riskManagerPage.goto('/processes/new');
+        await waitForDataLoad(riskManagerPage);
+        await riskManagerPage.getByTestId('process-form-impact-financial').click();
+        await expect(riskManagerPage.getByRole('option')).toHaveCount(SKALA_15.length + 1);
+        for (const value of SKALA_15) {
+            await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
+        }
+        await expect(riskManagerPage.getByRole('option', { name: '0', exact: true })).toHaveCount(0);
+        await expect(riskManagerPage.getByRole('option', { name: '6', exact: true })).toHaveCount(0);
+        await riskManagerPage.keyboard.press('Escape');
+
+        // The API boundary rejects out-of-range and non-strict-int impacts (422).
+        expect(
+            await postProcessExpectingStatus({
+                l0_area: 'E2E Claims',
+                l1_process: `E2E-PROC-INVALID ${Date.now()}`,
+                impact_client: 6,
+            }),
+        ).toBe(422);
+        expect(
+            await postProcessExpectingStatus({
+                l0_area: 'E2E Claims',
+                l1_process: `E2E-PROC-INVALID ${Date.now()}`,
+                impact_client: '5',
+            }),
+        ).toBe(422);
+    });
+
+    test('Detail view shows the seeded process with its stable F-code and entered fields', async ({ riskManagerPage }) => {
+        const seeded = await getProcessByL1(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
+        expect(seeded).not.toBeNull();
+        expect(seeded!.f_code).toMatch(/^F\d+$/);
+
+        await riskManagerPage.goto(`/processes/${seeded!.id}`);
+        await waitForDataLoad(riskManagerPage);
+
+        await expect(riskManagerPage.locator('h1').first()).toContainText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
+        await expect(riskManagerPage.getByText(seeded!.f_code, { exact: true })).toBeVisible();
+        await expect(riskManagerPage.getByText(E2E_PROCESSES.CLAIMS_INTAKE.l0_area).first()).toBeVisible();
+        await expect(riskManagerPage.getByText('Vysoká', { exact: true }).first()).toBeVisible();
+        // Derived values are engine-owned (ticket #48) — the detail only carries the note.
+        await expect(
+            riskManagerPage.getByText(/derived by the register engine|odvozovány registrem/),
+        ).toBeVisible();
+    });
+
+    test('Edit round-trip persists entered field changes', async ({ riskManagerPage }) => {
+        const created = await createProcessViaApi({
+            l0_area: 'E2E Claims',
+            l1_process: `E2E-PROC-EDIT ${Date.now()}`,
+            owner: 'Original Owner',
+        });
+
+        await riskManagerPage.goto(`/processes/${created.id}/edit`);
+        await waitForDataLoad(riskManagerPage);
+
+        await riskManagerPage.getByTestId('process-form-owner').fill('E2E Edited Owner');
+        await riskManagerPage.getByTestId('process-form-preliminary-criticality').click();
+        await riskManagerPage.getByRole('option', { name: 'Střední', exact: true }).click();
+        await riskManagerPage.getByTestId('process-form-submit').click();
+
+        await riskManagerPage.waitForURL(new RegExp(`/processes/${created.id}$`));
+        // Hard reload: the SPA detail cache holds the pre-edit copy for up to
+        // 30s (DETAIL_QUERY_STALE_TIME_MS); a fresh document proves persistence.
+        await riskManagerPage.goto(`/processes/${created.id}`);
+        await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage.getByText('E2E Edited Owner', { exact: true })).toBeVisible();
+        await expect(riskManagerPage.getByText('Střední', { exact: true }).first()).toBeVisible();
+        // The stable F-code survives the edit untouched.
+        await expect(riskManagerPage.getByText(created.f_code, { exact: true })).toBeVisible();
+    });
+
+    test('Archive and restore round-trip through the register UI', async ({ riskManagerPage }) => {
+        const uniqueName = `E2E-PROC-LC ${Date.now()}`;
+        const created = await createProcessViaApi({
+            l0_area: 'E2E Legacy',
+            l1_process: uniqueName,
+        });
+
+        await riskManagerPage.goto(`/processes/${created.id}`);
+        await waitForDataLoad(riskManagerPage);
+        await riskManagerPage.getByTestId('process-detail-archive').click();
+        await riskManagerPage
+            .locator('.confirm-dialog-actions')
+            .getByRole('button', { name: ARCHIVE_CONFIRM_BUTTON })
+            .click();
+        await riskManagerPage.waitForURL(/.*processes$/);
+
+        const processesPage = new ProcessesPage(riskManagerPage);
+        await processesPage.setStatusFilterArchived();
+        await processesPage.search(uniqueName);
+        await expect(processesPage.rowByText(uniqueName)).toBeVisible();
+
+        // Hard reload: the SPA detail cache still holds the pre-archive copy
+        // for up to 30s (DETAIL_QUERY_STALE_TIME_MS).
+        await riskManagerPage.goto(`/processes/${created.id}`);
+        await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage.getByTestId('process-detail-restore')).toBeVisible();
+        await riskManagerPage.getByTestId('process-detail-restore').click();
+
+        // Restored: archive/edit come back, restore disappears.
+        await expect(riskManagerPage.getByTestId('process-detail-archive')).toBeVisible();
+        await expect(riskManagerPage.getByTestId('process-detail-restore')).toHaveCount(0);
+        // The F-code was never freed or reassigned across the archive cycle.
+        await expect(riskManagerPage.getByText(created.f_code, { exact: true })).toBeVisible();
+    });
+});
