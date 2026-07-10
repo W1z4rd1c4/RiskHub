@@ -39,7 +39,8 @@
   },
   "status": {
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "archived": "Archived"
   },
   "type": {
     "ict": "ICT",

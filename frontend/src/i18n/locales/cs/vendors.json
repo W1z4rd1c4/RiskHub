@@ -39,7 +39,8 @@
   },
   "status": {
     "active": "Aktivní",
-    "inactive": "Neaktivní"
+    "inactive": "Neaktivní",
+    "archived": "Archivováno"
   },
   "type": {
     "ict": "ICT",

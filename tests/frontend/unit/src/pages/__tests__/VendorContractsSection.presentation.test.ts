@@ -10,6 +10,8 @@ import {
     isContractReferenceDuplicate,
 } from '@/pages/vendors/vendorContractsPresentation';
 import type { VendorContract, VendorContractDerived } from '@/types/vendorContract';
+import enVendors from '@/i18n/locales/en/vendors.json';
+import csVendors from '@/i18n/locales/cs/vendors.json';
 
 function sampleContractDerived(
     overrides: Partial<VendorContractDerived> = {},
@@ -59,6 +61,18 @@ function sampleContract(overrides: Partial<VendorContract> = {}): VendorContract
     };
 }
 
+/** Mimic i18next's dotted-key lookup against a locale bundle (missing key → the key itself). */
+function bundleTranslate(bundle: unknown) {
+    return (key: string): string => {
+        const resolved = key.split('.').reduce<unknown>(
+            (node, part) =>
+                node && typeof node === 'object' ? (node as Record<string, unknown>)[part] : undefined,
+            bundle,
+        );
+        return typeof resolved === 'string' ? resolved : key;
+    };
+}
+
 describe('Vendor contracts section presentation helpers', () => {
     it('strips empty strings to nulls and drops untouched fields in write payloads', () => {
         expect(
@@ -83,6 +97,41 @@ describe('Vendor contracts section presentation helpers', () => {
     it('derives the display status from the archive flag', () => {
         expect(getContractDisplayStatus(sampleContract())).toBe('active');
         expect(getContractDisplayStatus(sampleContract({ is_archived: true }))).toBe('archived');
+    });
+
+    it('renders a translated status label and never leaks the raw status.* key', () => {
+        const columns = buildVendorContractColumns({
+            t: bundleTranslate(enVendors),
+            onEdit: () => undefined,
+            onArchive: () => undefined,
+            onRestore: () => undefined,
+        });
+        const statusColumn = columns.find((column) => column.key === 'status');
+
+        render(statusColumn?.render?.(sampleContract(), 0) as ReactElement);
+        expect(screen.getByText('Active')).toBeInTheDocument();
+
+        render(statusColumn?.render?.(sampleContract({ id: 77, is_archived: true }), 0) as ReactElement);
+        expect(screen.getByText('Archived')).toBeInTheDocument();
+        expect(screen.queryByText('status.archived')).not.toBeInTheDocument();
+    });
+
+    it('translates every contract display status in both locale bundles', () => {
+        // Drive the statuses from the real deriver so a future status can't be
+        // added without a matching en + cs label (guards the status.* leak).
+        const statuses = [
+            getContractDisplayStatus(sampleContract({ is_archived: false })),
+            getContractDisplayStatus(sampleContract({ is_archived: true })),
+        ];
+        const bundles: unknown[] = [enVendors, csVendors];
+        for (const bundle of bundles) {
+            const t = bundleTranslate(bundle);
+            for (const status of statuses) {
+                const label = t(`status.${status}`);
+                expect(label).not.toBe(`status.${status}`);
+                expect(label.length).toBeGreaterThan(0);
+            }
+        }
     });
 
     it('renders reference, arrangement type, main-contract and RoI flags, and the cost in the columns', () => {

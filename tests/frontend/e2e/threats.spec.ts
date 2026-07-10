@@ -230,11 +230,13 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
                 .getByTestId('risk-threat-link-rows')
                 .getByText(E2E_THREATS.RANSOMWARE.name, { exact: true }),
         ).toBeVisible();
-        // Processes block: the seeded E2E-PROC-003 link.
+        // Processes block: the seeded E2E-PROC-003 link. The row renders the
+        // full workbook process display name (l1 + " – " + l2 subprocess
+        // "Solvency II bordereaux"), so match the l1 prefix without exact:true.
         await expect(
             riskManagerPage
                 .getByTestId('risk-process-link-rows')
-                .getByText('E2E-PROC-003 Regulatory Reporting', { exact: true }),
+                .getByText('E2E-PROC-003 Regulatory Reporting', { exact: false }),
         ).toBeVisible();
         // Assets block: the seeded E2E-ASSET-002 link.
         await expect(
@@ -295,15 +297,17 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         ).toBeVisible();
         await expect(employeePage.getByTestId('threats-create-button')).toHaveCount(0);
 
-        // Detail: read-only actions, and the seeded risk link renders without
-        // manage affordances (threats:read only).
+        // Detail: read-only actions. The section renders, but the threat's only
+        // seeded risk link targets E2E-RISK-001 (Risk Management); an Operations
+        // employee cannot see cross-department risks, so visibility scoping (F2)
+        // hides the link rows entirely — with no manage affordances either.
         await employeePage.goto(`/threats/${seeded.id}`);
         await waitForDataLoad(employeePage);
         await expect(employeePage.locator('h1').first()).toContainText(E2E_THREATS.RANSOMWARE.name);
         await expect(employeePage.getByTestId('threat-detail-edit')).toHaveCount(0);
         await expect(employeePage.getByTestId('threat-detail-archive')).toHaveCount(0);
         await expect(employeePage.getByTestId('threat-risk-links-section')).toBeVisible();
-        await expect(employeePage.getByTestId('threat-risk-links')).toBeVisible();
+        await expect(employeePage.getByTestId('threat-risk-links')).toHaveCount(0);
         await expect(employeePage.getByTestId('threat-risk-link-add')).toHaveCount(0);
         await expect(employeePage.locator('[data-testid^="threat-risk-link-remove-"]')).toHaveCount(0);
     });
