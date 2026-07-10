@@ -32,7 +32,7 @@ import {
 import { waitForDataLoad } from './helpers/wait';
 
 const VENDOR_TIER_CRITICAL = 'Kritický dodavatel';
-const CHAIN_ERROR_LABEL = /^(Chain error|Chyba řetězce)$/;
+const CHAIN_ERROR_LABEL = /^(Broken supply chain|Chyba řetězce)$/;
 
 // Engine-confirmed §2 rows for the seeded vendor, in VAD-major order.
 const EXPECTED_TRANSITIVE_ROWS = [

@@ -64,7 +64,10 @@ function sampleContract(overrides: Partial<VendorContract> = {}): VendorContract
 /** Mimic i18next's dotted-key lookup against a locale bundle (missing key → the key itself). */
 function bundleTranslate(bundle: unknown) {
     return (key: string): string => {
-        const resolved = key.split('.').reduce<unknown>(
+        // i18next resolves a "namespace:" prefix against that namespace's bundle;
+        // the test passes the namespace bundle directly, so strip the prefix first.
+        const dottedKey = key.includes(':') ? key.slice(key.indexOf(':') + 1) : key;
+        const resolved = dottedKey.split('.').reduce<unknown>(
             (node, part) =>
                 node && typeof node === 'object' ? (node as Record<string, unknown>)[part] : undefined,
             bundle,
@@ -152,8 +155,8 @@ describe('Vendor contracts section presentation helpers', () => {
 
         const flagsColumn = columns.find((column) => column.key === 'flags');
         render(flagsColumn?.render?.(sampleContract(), 0) as ReactElement);
-        expect(screen.getByText('contracts.columns.main_flag')).toBeInTheDocument();
-        expect(screen.getByText('contracts.columns.roi_flag')).toBeInTheDocument();
+        expect(screen.getByText('vendors:contracts.columns.main_flag')).toBeInTheDocument();
+        expect(screen.getByText('vendors:contracts.columns.roi_flag')).toBeInTheDocument();
 
         const costColumn = columns.find((column) => column.key === 'annual_cost');
         render(costColumn?.render?.(sampleContract(), 0) as ReactElement);

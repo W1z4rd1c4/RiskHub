@@ -26,7 +26,7 @@ export function buildThreatColumns({
     return [
         {
             key: 'name',
-            label: t('columns.name'),
+            label: t('threats:columns.name'),
             sortable: true,
             className: 'w-[300px] min-w-[220px]',
             render: (threat) => (
@@ -40,13 +40,13 @@ export function buildThreatColumns({
         },
         {
             key: 'category',
-            label: t('columns.category'),
+            label: t('threats:columns.category'),
             sortable: true,
             render: (threat) => <span className="text-sm text-slate-300">{threat.category ?? '—'}</span>,
         },
         {
             key: 'typical_weaknesses',
-            label: t('columns.typical_weaknesses'),
+            label: t('threats:columns.typical_weaknesses'),
             render: (threat) => (
                 <span className="text-sm text-slate-300 truncate block max-w-[260px]">
                     {threat.typical_weaknesses ?? '—'}
@@ -55,13 +55,13 @@ export function buildThreatColumns({
         },
         {
             key: 'relevant_subject',
-            label: t('columns.relevant_subject'),
+            label: t('threats:columns.relevant_subject'),
             sortable: true,
             render: (threat) => <span className="text-sm text-slate-300">{threat.relevant_subject ?? '—'}</span>,
         },
         {
             key: 'status',
-            label: t('columns.status'),
+            label: t('threats:columns.status'),
             className: 'w-[130px]',
             render: (threat) => {
                 const status = getThreatDisplayStatus(threat);
@@ -70,7 +70,7 @@ export function buildThreatColumns({
                         <span
                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getThreatStatusColor(status)}`}
                         >
-                            {t(`status.${status}`)}
+                            {t(`threats:status.${status}`)}
                         </span>
                         {status === 'archived' && canRestoreThreat(threat) ? (
                             <button
@@ -78,7 +78,7 @@ export function buildThreatColumns({
                                 data-testid={`threat-restore-${threat.id}`}
                                 onClick={(event) => void onRestore(threat.id, event)}
                                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                                title={t('actions.restore')}
+                                title={t('threats:actions.restore')}
                             >
                                 <ArchiveRestore className="h-4 w-4" />
                             </button>

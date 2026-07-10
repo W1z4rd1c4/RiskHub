@@ -27,7 +27,7 @@ export function buildProcessColumns({
     return [
         {
             key: 'f_code',
-            label: t('columns.f_code'),
+            label: t('processes:columns.f_code'),
             sortable: true,
             className: 'w-[90px]',
             render: (process) => (
@@ -36,7 +36,7 @@ export function buildProcessColumns({
         },
         {
             key: 'l1_process',
-            label: t('columns.process'),
+            label: t('processes:columns.process'),
             sortable: true,
             className: 'w-[340px] min-w-[240px]',
             render: (process) => (
@@ -50,13 +50,13 @@ export function buildProcessColumns({
         },
         {
             key: 'l0_area',
-            label: t('columns.l0_area'),
+            label: t('processes:columns.l0_area'),
             sortable: true,
             render: (process) => <span className="text-sm text-slate-300">{process.l0_area}</span>,
         },
         {
             key: 'owner',
-            label: t('columns.owner'),
+            label: t('processes:columns.owner'),
             sortable: true,
             render: (process) => (
                 <div className="flex flex-col gap-0.5">
@@ -69,7 +69,7 @@ export function buildProcessColumns({
         },
         {
             key: 'mtpd_hours',
-            label: t('columns.mtpd'),
+            label: t('processes:columns.mtpd'),
             className: 'w-[90px]',
             render: (process) => (
                 <span className="text-sm text-slate-300 tabular-nums">
@@ -80,7 +80,7 @@ export function buildProcessColumns({
         {
             // Engine-derived Criticality class (trida, ticket #48) — read-only.
             key: 'derived_criticality_class',
-            label: t('columns.criticality_class'),
+            label: t('processes:columns.criticality_class'),
             render: (process) => (
                 <CriticalityClassPill criticalityClass={process.derived?.criticality_class} />
             ),
@@ -88,7 +88,7 @@ export function buildProcessColumns({
         {
             // Engine-derived CIF (ticket #48) — read-only.
             key: 'derived_cif',
-            label: t('columns.cif'),
+            label: t('processes:columns.cif'),
             className: 'w-[90px]',
             render: (process) => (
                 <span className="text-sm text-slate-300">{process.derived?.cif ?? '—'}</span>
@@ -96,7 +96,7 @@ export function buildProcessColumns({
         },
         {
             key: 'status',
-            label: t('columns.status'),
+            label: t('processes:columns.status'),
             className: 'w-[130px]',
             render: (process) => {
                 const status = getProcessDisplayStatus(process);
@@ -105,7 +105,7 @@ export function buildProcessColumns({
                         <span
                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getProcessStatusColor(status)}`}
                         >
-                            {t(`status.${status}`)}
+                            {t(`processes:status.${status}`)}
                         </span>
                         {status === 'archived' && canRestoreProcess(process) ? (
                             <button
@@ -113,7 +113,7 @@ export function buildProcessColumns({
                                 data-testid={`process-restore-${process.id}`}
                                 onClick={(event) => void onRestore(process.id, event)}
                                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                                title={t('actions.restore')}
+                                title={t('processes:actions.restore')}
                             >
                                 <ArchiveRestore className="h-4 w-4" />
                             </button>

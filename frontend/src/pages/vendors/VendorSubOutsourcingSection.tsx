@@ -211,23 +211,21 @@ export function VendorSubOutsourcingSection({
         onError: handleMutationError,
     });
 
-    const columns = useMemo(
-        () =>
-            buildVendorSubOutsourcingColumns({
-                t: (key, options) => t(key, options),
-                getContractLabel: (entry) =>
-                    resolveSubOutsourcingContractLabel(
-                        entry,
-                        contractLabelById,
-                        t('common:fallbacks.unknown_contract'),
-                    ),
-                onEdit: openEditForm,
-                onArchive: (entry) => archiveEntry.mutate(entry),
-                onRestore: (entry) => restoreEntry.mutate(entry),
-            }),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [t, contractLabelById, archiveEntry.mutate, restoreEntry.mutate],
-    );
+    // Columns are rebuilt each render (matching AssetsPage/ProcessesPage): the
+    // handlers close over current state and the array is cheap, so memoizing it
+    // would only add an exhaustive-deps burden without a real stability win.
+    const columns = buildVendorSubOutsourcingColumns({
+        t: (key, options) => t(key, options),
+        getContractLabel: (entry) =>
+            resolveSubOutsourcingContractLabel(
+                entry,
+                contractLabelById,
+                t('common:fallbacks.unknown_contract'),
+            ),
+        onEdit: openEditForm,
+        onArchive: (entry) => archiveEntry.mutate(entry),
+        onRestore: (entry) => restoreEntry.mutate(entry),
+    });
 
     // Full-depth chain render: group by Contract, indent by predecessor depth.
     const chainRows = useMemo(() => buildSubOutsourcingChainRows(entries), [entries]);

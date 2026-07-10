@@ -135,7 +135,7 @@ describe('Threats page presentation helpers', () => {
         const statusColumn = columns.find((column) => column.key === 'status');
 
         render(statusColumn?.render?.(sampleThreat({ is_archived: true }), 0) as ReactElement);
-        expect(screen.getByText('status.archived')).toBeInTheDocument();
+        expect(screen.getByText('threats:status.archived')).toBeInTheDocument();
         expect(screen.getByTestId('threat-restore-7')).toBeInTheDocument();
     });
 });

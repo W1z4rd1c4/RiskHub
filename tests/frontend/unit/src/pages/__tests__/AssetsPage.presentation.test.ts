@@ -191,7 +191,7 @@ describe('Assets page presentation helpers', () => {
 
         const statusColumn = columns.find((column) => column.key === 'status');
         render(statusColumn?.render?.(sampleAsset({ is_archived: true }), 0) as ReactElement);
-        expect(screen.getByText('status.archived')).toBeInTheDocument();
+        expect(screen.getByText('assets:status.archived')).toBeInTheDocument();
     });
 
     it('renders the derived CIF read-only with a placeholder when absent', () => {

@@ -335,7 +335,7 @@
       "mutation_failed": "Saving the sub-outsourcing entry failed."
     },
     "chain_status": {
-      "chain_error": "Chain error",
+      "chain_error": "Broken supply chain",
       "duplicate": "Duplicate"
     }
   },

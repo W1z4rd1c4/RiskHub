@@ -152,7 +152,7 @@ export function buildVendorSubOutsourcingColumns({
     return [
         {
             key: 'sub_provider',
-            label: t('sub_outsourcing.columns.sub_provider'),
+            label: t('vendors:sub_outsourcing.columns.sub_provider'),
             className: 'w-[280px] min-w-[200px]',
             render: ({ entry, depth }) => (
                 <div
@@ -174,7 +174,7 @@ export function buildVendorSubOutsourcingColumns({
         },
         {
             key: 'rank',
-            label: t('sub_outsourcing.columns.rank'),
+            label: t('vendors:sub_outsourcing.columns.rank'),
             className: 'w-[110px]',
             render: ({ entry }) => {
                 const broken = entry.derived != null && entry.derived.rank == null;
@@ -195,12 +195,12 @@ export function buildVendorSubOutsourcingColumns({
                                 className="text-[10px] font-black uppercase tracking-widest text-rose-300"
                                 data-testid={`vendor-sub-outsourcing-chain-error-${entry.id}`}
                             >
-                                {t('sub_outsourcing.chain_status.chain_error')}
+                                {t('vendors:sub_outsourcing.chain_status.chain_error')}
                             </span>
                         ) : null}
                         {duplicate ? (
                             <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">
-                                {t('sub_outsourcing.chain_status.duplicate')}
+                                {t('vendors:sub_outsourcing.chain_status.duplicate')}
                             </span>
                         ) : null}
                     </div>
@@ -209,7 +209,7 @@ export function buildVendorSubOutsourcingColumns({
         },
         {
             key: 'contract',
-            label: t('sub_outsourcing.columns.contract'),
+            label: t('vendors:sub_outsourcing.columns.contract'),
             render: ({ entry }) => (
                 <div className="flex flex-col gap-0.5">
                     <span className="text-sm text-slate-300">{getContractLabel(entry)}</span>
@@ -218,7 +218,7 @@ export function buildVendorSubOutsourcingColumns({
                             className="inline-flex w-fit items-center rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-rose-300"
                             data-testid={`vendor-sub-outsourcing-critical-${entry.id}`}
                         >
-                            {t('sub_outsourcing.columns.critical_service')}
+                            {t('vendors:sub_outsourcing.columns.critical_service')}
                         </span>
                     ) : null}
                 </div>
@@ -226,13 +226,13 @@ export function buildVendorSubOutsourcingColumns({
         },
         {
             key: 'country',
-            label: t('sub_outsourcing.columns.country'),
+            label: t('vendors:sub_outsourcing.columns.country'),
             className: 'w-[90px]',
             render: ({ entry }) => <span className="text-sm text-slate-300">{entry.country ?? '—'}</span>,
         },
         {
             key: 'ict_service_code',
-            label: t('sub_outsourcing.columns.ict_service'),
+            label: t('vendors:sub_outsourcing.columns.ict_service'),
             className: 'w-[110px]',
             render: ({ entry }) => (
                 <span className="text-sm text-slate-300">{entry.ict_service_code ?? '—'}</span>
@@ -240,7 +240,7 @@ export function buildVendorSubOutsourcingColumns({
         },
         {
             key: 'status',
-            label: t('sub_outsourcing.columns.status'),
+            label: t('vendors:sub_outsourcing.columns.status'),
             className: 'w-[120px]',
             render: ({ entry }) => {
                 const status = getSubOutsourcingDisplayStatus(entry);
@@ -248,7 +248,7 @@ export function buildVendorSubOutsourcingColumns({
                     <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getSubOutsourcingStatusColor(status)}`}
                     >
-                        {t(`status.${status}`)}
+                        {t(`vendors:status.${status}`)}
                     </span>
                 );
             },
@@ -265,7 +265,7 @@ export function buildVendorSubOutsourcingColumns({
                             data-testid={`vendor-sub-outsourcing-edit-${entry.id}`}
                             onClick={(event) => onEdit(entry, event)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                            title={t('sub_outsourcing.actions.edit')}
+                            title={t('vendors:sub_outsourcing.actions.edit')}
                         >
                             <Pencil className="h-4 w-4" />
                         </button>
@@ -276,7 +276,7 @@ export function buildVendorSubOutsourcingColumns({
                             data-testid={`vendor-sub-outsourcing-archive-${entry.id}`}
                             onClick={(event) => void onArchive(entry, event)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-                            title={t('sub_outsourcing.actions.archive')}
+                            title={t('vendors:sub_outsourcing.actions.archive')}
                         >
                             <Trash2 className="h-4 w-4" />
                         </button>
@@ -287,7 +287,7 @@ export function buildVendorSubOutsourcingColumns({
                             data-testid={`vendor-sub-outsourcing-restore-${entry.id}`}
                             onClick={(event) => void onRestore(entry, event)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                            title={t('sub_outsourcing.actions.restore')}
+                            title={t('vendors:sub_outsourcing.actions.restore')}
                         >
                             <ArchiveRestore className="h-4 w-4" />
                         </button>

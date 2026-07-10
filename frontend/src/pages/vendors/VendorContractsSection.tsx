@@ -189,17 +189,15 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
         onError: handleMutationError,
     });
 
-    const columns = useMemo(
-        () =>
-            buildVendorContractColumns({
-                t: (key, options) => t(key, options),
-                onEdit: openEditForm,
-                onArchive: (contract) => archiveContract.mutate(contract),
-                onRestore: (contract) => restoreContract.mutate(contract),
-            }),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [t, archiveContract.mutate, restoreContract.mutate],
-    );
+    // Columns are rebuilt each render (matching AssetsPage/ProcessesPage): the
+    // handlers close over current state and the array is cheap, so memoizing it
+    // would only add an exhaustive-deps burden without a real stability win.
+    const columns = buildVendorContractColumns({
+        t: (key, options) => t(key, options),
+        onEdit: openEditForm,
+        onArchive: (contract) => archiveContract.mutate(contract),
+        onRestore: (contract) => restoreContract.mutate(contract),
+    });
 
     const contracts = contractsQuery.data ?? [];
 

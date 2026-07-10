@@ -27,7 +27,7 @@ export function buildAssetColumns({
     return [
         {
             key: 'name',
-            label: t('columns.name'),
+            label: t('assets:columns.name'),
             sortable: true,
             className: 'w-[300px] min-w-[220px]',
             render: (asset) => (
@@ -41,13 +41,13 @@ export function buildAssetColumns({
         },
         {
             key: 'asset_type',
-            label: t('columns.asset_type'),
+            label: t('assets:columns.asset_type'),
             sortable: true,
             render: (asset) => <span className="text-sm text-slate-300">{asset.asset_type ?? '—'}</span>,
         },
         {
             key: 'business_owner',
-            label: t('columns.owner'),
+            label: t('assets:columns.owner'),
             render: (asset) => (
                 <div className="flex flex-col gap-0.5">
                     <span className="text-sm text-slate-300">{asset.business_owner ?? '—'}</span>
@@ -60,7 +60,7 @@ export function buildAssetColumns({
         {
             // Engine-derived resulting criticality (vysledna, ticket #48) — read-only.
             key: 'derived_resulting_criticality',
-            label: t('columns.resulting_criticality'),
+            label: t('assets:columns.resulting_criticality'),
             render: (asset) => (
                 <CriticalityClassPill criticalityClass={asset.derived?.resulting_criticality} />
             ),
@@ -68,7 +68,7 @@ export function buildAssetColumns({
         {
             // Engine-derived CIF support (ticket #48) — read-only.
             key: 'derived_cif',
-            label: t('columns.cif'),
+            label: t('assets:columns.cif'),
             className: 'w-[90px]',
             render: (asset) => (
                 <span className="text-sm text-slate-300">{asset.derived?.cif ?? '—'}</span>
@@ -76,7 +76,7 @@ export function buildAssetColumns({
         },
         {
             key: 'lifecycle_state',
-            label: t('columns.lifecycle_state'),
+            label: t('assets:columns.lifecycle_state'),
             sortable: true,
             className: 'w-[130px]',
             render: (asset) => (
@@ -85,7 +85,7 @@ export function buildAssetColumns({
         },
         {
             key: 'status',
-            label: t('columns.status'),
+            label: t('assets:columns.status'),
             className: 'w-[130px]',
             render: (asset) => {
                 const status = getAssetDisplayStatus(asset);
@@ -94,7 +94,7 @@ export function buildAssetColumns({
                         <span
                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getAssetStatusColor(status)}`}
                         >
-                            {t(`status.${status}`)}
+                            {t(`assets:status.${status}`)}
                         </span>
                         {status === 'archived' && canRestoreAsset(asset) ? (
                             <button
@@ -102,7 +102,7 @@ export function buildAssetColumns({
                                 data-testid={`asset-restore-${asset.id}`}
                                 onClick={(event) => void onRestore(asset.id, event)}
                                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                                title={t('actions.restore')}
+                                title={t('assets:actions.restore')}
                             >
                                 <ArchiveRestore className="h-4 w-4" />
                             </button>

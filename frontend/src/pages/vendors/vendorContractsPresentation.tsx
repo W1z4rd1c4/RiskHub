@@ -77,7 +77,7 @@ export function buildVendorContractColumns({
     return [
         {
             key: 'contract_reference',
-            label: t('contracts.columns.reference'),
+            label: t('vendors:contracts.columns.reference'),
             className: 'w-[220px] min-w-[160px]',
             render: (contract) => (
                 <div className="flex flex-col gap-0.5">
@@ -94,7 +94,7 @@ export function buildVendorContractColumns({
                             className="inline-flex w-fit items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-300"
                             data-testid={`vendor-contract-duplicate-${contract.id}`}
                         >
-                            {t('contracts.columns.duplicate_flag')}
+                            {t('vendors:contracts.columns.duplicate_flag')}
                         </span>
                     ) : null}
                 </div>
@@ -102,24 +102,24 @@ export function buildVendorContractColumns({
         },
         {
             key: 'arrangement_type',
-            label: t('contracts.columns.arrangement_type'),
+            label: t('vendors:contracts.columns.arrangement_type'),
             render: (contract) => (
                 <span className="text-sm text-slate-300">{contract.arrangement_type ?? '—'}</span>
             ),
         },
         {
             key: 'flags',
-            label: t('contracts.columns.flags'),
+            label: t('vendors:contracts.columns.flags'),
             render: (contract) => (
                 <div className="flex flex-wrap items-center gap-1.5">
                     {contract.main_contract === 'Ano' ? (
                         <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-300">
-                            {t('contracts.columns.main_flag')}
+                            {t('vendors:contracts.columns.main_flag')}
                         </span>
                     ) : null}
                     {contract.roi_scope === 'Ano' ? (
                         <span className="inline-flex items-center rounded-full border border-indigo-400/30 bg-indigo-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-indigo-300">
-                            {t('contracts.columns.roi_flag')}
+                            {t('vendors:contracts.columns.roi_flag')}
                         </span>
                     ) : null}
                     {contract.derived?.cif === 'Ano' ? (
@@ -127,7 +127,7 @@ export function buildVendorContractColumns({
                             className="inline-flex items-center rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-rose-300"
                             data-testid={`vendor-contract-cif-${contract.id}`}
                         >
-                            {t('contracts.columns.cif')}
+                            {t('vendors:contracts.columns.cif')}
                         </span>
                     ) : null}
                     {contract.main_contract !== 'Ano' &&
@@ -140,7 +140,7 @@ export function buildVendorContractColumns({
         },
         {
             key: 'chain',
-            label: t('contracts.columns.chain'),
+            label: t('vendors:contracts.columns.chain'),
             render: (contract) =>
                 contract.derived ? (
                     <span
@@ -155,7 +155,7 @@ export function buildVendorContractColumns({
         },
         {
             key: 'term',
-            label: t('contracts.columns.term'),
+            label: t('vendors:contracts.columns.term'),
             render: (contract) => (
                 <span className="text-sm text-slate-300">
                     {contract.start_date ?? '—'} → {contract.end_date ?? '—'}
@@ -164,14 +164,14 @@ export function buildVendorContractColumns({
         },
         {
             key: 'annual_cost',
-            label: t('contracts.columns.annual_cost'),
+            label: t('vendors:contracts.columns.annual_cost'),
             render: (contract) => (
                 <span className="text-sm text-slate-300">{formatContractCost(contract) ?? '—'}</span>
             ),
         },
         {
             key: 'status',
-            label: t('contracts.columns.status'),
+            label: t('vendors:contracts.columns.status'),
             className: 'w-[120px]',
             render: (contract) => {
                 const status = getContractDisplayStatus(contract);
@@ -179,7 +179,7 @@ export function buildVendorContractColumns({
                     <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getContractStatusColor(status)}`}
                     >
-                        {t(`status.${status}`)}
+                        {t(`vendors:status.${status}`)}
                     </span>
                 );
             },
@@ -196,7 +196,7 @@ export function buildVendorContractColumns({
                             data-testid={`vendor-contract-edit-${contract.id}`}
                             onClick={(event) => onEdit(contract, event)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                            title={t('contracts.actions.edit')}
+                            title={t('vendors:contracts.actions.edit')}
                         >
                             <Pencil className="h-4 w-4" />
                         </button>
@@ -207,7 +207,7 @@ export function buildVendorContractColumns({
                             data-testid={`vendor-contract-archive-${contract.id}`}
                             onClick={(event) => void onArchive(contract, event)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-                            title={t('contracts.actions.archive')}
+                            title={t('vendors:contracts.actions.archive')}
                         >
                             <Trash2 className="h-4 w-4" />
                         </button>
@@ -218,7 +218,7 @@ export function buildVendorContractColumns({
                             data-testid={`vendor-contract-restore-${contract.id}`}
                             onClick={(event) => void onRestore(contract, event)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                            title={t('contracts.actions.restore')}
+                            title={t('vendors:contracts.actions.restore')}
                         >
                             <ArchiveRestore className="h-4 w-4" />
                         </button>

@@ -112,7 +112,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
 
     if (isLoading) {
         return (
-            <div className="glass-card animate-pulse text-sm text-slate-400">{tCommon('loading')}</div>
+            <div className="glass-card animate-pulse text-sm text-slate-400">{tCommon('loading.generic')}</div>
         );
     }
 

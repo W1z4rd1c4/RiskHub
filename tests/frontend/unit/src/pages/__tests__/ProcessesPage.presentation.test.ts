@@ -166,7 +166,7 @@ describe('Processes page presentation helpers', () => {
 
         const statusColumn = columns.find((column) => column.key === 'status');
         render(statusColumn?.render?.(sampleProcess({ is_archived: true }), 0) as ReactElement);
-        expect(screen.getByText('status.archived')).toBeInTheDocument();
+        expect(screen.getByText('processes:status.archived')).toBeInTheDocument();
     });
 
     it('exposes MTPD and the derived criticality columns in the register column set', () => {

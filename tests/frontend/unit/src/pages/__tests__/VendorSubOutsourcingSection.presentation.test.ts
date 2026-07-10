@@ -291,7 +291,7 @@ describe('Vendor sub-outsourcing section presentation helpers', () => {
         );
         expect(screen.getByTestId('vendor-sub-outsourcing-rank-62')).toHaveTextContent('?');
         expect(screen.getByTestId('vendor-sub-outsourcing-chain-error-62')).toHaveTextContent(
-            'sub_outsourcing.chain_status.chain_error'
+            'vendors:sub_outsourcing.chain_status.chain_error'
         );
 
         // Before the engine block arrives the badge stays a placeholder.
