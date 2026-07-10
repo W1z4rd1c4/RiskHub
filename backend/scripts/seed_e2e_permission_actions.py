@@ -98,18 +98,10 @@ async def seed_control_executions(db, users, controls):
 
 
 async def seed_kri_value_history(db, users, kris):
-    """Seed KRI value history entries including corrections."""
-    # Check for existing E2E entries
-    result = await db.execute(select(KRIValueHistory).limit(5))
-    existing = result.scalars().all()
-
-    # Only seed if there are very few history entries
-    if len(existing) >= 10:
-        print("   ⏭️  KRI value history already has sufficient entries")
-        return 0
-
+    """Upsert KRI value history entries by natural key (kri_id, period_end)."""
     reporter_id = users.get("fin.analyst@riskhub.local")
     created = 0
+    updated = 0
     base_time = utc_now()
     today = date.today()
 
@@ -127,22 +119,34 @@ async def seed_kri_value_history(db, users, kris):
             elif value < 30:
                 breach_status = "below"
 
-            history_entry = KRIValueHistory(
-                kri_id=kri.id,
-                period_start=period_start,
-                period_end=period_end,
-                recorded_at=base_time - timedelta(days=period_offset * 30 - 2),
-                recorded_by_id=reporter_id,
-                value=value,
-                lower_limit=kri.lower_limit or 20,
-                upper_limit=kri.upper_limit or 80,
-                unit=kri.unit or "%",
-                breach_status=breach_status,
-            )
-            db.add(history_entry)
-            created += 1
+            payload = {
+                "period_start": period_start,
+                "recorded_at": base_time - timedelta(days=period_offset * 30 - 2),
+                "recorded_by_id": reporter_id,
+                "value": value,
+                "lower_limit": kri.lower_limit or 20,
+                "upper_limit": kri.upper_limit or 80,
+                "unit": kri.unit or "%",
+                "breach_status": breach_status,
+            }
 
-    print(f"   ✓ KRI_VALUE_HISTORY: {created} period entries")
+            # Rows are unique on (kri_id, period_end): update if present, create if absent.
+            result = await db.execute(
+                select(KRIValueHistory).where(
+                    KRIValueHistory.kri_id == kri.id,
+                    KRIValueHistory.period_end == period_end,
+                )
+            )
+            history_entry = result.scalar_one_or_none()
+            if history_entry is None:
+                db.add(KRIValueHistory(kri_id=kri.id, period_end=period_end, **payload))
+                created += 1
+            else:
+                for key, value_ in payload.items():
+                    setattr(history_entry, key, value_)
+                updated += 1
+
+    print(f"   ✓ KRI_VALUE_HISTORY: created={created}, updated={updated}")
     return created
 
 
@@ -155,14 +159,14 @@ async def seed_permission_actions():
     async with session_context(get_settings()) as db:
         users, depts = await load_mappings(db)
 
-        # Get sample entities
-        risk_result = await db.execute(select(Risk).limit(3))
+        # Get sample entities (ordered by id so re-runs upsert the same rows)
+        risk_result = await db.execute(select(Risk).order_by(Risk.id).limit(3))
         risks = risk_result.scalars().all()
 
-        control_result = await db.execute(select(Control).limit(5))
+        control_result = await db.execute(select(Control).order_by(Control.id).limit(5))
         controls = control_result.scalars().all()
 
-        kri_result = await db.execute(select(KeyRiskIndicator).limit(5))
+        kri_result = await db.execute(select(KeyRiskIndicator).order_by(KeyRiskIndicator.id).limit(5))
         kris = kri_result.scalars().all()
 
         total = 0
