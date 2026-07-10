@@ -388,6 +388,8 @@ DERIVED_SUB_OUTSOURCING_WRITES: dict[str, object] = {
     "roi_scope_helper": "Ano",
     "predecessor_exists_helper": 1,
     "vendor_id": 1,
+    # The whole engine block (#49) is a read surface, never a write.
+    "derived": {"rank": 2, "chain_check": "OK"},
 }
 
 

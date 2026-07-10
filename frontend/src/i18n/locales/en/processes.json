@@ -95,7 +95,15 @@
             "cif_mtpd_within_critical": "CIF trigger: MTPD within the critical bound",
             "cif_any_impact_maximal": "CIF trigger: an impact axis at 5",
             "missing": "Missing for completeness",
-            "none": "None"
+            "none": "None",
+            "manual_vendor_link_count": "Direct vendor links (§1)",
+            "transitive_vendor_pair_count": "Derived vendor pairs (§2)"
+        },
+        "transitive": {
+            "title": "Vendors via assets (derived)",
+            "vendor": "Vendor",
+            "via_asset": "Via asset",
+            "empty": "No derived vendor links."
         }
     },
     "messages": {

@@ -28,6 +28,9 @@ export interface VendorSubOutsourcing {
     ict_service_code?: string | null;
     note?: string | null;
 
+    // Engine-derived block (ticket #49): read-only, rejected on write.
+    derived?: VendorSubOutsourcingDerived | null;
+
     is_archived: boolean;
     archived_at?: string | null;
     archived_by_id?: number | null;
@@ -36,12 +39,38 @@ export interface VendorSubOutsourcing {
     updated_at: string;
 }
 
+/** The chain-walk ingredients behind the derived block. */
+export interface VendorSubOutsourcingDerivedInputs {
+    contract_id: number;
+    predecessor_id?: number | null;
+    predecessor_rank?: number | null;
+    is_direct: boolean;
+    duplicate_key_count: number;
+}
+
+/**
+ * Engine-derived 09_Subdodávky columns (ticket #49) — read-only, computed on
+ * read. A null rank is the workbook's "?" unknown-rank sentinel; chain_check
+ * then reads CHYBA ŘETĚZCE (unless DUPLICITA takes precedence).
+ */
+export interface VendorSubOutsourcingDerived {
+    contract_reference?: string | null;
+    contract_vendor_id?: number | null;
+    contract_vendor_name: string;
+    rank?: number | null;
+    critical_service: string;
+    chain_check: string;
+    roi_scope?: string | null;
+    inputs: VendorSubOutsourcingDerivedInputs;
+}
+
 /** Entered columns only — the write payload never carries derived columns. */
 export type VendorSubOutsourcingWritePayload = Partial<
     Omit<
         VendorSubOutsourcing,
         | 'id'
         | 'vendor_id'
+        | 'derived'
         | 'is_archived'
         | 'archived_at'
         | 'archived_by_id'

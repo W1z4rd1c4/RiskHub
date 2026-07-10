@@ -37,6 +37,20 @@ export const processDerivedInputsSchema = passthroughObject({
     bcm_link: z.string().nullable().optional(),
     assessment_date: z.string().nullable().optional(),
     missing_for_completeness: z.array(z.string()),
+    manual_vendor_link_count: z.number(),
+    transitive_vendor_pair_count: z.number(),
+});
+
+/** One derived 11 §2 row (#49): a (Process, Vendor) pair implied via an Asset. */
+export const processTransitiveVendorLinkSchema = passthroughObject({
+    process_id: z.number(),
+    process_name: z.string(),
+    process_cif: z.string().nullable().optional(),
+    process_criticality: z.string().nullable().optional(),
+    vendor_id: z.number(),
+    vendor_name: z.string(),
+    via_asset_id: z.number(),
+    via_asset_name: z.string(),
 });
 
 export const processDerivedSchema = passthroughObject({
@@ -51,6 +65,7 @@ export const processDerivedSchema = passthroughObject({
     is_complete: z.boolean(),
     is_duplicate: z.boolean(),
     inputs: processDerivedInputsSchema,
+    transitive_vendor_links: z.array(processTransitiveVendorLinkSchema),
 });
 
 export const processSchema: z.ZodType<Process> = passthroughObject({

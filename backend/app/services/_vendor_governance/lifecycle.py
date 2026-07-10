@@ -17,7 +17,7 @@ from .policy import (
     assert_vendor_update_allowed,
     load_vendor_with_deps,
 )
-from .projection import serialize_vendor_detail
+from .projection import serialize_vendor_detail_with_derived
 
 
 async def create_vendor_detail(
@@ -49,7 +49,7 @@ async def create_vendor_detail(
     refreshed = await load_vendor_with_deps(db, vendor.id)
     if not refreshed:
         raise NotFoundError("Vendor not found")
-    return serialize_vendor_detail(refreshed, current_user=current_user)
+    return await serialize_vendor_detail_with_derived(db, refreshed, current_user=current_user)
 
 
 async def read_vendor_detail(
@@ -59,7 +59,7 @@ async def read_vendor_detail(
     current_user: User,
 ) -> VendorRead:
     vendor = await assert_vendor_readable(db, vendor_id=vendor_id, current_user=current_user)
-    return serialize_vendor_detail(vendor, current_user=current_user)
+    return await serialize_vendor_detail_with_derived(db, vendor, current_user=current_user)
 
 
 async def update_vendor_detail(
@@ -72,7 +72,7 @@ async def update_vendor_detail(
     vendor = await assert_vendor_update_allowed(db, vendor_id=vendor_id, current_user=current_user)
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
     if not updates:
-        return serialize_vendor_detail(vendor, current_user=current_user)
+        return await serialize_vendor_detail_with_derived(db, vendor, current_user=current_user)
 
     await assert_vendor_governance_update_allowed(db, current_user=current_user, vendor=vendor, updates=updates)
     changes = audit_vendor.vendor_update_changes(vendor, updates)
@@ -94,7 +94,7 @@ async def update_vendor_detail(
     refreshed = await load_vendor_with_deps(db, vendor.id)
     if not refreshed:
         raise NotFoundError("Vendor not found")
-    return serialize_vendor_detail(refreshed, current_user=current_user)
+    return await serialize_vendor_detail_with_derived(db, refreshed, current_user=current_user)
 
 
 async def archive_vendor_detail(
@@ -139,4 +139,4 @@ async def restore_vendor_detail(
     refreshed = await load_vendor_with_deps(db, vendor.id)
     if not refreshed:
         raise NotFoundError("Vendor not found")
-    return serialize_vendor_detail(refreshed, current_user=current_user)
+    return await serialize_vendor_detail_with_derived(db, refreshed, current_user=current_user)

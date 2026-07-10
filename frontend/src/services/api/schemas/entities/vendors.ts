@@ -46,6 +46,96 @@ export const vendorContractCapabilitiesSchema = passthroughObject({
     can_archive: z.boolean(),
     can_restore: z.boolean(),
 });
+
+// Engine-derived blocks (ticket #49): read-only values computed on read,
+// each with the explain inputs behind it.
+export const vendorTransitiveProcessLinkSchema = passthroughObject({
+    process_id: z.number(),
+    process_name: z.string(),
+    process_cif: z.string().nullable().optional(),
+    process_criticality: z.string().nullable().optional(),
+    vendor_id: z.number(),
+    vendor_name: z.string(),
+    via_asset_id: z.number(),
+    via_asset_name: z.string(),
+});
+
+export const vendorDerivedInputsSchema = passthroughObject({
+    country: z.string().nullable().optional(),
+    substitutability: z.string().nullable().optional(),
+    exit_plan_state: z.string().nullable().optional(),
+    ex_ante_assessment_date: z.string().nullable().optional(),
+    significance_authorization_conditions: z.string().nullable().optional(),
+    significance_regulatory_requirements: z.string().nullable().optional(),
+    significance_service_quality: z.string().nullable().optional(),
+    significance_financial_impact: z.string().nullable().optional(),
+    significance_reputation_continuity: z.string().nullable().optional(),
+    significance_cumulative_impact: z.string().nullable().optional(),
+    cif_asset_link_count: z.number(),
+    cif_process_link_count: z.number(),
+    tier_cif_chain: z.boolean(),
+    tier_max_rank_at_least_high: z.boolean(),
+    tier_substitutability_match: z.boolean(),
+    cloud_service_link_count: z.number(),
+    manual_process_link_count: z.number(),
+    transitive_process_pair_count: z.number(),
+    missing_for_completeness: z.array(z.string()),
+});
+
+export const vendorDerivedSchema = passthroughObject({
+    country_category: z.string().nullable().optional(),
+    cif: z.string(),
+    linked_asset_count: z.number(),
+    linked_process_count: z.number(),
+    cif_process_count: z.number(),
+    h_rank: z.number(),
+    max_criticality: z.string().nullable().optional(),
+    tier: z.string(),
+    cif_chain: z.string(),
+    chain_level: z.string().nullable().optional(),
+    direct_sub_provider_names: z.array(z.string()),
+    direct_sub_provider_count: z.number(),
+    significance_outcome: z.string(),
+    main_contract_reference: z.string().nullable().optional(),
+    main_contract_arrangement_type: z.string().nullable().optional(),
+    main_contract_start_date: z.string().nullable().optional(),
+    main_contract_end_date: z.string().nullable().optional(),
+    contract_count: z.number(),
+    main_contract_count: z.number(),
+    is_complete: z.boolean(),
+    inputs: vendorDerivedInputsSchema,
+    transitive_process_links: z.array(vendorTransitiveProcessLinkSchema),
+});
+
+export const vendorContractDerivedSchema = passthroughObject({
+    vendor_name: z.string(),
+    sub_outsourcing_chain: z.string(),
+    duplicate_check: z.string(),
+    cif: z.string(),
+    inputs: passthroughObject({
+        vendor_id: z.number(),
+        prime_vendor_cif: z.string(),
+        reference_duplicate_count: z.number(),
+        sub_outsourcing_count: z.number(),
+    }),
+});
+
+export const vendorSubOutsourcingDerivedSchema = passthroughObject({
+    contract_reference: z.string().nullable().optional(),
+    contract_vendor_id: z.number().nullable().optional(),
+    contract_vendor_name: z.string(),
+    rank: z.number().nullable().optional(),
+    critical_service: z.string(),
+    chain_check: z.string(),
+    roi_scope: z.string().nullable().optional(),
+    inputs: passthroughObject({
+        contract_id: z.number(),
+        predecessor_id: z.number().nullable().optional(),
+        predecessor_rank: z.number().nullable().optional(),
+        is_direct: z.boolean(),
+        duplicate_key_count: z.number(),
+    }),
+});
 export const vendorListCapabilitiesSchema = passthroughObject({
     can_export: z.boolean().optional(),
     can_create: z.boolean().optional(),
@@ -122,6 +212,7 @@ export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
     note: z.string().nullable().optional(),
     reference_occurrence_count: z.number().nullable().optional(),
     reference_process_count: z.number().nullable().optional(),
+    derived: vendorDerivedSchema.nullable().optional(),
     is_archived: z.boolean(),
     archived_at: z.string().nullable().optional(),
     archived_by_id: z.number().nullable().optional(),
@@ -148,6 +239,7 @@ export const vendorContractSchema: z.ZodType<VendorContract> = passthroughObject
     annual_cost: z.union([z.number(), z.string()]).nullable().optional(),
     currency: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
+    derived: vendorContractDerivedSchema.nullable().optional(),
     is_archived: z.boolean(),
     archived_at: z.string().nullable().optional(),
     archived_by_id: z.number().nullable().optional(),
@@ -176,6 +268,7 @@ export const vendorSubOutsourcingSchema: z.ZodType<VendorSubOutsourcing> = passt
     country: z.string().nullable().optional(),
     ict_service_code: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
+    derived: vendorSubOutsourcingDerivedSchema.nullable().optional(),
     is_archived: z.boolean(),
     archived_at: z.string().nullable().optional(),
     archived_by_id: z.number().nullable().optional(),

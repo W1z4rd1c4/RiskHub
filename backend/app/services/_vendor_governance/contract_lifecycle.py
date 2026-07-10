@@ -16,7 +16,10 @@ from .contract_policy import (
     assert_contract_update_allowed,
     assert_contract_vendor_readable,
 )
-from .contract_projection import serialize_contract_collection, serialize_contract_detail
+from .contract_projection import (
+    serialize_contract_collection,
+    serialize_contract_detail_with_derived,
+)
 
 
 async def create_vendor_contract_detail(
@@ -35,7 +38,9 @@ async def create_vendor_contract_detail(
     await audit_vendor_contract.vendor_contract_created(db, actor=current_user, contract=contract)
     await commit_service_boundary(db, boundary="vendor_contract_create")
     await db.refresh(contract)
-    return serialize_contract_detail(contract, current_user=current_user, vendor=vendor)
+    return await serialize_contract_detail_with_derived(
+        db, contract, current_user=current_user, vendor=vendor
+    )
 
 
 async def list_vendor_contract_collection(
@@ -51,7 +56,7 @@ async def list_vendor_contract_collection(
     if not include_archived:
         query = query.where(archived_clause(VendorContract, archived=False))
     rows = (await db.execute(query.order_by(asc(VendorContract.id)))).scalars().all()
-    return serialize_contract_collection(list(rows), current_user=current_user, vendor=vendor)
+    return await serialize_contract_collection(db, list(rows), current_user=current_user, vendor=vendor)
 
 
 async def update_vendor_contract_detail(
@@ -68,7 +73,9 @@ async def update_vendor_contract_detail(
     vendor = await assert_contract_vendor_readable(db, vendor_id=vendor_id, current_user=current_user)
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
     if not updates:
-        return serialize_contract_detail(contract, current_user=current_user, vendor=vendor)
+        return await serialize_contract_detail_with_derived(
+            db, contract, current_user=current_user, vendor=vendor
+        )
 
     changes = audit_vendor_contract.vendor_contract_update_changes(contract, updates)
     for field, value in updates.items():
@@ -79,7 +86,9 @@ async def update_vendor_contract_detail(
     )
     await commit_service_boundary(db, boundary="vendor_contract_update")
     await db.refresh(contract)
-    return serialize_contract_detail(contract, current_user=current_user, vendor=vendor)
+    return await serialize_contract_detail_with_derived(
+        db, contract, current_user=current_user, vendor=vendor
+    )
 
 
 async def archive_vendor_contract_detail(
@@ -120,4 +129,6 @@ async def restore_vendor_contract_detail(
     )
     await commit_service_boundary(db, boundary="vendor_contract_restore")
     await db.refresh(contract)
-    return serialize_contract_detail(contract, current_user=current_user, vendor=vendor)
+    return await serialize_contract_detail_with_derived(
+        db, contract, current_user=current_user, vendor=vendor
+    )

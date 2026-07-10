@@ -28,6 +28,21 @@ export interface ProcessDerivedInputs {
     bcm_link?: string | null;
     assessment_date?: string | null;
     missing_for_completeness: string[];
+    /** dod_n breakdown (#49): manual §1 pairs + derived §2 triples. */
+    manual_vendor_link_count: number;
+    transitive_vendor_pair_count: number;
+}
+
+/** One derived 11 §2 row: a (Process, Vendor) pair implied via an Asset (#49). */
+export interface ProcessTransitiveVendorLink {
+    process_id: number;
+    process_name: string;
+    process_cif?: string | null;
+    process_criticality?: string | null;
+    vendor_id: number;
+    vendor_name: string;
+    via_asset_id: number;
+    via_asset_name: string;
 }
 
 /** Engine-derived 03_Procesy values (ticket #48) — read-only, computed on read. */
@@ -43,6 +58,8 @@ export interface ProcessDerived {
     is_complete: boolean;
     is_duplicate: boolean;
     inputs: ProcessDerivedInputs;
+    /** Derived-only §2 rows for this Process — never persisted (#49). */
+    transitive_vendor_links: ProcessTransitiveVendorLink[];
 }
 
 export interface ProcessListCapabilities {

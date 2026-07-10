@@ -157,7 +157,11 @@
             "h_rank": "h_rank (MAX)",
             "reference_date": "Reference date (P_RefDatum)",
             "thresholds": "Score thresholds (Nízká / Střední / Vysoká)",
-            "none": "None"
-        }
+            "none": "None",
+            "missing": "Missing for completeness"
+        },
+        "is_complete": "Complete (hotovo)",
+        "complete": "Complete",
+        "incomplete": "Incomplete"
     }
 }

@@ -7,8 +7,27 @@ import {
     buildVendorContractColumns,
     buildVendorContractPayload,
     getContractDisplayStatus,
+    isContractReferenceDuplicate,
 } from '@/pages/vendors/vendorContractsPresentation';
-import type { VendorContract } from '@/types/vendorContract';
+import type { VendorContract, VendorContractDerived } from '@/types/vendorContract';
+
+function sampleContractDerived(
+    overrides: Partial<VendorContractDerived> = {},
+): VendorContractDerived {
+    return {
+        vendor_name: 'BIZ DATA',
+        sub_outsourcing_chain: 'BIZ DATA → CLOUD OPS s.r.o. → DC HOSTING GmbH',
+        duplicate_check: 'OK',
+        cif: 'Ano',
+        inputs: {
+            vendor_id: 4,
+            prime_vendor_cif: 'Ano',
+            reference_duplicate_count: 1,
+            sub_outsourcing_count: 2,
+        },
+        ...overrides,
+    };
+}
 
 function sampleContract(overrides: Partial<VendorContract> = {}): VendorContract {
     return {
@@ -140,6 +159,90 @@ describe('Vendor contracts section presentation helpers', () => {
         screen.getByTestId('vendor-contract-restore-12').click();
         expect(onRestore).toHaveBeenCalledTimes(1);
         expect(onRestore.mock.calls[0][0]).toEqual(expect.objectContaining({ id: 12 }));
+    });
+
+    it('flags a register-wide duplicate reference from the engine block (#49)', () => {
+        expect(isContractReferenceDuplicate(sampleContract({ derived: null }))).toBe(false);
+        expect(
+            isContractReferenceDuplicate(sampleContract({ derived: sampleContractDerived() })),
+        ).toBe(false);
+        expect(
+            isContractReferenceDuplicate(
+                sampleContract({
+                    derived: sampleContractDerived({ duplicate_check: 'DUPLICITA' }),
+                }),
+            ),
+        ).toBe(true);
+
+        const columns = buildVendorContractColumns({
+            t: (key: string) => key,
+            onEdit: () => undefined,
+            onArchive: () => undefined,
+            onRestore: () => undefined,
+        });
+        const referenceColumn = columns.find((column) => column.key === 'contract_reference');
+        render(
+            referenceColumn?.render?.(
+                sampleContract({
+                    id: 31,
+                    derived: sampleContractDerived({
+                        duplicate_check: 'DUPLICITA',
+                        inputs: {
+                            vendor_id: 4,
+                            prime_vendor_cif: 'Ano',
+                            reference_duplicate_count: 2,
+                            sub_outsourcing_count: 0,
+                        },
+                    }),
+                }),
+                0
+            ) as ReactElement
+        );
+        expect(screen.getByTestId('vendor-contract-duplicate-31')).toHaveTextContent(
+            'contracts.columns.duplicate_flag'
+        );
+    });
+
+    it('renders the derived CIF flag and the full-depth chain display (#49)', () => {
+        const columns = buildVendorContractColumns({
+            t: (key: string) => key,
+            onEdit: () => undefined,
+            onArchive: () => undefined,
+            onRestore: () => undefined,
+        });
+
+        const flagsColumn = columns.find((column) => column.key === 'flags');
+        render(
+            flagsColumn?.render?.(
+                sampleContract({ id: 41, derived: sampleContractDerived({ cif: 'Ano' }) }),
+                0
+            ) as ReactElement
+        );
+        expect(screen.getByTestId('vendor-contract-cif-41')).toHaveTextContent(
+            'contracts.columns.cif'
+        );
+
+        // The chain column shows the derived vendor-name-led display string —
+        // full depth (the workbook's 2-tier string cap was display-only).
+        const chainColumn = columns.find((column) => column.key === 'chain');
+        render(
+            chainColumn?.render?.(
+                sampleContract({ id: 42, derived: sampleContractDerived() }),
+                0
+            ) as ReactElement
+        );
+        expect(screen.getByTestId('vendor-contract-chain-42')).toHaveTextContent(
+            'BIZ DATA → CLOUD OPS s.r.o. → DC HOSTING GmbH'
+        );
+
+        // A row without its engine block renders placeholders, never crashes.
+        render(
+            flagsColumn?.render?.(
+                sampleContract({ id: 43, main_contract: 'Ne', roi_scope: 'Ne', derived: null }),
+                0
+            ) as ReactElement
+        );
+        expect(screen.queryByTestId('vendor-contract-cif-43')).not.toBeInTheDocument();
     });
 
     it('deep-links the contracts section inside the vendor detail', () => {

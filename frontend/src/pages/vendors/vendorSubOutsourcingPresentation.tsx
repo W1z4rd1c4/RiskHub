@@ -48,13 +48,28 @@ export interface SubOutsourcingChainRow {
     depth: number;
 }
 
+/** The workbook's 09!K chain findings (engine literals, never re-spelled). */
+export const CHAIN_CHECK_DUPLICATE = 'DUPLICITA';
+export const CHAIN_CHECK_BROKEN = 'CHYBA ŘETĚZCE';
+
+/**
+ * The authoritative derived Rank (09!I, engine #49) rendered as the workbook
+ * renders it: the number, or the "?" sentinel for a broken chain.
+ */
+export function formatSubOutsourcingRank(
+    entry: Pick<VendorSubOutsourcing, 'derived'>,
+): string {
+    const rank = entry.derived?.rank;
+    return rank === null || rank === undefined ? '?' : String(rank);
+}
+
 /**
  * Order the flat collection for the full-depth chain render: group by
  * Contract (ascending id), then depth-first from each chain root
  * (predecessor_id null), children after their predecessor in id order.
- * Display depth is computed client-side by walking predecessor_id — the
- * authoritative Rank arrives with the derivation engine (#49). Entries whose
- * predecessor is not in the collection are rendered defensively as roots.
+ * The STRUCTURAL indent stays client-side; the authoritative Rank badge
+ * comes from the engine block (#49). Entries whose predecessor is not in
+ * the collection are rendered defensively as roots.
  */
 export function buildSubOutsourcingChainRows(
     entries: VendorSubOutsourcing[],
@@ -141,10 +156,55 @@ export function buildVendorSubOutsourcingColumns({
             ),
         },
         {
+            key: 'rank',
+            label: t('sub_outsourcing.columns.rank'),
+            className: 'w-[110px]',
+            render: ({ entry }) => {
+                const broken = entry.derived != null && entry.derived.rank == null;
+                const duplicate = entry.derived?.chain_check === CHAIN_CHECK_DUPLICATE;
+                return (
+                    <div className="flex items-center gap-1.5" data-testid={`vendor-sub-outsourcing-rank-${entry.id}`}>
+                        <span
+                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold ${
+                                broken
+                                    ? 'text-rose-300 bg-rose-500/10 border-rose-400/30'
+                                    : 'text-cyan-300 bg-cyan-400/10 border-cyan-400/20'
+                            }`}
+                        >
+                            {entry.derived ? formatSubOutsourcingRank(entry) : '—'}
+                        </span>
+                        {broken ? (
+                            <span
+                                className="text-[10px] font-black uppercase tracking-widest text-rose-300"
+                                data-testid={`vendor-sub-outsourcing-chain-error-${entry.id}`}
+                            >
+                                {t('sub_outsourcing.chain_status.chain_error')}
+                            </span>
+                        ) : null}
+                        {duplicate ? (
+                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">
+                                {t('sub_outsourcing.chain_status.duplicate')}
+                            </span>
+                        ) : null}
+                    </div>
+                );
+            },
+        },
+        {
             key: 'contract',
             label: t('sub_outsourcing.columns.contract'),
             render: ({ entry }) => (
-                <span className="text-sm text-slate-300">{getContractLabel(entry.contract_id)}</span>
+                <div className="flex flex-col gap-0.5">
+                    <span className="text-sm text-slate-300">{getContractLabel(entry.contract_id)}</span>
+                    {entry.derived?.critical_service === 'Ano' ? (
+                        <span
+                            className="inline-flex w-fit items-center rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-rose-300"
+                            data-testid={`vendor-sub-outsourcing-critical-${entry.id}`}
+                        >
+                            {t('sub_outsourcing.columns.critical_service')}
+                        </span>
+                    ) : null}
+                </div>
             ),
         },
         {

@@ -50,6 +50,15 @@ export function formatContractCost(contract: VendorContract): string | null {
     return contract.currency ? `${rendered} ${contract.currency}` : rendered;
 }
 
+/** The workbook's 08!U duplicate finding (engine literal, never re-spelled). */
+export const CONTRACT_DUPLICATE_CHECK = 'DUPLICITA';
+
+export function isContractReferenceDuplicate(
+    contract: Pick<VendorContract, 'derived'>,
+): boolean {
+    return contract.derived?.duplicate_check === CONTRACT_DUPLICATE_CHECK;
+}
+
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 type BuildVendorContractColumnsParams = {
@@ -80,6 +89,14 @@ export function buildVendorContractColumns({
                             {contract.internal_contract_number}
                         </span>
                     ) : null}
+                    {isContractReferenceDuplicate(contract) ? (
+                        <span
+                            className="inline-flex w-fit items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-300"
+                            data-testid={`vendor-contract-duplicate-${contract.id}`}
+                        >
+                            {t('contracts.columns.duplicate_flag')}
+                        </span>
+                    ) : null}
                 </div>
             ),
         },
@@ -105,11 +122,36 @@ export function buildVendorContractColumns({
                             {t('contracts.columns.roi_flag')}
                         </span>
                     ) : null}
-                    {contract.main_contract !== 'Ano' && contract.roi_scope !== 'Ano' ? (
+                    {contract.derived?.cif === 'Ano' ? (
+                        <span
+                            className="inline-flex items-center rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-rose-300"
+                            data-testid={`vendor-contract-cif-${contract.id}`}
+                        >
+                            {t('contracts.columns.cif')}
+                        </span>
+                    ) : null}
+                    {contract.main_contract !== 'Ano' &&
+                    contract.roi_scope !== 'Ano' &&
+                    contract.derived?.cif !== 'Ano' ? (
                         <span className="text-sm text-slate-500">—</span>
                     ) : null}
                 </div>
             ),
+        },
+        {
+            key: 'chain',
+            label: t('contracts.columns.chain'),
+            render: (contract) =>
+                contract.derived ? (
+                    <span
+                        className="text-sm text-slate-300"
+                        data-testid={`vendor-contract-chain-${contract.id}`}
+                    >
+                        {contract.derived.sub_outsourcing_chain}
+                    </span>
+                ) : (
+                    <span className="text-sm text-slate-500">—</span>
+                ),
         },
         {
             key: 'term',

@@ -265,7 +265,10 @@
       "annual_cost": "Annual cost",
       "status": "Status",
       "main_flag": "Main",
-      "roi_flag": "RoI"
+      "roi_flag": "RoI",
+      "cif": "CIF",
+      "duplicate_flag": "Duplicate",
+      "chain": "Sub-outsourcing chain (derived)"
     },
     "actions": {
       "add": "Add contract",
@@ -305,7 +308,9 @@
       "contract": "Contract",
       "country": "Country",
       "ict_service": "ICT service (S-code)",
-      "status": "Status"
+      "status": "Status",
+      "rank": "Rank",
+      "critical_service": "Critical service"
     },
     "actions": {
       "add": "Add sub-outsourcing entry",
@@ -327,6 +332,10 @@
     },
     "errors": {
       "mutation_failed": "Saving the sub-outsourcing entry failed."
+    },
+    "chain_status": {
+      "chain_error": "Chain error",
+      "duplicate": "Duplicate"
     }
   },
   "register_links": {
@@ -343,6 +352,49 @@
     "no_metadata": "No link details",
     "errors": {
       "mutation_failed": "Failed to update the link."
+    }
+  },
+  "derived": {
+    "title": "Derived classification (ICT Register)",
+    "tier": "Vendor tier",
+    "cif": "Supports CIF",
+    "cif_chain": "Supports CIF (chain)",
+    "max_criticality": "Max criticality of linked assets",
+    "country_category": "Country category",
+    "chain_level": "Level in chain",
+    "significance_outcome": "Significant outsourcing (outcome)",
+    "linked_asset_count": "Assets (count)",
+    "linked_process_count": "Processes (count)",
+    "cif_process_count": "CIF processes (count)",
+    "contract_count": "Contracts (count)",
+    "main_contract_count": "Main contracts (count)",
+    "main_contract_reference": "Main contract (reference)",
+    "direct_sub_providers": "Direct sub-providers",
+    "completeness": "Completeness",
+    "complete": "Complete",
+    "incomplete": "Incomplete",
+    "transitive": {
+      "title": "Processes via assets (derived)",
+      "process": "Process",
+      "process_cif": "Process CIF",
+      "process_criticality": "Process criticality",
+      "via_asset": "Via asset",
+      "empty": "No derived process links."
+    },
+    "inputs": {
+      "title": "Why — the inputs behind these values",
+      "none": "—",
+      "cif_asset_link_count": "CIF asset links",
+      "cif_process_link_count": "Direct CIF process links (§1)",
+      "cloud_service_link_count": "Cloud service links (S17–S19)",
+      "substitutability": "Substitutability (entered)",
+      "tier_max_rank_at_least_high": "Max asset rank at least Vysoká",
+      "tier_substitutability_match": "Substitutability trigger",
+      "manual_process_link_count": "Direct process links (§1)",
+      "transitive_process_pair_count": "Derived process pairs (§2)",
+      "missing": "Missing for completeness",
+      "yes": "Yes",
+      "no": "No"
     }
   }
 }

@@ -1,10 +1,12 @@
 /**
- * Workbook TridyKrit pill (ICT Register): Nízká / Střední / Vysoká / Kritická.
+ * Workbook closed-list pills (ICT Register).
  *
  * One shared read-only rendering for every register surface that shows a
- * criticality class — the Process and Asset register columns and the
- * engine-derived detail blocks (ticket #48). Component-only module so the
- * react-refresh rule stays satisfied.
+ * TridyKrit criticality class (Nízká / Střední / Vysoká / Kritická — the
+ * Process and Asset register columns and the engine-derived detail blocks,
+ * ticket #48) or a TierDod vendor tier (Kritický / Významný / Standardní
+ * dodavatel — the Vendor derived section, ticket #49). Component-only module
+ * so the react-refresh rule stays satisfied.
  */
 
 const CRITICALITY_PILLS: Record<string, string> = {
@@ -14,21 +16,46 @@ const CRITICALITY_PILLS: Record<string, string> = {
     ['Kritická']: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
 };
 
+// TierDod, verbatim workbook labels (never translated).
+const VENDOR_TIER_PILLS: Record<string, string> = {
+    ['Kritický dodavatel']: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
+    ['Významný dodavatel']: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
+    ['Standardní dodavatel']: 'text-slate-300 bg-slate-400/10 border-slate-400/20',
+};
+
+function Pill({
+    value,
+    palette,
+    testId,
+}: {
+    value: string | null | undefined;
+    palette: Record<string, string>;
+    testId?: string;
+}) {
+    if (!value) {
+        return <span className="text-sm text-slate-500">—</span>;
+    }
+    return (
+        <span
+            data-testid={testId}
+            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${
+                palette[value] ?? 'text-slate-300 bg-slate-400/10 border-slate-400/20'
+            }`}
+        >
+            {value}
+        </span>
+    );
+}
+
 export function CriticalityClassPill({
     criticalityClass,
 }: {
     criticalityClass: string | null | undefined;
 }) {
-    if (!criticalityClass) {
-        return <span className="text-sm text-slate-500">—</span>;
-    }
-    return (
-        <span
-            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${
-                CRITICALITY_PILLS[criticalityClass] ?? 'text-slate-300 bg-slate-400/10 border-slate-400/20'
-            }`}
-        >
-            {criticalityClass}
-        </span>
-    );
+    return <Pill value={criticalityClass} palette={CRITICALITY_PILLS} />;
+}
+
+/** The derived Vendor tier (07!tier), workbook TierDod labels verbatim. */
+export function VendorTierPill({ tier, testId }: { tier: string | null | undefined; testId?: string }) {
+    return <Pill value={tier} palette={VENDOR_TIER_PILLS} testId={testId} />;
 }

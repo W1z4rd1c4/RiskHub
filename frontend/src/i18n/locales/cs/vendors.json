@@ -265,7 +265,10 @@
       "annual_cost": "Roční náklad",
       "status": "Stav",
       "main_flag": "Hlavní",
-      "roi_flag": "RoI"
+      "roi_flag": "RoI",
+      "cif": "CIF",
+      "duplicate_flag": "Duplicita",
+      "chain": "Řetězec subdodávek (odvozeno)"
     },
     "actions": {
       "add": "Přidat smlouvu",
@@ -305,7 +308,9 @@
       "contract": "Smlouva",
       "country": "Země",
       "ict_service": "Služba (S-kód)",
-      "status": "Stav"
+      "status": "Stav",
+      "rank": "Rank",
+      "critical_service": "Kritická služba"
     },
     "actions": {
       "add": "Přidat subdodávku",
@@ -327,6 +332,10 @@
     },
     "errors": {
       "mutation_failed": "Uložení subdodávky se nezdařilo."
+    },
+    "chain_status": {
+      "chain_error": "Chyba řetězce",
+      "duplicate": "Duplicita"
     }
   },
   "register_links": {
@@ -343,6 +352,49 @@
     "no_metadata": "Bez detailů vazby",
     "errors": {
       "mutation_failed": "Aktualizace vazby se nezdařila."
+    }
+  },
+  "derived": {
+    "title": "Odvozená klasifikace (ICT registr)",
+    "tier": "Klasifikace dodavatele",
+    "cif": "Podporuje CIF",
+    "cif_chain": "Podporuje CIF (řetězec)",
+    "max_criticality": "Max kritičnost navázaných aktiv",
+    "country_category": "Kategorie země",
+    "chain_level": "Úroveň v řetězci",
+    "significance_outcome": "Významný outsourcing (výsledek)",
+    "linked_asset_count": "Aktiva (počet)",
+    "linked_process_count": "Procesy (počet)",
+    "cif_process_count": "CIF procesy (počet)",
+    "contract_count": "Smlouvy (počet)",
+    "main_contract_count": "Hlavní smlouvy (počet)",
+    "main_contract_reference": "Hlavní smlouva (reference)",
+    "direct_sub_providers": "Přímí subdodavatelé",
+    "completeness": "Hotovo?",
+    "complete": "Kompletní",
+    "incomplete": "Nekompletní",
+    "transitive": {
+      "title": "Procesy přes aktiva (odvozeno)",
+      "process": "Proces",
+      "process_cif": "CIF procesu",
+      "process_criticality": "Kritičnost procesu",
+      "via_asset": "Přes aktivum",
+      "empty": "Žádné odvozené vazby na procesy."
+    },
+    "inputs": {
+      "title": "Proč — vstupy za těmito hodnotami",
+      "none": "—",
+      "cif_asset_link_count": "CIF vazby přes aktiva",
+      "cif_process_link_count": "Přímé CIF vazby na procesy (§1)",
+      "cloud_service_link_count": "Cloudové služby (S17–S19)",
+      "substitutability": "Substituovatelnost (zadaná)",
+      "tier_max_rank_at_least_high": "Max rank aktiva alespoň Vysoká",
+      "tier_substitutability_match": "Spouštěč substituovatelnosti",
+      "manual_process_link_count": "Přímé vazby na procesy (§1)",
+      "transitive_process_pair_count": "Odvozené páry procesů (§2)",
+      "missing": "Chybí pro úplnost",
+      "yes": "Ano",
+      "no": "Ne"
     }
   }
 }

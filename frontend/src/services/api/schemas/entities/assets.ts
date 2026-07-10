@@ -37,6 +37,7 @@ export const assetDerivedInputsSchema = passthroughObject({
     rank_preliminary_criticality: z.number(),
     rank_business_criticality: z.number(),
     rank_cif_floor: z.number(),
+    missing_for_completeness: z.array(z.string()),
 });
 
 export const assetDerivedSchema = passthroughObject({
@@ -64,6 +65,7 @@ export const assetDerivedSchema = passthroughObject({
     vendor_names: z.array(z.string()),
     ict_service_codes: z.array(z.string()),
     contract_references: z.array(z.string()),
+    is_complete: z.boolean(),
     inputs: assetDerivedInputsSchema,
 });
 

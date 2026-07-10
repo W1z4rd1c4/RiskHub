@@ -24,7 +24,7 @@ from .sub_outsourcing_policy import (
 )
 from .sub_outsourcing_projection import (
     serialize_sub_outsourcing_collection,
-    serialize_sub_outsourcing_detail,
+    serialize_sub_outsourcing_detail_with_derived,
 )
 
 
@@ -54,7 +54,9 @@ async def create_vendor_sub_outsourcing_detail(
     await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_created(db, actor=current_user, entry=entry)
     await commit_service_boundary(db, boundary="vendor_sub_outsourcing_create")
     await db.refresh(entry)
-    return serialize_sub_outsourcing_detail(entry, current_user=current_user, vendor=vendor)
+    return await serialize_sub_outsourcing_detail_with_derived(
+        db, entry, current_user=current_user, vendor=vendor
+    )
 
 
 async def list_vendor_sub_outsourcing_collection(
@@ -72,7 +74,7 @@ async def list_vendor_sub_outsourcing_collection(
     if not include_archived:
         query = query.where(archived_clause(VendorSubOutsourcing, archived=False))
     rows = (await db.execute(query.order_by(asc(VendorSubOutsourcing.id)))).scalars().all()
-    return serialize_sub_outsourcing_collection(list(rows), current_user=current_user, vendor=vendor)
+    return await serialize_sub_outsourcing_collection(db, list(rows), current_user=current_user, vendor=vendor)
 
 
 async def update_vendor_sub_outsourcing_detail(
@@ -91,7 +93,9 @@ async def update_vendor_sub_outsourcing_detail(
     )
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
     if not updates:
-        return serialize_sub_outsourcing_detail(entry, current_user=current_user, vendor=vendor)
+        return await serialize_sub_outsourcing_detail_with_derived(
+            db, entry, current_user=current_user, vendor=vendor
+        )
 
     # Chain integrity holds for the entry's POST-mutation state.
     new_contract_id = updates.get("contract_id", entry.contract_id)
@@ -116,7 +120,9 @@ async def update_vendor_sub_outsourcing_detail(
     )
     await commit_service_boundary(db, boundary="vendor_sub_outsourcing_update")
     await db.refresh(entry)
-    return serialize_sub_outsourcing_detail(entry, current_user=current_user, vendor=vendor)
+    return await serialize_sub_outsourcing_detail_with_derived(
+        db, entry, current_user=current_user, vendor=vendor
+    )
 
 
 async def archive_vendor_sub_outsourcing_detail(
@@ -159,4 +165,6 @@ async def restore_vendor_sub_outsourcing_detail(
     )
     await commit_service_boundary(db, boundary="vendor_sub_outsourcing_restore")
     await db.refresh(entry)
-    return serialize_sub_outsourcing_detail(entry, current_user=current_user, vendor=vendor)
+    return await serialize_sub_outsourcing_detail_with_derived(
+        db, entry, current_user=current_user, vendor=vendor
+    )

@@ -350,6 +350,15 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             label={t('derived.linked_vendor_count')}
                             value={asset.derived.linked_vendor_count}
                         />
+                        <DetailField
+                            label={t('derived.is_complete')}
+                            value={
+                                asset.derived.is_complete
+                                    ? `✓ ${t('derived.complete')}`
+                                    : `⚠ ${t('derived.incomplete')}`
+                            }
+                            testId="asset-derived-completeness"
+                        />
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-5 border-t border-white/5 pt-4">
@@ -428,6 +437,15 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             <DetailField
                                 label={t('derived.inputs.reference_date')}
                                 value={asset.derived.inputs.reference_date}
+                            />
+                            <DetailField
+                                label={t('derived.inputs.missing')}
+                                value={
+                                    asset.derived.inputs.missing_for_completeness.length
+                                        ? asset.derived.inputs.missing_for_completeness.join(', ')
+                                        : t('derived.inputs.none')
+                                }
+                                testId="asset-derived-missing"
                             />
                         </div>
                     </div>

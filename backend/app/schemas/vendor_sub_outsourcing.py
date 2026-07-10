@@ -83,6 +83,37 @@ class VendorSubOutsourcingCapabilities(BaseModel):
     can_restore: bool
 
 
+class VendorSubOutsourcingDerivedInputs(BaseModel):
+    """The chain-walk ingredients behind the derived block."""
+
+    contract_id: int
+    predecessor_id: int | None = None
+    predecessor_rank: int | None = None
+    is_direct: bool
+    duplicate_key_count: int
+
+    model_config = {"from_attributes": True}
+
+
+class VendorSubOutsourcingDerived(BaseModel):
+    """Engine-derived 09_Subdodávky columns (spec 1.5) — read-only, computed on read.
+
+    ``rank`` None is the workbook's "?" unknown-rank sentinel; ``chain_check``
+    then reads CHYBA ŘETĚZCE (unless DUPLICITA takes precedence).
+    """
+
+    contract_reference: str | None = None
+    contract_vendor_id: int | None = None
+    contract_vendor_name: str
+    rank: int | None = None
+    critical_service: str
+    chain_check: str
+    roi_scope: str | None = None
+    inputs: VendorSubOutsourcingDerivedInputs
+
+    model_config = {"from_attributes": True}
+
+
 class VendorSubOutsourcingRead(BaseModel):
     id: int
     vendor_id: int
@@ -95,6 +126,10 @@ class VendorSubOutsourcingRead(BaseModel):
     country: str | None = None
     ict_service_code: str | None = None
     note: str | None = None
+
+    # Engine-derived block (ticket #49): populated by the sub-outsourcing
+    # projection on read, absent from persistence, rejected on write.
+    derived: VendorSubOutsourcingDerived | None = None
 
     is_archived: bool = False
     archived_at: UtcAwareDatetime | None = None

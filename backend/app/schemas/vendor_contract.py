@@ -78,6 +78,34 @@ class VendorContractCapabilities(BaseModel):
     can_restore: bool
 
 
+class VendorContractDerivedInputs(BaseModel):
+    """The lookups and tallies behind the derived block."""
+
+    vendor_id: int
+    prime_vendor_cif: str
+    reference_duplicate_count: int
+    sub_outsourcing_count: int
+
+    model_config = {"from_attributes": True}
+
+
+class VendorContractDerived(BaseModel):
+    """Engine-derived 08_Smlouvy columns (spec 1.4) — read-only, computed on read.
+
+    ``sub_outsourcing_chain`` renders the FULL chain depth; the workbook's
+    display string stopped at ranks 2-3 — the recorded display-only deviation
+    (spec section 8 item 7).
+    """
+
+    vendor_name: str
+    sub_outsourcing_chain: str
+    duplicate_check: str
+    cif: str
+    inputs: VendorContractDerivedInputs
+
+    model_config = {"from_attributes": True}
+
+
 class VendorContractRead(BaseModel):
     id: int
     vendor_id: int
@@ -98,6 +126,10 @@ class VendorContractRead(BaseModel):
     annual_cost: Decimal | None = None
     currency: str | None = None
     note: str | None = None
+
+    # Engine-derived block (ticket #49): populated by the contract projection
+    # on read, absent from the persistence model, rejected on write.
+    derived: VendorContractDerived | None = None
 
     is_archived: bool = False
     archived_at: UtcAwareDatetime | None = None

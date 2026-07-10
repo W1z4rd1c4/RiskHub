@@ -20,6 +20,7 @@ import { VendorLinkedKRIsTab } from '@/components/vendors/VendorLinkedKRIsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 
 import { VendorContractsSection } from './VendorContractsSection';
+import { VendorDerivedSection } from './VendorDerivedSection';
 import { VendorRegisterLinksSection } from './VendorRegisterLinksSection';
 import { VendorSubOutsourcingSection } from './VendorSubOutsourcingSection';
 import { getVendorDisplayStatus } from './vendorsPagePresentation';
@@ -298,6 +299,12 @@ export function VendorOverviewTab({
                     </div>
                 </motion.div>
             </motion.div>
+
+            {vendor.derived ? (
+                <div id="vendor-derived">
+                    <VendorDerivedSection derived={vendor.derived} />
+                </div>
+            ) : null}
 
             <div id="vendor-linked-risks">
                 <VendorLinkedRisksTab

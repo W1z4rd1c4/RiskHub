@@ -34,6 +34,9 @@ export interface VendorContract {
     currency?: string | null;
     note?: string | null;
 
+    // Engine-derived block (ticket #49): read-only, rejected on write.
+    derived?: VendorContractDerived | null;
+
     is_archived: boolean;
     archived_at?: string | null;
     archived_by_id?: number | null;
@@ -42,12 +45,34 @@ export interface VendorContract {
     updated_at: string;
 }
 
+/** The lookups and tallies behind the derived block. */
+export interface VendorContractDerivedInputs {
+    vendor_id: number;
+    prime_vendor_cif: string;
+    reference_duplicate_count: number;
+    sub_outsourcing_count: number;
+}
+
+/**
+ * Engine-derived 08_Smlouvy columns (ticket #49) — read-only, computed on
+ * read. The chain display renders the FULL depth (the workbook's 2-tier
+ * string cap was a display-formula limitation — recorded deviation).
+ */
+export interface VendorContractDerived {
+    vendor_name: string;
+    sub_outsourcing_chain: string;
+    duplicate_check: string;
+    cif: string;
+    inputs: VendorContractDerivedInputs;
+}
+
 /** Entered columns only — the write payload never carries derived columns. */
 export type VendorContractWritePayload = Partial<
     Omit<
         VendorContract,
         | 'id'
         | 'vendor_id'
+        | 'derived'
         | 'is_archived'
         | 'archived_at'
         | 'archived_by_id'

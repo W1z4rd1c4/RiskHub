@@ -41,6 +41,67 @@ export interface VendorCapabilities {
     can_manage_sub_outsourcing: boolean;
 }
 
+/** One derived 11 §2 row: a (Process, Vendor) pair implied via an Asset (#49). */
+export interface VendorTransitiveProcessLink {
+    process_id: number;
+    process_name: string;
+    process_cif?: string | null;
+    process_criticality?: string | null;
+    vendor_id: number;
+    vendor_name: string;
+    via_asset_id: number;
+    via_asset_name: string;
+}
+
+/** The inputs, link tallies, and triggers behind the derived block. */
+export interface VendorDerivedInputs {
+    country?: string | null;
+    substitutability?: string | null;
+    exit_plan_state?: string | null;
+    ex_ante_assessment_date?: string | null;
+    significance_authorization_conditions?: string | null;
+    significance_regulatory_requirements?: string | null;
+    significance_service_quality?: string | null;
+    significance_financial_impact?: string | null;
+    significance_reputation_continuity?: string | null;
+    significance_cumulative_impact?: string | null;
+    cif_asset_link_count: number;
+    cif_process_link_count: number;
+    tier_cif_chain: boolean;
+    tier_max_rank_at_least_high: boolean;
+    tier_substitutability_match: boolean;
+    cloud_service_link_count: number;
+    manual_process_link_count: number;
+    transitive_process_pair_count: number;
+    missing_for_completeness: string[];
+}
+
+/** Engine-derived 07_Dodavatelé values (ticket #49) — read-only, computed on read. */
+export interface VendorDerived {
+    country_category?: string | null;
+    cif: string;
+    linked_asset_count: number;
+    linked_process_count: number;
+    cif_process_count: number;
+    h_rank: number;
+    max_criticality?: string | null;
+    tier: string;
+    cif_chain: string;
+    chain_level?: string | null;
+    direct_sub_provider_names: string[];
+    direct_sub_provider_count: number;
+    significance_outcome: string;
+    main_contract_reference?: string | null;
+    main_contract_arrangement_type?: string | null;
+    main_contract_start_date?: string | null;
+    main_contract_end_date?: string | null;
+    contract_count: number;
+    main_contract_count: number;
+    is_complete: boolean;
+    inputs: VendorDerivedInputs;
+    transitive_process_links: VendorTransitiveProcessLink[];
+}
+
 export interface Vendor {
     id: number;
 
@@ -117,6 +178,9 @@ export interface Vendor {
     reference_occurrence_count?: number | null;
     reference_process_count?: number | null;
 
+    // Engine-derived block (ticket #49): read-only, rejected on write.
+    derived?: VendorDerived | null;
+
     is_archived: boolean;
     archived_at?: string | null;
     archived_by_id?: number | null;
@@ -131,6 +195,7 @@ export type VendorCreate = Omit<
     | 'department_name'
     | 'linked_risks'
     | 'outsourcing_owner_name'
+    | 'derived'
     | 'is_archived'
     | 'archived_at'
     | 'archived_by_id'

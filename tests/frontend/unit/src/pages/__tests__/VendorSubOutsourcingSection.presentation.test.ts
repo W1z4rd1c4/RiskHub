@@ -7,9 +7,35 @@ import {
     buildSubOutsourcingChainRows,
     buildVendorSubOutsourcingColumns,
     buildVendorSubOutsourcingPayload,
+    formatSubOutsourcingRank,
     getSubOutsourcingDisplayStatus,
 } from '@/pages/vendors/vendorSubOutsourcingPresentation';
-import type { VendorSubOutsourcing } from '@/types/vendorSubOutsourcing';
+import type {
+    VendorSubOutsourcing,
+    VendorSubOutsourcingDerived,
+} from '@/types/vendorSubOutsourcing';
+
+function sampleDerived(
+    overrides: Partial<VendorSubOutsourcingDerived> = {},
+): VendorSubOutsourcingDerived {
+    return {
+        contract_reference: 'SML-2020-001',
+        contract_vendor_id: 4,
+        contract_vendor_name: 'BIZ DATA',
+        rank: 2,
+        critical_service: 'Ne',
+        chain_check: 'OK',
+        roi_scope: 'Ano',
+        inputs: {
+            contract_id: 9,
+            predecessor_id: null,
+            predecessor_rank: null,
+            is_direct: true,
+            duplicate_key_count: 1,
+        },
+        ...overrides,
+    };
+}
 
 function sampleEntry(overrides: Partial<VendorSubOutsourcing> = {}): VendorSubOutsourcing {
     return {
@@ -184,6 +210,97 @@ describe('Vendor sub-outsourcing section presentation helpers', () => {
         screen.getByTestId('vendor-sub-outsourcing-restore-12').click();
         expect(onRestore).toHaveBeenCalledTimes(1);
         expect(onRestore.mock.calls[0][0]).toEqual(expect.objectContaining({ id: 12 }));
+    });
+
+    it('formats the authoritative engine rank with the workbook \u201c?\u201d sentinel', () => {
+        expect(formatSubOutsourcingRank(sampleEntry({ derived: sampleDerived({ rank: 2 }) }))).toBe('2');
+        expect(formatSubOutsourcingRank(sampleEntry({ derived: sampleDerived({ rank: 4 }) }))).toBe('4');
+        expect(
+            formatSubOutsourcingRank(sampleEntry({ derived: sampleDerived({ rank: null }) })),
+        ).toBe('?');
+        expect(formatSubOutsourcingRank(sampleEntry({ derived: null }))).toBe('?');
+    });
+
+    it('renders the derived Rank badge and surfaces a broken chain (#49)', () => {
+        const columns = buildVendorSubOutsourcingColumns({
+            t: (key: string) => key,
+            getContractLabel: () => 'SML-9',
+            onEdit: () => undefined,
+            onArchive: () => undefined,
+            onRestore: () => undefined,
+        });
+        const rankColumn = columns.find((column) => column.key === 'rank');
+
+        // A ranked row shows the engine rank, no error badge.
+        render(
+            rankColumn?.render?.(
+                { entry: sampleEntry({ id: 61, derived: sampleDerived({ rank: 3 }) }), depth: 1 },
+                0
+            ) as ReactElement
+        );
+        expect(screen.getByTestId('vendor-sub-outsourcing-rank-61')).toHaveTextContent('3');
+        expect(screen.queryByTestId('vendor-sub-outsourcing-chain-error-61')).not.toBeInTheDocument();
+
+        // A broken chain renders the \u201c?\u201d sentinel plus the chain-error finding.
+        render(
+            rankColumn?.render?.(
+                {
+                    entry: sampleEntry({
+                        id: 62,
+                        predecessor_id: 999,
+                        derived: sampleDerived({ rank: null, chain_check: 'CHYBA \u0158ET\u011aZCE' }),
+                    }),
+                    depth: 0,
+                },
+                0
+            ) as ReactElement
+        );
+        expect(screen.getByTestId('vendor-sub-outsourcing-rank-62')).toHaveTextContent('?');
+        expect(screen.getByTestId('vendor-sub-outsourcing-chain-error-62')).toHaveTextContent(
+            'sub_outsourcing.chain_status.chain_error'
+        );
+
+        // Before the engine block arrives the badge stays a placeholder.
+        render(
+            rankColumn?.render?.({ entry: sampleEntry({ id: 63 }), depth: 0 }, 0) as ReactElement
+        );
+        expect(screen.getByTestId('vendor-sub-outsourcing-rank-63')).toHaveTextContent('\u2014');
+    });
+
+    it('marks chain rows serving a critical (CIF) contract uniformly (#49)', () => {
+        const columns = buildVendorSubOutsourcingColumns({
+            t: (key: string) => key,
+            getContractLabel: () => 'SML-9',
+            onEdit: () => undefined,
+            onArchive: () => undefined,
+            onRestore: () => undefined,
+        });
+        const contractColumn = columns.find((column) => column.key === 'contract');
+
+        render(
+            contractColumn?.render?.(
+                {
+                    entry: sampleEntry({
+                        id: 71,
+                        derived: sampleDerived({ critical_service: 'Ano', rank: 4 }),
+                    }),
+                    depth: 2,
+                },
+                0
+            ) as ReactElement
+        );
+        expect(screen.getByTestId('vendor-sub-outsourcing-critical-71')).toBeInTheDocument();
+
+        render(
+            contractColumn?.render?.(
+                {
+                    entry: sampleEntry({ id: 72, derived: sampleDerived({ critical_service: 'Ne' }) }),
+                    depth: 0,
+                },
+                0
+            ) as ReactElement
+        );
+        expect(screen.queryByTestId('vendor-sub-outsourcing-critical-72')).not.toBeInTheDocument();
     });
 
     it('deep-links the sub-outsourcing section inside the vendor detail', () => {

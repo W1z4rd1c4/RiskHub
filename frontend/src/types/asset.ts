@@ -32,6 +32,8 @@ export interface AssetDerivedInputs {
     rank_preliminary_criticality: number;
     rank_business_criticality: number;
     rank_cif_floor: number;
+    /** 04!hotovo ingredients (#49): the blank completeness cells, span order. */
+    missing_for_completeness: string[];
 }
 
 /** Engine-derived 04_Aktiva values (ticket #48) — read-only, computed on read. */
@@ -60,6 +62,8 @@ export interface AssetDerived {
     vendor_names: string[];
     ict_service_codes: string[];
     contract_references: string[];
+    /** 04!hotovo (#49): true iff every completeness span is filled. */
+    is_complete: boolean;
     inputs: AssetDerivedInputs;
 }
 

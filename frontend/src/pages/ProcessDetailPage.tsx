@@ -336,7 +336,45 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         <DetailField
                             label={t('derived.linked_vendor_count')}
                             value={process.derived.linked_vendor_count}
+                            testId="process-derived-vendor-count"
                         />
+                    </div>
+
+                    <div
+                        className="space-y-3 border-t border-white/5 pt-4"
+                        data-testid="process-derived-transitive"
+                    >
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                            {t('derived.transitive.title')}
+                        </h3>
+                        {process.derived.transitive_vendor_links.length === 0 ? (
+                            <p className="text-sm text-slate-500">{t('derived.transitive.empty')}</p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                            <th className="py-2 pr-4">{t('derived.transitive.vendor')}</th>
+                                            <th className="py-2">{t('derived.transitive.via_asset')}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {process.derived.transitive_vendor_links.map((link, index) => (
+                                            <tr
+                                                key={`${link.vendor_id}-${link.via_asset_id}-${index}`}
+                                                className="border-t border-white/5 text-sm"
+                                                data-testid={`process-derived-transitive-row-${index}`}
+                                            >
+                                                <td className="py-2 pr-4 font-medium text-white">
+                                                    {link.vendor_name}
+                                                </td>
+                                                <td className="py-2 text-slate-300">{link.via_asset_name}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-4 border-t border-white/5 pt-4">

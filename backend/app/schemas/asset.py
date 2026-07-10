@@ -200,6 +200,8 @@ class AssetDerivedInputs(BaseModel):
     rank_preliminary_criticality: int
     rank_business_criticality: int
     rank_cif_floor: int
+    # 04!hotovo ingredients (#49): the blank completeness cells, span order.
+    missing_for_completeness: list[str] = []
 
     model_config = {"from_attributes": True}
 
@@ -231,6 +233,8 @@ class AssetDerived(BaseModel):
     vendor_names: list[str]
     ict_service_codes: list[str]
     contract_references: list[str]
+    # 04!hotovo (#49): "✓" iff every completeness span is filled.
+    is_complete: bool
     inputs: AssetDerivedInputs
 
     model_config = {"from_attributes": True}

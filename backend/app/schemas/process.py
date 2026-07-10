@@ -171,6 +171,27 @@ class ProcessDerivedInputs(BaseModel):
     bcm_link: str | None = None
     assessment_date: date | None = None
     missing_for_completeness: list[str]
+    # dod_n breakdown (#49): manual §1 pairs + derived §2 triples.
+    manual_vendor_link_count: int = 0
+    transitive_vendor_pair_count: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class ProcessTransitiveVendorLink(BaseModel):
+    """One derived 11 §2 row: a (Process, Vendor) pair implied via an Asset.
+
+    Derived on read, browsable, never persisted (#49; spec 1.8 §2).
+    """
+
+    process_id: int
+    process_name: str
+    process_cif: str | None = None
+    process_criticality: str | None = None
+    vendor_id: int
+    vendor_name: str
+    via_asset_id: int
+    via_asset_name: str
 
     model_config = {"from_attributes": True}
 
@@ -186,10 +207,12 @@ class ProcessDerived(BaseModel):
     bcm_check: str
     next_review_date: date | None = None
     linked_asset_count: int
+    # dod_n = §1 manual pairs + the derived §2 triples (#49, spec 1.1 ~137).
     linked_vendor_count: int
     is_complete: bool
     is_duplicate: bool
     inputs: ProcessDerivedInputs
+    transitive_vendor_links: list[ProcessTransitiveVendorLink] = []
 
     model_config = {"from_attributes": True}
 

@@ -95,7 +95,15 @@
             "cif_mtpd_within_critical": "CIF spouštěč: MTPD v kritickém limitu",
             "cif_any_impact_maximal": "CIF spouštěč: dopadová osa = 5",
             "missing": "Chybí pro úplnost",
-            "none": "Nic"
+            "none": "Nic",
+            "manual_vendor_link_count": "Přímé vazby na dodavatele (§1)",
+            "transitive_vendor_pair_count": "Odvozené páry dodavatelů (§2)"
+        },
+        "transitive": {
+            "title": "Dodavatelé přes aktiva (odvozeno)",
+            "vendor": "Dodavatel",
+            "via_asset": "Přes aktivum",
+            "empty": "Žádné odvozené vazby na dodavatele."
         }
     },
     "messages": {

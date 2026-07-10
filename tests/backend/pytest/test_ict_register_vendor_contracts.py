@@ -247,6 +247,10 @@ DERIVED_CONTRACT_WRITES: dict[str, object] = {
     "duplicity_helper": 2,
     "vendor_exists_helper": 1,
     "vendor_id": 1,
+    # The hidden 08!W surfaces as `cif` on the engine block (#49) — still 422.
+    "cif": "Ano",
+    # The whole engine block is a read surface, never a write.
+    "derived": {"vendor_name": "BIZ DATA", "cif": "Ano"},
 }
 
 
