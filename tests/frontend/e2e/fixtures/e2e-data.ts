@@ -130,6 +130,71 @@ export const E2E_VENDORS = {
     },
 } as const;
 
+/** Dedicated Vendor of the ICT Register vendor-domain suites (issues #44/#45). */
+export const E2E_ICT_VENDOR = {
+    registration_id: 'E2E-VREG-ICT-001',
+    name: 'E2E-VENDOR-ICT Core Hosting Provider',
+    owner_email: 'risk.manager@riskhub.local',
+    department: 'Operations',
+    identifier_type: 'LEI',
+    identifier_value: 'E2E00LEI00000000ICT1',
+    replaceability: 'Velmi obtížně nahraditelný',
+    status: 'active',
+} as const;
+
+/** Contract matrix of E2E_ICT_VENDOR — TWO mains on purpose (DQ-39 owns uniqueness). */
+export const E2E_VENDOR_CONTRACTS = {
+    MAIN_ROI: {
+        contract_reference: 'E2E-CTR-001',
+        internal_contract_number: 'TAS-E2E-0001',
+        arrangement_type: 'Rámcové (master)',
+        main_contract: 'Ano',
+        roi_scope: 'Ano',
+        status: 'active',
+    },
+    SECOND_MAIN: {
+        contract_reference: 'E2E-CTR-002',
+        internal_contract_number: 'SAP-E2E-0002',
+        arrangement_type: 'Samostatné',
+        main_contract: 'Ano',
+        roi_scope: 'Ne',
+        status: 'active',
+    },
+    ARCHIVED: {
+        contract_reference: 'E2E-CTR-ARCH',
+        arrangement_type: 'Navazující',
+        main_contract: 'Ne',
+        status: 'archived',
+    },
+} as const;
+
+/** Sub-outsourcing chain on E2E-CTR-001: two directs + one deeper link (rank 3). */
+export const E2E_SUB_OUTSOURCING = {
+    DIRECT_PRIMARY: {
+        sub_provider_name: 'E2E-SUB-001 Primary DC Operator',
+        contract_reference: 'E2E-CTR-001',
+        country: 'CZ',
+        ict_service_code: 'S07',
+        status: 'active',
+    },
+    DIRECT_SECONDARY: {
+        sub_provider_name: 'E2E-SUB-002 Network Backbone',
+        contract_reference: 'E2E-CTR-001',
+        country: 'DE',
+        ict_service_code: 'S11',
+        status: 'active',
+    },
+    /** Hangs under DIRECT_PRIMARY — the indented rank-3 row of the chain render. */
+    RANK_3: {
+        sub_provider_name: 'E2E-SUB-003 Offsite Backup Facility',
+        contract_reference: 'E2E-CTR-001',
+        predecessor_name: 'E2E-SUB-001 Primary DC Operator',
+        country: 'SK',
+        ict_service_code: 'S09',
+        status: 'active',
+    },
+} as const;
+
 export const E2E_PROCESSES = {
     /** Carries the seeded primary designation on E2E-ASSET-001. */
     CLAIMS_INTAKE: {
@@ -306,6 +371,7 @@ export const E2E_REQUIRED_FIXTURES = {
     vendors: [
         E2E_VENDORS.ACTIVE_PRIMARY.registration_id,
         E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id,
+        E2E_ICT_VENDOR.registration_id,
     ],
     processes: [
         E2E_PROCESSES.CLAIMS_INTAKE.l1_process,

@@ -1,5 +1,6 @@
 /**
- * ICT Register API helpers for E2E tests (Processes, Assets, links).
+ * ICT Register API helpers for E2E tests (Processes, Assets, links,
+ * Vendor Contracts, and Sub-outsourcing chains).
  *
  * Deterministic-state helpers mirror helpers/api-auth.ts: look up seeded
  * fixtures by their stable natural keys, force archive state, and reset link
@@ -231,6 +232,143 @@ export async function resetAssetAssetLinks(assetId: number): Promise<void> {
             throw new Error(`Failed to remove asset link ${link.id} on asset ${assetId}: ${response.status}`);
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Vendor-domain register helpers (Contracts #44, Sub-outsourcing chains #45).
+// All lookups run include_archived so natural-key resolution never misses a
+// row a previous UI test archived.
+// ---------------------------------------------------------------------------
+
+export interface VendorContractLookup {
+    id: number;
+    vendor_id: number;
+    contract_reference: string | null;
+    main_contract: string | null;
+    is_archived: boolean;
+}
+
+export interface VendorSubOutsourcingLookup {
+    id: number;
+    vendor_id: number;
+    contract_id: number;
+    predecessor_id: number | null;
+    sub_provider_name: string | null;
+    ict_service_code: string | null;
+    is_archived: boolean;
+}
+
+export async function listVendorContracts(vendorId: number): Promise<VendorContractLookup[]> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(
+        `${apiBase}/api/v1/vendors/${vendorId}/contracts?include_archived=true`,
+        { headers },
+    );
+    if (!response.ok) {
+        throw new Error(`Failed to list contracts for vendor ${vendorId}: ${response.status}`);
+    }
+    return await response.json() as VendorContractLookup[];
+}
+
+export async function getContractByReference(
+    vendorId: number,
+    contractReference: string,
+): Promise<VendorContractLookup | null> {
+    const contracts = await listVendorContracts(vendorId);
+    return contracts.find((contract) => contract.contract_reference === contractReference) ?? null;
+}
+
+export async function createVendorContractViaApi(
+    vendorId: number,
+    payload: Record<string, string | number | null>,
+): Promise<VendorContractLookup> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}/contracts`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to create contract on vendor ${vendorId}: ${response.status} - ${await response.text()}`);
+    }
+    return await response.json() as VendorContractLookup;
+}
+
+/** Force the seeded contract's archive state (idempotent test baseline). */
+export async function ensureContractArchived(
+    vendorId: number,
+    contractReference: string,
+    archived: boolean,
+): Promise<number> {
+    const contract = await getContractByReference(vendorId, contractReference);
+    if (!contract) {
+        throw new Error(`Contract '${contractReference}' not found — run the deterministic E2E seed first.`);
+    }
+    if (contract.is_archived === archived) {
+        return contract.id;
+    }
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    if (archived) {
+        const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}/contracts/${contract.id}`, {
+            method: 'DELETE',
+            headers,
+        });
+        if (!response.ok && response.status !== 204) {
+            throw new Error(`Failed to archive contract ${contract.id}: ${response.status}`);
+        }
+    } else {
+        const response = await fetch(
+            `${apiBase}/api/v1/vendors/${vendorId}/contracts/${contract.id}/restore`,
+            { method: 'POST', headers, body: JSON.stringify({}) },
+        );
+        if (!response.ok) {
+            throw new Error(`Failed to restore contract ${contract.id}: ${response.status}`);
+        }
+    }
+    return contract.id;
+}
+
+export async function listVendorSubOutsourcing(vendorId: number): Promise<VendorSubOutsourcingLookup[]> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(
+        `${apiBase}/api/v1/vendors/${vendorId}/sub-outsourcing?include_archived=true`,
+        { headers },
+    );
+    if (!response.ok) {
+        throw new Error(`Failed to list sub-outsourcing for vendor ${vendorId}: ${response.status}`);
+    }
+    return await response.json() as VendorSubOutsourcingLookup[];
+}
+
+export async function getSubOutsourcingByName(
+    vendorId: number,
+    subProviderName: string,
+): Promise<VendorSubOutsourcingLookup | null> {
+    const entries = await listVendorSubOutsourcing(vendorId);
+    return entries.find((entry) => entry.sub_provider_name === subProviderName) ?? null;
+}
+
+export async function createSubOutsourcingViaApi(
+    vendorId: number,
+    payload: Record<string, string | number | null>,
+): Promise<VendorSubOutsourcingLookup> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}/sub-outsourcing`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        throw new Error(
+            `Failed to create sub-outsourcing on vendor ${vendorId}: ${response.status} - ${await response.text()}`,
+        );
+    }
+    return await response.json() as VendorSubOutsourcingLookup;
 }
 
 /** Re-point the asset's primary designation at the given process (idempotent). */

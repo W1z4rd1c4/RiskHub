@@ -1,27 +1,43 @@
 """
-ICT Register E2E Fixtures: Deterministic Processes, Assets, and Links
+ICT Register E2E Fixtures: Deterministic Processes, Assets, Links, and the
+Vendor-domain register (Vendor extension, Contracts, Sub-outsourcing chains)
 Seeds the deterministic ICT Register matrix used by the Playwright suites
-(processes.spec.ts / assets.spec.ts): Processes and Assets with active and
+(processes.spec.ts / assets.spec.ts / vendor-contracts.spec.ts /
+vendor-sub-outsourcing.spec.ts): Processes and Assets with active and
 archived states, Process<->Asset links carrying exactly one primary
-designation per linked Asset, and directional Asset<->Asset links.
+designation per linked Asset, directional Asset<->Asset links, one dedicated
+E2E Vendor carrying the entered 07_Dodavatelé register-extension fields, its
+08_Smlouvy Contracts (two mains — the exactly-one-main rule is a DQ finding,
+never a write constraint — plus an archived row), and a 09_Subdodávky chain
+(two directs plus one deeper link, so the full-depth render shows rank 3).
 
-Entered fields only — derived values (scores, classes, CIF, SPOF rollups)
-are computed on read by the derivation engine (ticket #48) and never seeded.
-Coded fields are validated against the workbook closed lists so fixture rows
-can never drift from the reference registry.
+Entered fields only — derived values (scores, classes, CIF, SPOF rollups,
+sub-outsourcing Rank) are computed on read by the derivation engine
+(tickets #48/#49) and never seeded. Coded fields are validated against the
+workbook closed lists so fixture rows can never drift from the reference
+registry.
 """
 
 import asyncio
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import func, select
 
 from app.core.config import get_settings
 from app.core.datetime_utils import utc_now
 from app.db.session import session_context
-from app.models import Asset, AssetAssetLink, Process, ProcessAssetLink
-from app.services._ict_register_reference import is_closed_list_value
-from scripts.e2e_mappings import load_mappings, require_user_id
+from app.models import (
+    Asset,
+    AssetAssetLink,
+    Process,
+    ProcessAssetLink,
+    Vendor,
+    VendorContract,
+    VendorSubOutsourcing,
+)
+from app.services._ict_register_reference import ICT_SERVICE_TAXONOMY, is_closed_list_value
+from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
 
 # Closed-list membership guards per coded column (workbook reference registry).
 _PROCESS_CLOSED_LIST_FIELDS = {
@@ -416,6 +432,164 @@ _LINK_CLOSED_LIST_FIELDS = {
     "dependency_type": "TypZavislostiAktiv",
 }
 
+_VENDOR_CLOSED_LIST_FIELDS = {
+    "person_type": "TypOsoby",
+    "identifier_type": "TypKodu",
+    "replaceability": "Substituce",
+    "data_sensitivity": "CitlivostDat",
+}
+
+_CONTRACT_CLOSED_LIST_FIELDS = {
+    "records_system": "SystemEvidence",
+    "arrangement_type": "TypUjednani",
+    "main_contract": "AnoNe",
+    "roi_scope": "AnoNe",
+    "currency": "MenaList",
+}
+
+_SUB_OUTSOURCING_CLOSED_LIST_FIELDS = {
+    "identifier_type": "TypKodu",
+    "country": "ZemeList",
+}
+
+# The dedicated Vendor of the vendor-domain register suites. Registration id
+# is the stable natural key (mirrors seed_e2e_vendors.py); the Operations
+# department keeps the row visible to the dept-scoped employee fixture, and
+# the register-extension fields carry the entered 07_Dodavatelé columns the
+# specs assert (LEI identifier + Substituce-constrained substitutability).
+E2E_ICT_VENDOR = {
+    "registration_id": "E2E-VREG-ICT-001",
+    "name": "E2E-VENDOR-ICT Core Hosting Provider",
+    "legal_name": "E2E Core Hosting Provider s.r.o.",
+    "country": "CZ",
+    "website": "https://vendor-ict.e2e.local",
+    "description": "Deterministic ICT Register vendor fixture (contracts + sub-outsourcing chains).",
+    "process": "Claims",
+    "subprocess": "Hosting Operations",
+    "dept": "Operations",
+    "owner": "risk.manager@riskhub.local",
+    "vendor_type": "ict",
+    "risk_score_1_5": 4,
+    "supports_important_core_insurance_function": True,
+    "dora_relevant": True,
+    "is_significant_vendor": True,
+    "has_alternative_providers": False,
+    # ICT Register extension (issue #44) — entered fields only.
+    "latin_name": "E2E Core Hosting Provider",
+    "person_type": "Právnická osoba",
+    "identifier_type": "LEI",
+    "identifier_value": "E2E00LEI00000000ICT1",
+    "replaceability": "Velmi obtížně nahraditelný",
+    "data_sensitivity": "Vysoká",
+    "is_archived": False,
+}
+
+# Contract matrix of the E2E ICT vendor (contract_reference is the natural
+# key). TWO rows carry main_contract="Ano" on purpose: the workbook's
+# exactly-one-main-per-vendor rule is a DQ finding (#50), never a write
+# constraint, and the UI must render both without error.
+E2E_VENDOR_CONTRACTS = [
+    {
+        "contract_reference": "E2E-CTR-001",
+        "internal_contract_number": "TAS-E2E-0001",
+        "records_system": "TAS",
+        "arrangement_type": "Rámcové (master)",
+        "main_contract": "Ano",
+        "overarching_arrangement_reference": None,
+        "description": "Master hosting agreement — carries the seeded sub-outsourcing chain.",
+        "roi_scope": "Ano",
+        "start_date": date(2025, 1, 1),
+        "end_date": date(2027, 12, 31),
+        "notice_period_entity_days": 90,
+        "notice_period_provider_days": 180,
+        "governing_law_country": "CZ",
+        "annual_cost": Decimal("1200000.50"),
+        "currency": "CZK",
+        "note": "Deterministic E2E fixture — main + RoI-scope contract.",
+        "is_archived": False,
+    },
+    {
+        # Second main: pins the two-mains-allowed rule visually (DQ-39 owns it).
+        "contract_reference": "E2E-CTR-002",
+        "internal_contract_number": "SAP-E2E-0002",
+        "records_system": "SAP",
+        "arrangement_type": "Samostatné",
+        "main_contract": "Ano",
+        "overarching_arrangement_reference": None,
+        "description": "Standalone monitoring service — deliberately a SECOND main contract.",
+        "roi_scope": "Ne",
+        "start_date": date(2025, 6, 1),
+        "end_date": None,
+        "notice_period_entity_days": 30,
+        "notice_period_provider_days": 30,
+        "governing_law_country": "CZ",
+        "annual_cost": Decimal("48000.00"),
+        "currency": "EUR",
+        "note": None,
+        "is_archived": False,
+    },
+    {
+        "contract_reference": "E2E-CTR-ARCH",
+        "internal_contract_number": None,
+        "records_system": "Jiné",
+        "arrangement_type": "Navazující",
+        "main_contract": "Ne",
+        "overarching_arrangement_reference": "E2E-CTR-001",
+        "description": "Retired onboarding addendum.",
+        "roi_scope": "Ne",
+        "start_date": date(2024, 1, 1),
+        "end_date": date(2024, 12, 31),
+        "notice_period_entity_days": None,
+        "notice_period_provider_days": None,
+        "governing_law_country": "CZ",
+        "annual_cost": None,
+        "currency": None,
+        "note": "Archived deterministic fixture for the archived-row render flow.",
+        "is_archived": True,
+    },
+]
+
+# Sub-outsourcing chain on E2E-CTR-001 (sub_provider_name is the natural key
+# within the vendor). Two directs (predecessor None -> rank 2 in workbook
+# terms) plus one deeper link under the first direct (rank 3), so the
+# full-depth chain render shows indentation. Rank itself is derived (#49).
+E2E_SUB_OUTSOURCING = [
+    {
+        "sub_provider_name": "E2E-SUB-001 Primary DC Operator",
+        "contract": "E2E-CTR-001",
+        "predecessor": None,
+        "identifier_type": "LEI",
+        "identifier_value": "E2E00LEI00000000SUB1",
+        "country": "CZ",
+        "ict_service_code": "S07",
+        "note": "Direct sub-outsourcer of the main contract.",
+        "is_archived": False,
+    },
+    {
+        "sub_provider_name": "E2E-SUB-002 Network Backbone",
+        "contract": "E2E-CTR-001",
+        "predecessor": None,
+        "identifier_type": "EUID",
+        "identifier_value": "E2E-EUID-SUB2",
+        "country": "DE",
+        "ict_service_code": "S11",
+        "note": None,
+        "is_archived": False,
+    },
+    {
+        # Rank-3 link: hangs under the first direct, so the chain render indents it.
+        "sub_provider_name": "E2E-SUB-003 Offsite Backup Facility",
+        "contract": "E2E-CTR-001",
+        "predecessor": "E2E-SUB-001 Primary DC Operator",
+        "identifier_type": "IČO (CRN)",
+        "identifier_value": "12345678",
+        "country": "SK",
+        "ict_service_code": "S09",
+        "note": "Deeper chain link under E2E-SUB-001 (workbook rank 3).",
+        "is_archived": False,
+    },
+]
+
 
 def _assert_closed_list_values(entry: dict, fields: dict[str, str], context: str) -> None:
     """Fail fast if a fixture value drifts from the workbook closed lists."""
@@ -428,13 +602,13 @@ def _assert_closed_list_values(entry: dict, fields: dict[str, str], context: str
 
 
 async def seed_ict_register():
-    """Seed deterministic ICT Register Processes, Assets, and link matrices."""
+    """Seed deterministic ICT Register Processes, Assets, links, and the vendor-domain register."""
     print("=" * 60)
-    print("🔍 ICT REGISTER: Deterministic Process/Asset Seed Matrix")
+    print("🔍 ICT REGISTER: Deterministic Process/Asset/Vendor-domain Seed Matrix")
     print("=" * 60)
 
     async with session_context(get_settings()) as db:
-        users, _departments = await load_mappings(db)
+        users, departments = await load_mappings(db)
         archiver_id = require_user_id(users, "risk.manager@riskhub.local")
         now = utc_now()
 
@@ -561,6 +735,124 @@ async def seed_ict_register():
             link.note = entry["note"]
             aa_links += 1
 
+        # 5) Vendor-domain register (issues #44/#45): one dedicated Vendor
+        # with the entered register-extension fields, its Contract matrix,
+        # and the Sub-outsourcing chain on the main contract.
+        _assert_closed_list_values(E2E_ICT_VENDOR, _VENDOR_CLOSED_LIST_FIELDS, "Vendor")
+        vendor_payload = {
+            key: value
+            for key, value in E2E_ICT_VENDOR.items()
+            if key not in {"dept", "owner", "is_archived"}
+        }
+        vendor_payload.update(
+            {
+                "department_id": require_department_id(departments, E2E_ICT_VENDOR["dept"]),
+                "outsourcing_owner_user_id": require_user_id(users, E2E_ICT_VENDOR["owner"]),
+                "is_archived": bool(E2E_ICT_VENDOR["is_archived"]),
+                "archived_at": now if E2E_ICT_VENDOR["is_archived"] else None,
+                "archived_by_id": archiver_id if E2E_ICT_VENDOR["is_archived"] else None,
+            }
+        )
+        result = await db.execute(
+            select(Vendor).where(Vendor.registration_id == E2E_ICT_VENDOR["registration_id"])
+        )
+        vendor = result.scalar_one_or_none()
+        if vendor is None:
+            vendor = Vendor(**vendor_payload)
+            db.add(vendor)
+            await db.flush()
+            created += 1
+            print(f"   ✓ {E2E_ICT_VENDOR['name']} (vendor, active)")
+        else:
+            for key, value in vendor_payload.items():
+                setattr(vendor, key, value)
+            updated += 1
+            print(f"   ↺ {E2E_ICT_VENDOR['name']} (vendor, active)")
+
+        # 5a) Contracts (upsert by contract_reference within the vendor).
+        contract_ids: dict[str, int] = {}
+        for entry in E2E_VENDOR_CONTRACTS:
+            _assert_closed_list_values(entry, _CONTRACT_CLOSED_LIST_FIELDS, "Vendor contract")
+            is_archived = bool(entry["is_archived"])
+            payload = {key: value for key, value in entry.items() if key != "is_archived"}
+            payload.update(
+                {
+                    "is_archived": is_archived,
+                    "archived_at": now if is_archived else None,
+                    "archived_by_id": archiver_id if is_archived else None,
+                }
+            )
+            result = await db.execute(
+                select(VendorContract).where(
+                    VendorContract.vendor_id == vendor.id,
+                    VendorContract.contract_reference == entry["contract_reference"],
+                )
+            )
+            contract = result.scalar_one_or_none()
+            if contract is None:
+                contract = VendorContract(vendor_id=vendor.id, **payload)
+                db.add(contract)
+                await db.flush()
+                created += 1
+                print(f"   ✓ {entry['contract_reference']} (contract, {'archived' if is_archived else 'active'})")
+            else:
+                for key, value in payload.items():
+                    setattr(contract, key, value)
+                updated += 1
+                print(f"   ↺ {entry['contract_reference']} (contract, {'archived' if is_archived else 'active'})")
+            contract_ids[entry["contract_reference"]] = contract.id
+
+        # 5b) Sub-outsourcing chain (upsert by sub_provider_name within the
+        # vendor). Directs come first in the matrix, so a deeper link always
+        # resolves its predecessor id in the same pass.
+        sub_ids: dict[str, int] = {}
+        for entry in E2E_SUB_OUTSOURCING:
+            _assert_closed_list_values(entry, _SUB_OUTSOURCING_CLOSED_LIST_FIELDS, "Sub-outsourcing")
+            if entry["ict_service_code"] is not None and entry["ict_service_code"] not in ICT_SERVICE_TAXONOMY:
+                raise RuntimeError(
+                    f"Sub-outsourcing fixture value ict_service_code={entry['ict_service_code']!r} "
+                    "is not an S01-S19 taxonomy code"
+                )
+            predecessor_name = entry["predecessor"]
+            if predecessor_name is not None and predecessor_name not in sub_ids:
+                raise RuntimeError(
+                    f"Sub-outsourcing fixture {entry['sub_provider_name']!r} references predecessor "
+                    f"{predecessor_name!r} before it is seeded — keep directs first in the matrix"
+                )
+            is_archived = bool(entry["is_archived"])
+            payload = {
+                "contract_id": contract_ids[entry["contract"]],
+                "predecessor_id": sub_ids[predecessor_name] if predecessor_name is not None else None,
+                "sub_provider_name": entry["sub_provider_name"],
+                "identifier_type": entry["identifier_type"],
+                "identifier_value": entry["identifier_value"],
+                "country": entry["country"],
+                "ict_service_code": entry["ict_service_code"],
+                "note": entry["note"],
+                "is_archived": is_archived,
+                "archived_at": now if is_archived else None,
+                "archived_by_id": archiver_id if is_archived else None,
+            }
+            result = await db.execute(
+                select(VendorSubOutsourcing).where(
+                    VendorSubOutsourcing.vendor_id == vendor.id,
+                    VendorSubOutsourcing.sub_provider_name == entry["sub_provider_name"],
+                )
+            )
+            sub_entry = result.scalar_one_or_none()
+            if sub_entry is None:
+                sub_entry = VendorSubOutsourcing(vendor_id=vendor.id, **payload)
+                db.add(sub_entry)
+                await db.flush()
+                created += 1
+                print(f"   ✓ {entry['sub_provider_name']} (sub-outsourcing, {'archived' if is_archived else 'active'})")
+            else:
+                for key, value in payload.items():
+                    setattr(sub_entry, key, value)
+                updated += 1
+                print(f"   ↺ {entry['sub_provider_name']} (sub-outsourcing, {'archived' if is_archived else 'active'})")
+            sub_ids[entry["sub_provider_name"]] = sub_entry.id
+
         await db.commit()
 
         processes_active = (
@@ -596,11 +888,42 @@ async def seed_ict_register():
             )
         ).scalar_one()
 
+        contracts_active = (
+            await db.execute(
+                select(func.count(VendorContract.id)).where(
+                    VendorContract.vendor_id == vendor.id,
+                    VendorContract.contract_reference.like("E2E-CTR-%"),
+                    VendorContract.is_archived.is_(False),
+                )
+            )
+        ).scalar_one()
+        contracts_archived = (
+            await db.execute(
+                select(func.count(VendorContract.id)).where(
+                    VendorContract.vendor_id == vendor.id,
+                    VendorContract.contract_reference.like("E2E-CTR-%"),
+                    VendorContract.is_archived.is_(True),
+                )
+            )
+        ).scalar_one()
+        sub_outsourcing_total = (
+            await db.execute(
+                select(func.count(VendorSubOutsourcing.id)).where(
+                    VendorSubOutsourcing.vendor_id == vendor.id,
+                    VendorSubOutsourcing.sub_provider_name.like("E2E-SUB-%"),
+                )
+            )
+        ).scalar_one()
+
         print(
             f"\n✅ ICT Register seeded: processes active={processes_active}, archived={processes_archived}; "
             f"assets active={assets_active}, archived={assets_archived}"
         )
         print(f"   Process-Asset links={pa_links}, Asset-Asset links={aa_links}")
+        print(
+            f"   Vendor {E2E_ICT_VENDOR['registration_id']}: contracts active={contracts_active}, "
+            f"archived={contracts_archived}; sub-outsourcing rows={sub_outsourcing_total}"
+        )
         print(f"   Created={created}, updated={updated}")
         return {
             "processes_active": processes_active,
@@ -609,6 +932,9 @@ async def seed_ict_register():
             "assets_archived": assets_archived,
             "process_asset_links": pa_links,
             "asset_asset_links": aa_links,
+            "vendor_contracts_active": contracts_active,
+            "vendor_contracts_archived": contracts_archived,
+            "vendor_sub_outsourcing": sub_outsourcing_total,
             "created": created,
             "updated": updated,
         }

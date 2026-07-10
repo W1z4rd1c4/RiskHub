@@ -1,0 +1,295 @@
+/**
+ * ICT Register — Vendor Contracts + vendor register extension E2E
+ * (issue #44, deterministic fixtures).
+ *
+ * Asserts CURRENT behavior: the Contracts section lives on the Vendor detail
+ * behind the tab=contracts deep-link, entered 08_Smlouvy fields round-trip
+ * through the inline dialog, closed lists come verbatim from the workbook
+ * reference registry, TWO main contracts render side by side without error
+ * (exactly-one-main is a DQ finding — ticket #50 — never a write constraint),
+ * and the vendor form's register extension constrains substitutability to the
+ * closed Substituce list. Contract maintenance follows vendor_contracts:write
+ * (risk manager); the employee reads the section without manage affordances;
+ * the platform admin has no vendor surface at all.
+ */
+import { test, expect } from './fixtures/auth.fixture';
+import { E2E_ICT_VENDOR, E2E_VENDOR_CONTRACTS } from './fixtures/e2e-data';
+import { getVendorByRegistration } from './helpers/api-auth';
+import {
+    createVendorContractViaApi,
+    ensureContractArchived,
+    getContractByReference,
+} from './helpers/ict-register';
+import { waitForDataLoad } from './helpers/wait';
+import { VendorDetailPage } from './pages/VendorDetailPage';
+
+// TypUjednani — verbatim workbook closed list (docs/dora-ict-register spec section 3.1).
+const TYP_UJEDNANI = ['Samostatné', 'Rámcové (master)', 'Navazující'];
+// MenaList — verbatim workbook closed list.
+const MENA_LIST = ['CZK', 'EUR', 'USD', 'GBP'];
+// TypKodu — verbatim workbook closed list (vendor register identifier type).
+const TYP_KODU = ['LEI', 'EUID', 'IČO (CRN)', 'VAT', 'Jiný'];
+// Substituce — verbatim workbook closed list (vendor substitutability input).
+const SUBSTITUCE = [
+    'Nenahraditelný',
+    'Velmi obtížně nahraditelný',
+    'Středně obtížně nahraditelný',
+    'Snadno nahraditelný',
+];
+
+const MAIN_FLAG = /^(Main|Hlavní)$/;
+
+async function seededVendorId(): Promise<number> {
+    const vendor = await getVendorByRegistration(E2E_ICT_VENDOR.registration_id);
+    if (!vendor) {
+        throw new Error(`Vendor '${E2E_ICT_VENDOR.registration_id}' not found — run the deterministic E2E seed first.`);
+    }
+    return vendor.id;
+}
+
+test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
+    test('Deep-link tab=contracts lands on the Contracts section of the seeded vendor', async ({ riskManagerPage }) => {
+        const vendorId = await seededVendorId();
+
+        const detailPage = new VendorDetailPage(riskManagerPage);
+        await detailPage.navigateToSection(vendorId, 'contracts');
+
+        // tab=contracts resolves to a scroll target, so the URL is NOT
+        // normalized away (unknown tabs like ?tab=sla are stripped). The
+        // scroll itself is best-effort — later-loading sections reflow the
+        // page — so the stable contract is URL retention + the anchored
+        // section rendering.
+        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}\\?tab=contracts$`));
+        await expect(riskManagerPage.locator('h1').first()).toContainText(E2E_ICT_VENDOR.name);
+        await expect(detailPage.contractsSection).toBeVisible();
+        await expect(
+            detailPage.contractsSection.getByText(/Contracts|Smlouvy/).first(),
+        ).toBeVisible();
+    });
+
+    test('Seeded contracts render with Main/RoI flags and the archived row keeps its restore affordance', async ({ riskManagerPage }) => {
+        const vendorId = await seededVendorId();
+        const archivedId = await ensureContractArchived(
+            vendorId,
+            E2E_VENDOR_CONTRACTS.ARCHIVED.contract_reference,
+            true,
+        );
+
+        const detailPage = new VendorDetailPage(riskManagerPage);
+        await detailPage.navigateToSection(vendorId, 'contracts');
+
+        // Active seeded rows render with their workbook-coded columns verbatim.
+        const mainRow = detailPage.contractRowByText(E2E_VENDOR_CONTRACTS.MAIN_ROI.contract_reference);
+        await expect(mainRow).toBeVisible();
+        await expect(mainRow.getByText('Rámcové (master)', { exact: true })).toBeVisible();
+        await expect(mainRow.getByText(MAIN_FLAG)).toBeVisible();
+        await expect(mainRow.getByText('RoI', { exact: true })).toBeVisible();
+
+        const secondRow = detailPage.contractRowByText(E2E_VENDOR_CONTRACTS.SECOND_MAIN.contract_reference);
+        await expect(secondRow).toBeVisible();
+        await expect(secondRow.getByText('Samostatné', { exact: true })).toBeVisible();
+
+        // The section always fetches include_archived: the archived seeded row
+        // stays visible inline, carrying restore as its only row action.
+        const archivedRow = detailPage.contractRowByText(E2E_VENDOR_CONTRACTS.ARCHIVED.contract_reference);
+        await expect(archivedRow).toBeVisible();
+        await expect(archivedRow.getByTestId(`vendor-contract-restore-${archivedId}`)).toBeVisible();
+        await expect(archivedRow.getByTestId(`vendor-contract-edit-${archivedId}`)).toHaveCount(0);
+        await expect(archivedRow.getByTestId(`vendor-contract-archive-${archivedId}`)).toHaveCount(0);
+    });
+
+    test('TWO main contracts render side by side without error (no uniqueness constraint)', async ({ riskManagerPage }) => {
+        const vendorId = await seededVendorId();
+
+        const detailPage = new VendorDetailPage(riskManagerPage);
+        await detailPage.navigateToSection(vendorId, 'contracts');
+
+        // Both seeded mains carry the Main badge — the workbook's
+        // exactly-one-main rule is a DQ finding (#50), not a write block.
+        const firstMain = detailPage.contractRowByText(E2E_VENDOR_CONTRACTS.MAIN_ROI.contract_reference);
+        const secondMain = detailPage.contractRowByText(E2E_VENDOR_CONTRACTS.SECOND_MAIN.contract_reference);
+        await expect(firstMain.getByText(MAIN_FLAG)).toBeVisible();
+        await expect(secondMain.getByText(MAIN_FLAG)).toBeVisible();
+        // No section error banner accompanies the duplicate-main render.
+        await expect(
+            detailPage.contractsSection.getByText(/Saving the contract failed|Uložení smlouvy se nezdařilo/),
+        ).toHaveCount(0);
+    });
+
+    test('Create flow offers verbatim workbook closed lists and the new contract lands in the table', async ({ riskManagerPage }) => {
+        const vendorId = await seededVendorId();
+        const uniqueReference = `E2E-CTR-UI ${Date.now()}`;
+
+        const detailPage = new VendorDetailPage(riskManagerPage);
+        await detailPage.navigateToSection(vendorId, 'contracts');
+
+        await riskManagerPage.getByTestId('vendor-contract-add').click();
+        await expect(riskManagerPage.getByTestId('vendor-contract-form')).toBeVisible();
+
+        // Arrangement type dropdown carries the TypUjednani workbook list verbatim.
+        await riskManagerPage.getByTestId('vendor-contract-field-arrangement_type').click();
+        await expect(riskManagerPage.getByRole('option')).toHaveCount(TYP_UJEDNANI.length + 1); // + "Not set"
+        for (const value of TYP_UJEDNANI) {
+            await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
+        }
+        await riskManagerPage.getByRole('option', { name: 'Samostatné', exact: true }).click();
+
+        // Currency dropdown carries the MenaList workbook list verbatim.
+        await riskManagerPage.getByTestId('vendor-contract-field-currency').click();
+        await expect(riskManagerPage.getByRole('option')).toHaveCount(MENA_LIST.length + 1);
+        for (const value of MENA_LIST) {
+            await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
+        }
+        await riskManagerPage.getByRole('option', { name: 'EUR', exact: true }).click();
+
+        await riskManagerPage.getByTestId('vendor-contract-field-contract_reference').fill(uniqueReference);
+        await riskManagerPage.getByTestId('vendor-contract-field-start_date').fill('2026-01-01');
+        await riskManagerPage.getByTestId('vendor-contract-field-annual_cost').fill('12000');
+        await riskManagerPage.getByTestId('vendor-contract-form-save').click();
+
+        // The form closes and the refreshed table carries the new row.
+        await expect(riskManagerPage.getByTestId('vendor-contract-form')).toHaveCount(0);
+        const createdRow = detailPage.contractRowByText(uniqueReference);
+        await expect(createdRow).toBeVisible();
+        await expect(createdRow.getByText('Samostatné', { exact: true })).toBeVisible();
+
+        const created = await getContractByReference(vendorId, uniqueReference);
+        expect(created).not.toBeNull();
+        expect(created!.is_archived).toBe(false);
+    });
+
+    test('Edit round-trip persists contract changes', async ({ riskManagerPage }) => {
+        const vendorId = await seededVendorId();
+        const uniqueReference = `E2E-CTR-EDIT ${Date.now()}`;
+        const created = await createVendorContractViaApi(vendorId, {
+            contract_reference: uniqueReference,
+            arrangement_type: 'Samostatné',
+            internal_contract_number: 'TAS-ORIGINAL',
+        });
+
+        const detailPage = new VendorDetailPage(riskManagerPage);
+        await detailPage.navigateToSection(vendorId, 'contracts');
+
+        await riskManagerPage.getByTestId(`vendor-contract-edit-${created.id}`).click();
+        const form = riskManagerPage.getByTestId('vendor-contract-form');
+        await expect(form).toBeVisible();
+        await expect(riskManagerPage.getByTestId('vendor-contract-field-contract_reference')).toHaveValue(uniqueReference);
+
+        await riskManagerPage.getByTestId('vendor-contract-field-internal_contract_number').fill('TAS-EDITED-42');
+        await riskManagerPage.getByTestId('vendor-contract-field-arrangement_type').click();
+        await riskManagerPage.getByRole('option', { name: 'Navazující', exact: true }).click();
+        await riskManagerPage.getByTestId('vendor-contract-form-save').click();
+        await expect(form).toHaveCount(0);
+
+        // Hard reload: a fresh document proves persistence beyond the query cache.
+        await detailPage.navigateToSection(vendorId, 'contracts');
+        const editedRow = detailPage.contractRowByText(uniqueReference);
+        await expect(editedRow).toBeVisible();
+        await expect(editedRow.getByText('TAS-EDITED-42', { exact: true })).toBeVisible();
+        await expect(editedRow.getByText('Navazující', { exact: true })).toBeVisible();
+    });
+
+    test('Archive and restore round-trip through the section row actions', async ({ riskManagerPage }) => {
+        const vendorId = await seededVendorId();
+        const uniqueReference = `E2E-CTR-LC ${Date.now()}`;
+        const created = await createVendorContractViaApi(vendorId, {
+            contract_reference: uniqueReference,
+        });
+
+        const detailPage = new VendorDetailPage(riskManagerPage);
+        await detailPage.navigateToSection(vendorId, 'contracts');
+        const row = detailPage.contractRowByText(uniqueReference);
+        await expect(row).toBeVisible();
+
+        // Archive: the row swaps its actions to restore-only.
+        await riskManagerPage.getByTestId(`vendor-contract-archive-${created.id}`).click();
+        await expect(riskManagerPage.getByTestId(`vendor-contract-restore-${created.id}`)).toBeVisible();
+        await expect(riskManagerPage.getByTestId(`vendor-contract-archive-${created.id}`)).toHaveCount(0);
+        await expect(riskManagerPage.getByTestId(`vendor-contract-edit-${created.id}`)).toHaveCount(0);
+
+        // Restore: edit and archive come back, restore disappears.
+        await riskManagerPage.getByTestId(`vendor-contract-restore-${created.id}`).click();
+        await expect(riskManagerPage.getByTestId(`vendor-contract-archive-${created.id}`)).toBeVisible();
+        await expect(riskManagerPage.getByTestId(`vendor-contract-edit-${created.id}`)).toBeVisible();
+        await expect(riskManagerPage.getByTestId(`vendor-contract-restore-${created.id}`)).toHaveCount(0);
+    });
+
+    test('Employee sees the Contracts section read-only: no manage affordances', async ({ employeePage }) => {
+        const vendorId = await seededVendorId();
+
+        const detailPage = new VendorDetailPage(employeePage);
+        await detailPage.navigateToSection(vendorId, 'contracts');
+
+        // vendor_contracts:read renders the section with the seeded rows...
+        await expect(detailPage.contractsSection).toBeVisible();
+        await expect(
+            detailPage.contractRowByText(E2E_VENDOR_CONTRACTS.MAIN_ROI.contract_reference),
+        ).toBeVisible();
+        // ...but without vendor_contracts:write there is no add, edit, archive, or restore.
+        await expect(employeePage.getByTestId('vendor-contract-add')).toHaveCount(0);
+        await expect(employeePage.locator('[data-testid^="vendor-contract-edit-"]')).toHaveCount(0);
+        await expect(employeePage.locator('[data-testid^="vendor-contract-archive-"]')).toHaveCount(0);
+        await expect(employeePage.locator('[data-testid^="vendor-contract-restore-"]')).toHaveCount(0);
+    });
+
+    test('Platform admin gets no vendor surface: no navigation and no vendor detail', async ({ adminPage }) => {
+        const vendorId = await seededVendorId();
+
+        // Anchor on the admin-only console link before asserting the absence.
+        await expect(adminPage.locator('a[href="/admin"]').first()).toBeVisible();
+        await expect(adminPage.locator('nav a[href="/vendors"]')).toHaveCount(0);
+
+        // A direct visit renders the access-denied state, never the vendor page.
+        await adminPage.goto(`/vendors/${vendorId}?tab=contracts`);
+        await waitForDataLoad(adminPage);
+        await expect(
+            adminPage.getByRole('heading', { name: /Access Denied|Přístup zamítnut/i }),
+        ).toBeVisible();
+        await expect(adminPage.locator('#vendor-contracts')).toHaveCount(0);
+    });
+
+    test('Vendor register extension: identifier type/value and Substituce-constrained substitutability round-trip', async ({ riskManagerPage }) => {
+        const vendorId = await seededVendorId();
+
+        await riskManagerPage.goto(`/vendors/${vendorId}/edit`);
+        await waitForDataLoad(riskManagerPage);
+
+        // Identifier type dropdown carries the TypKodu workbook list verbatim.
+        await riskManagerPage.getByTestId('vendor-register-identifier_type').click();
+        await expect(riskManagerPage.getByRole('option')).toHaveCount(TYP_KODU.length + 1); // + "Not set"
+        for (const value of TYP_KODU) {
+            await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
+        }
+        await riskManagerPage.getByRole('option', { name: 'EUID', exact: true }).click();
+        await riskManagerPage.getByTestId('vendor-register-identifier_value').fill('E2E-EUID-0001');
+
+        // Substitutability offers EXACTLY the four Substituce values (+ the
+        // empty choice) — the seeded value is already on the closed list, so
+        // no legacy easy/medium/hard entry is prepended.
+        const substitutabilityField = riskManagerPage
+            .locator('.vendor-field')
+            .filter({ hasText: /^(Replaceability|Nahraditelnost)/ })
+            .first();
+        await substitutabilityField.getByRole('combobox').click();
+        await expect(riskManagerPage.getByRole('option')).toHaveCount(SUBSTITUCE.length + 1);
+        for (const value of SUBSTITUCE) {
+            await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
+        }
+        await riskManagerPage.getByRole('option', { name: 'Snadno nahraditelný', exact: true }).click();
+
+        await riskManagerPage.getByRole('button', { name: /^(Save|Uložit)$/ }).click();
+        await riskManagerPage.waitForURL(new RegExp(`/vendors/${vendorId}$`));
+
+        // Hard reload: the detail overview renders the persisted Substituce value...
+        await riskManagerPage.goto(`/vendors/${vendorId}`);
+        await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage.getByText('Snadno nahraditelný', { exact: true }).first()).toBeVisible();
+
+        // ...and a fresh edit form carries all three persisted register fields.
+        await riskManagerPage.goto(`/vendors/${vendorId}/edit`);
+        await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage.getByTestId('vendor-register-identifier_type')).toContainText('EUID');
+        await expect(riskManagerPage.getByTestId('vendor-register-identifier_value')).toHaveValue('E2E-EUID-0001');
+        await expect(substitutabilityField.getByRole('combobox')).toContainText('Snadno nahraditelný');
+    });
+});
