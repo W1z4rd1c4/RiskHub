@@ -111,9 +111,14 @@ from app.schemas.vendor import (
     VendorLinkedRiskSummary,
     VendorListResponse,
     VendorRead,
-    VendorReplaceabilityEnum,
     VendorTypeEnum,
     VendorUpdate,
+)
+from app.schemas.vendor_contract import (
+    VendorContractCapabilities,
+    VendorContractCreate,
+    VendorContractRead,
+    VendorContractUpdate,
 )
 
 __all__ = [
@@ -209,13 +214,16 @@ __all__ = [
     "IssueOwnerLookup",
     # Vendor schemas
     "VendorTypeEnum",
-    "VendorReplaceabilityEnum",
     "VendorBase",
     "VendorCreate",
     "VendorUpdate",
     "VendorLinkedRiskSummary",
     "VendorRead",
     "VendorListResponse",
+    "VendorContractCapabilities",
+    "VendorContractCreate",
+    "VendorContractUpdate",
+    "VendorContractRead",
     # Risk questionnaires
     "RiskQuestionnaireStatusEnum",
     "RiskQuestionnaireListItemRead",

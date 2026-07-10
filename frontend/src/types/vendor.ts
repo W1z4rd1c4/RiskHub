@@ -7,7 +7,12 @@ export type VendorType =
     | 'partner'
     | 'other';
 
-export type VendorReplaceability = 'easy' | 'medium' | 'hard';
+/**
+ * The register's Substitutability input: writes are constrained to the
+ * workbook's closed four-value Substituce list; rows stored before the ICT
+ * Register extension may still carry the legacy easy/medium/hard values.
+ */
+export type VendorReplaceability = string;
 
 export interface VendorLinkedRiskSummary {
     risk_id: number;
@@ -30,6 +35,8 @@ export interface VendorCapabilities {
     can_view_linked_controls: boolean;
     can_view_linked_kris: boolean;
     can_create_issue: boolean;
+    can_view_contracts: boolean;
+    can_manage_contracts: boolean;
 }
 
 export interface Vendor {
@@ -60,6 +67,53 @@ export interface Vendor {
     materiality_assessed_max_impact_pct_own_funds?: number | null;
     replaceability?: VendorReplaceability | null;
     has_alternative_providers: boolean;
+
+    // ICT Register extension (issue #44) — entered 07_Dodavatelé columns.
+    latin_name?: string | null;
+    person_type?: string | null;
+    identifier_type?: string | null;
+    identifier_value?: string | null;
+    address?: string | null;
+    contact_person?: string | null;
+    contact?: string | null;
+    ultimate_parent_name?: string | null;
+    ultimate_parent_lei?: string | null;
+    data_storage?: string | null;
+    service_country?: string | null;
+    data_location?: string | null;
+    processing_location?: string | null;
+    data_sensitivity?: string | null;
+    substitutability_reason?: string | null;
+    last_audit_date?: string | null;
+    exit_plan_state?: string | null;
+    reintegration?: string | null;
+    service_disruption_impact?: string | null;
+    alternative_providers?: string | null;
+    alternative_providers_names?: string | null;
+    ctpp_designation?: string | null;
+    ex_ante_operational?: string | null;
+    ex_ante_legal?: string | null;
+    ex_ante_ict?: string | null;
+    ex_ante_reputational?: string | null;
+    ex_ante_data_confidentiality?: string | null;
+    ex_ante_data_availability?: string | null;
+    ex_ante_data_location?: string | null;
+    ex_ante_provider_location?: string | null;
+    ex_ante_ict_concentration?: string | null;
+    ex_ante_assessment_date?: string | null;
+    assessment_phase?: string | null;
+    due_diligence_state?: string | null;
+    last_monitoring_date?: string | null;
+    significance_authorization_conditions?: string | null;
+    significance_regulatory_requirements?: string | null;
+    significance_service_quality?: string | null;
+    significance_financial_impact?: string | null;
+    significance_reputation_continuity?: string | null;
+    significance_cumulative_impact?: string | null;
+    significance_justification?: string | null;
+    note?: string | null;
+    reference_occurrence_count?: number | null;
+    reference_process_count?: number | null;
 
     is_archived: boolean;
     archived_at?: string | null;

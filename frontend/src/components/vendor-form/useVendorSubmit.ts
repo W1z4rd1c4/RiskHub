@@ -37,7 +37,7 @@ export function useVendorSubmit({
 
         try {
             setIsSubmitting(true);
-            const payload = buildVendorPayload(formData);
+            const payload = buildVendorPayload(formData, isEdit ? initialData : undefined);
             const saved =
                 isEdit && initialData
                     ? await vendorApi.updateVendor(initialData.id, payload)

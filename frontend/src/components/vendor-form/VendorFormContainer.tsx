@@ -17,6 +17,7 @@ import {
 import { VendorClassificationSection } from './VendorClassificationSection';
 import { VendorIdentitySection } from './VendorIdentitySection';
 import { VendorOwnershipSection } from './VendorOwnershipSection';
+import { VendorRegisterSection } from './VendorRegisterSection';
 import { VendorResilienceSection } from './VendorResilienceSection';
 import { useVendorFormState } from './useVendorFormState';
 import { useVendorLookups } from './useVendorLookups';
@@ -88,6 +89,7 @@ export function VendorFormContainer({
                 onChange={handleChange}
             />
             <VendorResilienceSection formData={formData} onChange={handleChange} />
+            <VendorRegisterSection formData={formData} onChange={handleChange} />
 
             <div className="flex items-center justify-end gap-3">
                 {onCancel ? (

@@ -501,6 +501,7 @@ async def test_role_employee(db_session: AsyncSession) -> Role:
         Permission(resource="controls", action="read", description="Read controls"),
         Permission(resource="controls", action="execute", description="Execute controls"),
         Permission(resource="vendors", action="read", description="Read vendors"),
+        Permission(resource="vendor_contracts", action="read", description="Read vendor contracts"),
         Permission(resource="processes", action="read", description="Read ICT Register processes"),
         Permission(resource="assets", action="read", description="Read ICT Register assets"),
         Permission(resource="departments", action="read", description="Read departments"),

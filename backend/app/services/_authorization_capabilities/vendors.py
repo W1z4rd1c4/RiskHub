@@ -47,4 +47,11 @@ def vendor_capabilities(current_user: User, vendor: Vendor) -> VendorCapabilitie
         can_view_linked_controls=bool(is_visible and has_permission(current_user, "controls", "read")),
         can_view_linked_kris=bool(is_visible and has_permission(current_user, "risks", "read")),
         can_create_issue=bool(is_visible and is_active and has_permission(current_user, "issues", "write")),
+        # ICT Register Contracts section (issue #44): reads follow
+        # vendor_contracts:read, maintenance follows vendor_contracts:write
+        # and requires an active Vendor (strict archived-end stance).
+        can_view_contracts=bool(is_visible and has_permission(current_user, "vendor_contracts", "read")),
+        can_manage_contracts=bool(
+            is_visible and is_active and has_permission(current_user, "vendor_contracts", "write")
+        ),
     )

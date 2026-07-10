@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field, computed_field, field_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
 from app.schemas.collection import CollectionGroupRead
+from app.services._ict_register_reference import is_closed_list_value
 
 
 class VendorTypeEnum(str, Enum):
@@ -17,13 +19,120 @@ class VendorTypeEnum(str, Enum):
     other = "other"
 
 
-class VendorReplaceabilityEnum(str, Enum):
-    easy = "easy"
-    medium = "medium"
-    hard = "hard"
+# ICT Register closed-list bindings for the entered 07_Dodavatelé columns
+# (issue #44, functional spec sections 1.3 and 3.1). ``replaceability`` is the
+# register's Substitutability input: writes are constrained to the four-value
+# Substituce list while legacy stored values (easy/medium/hard) stay readable.
+_VENDOR_CLOSED_LIST_FIELDS: dict[str, str] = {
+    "person_type": "TypOsoby",
+    "identifier_type": "TypKodu",
+    "data_sensitivity": "CitlivostDat",
+    "replaceability": "Substituce",
+    "substitutability_reason": "DuvodSubst",
+    "exit_plan_state": "ExitPlanStav",
+    "reintegration": "Reintegrace",
+    "service_disruption_impact": "DopadSluzby",
+    "alternative_providers": "AltPosk",
+    "ctpp_designation": "AnoNeNeurceno",
+    "ex_ante_operational": "ExAnteHodn",
+    "ex_ante_legal": "ExAnteHodn",
+    "ex_ante_ict": "ExAnteHodn",
+    "ex_ante_reputational": "ExAnteHodn",
+    "ex_ante_data_confidentiality": "ExAnteHodn",
+    "ex_ante_data_availability": "ExAnteHodn",
+    "ex_ante_data_location": "ExAnteHodn",
+    "ex_ante_provider_location": "ExAnteHodn",
+    "ex_ante_ict_concentration": "ExAnteHodn",
+    "assessment_phase": "Faze",
+    "due_diligence_state": "DueDiligenceStav",
+    "significance_authorization_conditions": "AnoNeNerel",
+    "significance_regulatory_requirements": "AnoNeNerel",
+    "significance_service_quality": "AnoNeNerel",
+    "significance_financial_impact": "AnoNeNerel",
+    "significance_reputation_continuity": "AnoNeNerel",
+    "significance_cumulative_impact": "AnoNeNerel",
+}
 
 
-class VendorBase(BaseModel):
+class VendorRegisterWriteValidators(BaseModel):
+    """Closed-list enforcement for Vendor WRITE payloads only.
+
+    Deliberately not on ``VendorBase``: ``VendorRead`` inherits the base and
+    must keep serializing legacy stored values (for example
+    ``replaceability="easy"``) untouched.
+    """
+
+    @field_validator(*_VENDOR_CLOSED_LIST_FIELDS, check_fields=False)
+    @classmethod
+    def _validate_register_closed_list_fields(cls, value: str | None, info) -> str | None:
+        if value is None:
+            return value
+        list_name = _VENDOR_CLOSED_LIST_FIELDS[info.field_name]
+        if not is_closed_list_value(list_name, value):
+            raise ValueError(f"Value must come from the workbook closed list {list_name}")
+        return value
+
+
+class VendorRegisterExtension(BaseModel):
+    """The entered 07_Dodavatelé register columns added to Vendor (issue #44)."""
+
+    # A·IDENTIFIKACE
+    latin_name: str | None = Field(None, max_length=255)
+    person_type: str | None = Field(None, max_length=50)
+    identifier_type: str | None = Field(None, max_length=20)
+    identifier_value: str | None = Field(None, max_length=100)
+    address: str | None = Field(None, max_length=255)
+    contact_person: str | None = Field(None, max_length=255)
+    contact: str | None = Field(None, max_length=255)
+    ultimate_parent_name: str | None = Field(None, max_length=255)
+    ultimate_parent_lei: str | None = Field(None, max_length=50)
+
+    # C·DATA A LOKACE
+    data_storage: str | None = Field(None, max_length=255)
+    service_country: str | None = Field(None, max_length=100)
+    data_location: str | None = Field(None, max_length=255)
+    processing_location: str | None = Field(None, max_length=255)
+    data_sensitivity: str | None = Field(None, max_length=20)
+
+    # D·SUBSTITUCE A EXIT
+    substitutability_reason: str | None = Field(None, max_length=50)
+    last_audit_date: date | None = None
+    exit_plan_state: str | None = Field(None, max_length=50)
+    reintegration: str | None = Field(None, max_length=20)
+    service_disruption_impact: str | None = Field(None, max_length=20)
+    alternative_providers: str | None = Field(None, max_length=20)
+    alternative_providers_names: str | None = Field(None, max_length=255)
+
+    # F·POSOUZENÍ RIZIKA A VÝZNAMNOSTI
+    ctpp_designation: str | None = Field(None, max_length=20)
+    ex_ante_operational: str | None = Field(None, max_length=20)
+    ex_ante_legal: str | None = Field(None, max_length=20)
+    ex_ante_ict: str | None = Field(None, max_length=20)
+    ex_ante_reputational: str | None = Field(None, max_length=20)
+    ex_ante_data_confidentiality: str | None = Field(None, max_length=20)
+    ex_ante_data_availability: str | None = Field(None, max_length=20)
+    ex_ante_data_location: str | None = Field(None, max_length=20)
+    ex_ante_provider_location: str | None = Field(None, max_length=20)
+    ex_ante_ict_concentration: str | None = Field(None, max_length=20)
+    ex_ante_assessment_date: date | None = None
+    assessment_phase: str | None = Field(None, max_length=20)
+    due_diligence_state: str | None = Field(None, max_length=50)
+    last_monitoring_date: date | None = None
+    significance_authorization_conditions: str | None = Field(None, max_length=20)
+    significance_regulatory_requirements: str | None = Field(None, max_length=20)
+    significance_service_quality: str | None = Field(None, max_length=20)
+    significance_financial_impact: str | None = Field(None, max_length=20)
+    significance_reputation_continuity: str | None = Field(None, max_length=20)
+    significance_cumulative_impact: str | None = Field(None, max_length=20)
+    significance_justification: str | None = None
+
+    # G·STAV A POZNÁMKY
+    note: str | None = None
+    reference_occurrence_count: int | None = Field(None, ge=0)
+    reference_process_count: int | None = Field(None, ge=0)
+
+
+class VendorBase(VendorRegisterExtension):
     name: str = Field(..., max_length=255)
     legal_name: str | None = Field(None, max_length=255)
     registration_id: str | None = Field(None, max_length=100)
@@ -43,15 +152,15 @@ class VendorBase(BaseModel):
     dora_relevant: bool = False
     is_significant_vendor: bool = False
     materiality_assessed_max_impact_pct_own_funds: Decimal | None = Field(None, ge=0)
-    replaceability: VendorReplaceabilityEnum | None = None
+    replaceability: str | None = Field(None, max_length=50)
     has_alternative_providers: bool = False
 
 
-class VendorCreate(VendorBase):
+class VendorCreate(VendorRegisterWriteValidators, VendorBase):
     pass
 
 
-class VendorUpdate(BaseModel):
+class VendorUpdate(VendorRegisterWriteValidators, VendorRegisterExtension):
     name: str | None = Field(None, max_length=255)
     legal_name: str | None = Field(None, max_length=255)
     registration_id: str | None = Field(None, max_length=100)
@@ -71,7 +180,7 @@ class VendorUpdate(BaseModel):
     dora_relevant: bool | None = None
     is_significant_vendor: bool | None = None
     materiality_assessed_max_impact_pct_own_funds: Decimal | None = Field(None, ge=0)
-    replaceability: VendorReplaceabilityEnum | None = None
+    replaceability: str | None = Field(None, max_length=50)
     has_alternative_providers: bool | None = None
 
 
@@ -96,6 +205,8 @@ class VendorCapabilities(BaseModel):
     can_view_linked_controls: bool
     can_view_linked_kris: bool
     can_create_issue: bool
+    can_view_contracts: bool
+    can_manage_contracts: bool
 
 
 class VendorRead(VendorBase):

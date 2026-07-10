@@ -209,7 +209,26 @@
         "can_view_linked_risks",
         "can_view_linked_controls",
         "can_view_linked_kris",
-        "can_create_issue"
+        "can_create_issue",
+        "can_view_contracts",
+        "can_manage_contracts"
+      ]
+    },
+    {
+      "id": "vendor_contract",
+      "backend": {
+        "path": "backend/app/schemas/vendor_contract.py",
+        "class": "VendorContractCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/vendors.ts",
+        "schema": "vendorContractCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_update",
+        "can_archive",
+        "can_restore"
       ]
     },
     {

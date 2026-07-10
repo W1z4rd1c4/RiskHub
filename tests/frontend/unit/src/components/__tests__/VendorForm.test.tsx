@@ -1,3 +1,5 @@
+import type { ReactElement } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -7,6 +9,14 @@ const getUsersMock = vi.fn();
 const getDepartmentsMock = vi.fn();
 const getVendorsMock = vi.fn();
 const createVendorMock = vi.fn();
+const getClosedListsMock = vi.fn();
+
+function renderWithQueryClient(ui: ReactElement) {
+    const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+    });
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
@@ -30,6 +40,13 @@ vi.mock('@/services/vendorApi', () => ({
         getVendors: (...args: unknown[]) => getVendorsMock(...args),
         createVendor: (...args: unknown[]) => createVendorMock(...args),
         updateVendor: vi.fn(),
+    },
+}));
+
+// The resilience and ICT Register form sections load the workbook closed lists.
+vi.mock('@/services/assetApi', () => ({
+    assetApi: {
+        getClosedLists: (...args: unknown[]) => getClosedListsMock(...args),
     },
 }));
 
@@ -99,10 +116,20 @@ describe('VendorForm', () => {
             id: 10,
             name: 'New Vendor',
         });
+        getClosedListsMock.mockResolvedValue({
+            Substituce: [
+                'Nenahraditelný',
+                'Velmi obtížně nahraditelný',
+                'Středně obtížně nahraditelný',
+                'Snadno nahraditelný',
+            ],
+            TypOsoby: ['Právnická osoba', 'Fyzická osoba podnikající'],
+            TypKodu: ['LEI', 'EUID', 'IČO (CRN)', 'VAT', 'Jiný'],
+        });
     });
 
     it('validates required fields before submit', async () => {
-        render(<VendorForm onSaved={vi.fn()} onCancel={vi.fn()} />);
+        renderWithQueryClient(<VendorForm onSaved={vi.fn()} onCancel={vi.fn()} />);
 
         fireEvent.click(screen.getByRole('button', { name: 'actions.create' }));
 
@@ -112,7 +139,7 @@ describe('VendorForm', () => {
 
     it('autofills the department from the selected owner and submits the mapped payload', async () => {
         const onSaved = vi.fn();
-        render(<VendorForm onSaved={onSaved} onCancel={vi.fn()} />);
+        renderWithQueryClient(<VendorForm onSaved={onSaved} onCancel={vi.fn()} />);
 
         await waitFor(() => expect(getUsersMock).toHaveBeenCalled());
 

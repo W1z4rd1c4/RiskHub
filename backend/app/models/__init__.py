@@ -34,6 +34,7 @@ from app.models.role import Permission, Role, RolePermission, RoleType
 from app.models.scheduler_job_run import SchedulerJobRun
 from app.models.user import User
 from app.models.vendor import Vendor, VendorReplaceability, VendorType
+from app.models.vendor_contract import VendorContract
 from app.models.vendor_control_link import VendorControlLink
 from app.models.vendor_kri_link import VendorKRILink
 from app.models.vendor_risk_link import VendorRiskLink
@@ -85,6 +86,7 @@ __all__ = [
     "Vendor",
     "VendorType",
     "VendorReplaceability",
+    "VendorContract",
     "VendorRiskLink",
     "VendorControlLink",
     "VendorKRILink",

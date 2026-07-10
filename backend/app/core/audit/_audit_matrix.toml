@@ -133,6 +133,30 @@ action = "DELETE"
 rationale = "Vendor unlink mutations are auditable relationship changes, emitted at the workflow layer."
 
 [[adapter]]
+module = "vendor_contract"
+function = "vendor_contract_created"
+entity_type = "VENDOR_CONTRACT"
+action = "CREATE"
+
+[[adapter]]
+module = "vendor_contract"
+function = "vendor_contract_updated"
+entity_type = "VENDOR_CONTRACT"
+action = "UPDATE"
+
+[[adapter]]
+module = "vendor_contract"
+function = "vendor_contract_archived"
+entity_type = "VENDOR_CONTRACT"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "vendor_contract"
+function = "vendor_contract_restored"
+entity_type = "VENDOR_CONTRACT"
+action = "UPDATE"
+
+[[adapter]]
 module = "issue"
 function = "issue_created"
 entity_type = "ISSUE"

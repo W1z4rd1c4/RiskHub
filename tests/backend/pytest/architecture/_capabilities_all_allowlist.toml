@@ -73,3 +73,7 @@ expires_at = "2026-09-01"
 [[public_names]]
 name = "vendor_capabilities"
 expires_at = "2026-09-01"
+
+[[public_names]]
+name = "vendor_contract_capabilities"
+expires_at = "2026-09-01"

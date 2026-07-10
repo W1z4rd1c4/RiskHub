@@ -323,8 +323,8 @@ Rules:
 | `vendors:read` | View vendors (Vendor Risk Management) | Governance + business users (scoped) |
 | `vendors:write` | Create/edit vendors | Outsourcing Owners, Risk Manager, Department Head |
 | `vendors:delete` | Archive vendors | Privileged users only |
-| `vendor_contracts:read` | **Reserved** for future vendor contract + DORA clause governance | Reserved |
-| `vendor_contracts:write` | **Reserved** for future vendor contract + DORA clause governance | Reserved |
+| `vendor_contracts:read` | View ICT Register Contracts inside a Vendor's detail | Every vendors:read holder (CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Dept Head, Employee, Viewer) |
+| `vendor_contracts:write` | Create/edit/archive/restore ICT Register Contracts | CRO, Risk Manager |
 | `processes:read` | View ICT Register processes | Business users (global, unscoped) |
 | `processes:write` | Create/edit ICT Register processes | CRO, Risk Manager |
 | `processes:delete` | Archive/restore ICT Register processes | CRO, Risk Manager |

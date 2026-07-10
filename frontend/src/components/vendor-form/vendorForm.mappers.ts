@@ -1,11 +1,13 @@
 import type { SafeTFunction } from '@/i18n/hooks';
 import type {
+    Vendor,
     VendorCreate,
     VendorReplaceability,
     VendorType,
 } from '@/types/vendor';
 
 import type { DepartmentLookup, VendorFormData } from './vendorForm.types';
+import { VENDOR_REGISTER_DATE_FIELDS, VENDOR_REGISTER_TEXT_FIELDS } from './vendorForm.types';
 
 export function buildOwnerOptions(
     users: Array<{
@@ -58,8 +60,8 @@ function trimOrNull(value: string | null | undefined): string | null {
     return trimmed ? trimmed : null;
 }
 
-export function buildVendorPayload(formData: VendorFormData): VendorCreate {
-    return {
+export function buildVendorPayload(formData: VendorFormData, initialData?: Vendor): VendorCreate {
+    const payload: VendorCreate = {
         name: formData.name?.trim() || '',
         legal_name: trimOrNull(formData.legal_name),
         registration_id: trimOrNull(formData.registration_id),
@@ -79,7 +81,23 @@ export function buildVendorPayload(formData: VendorFormData): VendorCreate {
             formData.materiality_assessed_max_impact_pct_own_funds ?? null,
         replaceability: (formData.replaceability || null) as VendorReplaceability | null,
         has_alternative_providers: !!formData.has_alternative_providers,
+        reference_occurrence_count: formData.reference_occurrence_count ?? null,
+        reference_process_count: formData.reference_process_count ?? null,
     };
+
+    for (const field of [...VENDOR_REGISTER_TEXT_FIELDS, ...VENDOR_REGISTER_DATE_FIELDS]) {
+        payload[field] = trimOrNull(formData[field] as string | null | undefined);
+    }
+
+    // Substitutability writes are constrained to the closed Substituce list:
+    // an unchanged legacy stored value (easy/medium/hard) is left unsent so
+    // editing unrelated fields never trips the write constraint nor rewrites
+    // the stored value.
+    if (initialData && payload.replaceability === (initialData.replaceability ?? null)) {
+        delete payload.replaceability;
+    }
+
+    return payload;
 }
 
 export function getOwnerAutoDepartmentId(

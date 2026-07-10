@@ -47,6 +47,7 @@ class ActivityEntityType(str, PyEnum):
     RISK_QUESTIONNAIRE = "risk_questionnaire"
     VENDOR = "vendor"
     VENDOR_LINK = "vendor_link"
+    VENDOR_CONTRACT = "vendor_contract"
     PROCESS = "process"
     ASSET = "asset"
     ASSET_LINK = "asset_link"

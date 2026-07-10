@@ -126,7 +126,8 @@
       "identity": "Identita",
       "ownership": "Vlastnictví a rozsah",
       "classification": "Klasifikace",
-      "resilience": "Odolnost a monitoring"
+      "resilience": "Odolnost a monitoring",
+      "register": "ICT registr"
     },
     "name": "Název dodavatele",
     "name_placeholder": "Acme Cloud Ltd.",
@@ -163,6 +164,63 @@
     },
     "financial": {
       "no_loss": "Bez finanční ztráty"
+    },
+    "register": {
+      "not_set": "Nenastaveno",
+      "blocks": {
+        "identity": "Identifikace",
+        "data_location": "Data a lokace",
+        "substitutability_exit": "Substituce a exit",
+        "assessment": "Posouzení rizika a významnosti",
+        "status_notes": "Stav a poznámky"
+      },
+      "fields": {
+        "latin_name": "Název latinkou",
+        "person_type": "Typ osoby",
+        "identifier_type": "Typ ID kódu",
+        "identifier_value": "ID kód",
+        "address": "Adresa",
+        "contact_person": "Kontaktní osoba",
+        "contact": "Kontakt",
+        "ultimate_parent_name": "Ultimate parent – název",
+        "ultimate_parent_lei": "Ultimate parent – LEI",
+        "data_storage": "Uložení dat",
+        "service_country": "Země poskytování",
+        "data_location": "Lokace dat",
+        "processing_location": "Lokace zpracování",
+        "data_sensitivity": "Citlivost dat",
+        "substitutability_reason": "Důvod obtížné substituce",
+        "last_audit_date": "Poslední audit",
+        "exit_plan_state": "Exit plán – stav",
+        "reintegration": "Možnost reintegrace",
+        "service_disruption_impact": "Dopad přerušení služby",
+        "alternative_providers": "Alternativní poskytovatelé",
+        "alternative_providers_names": "Alternativní poskytovatelé – název",
+        "ctpp_designation": "CTPP dle ESA",
+        "ex_ante_operational": "Ex-ante: operační",
+        "ex_ante_legal": "Ex-ante: právní",
+        "ex_ante_ict": "Ex-ante: IKT",
+        "ex_ante_reputational": "Ex-ante: reputační",
+        "ex_ante_data_confidentiality": "Ex-ante: důvěrnost dat",
+        "ex_ante_data_availability": "Ex-ante: dostupnost dat",
+        "ex_ante_data_location": "Ex-ante: lokace dat",
+        "ex_ante_provider_location": "Ex-ante: lokace poskytovatele",
+        "ex_ante_ict_concentration": "Ex-ante: koncentrace IKT",
+        "ex_ante_assessment_date": "Ex-ante posouzení (datum)",
+        "assessment_phase": "Fáze posouzení",
+        "due_diligence_state": "Due diligence – stav",
+        "last_monitoring_date": "Poslední monitoring (datum)",
+        "significance_authorization_conditions": "Významnost: podmínky povolení",
+        "significance_regulatory_requirements": "Významnost: regulatorní požadavky",
+        "significance_service_quality": "Významnost: kvalita služeb klientům",
+        "significance_financial_impact": "Významnost: finanční a provozní dopad",
+        "significance_reputation_continuity": "Významnost: pověst, stabilita, kontinuita",
+        "significance_cumulative_impact": "Významnost: kumulativní dopad více outsourcingů",
+        "significance_justification": "Odůvodnění výsledku",
+        "note": "Poznámka",
+        "reference_occurrence_count": "Výskyt (orientačně)",
+        "reference_process_count": "Procesy (orientačně)"
+      }
     }
   },
   "empty_state": {
@@ -194,6 +252,49 @@
       "title": "Registr informací DORA",
       "subtitle": "Export minimálního datasetu registru DORA pro dodavatelské vztahy.",
       "download": "Stáhnout CSV"
+    }
+  },
+  "contracts": {
+    "title": "Smlouvy",
+    "empty": "Zatím žádné smlouvy.",
+    "columns": {
+      "reference": "Ref. smlouvy (RoI)",
+      "arrangement_type": "Typ ujednání",
+      "flags": "Příznaky",
+      "term": "Trvání",
+      "annual_cost": "Roční náklad",
+      "status": "Stav",
+      "main_flag": "Hlavní",
+      "roi_flag": "RoI"
+    },
+    "actions": {
+      "add": "Přidat smlouvu",
+      "create": "Vytvořit smlouvu",
+      "edit": "Upravit smlouvu",
+      "archive": "Archivovat smlouvu",
+      "restore": "Obnovit smlouvu"
+    },
+    "form": {
+      "not_set": "Nenastaveno",
+      "contract_reference": "Ref. smlouvy (RoI)",
+      "internal_contract_number": "Interní číslo smlouvy (TAS/SAP)",
+      "records_system": "Systém evidence",
+      "arrangement_type": "Typ ujednání",
+      "main_contract": "Hlavní smlouva",
+      "overarching_arrangement_reference": "Nadřazená smlouva (ref.)",
+      "description": "Předmět / popis",
+      "roi_scope": "Služba IKT v rozsahu RoI",
+      "start_date": "Zahájení",
+      "end_date": "Ukončení",
+      "notice_period_entity_days": "Výpovědní doba entita (dny)",
+      "notice_period_provider_days": "Výpovědní doba poskytovatel (dny)",
+      "governing_law_country": "Rozhodné právo (ISO)",
+      "annual_cost": "Roční náklad",
+      "currency": "Měna (ISO 4217)",
+      "note": "Poznámka"
+    },
+    "errors": {
+      "mutation_failed": "Uložení smlouvy se nezdařilo."
     }
   }
 }

@@ -3,6 +3,7 @@ expected_keys = [
     "controls:read",
     "issues:read",
     "vendors:read",
+    "vendor_contracts:read",
     "processes:read",
     "assets:read",
     "departments:read",

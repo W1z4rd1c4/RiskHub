@@ -15,6 +15,7 @@ from app.services._authorization_capabilities.riskhub_config import (
     role_capabilities,
 )
 from app.services._authorization_capabilities.risks import risk_capabilities
+from app.services._authorization_capabilities.vendor_contracts import vendor_contract_capabilities
 from app.services._authorization_capabilities.vendors import (
     can_view_loaded_vendor,
     can_view_vendor_link,
@@ -41,4 +42,5 @@ __all__ = [
     "require_capability",
     "role_capabilities",
     "vendor_capabilities",
+    "vendor_contract_capabilities",
 ]

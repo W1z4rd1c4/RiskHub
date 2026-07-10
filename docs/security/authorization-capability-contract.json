@@ -70,6 +70,7 @@
     "backend/app/api/v1/endpoints/riskhub/",
     "backend/app/api/v1/endpoints/risks/",
     "backend/app/api/v1/endpoints/users/",
+    "backend/app/api/v1/endpoints/vendor_contracts.py",
     "backend/app/api/v1/endpoints/vendor_links.py",
     "backend/app/api/v1/endpoints/vendor_reports.py",
     "backend/app/api/v1/endpoints/vendors/",
@@ -99,6 +100,7 @@
     "backend/app/schemas/riskhub.py",
     "backend/app/schemas/user.py",
     "backend/app/schemas/vendor.py",
+    "backend/app/schemas/vendor_contract.py",
     "backend/app/schemas/process.py",
     "backend/app/schemas/asset.py",
     "backend/app/services/_access_workflow/",
@@ -620,6 +622,38 @@
       "tests": [
         "tests/backend/pytest/test_ict_register_assets.py",
         "tests/frontend/unit/src/pages/__tests__/AssetsPage.presentation.test.ts"
+      ],
+      "status": "authoritative",
+      "findings": []
+    },
+    {
+      "id": "AUTHZ-VENDOR-CONTRACTS-READ",
+      "surface": "ICT Register",
+      "action": "Read a Vendor's Contracts inside the Vendor detail",
+      "actor_scope": "Requires vendor_contracts:read — granted to every role holding vendors:read — plus visibility of the parent Vendor (department scope or outsourcing ownership); Contracts carry no per-row ownership of their own; platform admins hold no business permissions and are denied",
+      "backend_authority": "backend/app/api/v1/endpoints/vendor_contracts.py GET /api/v1/vendors/{vendor_id}/contracts",
+      "service_policy": "backend/app/services/_vendor_governance/contract_policy.py asserts parent-Vendor visibility; backend/app/services/_vendor_governance/contract_lifecycle.py owns the collection read; backend/app/services/_vendor_governance/contract_projection.py with backend/app/services/_authorization_capabilities/vendor_contracts.py owns capability projection",
+      "response_capability": "backend/app/schemas/vendor_contract.py VendorContractCapabilities on VendorContractRead; backend/app/schemas/vendor.py VendorCapabilities.can_view_contracts gates the Vendor-detail section",
+      "frontend_gate": "frontend/src/pages/vendors/VendorContractsSection.tsx renders inside frontend/src/pages/VendorDetailPage.tsx behind the vendor capability projection and denies on backend 403",
+      "tests": [
+        "tests/backend/pytest/test_ict_register_vendor_contracts.py",
+        "tests/frontend/unit/src/pages/__tests__/VendorContractsSection.presentation.test.ts"
+      ],
+      "status": "authoritative",
+      "findings": []
+    },
+    {
+      "id": "AUTHZ-VENDOR-CONTRACTS-WRITE",
+      "surface": "ICT Register",
+      "action": "Create, update, archive, and restore a Vendor's Contracts",
+      "actor_scope": "Requires vendor_contracts:write for create/update and for archive/restore (the surface ships read/write only); the RBAC seed grants maintenance to risk_manager with the CRO wildcard applying; derived workbook columns are rejected on write; the main-contract flag is stored as entered (exactly-one per Vendor is a DQ finding, never a write block); archived Contracts and contracts of an archived Vendor reject every mutation until restored",
+      "backend_authority": "backend/app/api/v1/endpoints/vendor_contracts.py POST, PATCH, DELETE, and restore routes under /api/v1/vendors/{vendor_id}/contracts",
+      "service_policy": "backend/app/services/_vendor_governance/contract_lifecycle.py owns service transaction boundaries and audit facts; backend/app/services/_vendor_governance/contract_policy.py asserts write, archive, restore, and archived-vendor conflicts; closed-list enforcement comes from backend/app/services/_ict_register_reference/ through backend/app/schemas/vendor_contract.py and backend/app/schemas/vendor.py (the Vendor register extension and its Substituce-constrained substitutability input included)",
+      "response_capability": "backend/app/schemas/vendor_contract.py VendorContractCapabilities.can_update, can_archive, can_restore and backend/app/schemas/vendor.py VendorCapabilities.can_manage_contracts",
+      "frontend_gate": "frontend/src/pages/vendors/VendorContractsSection.tsx gates add, edit, archive, and restore actions on backend per-row capabilities",
+      "tests": [
+        "tests/backend/pytest/test_ict_register_vendor_contracts.py",
+        "tests/frontend/unit/src/pages/__tests__/VendorContractsSection.presentation.test.ts"
       ],
       "status": "authoritative",
       "findings": []

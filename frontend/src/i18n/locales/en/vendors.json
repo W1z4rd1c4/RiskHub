@@ -126,7 +126,8 @@
       "identity": "Identity",
       "ownership": "Ownership & Scope",
       "classification": "Classification",
-      "resilience": "Resilience & Monitoring"
+      "resilience": "Resilience & Monitoring",
+      "register": "ICT Register"
     },
     "name": "Vendor Name",
     "name_placeholder": "Acme Cloud Ltd.",
@@ -163,6 +164,63 @@
     },
     "financial": {
       "no_loss": "No financial loss"
+    },
+    "register": {
+      "not_set": "Not set",
+      "blocks": {
+        "identity": "Identification",
+        "data_location": "Data and locations",
+        "substitutability_exit": "Substitutability and exit",
+        "assessment": "Risk and significance assessment",
+        "status_notes": "Status and notes"
+      },
+      "fields": {
+        "latin_name": "Name in Latin script",
+        "person_type": "Person type",
+        "identifier_type": "ID code type",
+        "identifier_value": "ID code",
+        "address": "Address",
+        "contact_person": "Contact person",
+        "contact": "Contact",
+        "ultimate_parent_name": "Ultimate parent, name",
+        "ultimate_parent_lei": "Ultimate parent, LEI",
+        "data_storage": "Data storage",
+        "service_country": "Country of service provision",
+        "data_location": "Data location",
+        "processing_location": "Processing location",
+        "data_sensitivity": "Data sensitivity",
+        "substitutability_reason": "Reason for difficult substitution",
+        "last_audit_date": "Last audit",
+        "exit_plan_state": "Exit plan, state",
+        "reintegration": "Reintegration possibility",
+        "service_disruption_impact": "Service disruption impact",
+        "alternative_providers": "Alternative providers",
+        "alternative_providers_names": "Alternative providers, names",
+        "ctpp_designation": "CTPP per ESA",
+        "ex_ante_operational": "Ex-ante: operational",
+        "ex_ante_legal": "Ex-ante: legal",
+        "ex_ante_ict": "Ex-ante: ICT",
+        "ex_ante_reputational": "Ex-ante: reputational",
+        "ex_ante_data_confidentiality": "Ex-ante: data confidentiality",
+        "ex_ante_data_availability": "Ex-ante: data availability",
+        "ex_ante_data_location": "Ex-ante: data location",
+        "ex_ante_provider_location": "Ex-ante: provider location",
+        "ex_ante_ict_concentration": "Ex-ante: ICT concentration",
+        "ex_ante_assessment_date": "Ex-ante assessment (date)",
+        "assessment_phase": "Assessment phase",
+        "due_diligence_state": "Due diligence, state",
+        "last_monitoring_date": "Last monitoring (date)",
+        "significance_authorization_conditions": "Significance: authorization conditions",
+        "significance_regulatory_requirements": "Significance: regulatory requirements",
+        "significance_service_quality": "Significance: client service quality",
+        "significance_financial_impact": "Significance: financial and operational impact",
+        "significance_reputation_continuity": "Significance: reputation, stability, continuity",
+        "significance_cumulative_impact": "Significance: cumulative outsourcing impact",
+        "significance_justification": "Significance result justification",
+        "note": "Note",
+        "reference_occurrence_count": "Occurrences (reference)",
+        "reference_process_count": "Processes (reference)"
+      }
     }
   },
   "empty_state": {
@@ -194,6 +252,49 @@
       "title": "DORA Register of Information",
       "subtitle": "Export the minimum DORA register dataset for vendor arrangements.",
       "download": "Download CSV"
+    }
+  },
+  "contracts": {
+    "title": "Contracts",
+    "empty": "No contracts yet.",
+    "columns": {
+      "reference": "Contract reference (RoI)",
+      "arrangement_type": "Arrangement type",
+      "flags": "Flags",
+      "term": "Term",
+      "annual_cost": "Annual cost",
+      "status": "Status",
+      "main_flag": "Main",
+      "roi_flag": "RoI"
+    },
+    "actions": {
+      "add": "Add contract",
+      "create": "Create contract",
+      "edit": "Edit contract",
+      "archive": "Archive contract",
+      "restore": "Restore contract"
+    },
+    "form": {
+      "not_set": "Not set",
+      "contract_reference": "Contract reference (RoI)",
+      "internal_contract_number": "Internal contract number (TAS/SAP)",
+      "records_system": "Records system",
+      "arrangement_type": "Arrangement type",
+      "main_contract": "Main contract",
+      "overarching_arrangement_reference": "Overarching arrangement (ref.)",
+      "description": "Subject / description",
+      "roi_scope": "ICT service in RoI scope",
+      "start_date": "Start",
+      "end_date": "End",
+      "notice_period_entity_days": "Notice period, entity (days)",
+      "notice_period_provider_days": "Notice period, provider (days)",
+      "governing_law_country": "Governing law (ISO)",
+      "annual_cost": "Annual cost",
+      "currency": "Currency (ISO 4217)",
+      "note": "Note"
+    },
+    "errors": {
+      "mutation_failed": "Saving the contract failed."
     }
   }
 }

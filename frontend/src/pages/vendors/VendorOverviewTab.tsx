@@ -11,6 +11,7 @@ import {
 
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedControl, LinkedKRI, LinkedRisk } from '@/types/vendorLink';
 import type { Vendor } from '@/types/vendor';
@@ -18,6 +19,7 @@ import { VendorLinkedControlsTab } from '@/components/vendors/VendorLinkedContro
 import { VendorLinkedKRIsTab } from '@/components/vendors/VendorLinkedKRIsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 
+import { VendorContractsSection } from './VendorContractsSection';
 import { getVendorDisplayStatus } from './vendorsPagePresentation';
 
 interface VendorOverviewSummary {
@@ -286,7 +288,9 @@ export function VendorOverviewTab({
                         <div className="flex justify-between items-center gap-4">
                             <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('overview.summary.replaceability')}</span>
                             <span className="text-sm text-white font-medium">
-                                {vendor.replaceability ? t(`form.replaceability.${vendor.replaceability}`) : '—'}
+                                {vendor.replaceability
+                                    ? t(`form.replaceability.${vendor.replaceability}`, vendor.replaceability)
+                                    : '—'}
                             </span>
                         </div>
                     </div>
@@ -322,6 +326,15 @@ export function VendorOverviewTab({
                     onNavigateToKri={onNavigateToKri}
                 />
             </div>
+
+            {resolveCapabilityFlag(vendor.capabilities, 'can_view_contracts') ? (
+                <div id="vendor-contracts">
+                    <VendorContractsSection
+                        vendorId={vendor.id}
+                        canManageContracts={resolveCapabilityFlag(vendor.capabilities, 'can_manage_contracts')}
+                    />
+                </div>
+            ) : null}
 
             <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">
                 <div className="flex items-center gap-1">

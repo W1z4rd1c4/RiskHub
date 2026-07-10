@@ -30,8 +30,6 @@ def test_business_logic_docs_match_reserved_and_threshold_contracts() -> None:
         "VENDOR_SLA",
         "VENDOR_REMEDIATION",
         "CONTROL_OWNER",
-        "vendor_contracts:read",
-        "vendor_contracts:write",
         "controls:approve",
     ):
         assert reserved_name in business_logic
@@ -39,6 +37,13 @@ def test_business_logic_docs_match_reserved_and_threshold_contracts() -> None:
             f"{reserved_name}` | **Reserved**" in business_logic
             or f"{reserved_name} | **Reserved**" in business_logic
         )
+
+    # vendor_contracts shipped with the ICT Register (issue #44): the surface
+    # is documented as live grants, never as reserved (ADR-009 unreserve path).
+    for shipped_name in ("vendor_contracts:read", "vendor_contracts:write"):
+        assert shipped_name in business_logic
+        assert f"{shipped_name}` | **Reserved**" not in business_logic
+        assert f"{shipped_name} | **Reserved**" not in business_logic
 
 
 def test_reserved_surfaces_registry_covers_code_and_docs() -> None:
@@ -52,10 +57,13 @@ def test_reserved_surfaces_registry_covers_code_and_docs() -> None:
         ("activity_entity_type", "VENDOR_SLA"),
         ("activity_entity_type", "VENDOR_REMEDIATION"),
         ("role", "CONTROL_OWNER"),
-        ("permission", "vendor_contracts:read"),
-        ("permission", "vendor_contracts:write"),
         ("permission", "controls:approve"),
     }.issubset(reserved)
+
+    # The vendor-contracts surface shipped with the ICT Register (issue #44):
+    # its reservation entries are retired per the ADR-009 unreserve path.
+    assert ("permission", "vendor_contracts:read") not in reserved
+    assert ("permission", "vendor_contracts:write") not in reserved
 
     activity_log_source = (REPO_ROOT / "backend/app/models/activity_log.py").read_text()
     role_source = (REPO_ROOT / "backend/app/models/role.py").read_text()
@@ -64,7 +72,8 @@ def test_reserved_surfaces_registry_covers_code_and_docs() -> None:
     assert "Reserved: vendor extended domains" in activity_log_source
     assert "Reserved: control owner role" in role_source
     assert "Reserved: future control approval workflow" in rbac_source
-    assert "Reserved: vendor contract governance" in rbac_source
+    # Shipped with issue #44: the code-site reservation annotation is retired.
+    assert "Reserved: vendor contract governance" not in rbac_source
 
 
 def test_engineering_docs_link_new_architecture_surfaces() -> None:
