@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    assetVendorLinkRowName,
     buildAssetVendorLinkPayload,
     canDeleteAssetVendorLink,
     formatAssetVendorLinkMeta,
@@ -60,6 +61,13 @@ describe('Asset vendor-links presentation helpers', () => {
                 sampleLink({ vendor_role: null, contract_reference: null, reliance: null })
             )
         ).toBe('S02');
+    });
+
+    it('names the Vendor end from the server-embedded display name, never a raw id', () => {
+        expect(assetVendorLinkRowName(sampleLink({ vendor_name: 'BIZ DATA' }), 'Unknown vendor')).toBe(
+            'BIZ DATA'
+        );
+        expect(assetVendorLinkRowName(sampleLink(), 'Unknown vendor')).toBe('Unknown vendor');
     });
 
     it('gates the per-row remove action on the backend capability', () => {

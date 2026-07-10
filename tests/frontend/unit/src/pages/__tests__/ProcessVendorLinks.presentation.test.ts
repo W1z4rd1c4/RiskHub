@@ -4,6 +4,7 @@ import {
     buildProcessVendorLinkPayload,
     canDeleteProcessVendorLink,
     formatProcessVendorLinkMeta,
+    processVendorLinkRowName,
 } from '@/pages/processes/processVendorLinksPresentation';
 import type { ProcessVendorLink } from '@/types/process';
 
@@ -47,6 +48,13 @@ describe('Process vendor-links presentation helpers', () => {
         expect(
             formatProcessVendorLinkMeta(sampleLink({ direct_service_description: null, note: null }))
         ).toBe('');
+    });
+
+    it('names the Vendor end from the server-embedded display name, never a raw id', () => {
+        expect(processVendorLinkRowName(sampleLink({ vendor_name: 'BIZ DATA' }), 'Unknown vendor')).toBe(
+            'BIZ DATA'
+        );
+        expect(processVendorLinkRowName(sampleLink(), 'Unknown vendor')).toBe('Unknown vendor');
     });
 
     it('gates the per-row remove action on the backend capability', () => {

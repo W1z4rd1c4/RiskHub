@@ -302,6 +302,10 @@ class ProcessVendorLinkRead(BaseModel):
     id: int
     process_id: int
     vendor_id: int
+    # Display names for both ends, embedded by the list/create services so the
+    # UI never falls back to raw ids (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+    process_name: str | None = None
+    vendor_name: str | None = None
     direct_service_description: str | None = None
     note: str | None = None
     capabilities: ProcessVendorLinkCapabilities | None = None

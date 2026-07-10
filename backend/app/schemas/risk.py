@@ -327,6 +327,11 @@ class RiskProcessLinkRead(BaseModel):
     id: int
     risk_id: int
     process_id: int
+    # Display names for both ends, embedded by the list/create services so the
+    # UI never falls back to raw ids (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+    process_name: Optional[str] = None
+    risk_id_code: Optional[str] = None
+    risk_name: Optional[str] = None
     capabilities: Optional[RiskProcessLinkCapabilities] = None
     created_at: UtcAwareDatetime
 
@@ -351,6 +356,11 @@ class RiskAssetLinkRead(BaseModel):
     id: int
     risk_id: int
     asset_id: int
+    # Display names for both ends, embedded by the list/create services so the
+    # UI never falls back to raw ids (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+    asset_name: Optional[str] = None
+    risk_id_code: Optional[str] = None
+    risk_name: Optional[str] = None
     capabilities: Optional[RiskAssetLinkCapabilities] = None
     created_at: UtcAwareDatetime
 

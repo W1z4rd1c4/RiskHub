@@ -48,3 +48,12 @@ export function formatAssetVendorLinkMeta(link: AssetVendorLink): string {
 export function canDeleteAssetVendorLink(link: AssetVendorLink): boolean {
     return resolveCapabilityFlag(link.capabilities, 'can_delete');
 }
+
+/**
+ * Row name from the server-embedded Vendor display name. Never a raw id: an
+ * unresolved Vendor end renders the i18n'd unknown label
+ * (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+ */
+export function assetVendorLinkRowName(link: AssetVendorLink, unknownVendorLabel: string): string {
+    return link.vendor_name ?? unknownVendorLabel;
+}

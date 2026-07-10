@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import asset as audit_asset
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
 from app.core.security import check_permission
-from app.models import Asset, AssetAssetLink, ProcessAssetLink, User
+from app.models import Asset, AssetAssetLink, Process, ProcessAssetLink, User
 from app.schemas.asset import (
     AssetAssetLinkCreate,
     AssetAssetLinkRead,
@@ -30,7 +30,48 @@ from app.schemas.asset import (
 from app.services.transaction_boundary import commit_service_boundary
 
 from .asset_policy import load_asset
+from .derivation import process_display_name
 from .policy import load_process
+
+
+async def _asset_names_by_id(db: AsyncSession, asset_ids: set[int]) -> dict[int, str]:
+    """Display names for the Asset ends of link rows (guardrail: names, not ids)."""
+    if not asset_ids:
+        return {}
+    rows = await db.execute(select(Asset.id, Asset.name).where(Asset.id.in_(asset_ids)))
+    return {asset_id: name for asset_id, name in rows.all()}
+
+
+async def _process_names_by_id(db: AsyncSession, process_ids: set[int]) -> dict[int, str]:
+    """Workbook display names (l1 [– l2]) for the Process ends of link rows."""
+    if not process_ids:
+        return {}
+    rows = await db.execute(
+        select(Process.id, Process.l1_process, Process.l2_subprocess).where(Process.id.in_(process_ids))
+    )
+    return {process_id: process_display_name(l1, l2) for process_id, l1, l2 in rows.all()}
+
+
+def _serialize_process_asset_link(
+    link: ProcessAssetLink,
+    *,
+    process_name: str | None = None,
+    asset_name: str | None = None,
+) -> ProcessAssetLinkRead:
+    base = ProcessAssetLinkRead.model_validate(link)
+    return base.model_copy(update={"process_name": process_name, "asset_name": asset_name})
+
+
+def _serialize_asset_asset_link(
+    link: AssetAssetLink, asset_names: dict[int, str]
+) -> AssetAssetLinkRead:
+    base = AssetAssetLinkRead.model_validate(link)
+    return base.model_copy(
+        update={
+            "dependent_asset_name": asset_names.get(link.dependent_asset_id),
+            "supporting_asset_name": asset_names.get(link.supporting_asset_id),
+        }
+    )
 
 # Partial unique index on process_asset_links(asset_id) WHERE is_primary —
 # the DB-level backstop for the at-most-one-primary invariant (see
@@ -110,13 +151,20 @@ async def list_asset_process_links(
     asset_id: int,
     current_user: User,
 ) -> list[ProcessAssetLinkRead]:
-    await _require_asset_link_access(
+    asset = await _require_asset_link_access(
         db, asset_id=asset_id, current_user=current_user, require_write=False, require_process_read=True
     )
     result = await db.execute(
         select(ProcessAssetLink).where(ProcessAssetLink.asset_id == asset_id).order_by(ProcessAssetLink.id)
     )
-    return [ProcessAssetLinkRead.model_validate(link) for link in result.scalars().all()]
+    links = list(result.scalars().all())
+    process_names = await _process_names_by_id(db, {link.process_id for link in links})
+    return [
+        _serialize_process_asset_link(
+            link, process_name=process_names.get(link.process_id), asset_name=asset.name
+        )
+        for link in links
+    ]
 
 
 async def list_process_asset_links(
@@ -139,7 +187,15 @@ async def list_process_asset_links(
         .where(ProcessAssetLink.process_id == process_id)
         .order_by(ProcessAssetLink.id)
     )
-    return [ProcessAssetLinkRead.model_validate(link) for link in result.scalars().all()]
+    links = list(result.scalars().all())
+    asset_names = await _asset_names_by_id(db, {link.asset_id for link in links})
+    process_name = process_display_name(process.l1_process, process.l2_subprocess)
+    return [
+        _serialize_process_asset_link(
+            link, process_name=process_name, asset_name=asset_names.get(link.asset_id)
+        )
+        for link in links
+    ]
 
 
 async def add_asset_process_link(
@@ -181,7 +237,11 @@ async def add_asset_process_link(
     )
     await commit_service_boundary(db, boundary="ict_register_asset_link_create")
     await db.refresh(link)
-    return ProcessAssetLinkRead.model_validate(link)
+    return _serialize_process_asset_link(
+        link,
+        process_name=process_display_name(process.l1_process, process.l2_subprocess),
+        asset_name=asset.name,
+    )
 
 
 async def update_asset_process_link(
@@ -199,6 +259,7 @@ async def update_asset_process_link(
     link = await _load_process_asset_link(db, asset_id=asset_id, process_id=process_id)
     if not link:
         raise NotFoundError("Link not found")
+    process_names = await _process_names_by_id(db, {process_id})
 
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
     if updates.get("is_primary") is None:
@@ -210,7 +271,9 @@ async def update_asset_process_link(
         if getattr(link, field) != value
     }
     if not changes:
-        return ProcessAssetLinkRead.model_validate(link)
+        return _serialize_process_asset_link(
+            link, process_name=process_names.get(process_id), asset_name=asset.name
+        )
 
     # Designating a new primary atomically demotes the previous one — one
     # call, one transaction, never a client-side two-step.
@@ -231,7 +294,9 @@ async def update_asset_process_link(
     )
     await commit_service_boundary(db, boundary="ict_register_asset_link_update")
     await db.refresh(link)
-    return ProcessAssetLinkRead.model_validate(link)
+    return _serialize_process_asset_link(
+        link, process_name=process_names.get(process_id), asset_name=asset.name
+    )
 
 
 async def remove_asset_process_link(
@@ -277,7 +342,12 @@ async def list_asset_asset_links(
         )
         .order_by(AssetAssetLink.id)
     )
-    return [AssetAssetLinkRead.model_validate(link) for link in result.scalars().all()]
+    links = list(result.scalars().all())
+    asset_names = await _asset_names_by_id(
+        db,
+        {link.dependent_asset_id for link in links} | {link.supporting_asset_id for link in links},
+    )
+    return [_serialize_asset_asset_link(link, asset_names) for link in links]
 
 
 async def add_asset_asset_link(
@@ -329,7 +399,7 @@ async def add_asset_asset_link(
     )
     await commit_service_boundary(db, boundary="ict_register_asset_link_create")
     await db.refresh(link)
-    return AssetAssetLinkRead.model_validate(link)
+    return _serialize_asset_asset_link(link, {asset.id: asset.name, other.id: other.name})
 
 
 async def remove_asset_asset_link(

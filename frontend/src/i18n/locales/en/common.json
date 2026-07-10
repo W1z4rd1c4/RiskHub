@@ -360,7 +360,10 @@
     "unknown_control": "Unknown control",
     "not_set": "Not set",
     "unknown_department": "Unknown department",
-    "unknown_link": "Unknown link"
+    "unknown_link": "Unknown link",
+    "unknown_process": "Unknown process",
+    "unknown_asset": "Unknown asset",
+    "unknown_threat": "Unknown threat"
   },
   "audit": {
     "columns": {

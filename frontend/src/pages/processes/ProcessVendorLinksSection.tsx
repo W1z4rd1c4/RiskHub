@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Plus, Trash2 } from 'lucide-react';
 
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { logError } from '@/services/logger';
@@ -14,6 +15,7 @@ import {
     buildProcessVendorLinkPayload,
     canDeleteProcessVendorLink,
     formatProcessVendorLinkMeta,
+    processVendorLinkRowName,
 } from './processVendorLinksPresentation';
 
 interface ProcessVendorLinksSectionProps {
@@ -24,30 +26,29 @@ interface ProcessVendorLinksSectionProps {
 
 /** The manual Process<->Vendor Link relations (sheet 11 §1, issue #46). */
 export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChanged }: ProcessVendorLinksSectionProps) {
-    const { t } = useTranslation('processes');
+    const { t } = useTranslation(['processes', 'common']);
     const queryClient = useQueryClient();
     const [linkError, setLinkError] = useState<string | null>(null);
 
     const [vendorToLink, setVendorToLink] = useState('');
     const [serviceDescription, setServiceDescription] = useState('');
+    const [vendorSearch, setVendorSearch] = useState('');
+    const debouncedVendorSearch = useDebouncedValue(vendorSearch);
 
     const vendorLinksQuery = useQuery({
         queryKey: ictRegisterKeys.processVendorLinks(process.id),
         queryFn: () => processApi.getVendorLinks(process.id),
     });
     const vendorOptionsQuery = useQuery({
-        queryKey: ictRegisterKeys.vendorOptions(),
-        queryFn: () => vendorApi.getVendors({ offset: 0, limit: 100 }),
+        queryKey: ictRegisterKeys.vendorOptions(debouncedVendorSearch),
+        queryFn: () =>
+            vendorApi.getVendors({
+                offset: 0,
+                limit: 100,
+                search: debouncedVendorSearch.trim() || undefined,
+            }),
         staleTime: 60_000,
     });
-
-    const vendorNameById = useMemo(() => {
-        const map = new Map<number, string>();
-        for (const vendor of vendorOptionsQuery.data?.items ?? []) {
-            map.set(vendor.id, vendor.name);
-        }
-        return map;
-    }, [vendorOptionsQuery.data]);
 
     const refreshLinks = async () => {
         await queryClient.invalidateQueries({ queryKey: ictRegisterKeys.processVendorLinks(process.id) });
@@ -122,7 +123,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                             >
                                 <div className="min-w-0">
                                     <span className="text-sm font-bold text-white truncate">
-                                        {vendorNameById.get(link.vendor_id) ?? `#${link.vendor_id}`}
+                                        {processVendorLinkRowName(link, t('common:fallbacks.unknown_vendor'))}
                                     </span>
                                     <p className="text-xs text-slate-500">
                                         {formatProcessVendorLinkMeta(link) || t('links.vendors.no_metadata')}
@@ -147,11 +148,13 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                 {canManageLinks ? (
                     <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                         <div className="md:col-span-2">
-                            <ThemedSelect
+                            <SearchableEntitySelect
                                 value={vendorToLink}
                                 onValueChange={setVendorToLink}
                                 options={vendorOptions}
                                 placeholder={t('links.vendors.select_placeholder')}
+                                searchValue={vendorSearch}
+                                onSearchChange={setVendorSearch}
                                 triggerTestId="process-vendor-link-select"
                             />
                         </div>

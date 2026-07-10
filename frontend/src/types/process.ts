@@ -163,6 +163,9 @@ export interface ProcessVendorLink {
     id: number;
     process_id: number;
     vendor_id: number;
+    /** Server-resolved display names (FRONTEND_DISPLAY_GUARDRAILS: no raw-id fallbacks). */
+    process_name?: string | null;
+    vendor_name?: string | null;
     direct_service_description?: string | null;
     note?: string | null;
     capabilities?: ProcessVendorLinkCapabilities | null;

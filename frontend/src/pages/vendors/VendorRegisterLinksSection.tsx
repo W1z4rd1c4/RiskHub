@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Boxes, Plus, Trash2, Workflow } from 'lucide-react';
 
+import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useAuthz } from '@/authz/useAuthz';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
@@ -29,7 +31,7 @@ interface VendorRegisterLinksSectionProps {
  * backend's per-row capabilities (assets:write / processes:write).
  */
 export function VendorRegisterLinksSection({ vendorId }: VendorRegisterLinksSectionProps) {
-    const { t } = useTranslation('vendors');
+    const { t } = useTranslation(['vendors', 'common']);
     const authz = useAuthz();
     const queryClient = useQueryClient();
     const [sectionError, setSectionError] = useState<string | null>(null);
@@ -37,6 +39,10 @@ export function VendorRegisterLinksSection({ vendorId }: VendorRegisterLinksSect
     const [assetToLink, setAssetToLink] = useState('');
     const [assetLinkServiceCode, setAssetLinkServiceCode] = useState('');
     const [processToLink, setProcessToLink] = useState('');
+    const [assetSearch, setAssetSearch] = useState('');
+    const [processSearch, setProcessSearch] = useState('');
+    const debouncedAssetSearch = useDebouncedValue(assetSearch);
+    const debouncedProcessSearch = useDebouncedValue(processSearch);
 
     const canReadAssetLinks = authz.can('read', 'assets');
     const canReadProcessLinks = authz.can('read', 'processes');
@@ -54,16 +60,26 @@ export function VendorRegisterLinksSection({ vendorId }: VendorRegisterLinksSect
         enabled: canReadProcessLinks,
     });
     const assetOptionsQuery = useQuery({
-        queryKey: ictRegisterKeys.assetOptions(),
-        queryFn: () => assetApi.getAssets({ offset: 0, limit: 100 }),
+        queryKey: ictRegisterKeys.assetOptions(debouncedAssetSearch),
+        queryFn: () =>
+            assetApi.getAssets({
+                offset: 0,
+                limit: 100,
+                search: debouncedAssetSearch.trim() || undefined,
+            }),
         staleTime: 60_000,
-        enabled: canReadAssetLinks,
+        enabled: canManageAssetLinks,
     });
     const processOptionsQuery = useQuery({
-        queryKey: ictRegisterKeys.processOptions(),
-        queryFn: () => processApi.getProcesses({ offset: 0, limit: 100 }),
+        queryKey: ictRegisterKeys.processOptions(debouncedProcessSearch),
+        queryFn: () =>
+            processApi.getProcesses({
+                offset: 0,
+                limit: 100,
+                search: debouncedProcessSearch.trim() || undefined,
+            }),
         staleTime: 60_000,
-        enabled: canReadProcessLinks,
+        enabled: canManageProcessLinks,
     });
     const taxonomyQuery = useQuery({
         queryKey: ictRegisterKeys.ictServiceTaxonomy(),
@@ -71,27 +87,6 @@ export function VendorRegisterLinksSection({ vendorId }: VendorRegisterLinksSect
         staleTime: 5 * 60_000,
         enabled: canManageAssetLinks,
     });
-
-    const assetNamesById = useMemo(() => {
-        const map = new Map<number, string>();
-        for (const asset of assetOptionsQuery.data?.items ?? []) {
-            map.set(asset.id, asset.name);
-        }
-        return map;
-    }, [assetOptionsQuery.data]);
-
-    const processNamesById = useMemo(() => {
-        const map = new Map<number, string>();
-        for (const process of processOptionsQuery.data?.items ?? []) {
-            map.set(
-                process.id,
-                process.l2_subprocess
-                    ? `${process.l1_process} – ${process.l2_subprocess}`
-                    : process.l1_process,
-            );
-        }
-        return map;
-    }, [processOptionsQuery.data]);
 
     const refreshLinks = async () => {
         await Promise.all([
@@ -154,8 +149,14 @@ export function VendorRegisterLinksSection({ vendorId }: VendorRegisterLinksSect
         return null;
     }
 
-    const assetRows = buildVendorAssetLinkRows(assetLinksQuery.data ?? [], assetNamesById);
-    const processRows = buildVendorProcessLinkRows(processLinksQuery.data ?? [], processNamesById);
+    const assetRows = buildVendorAssetLinkRows(
+        assetLinksQuery.data ?? [],
+        t('common:fallbacks.unknown_asset'),
+    );
+    const processRows = buildVendorProcessLinkRows(
+        processLinksQuery.data ?? [],
+        t('common:fallbacks.unknown_process'),
+    );
 
     // Assets are NOT filtered by linked-ness: the same pair may carry several
     // typed services (the identity tuple is asset + vendor + S-code).
@@ -167,7 +168,9 @@ export function VendorRegisterLinksSection({ vendorId }: VendorRegisterLinksSect
         .filter((process) => !process.is_archived && !linkedProcessIds.has(process.id))
         .map((process) => ({
             value: String(process.id),
-            label: processNamesById.get(process.id) ?? `#${process.id}`,
+            label: process.l2_subprocess
+                ? `${process.l1_process} – ${process.l2_subprocess}`
+                : process.l1_process,
         }));
     const ictServiceOptions = (taxonomyQuery.data ?? []).map((service) => ({
         value: service.code,
@@ -234,11 +237,13 @@ export function VendorRegisterLinksSection({ vendorId }: VendorRegisterLinksSect
                     {canManageAssetLinks ? (
                         <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                             <div className="md:col-span-2">
-                                <ThemedSelect
+                                <SearchableEntitySelect
                                     value={assetToLink}
                                     onValueChange={setAssetToLink}
                                     options={assetOptions}
                                     placeholder={t('register_links.select_asset_placeholder')}
+                                    searchValue={assetSearch}
+                                    onSearchChange={setAssetSearch}
                                     triggerTestId="vendor-asset-link-select"
                                 />
                             </div>
@@ -311,11 +316,13 @@ export function VendorRegisterLinksSection({ vendorId }: VendorRegisterLinksSect
                     {canManageProcessLinks ? (
                         <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                             <div className="md:col-span-4">
-                                <ThemedSelect
+                                <SearchableEntitySelect
                                     value={processToLink}
                                     onValueChange={setProcessToLink}
                                     options={processOptions}
                                     placeholder={t('register_links.select_process_placeholder')}
+                                    searchValue={processSearch}
+                                    onSearchChange={setProcessSearch}
                                     triggerTestId="vendor-process-link-select"
                                 />
                             </div>

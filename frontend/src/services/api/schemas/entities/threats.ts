@@ -50,6 +50,9 @@ export const threatRiskLinkSchema: z.ZodType<ThreatRiskLink> = passthroughObject
     id: z.number(),
     threat_id: z.number(),
     risk_id: z.number(),
+    threat_name: z.string().nullable().optional(),
+    risk_id_code: z.string().nullable().optional(),
+    risk_name: z.string().nullable().optional(),
     capabilities: threatRiskLinkCapabilitiesSchema.nullable().optional(),
     created_at: z.string(),
 });
@@ -64,6 +67,9 @@ export const riskProcessLinkSchema: z.ZodType<RiskProcessLink> = passthroughObje
     id: z.number(),
     risk_id: z.number(),
     process_id: z.number(),
+    process_name: z.string().nullable().optional(),
+    risk_id_code: z.string().nullable().optional(),
+    risk_name: z.string().nullable().optional(),
     capabilities: riskProcessLinkCapabilitiesSchema.nullable().optional(),
     created_at: z.string(),
 });
@@ -78,6 +84,9 @@ export const riskAssetLinkSchema: z.ZodType<RiskAssetLink> = passthroughObject({
     id: z.number(),
     risk_id: z.number(),
     asset_id: z.number(),
+    asset_name: z.string().nullable().optional(),
+    risk_id_code: z.string().nullable().optional(),
+    risk_name: z.string().nullable().optional(),
     capabilities: riskAssetLinkCapabilitiesSchema.nullable().optional(),
     created_at: z.string(),
 });

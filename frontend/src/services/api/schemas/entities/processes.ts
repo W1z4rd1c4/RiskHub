@@ -133,6 +133,8 @@ export const processVendorLinkSchema: z.ZodType<ProcessVendorLink> = passthrough
     id: z.number(),
     process_id: z.number(),
     vendor_id: z.number(),
+    process_name: z.string().nullable().optional(),
+    vendor_name: z.string().nullable().optional(),
     direct_service_description: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
     capabilities: processVendorLinkCapabilitiesSchema.nullable().optional(),

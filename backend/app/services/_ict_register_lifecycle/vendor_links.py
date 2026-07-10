@@ -32,6 +32,7 @@ from app.services._authorization_capabilities import (
 from app.services.transaction_boundary import commit_service_boundary
 
 from .asset_policy import load_asset
+from .derivation import process_display_name
 from .policy import load_process
 
 
@@ -40,14 +41,63 @@ async def _load_vendor(db: AsyncSession, vendor_id: int) -> Vendor | None:
     return result.scalar_one_or_none()
 
 
-def _serialize_asset_vendor_link(link: AssetVendorLink, current_user: User) -> AssetVendorLinkRead:
+def _serialize_asset_vendor_link(
+    link: AssetVendorLink,
+    current_user: User,
+    *,
+    asset_name: str | None = None,
+    vendor_name: str | None = None,
+) -> AssetVendorLinkRead:
     base = AssetVendorLinkRead.model_validate(link)
-    return base.model_copy(update={"capabilities": asset_vendor_link_capabilities(current_user)})
+    return base.model_copy(
+        update={
+            "capabilities": asset_vendor_link_capabilities(current_user),
+            "asset_name": asset_name,
+            "vendor_name": vendor_name,
+        }
+    )
 
 
-def _serialize_process_vendor_link(link: ProcessVendorLink, current_user: User) -> ProcessVendorLinkRead:
+def _serialize_process_vendor_link(
+    link: ProcessVendorLink,
+    current_user: User,
+    *,
+    process_name: str | None = None,
+    vendor_name: str | None = None,
+) -> ProcessVendorLinkRead:
     base = ProcessVendorLinkRead.model_validate(link)
-    return base.model_copy(update={"capabilities": process_vendor_link_capabilities(current_user)})
+    return base.model_copy(
+        update={
+            "capabilities": process_vendor_link_capabilities(current_user),
+            "process_name": process_name,
+            "vendor_name": vendor_name,
+        }
+    )
+
+
+async def _vendor_names_by_id(db: AsyncSession, vendor_ids: set[int]) -> dict[int, str]:
+    """Display names for the Vendor ends of link rows (guardrail: names, not ids)."""
+    if not vendor_ids:
+        return {}
+    rows = await db.execute(select(Vendor.id, Vendor.name).where(Vendor.id.in_(vendor_ids)))
+    return {vendor_id: name for vendor_id, name in rows.all()}
+
+
+async def _asset_names_by_id(db: AsyncSession, asset_ids: set[int]) -> dict[int, str]:
+    if not asset_ids:
+        return {}
+    rows = await db.execute(select(Asset.id, Asset.name).where(Asset.id.in_(asset_ids)))
+    return {asset_id: name for asset_id, name in rows.all()}
+
+
+async def _process_names_by_id(db: AsyncSession, process_ids: set[int]) -> dict[int, str]:
+    """Workbook display names (l1 [– l2]) for the Process ends of link rows."""
+    if not process_ids:
+        return {}
+    rows = await db.execute(
+        select(Process.id, Process.l1_process, Process.l2_subprocess).where(Process.id.in_(process_ids))
+    )
+    return {process_id: process_display_name(l1, l2) for process_id, l1, l2 in rows.all()}
 
 
 async def _require_asset_vendor_link_access(
@@ -81,13 +131,20 @@ async def list_asset_vendor_links(
     asset_id: int,
     current_user: User,
 ) -> list[AssetVendorLinkRead]:
-    await _require_asset_vendor_link_access(
+    asset = await _require_asset_vendor_link_access(
         db, asset_id=asset_id, current_user=current_user, require_write=False
     )
     result = await db.execute(
         select(AssetVendorLink).where(AssetVendorLink.asset_id == asset_id).order_by(AssetVendorLink.id)
     )
-    return [_serialize_asset_vendor_link(link, current_user) for link in result.scalars().all()]
+    links = list(result.scalars().all())
+    vendor_names = await _vendor_names_by_id(db, {link.vendor_id for link in links})
+    return [
+        _serialize_asset_vendor_link(
+            link, current_user, asset_name=asset.name, vendor_name=vendor_names.get(link.vendor_id)
+        )
+        for link in links
+    ]
 
 
 async def list_vendor_asset_links(
@@ -108,7 +165,14 @@ async def list_vendor_asset_links(
     result = await db.execute(
         select(AssetVendorLink).where(AssetVendorLink.vendor_id == vendor_id).order_by(AssetVendorLink.id)
     )
-    return [_serialize_asset_vendor_link(link, current_user) for link in result.scalars().all()]
+    links = list(result.scalars().all())
+    asset_names = await _asset_names_by_id(db, {link.asset_id for link in links})
+    return [
+        _serialize_asset_vendor_link(
+            link, current_user, asset_name=asset_names.get(link.asset_id), vendor_name=vendor.name
+        )
+        for link in links
+    ]
 
 
 async def add_asset_vendor_link(
@@ -155,7 +219,9 @@ async def add_asset_vendor_link(
     )
     await commit_service_boundary(db, boundary="ict_register_asset_link_create")
     await db.refresh(link)
-    return _serialize_asset_vendor_link(link, current_user)
+    return _serialize_asset_vendor_link(
+        link, current_user, asset_name=asset.name, vendor_name=vendor.name
+    )
 
 
 async def remove_asset_vendor_link(
@@ -215,7 +281,7 @@ async def list_process_vendor_links(
     process_id: int,
     current_user: User,
 ) -> list[ProcessVendorLinkRead]:
-    await _require_process_vendor_link_access(
+    process = await _require_process_vendor_link_access(
         db, process_id=process_id, current_user=current_user, require_write=False
     )
     result = await db.execute(
@@ -223,7 +289,15 @@ async def list_process_vendor_links(
         .where(ProcessVendorLink.process_id == process_id)
         .order_by(ProcessVendorLink.id)
     )
-    return [_serialize_process_vendor_link(link, current_user) for link in result.scalars().all()]
+    links = list(result.scalars().all())
+    vendor_names = await _vendor_names_by_id(db, {link.vendor_id for link in links})
+    process_name = process_display_name(process.l1_process, process.l2_subprocess)
+    return [
+        _serialize_process_vendor_link(
+            link, current_user, process_name=process_name, vendor_name=vendor_names.get(link.vendor_id)
+        )
+        for link in links
+    ]
 
 
 async def list_vendor_process_links(
@@ -246,7 +320,17 @@ async def list_vendor_process_links(
         .where(ProcessVendorLink.vendor_id == vendor_id)
         .order_by(ProcessVendorLink.id)
     )
-    return [_serialize_process_vendor_link(link, current_user) for link in result.scalars().all()]
+    links = list(result.scalars().all())
+    process_names = await _process_names_by_id(db, {link.process_id for link in links})
+    return [
+        _serialize_process_vendor_link(
+            link,
+            current_user,
+            process_name=process_names.get(link.process_id),
+            vendor_name=vendor.name,
+        )
+        for link in links
+    ]
 
 
 async def add_process_vendor_link(
@@ -289,7 +373,12 @@ async def add_process_vendor_link(
     )
     await commit_service_boundary(db, boundary="ict_register_process_link_create")
     await db.refresh(link)
-    return _serialize_process_vendor_link(link, current_user)
+    return _serialize_process_vendor_link(
+        link,
+        current_user,
+        process_name=process_display_name(process.l1_process, process.l2_subprocess),
+        vendor_name=vendor.name,
+    )
 
 
 async def remove_process_vendor_link(

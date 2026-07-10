@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Link2, Plus, Star, Trash2, Workflow } from 'lucide-react';
 
+import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
@@ -14,6 +16,7 @@ import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
 import type { Asset } from '@/types/asset';
 
 import {
+    assetVendorLinkRowName,
     buildAssetVendorLinkPayload,
     canDeleteAssetVendorLink,
     formatAssetVendorLinkMeta,
@@ -42,9 +45,17 @@ function sectionShell(
 }
 
 export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: AssetLinkSectionsProps) {
-    const { t } = useTranslation('assets');
+    const { t } = useTranslation(['assets', 'common']);
     const queryClient = useQueryClient();
     const [linkError, setLinkError] = useState<string | null>(null);
+
+    // Picker searches (server-driven; the empty search keeps the first page).
+    const [processSearch, setProcessSearch] = useState('');
+    const [assetSearch, setAssetSearch] = useState('');
+    const [vendorSearch, setVendorSearch] = useState('');
+    const debouncedProcessSearch = useDebouncedValue(processSearch);
+    const debouncedAssetSearch = useDebouncedValue(assetSearch);
+    const debouncedVendorSearch = useDebouncedValue(vendorSearch);
 
     // Add-form state: Process link.
     const [processToLink, setProcessToLink] = useState('');
@@ -74,14 +85,26 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         queryFn: () => assetApi.getAssetLinks(asset.id),
     });
     const processOptionsQuery = useQuery({
-        queryKey: ictRegisterKeys.processOptions(),
-        queryFn: () => processApi.getProcesses({ offset: 0, limit: 100 }),
+        queryKey: ictRegisterKeys.processOptions(debouncedProcessSearch),
+        queryFn: () =>
+            processApi.getProcesses({
+                offset: 0,
+                limit: 100,
+                search: debouncedProcessSearch.trim() || undefined,
+            }),
         staleTime: 60_000,
+        enabled: canManageLinks,
     });
     const assetOptionsQuery = useQuery({
-        queryKey: ictRegisterKeys.assetOptions(),
-        queryFn: () => assetApi.getAssets({ offset: 0, limit: 100 }),
+        queryKey: ictRegisterKeys.assetOptions(debouncedAssetSearch),
+        queryFn: () =>
+            assetApi.getAssets({
+                offset: 0,
+                limit: 100,
+                search: debouncedAssetSearch.trim() || undefined,
+            }),
         staleTime: 60_000,
+        enabled: canManageLinks,
     });
     const closedListsQuery = useQuery({
         queryKey: ictRegisterKeys.closedLists(),
@@ -93,9 +116,15 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         queryFn: () => assetApi.getVendorLinks(asset.id),
     });
     const vendorOptionsQuery = useQuery({
-        queryKey: ictRegisterKeys.vendorOptions(),
-        queryFn: () => vendorApi.getVendors({ offset: 0, limit: 100 }),
+        queryKey: ictRegisterKeys.vendorOptions(debouncedVendorSearch),
+        queryFn: () =>
+            vendorApi.getVendors({
+                offset: 0,
+                limit: 100,
+                search: debouncedVendorSearch.trim() || undefined,
+            }),
         staleTime: 60_000,
+        enabled: canManageLinks,
     });
     const taxonomyQuery = useQuery({
         queryKey: ictRegisterKeys.ictServiceTaxonomy(),
@@ -141,36 +170,6 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 })),
         [vendorContractsQuery.data],
     );
-
-    const vendorNameById = useMemo(() => {
-        const map = new Map<number, string>();
-        for (const vendor of vendorOptionsQuery.data?.items ?? []) {
-            map.set(vendor.id, vendor.name);
-        }
-        return map;
-    }, [vendorOptionsQuery.data]);
-
-    const processNameById = useMemo(() => {
-        const map = new Map<number, string>();
-        for (const process of processOptionsQuery.data?.items ?? []) {
-            map.set(
-                process.id,
-                process.l2_subprocess
-                    ? `${process.l1_process} – ${process.l2_subprocess}`
-                    : process.l1_process,
-            );
-        }
-        return map;
-    }, [processOptionsQuery.data]);
-
-    const assetNameById = useMemo(() => {
-        const map = new Map<number, string>();
-        for (const row of assetOptionsQuery.data?.items ?? []) {
-            map.set(row.id, row.name);
-        }
-        map.set(asset.id, asset.name);
-        return map;
-    }, [assetOptionsQuery.data, asset.id, asset.name]);
 
     const refreshLinks = async () => {
         await Promise.all([
@@ -296,7 +295,9 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         .filter((process) => !process.is_archived && !linkedProcessIds.has(process.id))
         .map((process) => ({
             value: String(process.id),
-            label: processNameById.get(process.id) ?? `#${process.id}`,
+            label: process.l2_subprocess
+                ? `${process.l1_process} – ${process.l2_subprocess}`
+                : process.l1_process,
         }));
     const assetOptions = (assetOptionsQuery.data?.items ?? [])
         .filter((row) => !row.is_archived && row.id !== asset.id)
@@ -329,7 +330,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-bold text-white truncate">
-                                                {processNameById.get(link.process_id) ?? `#${link.process_id}`}
+                                                {link.process_name ?? t('common:fallbacks.unknown_process')}
                                             </span>
                                             {link.is_primary ? (
                                                 <span
@@ -378,11 +379,13 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                     {canManageLinks ? (
                         <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                             <div className="md:col-span-2">
-                                <ThemedSelect
+                                <SearchableEntitySelect
                                     value={processToLink}
                                     onValueChange={setProcessToLink}
                                     options={processOptions}
                                     placeholder={t('links.processes.select_placeholder')}
+                                    searchValue={processSearch}
+                                    onSearchChange={setProcessSearch}
                                     triggerTestId="asset-process-link-select"
                                 />
                             </div>
@@ -441,7 +444,6 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                         <ul className="space-y-2" data-testid="asset-asset-links">
                             {assetLinks.map((link) => {
                                 const isDependent = link.dependent_asset_id === asset.id;
-                                const otherId = isDependent ? link.supporting_asset_id : link.dependent_asset_id;
                                 return (
                                     <li
                                         key={link.id}
@@ -455,7 +457,10 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                         : 'links.assets.supports',
                                                 )}{' '}
                                                 <span className="font-bold text-white">
-                                                    {assetNameById.get(otherId) ?? `#${otherId}`}
+                                                    {(isDependent
+                                                        ? link.supporting_asset_name
+                                                        : link.dependent_asset_name) ??
+                                                        t('common:fallbacks.unknown_asset')}
                                                 </span>
                                             </span>
                                             <p className="text-xs text-slate-500">
@@ -493,11 +498,13 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                 triggerTestId="asset-asset-link-direction"
                             />
                             <div className="md:col-span-2">
-                                <ThemedSelect
+                                <SearchableEntitySelect
                                     value={assetToLink}
                                     onValueChange={setAssetToLink}
                                     options={assetOptions}
                                     placeholder={t('links.assets.select_placeholder')}
+                                    searchValue={assetSearch}
+                                    onSearchChange={setAssetSearch}
                                     triggerTestId="asset-asset-link-select"
                                 />
                             </div>
@@ -551,7 +558,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                 >
                                     <div className="min-w-0">
                                         <span className="text-sm font-bold text-white truncate">
-                                            {vendorNameById.get(link.vendor_id) ?? `#${link.vendor_id}`}
+                                            {assetVendorLinkRowName(link, t('common:fallbacks.unknown_vendor'))}
                                         </span>
                                         <p className="text-xs text-slate-500">
                                             {formatAssetVendorLinkMeta(link) || t('links.vendors.no_metadata')}
@@ -576,7 +583,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                     {canManageLinks ? (
                         <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
                             <div className="md:col-span-2">
-                                <ThemedSelect
+                                <SearchableEntitySelect
                                     value={vendorToLink}
                                     onValueChange={(value) => {
                                         setVendorToLink(value);
@@ -584,6 +591,8 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                     }}
                                     options={vendorOptions}
                                     placeholder={t('links.vendors.select_placeholder')}
+                                    searchValue={vendorSearch}
+                                    onSearchChange={setVendorSearch}
                                     triggerTestId="asset-vendor-link-select"
                                 />
                             </div>

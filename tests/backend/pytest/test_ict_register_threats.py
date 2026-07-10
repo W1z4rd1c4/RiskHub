@@ -764,9 +764,16 @@ async def test_employee_reads_threats_but_cannot_maintain_them(
     client_factory, test_user_cro: User, test_user_employee: User, seed_risk_types
 ):
     """Reads mirror the vendors:read holder set; writes 403 for employees."""
+    employee_department_id = test_user_employee.department_id
     async with client_factory(user=test_user_cro) as client:
         seeded = (await client.post("/api/v1/threats", json=_minimal_payload())).json()
-        risk = (await client.post("/api/v1/risks", json=_risk_payload())).json()
+        # In the employee's department: the Threat-end list follows Risk row
+        # visibility, so the link row is only readable for an in-scope Risk.
+        risk = (
+            await client.post(
+                "/api/v1/risks", json=_risk_payload(department_id=employee_department_id)
+            )
+        ).json()
         link = (
             await client.post(f"/api/v1/threats/{seeded['id']}/risk-links", json={"risk_id": risk["id"]})
         ).json()
@@ -811,6 +818,230 @@ async def test_employee_reads_threats_but_cannot_maintain_them(
         assert (
             await client.delete(f"/api/v1/risks/{risk['id']}/threat-links/{link['id']}")
         ).status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Risk row visibility on the register ends (scoped users)
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def other_department(db_session: AsyncSession):
+    """A department outside every dept-scoped fixture user's scope."""
+    from app.models import Department
+
+    dept = Department(name="Other Department", code="OTHER", description="Out-of-scope department")
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+    return dept
+
+
+@pytest_asyncio.fixture
+async def test_user_scoped_threat_maintainer(
+    db_session: AsyncSession, test_department
+) -> User:
+    """Dept-scoped user holding threat maintenance + risk read (no global scope)."""
+    role = Role(
+        name="scoped_threat_maintainer",
+        display_name="Scoped Threat Maintainer",
+        description="threats:read/write + risks:read, department scope",
+    )
+    db_session.add(role)
+    await db_session.commit()
+
+    permissions = [
+        Permission(resource="threats", action="read", description="Read threats"),
+        Permission(resource="threats", action="write", description="Write threats"),
+        Permission(resource="risks", action="read", description="Read risks"),
+    ]
+    db_session.add_all(permissions)
+    await db_session.commit()
+    db_session.add_all(RolePermission(role_id=role.id, permission_id=p.id) for p in permissions)
+    await db_session.commit()
+
+    user = User(
+        name="Scoped Threat Maintainer",
+        email="scoped.threat@test.com",
+        department_id=test_department.id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    result = await db_session.execute(
+        select(User)
+        .options(
+            selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
+            selectinload(User.department),
+        )
+        .where(User.id == user.id)
+    )
+    return result.scalar_one()
+
+
+@pytest.mark.asyncio
+async def test_threat_end_filters_link_rows_to_visible_risks(
+    client_factory, test_user_cro: User, test_user_employee: User, other_department, seed_risk_types
+):
+    """The Threat-end list applies the canonical Risk visibility predicate: a
+    dept-scoped employee sees only in-scope link rows, and an out-of-scope
+    Risk's id/name never appears anywhere in the payload."""
+    employee_department_id = test_user_employee.department_id
+    async with client_factory(user=test_user_cro) as client:
+        threat = (await client.post("/api/v1/threats", json=_minimal_payload())).json()
+        in_scope = (
+            await client.post(
+                "/api/v1/risks", json=_risk_payload(department_id=employee_department_id)
+            )
+        ).json()
+        out_of_scope = (
+            await client.post(
+                "/api/v1/risks",
+                json=_risk_payload(name="Skryté riziko jiného útvaru", department_id=other_department.id),
+            )
+        ).json()
+        for risk_id in (in_scope["id"], out_of_scope["id"]):
+            created = await client.post(
+                f"/api/v1/threats/{threat['id']}/risk-links", json={"risk_id": risk_id}
+            )
+            assert created.status_code == 201, created.text
+
+        # The privileged (globally scoped) caller still reads both rows.
+        cro_rows = (await client.get(f"/api/v1/threats/{threat['id']}/risk-links")).json()
+        assert {row["risk_id"] for row in cro_rows} == {in_scope["id"], out_of_scope["id"]}
+
+    async with client_factory(user=test_user_employee) as client:
+        response = await client.get(f"/api/v1/threats/{threat['id']}/risk-links")
+        assert response.status_code == 200
+        rows = response.json()
+        assert [row["risk_id"] for row in rows] == [in_scope["id"]]
+        # The visible row carries display names (guardrail), and nothing in
+        # the payload mentions the hidden Risk.
+        assert rows[0]["risk_name"] == in_scope["name"]
+        assert rows[0]["risk_id_code"] == in_scope["risk_id_code"]
+        assert "Skryté riziko jiného útvaru" not in response.text
+        assert str(out_of_scope["id"]) not in [str(row["risk_id"]) for row in rows]
+
+
+@pytest.mark.asyncio
+async def test_threat_end_link_add_404s_for_out_of_scope_risk(
+    client_factory,
+    test_user_cro: User,
+    test_user_scoped_threat_maintainer: User,
+    other_department,
+    seed_risk_types,
+):
+    """Linking an invisible Risk from the Threat page is indistinguishable
+    from linking a nonexistent one (404 anti-enumeration, mirroring the
+    Risk-end precedent)."""
+    async with client_factory(user=test_user_cro) as client:
+        threat = (await client.post("/api/v1/threats", json=_minimal_payload())).json()
+        out_of_scope = (
+            await client.post(
+                "/api/v1/risks", json=_risk_payload(department_id=other_department.id)
+            )
+        ).json()
+
+    async with client_factory(user=test_user_scoped_threat_maintainer) as client:
+        denied = await client.post(
+            f"/api/v1/threats/{threat['id']}/risk-links", json={"risk_id": out_of_scope["id"]}
+        )
+        missing = await client.post(
+            f"/api/v1/threats/{threat['id']}/risk-links", json={"risk_id": 999_999}
+        )
+        assert denied.status_code == 404, denied.text
+        assert missing.status_code == 404, missing.text
+        assert denied.json() == missing.json()
+
+
+@pytest.mark.asyncio
+async def test_register_far_end_lists_filter_risks_by_visibility(
+    client_factory, test_user_cro: User, test_user_employee: User, other_department, seed_risk_types
+):
+    """The Process-end and Asset-end risk-link lists filter rows through the
+    same canonical Risk visibility predicate as the Risk register."""
+    employee_department_id = test_user_employee.department_id
+    async with client_factory(user=test_user_cro) as client:
+        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        asset = (await client.post("/api/v1/assets", json=_asset_payload())).json()
+        in_scope = (
+            await client.post(
+                "/api/v1/risks", json=_risk_payload(department_id=employee_department_id)
+            )
+        ).json()
+        out_of_scope = (
+            await client.post(
+                "/api/v1/risks",
+                json=_risk_payload(name="Skryté riziko jiného útvaru", department_id=other_department.id),
+            )
+        ).json()
+        for risk_id in (in_scope["id"], out_of_scope["id"]):
+            assert (
+                await client.post(
+                    f"/api/v1/risks/{risk_id}/process-links", json={"process_id": process["id"]}
+                )
+            ).status_code == 201
+            assert (
+                await client.post(
+                    f"/api/v1/risks/{risk_id}/asset-links", json={"asset_id": asset["id"]}
+                )
+            ).status_code == 201
+
+    async with client_factory(user=test_user_employee) as client:
+        process_rows = await client.get(f"/api/v1/processes/{process['id']}/risk-links")
+        assert process_rows.status_code == 200
+        assert [row["risk_id"] for row in process_rows.json()] == [in_scope["id"]]
+        assert "Skryté riziko jiného útvaru" not in process_rows.text
+
+        asset_rows = await client.get(f"/api/v1/assets/{asset['id']}/risk-links")
+        assert asset_rows.status_code == 200
+        assert [row["risk_id"] for row in asset_rows.json()] == [in_scope["id"]]
+        assert "Skryté riziko jiného útvaru" not in asset_rows.text
+
+
+@pytest.mark.asyncio
+async def test_link_lists_embed_display_names_for_both_ends(
+    client_factory, test_user_cro: User, seed_risk_types
+):
+    """Link LIST payloads carry server-resolved display names for both ends
+    (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md: names, never raw-id fallbacks)."""
+    async with client_factory(user=test_user_cro) as client:
+        threat = (await client.post("/api/v1/threats", json=_minimal_payload())).json()
+        risk = (await client.post("/api/v1/risks", json=_risk_payload())).json()
+        process = (
+            await client.post(
+                "/api/v1/processes", json=_process_payload(l2_subprocess="Upisování")
+            )
+        ).json()
+        asset = (await client.post("/api/v1/assets", json=_asset_payload())).json()
+
+        assert (
+            await client.post(f"/api/v1/threats/{threat['id']}/risk-links", json={"risk_id": risk["id"]})
+        ).status_code == 201
+        assert (
+            await client.post(f"/api/v1/risks/{risk['id']}/process-links", json={"process_id": process["id"]})
+        ).status_code == 201
+        assert (
+            await client.post(f"/api/v1/risks/{risk['id']}/asset-links", json={"asset_id": asset["id"]})
+        ).status_code == 201
+
+        threat_rows = (await client.get(f"/api/v1/threats/{threat['id']}/risk-links")).json()
+        assert threat_rows[0]["threat_name"] == "Ransomware"
+        assert threat_rows[0]["risk_name"] == risk["name"]
+        assert threat_rows[0]["risk_id_code"] == risk["risk_id_code"]
+
+        risk_threat_rows = (await client.get(f"/api/v1/risks/{risk['id']}/threat-links")).json()
+        assert risk_threat_rows[0]["threat_name"] == "Ransomware"
+
+        process_rows = (await client.get(f"/api/v1/risks/{risk['id']}/process-links")).json()
+        # The Process display name follows the workbook convention (l1 – l2).
+        assert process_rows[0]["process_name"] == "Správa pojistných smluv – Upisování"
+
+        asset_rows = (await client.get(f"/api/v1/risks/{risk['id']}/asset-links")).json()
+        assert asset_rows[0]["asset_name"] == "Veris"
 
 
 @pytest.mark.asyncio

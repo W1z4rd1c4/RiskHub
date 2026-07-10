@@ -127,6 +127,11 @@ class ThreatRiskLinkRead(BaseModel):
     id: int
     threat_id: int
     risk_id: int
+    # Display names for both ends, embedded by the list/create services so the
+    # UI never falls back to raw ids (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+    threat_name: str | None = None
+    risk_id_code: str | None = None
+    risk_name: str | None = None
     capabilities: ThreatRiskLinkCapabilities | None = None
     created_at: UtcAwareDatetime
 

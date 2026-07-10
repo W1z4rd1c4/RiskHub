@@ -360,7 +360,10 @@
     "unknown_control": "Neznámá kontrola",
     "not_set": "Nenastaveno",
     "unknown_department": "Neznámé oddělení",
-    "unknown_link": "Neznámé propojení"
+    "unknown_link": "Neznámé propojení",
+    "unknown_process": "Neznámý proces",
+    "unknown_asset": "Neznámé aktivum",
+    "unknown_threat": "Neznámá hrozba"
   },
   "audit": {
     "columns": {

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, ShieldAlert, Trash2 } from 'lucide-react';
 
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { logError } from '@/services/logger';
@@ -14,6 +15,7 @@ import {
     buildLinkTargetOptions,
     canDeleteThreatRiskLink,
     parseLinkTargetId,
+    threatRiskLinkRowLabel,
 } from './threatRiskLinksPresentation';
 
 interface ThreatRiskLinksSectionProps {
@@ -24,28 +26,27 @@ interface ThreatRiskLinksSectionProps {
 
 /** The Threat<->Risk Link relations managed from the Threat page (issue #47). */
 export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged }: ThreatRiskLinksSectionProps) {
-    const { t } = useTranslation('threats');
+    const { t } = useTranslation(['threats', 'common']);
     const queryClient = useQueryClient();
     const [linkError, setLinkError] = useState<string | null>(null);
     const [riskToLink, setRiskToLink] = useState('');
+    const [riskSearch, setRiskSearch] = useState('');
+    const debouncedRiskSearch = useDebouncedValue(riskSearch);
 
     const riskLinksQuery = useQuery({
         queryKey: ictRegisterKeys.threatRiskLinks(threat.id),
         queryFn: () => threatApi.getRiskLinks(threat.id),
     });
     const riskOptionsQuery = useQuery({
-        queryKey: ictRegisterKeys.riskOptions(),
-        queryFn: () => riskApi.getRisks({ offset: 0, limit: 100 }),
+        queryKey: ictRegisterKeys.riskOptions(debouncedRiskSearch),
+        queryFn: () =>
+            riskApi.getRisks({
+                offset: 0,
+                limit: 100,
+                search: debouncedRiskSearch.trim() || undefined,
+            }),
         staleTime: 60_000,
     });
-
-    const riskNameById = useMemo(() => {
-        const map = new Map<number, string>();
-        for (const risk of riskOptionsQuery.data?.items ?? []) {
-            map.set(risk.id, `${risk.risk_id_code}: ${risk.name}`);
-        }
-        return map;
-    }, [riskOptionsQuery.data]);
 
     const refreshLinks = async () => {
         await queryClient.invalidateQueries({ queryKey: ictRegisterKeys.threatRiskLinks(threat.id) });
@@ -120,7 +121,7 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
                                 className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
                             >
                                 <span className="text-sm font-bold text-white truncate">
-                                    {riskNameById.get(link.risk_id) ?? `#${link.risk_id}`}
+                                    {threatRiskLinkRowLabel(link, t('common:fallbacks.unknown_risk'))}
                                 </span>
                                 {canManageLinks && canDeleteThreatRiskLink(link) ? (
                                     <button
@@ -141,11 +142,13 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
                 {canManageLinks ? (
                     <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
                         <div className="md:col-span-3">
-                            <ThemedSelect
+                            <SearchableEntitySelect
                                 value={riskToLink}
                                 onValueChange={setRiskToLink}
                                 options={riskOptions}
                                 placeholder={t('links.risks.select_placeholder')}
+                                searchValue={riskSearch}
+                                onSearchChange={setRiskSearch}
                                 triggerTestId="threat-risk-link-select"
                             />
                         </div>

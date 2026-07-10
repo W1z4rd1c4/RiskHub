@@ -15,14 +15,18 @@ export interface VendorRegisterLinkRow<TLink> {
     canDelete: boolean;
 }
 
-/** Rows for the linked-Assets block (sheet 10_VAD seen from the Vendor end). */
+/** Rows for the linked-Assets block (sheet 10_VAD seen from the Vendor end).
+
+The Asset display name is server-embedded on the link row; an unresolved end
+renders the i18n'd unknown label, never a raw id
+(docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md). */
 export function buildVendorAssetLinkRows(
     links: AssetVendorLink[],
-    assetNamesById: Map<number, string>,
+    unknownAssetLabel: string,
 ): VendorRegisterLinkRow<AssetVendorLink>[] {
     return links.map((link) => ({
         link,
-        name: assetNamesById.get(link.asset_id) ?? `#${link.asset_id}`,
+        name: link.asset_name ?? unknownAssetLabel,
         meta: formatAssetVendorLinkMeta(link),
         canDelete: resolveCapabilityFlag(link.capabilities, 'can_delete'),
     }));
@@ -31,11 +35,11 @@ export function buildVendorAssetLinkRows(
 /** Rows for the linked-Processes block (sheet 11 §1 seen from the Vendor end). */
 export function buildVendorProcessLinkRows(
     links: ProcessVendorLink[],
-    processNamesById: Map<number, string>,
+    unknownProcessLabel: string,
 ): VendorRegisterLinkRow<ProcessVendorLink>[] {
     return links.map((link) => ({
         link,
-        name: processNamesById.get(link.process_id) ?? `#${link.process_id}`,
+        name: link.process_name ?? unknownProcessLabel,
         meta: formatProcessVendorLinkMeta(link),
         canDelete: resolveCapabilityFlag(link.capabilities, 'can_delete'),
     }));

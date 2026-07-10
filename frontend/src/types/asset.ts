@@ -177,6 +177,9 @@ export interface ProcessAssetLink {
     id: number;
     process_id: number;
     asset_id: number;
+    /** Server-resolved display names (FRONTEND_DISPLAY_GUARDRAILS: no raw-id fallbacks). */
+    process_name?: string | null;
+    asset_name?: string | null;
     significance?: string | null;
     spof?: string | null;
     is_primary: boolean;
@@ -203,6 +206,9 @@ export interface AssetAssetLink {
     id: number;
     dependent_asset_id: number;
     supporting_asset_id: number;
+    /** Server-resolved display names (FRONTEND_DISPLAY_GUARDRAILS: no raw-id fallbacks). */
+    dependent_asset_name?: string | null;
+    supporting_asset_name?: string | null;
     dependency_type?: string | null;
     spof?: string | null;
     note?: string | null;
@@ -227,6 +233,9 @@ export interface AssetVendorLink {
     id: number;
     asset_id: number;
     vendor_id: number;
+    /** Server-resolved display names (FRONTEND_DISPLAY_GUARDRAILS: no raw-id fallbacks). */
+    asset_name?: string | null;
+    vendor_name?: string | null;
     vendor_role?: string | null;
     ict_service_code: string;
     contract_reference?: string | null;

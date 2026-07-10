@@ -66,6 +66,10 @@ export interface ThreatRiskLink {
     id: number;
     threat_id: number;
     risk_id: number;
+    /** Server-resolved display names (FRONTEND_DISPLAY_GUARDRAILS: no raw-id fallbacks). */
+    threat_name?: string | null;
+    risk_id_code?: string | null;
+    risk_name?: string | null;
     capabilities?: ThreatRiskLinkCapabilities | null;
     created_at: string;
 }
@@ -80,6 +84,10 @@ export interface RiskProcessLink {
     id: number;
     risk_id: number;
     process_id: number;
+    /** Server-resolved display names (FRONTEND_DISPLAY_GUARDRAILS: no raw-id fallbacks). */
+    process_name?: string | null;
+    risk_id_code?: string | null;
+    risk_name?: string | null;
     capabilities?: RiskProcessLinkCapabilities | null;
     created_at: string;
 }
@@ -94,6 +102,10 @@ export interface RiskAssetLink {
     id: number;
     risk_id: number;
     asset_id: number;
+    /** Server-resolved display names (FRONTEND_DISPLAY_GUARDRAILS: no raw-id fallbacks). */
+    asset_name?: string | null;
+    risk_id_code?: string | null;
+    risk_name?: string | null;
     capabilities?: RiskAssetLinkCapabilities | null;
     created_at: string;
 }

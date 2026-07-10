@@ -121,9 +121,11 @@ def _coerce_effective_value(parameter: IctWorkbookParameter, raw: object) -> Ict
     value never breaks reads, it yields the verbatim workbook default.
     """
     if parameter.value_type == "int":
+        if isinstance(raw, int | float):  # bool included: int(True) == 1, as before
+            return int(raw)
         try:
-            return int(raw)  # type: ignore[call-overload]
-        except (TypeError, ValueError):
+            return int(str(raw))
+        except ValueError:
             return parameter.default
     if parameter.value_type == "date":
         if isinstance(raw, date):

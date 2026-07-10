@@ -10,11 +10,13 @@ export const ictRegisterKeys = {
     riskThreatLinks: (riskId: number) => ['ictRegister', 'riskThreatLinks', riskId] as const,
     riskProcessLinks: (riskId: number) => ['ictRegister', 'riskProcessLinks', riskId] as const,
     riskAssetLinks: (riskId: number) => ['ictRegister', 'riskAssetLinks', riskId] as const,
-    processOptions: () => ['ictRegister', 'processOptions'] as const,
-    assetOptions: () => ['ictRegister', 'assetOptions'] as const,
-    vendorOptions: () => ['ictRegister', 'vendorOptions'] as const,
-    threatOptions: () => ['ictRegister', 'threatOptions'] as const,
-    riskOptions: () => ['ictRegister', 'riskOptions'] as const,
+    // Option pickers are search-driven (server-side `search` param); the
+    // debounced term is part of the key so each page of matches is cached.
+    processOptions: (search = '') => ['ictRegister', 'processOptions', search] as const,
+    assetOptions: (search = '') => ['ictRegister', 'assetOptions', search] as const,
+    vendorOptions: (search = '') => ['ictRegister', 'vendorOptions', search] as const,
+    threatOptions: (search = '') => ['ictRegister', 'threatOptions', search] as const,
+    riskOptions: (search = '') => ['ictRegister', 'riskOptions', search] as const,
     vendorContracts: (vendorId: number) => ['ictRegister', 'vendorContracts', vendorId] as const,
     vendorSubOutsourcing: (vendorId: number) => ['ictRegister', 'vendorSubOutsourcing', vendorId] as const,
     ictServiceTaxonomy: () => ['ictRegister', 'ictServiceTaxonomy'] as const,

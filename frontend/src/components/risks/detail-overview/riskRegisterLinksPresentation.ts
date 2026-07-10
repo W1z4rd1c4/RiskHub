@@ -17,6 +17,18 @@ export function canDeleteRegisterLink(link: RegisterLinkRow): boolean {
     return resolveCapabilityFlag(link.capabilities, 'can_delete');
 }
 
+/**
+ * Row name from the server-embedded display field. Never a raw id: an
+ * unresolved end renders the i18n'd unknown label
+ * (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+ */
+export function registerLinkRowName(
+    serverName: string | null | undefined,
+    unknownLabel: string,
+): string {
+    return serverName ?? unknownLabel;
+}
+
 /** Options for a link-add select: active targets not already linked. */
 export function buildRegisterLinkOptions(
     candidates: Array<{ id: number; label: string; isArchived: boolean }>,

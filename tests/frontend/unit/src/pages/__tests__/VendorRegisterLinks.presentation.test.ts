@@ -12,6 +12,7 @@ function assetLink(overrides: Partial<AssetVendorLink> = {}): AssetVendorLink {
         id: 7,
         asset_id: 3,
         vendor_id: 4,
+        asset_name: 'Veris',
         vendor_role: 'Dodává',
         ict_service_code: 'S02',
         contract_reference: 'SML-2020-001',
@@ -28,6 +29,7 @@ function processLink(overrides: Partial<ProcessVendorLink> = {}): ProcessVendorL
         id: 11,
         process_id: 5,
         vendor_id: 4,
+        process_name: 'Správa pojistných smluv – Upisování',
         direct_service_description: 'Přímá dodávka datových služeb.',
         note: null,
         capabilities: { can_delete: true },
@@ -37,22 +39,25 @@ function processLink(overrides: Partial<ProcessVendorLink> = {}): ProcessVendorL
 }
 
 describe('Vendor register-links presentation helpers', () => {
-    it('names the Asset end of each row and keeps a fallback for unknown ids', () => {
+    it('names the Asset end from the server-embedded display name, never a raw id', () => {
         const rows = buildVendorAssetLinkRows(
             [
                 assetLink(),
                 assetLink({
                     id: 8,
                     asset_id: 99,
+                    asset_name: null,
                     ict_service_code: 'S14',
                     vendor_role: null,
                     contract_reference: null,
                     reliance: null,
                 }),
             ],
-            new Map([[3, 'Veris']]),
+            'Unknown asset',
         );
-        expect(rows.map((row) => row.name)).toEqual(['Veris', '#99']);
+        // The unresolved end reads the i18n'd unknown label — no #99 fallback
+        // (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+        expect(rows.map((row) => row.name)).toEqual(['Veris', 'Unknown asset']);
         expect(rows.map((row) => row.meta)).toEqual([
             'Dodává · S02 · SML-2020-001 · Úplná závislost',
             'S14',
@@ -62,17 +67,23 @@ describe('Vendor register-links presentation helpers', () => {
     it('gates the per-row remove action on the backend capability', () => {
         const rows = buildVendorAssetLinkRows(
             [assetLink(), assetLink({ id: 8, capabilities: { can_delete: false } })],
-            new Map(),
+            'Unknown asset',
         );
         expect(rows.map((row) => row.canDelete)).toEqual([true, false]);
     });
 
     it('names the Process end using the workbook display name convention', () => {
         const rows = buildVendorProcessLinkRows(
-            [processLink(), processLink({ id: 12, process_id: 6, capabilities: null })],
-            new Map([[5, 'Správa pojistných smluv – Upisování']]),
+            [
+                processLink(),
+                processLink({ id: 12, process_id: 6, process_name: null, capabilities: null }),
+            ],
+            'Unknown process',
         );
-        expect(rows.map((row) => row.name)).toEqual(['Správa pojistných smluv – Upisování', '#6']);
+        expect(rows.map((row) => row.name)).toEqual([
+            'Správa pojistných smluv – Upisování',
+            'Unknown process',
+        ]);
         expect(rows[0].meta).toBe('Přímá dodávka datových služeb.');
         expect(rows.map((row) => row.canDelete)).toEqual([true, false]);
     });

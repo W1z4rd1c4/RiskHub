@@ -4,6 +4,7 @@ import {
     buildRegisterLinkOptions,
     canDeleteRegisterLink,
     parseRegisterLinkTargetId,
+    registerLinkRowName,
 } from '@/components/risks/detail-overview/riskRegisterLinksPresentation';
 import type { RiskAssetLink, RiskProcessLink, ThreatRiskLink } from '@/types/threat';
 
@@ -58,6 +59,12 @@ describe('Risk register-links presentation helpers', () => {
 
         expect(canDeleteRegisterLink(sampleAssetLink())).toBe(true);
         expect(canDeleteRegisterLink(sampleAssetLink({ capabilities: undefined }))).toBe(false);
+    });
+
+    it('renders the server-embedded display name, falling back to the unknown label — never a raw id', () => {
+        expect(registerLinkRowName('Ransomware', 'Unknown threat')).toBe('Ransomware');
+        expect(registerLinkRowName(null, 'Unknown threat')).toBe('Unknown threat');
+        expect(registerLinkRowName(undefined, 'Unknown asset')).toBe('Unknown asset');
     });
 
     it('offers only active, not-yet-linked targets in the link selects', () => {

@@ -37,6 +37,15 @@ export function formatProcessVendorLinkMeta(link: ProcessVendorLink): string {
     return [link.direct_service_description, link.note].filter(Boolean).join(' · ');
 }
 
+/**
+ * Row name from the server-embedded Vendor display name. Never a raw id: an
+ * unresolved Vendor end renders the i18n'd unknown label
+ * (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+ */
+export function processVendorLinkRowName(link: ProcessVendorLink, unknownVendorLabel: string): string {
+    return link.vendor_name ?? unknownVendorLabel;
+}
+
 /** Per-row remove gating comes from the backend capability, never local policy. */
 export function canDeleteProcessVendorLink(link: ProcessVendorLink): boolean {
     return resolveCapabilityFlag(link.capabilities, 'can_delete');

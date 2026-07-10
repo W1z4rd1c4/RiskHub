@@ -356,6 +356,10 @@ class ProcessAssetLinkRead(BaseModel):
     id: int
     process_id: int
     asset_id: int
+    # Display names for both ends, embedded by the list/create services so the
+    # UI never falls back to raw ids (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+    process_name: str | None = None
+    asset_name: str | None = None
     significance: str | None = None
     spof: str | None = None
     is_primary: bool = False
@@ -401,6 +405,10 @@ class AssetAssetLinkRead(BaseModel):
     id: int
     dependent_asset_id: int
     supporting_asset_id: int
+    # Display names for both ends, embedded by the list/create services so the
+    # UI never falls back to raw ids (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+    dependent_asset_name: str | None = None
+    supporting_asset_name: str | None = None
     dependency_type: str | None = None
     spof: str | None = None
     note: str | None = None
@@ -453,6 +461,10 @@ class AssetVendorLinkRead(BaseModel):
     id: int
     asset_id: int
     vendor_id: int
+    # Display names for both ends, embedded by the list/create services so the
+    # UI never falls back to raw ids (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+    asset_name: str | None = None
+    vendor_name: str | None = None
     vendor_role: str | None = None
     ict_service_code: str
     contract_reference: str | None = None

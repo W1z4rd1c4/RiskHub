@@ -15,6 +15,18 @@ export function canDeleteThreatRiskLink(link: ThreatRiskLink): boolean {
     return resolveCapabilityFlag(link.capabilities, 'can_delete');
 }
 
+/**
+ * Row label from the server-embedded display fields ("CODE: Name"). Never a
+ * raw id: an unresolved Risk end renders the i18n'd unknown label
+ * (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+ */
+export function threatRiskLinkRowLabel(link: ThreatRiskLink, unknownRiskLabel: string): string {
+    if (link.risk_name) {
+        return link.risk_id_code ? `${link.risk_id_code}: ${link.risk_name}` : link.risk_name;
+    }
+    return unknownRiskLabel;
+}
+
 /** Options for the link-add select: active, not already linked. */
 export function buildLinkTargetOptions(
     candidates: Array<{ id: number; label: string; isArchived: boolean }>,

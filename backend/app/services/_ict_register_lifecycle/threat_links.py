@@ -5,10 +5,13 @@ The Link relation joining the Threat register to the existing Risk register
 from BOTH ends — the Threat page and the Risk detail — with each end's
 mutations gated on THAT end's write permission (threats:write vs risks:write;
 the #46 managing-end precedent applied per end). Reads require both ends'
-read permissions (#43 dual-permission precedent); the Risk end additionally
-follows Risk row visibility (department scope/ownership) with 404
-anti-enumeration, mirroring the risk-end precedent in
-``endpoints/risks/vendor_links.py``. Archived-end stance is STRICT per #43:
+read permissions (#43 dual-permission precedent); Risk row visibility
+(department scope/ownership) applies on BOTH ends: the Risk end 404s an
+out-of-scope Risk (anti-enumeration, mirroring
+``endpoints/risks/vendor_links.py``), and the Threat end filters linked
+Risks to the caller's visible set and 404s attempts to link an invisible
+Risk — a Threat-page user never learns more about a Risk than the Risk
+register itself would show them. Archived-end stance is STRICT per #43:
 mutating from an archived end, or linking TO an archived target, conflicts
 (409); unlinking an archived TARGET from an active managing end stays
 possible.
@@ -22,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import risk as audit_risk
 from app.core.audit import threat as audit_threat
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
-from app.core.permissions import can_read_risk_id
+from app.core.permissions import can_read_risk_id, visible_risk_ids
 from app.core.security import check_permission
 from app.models import Risk, Threat, ThreatRiskLink, User
 from app.schemas.threat import RiskThreatLinkCreate, ThreatRiskLinkCreate, ThreatRiskLinkRead
@@ -38,16 +41,35 @@ async def load_risk(db: AsyncSession, risk_id: int) -> Risk | None:
 
 
 def _serialize_threat_risk_link(
-    link: ThreatRiskLink, current_user: User, *, managed_from: str
+    link: ThreatRiskLink,
+    current_user: User,
+    *,
+    managed_from: str,
+    threat_name: str | None = None,
+    risk_id_code: str | None = None,
+    risk_name: str | None = None,
 ) -> ThreatRiskLinkRead:
     base = ThreatRiskLinkRead.model_validate(link)
     return base.model_copy(
         update={
             "capabilities": threat_risk_link_capabilities(
                 current_user, managed_from="threat" if managed_from == "threat" else "risk"
-            )
+            ),
+            "threat_name": threat_name,
+            "risk_id_code": risk_id_code,
+            "risk_name": risk_name,
         }
     )
+
+
+async def _risk_labels_by_id(db: AsyncSession, risk_ids: set[int]) -> dict[int, tuple[str, str]]:
+    """Display fields for the Risk end of link rows (guardrail: names, not ids)."""
+    if not risk_ids:
+        return {}
+    rows = await db.execute(
+        select(Risk.id, Risk.risk_id_code, Risk.name).where(Risk.id.in_(risk_ids))
+    )
+    return {risk_id: (code, name) for risk_id, code, name in rows.all()}
 
 
 async def _require_threat_end_access(
@@ -135,16 +157,32 @@ async def list_threat_risk_links(
     threat_id: int,
     current_user: User,
 ) -> list[ThreatRiskLinkRead]:
-    """The Threat-end read of the Link relation."""
-    await _require_threat_end_access(
+    """The Threat-end read of the Link relation.
+
+    Linked Risks are filtered to the caller's Risk row visibility (the same
+    canonical predicate the Risk register applies): an out-of-scope Risk's
+    link row — and with it the Risk's id — never reaches a Threat-page user.
+    """
+    threat = await _require_threat_end_access(
         db, threat_id=threat_id, current_user=current_user, require_write=False
     )
     result = await db.execute(
         select(ThreatRiskLink).where(ThreatRiskLink.threat_id == threat_id).order_by(ThreatRiskLink.id)
     )
+    links = list(result.scalars().all())
+    readable_risk_ids = await visible_risk_ids(db, current_user, {link.risk_id for link in links})
+    risk_labels = await _risk_labels_by_id(db, readable_risk_ids)
     return [
-        _serialize_threat_risk_link(link, current_user, managed_from="threat")
-        for link in result.scalars().all()
+        _serialize_threat_risk_link(
+            link,
+            current_user,
+            managed_from="threat",
+            threat_name=threat.name,
+            risk_id_code=risk_labels[link.risk_id][0],
+            risk_name=risk_labels[link.risk_id][1],
+        )
+        for link in links
+        if link.risk_id in readable_risk_ids
     ]
 
 
@@ -155,15 +193,27 @@ async def list_risk_threat_links(
     current_user: User,
 ) -> list[ThreatRiskLinkRead]:
     """The Risk-end read of the same Link relation."""
-    await require_risk_end_access(
+    risk = await require_risk_end_access(
         db, risk_id=risk_id, current_user=current_user, other_resource="threats", require_write=False
     )
     result = await db.execute(
         select(ThreatRiskLink).where(ThreatRiskLink.risk_id == risk_id).order_by(ThreatRiskLink.id)
     )
+    links = list(result.scalars().all())
+    threat_names_result = await db.execute(
+        select(Threat.id, Threat.name).where(Threat.id.in_({link.threat_id for link in links}))
+    )
+    threat_names = {threat_id: name for threat_id, name in threat_names_result.all()}
     return [
-        _serialize_threat_risk_link(link, current_user, managed_from="risk")
-        for link in result.scalars().all()
+        _serialize_threat_risk_link(
+            link,
+            current_user,
+            managed_from="risk",
+            threat_name=threat_names.get(link.threat_id),
+            risk_id_code=risk.risk_id_code,
+            risk_name=risk.name,
+        )
+        for link in links
     ]
 
 
@@ -174,11 +224,18 @@ async def add_threat_risk_link(
     payload: ThreatRiskLinkCreate,
     current_user: User,
 ) -> ThreatRiskLinkRead:
-    """Create the link from the Threat page (threats:write)."""
+    """Create the link from the Threat page (threats:write).
+
+    The target Risk follows Risk row visibility with 404 anti-enumeration —
+    the same rule the Risk end applies (``require_risk_end_access``): an
+    out-of-scope Risk id is indistinguishable from a nonexistent one.
+    """
     threat = await _require_threat_end_access(
         db, threat_id=threat_id, current_user=current_user, require_write=True
     )
 
+    if not await can_read_risk_id(db, current_user, payload.risk_id):
+        raise NotFoundError("Risk not found")
     risk = await load_risk(db, payload.risk_id)
     if not risk:
         raise NotFoundError("Risk not found")
@@ -192,7 +249,14 @@ async def add_threat_risk_link(
     )
     await commit_service_boundary(db, boundary="ict_register_threat_link_create")
     await db.refresh(link)
-    return _serialize_threat_risk_link(link, current_user, managed_from="threat")
+    return _serialize_threat_risk_link(
+        link,
+        current_user,
+        managed_from="threat",
+        threat_name=threat.name,
+        risk_id_code=risk.risk_id_code,
+        risk_name=risk.name,
+    )
 
 
 async def remove_threat_risk_link(
@@ -247,7 +311,14 @@ async def add_risk_threat_link(
     )
     await commit_service_boundary(db, boundary="ict_register_risk_link_create")
     await db.refresh(link)
-    return _serialize_threat_risk_link(link, current_user, managed_from="risk")
+    return _serialize_threat_risk_link(
+        link,
+        current_user,
+        managed_from="risk",
+        threat_name=threat.name,
+        risk_id_code=risk.risk_id_code,
+        risk_name=risk.name,
+    )
 
 
 async def remove_risk_threat_link(
