@@ -14,6 +14,11 @@ import { renderWithoutProviders, screen, userEvent, waitFor } from '@test/render
  * matrix required by N10: for BOTH roles it opens the modal, asserts the
  * focus contract (initial focus PER ROLE, Tab trap, Esc-to-close, focus
  * restoration to the opener) and scans the OPEN state for axe violations.
+ *
+ * This file is the generic-harness proof of the primitive. The per-surface
+ * proof — each real migrated dialog / alertdialog component mounted OPEN — lives
+ * in `dialogInteractionMatrix.test.tsx`, inventoried at
+ * `docs/dora-ict-register/FRONTEND-DIALOG-INTERACTION-INVENTORY.md` (FR-P2c-1).
  */
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];

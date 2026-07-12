@@ -30,6 +30,9 @@ behind it.
   requirements with `FR-*` IDs, findings traceability, phase-dependency DAG for ticketing).
 - [`UX-REMEDIATION-VERIFICATION-2026-07-11.md`](./UX-REMEDIATION-VERIFICATION-2026-07-11.md):
   Verification of a code review of the remediation docs against source and W3C primary sources.
+- [`FRONTEND-DIALOG-INTERACTION-INVENTORY.md`](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md): Per-surface
+  inventory of every overlay render site (FR-P2c-1), classified by interaction contract, with the
+  DialogShell accessible-name/focus/Escape/restoration wiring, verification test, and C5a disposition.
 
 ## Notes
 
