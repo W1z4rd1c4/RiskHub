@@ -71,7 +71,8 @@
   },
   "views": {
     "overview": "Overview",
-    "risk_committee": "Risk Committee"
+    "risk_committee": "Risk Committee",
+    "ict_committee": "ICT Committee"
   },
   "sections": {
     "quarterly_comparison": "Quarterly Comparison",

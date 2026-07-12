@@ -93,8 +93,8 @@ _Avoid_: entity id, company id
 ### Surfaces & structure
 
 **ICT Committee**:
-The CRO / Risk-Committee read-model that aggregates the register, reproducing the workbook's Dashboard and CRO-overview views. _Target state:_ a URL-addressable tab within the Dashboard, sibling to the Risk Committee tab; it currently still ships as a standalone `/ict-register/committee` page, pending the frontend-UX remediation (see [FRONTEND-UX-REMEDIATION-CAPTURE.md](docs/dora-ict-register/FRONTEND-UX-REMEDIATION-CAPTURE.md), decision 11).
-_Avoid_: CRO dashboard, committee dashboard, ICT dashboard
+The CRO / Risk-Committee read-model that aggregates the register, reproducing the workbook's Dashboard and CRO-overview views. Rendered as a URL-addressable Dashboard tab at `/?view=ict-committee` (sibling to the Risk Committee tab), gated on `ict_committee:read`; the legacy standalone `/ict-register/committee` path now redirects there (FR-P4-3/4, #64).
+_Avoid_: CRO dashboard, committee dashboard, ICT dashboard, "ICT Risk Committee" (use "ICT Committee")
 
 **Risk Committee**:
 The existing Dashboard tab presenting the enterprise risk-committee view; distinct from the ICT Committee, which is scoped to the ICT operational-resilience register. Always qualify which committee is meant.

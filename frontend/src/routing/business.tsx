@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 import {
   Activity,
   AlertOctagon,
@@ -8,7 +9,6 @@ import {
   ClipboardList,
   Command,
   Handshake,
-  Landmark,
   Scale,
   Server,
   ShieldAlert,
@@ -51,7 +51,6 @@ const AssetDetailPage = lazy(() => import('@/pages/AssetDetailPage'));
 const ThreatsPage = lazy(() => import('@/pages/ThreatsPage'));
 const ThreatDetailPage = lazy(() => import('@/pages/ThreatDetailPage'));
 const IctRegisterDqPage = lazy(() => import('@/pages/IctRegisterDqPage'));
-const IctRegisterCommitteePage = lazy(() => import('@/pages/IctRegisterCommitteePage'));
 const VendorReportsPage = lazy(() => import('@/pages/VendorReportsPage'));
 const AuditTrailPage = lazy(() => import('@/pages/AuditTrailPage'));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
@@ -213,9 +212,17 @@ export const businessRoutes: AppRouteDef[] = [
   { key: 'threats-detail', path: 'threats/:id', element: <ThreatDetailPage /> },
   { key: 'threats-edit', path: 'threats/:id/edit', element: <ThreatDetailPage mode="edit" /> },
   {
+    // Bare /ict-register resolves to the data-quality read model (FR-P4-4), so
+    // the register root is never a dead link that falls through to `*`→`/`.
+    key: 'ict-register-index',
+    path: 'ict-register',
+    element: <Navigate to="/ict-register/data-quality" replace />,
+  },
+  {
     // ICT Register data quality (#50): a read model over the register graph,
     // gated like the reference data it aggregates (the vendors:read pattern
-    // of the /ict-register API surface).
+    // of the /ict-register API surface). Stays routed so its ?check= deep-links
+    // survive the committee migration (FR-P4-4).
     key: 'ict-register-dq',
     path: 'ict-register/data-quality',
     element: <IctRegisterDqPage />,
@@ -229,23 +236,14 @@ export const businessRoutes: AppRouteDef[] = [
     },
   },
   {
-    // ICT Risk Committee page (#51): the register's executive read model,
-    // gated by its OWN resource permission (executive/oversight roles only).
+    // ICT Committee (#51) migrated to a URL-addressable Dashboard tab (#64,
+    // FR-P4-3/4). This route now redirects the legacy path to /?view=ict-committee
+    // and carries NO sidebar nav (the transitional #63 entry is removed here, so
+    // the entry and its standalone route disappear atomically). The retained
+    // <IctRegisterCommitteePage> wrapper keeps a clean rollback target.
     key: 'ict-register-committee',
     path: 'ict-register/committee',
-    element: <IctRegisterCommitteePage />,
-    nav: {
-      href: '/ict-register/committee',
-      labelKey: 'ict_register_committee',
-      icon: Landmark,
-      // Transitional (#63): the final IA map has no ICT Committee sidebar entry —
-      // #64 removes it together with the route migration + redirect. Until then it
-      // is retained here, grouped under the ICT Register section, so the committee
-      // is never unreachable mid-flight.
-      group: 'ict_register',
-      isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'ict_committee'),
-      order: 79,
-    },
+    element: <Navigate to="/?view=ict-committee" replace />,
   },
   {
     key: 'departments',

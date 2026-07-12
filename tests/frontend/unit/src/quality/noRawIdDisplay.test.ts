@@ -42,6 +42,9 @@ const guardedFiles = [
     'frontend/src/pages/IctRegisterDqPage.tsx',
     'frontend/src/pages/ictRegisterDq/dqPresentation.ts',
     'frontend/src/pages/IctRegisterCommitteePage.tsx',
+    // The committee body moved to a dashboard tab section (#64); the raw-ID
+    // guardrail follows the code so the Top-10 fallback stays label-based.
+    'frontend/src/components/dashboard/IctCommitteeSection.tsx',
     'frontend/src/pages/ictRegisterCommittee/committeePresentation.ts',
 ] as const;
 

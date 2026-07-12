@@ -1,3 +1,5 @@
+import type { ReactElement } from 'react';
+import { Navigate } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -150,7 +152,6 @@ describe('routing manifest parity', () => {
       '/kris',
       '/vendors',
       '/ict-register/data-quality',
-      '/ict-register/committee',
       '/departments',
       '/governance',
       '/activity-log',
@@ -183,7 +184,6 @@ describe('routing manifest parity', () => {
       '/kris',
       '/vendors',
       '/ict-register/data-quality',
-      '/ict-register/committee',
       '/departments',
       '/activity-log',
       '/settings',
@@ -203,7 +203,7 @@ describe('routing manifest parity', () => {
     expect(hrefs).toContain('/ict-register/data-quality');
   });
 
-  it('shows the ICT Risk Committee entry from strict MeCapabilities ict_committee:read', () => {
+  it('keeps the ICT Committee out of the sidebar even with ict_committee:read (now a dashboard tab, #64)', () => {
     const hasPermission = createPermissionChecker([]);
     const authz = buildAuthz(
       { role: 'ceo', access_scope: 'global' },
@@ -216,7 +216,9 @@ describe('routing manifest parity', () => {
 
     const hrefs = getSidebarNavRoutes({ authz, hasPermission }).map((route) => route.nav.href);
 
-    expect(hrefs).toContain('/ict-register/committee');
+    // #64 migrated the committee to /?view=ict-committee, so it is never a
+    // sidebar item — even for a fully entitled principal.
+    expect(hrefs).not.toContain('/ict-register/committee');
   });
 
   it('hides core entity navigation without matching read permissions', () => {
@@ -297,22 +299,24 @@ describe('sidebar nav grouping (P4 section map)', () => {
       { group: 'registers', hrefs: ['/controls', '/risks', '/issues', '/kris', '/vendors'] },
       {
         group: 'ict_register',
-        hrefs: ['/processes', '/assets', '/threats', '/ict-register/data-quality', '/ict-register/committee'],
+        hrefs: ['/processes', '/assets', '/threats', '/ict-register/data-quality'],
       },
       { group: 'administration', hrefs: ['/governance', '/activity-log', '/settings', '/users', '/risk-hub'] },
     ]);
   });
 
-  it('retains the transitional ICT Committee entry under the ict_register group (#63 pending #64)', () => {
+  it('removes the transitional ICT Committee sidebar entry after the #64 tab migration', () => {
     const grouped = groupedSidebarNav(
       { role: 'cro', access_scope: 'global' },
       FULL_ACCESS_CRO_PERMISSIONS,
     );
     const ict = grouped.find((section) => section.group === 'ict_register');
 
-    // #63 lands the grouped map but keeps the committee reachable; #64 removes it
-    // with the route migration + redirect.
-    expect(ict?.hrefs).toContain('/ict-register/committee');
+    // #63 transitionally retained the entry; #64 migrates the committee to the
+    // dashboard tab (/?view=ict-committee), so it is no longer a sidebar item and
+    // the ICT Register group keeps only its remaining register entries.
+    expect(ict?.hrefs).not.toContain('/ict-register/committee');
+    expect(ict?.hrefs).toEqual(['/processes', '/assets', '/threats', '/ict-register/data-quality']);
   });
 
   it('omits an empty group while keeping populated siblings for a non-admin (FR-P4-10)', () => {
@@ -368,5 +372,38 @@ describe('resolveActiveSidebarHref (FR-P4-2, finding S3)', () => {
 
   it('returns null when no nav item matches', () => {
     expect(resolveActiveSidebarHref('/unmapped', hrefs)).toBeNull();
+  });
+});
+
+describe('ICT Committee route migration (#64, FR-P4-3/4)', () => {
+  function findBusinessRoute(key: string): AppRouteDef | undefined {
+    return businessRoutes.find((route) => route.key === key);
+  }
+
+  it('redirects the legacy /ict-register/committee path to the dashboard tab', () => {
+    const route = findBusinessRoute('ict-register-committee');
+    const element = route?.element as ReactElement<{ to: string; replace?: boolean }> | undefined;
+
+    expect(element?.type).toBe(Navigate);
+    expect(element?.props.to).toBe('/?view=ict-committee');
+    // The migrated committee is a dashboard tab, not a sidebar item — the
+    // transitional #63 nav entry is removed atomically with the redirect.
+    expect(route?.nav).toBeUndefined();
+  });
+
+  it('redirects bare /ict-register to the data-quality read model (FR-P4-4)', () => {
+    const route = findBusinessRoute('ict-register-index');
+    const element = route?.element as ReactElement<{ to: string; replace?: boolean }> | undefined;
+
+    expect(route?.path).toBe('ict-register');
+    expect(element?.type).toBe(Navigate);
+    expect(element?.props.to).toBe('/ict-register/data-quality');
+  });
+
+  it('keeps the data-quality page routed so its ?check= deep-links survive', () => {
+    const route = findBusinessRoute('ict-register-dq');
+
+    expect(route?.path).toBe('ict-register/data-quality');
+    expect(route?.nav?.href).toBe('/ict-register/data-quality');
   });
 });

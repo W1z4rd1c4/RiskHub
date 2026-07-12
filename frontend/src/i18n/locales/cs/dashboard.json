@@ -71,7 +71,8 @@
   },
   "views": {
     "overview": "Přehled",
-    "risk_committee": "Výbor pro řízení rizik"
+    "risk_committee": "Výbor pro řízení rizik",
+    "ict_committee": "Výbor pro řízení rizik ICT"
   },
   "sections": {
     "quarterly_comparison": "Čtvrtletní srovnání",

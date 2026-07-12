@@ -26,6 +26,9 @@ vi.mock('@/contexts/DashboardFilterContext', () => ({
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({
         canViewCommittee: canViewCommitteeMock,
+        // The ICT Committee tab gates on authz.can('read','ict_committee');
+        // these overview specs never exercise it, so it stays denied here.
+        can: () => false,
     }),
 }));
 

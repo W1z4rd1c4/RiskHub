@@ -59,6 +59,9 @@ describe('useAuthz invariants', () => {
             ),
         );
 
+        // ict_committee is intentionally absent: #64 migrated the committee from a
+        // sidebar route gate to the dashboard tab (DashboardPage gates it via
+        // authz.can('read','ict_committee')), so business.tsx no longer references it.
         expect(routeResources).toEqual(
             new Set([
                 'controls',
@@ -68,7 +71,6 @@ describe('useAuthz invariants', () => {
                 'processes',
                 'assets',
                 'threats',
-                'ict_committee',
                 'departments',
             ]),
         );
