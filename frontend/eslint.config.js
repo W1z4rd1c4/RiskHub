@@ -1,9 +1,26 @@
 import js from "@eslint/js";
 import globals from "globals";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
+
+// ADR-013 (N4): eslint-plugin-jsx-a11y is added to the lint gate with every
+// recommended rule pinned to `error` (jsx-a11y ships a few as `warn`). Existing
+// violations are NOT fixed here — they are held by the committed fingerprinted
+// baseline in `scripts/a11y/jsx-a11y-baseline.json` and enforced (subset-fails-new,
+// stale-fails-shrink) by `scripts/a11y/jsx-a11y-baseline.mjs`, which is the
+// authoritative gate. The committed `eslint-suppressions.json` (ESLint-native,
+// count-keyed) only lets `eslint .` exit 0 on the still-broken app; both files
+// are regenerated together by the validator's `--write` mode. This is NOT a bare
+// `--max-warnings` total (N6).
+const jsxA11yErrorRules = Object.fromEntries(
+  Object.entries(jsxA11y.flatConfigs.recommended.rules).map(([rule, value]) => [
+    rule,
+    Array.isArray(value) ? ["error", ...value.slice(1)] : "error",
+  ]),
+);
 
 const maintainedModulePaths = [
   "src/components/kri-form/**/*.{ts,tsx}",
@@ -80,6 +97,14 @@ export default defineConfig([
         },
       ],
     },
+  },
+  {
+    // ADR-013 (FR-P1-4, N4): author-time accessibility rules. Scoped to the same
+    // application source the primary lint pass covers. Held in baseline mode — see
+    // the header comment and scripts/a11y/jsx-a11y-baseline.mjs.
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "jsx-a11y": jsxA11y },
+    rules: jsxA11yErrorRules,
   },
   {
     files: [
