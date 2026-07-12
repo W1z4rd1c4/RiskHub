@@ -169,6 +169,8 @@ export function DepartmentTabContent(props: DepartmentTabContentProps) {
                     columns={getRiskColumns(t, thresholds)}
                     keyExtractor={(risk) => risk.id}
                     onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
+                    rowHref={(risk) => `/risks/${risk.id}`}
+                    rowLabel={(risk) => risk.name}
                     emptyMessage={
                         riskFilter === 'high' ? t('common:empty.no_high_risk_items') : t('common:empty.no_risks_found')
                     }
@@ -194,6 +196,8 @@ export function DepartmentTabContent(props: DepartmentTabContentProps) {
                     columns={getControlColumns(t)}
                     keyExtractor={(control) => control.id}
                     onRowClick={(control) => navigate(`/controls/${control.id}`)}
+                    rowHref={(control) => `/controls/${control.id}`}
+                    rowLabel={(control) => control.name}
                     emptyMessage={t('common:empty.no_controls_department')}
                 />
                 {controlTotalPages > 1 && (
@@ -218,6 +222,8 @@ export function DepartmentTabContent(props: DepartmentTabContentProps) {
                     columns={getKriColumns(t, i18n.language)}
                     keyExtractor={(kri) => kri.id}
                     onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
+                    rowHref={(kri) => `/kris/${kri.id}`}
+                    rowLabel={(kri) => kri.metric_name}
                     emptyMessage={
                         kriFilter === 'breach'
                             ? t('common:empty.no_kris_breach')

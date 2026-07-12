@@ -348,7 +348,10 @@
     "error": {
       "message": "Tuto tabulku se nepodařilo načíst. Zkuste to prosím znovu.",
       "retry": "Zkusit znovu"
-    }
+    },
+    "view_entity": "Zobrazit {{entity}}",
+    "view_row": "Zobrazit detail",
+    "row_actions": "Akce"
   },
   "fallbacks": {
     "unknown": "Neznámé",

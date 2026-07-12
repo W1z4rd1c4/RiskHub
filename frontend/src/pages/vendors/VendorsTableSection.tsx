@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AlertCircle, Building2, ChevronRight, User } from 'lucide-react';
+import { AlertCircle, Building2, User } from 'lucide-react';
 
 import {
     CollectionGroupDrillDown,
@@ -173,7 +173,6 @@ export function VendorsTableSection({
                                 {t('actions.unarchive')}
                             </button>
                         )}
-                        <ChevronRight className="h-4 w-4 text-slate-500 ml-auto" />
                     </div>
                 ),
             },
@@ -273,6 +272,8 @@ export function VendorsTableSection({
                     columns={columns}
                     keyExtractor={(vendor) => vendor.id}
                     onRowClick={onRowClick}
+                    rowHref={(vendor) => `/vendors/${vendor.id}`}
+                    rowLabel={(vendor) => vendor.name}
                     emptyMessage={tableModel.emptyText}
                     onSort={(key, direction) =>
                         onSortChange((direction ? key : null) as VendorListParams['sort_by'] | null, direction)
@@ -314,6 +315,8 @@ export function VendorsTableSection({
                     columns={columns}
                     keyExtractor={(vendor) => vendor.id}
                     onRowClick={onRowClick}
+                    rowHref={(vendor) => `/vendors/${vendor.id}`}
+                    rowLabel={(vendor) => vendor.name}
                     emptyMessage={tableModel.emptyText}
                 />
             )}

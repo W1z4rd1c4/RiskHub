@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { IssuesPage } from '@/pages/IssuesPage';
 import { ApiClientError } from '@/services/apiClient';
 
@@ -43,7 +44,7 @@ describe('IssuesPage layout parity', () => {
     });
 
     it('renders Risks-style header actions and compact filter controls', async () => {
-        const { container } = render(<IssuesPage />);
+        const { container } = render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Issues');
 
@@ -85,14 +86,14 @@ describe('IssuesPage layout parity', () => {
             capabilities,
         });
 
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Issues');
         expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
     });
 
     it('loads issues from backend without local session permission gates', async () => {
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Issues');
         expect(mockList).toHaveBeenCalled();
@@ -107,7 +108,7 @@ describe('IssuesPage layout parity', () => {
             })
         );
 
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('You do not have permission to view issues.');
         expect(screen.queryByText('Issues')).not.toBeInTheDocument();

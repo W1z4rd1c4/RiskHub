@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { IssuesPage } from '@/pages/IssuesPage';
 
 const mockList = vi.fn();
@@ -57,7 +58,7 @@ describe('IssuesPage business naming', () => {
     });
 
     it('renders issue list with business labels and no raw ID copy', async () => {
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Patch Vulnerability');
 

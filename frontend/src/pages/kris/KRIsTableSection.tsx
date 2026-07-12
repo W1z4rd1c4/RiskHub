@@ -139,7 +139,6 @@ export function KRIsTableSection({
                             {t('actions.unarchive')}
                         </button>
                     )}
-                    <ChevronRight className="h-4 w-4 text-slate-500" />
                 </div>
             ),
         },
@@ -217,6 +216,8 @@ export function KRIsTableSection({
                     columns={columns}
                     keyExtractor={(kri) => kri.id}
                     onRowClick={onRowClick}
+                    rowHref={(kri) => `/kris/${kri.id}`}
+                    rowLabel={(kri) => kri.metric_name}
                     emptyMessage={tableModel.emptyText}
                 />
                 <Pagination
@@ -253,6 +254,8 @@ export function KRIsTableSection({
                     columns={columns}
                     keyExtractor={(kri) => kri.id}
                     onRowClick={onRowClick}
+                    rowHref={(kri) => `/kris/${kri.id}`}
+                    rowLabel={(kri) => kri.metric_name}
                     emptyMessage={t('empty_state.no_group')}
                 />
                 <Pagination

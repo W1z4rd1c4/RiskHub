@@ -187,6 +187,8 @@ export function RisksTableSection({
                     columns={columns}
                     keyExtractor={(risk) => risk.id}
                     onRowClick={onRowClick}
+                    rowHref={(risk) => `/risks/${risk.id}`}
+                    rowLabel={(risk) => risk.name}
                     emptyMessage={tableModel.emptyText}
                     sortKey={sortField}
                     sortDirection={sortDirection}
@@ -224,6 +226,8 @@ export function RisksTableSection({
                     columns={columns}
                     keyExtractor={(risk) => risk.id}
                     onRowClick={onRowClick}
+                    rowHref={(risk) => `/risks/${risk.id}`}
+                    rowLabel={(risk) => risk.name}
                     emptyMessage={tableModel.emptyText}
                 />
             )}

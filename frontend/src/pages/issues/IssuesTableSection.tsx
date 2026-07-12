@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { AlertCircle, ChevronRight } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 
 import { CollectionGroupDrillDown, Pagination, SortableTable, type Column, type SortDirection, type ViewMode } from '@/components/tables';
@@ -144,15 +144,6 @@ export function IssuesTableSection({
                     </span>
                 ),
             },
-            {
-                key: 'actions',
-                label: '',
-                render: () => (
-                    <div className="flex items-center justify-end">
-                        <ChevronRight className="h-4 w-4 text-slate-500" />
-                    </div>
-                ),
-            },
         ],
         [i18n.language, severityLabel, sourceLabel, statusLabel, t]
     );
@@ -253,6 +244,8 @@ export function IssuesTableSection({
                     columns={columns}
                     keyExtractor={(issue) => issue.id}
                     onRowClick={onRowClick}
+                    rowHref={(issue) => `/issues/${issue.id}`}
+                    rowLabel={(issue) => issue.title}
                     emptyMessage={tableModel.emptyText}
                     sortKey={sortField}
                     sortDirection={sortDirection}
@@ -293,6 +286,8 @@ export function IssuesTableSection({
                     columns={columns}
                     keyExtractor={(issue) => issue.id}
                     onRowClick={onRowClick}
+                    rowHref={(issue) => `/issues/${issue.id}`}
+                    rowLabel={(issue) => issue.title}
                     emptyMessage={tableModel.emptyText}
                 />
             )}

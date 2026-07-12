@@ -348,7 +348,10 @@
     "error": {
       "message": "We couldn't load this table. Please try again.",
       "retry": "Retry"
-    }
+    },
+    "view_entity": "View {{entity}}",
+    "view_row": "View details",
+    "row_actions": "Actions"
   },
   "fallbacks": {
     "unknown": "Unknown",

@@ -544,8 +544,8 @@ describe('KRIsPage monitoring status filters', () => {
         expect(metricOrder()).toEqual(['All KRI', 'Unlinked Vendor KRI']);
 
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByRole('columnheader', { name: /Metric/i }));
-        await uiUser.click(screen.getByRole('columnheader', { name: /Metric/i }));
+        await uiUser.click(screen.getByRole('button', { name: /Metric/i }));
+        await uiUser.click(screen.getByRole('button', { name: /Metric/i }));
 
         expect(metricOrder()).toEqual(['Unlinked Vendor KRI', 'All KRI']);
     });

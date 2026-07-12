@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AlertCircle, Building2, Calendar, ChevronRight, Lock, Shield, User } from 'lucide-react';
+import { AlertCircle, Building2, Calendar, Lock, Shield, User } from 'lucide-react';
 
 import {
     CollectionGroupDrillDown,
@@ -170,7 +170,6 @@ export function ControlsTableSection({
                                     {t('actions.unarchive')}
                                 </button>
                             )}
-                        <ChevronRight className="h-4 w-4 text-slate-500" />
                     </div>
                 ),
             },
@@ -273,6 +272,8 @@ export function ControlsTableSection({
                     columns={columns}
                     keyExtractor={(control) => control.id}
                     onRowClick={onRowClick}
+                    rowHref={(control) => `/controls/${control.id}`}
+                    rowLabel={(control) => control.name}
                     emptyMessage={tableModel.emptyText}
                 />
                 <Pagination
@@ -353,6 +354,8 @@ export function ControlsTableSection({
                     columns={columns}
                     keyExtractor={(control) => control.id}
                     onRowClick={onRowClick}
+                    rowHref={(control) => `/controls/${control.id}`}
+                    rowLabel={(control) => control.name}
                     emptyMessage={tableModel.emptyText}
                 />
             )}

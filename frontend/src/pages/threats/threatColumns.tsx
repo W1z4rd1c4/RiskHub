@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react';
-import { ArchiveRestore, ChevronRight } from 'lucide-react';
+import { ArchiveRestore } from 'lucide-react';
 
 import type { Column } from '@/components/tables/SortableTable';
 import type { Threat } from '@/types/threat';
@@ -86,12 +86,6 @@ export function buildThreatColumns({
                     </div>
                 );
             },
-        },
-        {
-            key: 'chevron',
-            label: '',
-            className: 'w-[40px]',
-            render: () => <ChevronRight className="h-4 w-4 text-slate-600" />,
         },
     ];
 }

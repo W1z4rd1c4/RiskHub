@@ -365,7 +365,10 @@ export function VendorSubOutsourcingSection({
                 data={chainRows}
                 columns={columns}
                 keyExtractor={(row) => row.entry.id}
-                emptyMessage={entriesQuery.isLoading ? undefined : t('sub_outsourcing.empty')}
+                isLoading={entriesQuery.isLoading}
+                isError={entriesQuery.isError}
+                onRetry={() => void entriesQuery.refetch()}
+                emptyMessage={t('sub_outsourcing.empty')}
             />
         </div>
     );

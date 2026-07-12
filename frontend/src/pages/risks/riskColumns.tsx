@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react';
-import { AlertCircle, ChevronRight, Lock, Star } from 'lucide-react';
+import { AlertCircle, Lock, Star } from 'lucide-react';
 
 import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
 import type { Column } from '@/components/tables/SortableTable';
@@ -206,7 +206,6 @@ export function buildRiskColumns({
                             {t('actions.unarchive')}
                         </button>
                     )}
-                    <ChevronRight className="h-4 w-4 text-slate-500" />
                 </div>
             ),
         },

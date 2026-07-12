@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Plus, RefreshCw, Search } from 'lucide-react';
+import { Plus, RefreshCw, Search } from 'lucide-react';
 
 import { Pagination, SortableTable, type SortDirection } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -110,29 +110,19 @@ export function ThreatsPage() {
                 </div>
             </div>
 
-            {errorKey ? (
-                <div className="glass-card flex items-start justify-between gap-4 border border-rose-400/30 text-rose-300">
-                    <div className="flex items-start gap-3">
-                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                        <p className="text-sm font-medium">{t(errorKey)}</p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => void fetchThreats()}
-                        className="text-xs font-black uppercase tracking-widest hover:opacity-80 transition-opacity"
-                    >
-                        {t('actions.retry')}
-                    </button>
-                </div>
-            ) : null}
-
             <div className="glass-card space-y-4">
                 <SortableTable
                     data={items}
                     columns={columns}
                     keyExtractor={(threat) => threat.id}
                     onRowClick={(threat) => navigate(`/threats/${threat.id}`)}
-                    emptyMessage={hasLoadedOnce && !isLoading ? t('empty.no_threats') : undefined}
+                    rowHref={(threat) => `/threats/${threat.id}`}
+                    rowLabel={(threat) => threat.name}
+                    isLoading={isLoading}
+                    isError={Boolean(errorKey)}
+                    onRetry={() => void fetchThreats()}
+                    errorMessage={errorKey ? t(errorKey) : undefined}
+                    emptyMessage={hasLoadedOnce ? t('empty.no_threats') : undefined}
                     sortKey={sortField}
                     sortDirection={sortDirection}
                     onSort={(key, direction) =>

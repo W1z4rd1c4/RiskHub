@@ -385,7 +385,10 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
                 data={contracts}
                 columns={columns}
                 keyExtractor={(contract) => contract.id}
-                emptyMessage={contractsQuery.isLoading ? undefined : t('contracts.empty')}
+                isLoading={contractsQuery.isLoading}
+                isError={contractsQuery.isError}
+                onRetry={() => void contractsQuery.refetch()}
+                emptyMessage={t('contracts.empty')}
             />
         </div>
     );

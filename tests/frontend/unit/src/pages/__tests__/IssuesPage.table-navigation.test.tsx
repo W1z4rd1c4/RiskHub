@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { IssuesPage } from '@/pages/IssuesPage';
 
 const mockList = vi.fn();
@@ -60,7 +61,7 @@ describe('IssuesPage table navigation', () => {
     });
 
     it('navigates to detail page on row click', async () => {
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         const rowTitle = await screen.findByText('Patch Vulnerability');
         expect(await screen.findByText('Control Evidence Review')).toBeInTheDocument();
@@ -70,7 +71,7 @@ describe('IssuesPage table navigation', () => {
     });
 
     it('does not emit unsupported server sort keys for display-only columns', async () => {
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Patch Vulnerability');
         mockList.mockClear();
@@ -83,7 +84,7 @@ describe('IssuesPage table navigation', () => {
     });
 
     it('emits supported server sort keys for sortable columns', async () => {
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Patch Vulnerability');
         mockList.mockClear();
