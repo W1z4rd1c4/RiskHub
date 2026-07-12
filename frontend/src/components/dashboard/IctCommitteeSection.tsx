@@ -667,7 +667,10 @@ export function IctCommitteeSection() {
                             <div className="glass-card" data-testid="committee-heatmap">
                                 <h3 className="text-white font-bold">{t('cro.heatmap_title')}</h3>
                                 <p className="text-slate-500 text-xs font-medium mt-1">{t('cro.heatmap_axis')}</p>
-                                <div className="mt-3 space-y-1.5">
+                                {/* FR-P5-3: horizontal-scroll container so the dense matrix
+                                    grid scrolls at narrow effective widths instead of being
+                                    clipped by an ancestor `overflow-hidden`. */}
+                                <div className="mt-3 space-y-1.5 overflow-x-auto">
                                     {data.cro.heatmap.rows.map((row) => (
                                         <div key={row.probability} className="flex items-center gap-1.5">
                                             <span className="w-5 text-right text-xs text-slate-500 font-bold">
@@ -710,7 +713,10 @@ export function IctCommitteeSection() {
                             <div className="glass-card" data-testid="committee-migration">
                                 <h3 className="text-white font-bold">{t('cro.migration_title')}</h3>
                                 <p className="text-slate-500 text-xs font-medium mt-1">{t('cro.migration_axis')}</p>
-                                <div className="mt-3 space-y-1.5">
+                                {/* FR-P5-3: horizontal-scroll container so the dense matrix
+                                    grid scrolls at narrow effective widths instead of being
+                                    clipped by an ancestor `overflow-hidden`. */}
+                                <div className="mt-3 space-y-1.5 overflow-x-auto">
                                     {data.cro.migration_matrix.rows.map((row) => (
                                         <div key={row.gross_band} className="flex items-center gap-1.5">
                                             <span className="w-16 text-right text-xs text-slate-500 font-bold">

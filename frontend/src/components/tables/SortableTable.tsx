@@ -211,20 +211,22 @@ export function SortableTable<T extends object>({
                 aria-busy="true"
                 data-testid="sortable-table-skeleton"
             >
-                <table className="w-full">
-                    {renderHeader()}
-                    <tbody className="divide-y divide-white/5">
-                        {Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
-                            <tr key={`sortable-skeleton-${rowIndex}`} className="animate-pulse" aria-hidden="true">
-                                {Array.from({ length: skeletonColumnCount }, (_, colIndex) => (
-                                    <td key={colIndex} className="px-6 py-4" aria-hidden="true">
-                                        <div className="h-4 w-full max-w-[120px] rounded bg-white/5" />
-                                    </td>
-                                ))}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        {renderHeader()}
+                        <tbody className="divide-y divide-white/5">
+                            {Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
+                                <tr key={`sortable-skeleton-${rowIndex}`} className="animate-pulse" aria-hidden="true">
+                                    {Array.from({ length: skeletonColumnCount }, (_, colIndex) => (
+                                        <td key={colIndex} className="px-6 py-4" aria-hidden="true">
+                                            <div className="h-4 w-full max-w-[120px] rounded bg-white/5" />
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         );
     }
@@ -238,49 +240,54 @@ export function SortableTable<T extends object>({
     }
 
     const table = (
+        // FR-P5-3: the rounded card keeps `overflow-hidden` (corner clip); an inner
+        // `overflow-x-auto` scroll container lets dense/wide columns scroll at `>= lg`
+        // instead of being clipped.
         <div className={cn('glass-card !p-0 overflow-hidden', className)}>
-            <table className="w-full">
-                {renderHeader()}
-                <tbody className="divide-y divide-white/5">
-                    {sortedData.map((item, index) => (
-                        <tr
-                            key={keyExtractor(item)}
-                            className={cn(
-                                'hover:bg-white/5 transition-colors',
-                                onRowClick && 'cursor-pointer'
-                            )}
-                            onClick={onRowClick ? () => onRowClick(item) : undefined}
-                        >
-                            {columns.map((col) => (
-                                <td
-                                    key={String(col.key)}
-                                    className={cn('px-6 py-4', col.className)}
-                                >
-                                    {col.render
-                                        ? col.render(item, index)
-                                        : String(getItemValue(item, String(col.key)) ?? '')}
-                                </td>
-                            ))}
-                            {rowHref ? (
-                                <td className="px-6 py-4 w-[40px] text-right">
-                                    <Link
-                                        to={rowHref(item)}
-                                        onClick={(event) => event.stopPropagation()}
-                                        aria-label={
-                                            rowLabel
-                                                ? t('tables.view_entity', { entity: rowLabel(item) })
-                                                : t('tables.view_row')
-                                        }
-                                        className="inline-flex items-center justify-center rounded text-slate-500 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            <div className="overflow-x-auto">
+                <table className="w-full">
+                    {renderHeader()}
+                    <tbody className="divide-y divide-white/5">
+                        {sortedData.map((item, index) => (
+                            <tr
+                                key={keyExtractor(item)}
+                                className={cn(
+                                    'hover:bg-white/5 transition-colors',
+                                    onRowClick && 'cursor-pointer'
+                                )}
+                                onClick={onRowClick ? () => onRowClick(item) : undefined}
+                            >
+                                {columns.map((col) => (
+                                    <td
+                                        key={String(col.key)}
+                                        className={cn('px-6 py-4', col.className)}
                                     >
-                                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                                    </Link>
-                                </td>
-                            ) : null}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+                                        {col.render
+                                            ? col.render(item, index)
+                                            : String(getItemValue(item, String(col.key)) ?? '')}
+                                    </td>
+                                ))}
+                                {rowHref ? (
+                                    <td className="px-6 py-4 w-[40px] text-right">
+                                        <Link
+                                            to={rowHref(item)}
+                                            onClick={(event) => event.stopPropagation()}
+                                            aria-label={
+                                                rowLabel
+                                                    ? t('tables.view_entity', { entity: rowLabel(item) })
+                                                    : t('tables.view_row')
+                                            }
+                                            className="inline-flex items-center justify-center rounded text-slate-500 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                        >
+                                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                                        </Link>
+                                    </td>
+                                ) : null}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 

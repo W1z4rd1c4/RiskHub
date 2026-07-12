@@ -1,0 +1,7 @@
+{
+    "desktop_only": {
+        "title": "RiskHub is optimized for desktop",
+        "body": "RiskHub is designed and supported on screens at least 1024 pixels wide. On smaller screens, some views may not display as intended.",
+        "accessible_alternative": "If you need an accessible alternative at this screen size, contact your RiskHub administrator, who can arrange support."
+    }
+}
