@@ -1,10 +1,15 @@
 /**
- * ICT Register — ICT Risk Committee page E2E (issues #51/#52, deterministic).
+ * ICT Register — ICT Risk Committee E2E (issues #51/#52/#64, deterministic).
  *
- * Drives the /ict-register/committee surface (IctRegisterCommitteePage)
- * against the seeded register graph. Every expected value is HAND-DERIVED
- * from the deterministic seed and cross-checked live against the
- * /ict-register/committee engine output:
+ * The Committee migrated from the standalone /ict-register/committee route to a
+ * URL-addressable Dashboard tab at /?view=ict-committee (issue #64). The legacy
+ * path now redirects there (<Navigate replace> — routing/business.tsx), and the
+ * committee body renders as the ICT-committee dashboard tab via
+ * <IctCommitteeSection>. This suite drives the new flow — the redirect, the
+ * ?view= addressability with browser back/forward, and the capability gate —
+ * while preserving the deterministic content proofs, which are HAND-DERIVED from
+ * the seed and cross-checked live against the /ict-register/committee engine
+ * output:
  *
  * - The ICT-linked risk slice is exactly E2E-RISK-001 (the only risk carrying
  *   Risk<->Process / Risk<->Asset links, seeded onto E2E-PROC-003 and
@@ -20,31 +25,88 @@
  * - RoI readiness (#52) renders the 15 CIR 2024/2956 templates with per-
  *   template coverage badges and % bars; B_06.01 (Processes feed) carries gap
  *   rows that drill down to the offending Process detail pages.
- * - The page is gated by ict_committee:read — an executive/oversight resource
- *   permission the risk-manager role holds but a department-scoped employee
- *   does not; the employee is blocked with the read-access-denied state.
+ * - The tab is gated by ict_committee:read — an executive/oversight resource
+ *   permission the risk-manager role holds but a department-scoped employee does
+ *   not. Post-#64 the gate lives at the Dashboard tab: an unauthorized ?view= is
+ *   normalized away to the overview (URL search stripped, no tab, no committee
+ *   body, no committee fetch) rather than surfacing a standalone access-denied
+ *   page.
  *
  * Band labels ("Kritické", "NAD TOLERANCI") are workbook-verbatim API values
- * and stay language-neutral; localized pill/heading/badge text is matched with
- * dual EN/CS regexes (the vendor-derived precedent).
+ * and stay language-neutral; localized pill/heading/badge/tab text is matched
+ * with dual EN/CS regexes (the vendor-derived precedent).
  */
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ICT_REGISTER_RISK } from './fixtures/e2e-data';
 import { waitForDataLoad } from './helpers/wait';
 
-const COMMITTEE_PAGE = '/ict-register/committee';
+// Canonical new address for the committee (the Dashboard tab, #64).
+const COMMITTEE_PAGE = '/?view=ict-committee';
+// Legacy standalone route — now a <Navigate replace> to COMMITTEE_PAGE.
+const LEGACY_COMMITTEE_PATH = '/ict-register/committee';
 
 // Workbook-verbatim band labels the API serves regardless of UI language.
 const BAND_CRITICAL = 'Kritické';
 const OVER_TOLERANCE = 'NAD TOLERANCI';
 
-// Dual-language matchers — heading/KPI/coverage text is localized.
-const ACCESS_DENIED = /Access Denied|Přístup zamítnut/;
+// Dual-language matchers — heading/KPI/coverage/tab text is localized. The ICT
+// Committee tab renders as a <button> whose accessible name is the localized
+// label (dashboard.json → views.ict_committee: "ICT Committee" / "Výbor pro
+// řízení rizik ICT"); the Landmark icon contributes no accessible text.
+const ICT_COMMITTEE_TAB = /ICT Committee|Výbor pro řízení rizik ICT/;
 const NOT_MEASURABLE = /Not yet measurable|Zatím neměřitelné/;
 const COVERAGE_FULL = /^(Full|Úplné)$/;
 const COVERAGE_DOCUMENTARY = /^(Documentary|Dokumentační)$/;
 
-test.describe('ICT Register — ICT Risk Committee page (Deterministic)', () => {
+// The committee body (<IctCommitteeSection>) renders its 16_Dashboard section
+// under this testid only once the committee payload has loaded.
+const COMMITTEE_BODY = 'committee-dashboard';
+
+test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
+    test('the legacy /ict-register/committee route redirects to the ?view=ict-committee tab', async ({
+        riskManagerPage,
+    }) => {
+        await riskManagerPage.goto(LEGACY_COMMITTEE_PATH);
+        await waitForDataLoad(riskManagerPage);
+
+        // <Navigate replace> lands on the Dashboard tab, not a standalone page.
+        await expect(riskManagerPage).toHaveURL(/\/\?view=ict-committee$/);
+        // The committee body renders inside the dashboard.
+        await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toBeVisible();
+        // The ICT Committee tab is the active tab (aria-current=page).
+        await expect(
+            riskManagerPage.getByRole('button', { name: ICT_COMMITTEE_TAB }),
+        ).toHaveAttribute('aria-current', 'page');
+    });
+
+    test('the committee tab is ?view=-addressable and browser back/forward move tabs', async ({
+        riskManagerPage,
+    }) => {
+        // Start on the canonical overview (no ?view=). The risk-manager holds the
+        // ict_committee capability, so the dashboard tab bar renders.
+        await riskManagerPage.goto('/');
+        await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toHaveCount(0);
+
+        // Clicking the ICT Committee tab pushes ?view=ict-committee (a history
+        // entry, not a replace) and renders the committee body.
+        await riskManagerPage.getByRole('button', { name: ICT_COMMITTEE_TAB }).click();
+        await expect(riskManagerPage).toHaveURL(/\/\?view=ict-committee$/);
+        await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toBeVisible();
+
+        // Browser BACK returns to the overview tab (param cleared, committee gone).
+        await riskManagerPage.goBack();
+        await expect(riskManagerPage).toHaveURL(/localhost:\d+\/$/);
+        await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toHaveCount(0);
+
+        // Browser FORWARD re-selects the committee tab.
+        await riskManagerPage.goForward();
+        await expect(riskManagerPage).toHaveURL(/\/\?view=ict-committee$/);
+        await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toBeVisible();
+    });
+
     test('authorized user sees the dashboard tiles, heatmap, Top-10 and KPIs', async ({
         riskManagerPage,
     }) => {
@@ -130,12 +192,22 @@ test.describe('ICT Register — ICT Risk Committee page (Deterministic)', () => 
         await expect(gaps.locator('a[href^="/processes/"]').first()).toBeVisible();
     });
 
-    test('a non-authorized base user (employee) is blocked', async ({ employeePage }) => {
-        // The employee holds no ict_committee:read → read-access-denied, no tiles.
-        await employeePage.goto(COMMITTEE_PAGE);
+    test('a non-authorized base user (employee) is gated out of the committee tab', async ({
+        employeePage,
+    }) => {
+        // The employee holds no ict_committee:read. Following the legacy redirect,
+        // the Dashboard normalizes the unauthorized ?view= away to the overview:
+        // the URL search is stripped, no committee body/loading renders, and the
+        // ICT Committee tab is not offered (capability gate, post-#64).
+        await employeePage.goto(LEGACY_COMMITTEE_PATH);
         await waitForDataLoad(employeePage);
 
-        await expect(employeePage.getByRole('heading', { name: ACCESS_DENIED })).toBeVisible();
+        // The unauthorized view is stripped — the address bar matches the overview.
+        await expect.poll(() => new URL(employeePage.url()).search).toBe('');
+        // No committee content renders, and no committee fetch spinner is shown.
         await expect(employeePage.getByTestId('committee-dashboard')).toHaveCount(0);
+        await expect(employeePage.getByTestId('committee-loading')).toHaveCount(0);
+        // The tab is not offered.
+        await expect(employeePage.getByRole('button', { name: ICT_COMMITTEE_TAB })).toHaveCount(0);
     });
 });
