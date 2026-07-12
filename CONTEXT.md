@@ -92,9 +92,13 @@ _Avoid_: entity id, company id
 
 ### Surfaces & structure
 
-**ICT Risk Committee page**:
-The CRO / Risk-Committee read-model that aggregates the register — the destination surface, reproducing the workbook's Dashboard and CRO-overview views.
+**ICT Committee**:
+The CRO / Risk-Committee read-model that aggregates the register, reproducing the workbook's Dashboard and CRO-overview views. _Target state:_ a URL-addressable tab within the Dashboard, sibling to the Risk Committee tab; it currently still ships as a standalone `/ict-register/committee` page, pending the frontend-UX remediation (see [FRONTEND-UX-REMEDIATION-CAPTURE.md](docs/dora-ict-register/FRONTEND-UX-REMEDIATION-CAPTURE.md), decision 11).
 _Avoid_: CRO dashboard, committee dashboard, ICT dashboard
+
+**Risk Committee**:
+The existing Dashboard tab presenting the enterprise risk-committee view; distinct from the ICT Committee, which is scoped to the ICT operational-resilience register. Always qualify which committee is meant.
+_Avoid_: committee (unqualified — ambiguous between Risk and ICT)
 
 **Link relation**:
 A typed many-to-many connection between register entities (Process↔Asset, Asset↔Asset, Asset↔Vendor, Process↔Vendor).
@@ -103,5 +107,11 @@ _Avoid_: mapping, association, join
 ---
 
 _Decisions, open questions, and reference material for this effort are captured in
-[docs/dora-ict-register/GRILLING-CAPTURE.md](docs/dora-ict-register/GRILLING-CAPTURE.md),
-kept out of this glossary per the CONTEXT.md format._
+[docs/dora-ict-register/GRILLING-CAPTURE.md](docs/dora-ict-register/GRILLING-CAPTURE.md);
+frontend design/UX remediation decisions in
+[FRONTEND-UX-REMEDIATION-CAPTURE.md](docs/dora-ict-register/FRONTEND-UX-REMEDIATION-CAPTURE.md),
+backed by the audit ledger
+[FRONTEND-UX-AUDIT-2026-07-11.md](docs/dora-ict-register/FRONTEND-UX-AUDIT-2026-07-11.md) and
+the review-verification note
+[UX-REMEDIATION-VERIFICATION-2026-07-11.md](docs/dora-ict-register/UX-REMEDIATION-VERIFICATION-2026-07-11.md) —
+all kept out of this glossary per the CONTEXT.md format._

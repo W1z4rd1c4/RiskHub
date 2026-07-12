@@ -22,6 +22,7 @@ This file is the primary documentation index for `docs/`.
 | Security | Security policy, reports, and closure records | [`docs/security/README.md`](./security/README.md) |
 | Architecture decisions | Accepted architecture decision records | [`docs/adr/README.md`](./adr/README.md) |
 | Audits | Point-in-time audit records for specific integrations or operating areas | [`docs/audits/README.md`](./audits/README.md) |
+| ICT Register (DORA) | ICT operational-resilience register build: specs, grilling captures, UX audit + remediation | [`docs/dora-ict-register/README.md`](./dora-ict-register/README.md) |
 | Deployment | Runtime and production deployment guidance | [`docs/deployment/README.md`](./deployment/README.md) |
 | Reference | Reference inventories and legacy path maps | [`docs/reference/README.md`](./reference/README.md) |
 | Quality | Lint/debt baseline and ratchet references | [`docs/quality/README.md`](./quality/README.md) |

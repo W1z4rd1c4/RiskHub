@@ -1,0 +1,36 @@
+# docs/dora-ict-register
+
+Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
+
+## Purpose
+
+Design, specification, and remediation records for the **ICT Register** build (the DORA
+ICT operational-resilience register). Domain vocabulary for this effort lives in the root
+[`CONTEXT.md`](../../CONTEXT.md); these are the working captures, specs, and audit records
+behind it.
+
+## Contents
+
+- [`dora-excel-functional-spec.md`](./dora-excel-functional-spec.md): Functional specification
+  extracted from the authoritative DORA *"registr aktiv a dodavatelů"* workbook.
+- [`dora-register-of-information-legal-spec.md`](./dora-register-of-information-legal-spec.md):
+  Register of Information (RoI) legal/regulatory specification.
+- [`dashboard-cro-tile-inventory.md`](./dashboard-cro-tile-inventory.md): Inventory of the
+  workbook's Dashboard / CRO-overview tiles reproduced by the ICT Committee read-model.
+- [`GRILLING-CAPTURE.md`](./GRILLING-CAPTURE.md): grill-with-docs capture of what the register
+  build is and the destination decisions.
+- [`cutover-record.md`](./cutover-record.md): Cutover record for retiring the workbook as the
+  system of record.
+- [`FRONTEND-UX-AUDIT-2026-07-11.md`](./FRONTEND-UX-AUDIT-2026-07-11.md): Frontend design/UX
+  audit findings ledger (finding IDs, severities, `file:line`, target phases).
+- [`FRONTEND-UX-REMEDIATION-CAPTURE.md`](./FRONTEND-UX-REMEDIATION-CAPTURE.md): grill-with-docs
+  capture of the frontend design/UX remediation plan (15 locked decisions, phased execution).
+- [`UX-REMEDIATION-VERIFICATION-2026-07-11.md`](./UX-REMEDIATION-VERIFICATION-2026-07-11.md):
+  Verification of a code review of the remediation docs against source and W3C primary sources.
+
+## Notes
+
+- These are working/planning records for a specific build; some (captures, audits) are
+  point-in-time and may be superseded by later remediation.
+- Keep this README updated when records are added to this folder (required for docs-tree
+  reachability).

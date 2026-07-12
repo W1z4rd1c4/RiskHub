@@ -20,6 +20,7 @@ AGENTS.md
 │   ├── docs/security/README.md
 │   ├── docs/adr/README.md
 │   ├── docs/audits/README.md
+│   ├── docs/dora-ict-register/README.md
 │   ├── docs/deployment/README.md
 │   ├── docs/migrations/README.md
 │   ├── docs/reference/README.md
@@ -55,6 +56,8 @@ AGENTS.md
   - [`docs/adr/README.md`](./adr/README.md)
 - Point-in-time subsystem audits:
   - [`docs/audits/README.md`](./audits/README.md)
+- ICT Register (DORA) build — specs, captures, audit + remediation:
+  - [`docs/dora-ict-register/README.md`](./dora-ict-register/README.md)
 - Development startup and local workflows:
   - [`docs/development/README.md`](./development/README.md)
 - Documentation screenshots and support assets:
