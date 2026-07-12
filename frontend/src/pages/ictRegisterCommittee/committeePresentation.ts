@@ -10,8 +10,9 @@ import type {
 // Presentation helpers for the ICT Risk Committee page (issue #51). The five
 // conditional-formatting blocks of 18_CRO_přehled (tile inventory §5(1)) are
 // presentation rules keyed on cell values; this module carries their
-// semantics as data — the two 3-point ColorScales and the three exact-match
-// fill sets, hexes verbatim from the builder (ui.py:184-197).
+// semantics as data — the two 3-point ColorScales keep the workbook's verbatim
+// hexes (magnitude heatmaps, §2.2/§2.3), while the three exact-match status-pill
+// sets are migrated onto the semantic status tokens (FR-P5-1; see FILL_* below).
 
 type CellStyle = { backgroundColor: string; color: string };
 
@@ -54,32 +55,53 @@ export function migrationCellFill(value: number): string | null {
     return colorScaleFill(value, 5);
 }
 
-// Exact-match fills, hexes verbatim (ui.py:186-187): the standard Excel
-// good/neutral/bad trio plus the Vysoké orange.
-const FILL_GREEN: CellStyle = { backgroundColor: '#C6EFCE', color: '#006100' };
-const FILL_YELLOW: CellStyle = { backgroundColor: '#FFEB9C', color: '#9C6500' };
-const FILL_ORANGE: CellStyle = { backgroundColor: '#FCE4D6', color: '#C55A11' };
-const FILL_RED: CellStyle = { backgroundColor: '#FFC7CE', color: '#9C0006' };
+// Status-pill fills (FR-P5-1 / ADR-015 / spec N20): migrated off the Excel
+// pastels onto the semantic status tokens so each pill reads red/amber/green and
+// every bg/fg pair clears WCAG AA text contrast (≥ 4.5:1) in all three themes —
+// verified in committeePillContrast.test.ts. Green/amber use --success / --warning
+// with their token foregrounds; red is a pill-scoped darker red derived from
+// --destructive (see FILL_DESTRUCTIVE) because solid --destructive + white is only
+// 3.76:1. The four Excel bands collapse onto the three-token RAG scale: the yellow
+// "Střední" and orange "Vysoké"/"Významný" middles both read amber (--warning),
+// keeping "Kritické"/"Kritický" red distinct from the green low band. Workbook
+// fidelity lives in the data + verbatim labels + the export, not the fill colours.
+const FILL_SUCCESS: CellStyle = {
+    backgroundColor: 'hsl(var(--success))',
+    color: 'hsl(var(--success-foreground))',
+};
+const FILL_WARNING: CellStyle = {
+    backgroundColor: 'hsl(var(--warning))',
+    color: 'hsl(var(--warning-foreground))',
+};
+const FILL_DESTRUCTIVE: CellStyle = {
+    // Pill-scoped darker red: white-on-fill clears WCAG AA text (≥ 4.5:1) in all
+    // three themes (≈ 5.5:1), which solid --destructive (3.76:1) does not. Derived
+    // from the token (no redefine — N19); --destructive itself and its other
+    // consumers (buttons, badges) are untouched.
+    backgroundColor: 'color-mix(in srgb, hsl(var(--destructive)) 78%, black)',
+    color: 'hsl(var(--destructive-foreground))',
+};
 
-// CRIT_N (G21:G30): the net-band pill fills.
+// CRIT_N (G21:G30): the net-band pill fills (Nízké green, Střední/Vysoké amber,
+// Kritické red).
 const NET_BAND_STYLES: Record<string, CellStyle> = {
-    Nízké: FILL_GREEN,
-    Střední: FILL_YELLOW,
-    Vysoké: FILL_ORANGE,
-    Kritické: FILL_RED,
+    Nízké: FILL_SUCCESS,
+    Střední: FILL_WARNING,
+    Vysoké: FILL_WARNING,
+    Kritické: FILL_DESTRUCTIVE,
 };
 
 // TOL (H21:H30): V toleranci green, NAD TOLERANCI red (ui.py:196).
 const TOLERANCE_STYLES: Record<string, CellStyle> = {
-    'V toleranci': FILL_GREEN,
-    'NAD TOLERANCI': FILL_RED,
+    'V toleranci': FILL_SUCCESS,
+    'NAD TOLERANCI': FILL_DESTRUCTIVE,
 };
 
-// TIER_C (N21:N25): Kritický red, Významný orange, Standardní green (ui.py:190-192).
+// TIER_C (N21:N25): Kritický red, Významný amber, Standardní green (ui.py:190-192).
 const TIER_STYLES: Record<string, CellStyle> = {
-    'Kritický dodavatel': FILL_RED,
-    'Významný dodavatel': FILL_ORANGE,
-    'Standardní dodavatel': FILL_GREEN,
+    'Kritický dodavatel': FILL_DESTRUCTIVE,
+    'Významný dodavatel': FILL_WARNING,
+    'Standardní dodavatel': FILL_SUCCESS,
 };
 
 export function netBandStyle(band: string | null): CellStyle | null {

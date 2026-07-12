@@ -236,20 +236,29 @@ describe('ICT Risk Committee presentation helpers', () => {
         expect(migrationCellFill(7)).toBe('#F8696B');
     });
 
-    it('maps the exact-match conditional-formatting fills (CRIT_N, TOL, TIER_C)', () => {
-        // Inventory §2.4 CRIT_N hexes, verbatim.
-        expect(netBandStyle('Nízké')).toEqual({ backgroundColor: '#C6EFCE', color: '#006100' });
-        expect(netBandStyle('Střední')).toEqual({ backgroundColor: '#FFEB9C', color: '#9C6500' });
-        expect(netBandStyle('Vysoké')).toEqual({ backgroundColor: '#FCE4D6', color: '#C55A11' });
-        expect(netBandStyle('Kritické')).toEqual({ backgroundColor: '#FFC7CE', color: '#9C0006' });
+    it('maps the exact-match status pills onto the semantic RAG tokens (CRIT_N, TOL, TIER_C)', () => {
+        // FR-P5-1: migrated off the Excel pastels onto the semantic status tokens.
+        // The four Excel bands collapse onto the three-token RAG scale — Střední +
+        // Vysoké both read amber (--warning); Kritické reads red (--destructive).
+        const success = { backgroundColor: 'hsl(var(--success))', color: 'hsl(var(--success-foreground))' };
+        const warning = { backgroundColor: 'hsl(var(--warning))', color: 'hsl(var(--warning-foreground))' };
+        const destructive = {
+            backgroundColor: 'color-mix(in srgb, hsl(var(--destructive)) 78%, black)',
+            color: 'hsl(var(--destructive-foreground))',
+        };
+
+        expect(netBandStyle('Nízké')).toEqual(success);
+        expect(netBandStyle('Střední')).toEqual(warning);
+        expect(netBandStyle('Vysoké')).toEqual(warning);
+        expect(netBandStyle('Kritické')).toEqual(destructive);
         expect(netBandStyle(null)).toBeNull();
 
-        expect(toleranceStyle('V toleranci')).toEqual({ backgroundColor: '#C6EFCE', color: '#006100' });
-        expect(toleranceStyle('NAD TOLERANCI')).toEqual({ backgroundColor: '#FFC7CE', color: '#9C0006' });
+        expect(toleranceStyle('V toleranci')).toEqual(success);
+        expect(toleranceStyle('NAD TOLERANCI')).toEqual(destructive);
 
-        expect(tierStyle('Kritický dodavatel')).toEqual({ backgroundColor: '#FFC7CE', color: '#9C0006' });
-        expect(tierStyle('Významný dodavatel')).toEqual({ backgroundColor: '#FCE4D6', color: '#C55A11' });
-        expect(tierStyle('Standardní dodavatel')).toEqual({ backgroundColor: '#C6EFCE', color: '#006100' });
+        expect(tierStyle('Kritický dodavatel')).toEqual(destructive);
+        expect(tierStyle('Významný dodavatel')).toEqual(warning);
+        expect(tierStyle('Standardní dodavatel')).toEqual(success);
     });
 
     it('drills every dashboard tile down to the register view behind it', () => {

@@ -20,27 +20,29 @@ interface ConfirmDialogProps {
     inputRequired?: boolean;
 }
 
+// Status colours consume the semantic tokens (FR-P5-1 / ADR-015): danger →
+// --destructive (canonical danger), warning → --warning, info → --info.
 const variantStyles = {
     danger: {
         icon: Trash2,
-        iconBg: 'bg-rose-500/20',
-        iconColor: 'text-rose-400',
-        buttonBg: 'bg-rose-500 hover:bg-rose-600',
-        buttonRing: 'focus:ring-rose-500/50',
+        iconBg: 'bg-destructive/20',
+        iconColor: 'text-destructive',
+        buttonBg: 'bg-destructive hover:bg-destructive/90',
+        buttonRing: 'focus:ring-destructive/50',
     },
     warning: {
         icon: AlertTriangle,
-        iconBg: 'bg-amber-500/20',
-        iconColor: 'text-amber-400',
-        buttonBg: 'bg-amber-500 hover:bg-amber-600',
-        buttonRing: 'focus:ring-amber-500/50',
+        iconBg: 'bg-warning/20',
+        iconColor: 'text-warning',
+        buttonBg: 'bg-warning hover:bg-warning/90',
+        buttonRing: 'focus:ring-warning/50',
     },
     info: {
         icon: AlertTriangle,
-        iconBg: 'bg-accent/20',
-        iconColor: 'text-accent',
-        buttonBg: 'bg-accent hover:bg-accent/80',
-        buttonRing: 'focus:ring-accent/50',
+        iconBg: 'bg-info/20',
+        iconColor: 'text-info',
+        buttonBg: 'bg-info hover:bg-info/90',
+        buttonRing: 'focus:ring-info/50',
     },
 };
 
@@ -129,7 +131,7 @@ export function ConfirmDialog({
                             htmlFor={inputId}
                             className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2"
                         >
-                            {inputLabel} {inputRequired && <span className="text-rose-400">*</span>}
+                            {inputLabel} {inputRequired && <span className="text-destructive">*</span>}
                         </label>
                     )}
                     <textarea
