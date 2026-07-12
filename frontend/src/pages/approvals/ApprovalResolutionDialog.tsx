@@ -49,6 +49,7 @@ export function ApprovalResolutionDialog({
                             <textarea
                                 value={resolutionNotes}
                                 onChange={(event) => onResolutionNotesChange(event.target.value)}
+                                aria-labelledby={descriptionId}
                                 placeholder={t('dialogs.resolution_placeholder')}
                                 className="w-full h-32 bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder:text-slate-600 outline-none focus:border-accent/50 resize-none"
                             />

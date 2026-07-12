@@ -447,8 +447,9 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                 triggerTestId="asset-process-link-spof"
                             />
                             <div className="flex items-center gap-3">
-                                <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold">
+                                <label htmlFor="asset-process-link-is-primary" className="flex items-center gap-2 text-xs text-slate-400 font-semibold">
                                     <input
+                                        id="asset-process-link-is-primary"
                                         type="checkbox"
                                         data-testid="asset-process-link-is-primary"
                                         checked={processLinkIsPrimary}

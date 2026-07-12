@@ -59,6 +59,7 @@ AGENTS.md
 - ICT Register (DORA) build — specs, captures, audit + remediation:
   - [`docs/dora-ict-register/README.md`](./dora-ict-register/README.md)
   - [`docs/dora-ict-register/FRONTEND-DIALOG-INTERACTION-INVENTORY.md`](./dora-ict-register/FRONTEND-DIALOG-INTERACTION-INVENTORY.md)
+  - [`docs/dora-ict-register/FRONTEND-ACCESSIBILITY-BASELINE-DEVIATIONS.md`](./dora-ict-register/FRONTEND-ACCESSIBILITY-BASELINE-DEVIATIONS.md)
 - Development startup and local workflows:
   - [`docs/development/README.md`](./development/README.md)
 - Documentation screenshots and support assets:

@@ -27,6 +27,11 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
     const { t } = useTranslation(['controls', 'common', 'errorKeys']);
     const titleId = useId();
     const descriptionId = useId();
+    const resultLabelId = useId();
+    const findingsLabelId = useId();
+    const evidenceLabelId = useId();
+    const scheduleLabelId = useId();
+    const notesLabelId = useId();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [formData, setFormData] = useState<ControlExecutionCreate>({
@@ -72,7 +77,9 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                     <p id={descriptionId} className="text-sm text-slate-500 font-medium">{t('executions.recording_performance_for')}: <span className="text-accent">{controlName}</span></p>
                 </div>
                 <button
+                    type="button"
                     onClick={onClose}
+                    aria-label={t('actions.close', { ns: 'common' })}
                     className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-colors"
                 >
                     <X className="h-5 w-5" />
@@ -90,8 +97,8 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
 
                 {/* Result Selection */}
                 <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.execution_result')}</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <span id={resultLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.execution_result')}</span>
+                    <div className="grid grid-cols-2 gap-3" role="group" aria-labelledby={resultLabelId}>
                         {RESULTS.map((res) => {
                             const meta = getExecutionResultMeta(res);
                             const ResultIcon = meta.icon;
@@ -119,8 +126,9 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
 
                 {/* Findings */}
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.findings_observations')}</label>
+                    <span id={findingsLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.findings_observations')}</span>
                     <textarea
+                        aria-labelledby={findingsLabelId}
                         value={formData.findings}
                         onChange={(e) => setFormData({ ...formData, findings: e.target.value })}
                         placeholder={t('form.placeholders.verification_notes')}
@@ -130,9 +138,10 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
 
                 {/* Evidence Reference */}
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.evidence_reference')}</label>
+                    <span id={evidenceLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.evidence_reference')}</span>
                     <input
                         type="text"
+                        aria-labelledby={evidenceLabelId}
                         value={formData.evidence_reference}
                         onChange={(e) => setFormData({ ...formData, evidence_reference: e.target.value })}
                         placeholder={t('form.placeholders.evidence_reference')}
@@ -142,9 +151,10 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
 
                 {/* Next Scheduled */}
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.next_scheduled_optional')}</label>
+                    <span id={scheduleLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.next_scheduled_optional')}</span>
                     <input
                         type="date"
+                        aria-labelledby={scheduleLabelId}
                         value={formData.next_scheduled}
                         onChange={(e) => setFormData({ ...formData, next_scheduled: e.target.value })}
                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent/50 transition-all [color-scheme:dark]"
@@ -153,8 +163,9 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
 
                 {/* Additional Notes */}
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.additional_notes')}</label>
+                    <span id={notesLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.additional_notes')}</span>
                     <textarea
+                        aria-labelledby={notesLabelId}
                         value={formData.notes}
                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                         placeholder={t('form.placeholders.additional_notes')}

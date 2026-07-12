@@ -15,14 +15,6 @@
       "count": 1
     }
   },
-  "src/components/ui/StepIndicator.tsx": {
-    "jsx-a11y/click-events-have-key-events": {
-      "count": 1
-    },
-    "jsx-a11y/no-static-element-interactions": {
-      "count": 1
-    }
-  },
   "src/pages/controls/ControlDetailOverviewTab.tsx": {
     "jsx-a11y/click-events-have-key-events": {
       "count": 2
@@ -46,11 +38,6 @@
       "count": 1
     }
   },
-  "src/components/dashboard/IctCommitteeSection.tsx": {
-    "jsx-a11y/control-has-associated-label": {
-      "count": 2
-    }
-  },
   "src/components/dashboard/departmentTablePresentation.tsx": {
     "jsx-a11y/control-has-associated-label": {
       "count": 2
@@ -63,14 +50,6 @@
   },
   "src/components/notifications/NotificationBell.tsx": {
     "jsx-a11y/control-has-associated-label": {
-      "count": 1
-    }
-  },
-  "src/components/riskhub/ApprovalScenariosPanel.tsx": {
-    "jsx-a11y/control-has-associated-label": {
-      "count": 1
-    },
-    "jsx-a11y/label-has-for": {
       "count": 1
     }
   },
@@ -99,47 +78,12 @@
       "count": 1
     }
   },
-  "src/pages/controls/ControlsTableSection.tsx": {
-    "jsx-a11y/control-has-associated-label": {
-      "count": 6
-    }
-  },
-  "src/pages/issues/IssuesTableSection.tsx": {
-    "jsx-a11y/control-has-associated-label": {
-      "count": 7
-    }
-  },
-  "src/pages/kris/KRIsTableSection.tsx": {
-    "jsx-a11y/control-has-associated-label": {
-      "count": 5
-    }
-  },
-  "src/pages/risks/RisksTableSection.tsx": {
-    "jsx-a11y/control-has-associated-label": {
-      "count": 7
-    }
-  },
-  "src/pages/vendors/VendorsTableSection.tsx": {
-    "jsx-a11y/control-has-associated-label": {
-      "count": 7
-    }
-  },
   "src/components/kri/KRIVendorSelector.tsx": {
     "jsx-a11y/label-has-associated-control": {
       "count": 1
     },
     "jsx-a11y/label-has-for": {
       "count": 2
-    }
-  },
-  "src/components/ArchiveConfirmDialog.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 1
-    }
-  },
-  "src/components/ConfirmDialog.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 1
     }
   },
   "src/components/access/AccessEditModalSections.tsx": {
@@ -177,19 +121,9 @@
       "count": 4
     }
   },
-  "src/components/executions/ExecutionLogModal.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 5
-    }
-  },
   "src/components/issues/IssueCreateForm.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 6
-    }
-  },
-  "src/components/issues/IssueQuickCreateModal.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 4
     }
   },
   "src/components/issues/remediation/AssignmentSection.tsx": {
@@ -220,16 +154,6 @@
       "count": 1
     }
   },
-  "src/components/kri/KRIHistoryEditModal.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 3
-    }
-  },
-  "src/components/kri/KRIValueModal.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 2
-    }
-  },
   "src/components/kri/KriCadenceOwnerFields.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 2
@@ -250,11 +174,6 @@
       "count": 1
     }
   },
-  "src/components/reports/ExportDialog.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 1
-    }
-  },
   "src/components/risk-form/RiskFormIdentityStep.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 6
@@ -270,29 +189,14 @@
       "count": 7
     }
   },
-  "src/components/riskhub/DepartmentsPanel.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 4
-    }
-  },
   "src/components/riskhub/RiskQuestionnairesPanel.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 1
     }
   },
-  "src/components/riskhub/RiskTypesPanel.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 6
-    }
-  },
   "src/components/riskhub/RolesPanel.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 1
-    }
-  },
-  "src/components/riskhub/roles/RoleModal.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 4
     }
   },
   "src/components/risks/risk-questionnaire-detail/ClarificationRequestPanel.tsx": {
@@ -335,29 +239,14 @@
       "count": 1
     }
   },
-  "src/pages/assets/AssetLinkSections.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 1
-    }
-  },
   "src/pages/issues/IssuesFilterBar.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 3
     }
   },
-  "src/pages/users/BreakGlassEnableDialog.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 2
-    }
-  },
   "src/pages/users/UserNewLocalForm.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 6
-    }
-  },
-  "src/pages/vendors/VendorSubOutsourcingSection.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 3
     }
   }
 }

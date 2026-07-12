@@ -53,7 +53,9 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                     </div>
                 </div>
                 <button
+                    type="button"
                     onClick={onClose}
+                    aria-label={t('common:actions.close')}
                     className="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-white transition-colors"
                 >
                     <X className="h-5 w-5" />

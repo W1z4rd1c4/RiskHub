@@ -24,6 +24,9 @@ interface DepartmentModalProps {
 
 function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModalProps) {
     const { t } = useTranslation(['admin', 'common']);
+    const nameLabelId = useId();
+    const codeLabelId = useId();
+    const ownerLabelId = useId();
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
     const [managerId, setManagerId] = useState<number | undefined>(undefined);
@@ -82,9 +85,10 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
         <RiskHubModalFrame onClose={onClose} title={department ? t('admin:departments_panel.modal.edit_title') : t('admin:departments_panel.modal.new_title')}>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.department_name')}</label>
+                        <span id={nameLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.department_name')}</span>
                         <input
                             type="text"
+                            aria-labelledby={nameLabelId}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
@@ -94,9 +98,10 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.code_optional')}</label>
+                        <span id={codeLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.code_optional')}</span>
                         <input
                             type="text"
+                            aria-labelledby={codeLabelId}
                             value={code}
                             onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent font-mono"
@@ -107,8 +112,9 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 
                     {department && (
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.owner')}</label>
+                            <span id={ownerLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.owner')}</span>
                             <ThemedSelect
+                                aria-labelledby={ownerLabelId}
                                 value={managerId?.toString() ?? ''}
                                 onValueChange={(v) => setManagerId(v ? Number(v) : undefined)}
                                 placeholder={t('admin:departments_panel.modal.placeholders.no_manager')}
@@ -135,6 +141,7 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 export function DepartmentsPanel() {
     const { t } = useTranslation(['admin', 'common']);
     const deleteTitleId = useId();
+    const showInactiveId = useId();
     const panel = useRiskHubConfigResource<DepartmentHubRead, DepartmentHubCreate, DepartmentHubUpdate>({
         queryKey: riskHubKeys.departments(),
         load: (showInactive) => riskHubApi.getDepartments(showInactive),
@@ -167,8 +174,9 @@ export function DepartmentsPanel() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-sm text-slate-400">
+                    <label htmlFor={showInactiveId} className="flex items-center gap-2 text-sm text-slate-400">
                         <input
+                            id={showInactiveId}
                             type="checkbox"
                             checked={panel.showInactive}
                             onChange={(e) => panel.setShowInactive(e.target.checked)}

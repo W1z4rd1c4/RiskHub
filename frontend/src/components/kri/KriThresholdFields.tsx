@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 import type { KriModalFormData, KriModalTranslate } from './kriModalTypes';
 
 interface KriThresholdFieldsProps {
@@ -7,13 +9,16 @@ interface KriThresholdFieldsProps {
 }
 
 export function KriThresholdFields({ formData, t, updateFormData }: KriThresholdFieldsProps) {
+    const lowerLimitId = useId();
+    const upperLimitId = useId();
     return (
         <div className="grid grid-cols-2 gap-6 pt-6 border-t border-white/5">
             <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">
+                <label htmlFor={lowerLimitId} className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">
                     {t('modal.lower_limit_breach', { ns: 'kris' })}
                 </label>
                 <input
+                    id={lowerLimitId}
                     type="number"
                     value={formData.lower_limit}
                     onChange={(event) => updateFormData({ lower_limit: Number.parseFloat(event.target.value) })}
@@ -21,10 +26,11 @@ export function KriThresholdFields({ formData, t, updateFormData }: KriThreshold
                 />
             </div>
             <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">
+                <label htmlFor={upperLimitId} className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">
                     {t('modal.upper_limit_breach', { ns: 'kris' })}
                 </label>
                 <input
+                    id={upperLimitId}
                     type="number"
                     value={formData.upper_limit}
                     onChange={(event) => updateFormData({ upper_limit: Number.parseFloat(event.target.value) })}

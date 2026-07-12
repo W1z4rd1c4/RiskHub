@@ -35,6 +35,7 @@ export function ExportDialog({
 }: ExportDialogProps) {
     const { t } = useTranslation('common');
     const titleId = useId();
+    const dateLabelId = useId();
     const [asOfDate, setAsOfDate] = useState<string>(getTodayLocalDate());
 
     useEffect(() => {
@@ -77,6 +78,7 @@ export function ExportDialog({
                     type="button"
                     onClick={onClose}
                     disabled={isSubmitting}
+                    aria-label={t('actions.close')}
                     className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-60"
                 >
                     <X className="h-5 w-5 text-slate-300" />
@@ -85,11 +87,12 @@ export function ExportDialog({
 
             <div className="p-6 space-y-5">
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                    <span id={dateLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
                         {t('export.fields.date')}
-                    </label>
+                    </span>
                     <input
                         type="date"
+                        aria-labelledby={dateLabelId}
                         value={asOfDate}
                         onChange={(e) => setAsOfDate(e.target.value)}
                         data-testid="export-date-input"

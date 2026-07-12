@@ -238,12 +238,12 @@ export function KRIsTableSection({
                     </thead>
                     <tbody>
                         {Array.from({ length: itemsPerPage }, (_, index) => (
-                            <tr key={`skeleton-${index}`} className="border-b border-white/5 animate-pulse">
-                                <td className="px-6 py-4"><div className="h-4 w-32 bg-white/5 rounded" /></td>
-                                <td className="px-6 py-4"><div className="h-4 w-16 bg-white/5 rounded" /></td>
-                                <td className="px-6 py-4"><div className="h-4 w-20 bg-white/5 rounded" /></td>
-                                <td className="px-6 py-4"><div className="h-5 w-16 bg-white/5 rounded-md" /></td>
-                                <td className="px-6 py-4"><div className="h-4 w-8 bg-white/5 rounded mx-auto" /></td>
+                            <tr key={`skeleton-${index}`} className="border-b border-white/5 animate-pulse" aria-hidden="true">
+                                <td className="px-6 py-4" aria-hidden="true"><div className="h-4 w-32 bg-white/5 rounded" /></td>
+                                <td className="px-6 py-4" aria-hidden="true"><div className="h-4 w-16 bg-white/5 rounded" /></td>
+                                <td className="px-6 py-4" aria-hidden="true"><div className="h-4 w-20 bg-white/5 rounded" /></td>
+                                <td className="px-6 py-4" aria-hidden="true"><div className="h-5 w-16 bg-white/5 rounded-md" /></td>
+                                <td className="px-6 py-4" aria-hidden="true"><div className="h-4 w-8 bg-white/5 rounded mx-auto" /></td>
                             </tr>
                         ))}
                     </tbody>

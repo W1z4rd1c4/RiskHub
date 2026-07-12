@@ -22,6 +22,11 @@ interface RiskTypeModalProps {
 
 function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps) {
     const { t } = useTranslation(['admin', 'common']);
+    const codeLabelId = useId();
+    const displayNameLabelId = useId();
+    const descriptionLabelId = useId();
+    const colorLabelId = useId();
+    const sortOrderLabelId = useId();
     const [code, setCode] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [description, setDescription] = useState('');
@@ -68,9 +73,10 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {!riskType && (
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.code')}</label>
+                            <span id={codeLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.code')}</span>
                             <input
                                 type="text"
+                                aria-labelledby={codeLabelId}
                                 value={code}
                                 onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
@@ -82,9 +88,10 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.display_name')}</label>
+                        <span id={displayNameLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.display_name')}</span>
                         <input
                             type="text"
+                            aria-labelledby={displayNameLabelId}
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
@@ -94,8 +101,9 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.description')}</label>
+                        <span id={descriptionLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.description')}</span>
                         <textarea
+                            aria-labelledby={descriptionLabelId}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
@@ -106,8 +114,8 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
 
                     <div className="flex gap-4">
                         <div className="flex-1">
-                            <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.color')}</label>
-                            <div className="flex items-center gap-2">
+                            <span id={colorLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.color')}</span>
+                            <div className="flex items-center gap-2" role="group" aria-labelledby={colorLabelId}>
                                 <input
                                     type="color"
                                     value={color}
@@ -125,9 +133,10 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
                         </div>
 
                         <div className="w-24">
-                            <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.sort_order')}</label>
+                            <span id={sortOrderLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.sort_order')}</span>
                             <input
                                 type="number"
+                                aria-labelledby={sortOrderLabelId}
                                 value={sortOrder}
                                 onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
                                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
@@ -149,6 +158,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
 export function RiskTypesPanel() {
     const { t } = useTranslation(['admin', 'common']);
     const deleteTitleId = useId();
+    const showDeletedId = useId();
     const panel = useRiskHubConfigResource<RiskType, RiskTypeCreate, RiskTypeUpdate>({
         queryKey: riskHubKeys.riskTypes(),
         load: (showInactive) => riskHubApi.getRiskTypes(showInactive),
@@ -179,8 +189,9 @@ export function RiskTypesPanel() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-sm text-slate-400">
+                    <label htmlFor={showDeletedId} className="flex items-center gap-2 text-sm text-slate-400">
                         <input
+                            id={showDeletedId}
                             type="checkbox"
                             checked={panel.showInactive}
                             onChange={(e) => panel.setShowInactive(e.target.checked)}

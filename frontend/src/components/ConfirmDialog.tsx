@@ -126,24 +126,23 @@ export function ConfirmDialog({
             {/* Optional Input Field */}
             {showInput && (
                 <div className="px-6 pb-4">
-                    {inputLabel && (
-                        <label
-                            htmlFor={inputId}
-                            className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2"
-                        >
-                            {inputLabel} {inputRequired && <span className="text-destructive">*</span>}
-                        </label>
-                    )}
-                    <textarea
-                        id={inputId}
-                        ref={inputRef}
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        placeholder={resolvedInputPlaceholder}
-                        rows={3}
-                        aria-label={inputLabel ? undefined : resolvedInputPlaceholder}
-                        className="confirm-dialog-input w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 outline-none focus:border-accent/50 transition-all resize-none"
-                    />
+                    <label htmlFor={inputId} className="block">
+                        {inputLabel && (
+                            <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                                {inputLabel} {inputRequired && <span className="text-destructive">*</span>}
+                            </span>
+                        )}
+                        <textarea
+                            id={inputId}
+                            ref={inputRef}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            placeholder={resolvedInputPlaceholder}
+                            rows={3}
+                            aria-label={inputLabel ? undefined : resolvedInputPlaceholder}
+                            className="confirm-dialog-input w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 outline-none focus:border-accent/50 transition-all resize-none"
+                        />
+                    </label>
                 </div>
             )}
 

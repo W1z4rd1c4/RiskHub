@@ -33,6 +33,10 @@ behind it.
 - [`FRONTEND-DIALOG-INTERACTION-INVENTORY.md`](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md): Per-surface
   inventory of every overlay render site (FR-P2c-1), classified by interaction contract, with the
   DialogShell accessible-name/focus/Escape/restoration wiring, verification test, and C5a disposition.
+- [`FRONTEND-ACCESSIBILITY-BASELINE-DEVIATIONS.md`](./FRONTEND-ACCESSIBILITY-BASELINE-DEVIATIONS.md):
+  The residual jsx-a11y baseline debt (146 entries) after commit 5a fixed all changed-file violations —
+  grouped by rule with honest user-impact, the shared rationale/owner/tracking, and how to claim (fix)
+  one. Backed by the machine-checked 1:1 deviation registry (`frontend/scripts/a11y/jsx-a11y-deviations.json`).
 
 ## Notes
 

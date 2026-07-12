@@ -257,7 +257,7 @@ function TopRisksTable({ risks }: { risks: IctCommitteeTopRisk[] }) {
                             className="border-t border-white/5"
                         >
                             <td className="py-2 pr-3 text-slate-600 font-bold">{rank}</td>
-                            <td className="py-2 text-slate-600" colSpan={8} />
+                            <td className="py-2 text-slate-600" colSpan={8} aria-hidden="true" />
                         </tr>
                     ))}
                 </tbody>
@@ -486,7 +486,7 @@ function TopVendorsTable({ vendors }: { vendors: IctCommitteeTopVendor[] }) {
                             className="border-t border-white/5"
                         >
                             <td className="py-2 pr-3 text-slate-600 font-bold">{rank}</td>
-                            <td className="py-2 text-slate-600" colSpan={3} />
+                            <td className="py-2 text-slate-600" colSpan={3} aria-hidden="true" />
                         </tr>
                     ))}
                 </tbody>

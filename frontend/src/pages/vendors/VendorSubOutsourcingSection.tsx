@@ -253,9 +253,10 @@ export function VendorSubOutsourcingSection({
         props: Record<string, unknown> = {},
     ) => (
         <div className="vendor-field">
-            <label className="vendor-label">{label}</label>
+            <span id={`vendor-sub-outsourcing-label-${field}`} className="vendor-label">{label}</span>
             <input
                 type="text"
+                aria-labelledby={`vendor-sub-outsourcing-label-${field}`}
                 data-testid={`vendor-sub-outsourcing-field-${field}`}
                 value={fields[field]}
                 onChange={(event) => setField(field)(event.target.value)}
@@ -271,8 +272,9 @@ export function VendorSubOutsourcingSection({
         options: Array<{ value: string; label: string }>,
     ) => (
         <div className="vendor-field">
-            <label className="vendor-label">{label}</label>
+            <span id={`vendor-sub-outsourcing-label-${field}`} className="vendor-label">{label}</span>
             <ThemedSelect
+                aria-labelledby={`vendor-sub-outsourcing-label-${field}`}
                 value={fields[field]}
                 onValueChange={setField(field)}
                 options={options}
@@ -343,8 +345,9 @@ export function VendorSubOutsourcingSection({
                         )}
                     </div>
                     <div className="vendor-field">
-                        <label className="vendor-label">{t('sub_outsourcing.form.note')}</label>
+                        <span id="vendor-sub-outsourcing-note-label" className="vendor-label">{t('sub_outsourcing.form.note')}</span>
                         <textarea
+                            aria-labelledby="vendor-sub-outsourcing-note-label"
                             data-testid="vendor-sub-outsourcing-field-note"
                             value={fields.note}
                             onChange={(event) => setField('note')(event.target.value)}

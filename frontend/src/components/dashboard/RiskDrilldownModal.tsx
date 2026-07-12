@@ -105,7 +105,9 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                     </div>
                 </div>
                 <button
+                    type="button"
                     onClick={onClose}
+                    aria-label={t('common:actions.close')}
                     className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                 >
                     <X className="h-5 w-5" />

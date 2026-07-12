@@ -38,6 +38,9 @@ export function StepIndicator({
                 return (
                     <div
                         key={step.id}
+                        role="button"
+                        tabIndex={isClickable ? 0 : -1}
+                        aria-disabled={!isClickable}
                         className={`flex flex-col items-center gap-2 group transition-all ${isClickable
                                 ? 'cursor-pointer'
                                 : isActive
@@ -45,6 +48,12 @@ export function StepIndicator({
                                     : 'cursor-not-allowed opacity-50'
                             }`}
                         onClick={() => isClickable && onStepClick(idx)}
+                        onKeyDown={(event) => {
+                            if (isClickable && (event.key === 'Enter' || event.key === ' ')) {
+                                event.preventDefault();
+                                onStepClick(idx);
+                            }
+                        }}
                     >
                         <div
                             className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${isActive

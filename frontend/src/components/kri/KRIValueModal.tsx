@@ -29,6 +29,8 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
 
     const titleId = useId();
     const subtitleId = useId();
+    const valueLabelId = useId();
+    const backdateLabelId = useId();
     const valueInputRef = useRef<HTMLInputElement>(null);
 
     const canSubmitBackdatedValue = resolveCapabilityFlag(kri.capabilities, 'can_submit_backdated_value');
@@ -93,7 +95,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
                         <p id={subtitleId} className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{kri.metric_name}</p>
                     </div>
                 </div>
-                <button onClick={handleClose} className="p-2 text-slate-500 hover:text-white transition-colors">
+                <button type="button" onClick={handleClose} aria-label={t('common:actions.close')} className="p-2 text-slate-500 hover:text-white transition-colors">
                     <X className="h-6 w-6" />
                 </button>
             </div>
@@ -158,11 +160,12 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
 
                         {/* Value Input */}
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                            <span id={valueLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
                                 {t('value_modal.new_value_required', { ns: 'kris' })}
-                            </label>
+                            </span>
                             <input
                                 ref={valueInputRef}
+                                aria-labelledby={valueLabelId}
                                 type="number"
                                 step="0.01"
                                 value={formData.value}
@@ -173,12 +176,13 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
 
                         {canSubmitBackdatedValue && (
                             <div className="space-y-2 pt-4 border-t border-white/5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-amber-500/50 ml-1 flex items-center gap-1">
+                                <span id={backdateLabelId} className="text-[10px] font-black uppercase tracking-widest text-amber-500/50 ml-1 flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
                                     {t('value_modal.backdate_optional', { ns: 'kris' })}
-                                </label>
+                                </span>
                                 <input
                                     type="date"
+                                    aria-labelledby={backdateLabelId}
                                     value={formData.period_end || ''}
                                     onChange={e => setFormData({ ...formData, period_end: e.target.value || undefined })}
                                     className="w-full bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3 text-white outline-none focus:border-amber-500/50 transition-all"

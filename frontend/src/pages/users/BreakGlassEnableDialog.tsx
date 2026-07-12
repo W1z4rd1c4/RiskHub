@@ -52,27 +52,29 @@ export function BreakGlassEnableDialog({
                         name: breakGlassUser.name,
                     })}
                 </p>
-                <label
-                    htmlFor="break-glass-reason"
+                <span
+                    id="break-glass-reason-label"
                     className="mt-5 block text-xs font-bold uppercase tracking-widest text-slate-400"
                 >
                     {t('users.break_glass_reason', { ns: 'admin' })}
-                </label>
+                </span>
                 <textarea
                     id="break-glass-reason"
+                    aria-labelledby="break-glass-reason-label"
                     value={breakGlassReason}
                     onChange={(event) => onReasonChange(event.target.value)}
                     className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-amber-400/70"
                     maxLength={255}
                 />
-                <label
-                    htmlFor="break-glass-expires-in-hours"
+                <span
+                    id="break-glass-expires-in-hours-label"
                     className="mt-4 block text-xs font-bold uppercase tracking-widest text-slate-400"
                 >
                     {t('users.break_glass_expires_in_hours', { ns: 'admin' })}
-                </label>
+                </span>
                 <input
                     id="break-glass-expires-in-hours"
+                    aria-labelledby="break-glass-expires-in-hours-label"
                     type="number"
                     min={1}
                     max={24}

@@ -56,7 +56,9 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                     </p>
                 </div>
                 <button
+                    type="button"
                     onClick={onClose}
+                    aria-label={tAdmin('common:actions.close')}
                     className="p-2 glass rounded-lg text-slate-500 hover:text-white transition-colors"
                 >
                     <X className="h-5 w-5" />

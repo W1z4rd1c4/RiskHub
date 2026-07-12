@@ -43,7 +43,9 @@ export function RiskQuestionnaireDetailHeader({
                 )}
             </div>
             <button
+                type="button"
                 onClick={onClose}
+                aria-label={t('common:actions.close')}
                 className="p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
             >
                 <X className="h-5 w-5" />

@@ -26,6 +26,8 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const titleId = useId();
     const descriptionId = useId();
+    const correctedValueLabelId = useId();
+    const reasonLabelId = useId();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -81,7 +83,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
                         </p>
                     </div>
                 </div>
-                <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                <button type="button" onClick={onClose} aria-label={t('common:actions.close')} className="text-slate-400 hover:text-white transition-colors">
                     <X className="h-5 w-5" />
                 </button>
             </div>
@@ -109,20 +111,21 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
                 )}
 
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    <span className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">
                         {t('values.original_value', { ns: 'kris' })}
-                    </label>
+                    </span>
                     <div className="px-4 py-3 bg-white/5 rounded-lg text-white font-mono">
                         {entry.value} {entry.unit}
                     </div>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    <span id={correctedValueLabelId} className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">
                         {t('history_edit.corrected_value_required', { ns: 'kris' })}
-                    </label>
+                    </span>
                     <input
                         type="number"
+                        aria-labelledby={correctedValueLabelId}
                         step="any"
                         value={newValue}
                         onChange={(e) => setNewValue(e.target.value)}
@@ -132,10 +135,11 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    <span id={reasonLabelId} className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">
                         {t('history_edit.reason_required', { ns: 'kris' })}
-                    </label>
+                    </span>
                     <textarea
+                        aria-labelledby={reasonLabelId}
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
                         required

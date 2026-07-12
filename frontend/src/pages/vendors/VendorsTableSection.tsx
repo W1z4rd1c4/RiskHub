@@ -278,26 +278,26 @@ export function VendorsTableSection({
                     </thead>
                     <tbody>
                         {Array.from({ length: itemsPerPage }, (_, i) => (
-                            <tr key={`vendor-skeleton-${i}`} className="border-b border-white/5 animate-pulse">
-                                <td className="px-6 py-4">
+                            <tr key={`vendor-skeleton-${i}`} className="border-b border-white/5 animate-pulse" aria-hidden="true">
+                                <td className="px-6 py-4" aria-hidden="true">
                                     <div className="h-4 w-40 bg-white/5 rounded" />
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4" aria-hidden="true">
                                     <div className="h-4 w-24 bg-white/5 rounded" />
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4" aria-hidden="true">
                                     <div className="h-4 w-24 bg-white/5 rounded" />
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4" aria-hidden="true">
                                     <div className="h-4 w-20 bg-white/5 rounded" />
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4" aria-hidden="true">
                                     <div className="h-6 w-12 bg-white/5 rounded-full mx-auto" />
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4" aria-hidden="true">
                                     <div className="h-6 w-16 bg-white/5 rounded-full" />
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4" aria-hidden="true">
                                     <div className="h-4 w-4 bg-white/5 rounded ml-auto" />
                                 </td>
                             </tr>

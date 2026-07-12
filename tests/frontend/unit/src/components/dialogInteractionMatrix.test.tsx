@@ -44,11 +44,12 @@ import type { OrphanedItem } from '@/types/orphanedItem';
  * MSW) and asserts the same seven-point contract the primitive guarantees, plus
  * an open-state axe sweep with the pinned WCAG tags used elsewhere.
  *
- * Surfaces whose OPEN state currently fails the contract (invariably an
- * icon-only control with no accessible name → axe `button-name` / `label`) are
- * marked `.skip` with a `TODO(C5a)` annotation. That skipped list is the exact
- * accessible-name worklist for the deferred C5a commit; component source is NOT
- * edited here so the a11y baseline is regenerated once, later.
+ * Every surface below is ACTIVE. The surfaces that formerly failed the OPEN
+ * contract (invariably an icon-only control with no accessible name → axe
+ * `button-name` / `label`) were the C5a accessible-name worklist; C5a added the
+ * localized `aria-label` / label association to each offending component and
+ * un-skipped them here. Each case retains a `C5a — accessible-name fixed`
+ * annotation citing the control that was remediated.
  *
  * The companion inventory:
  *   docs/dora-ict-register/FRONTEND-DIALOG-INTERACTION-INVENTORY.md
@@ -351,14 +352,15 @@ describe('Dialog interaction matrix — dialog surfaces (FR-P2c-1)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// RED — surfaces that fail the OPEN-state contract today (missing accessible
-// name on an inner control). Un-skip in C5a after the accessible-name fix; do
-// NOT edit component source here. Each `RED:` note cites the exact offender.
+// Formerly-RED surfaces — each failed the OPEN-state contract on a missing
+// accessible name (icon-only close button / unlabeled input). C5a added the
+// localized `aria-label` / label association to each and un-skipped them; the
+// per-case note cites the control that was remediated.
 // ---------------------------------------------------------------------------
 
-describe('Dialog interaction matrix — pending accessible-name fix (C5a)', () => {
-    // TODO(C5a): un-skip after accessible-name fix — RED: form inputs use ISSUE_LABEL (unassociated <label>, IssueQuickCreateModal.tsx:132) so axe label fails.
-    it.skip('IssueQuickCreateModal', async () => {
+describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
+    // C5a — accessible-name fixed (was RED):form inputs use ISSUE_LABEL (unassociated <label>, IssueQuickCreateModal.tsx:132) so axe label fails.
+    it('IssueQuickCreateModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <IssueQuickCreateModal
                 isOpen
@@ -371,27 +373,27 @@ describe('Dialog interaction matrix — pending accessible-name fix (C5a)', () =
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: resolution textarea has no programmatic label (ApprovalResolutionDialog.tsx:49), axe label fails.
-    it.skip('ApprovalResolutionDialog', async () => {
+    // C5a — accessible-name fixed (was RED):resolution textarea has no programmatic label (ApprovalResolutionDialog.tsx:49), axe label fails.
+    it('ApprovalResolutionDialog', async () => {
         await assertDialogContract('dialog', (onClose) => <ApprovalResolutionSurface onClose={onClose} />);
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: icon-only close button lacks aria-label (ExportDialog.tsx:76) + unlabeled date input (ExportDialog.tsx:91); axe button-name + label fail.
-    it.skip('ExportDialog', async () => {
+    // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (ExportDialog.tsx:76) + unlabeled date input (ExportDialog.tsx:91); axe button-name + label fail.
+    it('ExportDialog', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <ExportDialog isOpen onClose={onClose} onSubmit={async () => {}} />
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: icon-only close button lacks aria-label (RiskQuickViewModal.tsx:55), axe button-name fails.
-    it.skip('RiskQuickViewModal', async () => {
+    // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (RiskQuickViewModal.tsx:55), axe button-name fails.
+    it('RiskQuickViewModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <RiskQuickViewModal isOpen onClose={onClose} risk={riskFixture} />
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: icon-only close button lacks aria-label (ExecutionLogModal.tsx:74) + unlabeled form fields; axe button-name + label fail.
-    it.skip('ExecutionLogModal', async () => {
+    // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (ExecutionLogModal.tsx:74) + unlabeled form fields; axe button-name + label fail.
+    it('ExecutionLogModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <ExecutionLogModal
                 isOpen
@@ -402,15 +404,15 @@ describe('Dialog interaction matrix — pending accessible-name fix (C5a)', () =
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: icon-only close button lacks aria-label (KRIValueModal.tsx:96) + unlabeled value/backdate inputs; axe button-name + label fail.
-    it.skip('KRIValueModal', async () => {
+    // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (KRIValueModal.tsx:96) + unlabeled value/backdate inputs; axe button-name + label fail.
+    it('KRIValueModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <KRIValueModal kri={kriFixture} isOpen onClose={onClose} onSuccess={() => {}} />
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: icon-only close button lacks aria-label (KRIHistoryEditModal.tsx:84) + unlabeled value/reason inputs; axe button-name + label fail.
-    it.skip('KRIHistoryEditModal', async () => {
+    // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (KRIHistoryEditModal.tsx:84) + unlabeled value/reason inputs; axe button-name + label fail.
+    it('KRIHistoryEditModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <KRIHistoryEditModal
                 isOpen
@@ -422,29 +424,29 @@ describe('Dialog interaction matrix — pending accessible-name fix (C5a)', () =
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: icon-only close button lacks aria-label (RiskDrilldownModal.tsx:107), axe button-name fails.
-    it.skip('RiskDrilldownModal', async () => {
+    // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (RiskDrilldownModal.tsx:107), axe button-name fails.
+    it('RiskDrilldownModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <RiskDrilldownModal isOpen onClose={onClose} probability={4} impact={4} />
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: icon-only close button lacks aria-label (OrphanQuickViewModal.tsx:128), axe button-name fails.
-    it.skip('OrphanQuickViewModal', async () => {
+    // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (OrphanQuickViewModal.tsx:128), axe button-name fails.
+    it('OrphanQuickViewModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <OrphanQuickViewModal isOpen onClose={onClose} orphan={orphanFixture} />
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: icon-only close button lacks aria-label (ResolveOrphanModal.tsx:58), axe button-name fails.
-    it.skip('ResolveOrphanModal', async () => {
+    // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (ResolveOrphanModal.tsx:58), axe button-name fails.
+    it('ResolveOrphanModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <ResolveOrphanModal isOpen onClose={onClose} orphan={orphanFixture} onResolved={() => {}} />
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: icon-only close button lacks aria-label (KriModalHeader.tsx:31), axe button-name fails.
-    it.skip('KRIModal', async () => {
+    // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (KriModalHeader.tsx:31), axe button-name fails.
+    it('KRIModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <KRIModal
                 risk_id={1}
@@ -456,15 +458,15 @@ describe('Dialog interaction matrix — pending accessible-name fix (C5a)', () =
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: icon-only close button lacks aria-label (AccessEditModalSections.tsx:26), axe button-name fails.
-    it.skip('AccessEditModal', async () => {
+    // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (AccessEditModalSections.tsx:26), axe button-name fails.
+    it('AccessEditModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <AccessEditModal isOpen onClose={onClose} user={accessUserFixture} onSaved={() => {}} />
         ));
     });
 
-    // TODO(C5a): un-skip after accessible-name fix — RED: header close button lacks aria-label (RiskQuestionnaireDetailHeader) so axe button-name fails.
-    it.skip('RiskQuestionnaireDetail', async () => {
+    // C5a — accessible-name fixed (was RED):header close button lacks aria-label (RiskQuestionnaireDetailHeader) so axe button-name fails.
+    it('RiskQuestionnaireDetail', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <RiskQuestionnaireDetail
                 isOpen

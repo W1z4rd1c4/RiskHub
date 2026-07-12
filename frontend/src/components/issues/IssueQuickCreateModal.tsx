@@ -30,6 +30,10 @@ export function IssueQuickCreateModal({
 }: IssueQuickCreateModalProps) {
     const { t } = useTranslation('issues');
     const titleId = useId();
+    const titleLabelId = useId();
+    const severityLabelId = useId();
+    const dueDateLabelId = useId();
+    const descriptionLabelId = useId();
 
     const [title, setTitle] = useState('');
     const [severity, setSeverity] = useState<IssueSeverity>('medium');
@@ -129,9 +133,10 @@ export function IssueQuickCreateModal({
 
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5 md:col-span-2">
-                    <label className={ISSUE_LABEL}>{t('form.fields.title')}</label>
+                    <span id={titleLabelId} className={ISSUE_LABEL}>{t('form.fields.title')}</span>
                     <input
                         type="text"
+                        aria-labelledby={titleLabelId}
                         value={title}
                         onChange={(event) => setTitle(event.target.value)}
                         className={ISSUE_FIELD}
@@ -140,8 +145,9 @@ export function IssueQuickCreateModal({
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className={ISSUE_LABEL}>{t('form.fields.severity')}</label>
+                    <span id={severityLabelId} className={ISSUE_LABEL}>{t('form.fields.severity')}</span>
                     <ThemedSelect
+                        aria-labelledby={severityLabelId}
                         value={severity}
                         onValueChange={(value) => setSeverity(value as IssueSeverity)}
                         options={severityOptions}
@@ -150,9 +156,10 @@ export function IssueQuickCreateModal({
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className={ISSUE_LABEL}>{t('form.fields.due_date')}</label>
+                    <span id={dueDateLabelId} className={ISSUE_LABEL}>{t('form.fields.due_date')}</span>
                     <input
                         type="datetime-local"
+                        aria-labelledby={dueDateLabelId}
                         value={dueAt}
                         onChange={(event) => setDueAt(event.target.value)}
                         className={`${ISSUE_FIELD} h-10`}
@@ -160,8 +167,9 @@ export function IssueQuickCreateModal({
                 </div>
 
                 <div className="space-y-1.5 md:col-span-2">
-                    <label className={ISSUE_LABEL}>{t('form.fields.description')}</label>
+                    <span id={descriptionLabelId} className={ISSUE_LABEL}>{t('form.fields.description')}</span>
                     <textarea
+                        aria-labelledby={descriptionLabelId}
                         value={description}
                         onChange={(event) => setDescription(event.target.value)}
                         className={ISSUE_TEXTAREA}

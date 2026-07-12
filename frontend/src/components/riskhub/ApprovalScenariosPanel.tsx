@@ -96,6 +96,9 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                         <span className="text-slate-300">{t('admin:approval_scenarios.requires_approval')}</span>
                         <button
                             type="button"
+                            role="switch"
+                            aria-checked={requiresApproval}
+                            aria-label={t('admin:approval_scenarios.requires_approval')}
                             onClick={() => setRequiresApproval(!requiresApproval)}
                             className={cn(
                                 "w-12 h-6 rounded-full transition-colors relative",
@@ -113,7 +116,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
 
                     {requiresApproval && (
                         <div className="space-y-2">
-                            <label className="text-white font-medium">{t('admin:approval_scenarios.approver_roles')}</label>
+                            <span className="block text-white font-medium">{t('admin:approval_scenarios.approver_roles')}</span>
                             {rolesLoading ? (
                                 <div className="text-slate-400 text-sm py-2">{t('common:loading.roles')}</div>
                             ) : (

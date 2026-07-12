@@ -126,7 +126,9 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                     </p>
                 </div>
                 <button
+                    type="button"
                     onClick={handleClose}
+                    aria-label={t('common:actions.close')}
                     className="p-2 glass rounded-lg text-slate-500 hover:text-white transition-colors"
                 >
                     <X className="h-5 w-5" />
