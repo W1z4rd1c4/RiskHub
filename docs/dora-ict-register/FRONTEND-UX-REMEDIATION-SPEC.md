@@ -321,10 +321,14 @@ non-`SortableTable` screens (DQ, Committee) the same contract.
   VendorSubOutsourcingSection — with `SortableTable` component tests + representative regression
   coverage across existing consumers; DQ + Committee loading/error branches proven by e2e; axe +
   keyboard-nav green.
-- **Rollback.** **Two** independently-revertable commit **ranges** — (i) the `SortableTable`
-  change **together with its consumer prop-migration** (callers pass new `isLoading`/`isError`, so
-  the component cannot be reverted alone without breaking type-checking, per N16), and (ii) the
-  DQ/Committee branch change — **not** one centralized commit.
+- **Rollback.** The reusable error contract (N17, FR-P3-3/FR-P3-4) lands **first** as a small
+  **additive shared module** — its own **prerequisite**, dormant until consumed — so the two
+  consuming changes are genuinely independent: **two** independently-revertable commit **ranges** —
+  (i) the `SortableTable` change **together with its consumer prop-migration** (callers pass new
+  `isLoading`/`isError`, so the component cannot be reverted alone without breaking type-checking,
+  per N16), and (ii) the DQ/Committee branch change — **not** one centralized commit. Because both
+  ranges consume the shared module, the two consuming tickets must **not** be dispatched
+  concurrently with the `VendorSubOutsourcingSection`/committee-surface P4 work (see §7 dispatch-safety).
 - **Resolves:** C2, C3, C4 (table portion).
 
 ### Phase 4 — IA restructure (needs P1; highest routing risk)
@@ -521,12 +525,37 @@ This section stages Step 2. It does **not** create tickets. The blocking edges a
 | **P2a primitives + select** | P1 | Blocks P2b and P2c. `select.tsx`/`ThemedSelect` revert as one range. |
 | **P2b forms** | P2a | One commit per form. |
 | **P2c dialog migration** | P2a | First task = the interaction-contract inventory. |
-| **P3 tables + loading** | P1 | Two revert ranges (component+consumers; DQ/Committee). |
-| **P4 IA restructure** | P1 | Highest routing risk; retain old page until redirect verified. |
+| **P3 tables + loading** | P1 | Error contract lands first (shared prereq); then two independent revert ranges (component+consumers; DQ/Committee). |
+| **P4 IA restructure** | P1 | Highest routing risk; retain old page until redirect verified. Follows the overlapping P3 work (see dispatch-safety). |
 | **P5 polish + palette + dispositions** | P1–P4 | Closes every finding to a disposition. |
 
 Tracer-bullet ticketing (Step 2) SHOULD open one epic/cluster per phase with blocking edges above,
 and one issue per requirement ID (or tight requirement group), each citing its `FR-*`/finding IDs.
+
+### Dispatch-safety ordering (execution constraints layered on the phase DAG) — added 2026-07-12
+
+The phase DAG governs **product** dependencies; the edges below additionally prevent **concurrent
+edits to the same source file** when tickets are dispatched to parallel AFK agents. They do **not**
+change product scope — they encode a safe execution order and gate ownership.
+
+- **`tailwind.config.js`** — P1 token-wiring (FR-P1-2) and P1 dead-chart-token removal (FR-P1-8)
+  both edit it → run **sequentially or in the same agent**; never dispatch concurrently. (The a11y
+  gate, FR-P1-4/5, may run alongside.)
+- **Reusable table error contract** (N17) — landed **first** as a small additive shared module
+  (a P3 **prerequisite**) that both the `SortableTable` range and the DQ/Committee range consume,
+  so the two P3 ranges stay independently revertible (see Phase 3 rollback).
+- **`VendorSubOutsourcingSection.tsx`** — the `SortableTable` consumer-migration (P3) must land
+  **before** the sub-outsourcing chain-grouping (P4, FR-P4-7).
+- **`IctRegisterCommitteePage.tsx`** — the committee loading/error branch (P3, FR-P3-4) must land
+  **before** the ICT Committee → Dashboard-tab refactor (P4, FR-P4-3); the tab refactor
+  **coordinates with** the sidebar-grouping ticket (FR-P4-1) over ICT Committee's sidebar removal.
+- **P3 precedes the overlapping P4 work** on shared surfaces (the two edges above).
+- **Phase closeouts are PM/human-owned gates.** A phase's downstream tickets flip from `blocked`
+  to `ready-for-agent` **only after** that phase's terminal gate passes: full **tsc/build + lint +
+  vitest + a11y** (baseline mode, CT-7), **CT-2 manual/AT** evidence (keyboard, focus order,
+  screen reader, zoom/reflow with C6 recorded), and the **ultrareview / `code-review` checkpoint**
+  (decision 15). The ultrareview is user-triggered; the gate owner is the PM/human, not an AFK
+  agent. Tracked on the epic's phase-closeout checklist.
 
 ---
 
