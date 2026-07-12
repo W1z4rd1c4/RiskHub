@@ -149,7 +149,7 @@ export function Sidebar() {
                         >
                             <p
                                 id={`sidebar-group-${section.group}`}
-                                className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+                                className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-300"
                             >
                                 {section.label}
                             </p>

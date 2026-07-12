@@ -37,7 +37,7 @@ export function buildThreatColumns({
                         // hover via `title`, with `cursor-help` as the hover cue.
                         <span
                             title={threat.description}
-                            className="text-xs text-slate-500 truncate max-w-[280px] cursor-help"
+                            className="text-xs text-muted-foreground truncate max-w-[280px] cursor-help"
                         >
                             {threat.description}
                         </span>

@@ -57,7 +57,7 @@ export function ThreatsPage() {
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
-                    <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
+                    <p className="text-muted-foreground font-medium mt-1">{t('subtitle')}</p>
                 </div>
                 {resolveCapabilityFlag(capabilities, 'can_create') && (
                     <button
@@ -104,8 +104,10 @@ export function ThreatsPage() {
                         onClick={() => void fetchThreats()}
                         data-testid="threats-refresh-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
+                        title={t('common:actions.refresh')}
+                        aria-label={t('common:actions.refresh')}
                     >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
+                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
                     </button>
                 </div>
             </div>

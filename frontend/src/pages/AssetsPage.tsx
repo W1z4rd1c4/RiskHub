@@ -104,8 +104,10 @@ export function AssetsPage() {
                         onClick={() => void fetchAssets()}
                         data-testid="assets-refresh-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
+                        title={t('common:actions.refresh')}
+                        aria-label={t('common:actions.refresh')}
                     >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
+                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
                     </button>
                 </div>
             </div>

@@ -20,13 +20,16 @@ const BUSINESS_ROUTES = ['/', '/controls', '/risks', '/settings'];
 // DORA ICT-register surfaces (ADR-013 · FR-P1-5 · N7) — the register that the
 // smoke previously covered NONE of. The risk-manager demo account (Petra
 // Svobodová) can read every one, including the committee (ict_committee:read).
+// The committee moved from the standalone /ict-register/committee route to the
+// URL-addressable Dashboard tab /?view=ict-committee (issue #64); the legacy
+// path now redirects there, so the scan targets the live tab, not the redirect.
 const DORA_ROUTES = [
   '/vendors',
   '/processes',
   '/assets',
   '/threats',
   '/ict-register/data-quality',
-  '/ict-register/committee',
+  '/?view=ict-committee',
 ];
 const ADMIN_ROUTES = ['/admin'];
 

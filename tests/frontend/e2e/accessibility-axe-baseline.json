@@ -5,23 +5,12 @@
       "/controls": [],
       "/risks": [],
       "/settings": [],
-      "/vendors": [
-        "button-name||[\".p-2\\\\.5\"]"
-      ],
-      "/processes": [
-        "button-name||[\".p-2\\\\.5\"]"
-      ],
-      "/assets": [
-        "button-name||[\".p-2\\\\.5\"]"
-      ],
-      "/threats": [
-        "button-name||[\".p-2\\\\.5\"]",
-        "color-contrast||[\".mt-1\"]",
-        "color-contrast||[\"tr:nth-child(1) > .w-\\\\[300px\\\\].min-w-\\\\[220px\\\\] > .gap-0\\\\.5.flex-col > .max-w-\\\\[280px\\\\].truncate.text-xs\"]",
-        "color-contrast||[\"tr:nth-child(2) > .w-\\\\[300px\\\\].min-w-\\\\[220px\\\\] > .gap-0\\\\.5.flex-col > .max-w-\\\\[280px\\\\].truncate.text-xs\"]"
-      ],
+      "/vendors": [],
+      "/processes": [],
+      "/assets": [],
+      "/threats": [],
       "/ict-register/data-quality": [],
-      "/ict-register/committee": [],
+      "/?view=ict-committee": [],
       "/admin": []
     },
     "light": {
@@ -29,20 +18,12 @@
       "/controls": [],
       "/risks": [],
       "/settings": [],
-      "/vendors": [
-        "button-name||[\".p-2\\\\.5\"]"
-      ],
-      "/processes": [
-        "button-name||[\".p-2\\\\.5\"]"
-      ],
-      "/assets": [
-        "button-name||[\".p-2\\\\.5\"]"
-      ],
-      "/threats": [
-        "button-name||[\".p-2\\\\.5\"]"
-      ],
+      "/vendors": [],
+      "/processes": [],
+      "/assets": [],
+      "/threats": [],
       "/ict-register/data-quality": [],
-      "/ict-register/committee": [],
+      "/?view=ict-committee": [],
       "/admin": []
     },
     "dark": {
@@ -50,23 +31,12 @@
       "/controls": [],
       "/risks": [],
       "/settings": [],
-      "/vendors": [
-        "button-name||[\".p-2\\\\.5\"]"
-      ],
-      "/processes": [
-        "button-name||[\".p-2\\\\.5\"]"
-      ],
-      "/assets": [
-        "button-name||[\".p-2\\\\.5\"]"
-      ],
-      "/threats": [
-        "button-name||[\".p-2\\\\.5\"]",
-        "color-contrast||[\".mt-1\"]",
-        "color-contrast||[\"tr:nth-child(1) > .w-\\\\[300px\\\\].min-w-\\\\[220px\\\\] > .gap-0\\\\.5.flex-col > .max-w-\\\\[280px\\\\].truncate.text-xs\"]",
-        "color-contrast||[\"tr:nth-child(2) > .w-\\\\[300px\\\\].min-w-\\\\[220px\\\\] > .gap-0\\\\.5.flex-col > .max-w-\\\\[280px\\\\].truncate.text-xs\"]"
-      ],
+      "/vendors": [],
+      "/processes": [],
+      "/assets": [],
+      "/threats": [],
       "/ict-register/data-quality": [],
-      "/ict-register/committee": [],
+      "/?view=ict-committee": [],
       "/admin": []
     }
   }
