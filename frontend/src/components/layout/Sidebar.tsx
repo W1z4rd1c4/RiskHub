@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { useAuthz } from '@/authz/useAuthz';
 import { dashboardKeys } from '@/lib/queryKeys';
-import { getSidebarNavRoutes } from '@/routing';
+import { getGroupedSidebarNav, resolveActiveSidebarHref } from '@/routing';
 import { userApi } from '@/services/userApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { SIDEBAR_POLL_MS } from '@/config/constants';
@@ -81,21 +81,33 @@ export function Sidebar() {
             // Keep the user on the current screen so they can retry.
         }
     };
-    const navigation = getSidebarNavRoutes({ authz, hasPermission }).map((route) => {
-        let badge: number | undefined;
-        if (route.nav.badgeKey === 'workflow') {
-            badge = workflowCount > 0 ? workflowCount : undefined;
-        } else if (route.nav.badgeKey === 'orphanCount') {
-            badge = orphanCount > 0 ? orphanCount : undefined;
-        }
+    const navGroups = getGroupedSidebarNav({ authz, hasPermission }).map((section) => ({
+        group: section.group,
+        label: t(`groups.${section.group}`),
+        items: section.items.map((route) => {
+            let badge: number | undefined;
+            if (route.nav.badgeKey === 'workflow') {
+                badge = workflowCount > 0 ? workflowCount : undefined;
+            } else if (route.nav.badgeKey === 'orphanCount') {
+                badge = orphanCount > 0 ? orphanCount : undefined;
+            }
 
-        return {
-            href: route.nav.href,
-            icon: route.nav.icon,
-            label: t(`sidebar.${route.nav.labelKey}`),
-            badge,
-        };
-    });
+            return {
+                href: route.nav.href,
+                icon: route.nav.icon,
+                label: t(`sidebar.${route.nav.labelKey}`),
+                badge,
+            };
+        }),
+    }));
+
+    // Resolve the single active item across all groups so `:id`/edit/detail
+    // routes still highlight their nav item, and nested siblings like `/admin`
+    // and `/admin/docs` never both light up (FR-P4-2, finding S3).
+    const activeHref = resolveActiveSidebarHref(
+        location.pathname,
+        navGroups.flatMap((section) => section.items.map((item) => item.href)),
+    );
 
     const brandName = tCommon('brand.name');
     const brandAccentSuffix = 'Hub';
@@ -127,33 +139,49 @@ export function Sidebar() {
                     />
                 </div>
 
-                <nav className="flex-1 space-y-2 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    {navigation.map((item) => {
-                        const isActive = location.pathname === item.href;
-                        return (
-                            <Link
-                                key={item.href}
-                                to={item.href}
-                                className={cn(
-                                    'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200',
-                                    isActive
-                                        ? 'sidebar-nav-link--active'
-                                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                                )}
+                <nav className="flex-1 space-y-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    {navGroups.map((section) => (
+                        <div
+                            key={section.group}
+                            role="group"
+                            aria-labelledby={`sidebar-group-${section.group}`}
+                            className="space-y-1"
+                        >
+                            <p
+                                id={`sidebar-group-${section.group}`}
+                                className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500"
                             >
-                                <div className="sidebar-nav-content flex items-center gap-3">
-                                    <item.icon className={cn('sidebar-nav-icon h-5 w-5', isActive ? '' : 'text-slate-500 group-hover:text-white')} />
-                                    {item.label}
-                                </div>
-                                {item.badge !== undefined && (
-                                    <span className="sidebar-nav-badge text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                        {item.badge}
-                                    </span>
-                                )}
-                                {isActive && item.badge === undefined && <ChevronRight className="sidebar-nav-chevron h-4 w-4" />}
-                            </Link>
-                        );
-                    })}
+                                {section.label}
+                            </p>
+                            {section.items.map((item) => {
+                                const isActive = item.href === activeHref;
+                                return (
+                                    <Link
+                                        key={item.href}
+                                        to={item.href}
+                                        aria-current={isActive ? 'page' : undefined}
+                                        className={cn(
+                                            'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200',
+                                            isActive
+                                                ? 'sidebar-nav-link--active'
+                                                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                        )}
+                                    >
+                                        <div className="sidebar-nav-content flex items-center gap-3">
+                                            <item.icon className={cn('sidebar-nav-icon h-5 w-5', isActive ? '' : 'text-slate-500 group-hover:text-white')} />
+                                            {item.label}
+                                        </div>
+                                        {item.badge !== undefined && (
+                                            <span className="sidebar-nav-badge text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                {item.badge}
+                                            </span>
+                                        )}
+                                        {isActive && item.badge === undefined && <ChevronRight className="sidebar-nav-chevron h-4 w-4" />}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    ))}
                 </nav>
 
                 <div className="mt-auto pt-6 border-t border-white/10 space-y-4">

@@ -10,7 +10,7 @@
         "assets": "Aktiva",
         "threats": "Hrozby",
         "ict_register_dq": "ICT kvalita dat",
-        "ict_register_committee": "ICT Risk Committee",
+        "ict_register_committee": "Výbor pro řízení rizik ICT",
         "approvals": "Úkoly",
         "activity_log": "Auditní stopa",
         "reports": "Reporty",
@@ -22,6 +22,12 @@
         "governance": "Správa",
         "risk_hub": "Risk Hub",
         "users": "Správa přístupu"
+    },
+    "groups": {
+        "overview": "Přehled",
+        "registers": "Registry",
+        "ict_register": "ICT registr",
+        "administration": "Administrace"
     },
     "user_menu": {
         "profile": "Profil",

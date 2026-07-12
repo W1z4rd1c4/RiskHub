@@ -23,6 +23,12 @@
         "risk_hub": "Risk Hub",
         "users": "Access Management"
     },
+    "groups": {
+        "overview": "Overview",
+        "registers": "Registers",
+        "ict_register": "ICT Register",
+        "administration": "Administration"
+    },
     "user_menu": {
         "profile": "Profile",
         "settings": "Settings",
