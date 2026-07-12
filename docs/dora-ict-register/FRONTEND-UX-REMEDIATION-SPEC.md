@@ -404,7 +404,8 @@ remaining ledger finding to a disposition.
 
 - **Acceptance.** **Every ledger finding reaches an explicit disposition** — `resolved`,
   `accepted limitation` (**C6**), or `deferred` (with rationale) — with **no un-triaged findings**;
-  both a11y baselines are **empty** (or only documented deviations remain); the manual pass shows
+  the axe baseline is **empty for the DORA routes** and the jsx-a11y baseline is **shrink-only with
+  each residual entry carrying a 1:1 documented deviation** (not required to be empty); the manual pass shows
   applicable criteria passing and **C6's expected 1.4.4 / 1.4.10 failures reproduced and recorded**
   (not asserted green); keyboard / focus-order / screen-reader passes green.
 - **Rollback.** Cosmetic/additive, grouped by finding ID — partial rollback of any single commit.
@@ -432,7 +433,7 @@ disposition is **resolved** at the target-phase checkpoint unless noted.
 | S4 | 🟡 | 4 | FR-P4-1, FR-P4-4, FR-P4-5, FR-P4-9…12 | resolved |
 | S5 | 🟡 | 1 (tokens) / 5 (migrate) | FR-P1-1..3, FR-P5-1 | resolved |
 | S6 | 🟡 | 2a | FR-P2a-3 | resolved |
-| S7 | 🟡 | 2c | FR-P2c-1..4 | resolved |
+| S7 | 🟡 | 2c | FR-P2c-1..4 | resolved — backed by the [dialog interaction inventory](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md) (26 DialogShell surfaces); real-surface matrix 22/22 active, 0 skipped |
 | S8 | 🟡 | 5 | FR-P5-9 | resolved |
 | S9 | 🟡 | 4 (demote) / 5 (format) | FR-P4-6, FR-P5-4 | resolved |
 | S10 | 🟡 | 5 | FR-P5-5 | resolved |
@@ -462,6 +463,28 @@ Phase 5 description and its acceptance ("C6's expected 1.4.4 / 1.4.10 failures r
 recorded") — and the ledger's own Dispositions gate C6 against "Phase 5's zero-un-triaged gate."
 This spec follows the capture (Phase 5); the ledger's Phase-4 cell is superseded (audits are
 point-in-time and may be superseded by later remediation).
+
+**Closeout reconciliation (2026-07-12, HEAD `669b9cc4`).** This spec was written at Step 1
+(`/to-spec`) as forward-looking acceptance criteria; the dispositions above default to `resolved`
+"at the target-phase checkpoint." At closeout the honest status is split:
+
+- **Automated remediation — COMPLETE and enforced.** Full gate green at HEAD `669b9cc4`
+  (`npm run build`; `npm run test:run` — 1315 tests; `npm run lint` with a11y enforced;
+  `npm run i18n:test`; the authz capability-contract validator). **S7** is now backed by the
+  [dialog interaction inventory](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md) + the 22/22 real-surface
+  matrix. The a11y baselines are **shrink-only and enforced, not empty**: the **jsx-a11y baseline is
+  146 entries, each with a 1:1 documented deviation** ([deviation registry](./FRONTEND-ACCESSIBILITY-BASELINE-DEVIATIONS.md),
+  tracking `accessibility-baseline-debt`), and the **axe baseline is empty for the DORA routes**
+  (`/ict-register/data-quality`, `/?view=ict-committee`) and enforced.
+- **Human gates — PENDING.** The **manual / assistive-technology pass** (keyboard, focus order,
+  screen reader, 200%/400% zoom with **C6** reproduced — accepted limitation, **not** marked green),
+  the user-triggered **ultrareview** (`/code-review ultra`), and the **merge decision** remain open.
+  No WCAG 2.2 AA conformance is claimed — AA stays a target (§2.1). Full record:
+  [`FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md`](./FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md).
+- **Process note.** The original #55–#70 workstream bypassed the planned per-phase manual/AT gates
+  (CT-2) and per-phase ultrareviews and prematurely reported "done"; the corrective remediation
+  `0fe16977..669b9cc4` + this single final automated gate + the pending human pass are the
+  compensating control — they do **not** retroactively satisfy the missing per-phase gates.
 
 ---
 

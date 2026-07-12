@@ -37,6 +37,11 @@ behind it.
   The residual jsx-a11y baseline debt (146 entries) after commit 5a fixed all changed-file violations —
   grouped by rule with honest user-impact, the shared rationale/owner/tracking, and how to claim (fix)
   one. Backed by the machine-checked 1:1 deviation registry (`frontend/scripts/a11y/jsx-a11y-deviations.json`).
+- [`FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md`](./FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md):
+  Closeout record separating the **complete + enforced** automated gate (build/test/lint/i18n/authz,
+  jsx-a11y baseline 146 with 1:1 deviations, axe empty + enforced for the DORA routes) from the
+  **human-owned + pending** manual / assistive-technology pass, C6 (SC 1.4.4/1.4.10) reproduction,
+  ultrareview, and merge decision. Records the #55–#70 process deviation honestly; no WCAG conformance claimed.
 
 ## Notes
 
