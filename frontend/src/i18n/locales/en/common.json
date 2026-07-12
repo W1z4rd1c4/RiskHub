@@ -344,7 +344,11 @@
   "tables": {
     "items_count": "{{count}} items",
     "high_risk": "High risk",
-    "inherited_risk_heatmap": "Inherited risk heatmap"
+    "inherited_risk_heatmap": "Inherited risk heatmap",
+    "error": {
+      "message": "We couldn't load this table. Please try again.",
+      "retry": "Retry"
+    }
   },
   "fallbacks": {
     "unknown": "Unknown",

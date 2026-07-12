@@ -344,7 +344,11 @@
   "tables": {
     "items_count": "{{count}} položek",
     "high_risk": "Vysoké riziko",
-    "inherited_risk_heatmap": "Heatmapa zděděného rizika"
+    "inherited_risk_heatmap": "Heatmapa zděděného rizika",
+    "error": {
+      "message": "Tuto tabulku se nepodařilo načíst. Zkuste to prosím znovu.",
+      "retry": "Zkusit znovu"
+    }
   },
   "fallbacks": {
     "unknown": "Neznámé",
