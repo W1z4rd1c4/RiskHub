@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, Save, X } from 'lucide-react';
 
 import { SortableTable } from '@/components/tables';
+import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
@@ -204,18 +205,23 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
     const setField = (field: keyof ContractFormFields) => (value: string) =>
         setFields((previous) => ({ ...previous, [field]: value }));
 
+    const contractInputClass =
+        'w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none';
+
     const textInput = (field: keyof ContractFormFields, label: string, props: Record<string, unknown> = {}) => (
-        <div className="vendor-field">
-            <label className="vendor-label">{label}</label>
-            <input
-                type="text"
-                data-testid={`vendor-contract-field-${field}`}
-                value={fields[field]}
-                onChange={(event) => setField(field)(event.target.value)}
-                className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
-                {...props}
-            />
-        </div>
+        <Field label={label} labelClassName="vendor-label" className="vendor-field space-y-0">
+            {(control) => (
+                <input
+                    {...control}
+                    type="text"
+                    data-testid={`vendor-contract-field-${field}`}
+                    value={fields[field]}
+                    onChange={(event) => setField(field)(event.target.value)}
+                    className={contractInputClass}
+                    {...props}
+                />
+            )}
+        </Field>
     );
 
     return (
@@ -248,6 +254,7 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
 
             {formOpen ? (
                 <form
+                    noValidate
                     data-testid="vendor-contract-form"
                     className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5"
                     onSubmit={(event) => {
@@ -255,57 +262,96 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
                         saveContract.mutate();
                     }}
                 >
+                    {closedListsQuery.isError ? (
+                        <div
+                            role="status"
+                            className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-200"
+                        >
+                            <span>{t('contracts.form.lists_failed')}</span>
+                            <button
+                                type="button"
+                                onClick={() => void closedListsQuery.refetch()}
+                                className="shrink-0 rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-white/10"
+                            >
+                                {t('actions.refresh')}
+                            </button>
+                        </div>
+                    ) : null}
                     <div className="vendor-form-grid">
                         {textInput('contract_reference', t('contracts.form.contract_reference'))}
                         {textInput('internal_contract_number', t('contracts.form.internal_contract_number'))}
-                        <div className="vendor-field">
-                            <label className="vendor-label">{t('contracts.form.records_system')}</label>
-                            <ThemedSelect
-                                value={fields.records_system}
-                                onValueChange={setField('records_system')}
-                                options={listOptions.recordsSystems}
-                                allowEmpty
-                                emptyLabel={t('contracts.form.not_set')}
-                                placeholder={t('contracts.form.not_set')}
-                                triggerTestId="vendor-contract-field-records_system"
-                            />
-                        </div>
-                        <div className="vendor-field">
-                            <label className="vendor-label">{t('contracts.form.arrangement_type')}</label>
-                            <ThemedSelect
-                                value={fields.arrangement_type}
-                                onValueChange={setField('arrangement_type')}
-                                options={listOptions.arrangementTypes}
-                                allowEmpty
-                                emptyLabel={t('contracts.form.not_set')}
-                                placeholder={t('contracts.form.not_set')}
-                                triggerTestId="vendor-contract-field-arrangement_type"
-                            />
-                        </div>
-                        <div className="vendor-field">
-                            <label className="vendor-label">{t('contracts.form.main_contract')}</label>
-                            <ThemedSelect
-                                value={fields.main_contract}
-                                onValueChange={setField('main_contract')}
-                                options={listOptions.yesNo}
-                                allowEmpty
-                                emptyLabel={t('contracts.form.not_set')}
-                                placeholder={t('contracts.form.not_set')}
-                                triggerTestId="vendor-contract-field-main_contract"
-                            />
-                        </div>
-                        <div className="vendor-field">
-                            <label className="vendor-label">{t('contracts.form.roi_scope')}</label>
-                            <ThemedSelect
-                                value={fields.roi_scope}
-                                onValueChange={setField('roi_scope')}
-                                options={listOptions.yesNo}
-                                allowEmpty
-                                emptyLabel={t('contracts.form.not_set')}
-                                placeholder={t('contracts.form.not_set')}
-                                triggerTestId="vendor-contract-field-roi_scope"
-                            />
-                        </div>
+                        <Field
+                            label={t('contracts.form.records_system')}
+                            labelClassName="vendor-label"
+                            className="vendor-field space-y-0"
+                        >
+                            {(control) => (
+                                <ThemedSelect
+                                    {...control}
+                                    value={fields.records_system}
+                                    onValueChange={setField('records_system')}
+                                    options={listOptions.recordsSystems}
+                                    allowEmpty
+                                    emptyLabel={t('contracts.form.not_set')}
+                                    placeholder={t('contracts.form.not_set')}
+                                    triggerTestId="vendor-contract-field-records_system"
+                                />
+                            )}
+                        </Field>
+                        <Field
+                            label={t('contracts.form.arrangement_type')}
+                            labelClassName="vendor-label"
+                            className="vendor-field space-y-0"
+                        >
+                            {(control) => (
+                                <ThemedSelect
+                                    {...control}
+                                    value={fields.arrangement_type}
+                                    onValueChange={setField('arrangement_type')}
+                                    options={listOptions.arrangementTypes}
+                                    allowEmpty
+                                    emptyLabel={t('contracts.form.not_set')}
+                                    placeholder={t('contracts.form.not_set')}
+                                    triggerTestId="vendor-contract-field-arrangement_type"
+                                />
+                            )}
+                        </Field>
+                        <Field
+                            label={t('contracts.form.main_contract')}
+                            labelClassName="vendor-label"
+                            className="vendor-field space-y-0"
+                        >
+                            {(control) => (
+                                <ThemedSelect
+                                    {...control}
+                                    value={fields.main_contract}
+                                    onValueChange={setField('main_contract')}
+                                    options={listOptions.yesNo}
+                                    allowEmpty
+                                    emptyLabel={t('contracts.form.not_set')}
+                                    placeholder={t('contracts.form.not_set')}
+                                    triggerTestId="vendor-contract-field-main_contract"
+                                />
+                            )}
+                        </Field>
+                        <Field
+                            label={t('contracts.form.roi_scope')}
+                            labelClassName="vendor-label"
+                            className="vendor-field space-y-0"
+                        >
+                            {(control) => (
+                                <ThemedSelect
+                                    {...control}
+                                    value={fields.roi_scope}
+                                    onValueChange={setField('roi_scope')}
+                                    options={listOptions.yesNo}
+                                    allowEmpty
+                                    emptyLabel={t('contracts.form.not_set')}
+                                    placeholder={t('contracts.form.not_set')}
+                                    triggerTestId="vendor-contract-field-roi_scope"
+                                />
+                            )}
+                        </Field>
                         {textInput('overarching_arrangement_reference', t('contracts.form.overarching_arrangement_reference'))}
                         {textInput('start_date', t('contracts.form.start_date'), { type: 'date' })}
                         {textInput('end_date', t('contracts.form.end_date'), { type: 'date' })}
@@ -325,39 +371,57 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
                             min: 0,
                             step: '0.01',
                         })}
-                        <div className="vendor-field">
-                            <label className="vendor-label">{t('contracts.form.currency')}</label>
-                            <ThemedSelect
-                                value={fields.currency}
-                                onValueChange={setField('currency')}
-                                options={listOptions.currencies}
-                                allowEmpty
-                                emptyLabel={t('contracts.form.not_set')}
-                                placeholder={t('contracts.form.not_set')}
-                                triggerTestId="vendor-contract-field-currency"
+                        <Field
+                            label={t('contracts.form.currency')}
+                            labelClassName="vendor-label"
+                            className="vendor-field space-y-0"
+                        >
+                            {(control) => (
+                                <ThemedSelect
+                                    {...control}
+                                    value={fields.currency}
+                                    onValueChange={setField('currency')}
+                                    options={listOptions.currencies}
+                                    allowEmpty
+                                    emptyLabel={t('contracts.form.not_set')}
+                                    placeholder={t('contracts.form.not_set')}
+                                    triggerTestId="vendor-contract-field-currency"
+                                />
+                            )}
+                        </Field>
+                    </div>
+                    <Field
+                        label={t('contracts.form.description')}
+                        labelClassName="vendor-label"
+                        className="vendor-field space-y-0"
+                    >
+                        {(control) => (
+                            <textarea
+                                {...control}
+                                data-testid="vendor-contract-field-description"
+                                value={fields.description}
+                                onChange={(event) => setField('description')(event.target.value)}
+                                rows={2}
+                                className={contractInputClass}
                             />
-                        </div>
-                    </div>
-                    <div className="vendor-field">
-                        <label className="vendor-label">{t('contracts.form.description')}</label>
-                        <textarea
-                            data-testid="vendor-contract-field-description"
-                            value={fields.description}
-                            onChange={(event) => setField('description')(event.target.value)}
-                            rows={2}
-                            className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
-                        />
-                    </div>
-                    <div className="vendor-field">
-                        <label className="vendor-label">{t('contracts.form.note')}</label>
-                        <textarea
-                            data-testid="vendor-contract-field-note"
-                            value={fields.note}
-                            onChange={(event) => setField('note')(event.target.value)}
-                            rows={2}
-                            className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
-                        />
-                    </div>
+                        )}
+                    </Field>
+                    <Field
+                        label={t('contracts.form.note')}
+                        labelClassName="vendor-label"
+                        className="vendor-field space-y-0"
+                    >
+                        {(control) => (
+                            <textarea
+                                {...control}
+                                data-testid="vendor-contract-field-note"
+                                value={fields.note}
+                                onChange={(event) => setField('note')(event.target.value)}
+                                rows={2}
+                                className={contractInputClass}
+                            />
+                        )}
+                    </Field>
                     <div className="flex items-center justify-end gap-3">
                         <button
                             type="button"

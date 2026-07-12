@@ -1,16 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, Save, X } from 'lucide-react';
 
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
+import { cn } from '@/lib/utils';
 import { processApi } from '@/services/processApi';
 import { threatApi } from '@/services/threatApi';
 import { logError } from '@/services/logger';
 import type { Threat } from '@/types/threat';
 
 import { buildThreatWritePayload } from './threatsPagePresentation';
+
+// Token-driven textarea styling matching the `Input` primitive (no `<Textarea>`
+// primitive shipped in #58); the `aria-[invalid=true]` hook lets `Field` drive
+// the error visual with no extra class.
+const TEXTAREA_CLASS =
+    'flex min-h-[4.5rem] w-full rounded-xl border border-input bg-input/40 px-4 py-2.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground hover:border-ring/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive resize-y';
 
 interface ThreatFormProps {
     initialData?: Threat;
@@ -48,6 +57,14 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
     const [fields, setFields] = useState<FormFields>(() => initialFields(initialData));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormFields, string>>>({});
+
+    // Required fields in DOM order — drives focus-first-invalid (N12).
+    const REQUIRED_FIELDS: Array<keyof FormFields> = ['name'];
+    const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLInputElement | null>>>({});
+    const registerFieldRef = (field: keyof FormFields) => (element: HTMLInputElement | null) => {
+        fieldRefs.current[field] = element;
+    };
 
     const closedListsQuery = useQuery({
         queryKey: ictRegisterKeys.closedLists(),
@@ -67,10 +84,21 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
         setFields((current) => ({ ...current, [field]: value }));
     };
 
+    const validate = (): Partial<Record<keyof FormFields, string>> => {
+        const nextErrors: Partial<Record<keyof FormFields, string>> = {};
+        if (!fields.name.trim()) {
+            nextErrors.name = t('form.errors.name_required');
+        }
+        return nextErrors;
+    };
+
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
-        if (!fields.name.trim()) {
-            setError(t('form.errors.name_required'));
+        const validationErrors = validate();
+        setFieldErrors(validationErrors);
+        const firstInvalid = REQUIRED_FIELDS.find((field) => validationErrors[field]);
+        if (firstInvalid) {
+            fieldRefs.current[firstInvalid]?.focus();
             return;
         }
 
@@ -98,29 +126,54 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
         }
     };
 
+    const labelClassName = 'text-xs font-bold uppercase tracking-widest text-slate-500';
+
     const textAreaField = (
         field: keyof FormFields,
         label: string,
         testId: string,
     ) => (
-        <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</label>
-            <textarea
-                data-testid={testId}
-                value={fields[field]}
-                rows={3}
-                onChange={(event) => setField(field, event.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600 resize-y"
-            />
-        </div>
+        <Field label={label} error={fieldErrors[field]} labelClassName={labelClassName}>
+            {(control) => (
+                <textarea
+                    {...control}
+                    data-testid={testId}
+                    value={fields[field]}
+                    rows={3}
+                    onChange={(event) => setField(field, event.target.value)}
+                    className={TEXTAREA_CLASS}
+                />
+            )}
+        </Field>
     );
 
+    const hasFieldErrors = Object.keys(fieldErrors).length > 0;
+
     return (
-        <form onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
-            {error ? (
-                <div className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
+        <form noValidate onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
+            {error || hasFieldErrors ? (
+                <div role="alert" className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{error}</p>
+                    <p className="text-sm font-medium">{error ?? t('form.errors.fix_fields')}</p>
+                </div>
+            ) : null}
+
+            {closedListsQuery.isError ? (
+                <div
+                    role="status"
+                    className="glass-card flex items-center justify-between gap-3 border border-amber-400/30 text-amber-200"
+                >
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                        <p className="text-sm font-medium">{t('form.errors.lists_failed')}</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => void closedListsQuery.refetch()}
+                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-100 transition-colors hover:bg-white/10"
+                    >
+                        {t('actions.retry')}
+                    </button>
                 </div>
             ) : null}
 
@@ -129,43 +182,42 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
                     {t('form.sections.identity')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                            {t('form.name')}
-                        </label>
-                        <input
-                            data-testid="threat-form-name"
-                            value={fields.name}
-                            required
-                            onChange={(event) => setField('name', event.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                            {t('form.category')}
-                        </label>
-                        <ThemedSelect
-                            value={fields.category}
-                            onValueChange={(value) => setField('category', value)}
-                            options={categoryOptions}
-                            allowEmpty
-                            emptyLabel={t('form.not_set')}
-                            placeholder={t('form.not_set')}
-                            triggerTestId="threat-form-category"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                            {t('form.relevant_subject')}
-                        </label>
-                        <input
-                            data-testid="threat-form-relevant-subject"
-                            value={fields.relevant_subject}
-                            onChange={(event) => setField('relevant_subject', event.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
-                        />
-                    </div>
+                    <Field label={t('form.name')} required error={fieldErrors.name} labelClassName={labelClassName}>
+                        {(control) => (
+                            <Input
+                                {...control}
+                                ref={registerFieldRef('name')}
+                                data-testid="threat-form-name"
+                                value={fields.name}
+                                required
+                                onChange={(event) => setField('name', event.target.value)}
+                            />
+                        )}
+                    </Field>
+                    <Field label={t('form.category')} labelClassName={labelClassName}>
+                        {(control) => (
+                            <ThemedSelect
+                                {...control}
+                                value={fields.category}
+                                onValueChange={(value) => setField('category', value)}
+                                options={categoryOptions}
+                                allowEmpty
+                                emptyLabel={t('form.not_set')}
+                                placeholder={t('form.not_set')}
+                                triggerTestId="threat-form-category"
+                            />
+                        )}
+                    </Field>
+                    <Field label={t('form.relevant_subject')} labelClassName={labelClassName}>
+                        {(control) => (
+                            <Input
+                                {...control}
+                                data-testid="threat-form-relevant-subject"
+                                value={fields.relevant_subject}
+                                onChange={(event) => setField('relevant_subject', event.target.value)}
+                            />
+                        )}
+                    </Field>
                 </div>
             </section>
 
@@ -198,7 +250,7 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
                     data-testid="threat-form-submit"
                     className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2 text-sm"
                 >
-                    <Save className="h-4 w-4" />
+                    <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
                     {isEdit ? t('actions.save') : t('actions.create')}
                 </button>
             </div>

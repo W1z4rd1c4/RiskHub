@@ -70,7 +70,9 @@
         "ratings_note": "The asset value (CIAA) is derived as the maximum of the four ratings.",
         "errors": {
             "name_required": "Asset name is required.",
-            "save_failed": "Failed to save the asset."
+            "save_failed": "Failed to save the asset.",
+            "fix_fields": "Please correct the highlighted fields.",
+            "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."
         }
     },
     "detail": {

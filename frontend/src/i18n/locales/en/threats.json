@@ -40,7 +40,9 @@
         "not_set": "Not set",
         "errors": {
             "name_required": "The threat name is required.",
-            "save_failed": "Saving the threat failed. Please try again."
+            "save_failed": "Saving the threat failed. Please try again.",
+            "fix_fields": "Please correct the highlighted fields.",
+            "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."
         }
     },
     "links": {

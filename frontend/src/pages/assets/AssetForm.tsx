@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, Save, X } from 'lucide-react';
 
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
@@ -11,6 +13,12 @@ import { logError } from '@/services/logger';
 import type { Asset } from '@/types/asset';
 
 import { buildAssetWritePayload } from './assetsPagePresentation';
+
+// Token-driven textarea styling matching the `Input` primitive (no `<Textarea>`
+// primitive shipped in #58); the `aria-[invalid=true]` hook lets `Field` drive
+// the error visual with no extra class.
+const TEXTAREA_CLASS =
+    'flex min-h-[4.5rem] w-full rounded-xl border border-input bg-input/40 px-4 py-2.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground hover:border-ring/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive resize-y';
 
 interface AssetFormProps {
     initialData?: Asset;
@@ -112,6 +120,14 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onCancel }: As
     const [fields, setFields] = useState<FormFields>(() => initialFields(initialData));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormFields, string>>>({});
+
+    // Required fields in DOM order — drives focus-first-invalid (N12).
+    const REQUIRED_FIELDS: Array<keyof FormFields> = ['name'];
+    const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLInputElement | null>>>({});
+    const registerFieldRef = (field: keyof FormFields) => (element: HTMLInputElement | null) => {
+        fieldRefs.current[field] = element;
+    };
 
     const closedListsQuery = useQuery({
         queryKey: ictRegisterKeys.closedLists(),
@@ -142,10 +158,21 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onCancel }: As
         setFields((current) => ({ ...current, [field]: value }));
     };
 
+    const validate = (): Partial<Record<keyof FormFields, string>> => {
+        const nextErrors: Partial<Record<keyof FormFields, string>> = {};
+        if (!fields.name.trim()) {
+            nextErrors.name = t('form.errors.name_required');
+        }
+        return nextErrors;
+    };
+
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
-        if (!fields.name.trim()) {
-            setError(t('form.errors.name_required'));
+        const validationErrors = validate();
+        setFieldErrors(validationErrors);
+        const firstInvalid = REQUIRED_FIELDS.find((field) => validationErrors[field]);
+        if (firstInvalid) {
+            fieldRefs.current[firstInvalid]?.focus();
             return;
         }
 
@@ -197,24 +224,28 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onCancel }: As
         }
     };
 
+    const labelClassName = 'text-xs font-bold uppercase tracking-widest text-slate-500';
+
     const selectField = (
         field: keyof FormFields,
         label: string,
         options: Array<{ value: string; label: string }>,
         testId: string,
     ) => (
-        <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</label>
-            <ThemedSelect
-                value={fields[field]}
-                onValueChange={(value) => setField(field, value)}
-                options={options}
-                allowEmpty
-                emptyLabel={t('form.not_set')}
-                placeholder={t('form.not_set')}
-                triggerTestId={testId}
-            />
-        </div>
+        <Field label={label} error={fieldErrors[field]} labelClassName={labelClassName}>
+            {(control) => (
+                <ThemedSelect
+                    {...control}
+                    value={fields[field]}
+                    onValueChange={(value) => setField(field, value)}
+                    options={options}
+                    allowEmpty
+                    emptyLabel={t('form.not_set')}
+                    placeholder={t('form.not_set')}
+                    triggerTestId={testId}
+                />
+            )}
+        </Field>
     );
 
     const textField = (
@@ -223,24 +254,52 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onCancel }: As
         testId: string,
         props: React.InputHTMLAttributes<HTMLInputElement> = {},
     ) => (
-        <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</label>
-            <input
-                data-testid={testId}
-                value={fields[field]}
-                onChange={(event) => setField(field, event.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
-                {...props}
-            />
-        </div>
+        <Field
+            label={label}
+            required={props.required}
+            error={fieldErrors[field]}
+            labelClassName={labelClassName}
+        >
+            {(control) => (
+                <Input
+                    {...control}
+                    {...props}
+                    ref={registerFieldRef(field)}
+                    data-testid={testId}
+                    value={fields[field]}
+                    onChange={(event) => setField(field, event.target.value)}
+                />
+            )}
+        </Field>
     );
 
+    const hasFieldErrors = Object.keys(fieldErrors).length > 0;
+
     return (
-        <form onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
-            {error ? (
-                <div className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
+        <form noValidate onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
+            {error || hasFieldErrors ? (
+                <div role="alert" className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{error}</p>
+                    <p className="text-sm font-medium">{error ?? t('form.errors.fix_fields')}</p>
+                </div>
+            ) : null}
+
+            {closedListsQuery.isError ? (
+                <div
+                    role="status"
+                    className="glass-card flex items-center justify-between gap-3 border border-amber-400/30 text-amber-200"
+                >
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                        <p className="text-sm font-medium">{t('form.errors.lists_failed')}</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => void closedListsQuery.refetch()}
+                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-100 transition-colors hover:bg-white/10"
+                    >
+                        {t('actions.retry')}
+                    </button>
                 </div>
             ) : null}
 
@@ -256,16 +315,18 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onCancel }: As
                     {textField('physical_location', t('form.physical_location'), 'asset-form-physical-location')}
                     {textField('alternative_names', t('form.alternative_names'), 'asset-form-alternative-names')}
                 </div>
-                <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.description')}</label>
-                    <textarea
-                        data-testid="asset-form-description"
-                        value={fields.description}
-                        onChange={(event) => setField('description', event.target.value)}
-                        rows={2}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
-                    />
-                </div>
+                <Field label={t('form.description')} labelClassName={labelClassName}>
+                    {(control) => (
+                        <textarea
+                            {...control}
+                            data-testid="asset-form-description"
+                            value={fields.description}
+                            onChange={(event) => setField('description', event.target.value)}
+                            rows={2}
+                            className={TEXTAREA_CLASS}
+                        />
+                    )}
+                </Field>
             </section>
 
             <section className="glass-card space-y-5">
@@ -320,16 +381,18 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onCancel }: As
                     {textField('last_legacy_risk_assessment_date', t('form.last_legacy_risk_assessment_date'), 'asset-form-last-legacy-risk-assessment-date', { type: 'date' })}
                     {selectField('review_state', t('form.review_state'), listOptions.reviewStates, 'asset-form-review-state')}
                 </div>
-                <div className="space-y-1.5">
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.notes')}</label>
-                    <textarea
-                        data-testid="asset-form-notes"
-                        value={fields.notes}
-                        onChange={(event) => setField('notes', event.target.value)}
-                        rows={3}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
-                    />
-                </div>
+                <Field label={t('form.notes')} labelClassName={labelClassName}>
+                    {(control) => (
+                        <textarea
+                            {...control}
+                            data-testid="asset-form-notes"
+                            value={fields.notes}
+                            onChange={(event) => setField('notes', event.target.value)}
+                            rows={3}
+                            className={TEXTAREA_CLASS}
+                        />
+                    )}
+                </Field>
             </section>
 
             <div className="flex items-center justify-end gap-3">

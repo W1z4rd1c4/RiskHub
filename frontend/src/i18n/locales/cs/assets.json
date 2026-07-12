@@ -70,7 +70,9 @@
         "ratings_note": "Hodnota aktiva (CIAA) se odvozuje jako maximum ze čtyř hodnocení.",
         "errors": {
             "name_required": "Název aktiva je povinný.",
-            "save_failed": "Uložení aktiva se nezdařilo."
+            "save_failed": "Uložení aktiva se nezdařilo.",
+            "fix_fields": "Opravte prosím zvýrazněná pole.",
+            "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."
         }
     },
     "detail": {

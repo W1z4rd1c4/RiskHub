@@ -62,8 +62,11 @@
         "notes": "Notes",
         "not_set": "Not set",
         "errors": {
-            "identity_required": "L0 area and L1 process are required.",
-            "save_failed": "Failed to save the process."
+            "l0_area_required": "L0 area is required.",
+            "l1_process_required": "L1 process is required.",
+            "save_failed": "Failed to save the process.",
+            "fix_fields": "Please correct the highlighted fields.",
+            "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."
         }
     },
     "detail": {

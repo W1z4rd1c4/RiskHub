@@ -168,6 +168,7 @@
     },
     "register": {
       "not_set": "Nenastaveno",
+      "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Načtěte je prosím znovu.",
       "blocks": {
         "identity": "Identifikace",
         "data_location": "Data a lokace",
@@ -280,6 +281,7 @@
     },
     "form": {
       "not_set": "Nenastaveno",
+      "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Načtěte je prosím znovu.",
       "contract_reference": "Ref. smlouvy (RoI)",
       "internal_contract_number": "Interní číslo smlouvy (TAS/SAP)",
       "records_system": "Systém evidence",

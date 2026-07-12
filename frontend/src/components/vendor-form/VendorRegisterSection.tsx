@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
+import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import {
     VendorSectionHeader,
@@ -126,59 +127,96 @@ export function VendorRegisterSection({ formData, onChange }: VendorRegisterSect
         const label = t(`form.register.fields.${field}`);
         if (kind === 'select') {
             return (
-                <div className="vendor-field" key={field}>
-                    <label className="vendor-label">{label}</label>
-                    <ThemedSelect
-                        value={fieldValue(field)}
-                        onValueChange={(value) => onChange(field, value || null)}
-                        options={optionsByList[listName ?? ''] ?? []}
-                        allowEmpty
-                        emptyLabel={t('form.register.not_set')}
-                        placeholder={t('form.register.not_set')}
-                        triggerTestId={`vendor-register-${field}`}
-                    />
-                </div>
+                <Field
+                    key={field}
+                    label={label}
+                    labelClassName="vendor-label"
+                    className="vendor-field space-y-0"
+                >
+                    {(control) => (
+                        <ThemedSelect
+                            {...control}
+                            value={fieldValue(field)}
+                            onValueChange={(value) => onChange(field, value || null)}
+                            options={optionsByList[listName ?? ''] ?? []}
+                            allowEmpty
+                            emptyLabel={t('form.register.not_set')}
+                            placeholder={t('form.register.not_set')}
+                            triggerTestId={`vendor-register-${field}`}
+                        />
+                    )}
+                </Field>
             );
         }
         if (kind === 'textarea') {
             return (
-                <div className="vendor-field md:col-span-2" key={field}>
-                    <label className="vendor-label">{label}</label>
-                    <textarea
-                        data-testid={`vendor-register-${field}`}
-                        value={fieldValue(field)}
-                        onChange={(event) => onChange(field, event.target.value)}
-                        rows={2}
-                        className="vendor-textarea"
-                    />
-                </div>
+                <Field
+                    key={field}
+                    label={label}
+                    labelClassName="vendor-label"
+                    className="vendor-field space-y-0 md:col-span-2"
+                >
+                    {(control) => (
+                        <textarea
+                            {...control}
+                            data-testid={`vendor-register-${field}`}
+                            value={fieldValue(field)}
+                            onChange={(event) => onChange(field, event.target.value)}
+                            rows={2}
+                            className="vendor-textarea"
+                        />
+                    )}
+                </Field>
             );
         }
         return (
-            <div className="vendor-field" key={field}>
-                <label className="vendor-label">{label}</label>
-                <input
-                    type={kind === 'date' ? 'date' : kind === 'count' ? 'number' : 'text'}
-                    min={kind === 'count' ? 0 : undefined}
-                    data-testid={`vendor-register-${field}`}
-                    value={fieldValue(field)}
-                    onChange={(event) => {
-                        if (kind === 'count') {
-                            const parsed = Number.parseInt(event.target.value, 10);
-                            onChange(field, Number.isFinite(parsed) ? parsed : null);
-                            return;
-                        }
-                        onChange(field, event.target.value);
-                    }}
-                    className="vendor-input"
-                />
-            </div>
+            <Field
+                key={field}
+                label={label}
+                labelClassName="vendor-label"
+                className="vendor-field space-y-0"
+            >
+                {(control) => (
+                    <input
+                        {...control}
+                        type={kind === 'date' ? 'date' : kind === 'count' ? 'number' : 'text'}
+                        min={kind === 'count' ? 0 : undefined}
+                        data-testid={`vendor-register-${field}`}
+                        value={fieldValue(field)}
+                        onChange={(event) => {
+                            if (kind === 'count') {
+                                const parsed = Number.parseInt(event.target.value, 10);
+                                onChange(field, Number.isFinite(parsed) ? parsed : null);
+                                return;
+                            }
+                            onChange(field, event.target.value);
+                        }}
+                        className="vendor-input"
+                    />
+                )}
+            </Field>
         );
     };
 
     return (
         <VendorSurface className="space-y-6">
             <VendorSectionHeader title={t('form.sections.register')} />
+
+            {closedListsQuery.isError ? (
+                <div
+                    role="status"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-200"
+                >
+                    <span>{t('form.register.lists_failed')}</span>
+                    <button
+                        type="button"
+                        onClick={() => void closedListsQuery.refetch()}
+                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-white/10"
+                    >
+                        {t('actions.refresh')}
+                    </button>
+                </div>
+            ) : null}
 
             {REGISTER_BLOCKS.map((block) => (
                 <div className="space-y-3" key={block.titleKey}>

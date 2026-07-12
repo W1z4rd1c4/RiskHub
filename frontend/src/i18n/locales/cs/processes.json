@@ -62,8 +62,11 @@
         "notes": "Poznámka",
         "not_set": "Nevyplněno",
         "errors": {
-            "identity_required": "L0 oblast a L1 proces jsou povinné.",
-            "save_failed": "Uložení procesu se nezdařilo."
+            "l0_area_required": "L0 oblast je povinná.",
+            "l1_process_required": "L1 proces je povinný.",
+            "save_failed": "Uložení procesu se nezdařilo.",
+            "fix_fields": "Opravte prosím zvýrazněná pole.",
+            "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."
         }
     },
     "detail": {

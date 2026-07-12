@@ -40,7 +40,9 @@
         "not_set": "Nevyplněno",
         "errors": {
             "name_required": "Název hrozby je povinný.",
-            "save_failed": "Uložení hrozby se nezdařilo. Zkuste to prosím znovu."
+            "save_failed": "Uložení hrozby se nezdařilo. Zkuste to prosím znovu.",
+            "fix_fields": "Opravte prosím zvýrazněná pole.",
+            "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."
         }
     },
     "links": {
