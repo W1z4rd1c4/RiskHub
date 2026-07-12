@@ -64,7 +64,7 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
         "reason": "Navigation visibility only.",
         "allowed_patterns": (
             r"const \{ user, logout, logoutPending, logoutErrorKey, hasPermission \} = useAuth\(\);",
-            r"const navigation = getSidebarNavRoutes\(\{ authz, hasPermission \}\)\.map\(\(route\) => \{",
+            r"const navGroups = getGroupedSidebarNav\(\{ authz, hasPermission \}\)\.map\(\(section\) => \(\{",
         ),
     },
 }

@@ -793,6 +793,9 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - Unfiltered dashboard summaries, risk distributions, risk drilldowns, risk trends, KRI breach trends, control trends, and vendor metrics aggregate rows visible to the actor rather than department rows alone.
 - Dashboard explicit `department_id` filters remain strict. Ownership/reporting exceptions do not include rows outside the requested department.
 - Department filter UI is backend-capability driven through `DashboardOverviewCapabilities.can_use_department_filter`.
+- Dashboard tabs are URL-addressable via `?view=`: `/` is the overview default (no parameter), `/?view=risk-committee` selects the Risk Committee view, and `/?view=ict-committee` selects the ICT Risk Committee view. Committee-tab visibility is capability-driven — the Risk Committee tab requires committee access and the ICT Committee tab requires `ict_committee:read` — and both committee tabs render independently of the overview fetch.
+- An unauthorized or unrecognized `?view=` is normalized to the overview default: `DashboardPage` strips the `view` query parameter via `setSearchParams(next, { replace: true })`, so the URL becomes `/`, the overview renders, and no committee data is fetched. Authorized committee views are never stripped, so browser back/forward keeps working.
+- The DORA ICT Register export is discoverable from the ICT Register readiness screens (the Data Quality page and the ICT Risk Committee view) through a link gated on the `can_download_dora_register` capability read from `GET /api/v1/vendor-reports/capabilities`; the link fails closed when the capability is absent. The export itself remains on the Vendor Reports page (`/vendor-reports`).
 
 ### 10.5 Archived/Inactive Semantics
 
@@ -999,6 +1002,8 @@ Risk questionnaires are risk-assessment workflows attached to a parent risk.
 - Period metrics remain numeric and comparable even when snapshot metrics are unavailable.
 - Snapshot metric deltas use `direction="unknown"` with `N/A`/dash rendering when either side is missing, and `snapshot_info` reports availability, sources, missing quarters, and missing metric keys.
 - Available period choices are scoped to the user and always include the current year plus the default previous-quarter year.
+- The ICT Risk Committee and Risk Committee are surfaced as URL-addressable dashboard tabs, not standalone routes. `DashboardPage` computes tab visibility from `authz.can('read', 'ict_committee')` (ICT Committee) and the committee capability (Risk Committee), `DashboardViewTabs` exposes the tabs, and `IctCommitteeSection` renders the ICT committee read model. Backend read authority is unchanged: the committee read model is served by `GET /api/v1/ict-register/committee` under `ict_committee:read`.
+- The legacy `/ict-register/committee` route redirects to `/?view=ict-committee` and there is no committee sidebar entry. An unauthorized or unrecognized `?view=` normalizes to the overview default without fetching committee data (see §10.4).
 
 ---
 

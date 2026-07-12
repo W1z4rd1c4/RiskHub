@@ -1,7 +1,7 @@
 ---
 title: Dashboard a reporting přehled
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-12"
 audience: user
 source_of_truth: "frontend/src/pages/DashboardPage.tsx + dashboard widgety a report exporty"
 summary: "Jak používat Dashboard jako provozní cockpit: filtry, drill-down, committee view, disciplína exportů a správná interpretace trendů."
@@ -19,6 +19,8 @@ tags:
 - [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
 - [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Zobrazení dashboardu a přístup do výborů](#zobrazení-dashboardu-a-přístup-do-výborů)
+- [Export evidence ICT Registru](#export-evidence-ict-registru)
 - [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
 - [Schvalování a notifikace](#schvalování-a-notifikace)
 - [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
@@ -76,6 +78,20 @@ Typické informace v této oblasti:
 - Poznámky k porovnání období
 
 Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
+
+## Zobrazení dashboardu a přístup do výborů
+
+Dashboard je adresovatelný přes parametr `?view=`, takže konkrétní záložku lze odkázat nebo uložit do záložek:
+
+- `/` — přehled je výchozí kanonické zobrazení a nemá parametr `?view=`.
+- `/?view=risk-committee` — zobrazení Risk Committee, dostupné jen uživatelům s přístupem do výboru.
+- `/?view=ict-committee` — zobrazení ICT Risk Committee, dostupné jen uživatelům s právem čtení `ict_committee`.
+
+Viditelnost záložek závisí na oprávnění: každá záložka výboru se objeví jen tehdy, když vaše role má odpovídající právo čtení. Pokud otevřete odkaz na výbor, ke kterému nemáte oprávnění — nebo hodnotu `?view=`, kterou stránka nezná — dashboard adresu normalizuje zpět na výchozí přehled, zobrazí přehled a nenačte žádná data výboru. Starší adresa `/ict-register/committee` stále funguje a přesměruje na `/?view=ict-committee`; samostatná položka v menu pro stránku výboru neexistuje.
+
+## Export evidence ICT Registru
+
+Samotný export DORA ICT Registru je na stránce Vendor Reports. Ze screenů připravenosti ICT Registru — stránky Data Quality a zobrazení ICT Risk Committee — se odkaz „Stáhnout DORA registr" zobrazí jen tehdy, když máte oprávnění ke stažení registru (`can_download_dora_register`). Pokud screen připravenosti můžete číst, ale registr exportovat nemůžete, odkaz zůstane skrytý, takže nikdy neuvidíte akci, kterou nemůžete použít. Odkazem se dostanete na export, poté před stažením nastavte filtry podle stejné disciplíny exportů popsané níže.
 
 ## Jak dokončit běžné úkoly
 

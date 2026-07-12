@@ -156,8 +156,10 @@
   "frontend/src/components/LinkManagementDialog.tsx",
   "frontend/src/components/access/",
   "frontend/src/components/activity-log/ActivityLogFilterBar.tsx",
+  "frontend/src/components/dashboard/IctCommitteeSection.tsx",
   "frontend/src/components/executions/",
   "frontend/src/components/governance/",
+  "frontend/src/components/ict-register/RegisterExportLink.tsx",
   "frontend/src/components/issues/",
   "frontend/src/components/kri/",
   "frontend/src/components/kris/",
@@ -803,7 +805,7 @@
    "backend_authority": "backend/app/api/v1/endpoints/reports/ and backend/app/api/v1/endpoints/vendor_reports.py",
    "service_policy": "backend/app/core/_permissions/entity_scope_clauses.py, backend/app/core/_permissions/visible_ids.py, backend/app/api/v1/endpoints/reports/unified_exports/, backend/app/services/vendor_report_policy.py, backend/app/services/_vendor_workflow/policy.py, and report helpers including issue provenance export fields; audit-trail linked-risk redaction uses set-based risk visibility; backend/app/services/_reporting/exports/ owns unified export definitions, criteria, fetch, filters, rows, and execution while endpoint modules remain compatibility adapters",
    "response_capability": "RiskListResponse, ControlListResponse, KRIListResponse, VendorListResponse, and backend/app/schemas/issue.py IssueListResponse collection capabilities expose can_export; backend/app/schemas/execution.py ControlExecutionListResponse exposes capabilities.can_export_csv; GET /api/v1/vendor-reports/capabilities exposes vendor-report download and department-filter booleans; exported rows are filtered server-side",
-   "frontend_gate": "frontend/src/pages/RisksPage.tsx, frontend/src/pages/ControlsPage.tsx, frontend/src/pages/KRIsPage.tsx, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/IssuesPage.tsx, frontend/src/pages/AuditTrailPage.tsx, frontend/src/services/reportApi.ts, frontend/src/services/vendorReportApi.ts, export dialogs, and frontend/src/pages/VendorReportsPage.tsx use backend capability metadata for export visibility",
+   "frontend_gate": "frontend/src/pages/RisksPage.tsx, frontend/src/pages/ControlsPage.tsx, frontend/src/pages/KRIsPage.tsx, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/IssuesPage.tsx, frontend/src/pages/AuditTrailPage.tsx, frontend/src/services/reportApi.ts, frontend/src/services/vendorReportApi.ts, export dialogs, and frontend/src/pages/VendorReportsPage.tsx use backend capability metadata for export visibility; frontend/src/components/ict-register/RegisterExportLink.tsx gates the DORA register export discoverability CTA on the separate can_download_dora_register capability (GET /api/v1/vendor-reports/capabilities) and fails closed, and is surfaced as an export-discovery link from the readiness screens frontend/src/pages/IctRegisterDqPage.tsx and frontend/src/components/dashboard/IctCommitteeSection.tsx",
    "tests": [
     "tests/backend/pytest/test_reports_rbac.py",
     "tests/backend/pytest/api/v1/test_reports_audit.py",
@@ -1055,7 +1057,7 @@
    "backend_authority": "backend/app/api/v1/endpoints/ict_register.py GET /api/v1/ict-register/committee",
    "service_policy": "backend/app/services/_ict_register_lifecycle/committee.py owns the pure committee engine over the derivation and DQ outputs (never recomputing their rules); backend/app/services/_ict_register_lifecycle/derivation_inputs.py owns the committee graph load (the DQ graph plus threat labels); grants live in backend/app/db/rbac_seed_contract.py and the b3c4d5e6f7a8 permission-sync data migration (parity-pinned by the backend test)",
    "response_capability": "None — a compute-on-read model in backend/app/schemas/ict_register.py (IctCommitteeRead); tiles carry no per-user state, so no per-row action metadata is exposed",
-   "frontend_gate": "frontend/src/routing/business.tsx gates the /ict-register/committee route and sidebar entry on the ict_committee:read projection (me_capabilities.resource_permissions); frontend/src/pages/IctRegisterCommitteePage.tsx renders backend read authority and denies on backend 403",
+   "frontend_gate": "frontend/src/pages/DashboardPage.tsx computes committee-tab visibility from the ict_committee:read projection (authz.can('read', 'ict_committee')); frontend/src/pages/dashboard/DashboardViewTabs.tsx exposes the URL-addressable ?view=ict-committee tab and frontend/src/components/dashboard/IctCommitteeSection.tsx renders the backend read model and denies on backend 403; frontend/src/routing/business.tsx redirects the legacy /ict-register/committee route to /?view=ict-committee and exposes no sidebar entry; an unauthorized or unrecognized ?view is normalized to the overview default with no committee fetch",
    "tests": [
     "tests/backend/pytest/test_ict_register_committee.py",
     "tests/frontend/unit/src/pages/__tests__/IctRegisterCommitteePage.presentation.test.tsx"
