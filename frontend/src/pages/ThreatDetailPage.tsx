@@ -93,9 +93,10 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     <button
                         type="button"
                         onClick={() => navigate('/threats')}
+                        aria-label={t('actions.back_to_register')}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
                     >
-                        <ArrowLeft className="h-4 w-4" />
+                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </button>
                     <div>
                         <h1 className="text-3xl font-bold text-white">{t('actions.new')}</h1>
@@ -148,9 +149,10 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     <button
                         type="button"
                         onClick={() => navigate(`/threats/${threat.id}`)}
+                        aria-label={t('actions.back_to_register')}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
                     >
-                        <ArrowLeft className="h-4 w-4" />
+                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </button>
                     <div>
                         <h1 className="text-3xl font-bold text-white">{t('actions.edit')}</h1>
@@ -184,9 +186,10 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                         type="button"
                         onClick={() => navigate('/threats')}
                         data-testid="threat-detail-back"
+                        aria-label={t('actions.back_to_register')}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
                     >
-                        <ArrowLeft className="h-4 w-4" />
+                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </button>
                     <div>
                         <div className="flex items-center gap-3">

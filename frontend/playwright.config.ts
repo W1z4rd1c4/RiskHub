@@ -26,7 +26,13 @@ const testResultsDir = path.join(resultsRoot, 'test-results');
 // (tests/frontend/e2e/accessibility-axe-baseline.json). It is excluded from the
 // chromium/firefox/webkit projects so they never run it against an empty
 // baseline. Keep in sync with the guard note in accessibility-smoke.spec.ts.
-const CI_ONLY_SPECS = ['**/accessibility-smoke.spec.ts'];
+// The N10 stateful a11y sweep (dora-ux-stateful-a11y.spec.ts) is likewise
+// `ci`-only: its focus-trap/restoration + interception timing target the `ci`
+// (Chromium) project e2e.yml runs, not the firefox/webkit matrix.
+const CI_ONLY_SPECS = [
+    '**/accessibility-smoke.spec.ts',
+    '**/dora-ux-stateful-a11y.spec.ts',
+];
 
 export default defineConfig({
   testDir: path.resolve(frontendRoot, '../tests/frontend/e2e'),

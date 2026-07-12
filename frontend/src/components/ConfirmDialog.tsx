@@ -27,8 +27,23 @@ const variantStyles = {
         icon: Trash2,
         iconBg: 'bg-destructive/20',
         iconColor: 'text-destructive',
-        buttonBg: 'bg-destructive hover:bg-destructive/90',
+        // White button text on the raw --destructive red (red-500) is only
+        // 3.78:1 (fails AA). Darken the BUTTON's OWN background so white text
+        // clears AA: #ba3535 is --destructive (red-500) mixed 78% toward black
+        // (white-on-#ba3535 = 5.76:1). The token --destructive, the global
+        // bg-destructive utility, and text-destructive error text (which needs
+        // the lighter red on the dark theme) are ALL left untouched.
+        // Written as explicit hex, NOT color-mix(): Chromium resolves color-mix()
+        // to `color(srgb …)` in getComputedStyle, which axe-core 4.11 cannot read
+        // (it composites over the ancestor → a theme-dependent false-fail).
+        buttonBg: 'bg-[#ba3535] hover:bg-[#a73030]',
         buttonRing: 'focus:ring-destructive/50',
+        // Keep white text on the dark-red button in ALL themes. index.css
+        // re-colors `.text-white` to near-black in light mode (!important), which
+        // would give dark text on the dark-red bg (fails AA). The arbitrary
+        // text-[#fff] dodges that `.text-white` selector, so white-on-#ba3535
+        // stays 5.76:1 everywhere.
+        buttonText: 'text-[#fff]',
     },
     warning: {
         icon: AlertTriangle,
@@ -36,6 +51,9 @@ const variantStyles = {
         iconColor: 'text-warning',
         buttonBg: 'bg-warning hover:bg-warning/90',
         buttonRing: 'focus:ring-warning/50',
+        // Amber button: text-white (re-colored dark in light theme) is the
+        // readable pairing on amber — unchanged.
+        buttonText: 'text-white',
     },
     info: {
         icon: AlertTriangle,
@@ -43,6 +61,7 @@ const variantStyles = {
         iconColor: 'text-info',
         buttonBg: 'bg-info hover:bg-info/90',
         buttonRing: 'focus:ring-info/50',
+        buttonText: 'text-white',
     },
 };
 
@@ -161,7 +180,7 @@ export function ConfirmDialog({
                     ref={confirmRef}
                     onClick={handleConfirm}
                     disabled={isConfirmDisabled}
-                    className={`px-4 py-2.5 text-sm font-semibold text-white rounded-xl transition-all focus:outline-none focus:ring-2 disabled:opacity-50 ${styles.buttonBg} ${styles.buttonRing}`}
+                    className={`px-4 py-2.5 text-sm font-semibold ${styles.buttonText} rounded-xl transition-all focus:outline-none focus:ring-2 disabled:opacity-50 ${styles.buttonBg} ${styles.buttonRing}`}
                 >
                     {isLoading ? (
                         <span className="flex items-center gap-2">
