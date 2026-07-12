@@ -1,7 +1,8 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { useId } from 'react';
 
 import type { SafeTFunction } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
+import { DialogShell } from '@/components/DialogShell';
 import type { ApprovalRequest } from '@/types/approval';
 
 interface ApprovalResolutionDialogProps {
@@ -25,30 +26,25 @@ export function ApprovalResolutionDialog({
     onResolutionNotesChange,
     t,
 }: ApprovalResolutionDialogProps) {
+    const titleId = useId();
+    const descriptionId = useId();
     return (
-        <AnimatePresence>
-            {selectedApproval && dialogMode && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-                    />
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="relative w-full max-w-lg glass rounded-2xl shadow-2xl overflow-hidden"
-                    >
+        <DialogShell
+            isOpen={Boolean(selectedApproval && dialogMode)}
+            onClose={onClose}
+            titleId={titleId}
+            descriptionIds={[descriptionId]}
+            closeDisabled={isSubmitting}
+            backdropClassName="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+            contentClassName="relative w-full max-w-lg glass rounded-2xl shadow-2xl overflow-hidden"
+        >
                         <div className="p-6">
-                            <h3 className="text-xl font-bold text-white mb-2">
+                            <h3 id={titleId} className="text-xl font-bold text-white mb-2">
                                 {dialogMode === 'approve'
                                     ? t('dialogs.approve_title')
                                     : t('dialogs.reject_title')}
                             </h3>
-                            <p className="text-sm text-slate-400 mb-6">{t('dialogs.resolution_required')}</p>
+                            <p id={descriptionId} className="text-sm text-slate-400 mb-6">{t('dialogs.resolution_required')}</p>
 
                             <textarea
                                 value={resolutionNotes}
@@ -82,9 +78,6 @@ export function ApprovalResolutionDialog({
                                 </button>
                             </div>
                         </div>
-                    </motion.div>
-                </div>
-            )}
-        </AnimatePresence>
+        </DialogShell>
     );
 }

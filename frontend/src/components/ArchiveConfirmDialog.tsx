@@ -70,6 +70,7 @@ export function ArchiveConfirmDialog({
             descriptionIds={descriptionIds}
             initialFocusRef={reasonRef}
             closeDisabled={isSubmitting}
+            role="alertdialog"
             backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
             contentClassName="glass-card w-full max-w-md overflow-hidden"
         >

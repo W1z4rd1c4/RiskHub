@@ -1,7 +1,9 @@
+import { useId } from 'react';
 import { AlertCircle } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
 import type { RoleHubRead } from '@/services/riskHubApi';
+import { DialogShell } from '@/components/DialogShell';
 
 interface RoleDeleteDialogProps {
     onCancel: () => void;
@@ -11,15 +13,22 @@ interface RoleDeleteDialogProps {
 
 export function RoleDeleteDialog({ onCancel, onConfirm, role }: RoleDeleteDialogProps) {
     const { t } = useTranslation(['admin', 'common']);
+    const titleId = useId();
 
     if (!role) {
         return null;
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6">
-                <h3 className="text-lg font-bold text-white mb-2">{t('confirmations.delete_role')}</h3>
+        <DialogShell
+            isOpen
+            onClose={onCancel}
+            titleId={titleId}
+            role="alertdialog"
+            backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6"
+        >
+                <h3 id={titleId} className="text-lg font-bold text-white mb-2">{t('confirmations.delete_role')}</h3>
                 <p className="text-slate-400 text-sm mb-4">
                     {t('admin:roles_panel.delete_confirm', { name: role.display_name })}
                 </p>
@@ -47,7 +56,6 @@ export function RoleDeleteDialog({ onCancel, onConfirm, role }: RoleDeleteDialog
                         </button>
                     )}
                 </div>
-            </div>
-        </div>
+        </DialogShell>
     );
 }

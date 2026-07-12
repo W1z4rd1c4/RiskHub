@@ -90,7 +90,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
     if (!isOpen || !scenario) return null;
 
     return (
-        <RiskHubModalFrame title={t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}>
+        <RiskHubModalFrame onClose={onClose} title={t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="flex items-center justify-between">
                         <span className="text-slate-300">{t('admin:approval_scenarios.requires_approval')}</span>

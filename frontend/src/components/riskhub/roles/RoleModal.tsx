@@ -1,10 +1,11 @@
 import type { FormEvent } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
+import { DialogShell } from '@/components/DialogShell';
 import type { PermissionRead, RoleHubCreate, RoleHubRead, RoleHubUpdate } from '@/services/riskHubApi';
 
 import {
@@ -31,6 +32,7 @@ export function RoleModal({
     role,
 }: RoleModalProps) {
     const { t } = useTranslation(['admin', 'common']);
+    const titleId = useId();
     const [description, setDescription] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -89,14 +91,15 @@ export function RoleModal({
         }
     }
 
-    if (!isOpen) {
-        return null;
-    }
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <h2 className="text-xl font-bold text-white mb-4">
+        <DialogShell
+            isOpen={isOpen}
+            onClose={onClose}
+            titleId={titleId}
+            backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
+        >
+                <h2 id={titleId} className="text-xl font-bold text-white mb-4">
                     {role ? t('admin:roles_panel.modal.edit_title') : t('admin:roles_panel.modal.new_title')}
                 </h2>
 
@@ -217,7 +220,6 @@ export function RoleModal({
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+        </DialogShell>
     );
 }

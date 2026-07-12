@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { Palette, Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
 import { ColorSwatch } from '@/components/ui/ColorSwatch';
+import { DialogShell } from '@/components/DialogShell';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
@@ -63,7 +64,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
     if (!isOpen) return null;
 
     return (
-        <RiskHubModalFrame title={riskType ? t('admin:risk_types_panel.modal.edit_title') : t('admin:risk_types_panel.modal.new_title')}>
+        <RiskHubModalFrame onClose={onClose} title={riskType ? t('admin:risk_types_panel.modal.edit_title') : t('admin:risk_types_panel.modal.new_title')}>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {!riskType && (
                         <div>
@@ -147,6 +148,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
 
 export function RiskTypesPanel() {
     const { t } = useTranslation(['admin', 'common']);
+    const deleteTitleId = useId();
     const panel = useRiskHubConfigResource<RiskType, RiskTypeCreate, RiskTypeUpdate>({
         queryKey: riskHubKeys.riskTypes(),
         load: (showInactive) => riskHubApi.getRiskTypes(showInactive),
@@ -309,9 +311,15 @@ export function RiskTypesPanel() {
 
             {/* Delete Confirmation */}
             {panel.deleteConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6">
-                        <h3 className="text-lg font-bold text-white mb-2">{t('confirmations.delete_risk_type')}</h3>
+                <DialogShell
+                    isOpen
+                    onClose={panel.closeDelete}
+                    titleId={deleteTitleId}
+                    role="alertdialog"
+                    backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                    contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6"
+                >
+                        <h3 id={deleteTitleId} className="text-lg font-bold text-white mb-2">{t('confirmations.delete_risk_type')}</h3>
                         <p className="text-slate-400 text-sm mb-4">
                             {t('admin:risk_types_panel.delete_confirm', { name: panel.deleteConfirm.display_name })}
                             {panel.deleteConfirm.risk_count > 0 && (
@@ -335,8 +343,7 @@ export function RiskTypesPanel() {
                                 {t('common:actions.delete')}
                             </button>
                         </div>
-                    </div>
-                </div>
+                </DialogShell>
             )}
         </div>
     );

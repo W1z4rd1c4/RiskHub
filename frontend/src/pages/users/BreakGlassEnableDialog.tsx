@@ -1,5 +1,8 @@
+import { useId } from 'react';
+
 import { useTranslation } from '@/i18n/hooks';
 import type { AccessUserRead } from '@/types/access';
+import { DialogShell } from '@/components/DialogShell';
 
 interface BreakGlassEnableDialogProps {
     breakGlassHours: number | '';
@@ -23,24 +26,27 @@ export function BreakGlassEnableDialog({
     onSubmit,
 }: BreakGlassEnableDialogProps) {
     const { t } = useTranslation(['admin', 'common']);
+    const titleId = useId();
+    const descriptionId = useId();
 
     if (!breakGlassUser) {
         return null;
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <button
-                type="button"
-                className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-                onClick={onClose}
-                aria-label={t('actions.cancel', { ns: 'common' })}
-            />
-            <div className="relative w-full max-w-md rounded-2xl border border-amber-500/20 bg-slate-900 p-6 shadow-2xl">
-                <h3 className="text-lg font-bold text-white">
+        <DialogShell
+            isOpen
+            onClose={onClose}
+            titleId={titleId}
+            descriptionIds={[descriptionId]}
+            closeDisabled={isBreakGlassSubmitting}
+            backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            contentClassName="relative w-full max-w-md rounded-2xl border border-amber-500/20 bg-slate-900 p-6 shadow-2xl"
+        >
+                <h3 id={titleId} className="text-lg font-bold text-white">
                     {t('users.break_glass_enable', { ns: 'admin' })}
                 </h3>
-                <p className="mt-2 text-sm text-slate-300">
+                <p id={descriptionId} className="mt-2 text-sm text-slate-300">
                     {t('users.break_glass_message', {
                         ns: 'admin',
                         name: breakGlassUser.name,
@@ -101,7 +107,6 @@ export function BreakGlassEnableDialog({
                             : t('users.break_glass_enable', { ns: 'admin' })}
                     </button>
                 </div>
-            </div>
-        </div>
+        </DialogShell>
     );
 }

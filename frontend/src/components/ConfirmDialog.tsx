@@ -95,6 +95,7 @@ export function ConfirmDialog({
             descriptionIds={[messageId]}
             initialFocusRef={showInput ? inputRef : confirmRef}
             closeDisabled={isLoading}
+            role="alertdialog"
             backdropClassName="confirm-dialog-backdrop absolute inset-0 backdrop-blur-sm"
             contentClassName="confirm-dialog-content w-full max-w-md glass-card !p-0 overflow-hidden shadow-2xl"
         >

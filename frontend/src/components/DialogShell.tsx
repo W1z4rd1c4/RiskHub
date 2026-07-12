@@ -10,6 +10,14 @@ interface DialogShellProps {
     children: ReactNode;
     initialFocusRef?: { current: HTMLElement | null };
     closeDisabled?: boolean;
+    /**
+     * ARIA role for the modal surface. `"dialog"` (default) preserves today's
+     * behaviour. `"alertdialog"` is for confirmations / destructive decisions:
+     * absent an explicit `initialFocusRef`, initial focus lands on the dialog
+     * container (so the labelled + described alert message is announced) rather
+     * than auto-focusing the first — often destructive — control.
+     */
+    role?: 'dialog' | 'alertdialog';
     containerClassName?: string;
     backdropClassName?: string;
     contentClassName?: string;
@@ -45,6 +53,7 @@ export function DialogShell({
     children,
     initialFocusRef,
     closeDisabled = false,
+    role = 'dialog',
     containerClassName = 'fixed inset-0 z-[9999] flex items-center justify-center p-4',
     backdropClassName = 'absolute inset-0 bg-slate-950/70 backdrop-blur-sm',
     contentClassName = 'relative w-full max-w-md glass-card !p-0 overflow-hidden shadow-2xl',
@@ -68,6 +77,14 @@ export function DialogShell({
             return;
         }
 
+        // alertdialog: without an explicit target, focus the container so the
+        // labelled + described alert is announced instead of auto-focusing the
+        // first (often destructive) control. Focus stays trapped either way.
+        if (role === 'alertdialog') {
+            dialog.focus();
+            return;
+        }
+
         const [firstFocusable] = getFocusableElements(dialog);
         if (firstFocusable) {
             firstFocusable.focus();
@@ -75,7 +92,7 @@ export function DialogShell({
         }
 
         dialog.focus();
-    }, [initialFocusRef]);
+    }, [initialFocusRef, role]);
 
     const handleClose = useCallback(() => {
         if (closeDisabled) return;
@@ -86,6 +103,11 @@ export function DialogShell({
         if (!isOpen) return;
 
         if (event.key === 'Escape') {
+            // With stacked dialogs, only the one that currently holds focus (the
+            // topmost — focus is trapped inside it) should close, so Escape peels
+            // them off one at a time instead of collapsing the whole stack.
+            const dialog = dialogRef.current;
+            if (dialog && !dialog.contains(document.activeElement)) return;
             event.preventDefault();
             handleClose();
             return;
@@ -169,11 +191,11 @@ export function DialogShell({
 
                 <motion.div
                     ref={dialogRef}
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    initial={{ scale: 0.95, y: 10 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.95, y: 10 }}
                     transition={{ duration: 0.2, ease: 'easeOut' }}
-                    role="dialog"
+                    role={role}
                     aria-modal="true"
                     aria-labelledby={titleId}
                     aria-describedby={describedBy}

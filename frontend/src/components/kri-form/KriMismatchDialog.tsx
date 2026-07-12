@@ -1,6 +1,8 @@
+import { useId } from 'react';
 import { TriangleAlert } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
+import { DialogShell } from '@/components/DialogShell';
 
 interface KriMismatchDialogProps {
     isSubmitting: boolean;
@@ -16,25 +18,29 @@ export function KriMismatchDialog({
     onLinkRiskAndContinue,
 }: KriMismatchDialogProps) {
     const { t } = useTranslation(['common', 'kris']);
+    const titleId = useId();
+    const messageId = useId();
 
     return (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
-            <button
-                type="button"
-                className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-                onClick={onCancel}
-                aria-label={t('common:actions.close')}
-            />
-            <div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-slate-950/95 p-6 shadow-2xl">
+        <DialogShell
+            isOpen
+            onClose={onCancel}
+            titleId={titleId}
+            descriptionIds={[messageId]}
+            role="alertdialog"
+            closeDisabled={isSubmitting}
+            backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            contentClassName="relative w-full max-w-lg rounded-3xl border border-white/10 bg-slate-950/95 p-6 shadow-2xl"
+        >
                 <div className="flex items-start gap-3">
                     <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3">
                         <TriangleAlert className="h-5 w-5 text-amber-400" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-black text-white">
+                        <h3 id={titleId} className="text-lg font-black text-white">
                             {t('kris:vendor_assignment.mismatch_dialog.title')}
                         </h3>
-                        <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                        <p id={messageId} className="mt-2 text-sm leading-relaxed text-slate-400">
                             {t('kris:vendor_assignment.mismatch_dialog.message')}
                         </p>
                     </div>
@@ -66,7 +72,6 @@ export function KriMismatchDialog({
                         {t('kris:vendor_assignment.mismatch_dialog.cancel')}
                     </button>
                 </div>
-            </div>
-        </div>
+        </DialogShell>
     );
 }

@@ -294,10 +294,12 @@ export function ControlDetailPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
+                        role="status"
+                        aria-busy="true"
                         className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/40 backdrop-blur-[2px]"
                     >
                         <div className="glass-card !p-6 shadow-2xl flex flex-col items-center gap-4">
-                            <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                            <div aria-hidden="true" className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
                             <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t('controls:detail.fetching_risk_details')}</p>
                         </div>
                     </motion.div>
