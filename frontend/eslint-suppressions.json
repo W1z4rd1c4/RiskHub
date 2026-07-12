@@ -46,6 +46,11 @@
       "count": 1
     }
   },
+  "src/components/dashboard/IctCommitteeSection.tsx": {
+    "jsx-a11y/control-has-associated-label": {
+      "count": 2
+    }
+  },
   "src/components/dashboard/departmentTablePresentation.tsx": {
     "jsx-a11y/control-has-associated-label": {
       "count": 2
@@ -82,11 +87,6 @@
   "src/pages/AuditTrailPage.tsx": {
     "jsx-a11y/control-has-associated-label": {
       "count": 12
-    }
-  },
-  "src/pages/IctRegisterCommitteePage.tsx": {
-    "jsx-a11y/control-has-associated-label": {
-      "count": 2
     }
   },
   "src/pages/NotificationsPage.tsx": {
@@ -320,11 +320,6 @@
       "count": 4
     }
   },
-  "src/components/vendor-form/VendorRegisterSection.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 3
-    }
-  },
   "src/components/vendor-form/VendorResilienceSection.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 3
@@ -340,11 +335,6 @@
       "count": 1
     }
   },
-  "src/pages/assets/AssetForm.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 4
-    }
-  },
   "src/pages/assets/AssetLinkSections.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 1
@@ -355,16 +345,6 @@
       "count": 3
     }
   },
-  "src/pages/processes/ProcessForm.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 3
-    }
-  },
-  "src/pages/threats/ThreatForm.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 4
-    }
-  },
   "src/pages/users/BreakGlassEnableDialog.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 2
@@ -373,11 +353,6 @@
   "src/pages/users/UserNewLocalForm.tsx": {
     "jsx-a11y/label-has-for": {
       "count": 6
-    }
-  },
-  "src/pages/vendors/VendorContractsSection.tsx": {
-    "jsx-a11y/label-has-for": {
-      "count": 8
     }
   },
   "src/pages/vendors/VendorSubOutsourcingSection.tsx": {
