@@ -22,61 +22,34 @@ export function parseBaselineJson(text) {
   return Array.isArray(parsed?.entries) ? parsed.entries : [];
 }
 
-// A `(file, rule)` key that never collides: a file path and a `jsx-a11y/*` rule id
-// each contain no whitespace, so joining them with a single space is unambiguous.
-function fileRuleKey(entry) {
-  return `${entry.file} ${entry.rule}`;
-}
-
 /**
- * Count baseline entries per `(file, rule)` pair (NOT per line/column). Each value
- * carries the structured `{ file, rule, count }` so callers never re-split the key.
- * @returns {Map<string, {file: string, rule: string, count: number}>}
- */
-export function countByFileRule(entries) {
-  const counts = new Map();
-  for (const entry of entries) {
-    const key = fileRuleKey(entry);
-    const bucket = counts.get(key) ?? { file: entry.file, rule: entry.rule, count: 0 };
-    bucket.count += 1;
-    counts.set(key, bucket);
-  }
-  return counts;
-}
-
-/**
- * Base-ref ratchet: the committed baseline may not WIDEN relative to the base-ref
- * baseline. Keyed on per-`(file, rule)` COUNTS — NOT on line/column — so a
- * violation shifting line 241 -> 280 (same file+rule, same count) passes, while a
- * genuinely new violation (count increase) or a brand-new `(file, rule)` pair
- * fails. A strict decrease or a removed `(file, rule)` pair is always allowed.
+ * Base-ref ratchet: EXACT-fingerprint SUBSET, FAIL-CLOSED. Every committed baseline
+ * fingerprint (`rule|file|line|column`) MUST be present in the base-ref baseline's
+ * fingerprint set; any committed fingerprint ABSENT from the base ref is WIDENING
+ * and fails. Because the key is the exact location (NOT a per-`(file, rule)` count),
+ * a violation moving line 241 -> 280 is a NEW fingerprint and fails — the empty
+ * 0-entry baseline can never be silently re-widened. Removing a fingerprint (a
+ * strict subset) is always allowed.
  *
- * `baseRefEntries === null` signals "base-ref has no baseline file" (introduced on
- * this branch, absent on the base ref); the ratchet then SKIPS gracefully. See the
- * CLI for the pre-first-merge limitation this encodes.
+ * `baseRefEntries === null` signals the CLI could resolve NEITHER `origin/main`-with-
+ * baseline NOR the committed anchor SHA; the ratchet then reports `resolved: false`
+ * so the CLI FAILS (non-zero exit) — it never skips.
  *
- * @returns {{ skipped: boolean, widened: Array<{file: string, rule: string, committedCount: number, baseCount: number, kind: 'new-pair' | 'count-increase'}>, reason: string | null }}
+ * @returns {{ resolved: boolean, widened: Array<{file: string, rule: string, line: number, column: number, fingerprint: string}>, reason: string | null }}
  */
 export function ratchetAgainstBaseRef(committedEntries, baseRefEntries) {
   if (baseRefEntries === null || baseRefEntries === undefined) {
-    return { skipped: true, widened: [], reason: 'base-ref-absent' };
+    return { resolved: false, widened: [], reason: 'base-ref-unresolved' };
   }
-  const baseCounts = countByFileRule(baseRefEntries);
-  const committedCounts = countByFileRule(committedEntries);
+  const baseFingerprints = new Set(baseRefEntries.map(fingerprint));
   const widened = [];
-  for (const { file, rule, count } of committedCounts.values()) {
-    const baseCount = baseCounts.get(fileRuleKey({ file, rule }))?.count ?? 0;
-    if (count > baseCount) {
-      widened.push({
-        file,
-        rule,
-        committedCount: count,
-        baseCount,
-        kind: baseCount === 0 ? 'new-pair' : 'count-increase',
-      });
+  for (const entry of committedEntries) {
+    const fp = fingerprint(entry);
+    if (!baseFingerprints.has(fp)) {
+      widened.push({ file: entry.file, rule: entry.rule, line: entry.line, column: entry.column, fingerprint: fp });
     }
   }
-  return { skipped: false, widened, reason: null };
+  return { resolved: true, widened, reason: null };
 }
 
 /** Fingerprint a deviation record: prefer its explicit `fingerprint`, else derive it. */

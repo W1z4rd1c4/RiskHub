@@ -8,8 +8,9 @@
  * remaining baseline entries and deviation records, keyed by the same fingerprint
  * `rule|file|line|column`. This generator is the reproducible source of that file:
  * one record per baseline entry, each carrying an honest, rule-templated
- * `userImpact` + `reason`, an `owner`, a `tracking` label (the PM-owned epic), and
- * a `reviewBy` date.
+ * `userImpact` + `reason`, an `owner`, a `tracking` label (the intended handle for a
+ * PM-owned epic that is pending/not yet created — the label does NOT imply an epic
+ * exists), and a `reviewBy` date.
  *
  * Every remaining baseline entry is PRE-EXISTING app-wide accessibility debt that
  * lives OUTSIDE the DORA changed-file audit scope (the changed files were fully
@@ -28,7 +29,8 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const BASELINE_PATH = path.join(SCRIPT_DIR, 'jsx-a11y-baseline.json');
 const DEVIATIONS_PATH = path.join(SCRIPT_DIR, 'jsx-a11y-deviations.json');
 
-// Shared programme metadata. The tracking label is carried by a PM-owned epic.
+// Shared programme metadata. `TRACKING` is the intended label handle for a
+// pending, user-owned epic — it does NOT assert that such an epic already exists.
 const OWNER = 'frontend-platform';
 const TRACKING = 'accessibility-baseline-debt';
 const REVIEW_BY = '2027-01-12'; // ~2 quarters out from the 2026-07 audit.

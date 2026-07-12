@@ -1,60 +1,49 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { isAxeBaselineUpdateMode, isUpdateMode } from '../../../e2e/helpers/axeBaseline';
+import * as axeBaseline from '../../../e2e/helpers/axeBaseline';
 
 /**
- * Commit 5b · Deliverable 1 — the axe enforcement seam.
+ * Commit R2 · Deliverable 2 — zero-tolerance axe: the update/overwrite path is GONE.
  *
- * Regression guard for the hole where `isUpdateMode` returned true whenever
- * `testInfo.config.updateSnapshots !== 'none'`. Playwright's CI default is
- * "missing" (NOT "none"), so update mode was TRUE on every CI run and the smoke
- * suite re-captured the baseline instead of enforcing `expect(drift).toEqual([])`.
- * These tests pin update mode to the explicit `UPDATE_A11Y_AXE_BASELINE` env var.
+ * The axe baseline reached its terminal shrink-only state (every cell []), so the
+ * capture/update seam was removed entirely. Previously `isUpdateMode` could flip on
+ * Playwright's "missing" default and re-record the ledger; now the helper ENFORCES
+ * only — any axe finding on any scanned state is a hard failure. These tests pin
+ * that the update surface no longer exists and that an empty cell reports every
+ * finding as NEW drift (i.e. the smoke requires zero directly).
  */
 
-// A minimal TestInfo stand-in carrying only the `config.updateSnapshots` the old,
-// removed code path read. The wrapper must IGNORE it entirely.
-type TestInfoArg = Parameters<typeof isUpdateMode>[0];
-function fakeTestInfo(updateSnapshots: 'missing' | 'all' | 'none'): TestInfoArg {
-  return { config: { updateSnapshots } } as unknown as TestInfoArg;
-}
-
-describe('isAxeBaselineUpdateMode (pure env seam)', () => {
-  it('is TRUE only when UPDATE_A11Y_AXE_BASELINE === "1"', () => {
-    expect(isAxeBaselineUpdateMode({ UPDATE_A11Y_AXE_BASELINE: '1' })).toBe(true);
+describe('axe helper is enforce-only (no update/overwrite surface)', () => {
+  it('exposes no capture or update-mode export', () => {
+    for (const removed of ['updateBaselineCell', 'isUpdateMode', 'isAxeBaselineUpdateMode'] as const) {
+      expect(Object.prototype.hasOwnProperty.call(axeBaseline, removed)).toBe(false);
+    }
   });
 
-  it('is FALSE when the env var is unset', () => {
-    expect(isAxeBaselineUpdateMode({})).toBe(false);
-  });
-
-  it('is FALSE for any other value (only the literal "1" opts in)', () => {
-    expect(isAxeBaselineUpdateMode({ UPDATE_A11Y_AXE_BASELINE: '0' })).toBe(false);
-    expect(isAxeBaselineUpdateMode({ UPDATE_A11Y_AXE_BASELINE: 'true' })).toBe(false);
-    expect(isAxeBaselineUpdateMode({ UPDATE_A11Y_AXE_BASELINE: '' })).toBe(false);
+  it('still exposes the enforce-only surface', () => {
+    for (const kept of ['fingerprint', 'toFindings', 'loadBaselineCell', 'diffCell'] as const) {
+      expect(typeof axeBaseline[kept]).toBe('function');
+    }
   });
 });
 
-describe('isUpdateMode wrapper — updateSnapshots can no longer flip it', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
+describe('diffCell enforces zero tolerance against the empty baseline', () => {
+  const finding: axeBaseline.AxeFinding = {
+    rule: 'color-contrast',
+    selector: JSON.stringify(['#x']),
+    help: 'Elements must have sufficient color contrast',
+    impact: 'serious',
+  };
+
+  it('reports every finding as NEW drift against an empty cell', () => {
+    const diff = axeBaseline.diffCell('/', [], [finding]);
+    expect(diff.newFindings).toEqual([finding]);
+    expect(diff.staleFingerprints).toEqual([]);
   });
 
-  // The removed hole: on CI `updateSnapshots` is "missing", not "none". Prove that
-  // NONE of the three Playwright values enables update mode while the env var is unset.
-  it.each(['missing', 'all', 'none'] as const)(
-    'is FALSE with env unset regardless of updateSnapshots=%s',
-    (mode) => {
-      vi.stubEnv('UPDATE_A11Y_AXE_BASELINE', undefined);
-      expect(isUpdateMode(fakeTestInfo(mode))).toBe(false);
-    },
-  );
-
-  it.each(['missing', 'all', 'none'] as const)(
-    'is TRUE only via the env var, independent of updateSnapshots=%s',
-    (mode) => {
-      vi.stubEnv('UPDATE_A11Y_AXE_BASELINE', '1');
-      expect(isUpdateMode(fakeTestInfo(mode))).toBe(true);
-    },
-  );
+  it('an empty cell with zero findings has no drift', () => {
+    const diff = axeBaseline.diffCell('/', [], []);
+    expect(diff.newFindings).toEqual([]);
+    expect(diff.staleFingerprints).toEqual([]);
+  });
 });

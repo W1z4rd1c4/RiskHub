@@ -1,0 +1,4 @@
+{
+  "anchorSha": "36f579ad",
+  "note": "Fail-closed base-ref anchor for the jsx-a11y ratchet (ADR-013 · FR-P1-4). This repo's honest-baseline commit (jsx-a11y baseline rebuilt 146 -> 0). scripts/a11y/jsx-a11y-baseline.mjs prefers origin/main WHEN it carries scripts/a11y/jsx-a11y-baseline.json; otherwise it resolves the base-ref baseline from this SHA. If NEITHER resolves, the ratchet FAILS (never skips). Once the baseline lands on main, origin/main takes precedence and this anchor is a fallback only. Do not repoint without regenerating the 0-entry baseline."
+}

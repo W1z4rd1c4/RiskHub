@@ -1,28 +1,21 @@
 /**
- * Rule/selector axe baseline (ADR-013 · FR-P1-5 · N9).
+ * Rule/selector axe baseline (ADR-013 · FR-P1-5 · N9) — ENFORCE-ONLY, zero-tolerance.
  *
  * The extended accessibility smoke fails on EVERY violation the pinned WCAG tags
- * select (NOT filtered by axe `impact`/severity). Because the app is still broken,
- * existing violations are held by this committed, shrink-only baseline:
+ * select (NOT filtered by axe `impact`/severity). The committed baseline
+ * (accessibility-axe-baseline.json) has reached its terminal shrink-only state —
+ * every cell is `[]` — so this helper ENFORCES only: any axe finding on any scanned
+ * state is a hard failure. There is NO capture/overwrite path; a violation can only
+ * be resolved by fixing the app, never by re-recording the ledger.
  *
  *   - fingerprint: `${ruleId}||${JSON.stringify(target)}`  (rule + selector, N9)
  *   - cell key:    project → theme → route
- *   - a current fingerprint NOT in its cell  -> reported as NEW (fails the test)
- *   - a cell fingerprint NOT seen this run   -> reported as STALE (fails; only-shrink)
- *
- * Capture / shrink the baseline by re-running the smoke in update mode. Update
- * mode is gated ONLY on the explicit env var (see `isAxeBaselineUpdateMode`);
- * Playwright's `--update-snapshots` deliberately does NOT trigger it, so CI —
- * whose `updateSnapshots` default is "missing" (NOT "none") — always ENFORCES:
- *   UPDATE_A11Y_AXE_BASELINE=1 npx playwright test -c playwright.config.ts \
- *     ../tests/frontend/e2e/accessibility-smoke.spec.ts --project=ci --workers=1
- * Use `--workers=1` — the CI default — so the read-modify-write of the single
- * JSON is race-free. Commit the result; it may only shrink as later phases fix
- * violations.
+ *   - `diffCell` against the (empty) cell reports every current finding as NEW,
+ *     which fails the smoke. `fingerprint`/`diffCell` are retained only to render a
+ *     clear, per-finding failure message — not to re-record the ledger.
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import type { TestInfo } from '@playwright/test';
 
 // Playwright compiles these suites as CommonJS (the repo root has no `"type":
 // "module"`), so `__dirname` is the loader-consistent way to locate the baseline
@@ -102,34 +95,4 @@ export function diffCell(route: string, cell: BaselineCell, current: AxeFinding[
     newFindings: [...currentByFingerprint].filter(([fp]) => !cellSet.has(fp)).map(([, f]) => f),
     staleFingerprints: cell.filter((fp) => !currentFingerprints.has(fp)),
   };
-}
-
-/**
- * True ONLY when the run is explicitly (re)capturing the baseline via the
- * dedicated env var. This is the enforced seam: gating on `UPDATE_A11Y_AXE_BASELINE`
- * alone means Playwright's `--update-snapshots` — whose CI default is "missing"
- * (NOT "none") — can NEVER silently rewrite the accessibility ledger, so CI always
- * ENFORCES `expect(drift).toEqual([])` instead of auto-recapturing.
- */
-export function isAxeBaselineUpdateMode(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.UPDATE_A11Y_AXE_BASELINE === '1';
-}
-
-/**
- * Back-compat wrapper for the smoke spec's `isUpdateMode(testInfo)` call. The
- * `testInfo` arg is intentionally ignored — update mode is env-gated only (see
- * `isAxeBaselineUpdateMode`); the `testInfo.config.updateSnapshots !== 'none'`
- * path was REMOVED so `--update-snapshots` can never rewrite the ledger.
- */
-export function isUpdateMode(_testInfo: TestInfo): boolean {
-  return isAxeBaselineUpdateMode();
-}
-
-/** Overwrite one project/theme/route cell with the current findings (shrink-only in practice). */
-export function updateBaselineCell(project: string, theme: string, route: string, current: AxeFinding[]): void {
-  const baseline = readBaseline();
-  const byProject = (baseline[project] ??= {});
-  const byTheme = (byProject[theme] ??= {});
-  byTheme[route] = [...new Set(current.map(fingerprint))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  fs.writeFileSync(AXE_BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`, 'utf8');
 }

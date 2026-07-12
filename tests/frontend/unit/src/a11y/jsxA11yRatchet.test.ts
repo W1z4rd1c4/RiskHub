@@ -8,13 +8,16 @@ import {
 } from '../../../../../frontend/scripts/a11y/jsx-a11y-ratchet.mjs';
 
 /**
- * Commit 5b · Deliverables 2 & 3 — jsx-a11y base-ref ratchet + deviation registry.
+ * Commit R2 · exact-fingerprint, fail-closed jsx-a11y base-ref ratchet.
  *
- * The ratchet keys on per-(file, rule) COUNTS, not line/column, so benign line
- * shifts pass while genuine widening (a count increase or a new (file,rule) pair)
- * fails. The deviation validator enforces a 1:1 baseline<->deviation mapping and
- * stays DORMANT until the deviations file exists. All fixtures are in-memory — the
- * real 221-entry baseline is never touched.
+ * The ratchet keys on the EXACT per-entry fingerprint (rule|file|line|column) and
+ * enforces a SUBSET: every committed baseline fingerprint MUST be present in the
+ * base-ref baseline, else it is WIDENING and FAILS. A benign line shift
+ * (241 -> 280) — same (file,rule) count but a new location — is therefore widening
+ * now and FAILS; an unresolvable/absent base-ref FAILS (never skips), so the
+ * 0-entry baseline can never be silently re-widened. The deviation validator
+ * (unchanged) enforces a 1:1 baseline<->deviation mapping and stays DORMANT until
+ * the file exists. All fixtures are in-memory — the live baseline is never touched.
  */
 
 type Entry = { rule: string; file: string; line: number; column: number };
@@ -28,58 +31,57 @@ const LABEL = 'jsx-a11y/label-has-associated-control';
 const FOO = 'src/components/Foo.tsx';
 const BAR = 'src/pages/Bar.tsx';
 
-describe('ratchetAgainstBaseRef — per-(file,rule) count ratchet', () => {
-  it('(a) identical counts pass', () => {
+describe('ratchetAgainstBaseRef — exact-fingerprint subset ratchet (fail-closed)', () => {
+  it('(c) an identical fingerprint set passes', () => {
     const base = [entry(ALT, FOO, 12), entry(ALT, FOO, 40), entry(LABEL, BAR, 7)];
     const committed = [entry(ALT, FOO, 12), entry(ALT, FOO, 40), entry(LABEL, BAR, 7)];
     const result = ratchetAgainstBaseRef(committed, base);
-    expect(result.skipped).toBe(false);
+    expect(result.resolved).toBe(true);
     expect(result.widened).toEqual([]);
   });
 
-  it('tolerates a benign line shift (same file+rule+count, different line/column)', () => {
+  it('(a) a same-(file,rule)-count but different-location fingerprint (241 -> 280) now FAILS', () => {
     const base = [entry(ALT, FOO, 241)];
-    const committed = [entry(ALT, FOO, 280, 9)]; // moved 241 -> 280, same (file,rule) count
-    expect(ratchetAgainstBaseRef(committed, base).widened).toEqual([]);
+    const committed = [entry(ALT, FOO, 280, 9)]; // same (file,rule) count, moved location
+    const result = ratchetAgainstBaseRef(committed, base);
+    expect(result.resolved).toBe(true);
+    expect(result.widened.map((w) => w.fingerprint)).toEqual([fingerprint(entry(ALT, FOO, 280, 9))]);
   });
 
-  it('(b) a strict count decrease passes', () => {
+  it('(d) a strict subset (a fingerprint removed) passes', () => {
     const base = [entry(ALT, FOO, 12), entry(ALT, FOO, 40)];
-    const committed = [entry(ALT, FOO, 12)]; // 2 -> 1 for (FOO, ALT)
-    expect(ratchetAgainstBaseRef(committed, base).widened).toEqual([]);
+    const committed = [entry(ALT, FOO, 12)]; // FOO|ALT|40 removed
+    const result = ratchetAgainstBaseRef(committed, base);
+    expect(result.resolved).toBe(true);
+    expect(result.widened).toEqual([]);
   });
 
-  it('(b) a removed (file,rule) pair passes', () => {
+  it('(d) a removed (file,rule) pair passes', () => {
     const base = [entry(ALT, FOO, 12), entry(LABEL, BAR, 7)];
     const committed = [entry(ALT, FOO, 12)]; // (BAR, LABEL) removed entirely
     expect(ratchetAgainstBaseRef(committed, base).widened).toEqual([]);
   });
 
-  it('(c) a count increase fails', () => {
+  it('a brand-new fingerprint (same (file,rule), count +1) FAILS as widening', () => {
     const base = [entry(ALT, FOO, 12)];
-    const committed = [entry(ALT, FOO, 12), entry(ALT, FOO, 40)]; // 1 -> 2 for (FOO, ALT)
+    const committed = [entry(ALT, FOO, 12), entry(ALT, FOO, 40)]; // FOO|ALT|40 not in base
     const result = ratchetAgainstBaseRef(committed, base);
-    expect(result.skipped).toBe(false);
-    expect(result.widened).toEqual([
-      { file: FOO, rule: ALT, committedCount: 2, baseCount: 1, kind: 'count-increase' },
-    ]);
+    expect(result.widened.map((w) => w.fingerprint)).toEqual([fingerprint(entry(ALT, FOO, 40))]);
   });
 
-  it('(d) a new (file,rule) pair fails', () => {
+  it('a brand-new (file,rule) pair FAILS as widening', () => {
     const base = [entry(ALT, FOO, 12)];
     const committed = [entry(ALT, FOO, 12), entry(LABEL, BAR, 7)]; // (BAR, LABEL) is brand new
     const result = ratchetAgainstBaseRef(committed, base);
-    expect(result.widened).toEqual([
-      { file: BAR, rule: LABEL, committedCount: 1, baseCount: 0, kind: 'new-pair' },
-    ]);
+    expect(result.widened.map((w) => w.fingerprint)).toEqual([fingerprint(entry(LABEL, BAR, 7))]);
   });
 
-  it('(e) a null base-ref skips gracefully (first-introduction)', () => {
+  it('(b) an unresolvable/absent base-ref FAILS (not skipped)', () => {
     const committed = [entry(ALT, FOO, 12), entry(LABEL, BAR, 7)];
     const result = ratchetAgainstBaseRef(committed, null);
-    expect(result.skipped).toBe(true);
+    expect(result.resolved).toBe(false);
+    expect(result.reason).toBe('base-ref-unresolved');
     expect(result.widened).toEqual([]);
-    expect(result.reason).toBe('base-ref-absent');
   });
 });
 

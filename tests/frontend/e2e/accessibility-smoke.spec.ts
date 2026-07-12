@@ -6,10 +6,8 @@ import { waitForDataLoad } from './helpers/wait';
 import {
   WCAG_TAGS,
   diffCell,
-  isUpdateMode,
   loadBaselineCell,
   toFindings,
-  updateBaselineCell,
   type AxeFinding,
 } from './helpers/axeBaseline';
 
@@ -60,7 +58,6 @@ async function auditRoutes(
   testInfo: TestInfo
 ): Promise<void> {
   const project = testInfo.project.name;
-  const update = isUpdateMode(testInfo);
 
   const attach: Array<{ route: string; findingCount: number; findings: AxeFinding[] }> = [];
   const drift: string[] = [];
@@ -75,11 +72,8 @@ async function auditRoutes(
     const findings = toFindings(analysis.violations);
     attach.push({ route, findingCount: findings.length, findings });
 
-    if (update) {
-      updateBaselineCell(project, theme, route, findings);
-      continue;
-    }
-
+    // Zero-tolerance, ENFORCE-ONLY: the committed baseline cells are all empty and
+    // there is no update/overwrite path, so every current finding is NEW drift.
     const { newFindings, staleFingerprints } = diffCell(route, loadBaselineCell(project, theme, route), findings);
     for (const finding of newFindings) {
       drift.push(`NEW    ${route}  [${finding.rule}]  impact=${finding.impact ?? 'n/a'}  ${finding.selector}`);
@@ -94,18 +88,10 @@ async function auditRoutes(
     contentType: 'application/json',
   });
 
-  if (update) {
-    testInfo.annotations.push({
-      type: 'a11y-axe-baseline',
-      description: `captured ${project}/${theme} across ${routes.length} route(s)`,
-    });
-    return;
-  }
-
   expect(
     drift,
-    `axe WCAG baseline drift (${project}/${theme}). NEW violations must be fixed; STALE entries ` +
-      `must be shrunk out via UPDATE_A11Y_AXE_BASELINE=1:\n${drift.join('\n')}`
+    `axe WCAG violations (${project}/${theme}). The baseline is zero-tolerance and enforce-only — ` +
+      `every finding must be fixed in the app (there is no capture/overwrite path):\n${drift.join('\n')}`
   ).toEqual([]);
 }
 

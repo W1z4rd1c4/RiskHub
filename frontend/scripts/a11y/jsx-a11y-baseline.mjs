@@ -50,6 +50,7 @@ const SCRIPT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const RULE_PREFIX = 'jsx-a11y/';
 const BASELINE_RELPATH = path.join('scripts', 'a11y', 'jsx-a11y-baseline.json');
 const DEVIATIONS_RELPATH = path.join('scripts', 'a11y', 'jsx-a11y-deviations.json');
+const ANCHOR_RELPATH = path.join('scripts', 'a11y', 'baseline-anchor.json');
 const SUPPRESSIONS_RELPATH = 'eslint-suppressions.json';
 const LINT_TARGETS = ['src'];
 const DEFAULT_BASE_REF = 'origin/main';
@@ -151,34 +152,70 @@ function gitCapture(args, root) {
   }
 }
 
+/** Read the committed anchor SHA (fail-closed fallback base ref) from baseline-anchor.json, or `null`. */
+async function loadAnchorSha(root) {
+  const anchorPath = path.join(root, ANCHOR_RELPATH);
+  try {
+    const parsed = JSON.parse(await fs.readFile(anchorPath, 'utf8'));
+    const sha = typeof parsed?.anchorSha === 'string' ? parsed.anchorSha.trim() : '';
+    return sha.length > 0 ? sha : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Read the committed baseline as it exists at `ref` (default `origin/main`).
- * Returns `{ entries: null }` — signalling a graceful ratchet SKIP — whenever the
- * tree isn't a git repo, the ref is unresolvable, or (the pre-first-merge case)
- * the baseline file simply does not exist at the base ref because it was
- * introduced on this branch. Once merged, the file exists on main and the ratchet
- * is live for every subsequent PR.
- *
- * @returns {{ entries: Array | null, notice: string | null }}
+ * `git show <ref>:<repoRelPath>` and parse it as a baseline. Returns the entries
+ * array, or `null` when the ref is unknown, the file is ABSENT at that ref, or it
+ * does not parse — i.e. this base-ref candidate did not resolve.
  */
-function loadBaseRefBaseline(root, ref) {
+function tryShowAndParse(root, ref, repoRelPath) {
+  const raw = gitCapture(['show', `${ref}:${repoRelPath}`], root);
+  if (raw === null) return null;
+  try {
+    return parseBaselineJson(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the base-ref jsx-a11y baseline for the ratchet, FAIL-CLOSED. Order:
+ *   1. `primaryRef` (default `origin/main`, or a --base-ref/env override) IF it
+ *      CARRIES the baseline file and it parses;
+ *   2. else the committed anchor SHA (scripts/a11y/baseline-anchor.json) — this
+ *      repo's honest-baseline commit — IF it carries the baseline file and parses;
+ *   3. else `entries: null` — the CLI FAILS (non-zero exit). It NEVER skips: with a
+ *      0-entry baseline a skip would silently license re-widening. Once the baseline
+ *      lands on main, `origin/main` carries it and takes precedence over the anchor.
+ *
+ * @returns {Promise<{ entries: Array | null, source: string | null, notice: string | null }>}
+ */
+async function loadBaseRefBaseline(root, primaryRef) {
   const top = gitCapture(['rev-parse', '--show-toplevel'], root);
   if (top === null) {
-    return { entries: null, notice: 'not a git work tree; base-ref ratchet skipped' };
+    return { entries: null, source: null, notice: 'not a git work tree; cannot resolve a base-ref baseline' };
   }
   const repoRelPath = toPosix(path.relative(top.trim(), path.join(root, BASELINE_RELPATH)));
-  if (gitCapture(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], root) === null) {
-    return { entries: null, notice: `base-ref '${ref}' not found; ratchet skipped` };
+
+  const primaryEntries = tryShowAndParse(root, primaryRef, repoRelPath);
+  if (primaryEntries !== null) {
+    return { entries: primaryEntries, source: primaryRef, notice: null };
   }
-  const raw = gitCapture(['show', `${ref}:${repoRelPath}`], root);
-  if (raw === null) {
-    return { entries: null, notice: 'base-ref has no jsx-a11y baseline; ratchet skipped — first-introduction' };
+
+  const anchorSha = await loadAnchorSha(root);
+  if (anchorSha !== null) {
+    const anchorEntries = tryShowAndParse(root, anchorSha, repoRelPath);
+    if (anchorEntries !== null) {
+      return { entries: anchorEntries, source: `anchor ${anchorSha}`, notice: null };
+    }
   }
-  try {
-    return { entries: parseBaselineJson(raw), notice: null };
-  } catch {
-    return { entries: null, notice: `base-ref baseline at '${ref}' is unparseable; ratchet skipped` };
-  }
+
+  return {
+    entries: null,
+    source: null,
+    notice: `no base-ref baseline resolved: '${primaryRef}' lacks it and anchor ${anchorSha ?? '(unset)'} did not resolve`,
+  };
 }
 
 /**
@@ -270,11 +307,15 @@ async function main() {
   const newViolations = findings.filter((f) => !baselineKeys.has(fingerprint(f)));
   const staleEntries = baseline.filter((entry) => !currentKeys.has(fingerprint(entry)));
 
-  // Base-ref ratchet: the COMMITTED baseline may not WIDEN (per (file,rule) count)
-  // relative to the base-ref baseline. Catches a `--write` that recommits a wider
-  // ledger even when the exact check above still passes.
+  // Base-ref ratchet: the COMMITTED baseline may not WIDEN — every committed
+  // fingerprint must exist in the base-ref baseline (exact subset). FAIL-CLOSED:
+  // if NEITHER origin/main-with-baseline NOR the committed anchor SHA resolves, the
+  // ratchet does not skip — it fails, so the 0-entry baseline can't be re-widened.
   const baseRef = resolveBaseRef();
-  const { entries: baseRefEntries, notice: baseRefNotice } = loadBaseRefBaseline(root, baseRef);
+  const { entries: baseRefEntries, source: baseRefSource, notice: baseRefNotice } = await loadBaseRefBaseline(
+    root,
+    baseRef,
+  );
   const ratchet = ratchetAgainstBaseRef(baseline, baseRefEntries);
 
   // Deviation registry: dormant until scripts/a11y/jsx-a11y-deviations.json exists.
@@ -289,7 +330,8 @@ async function main() {
     newViolations,
     staleEntries,
     baseRef,
-    ratchet: { skipped: ratchet.skipped, reason: ratchet.reason, widened: ratchet.widened },
+    baseRefSource,
+    ratchet: { resolved: ratchet.resolved, reason: ratchet.reason, widened: ratchet.widened },
     deviations: {
       dormant: deviationResult.dormant,
       ok: deviationResult.ok,
@@ -299,12 +341,8 @@ async function main() {
     },
   });
 
-  if (ratchet.skipped) {
-    console.log(`jsx-a11y base-ref ratchet skipped: ${baseRefNotice}.`);
-  }
-
   const exactFailed = newViolations.length > 0 || staleEntries.length > 0;
-  const ratchetFailed = !ratchet.skipped && ratchet.widened.length > 0;
+  const ratchetFailed = !ratchet.resolved || ratchet.widened.length > 0;
   const deviationFailed = !deviationResult.dormant && !deviationResult.ok;
 
   if (exactFailed || ratchetFailed || deviationFailed) {
@@ -324,15 +362,19 @@ async function main() {
       }
     }
     if (ratchetFailed) {
-      console.error(
-        `\nBaseline WIDENED vs base-ref (${baseRef}) — the committed baseline may only shrink: ${ratchet.widened.length} (file,rule) pair(s)`,
-      );
-      for (const w of ratchet.widened) {
-        const detail =
-          w.kind === 'new-pair'
-            ? `new (file,rule) pair — ${w.committedCount} not present in base-ref`
-            : `count widened ${w.baseCount} -> ${w.committedCount}`;
-        console.error(`  ^ ${w.file} [${w.rule}] — ${detail}`);
+      if (!ratchet.resolved) {
+        console.error(
+          `\nBase-ref ratchet could NOT resolve a baseline (${baseRefNotice}) — failing closed so the ` +
+            `0-entry baseline can never be silently re-widened.`,
+        );
+      } else {
+        console.error(
+          `\nBaseline WIDENED vs base-ref (${baseRefSource}) — every committed fingerprint must exist in ` +
+            `the base ref: ${ratchet.widened.length} new fingerprint(s)`,
+        );
+        for (const w of sortEntries(ratchet.widened)) {
+          console.error(`  ^ ${w.file}:${w.line}:${w.column} [${w.rule}]`);
+        }
       }
     }
     if (deviationFailed) {
@@ -351,9 +393,10 @@ async function main() {
   }
 
   console.log(`jsx-a11y baseline OK: ${findings.length} findings all held by baseline (${baseline.length} entries).`);
-  if (!ratchet.skipped) {
-    console.log(`base-ref ratchet OK vs ${baseRef}: committed baseline did not widen.`);
-  }
+  // Reached only when the ratchet RESOLVED (fail-closed) and did not widen.
+  console.log(
+    `base-ref ratchet OK vs ${baseRefSource}: every committed fingerprint is present in the base-ref baseline (no widening).`,
+  );
   if (!deviationResult.dormant) {
     console.log(`deviation registry OK: ${baseline.length} baseline entr${baseline.length === 1 ? 'y' : 'ies'} mapped 1:1.`);
   }
