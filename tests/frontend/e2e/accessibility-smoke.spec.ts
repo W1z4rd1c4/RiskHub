@@ -106,11 +106,15 @@ async function auditRoutes(
   ).toEqual([]);
 }
 
-// ADR-013 (N8): the chromium-only guard is removed so this runs on CI's primary
-// `ci` project (e2e.yml runs `playwright test --project=ci`), where it was
-// previously skipped entirely. Existing violations are held in the shrink-only
-// rule/selector baseline (accessibility-axe-baseline.json); only NEW violations
-// fail. See helpers/axeBaseline.ts for the one-time capture command.
+// ADR-013 (N8): the old chromium-only guard skipped this on CI's primary `ci`
+// project (e2e.yml runs `playwright test --project=ci`). It is replaced by a
+// `ci`-ONLY restriction, applied at collection time via per-project `testIgnore`
+// in playwright.config.ts: the rule/selector baseline (accessibility-axe-baseline.json)
+// is captured and enforced PER PROJECT, and only `ci` — the project CI actually
+// runs — has a committed cell, so this suite is assigned to the `ci` project
+// alone (absent from chromium/firefox/webkit) rather than reported red against an
+// empty baseline. Existing violations are held in the shrink-only baseline; only
+// NEW violations fail. See helpers/axeBaseline.ts for the one-time capture command.
 test.describe('Accessibility smoke (WCAG 2.2 AA tags, baseline mode)', () => {
   for (const theme of THEMES) {
     test(`business + DORA register surfaces have no new axe violations in ${theme}`, async ({ page }, testInfo) => {

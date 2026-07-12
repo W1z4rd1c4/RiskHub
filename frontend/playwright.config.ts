@@ -21,6 +21,13 @@ const resultsRoot = path.resolve(frontendRoot, '../tests/results/frontend/playwr
 const reportDir = path.join(resultsRoot, 'playwright-report');
 const testResultsDir = path.join(resultsRoot, 'test-results');
 
+// ADR-013 (N8): the extended accessibility smoke is restricted to the `ci`
+// project — the only one with a committed axe rule/selector baseline cell
+// (tests/frontend/e2e/accessibility-axe-baseline.json). It is excluded from the
+// chromium/firefox/webkit projects so they never run it against an empty
+// baseline. Keep in sync with the guard note in accessibility-smoke.spec.ts.
+const CI_ONLY_SPECS = ['**/accessibility-smoke.spec.ts'];
+
 export default defineConfig({
   testDir: path.resolve(frontendRoot, '../tests/frontend/e2e'),
   testMatch: ['**/*.spec.ts'],
@@ -49,14 +56,17 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: CI_ONLY_SPECS,
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'firefox',
+      testIgnore: CI_ONLY_SPECS,
       use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'webkit',
+      testIgnore: CI_ONLY_SPECS,
       use: { ...devices['Desktop Safari'] },
     },
     {
