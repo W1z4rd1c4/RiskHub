@@ -111,6 +111,17 @@ export function useDepartmentDetail({
     const [users, setUsers] = useState<DeptUser[]>([]);
     const [kriTotalCount, setKriTotalCount] = useState(0);
 
+    // R3a: the departmentId each tab array currently belongs to. The hook does NOT
+    // remount on a departmentId change (the route element `departments-detail` is
+    // stable), so the raw arrays above are retained across an A->B navigation. Each
+    // array is exposed to the consumer only while its owning id matches the current
+    // `departmentId` (see the scoped* values below) — so a B tab fetch that is still
+    // pending or has failed can never render department A's rows under department B.
+    const [risksDeptId, setRisksDeptId] = useState<number | null>(null);
+    const [controlsDeptId, setControlsDeptId] = useState<number | null>(null);
+    const [krisDeptId, setKrisDeptId] = useState<number | null>(null);
+    const [usersDeptId, setUsersDeptId] = useState<number | null>(null);
+
     // Per-tab async fetch state. Loading is set before each fetch; errorKey is
     // recorded on failure (last-good rows preserved) and cleared on retry.
     const [risksState, setRisksState] = useState<TabFetchState>(INITIAL_TAB_STATE);
@@ -166,6 +177,7 @@ export function useDepartmentDetail({
             .then((data) => {
                 if (!cancelled) {
                     setRisks(data);
+                    setRisksDeptId(departmentId);
                 }
             })
             .catch((error: unknown) => {
@@ -194,6 +206,7 @@ export function useDepartmentDetail({
             .then((data) => {
                 if (!cancelled) {
                     setControls(data);
+                    setControlsDeptId(departmentId);
                 }
             })
             .catch((error: unknown) => {
@@ -227,6 +240,7 @@ export function useDepartmentDetail({
                 if (!cancelled) {
                     setKris(response.items);
                     setKriTotalCount(response.total);
+                    setKrisDeptId(departmentId);
                 }
             })
             .catch((error: unknown) => {
@@ -255,6 +269,7 @@ export function useDepartmentDetail({
             .then((data) => {
                 if (!cancelled) {
                     setUsers(data);
+                    setUsersDeptId(departmentId);
                 }
             })
             .catch((error: unknown) => {
@@ -282,10 +297,20 @@ export function useDepartmentDetail({
         return department.risk_count;
     };
 
+    // R3a scoping: only surface tab rows (and the KRI total) that belong to the
+    // department currently in the route. Until B's own fetch resolves, each scoped
+    // value falls back to empty/zero, so the consumer renders loading/empty/error
+    // instead of department A's retained rows.
+    const scopedRisks = risksDeptId === departmentId ? risks : [];
+    const scopedControls = controlsDeptId === departmentId ? controls : [];
+    const scopedKris = krisDeptId === departmentId ? kris : [];
+    const scopedUsers = usersDeptId === departmentId ? users : [];
+    const scopedKriTotalCount = krisDeptId === departmentId ? kriTotalCount : 0;
+
     // Compute pagination totals from department metadata
     const riskTotalPages = Math.ceil(getRiskCount() / DEPARTMENT_PAGE_SIZE) || 1;
     const controlTotalPages = Math.ceil((department?.control_count || 0) / DEPARTMENT_PAGE_SIZE) || 1;
-    const kriTotalPages = Math.ceil(kriTotalCount / DEPARTMENT_PAGE_SIZE) || 1;
+    const kriTotalPages = Math.ceil(scopedKriTotalCount / DEPARTMENT_PAGE_SIZE) || 1;
     const userTotalPages = Math.ceil((department?.user_count || 0) / DEPARTMENT_PAGE_SIZE) || 1;
 
     // Refresh handler - re-fetches department metadata
@@ -299,10 +324,10 @@ export function useDepartmentDetail({
         isLoading,
         isAccessDenied,
         error,
-        risks,
-        controls,
-        kris,
-        users,
+        risks: scopedRisks,
+        controls: scopedControls,
+        kris: scopedKris,
+        users: scopedUsers,
         riskTotalPages,
         controlTotalPages,
         kriTotalPages,

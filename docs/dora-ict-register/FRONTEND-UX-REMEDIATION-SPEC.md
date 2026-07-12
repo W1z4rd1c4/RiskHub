@@ -139,7 +139,7 @@ be declared green if any is violated.
 
 ### 2.6 Tables & error contract (decisions 8 & 9, C2/C3/C4)
 
-- **N16.** `SortableTable` has **11 consumers / 19 sites**. The `SortableTable` change **and its
+- **N16.** `SortableTable` has **11 consumers / 20 sites**. The `SortableTable` change **and its
   consumer prop-migration MUST revert as ONE commit range** (callers pass new
   `isLoading`/`isError` props, so the component cannot be reverted alone without breaking
   type-checking).
@@ -315,7 +315,7 @@ non-`SortableTable` screens (DQ, Committee) the same contract.
 | FR-P3-3 | `SortableTable` `isError` branch using the **reusable table error contract** (localized message + retry callback + stale-data behaviour). | N17, C4 |
 | FR-P3-4 | Explicit top-level `aria-busy` **loading** and **error** branches for **DQ** and **Committee** screens (neither consumes `SortableTable`), using the **same** contract. | N17, C3/C4, decision 8 |
 
-- **Acceptance.** **All 11 `SortableTable` consumers / 19 sites** exercised — AssetsPage,
+- **Acceptance.** **All 11 `SortableTable` consumers / 20 sites** exercised — AssetsPage,
   ProcessesPage, ThreatsPage, ControlsTableSection, DepartmentTabContent, IssuesTableSection,
   KRIsTableSection, RisksTableSection, VendorsTableSection, VendorContractsSection,
   VendorSubOutsourcingSection — with `SortableTable` component tests + representative regression

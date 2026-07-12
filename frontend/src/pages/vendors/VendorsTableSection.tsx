@@ -13,6 +13,7 @@ import { TableErrorState } from '@/components/tables/tableError';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { buildRegisterTableModel } from '@/pages/shared/registerTablePresentation';
+import { resolveRegisterTablePresentation } from '@/pages/shared/resolveRegisterTablePresentation';
 import type { CollectionGroup } from '@/types/collection';
 import type { Vendor, VendorListParams } from '@/types/vendor';
 
@@ -203,13 +204,24 @@ export function VendorsTableSection({
     });
 
     const isError = errorKey !== null;
-    const resolvedErrorMessage = errorKey ? t(errorKey, { ns: 'errorKeys' }) : undefined;
+    const localizedErrorMessage = errorKey ? t(errorKey, { ns: 'errorKeys' }) : undefined;
+    // R3c: the all/grouped/error-page/skeleton decision + banner/pagination flags are
+    // resolved by the shared pure helper; the JSX/columns/rowHref stay here.
+    const presentation = resolveRegisterTablePresentation({
+        viewMode,
+        isError,
+        isLoading,
+        hasLoadedOnce,
+        groupsLength: groups.length,
+        rowsLength: tableModel.rows.length,
+        errorMessage: localizedErrorMessage,
+    });
+    const resolvedErrorMessage = presentation.resolvedErrorMessage;
 
     // Query-owning render: the shared table-error contract (#70) drives BOTH loading
     // and error. A first-load error replaces the table; a refetch error while rows are
     // held keeps the rows + a non-blocking banner (never blanks to a false empty state).
-    if (viewMode === 'all') {
-        const showPagination = tableModel.rows.length > 0 || (!isError && !isLoading);
+    if (presentation.mode === 'all') {
         return (
             <>
                 <SortableTable
@@ -230,7 +242,7 @@ export function VendorsTableSection({
                     onRetry={onRetry}
                     errorMessage={resolvedErrorMessage}
                 />
-                {showPagination && (
+                {presentation.showPagination && (
                     <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}
@@ -245,13 +257,13 @@ export function VendorsTableSection({
 
     // Grouped/drill-down parent guard — the single async-state owner for the grouped
     // surface (the drill-down sub-tables never re-surface the error, so no double banner).
-    if (isError && groups.length === 0) {
+    if (presentation.mode === 'error-page') {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                 <AlertCircle className="h-12 w-12 text-rose-500" />
                 <div>
                     <p className="text-white font-bold text-xl">{t('errors.title')}</p>
-                    <p className="text-slate-500 max-w-sm mx-auto">{t(errorKey, { ns: 'errorKeys' })}</p>
+                    <p className="text-slate-500 max-w-sm mx-auto">{resolvedErrorMessage}</p>
                 </div>
                 <button type="button" onClick={onRetry} className="text-accent font-bold hover:underline">
                     {t('errors.try_again')}
@@ -260,7 +272,7 @@ export function VendorsTableSection({
         );
     }
 
-    if (!hasLoadedOnce && isLoading) {
+    if (presentation.mode === 'skeleton') {
         return (
             <div className="glass-card !p-0 overflow-hidden">
                 <table className="w-full">
@@ -341,7 +353,7 @@ export function VendorsTableSection({
 
     return (
         <>
-            {isError && (
+            {presentation.showBanner && (
                 <div className="mb-4">
                     <TableErrorState variant="banner" onRetry={onRetry} message={resolvedErrorMessage} />
                 </div>

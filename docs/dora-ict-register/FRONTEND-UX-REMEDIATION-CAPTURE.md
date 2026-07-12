@@ -112,7 +112,7 @@ Two code-review rounds of these docs were verified against source and W3C primar
 - **Export gating** — readiness-screen export links must gate on the **separate**
   `can_download_dora_register` capability (from `vendor_report_capabilities`; needs
   `reports:read` + role), not `ict_committee:read`/`vendors:read`; test allowed + denied.
-- **Blast radius** — `SortableTable` has **11 consumers / 19 sites** (not just the new lists);
+- **Blast radius** — `SortableTable` has **11 consumers / 20 sites** (not just the new lists);
   see Phase 3.
 - **Decision count / audit persistence / doc reachability** — 15 decisions; findings persisted
   in the linked ledger; the `dora-ict-register/` folder indexed for docs-tree reachability.
@@ -181,7 +181,7 @@ boundary).
    the **reusable table error contract** (decision 8: localized message + retry callback +
    stale-data behaviour); (b) explicit top-level `aria-busy` loading **and** error branches for
    the **DQ** and **Committee** screens (neither consumes `SortableTable`) using the same contract.
-   - _Acceptance:_ **all 11 SortableTable consumers / 19 sites** exercised — AssetsPage,
+   - _Acceptance:_ **all 11 SortableTable consumers / 20 sites** exercised — AssetsPage,
      ProcessesPage, ThreatsPage, ControlsTableSection, DepartmentTabContent, IssuesTableSection,
      KRIsTableSection, RisksTableSection, VendorsTableSection, VendorContractsSection,
      VendorSubOutsourcingSection — with `SortableTable` component tests + representative regression

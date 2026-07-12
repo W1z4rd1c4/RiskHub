@@ -1,4 +1,4 @@
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -156,5 +156,99 @@ describe('Department tab fetch failures render an error + retry surface (C4)', (
 
         expect(await screen.findByText('Recovered Risk')).toBeInTheDocument();
         expect(screen.queryByText('tables.error.message')).not.toBeInTheDocument();
+    });
+});
+
+// R3a: the department detail hook retains the four tab arrays across a departmentId
+// change (the route element is stable, so the hook never remounts). If B's metadata
+// resolves first, B's header must not render above A's rows; and if B's tab fetch is
+// pending or fails, the user must see loading / empty / error — never A's stale rows
+// under B's identity. These drive the REAL hook via the page across an A->B route
+// change; both are red on the pre-fix code (tab arrays are not scoped to departmentId).
+
+function NavToDepartmentB() {
+    const navigate = useNavigate();
+    return (
+        <button type="button" data-testid="nav-to-b" onClick={() => navigate('/departments/8')}>
+            go-b
+        </button>
+    );
+}
+
+function renderPageForScoping() {
+    return render(
+        <MemoryRouter initialEntries={['/departments/7']}>
+            <NavToDepartmentB />
+            <Routes>
+                <Route path="/departments/:id" element={<DepartmentDetailPage />} />
+            </Routes>
+        </MemoryRouter>,
+    );
+}
+
+function scopedDeptPayload(id: number, name: string) {
+    return { ...departmentPayload(), id, name, code: `D${id}` };
+}
+
+const ALPHA_DEPT_RISK = {
+    id: 41,
+    risk_id_code: 'R-41',
+    name: 'Alpha-Dept-Risk',
+    process: 'Ops',
+    risk_type: 'operational',
+    description: 'desc',
+    gross_score: 6,
+    gross_probability: 2,
+    gross_impact: 3,
+    net_score: 4,
+    status: 'active',
+    is_archived: false,
+    is_priority: false,
+};
+
+describe('Department tab data is scoped to departmentId across an A->B route change (R3a)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        departmentApiMock.getDepartment.mockImplementation((id: number) =>
+            Promise.resolve(scopedDeptPayload(id, id === 8 ? 'Beta Dept' : 'Alpha Dept')),
+        );
+        departmentApiMock.getDepartmentControls.mockResolvedValue([]);
+        departmentApiMock.getDepartmentKRIs.mockResolvedValue({ items: [], total: 0 });
+        userApiMock.listVisibleUsers.mockResolvedValue([]);
+    });
+
+    it('does not show department A rows under department B while B risks are still pending', async () => {
+        departmentApiMock.getDepartmentRisks.mockImplementation((id: number) =>
+            id === 8 ? new Promise<never>(() => {}) : Promise.resolve([ALPHA_DEPT_RISK]),
+        );
+        const user = userEvent.setup();
+        renderPageForScoping();
+
+        // Department A loaded with its own risk row.
+        expect(await screen.findByText('Alpha-Dept-Risk')).toBeInTheDocument();
+
+        await user.click(screen.getByTestId('nav-to-b'));
+
+        // B's header renders once B metadata resolves…
+        expect(await screen.findByText('Beta Dept')).toBeInTheDocument();
+        // …but A's row must NOT persist under B (B risks pending -> loading/empty).
+        expect(screen.queryByText('Alpha-Dept-Risk')).not.toBeInTheDocument();
+    });
+
+    it('shows an error/retry surface (not A rows) when department B risks fetch fails', async () => {
+        departmentApiMock.getDepartmentRisks.mockImplementation((id: number) =>
+            id === 8 ? Promise.reject(new Error('boom')) : Promise.resolve([ALPHA_DEPT_RISK]),
+        );
+        const user = userEvent.setup();
+        renderPageForScoping();
+
+        expect(await screen.findByText('Alpha-Dept-Risk')).toBeInTheDocument();
+
+        await user.click(screen.getByTestId('nav-to-b'));
+
+        expect(await screen.findByText('Beta Dept')).toBeInTheDocument();
+        // A failed B fetch surfaces the table error, not department A's stale rows.
+        expect(await screen.findByText('tables.error.message')).toBeInTheDocument();
+        expect(screen.queryByText('Alpha-Dept-Risk')).not.toBeInTheDocument();
     });
 });

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, Save, X } from 'lucide-react';
 
 import { SortableTable } from '@/components/tables';
+import { TableErrorState, resolveTableErrorContract } from '@/components/tables/tableError';
 import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
@@ -214,6 +215,17 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
         () => contracts.filter((contract) => contract.is_archived),
         [contracts],
     );
+
+    // N17 (R3b): ONE shared error contract spanning BOTH the active and archived
+    // sections. When every cached contract is archived, the active/error-aware table is
+    // gated out (below), so without this a failed refetch would surface nowhere. The
+    // active table still owns the first-load "replace" block (isError with no data); this
+    // hoisted banner owns the stale-refetch overlay, so exactly one banner surfaces
+    // regardless of which table is showing — and the stale rows are never blanked.
+    const contractsErrorContract = resolveTableErrorContract({
+        isError: contractsQuery.isError,
+        hasData: contracts.length > 0,
+    });
 
     const setField = (field: keyof ContractFormFields) => (value: string) =>
         setFields((previous) => ({ ...previous, [field]: value }));
@@ -458,16 +470,26 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
                 </form>
             ) : null}
 
-            {/* Active contracts carry #61's loading/error/empty contract. The
-                gate keeps the empty state honest: it only shows when there are
-                truly no contracts (not when every contract is archived). */}
+            {/* N17 (R3b): the shared stale-refetch banner sits above BOTH tables so a
+                failed refetch surfaces even when the active table is gated out (every
+                contract archived). The active table keeps only the first-load "replace"
+                block, so the two never double up. */}
+            {contractsErrorContract.showErrorBanner ? (
+                <TableErrorState variant="banner" onRetry={() => void contractsQuery.refetch()} />
+            ) : null}
+
+            {/* Active contracts carry #61's loading + first-load-error + empty contract.
+                The gate keeps the empty state honest: it only shows when there are truly
+                no contracts (not when every contract is archived). The stale-refetch
+                overlay is owned by the shared banner above, so `isError` here is scoped to
+                the replace case (a first-load failure with no last-good data). */}
             {activeContracts.length > 0 || contracts.length === 0 ? (
                 <SortableTable
                     data={activeContracts}
                     columns={columns}
                     keyExtractor={(contract) => contract.id}
                     isLoading={contractsQuery.isLoading}
-                    isError={contractsQuery.isError}
+                    isError={contractsErrorContract.showErrorBlock}
                     onRetry={() => void contractsQuery.refetch()}
                     emptyMessage={t('contracts.empty')}
                 />
