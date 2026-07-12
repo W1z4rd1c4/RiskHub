@@ -14,6 +14,7 @@ const forwardedExternalTestImports = new Set([
   '@tanstack/react-query',
   '@testing-library/react',
   '@testing-library/user-event',
+  'axe-core',
   'msw',
   'msw/node',
   'react-i18next',

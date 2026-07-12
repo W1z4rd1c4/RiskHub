@@ -29,6 +29,20 @@ export interface ThemedSelectProps {
     triggerTestId?: string
     contentTestId?: string
     optionTestIdPrefix?: string
+    /** Control id (owned by `Field` when wrapped). */
+    id?: string
+    /**
+     * Id(s) of the visible label(s) associated with this control. When set, the
+     * fallback `aria-label` is suppressed so the visible label is the accessible
+     * name (FR-P2a-4 / spec N13 — no fallback label overrides a real label).
+     */
+    "aria-labelledby"?: string
+    /** Id(s) of help/error text (wired by `Field`). */
+    "aria-describedby"?: string
+    /** Invalid-state flag (wired by `Field`); also drives the error visual. */
+    "aria-invalid"?: React.AriaAttributes["aria-invalid"]
+    /** Required-state flag (wired by `Field`). */
+    "aria-required"?: React.AriaAttributes["aria-required"]
 }
 
 // Radix UI Select doesn't allow empty string values (uses "" to clear selection).
@@ -52,10 +66,24 @@ export function ThemedSelect({
     triggerTestId,
     contentTestId,
     optionTestIdPrefix,
+    id,
+    "aria-labelledby": ariaLabelledby,
+    "aria-describedby": ariaDescribedby,
+    "aria-invalid": ariaInvalid,
+    "aria-required": ariaRequired,
 }: ThemedSelectProps) {
     const { t } = useTranslation('common')
     const resolvedPlaceholder = placeholder ?? t('actions.select')
     const resolvedEmptyLabel = emptyLabel ?? t('labels.all')
+
+    // FR-P2a-4 / N13: a visible label associated via `aria-labelledby` MUST win
+    // over the fallback `aria-label`. Only fall back to an explicit
+    // `triggerAriaLabel` or the placeholder when no visible label is associated —
+    // this preserves the accessible name for the ~95 existing call sites (which
+    // pass neither) while fixing the repeated-"Not set"/placeholder name defect.
+    const resolvedTriggerAriaLabel = ariaLabelledby
+        ? undefined
+        : (triggerAriaLabel ?? resolvedPlaceholder)
 
     // Translate external "" to internal sentinel
     const internalValue = value === "" ? EMPTY_SENTINEL : value
@@ -84,9 +112,14 @@ export function ThemedSelect({
     return (
         <Select value={internalValue} onValueChange={handleValueChange} disabled={disabled}>
             <SelectTrigger
+                id={id}
                 className={cn("min-w-[130px]", className)}
                 data-testid={triggerTestId}
-                aria-label={triggerAriaLabel ?? resolvedPlaceholder}
+                aria-label={resolvedTriggerAriaLabel}
+                aria-labelledby={ariaLabelledby}
+                aria-describedby={ariaDescribedby}
+                aria-invalid={ariaInvalid}
+                aria-required={ariaRequired}
             >
                 <SelectValue placeholder={resolvedPlaceholder} />
             </SelectTrigger>
