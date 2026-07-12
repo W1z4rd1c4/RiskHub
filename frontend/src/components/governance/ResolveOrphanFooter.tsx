@@ -44,17 +44,17 @@ export function ResolveOrphanFooter({
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
                         {(shouldShowRisk && !selectedRiskId) ? (
                             <>
-                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                                 {tAdmin('governance.resolve_modal.risk_linkage_required')}
                             </>
                         ) : (shouldShowOwner && !selectedUserId) ? (
                             <>
-                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                                 {tAdmin('governance.resolve_modal.owner_selection_required')}
                             </>
                         ) : (
                             <>
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                 {tAdmin('governance.resolve_modal.verified_ready')}
                             </>
                         )}

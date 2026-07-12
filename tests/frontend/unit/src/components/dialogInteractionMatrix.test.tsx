@@ -1,8 +1,10 @@
 import * as axe from 'axe-core';
-import { useState, type ReactNode } from 'react';
+import { http, HttpResponse } from 'msw';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { render, screen, userEvent, waitFor } from '@test/render';
+import { render, screen, userEvent, waitFor, within } from '@test/render';
+import { server } from '@test/mocks/server';
 import { useTranslation } from '@/i18n/hooks';
 
 // --- Real dialog / alertdialog surfaces under test -------------------------
@@ -27,6 +29,14 @@ import { ResolveOrphanModal } from '@/components/governance/ResolveOrphanModal';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { AccessEditModal } from '@/components/access/AccessEditModal';
 import { RiskQuestionnaireDetail } from '@/components/risks/risk-questionnaire-detail/RiskQuestionnaireDetailContainer';
+// R4 — five surfaces previously only "verified via existing test" (two of which
+// were actually stubbed `() => null` in those tests). Mounted OPEN here through
+// the real render helper so the full contract is proven, not asserted by proxy.
+import { LinkManagementDialog } from '@/components/LinkManagementDialog';
+import { ADUserPicker } from '@/components/users/ADUserPicker';
+import { ControlCreateDialog } from '@/components/ControlCreateDialog';
+import { DepartmentsPanel } from '@/components/riskhub/DepartmentsPanel';
+import { RiskTypesPanel } from '@/components/riskhub/RiskTypesPanel';
 
 import type { RoleHubRead } from '@/services/riskHubApi';
 import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
@@ -84,22 +94,22 @@ function SurfaceHarness({ renderSurface }: { renderSurface: RenderSurface }) {
     );
 }
 
+type TestUser = ReturnType<typeof userEvent.setup>;
+/** Optional gate: wait until a network-backed surface reaches its usable state. */
+type WaitForReady = (surface: HTMLElement) => Promise<void>;
+
 /**
- * Drives the full seven-point DialogShell contract against a real surface:
- * correct role, an accessible name, initial focus inside, Tab + Shift-Tab stay
- * trapped, Escape closes, focus restores to the opener, and no axe violations
- * while open.
+ * The shared seven-point contract, run against an already-open surface and its
+ * opener: modal semantics, an accessible name, initial focus inside, Tab +
+ * Shift-Tab stay trapped, an open-state axe sweep with the pinned tags, then
+ * Escape closes and focus restores to the opener.
  */
-async function assertDialogContract(role: Role, renderSurface: RenderSurface): Promise<void> {
-    const user = userEvent.setup();
-    render(<SurfaceHarness renderSurface={renderSurface} />);
-
-    const launch = screen.getByRole('button', { name: 'launch' });
-    launch.focus();
-    await user.click(launch);
-
-    const surface = await screen.findByRole(role);
-
+async function assertOpenDialogContract(
+    user: TestUser,
+    role: Role,
+    surface: HTMLElement,
+    opener: HTMLElement,
+): Promise<void> {
     // Correct role (implied by findByRole) + modal semantics.
     expect(surface).toHaveAttribute('aria-modal', 'true');
 
@@ -133,7 +143,55 @@ async function assertDialogContract(role: Role, renderSurface: RenderSurface): P
     // Escape closes and restores focus to the opener.
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole(role)).not.toBeInTheDocument());
-    await waitFor(() => expect(launch).toHaveFocus());
+    await waitFor(() => expect(opener).toHaveFocus());
+}
+
+/**
+ * Drives the full seven-point DialogShell contract against a real surface that
+ * is opened directly via an `isOpen`/`onClose` prop pair. `waitForReady` (used
+ * by the network-backed R4 surfaces) blocks until the dialog reaches its usable
+ * state — its MSW-backed lookups resolved — so the focus/axe assertions prove a
+ * loaded dialog, not just an opened shell.
+ */
+async function assertDialogContract(
+    role: Role,
+    renderSurface: RenderSurface,
+    waitForReady?: WaitForReady,
+): Promise<void> {
+    const user = userEvent.setup();
+    render(<SurfaceHarness renderSurface={renderSurface} />);
+
+    const launch = screen.getByRole('button', { name: 'launch' });
+    launch.focus();
+    await user.click(launch);
+
+    const surface = await screen.findByRole(role);
+    if (waitForReady) {
+        await waitForReady(surface);
+    }
+
+    await assertOpenDialogContract(user, role, surface, launch);
+}
+
+/**
+ * Variant for surfaces whose open state is only reachable through a parent
+ * component's data load + row action (the `DepartmentsPanel` / `RiskTypesPanel`
+ * delete confirmations, whose markup is private to the panel). `triggerDialog`
+ * renders through the panel, waits for the loaded row action, focuses + clicks
+ * it, and returns that control as the opener whose focus must be restored.
+ */
+async function assertTriggeredDialogContract(
+    role: Role,
+    host: ReactElement,
+    triggerDialog: (user: TestUser) => Promise<HTMLElement>,
+): Promise<void> {
+    const user = userEvent.setup();
+    render(host);
+
+    const opener = await triggerDialog(user);
+    const surface = await screen.findByRole(role);
+
+    await assertOpenDialogContract(user, role, surface, opener);
 }
 
 // --- Fixtures --------------------------------------------------------------
@@ -475,6 +533,172 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
                 risk={riskFixture}
             />
         ));
+    });
+});
+
+// ---------------------------------------------------------------------------
+// R4 — network-backed & row-triggered surfaces. Each reaches its open + usable
+// state only after MSW-backed data loads (and, for the panels, a row action).
+// Each was previously only "verified via existing test"; two of them
+// (ADUserPicker, ControlCreateDialog) were in fact stubbed `() => null` in those
+// tests. Mounted REAL and OPEN here, gated on a loaded-state sentinel, under the
+// same seven-point contract as every other surface.
+// ---------------------------------------------------------------------------
+
+// Deterministic, zod-valid lookup payloads. Each test registers only the
+// handlers its surface hits via `server.use` (reset by vitest.setup.ts after
+// every test); the shared server hard-fails any unhandled request, so the matrix
+// proves each surface's exact network contract with zero stray requests.
+
+const departmentLookupFixture = {
+    id: 1,
+    name: 'IT',
+    code: 'IT',
+    user_count: 0,
+    risk_count: 0,
+    high_risk_count: 0,
+    control_count: 0,
+    kri_count: 0,
+    breaching_kri_count: 0,
+    total_net_score: 0,
+};
+
+const riskFiltersFixture = {
+    processes: ['User Authentication'],
+    categories: ['IT'],
+};
+
+const departmentHubFixture = {
+    id: 1,
+    name: 'IT',
+    code: 'IT',
+    manager_id: null,
+    manager_name: null,
+    is_active: true,
+    user_count: 0,
+    risk_count: 0,
+    control_count: 0,
+    kri_count: 0,
+    vendor_count: 0,
+    pending_orphan_count: 0,
+    capabilities: { can_update: true, can_delete: true, can_restore: false },
+};
+
+const riskTypeHubFixture = {
+    id: 1,
+    code: 'operational',
+    display_name: 'Operational',
+    description: 'Operational risks',
+    color: '#3b82f6',
+    icon: null,
+    sort_order: 1,
+    is_active: true,
+    is_system: false,
+    risk_count: 0,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    capabilities: { can_create: true, can_update: true, can_delete: true, can_restore: false },
+};
+
+const riskHubPanelCapabilityFixture = { can_create: true, can_update: true, can_batch_send: false };
+const riskHubCapabilitiesFixture = {
+    risk_types: riskHubPanelCapabilityFixture,
+    departments: riskHubPanelCapabilityFixture,
+    roles: riskHubPanelCapabilityFixture,
+    approval_scenarios: riskHubPanelCapabilityFixture,
+    system_settings: riskHubPanelCapabilityFixture,
+    questionnaires: riskHubPanelCapabilityFixture,
+};
+
+describe('Dialog interaction matrix — network-backed surfaces (FR-P2c-1, R4)', () => {
+    // R4 — real mount (was stubbed via existing test):search + filter lookups are network-backed; gated on a loaded search result.
+    it('LinkManagementDialog', async () => {
+        server.use(
+            http.get('*/api/v1/departments', () => HttpResponse.json([departmentLookupFixture])),
+            http.get('*/api/v1/lookups/risk-filters', () => HttpResponse.json(riskFiltersFixture)),
+            // `/controls` (the risk-to-control search target) is served by the base handlers.
+        );
+        await assertDialogContract(
+            'dialog',
+            (onClose) => (
+                <LinkManagementDialog
+                    isOpen
+                    onClose={onClose}
+                    mode="risk-to-control"
+                    existingLinks={[]}
+                    onLink={async () => {}}
+                    onUnlink={async () => {}}
+                />
+            ),
+            // Loaded sentinel: department/filter lookups + the debounced control
+            // search have resolved, so a real result row is rendered.
+            async (surface) => {
+                await within(surface).findByText('Access Control Review', {}, { timeout: 3000 });
+            },
+        );
+    });
+
+    // R4 — real mount (was stubbed `() => null` in UsersPage.sso-cta.test.tsx):no lookup on open; usable state = directory-search textbox.
+    it('ADUserPicker', async () => {
+        // ADUserPicker fires no lookup on open — its directory search is
+        // user-triggered (debounced on keystrokes) — so no handler is required and
+        // the usable state is the rendered directory-search textbox.
+        await assertDialogContract(
+            'dialog',
+            (onClose) => <ADUserPicker isOpen onClose={onClose} onImported={() => {}} />,
+            async (surface) => {
+                await waitFor(() => expect(within(surface).getByRole('textbox')).toBeInTheDocument());
+            },
+        );
+    });
+
+    // R4 — real mount (was stubbed `() => null` in riskDetailOverviewKriNavigation.test.tsx):ControlForm lookups network-backed; gated on ready sentinel.
+    it('ControlCreateDialog', async () => {
+        server.use(
+            http.get('*/api/v1/departments', () => HttpResponse.json([departmentLookupFixture])),
+            // `/users/lookup` and `/risks` (ControlForm's other lookups) are base handlers.
+        );
+        await assertDialogContract(
+            'dialog',
+            (onClose) => <ControlCreateDialog isOpen onClose={onClose} onSuccess={() => {}} />,
+            // Loaded sentinel: ControlForm's background lookups (users, departments,
+            // risks) have all settled (`control-form-lookups-ready`).
+            async (surface) => {
+                await within(surface).findByTestId('control-form-lookups-ready', {}, { timeout: 3000 });
+            },
+        );
+    });
+});
+
+describe('Dialog interaction matrix — row-triggered delete confirms (FR-P2c-1, R4)', () => {
+    // R4 — real mount (was "verified via existing test"):delete confirm is private to the panel; reached via list load + row delete action.
+    it('DepartmentsPanel delete confirm', async () => {
+        server.use(
+            http.get('*/api/v1/riskhub/capabilities', () => HttpResponse.json(riskHubCapabilitiesFixture)),
+            http.get('*/api/v1/riskhub/departments', () => HttpResponse.json([departmentHubFixture])),
+        );
+        await assertTriggeredDialogContract('alertdialog', <DepartmentsPanel />, async (user) => {
+            // Loaded sentinel: the row delete action only exists once the list +
+            // capabilities loaded and the row exposes `can_delete`.
+            const del = await screen.findByRole('button', { name: 'Delete' });
+            del.focus();
+            await user.click(del);
+            return del;
+        });
+    });
+
+    // R4 — real mount (was "verified via existing test"):delete confirm is private to the panel; reached via list load + row delete action.
+    it('RiskTypesPanel delete confirm', async () => {
+        server.use(
+            http.get('*/api/v1/riskhub/capabilities', () => HttpResponse.json(riskHubCapabilitiesFixture)),
+            http.get('*/api/v1/riskhub/risk-types', () => HttpResponse.json([riskTypeHubFixture])),
+        );
+        await assertTriggeredDialogContract('alertdialog', <RiskTypesPanel />, async (user) => {
+            const del = await screen.findByRole('button', { name: 'Delete' });
+            del.focus();
+            await user.click(del);
+            return del;
+        });
     });
 });
 
