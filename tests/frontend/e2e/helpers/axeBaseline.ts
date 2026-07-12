@@ -10,12 +10,15 @@
  *   - a current fingerprint NOT in its cell  -> reported as NEW (fails the test)
  *   - a cell fingerprint NOT seen this run   -> reported as STALE (fails; only-shrink)
  *
- * Capture / shrink the baseline by re-running the smoke in update mode:
+ * Capture / shrink the baseline by re-running the smoke in update mode. Update
+ * mode is gated ONLY on the explicit env var (see `isAxeBaselineUpdateMode`);
+ * Playwright's `--update-snapshots` deliberately does NOT trigger it, so CI —
+ * whose `updateSnapshots` default is "missing" (NOT "none") — always ENFORCES:
  *   UPDATE_A11Y_AXE_BASELINE=1 npx playwright test -c playwright.config.ts \
  *     ../tests/frontend/e2e/accessibility-smoke.spec.ts --project=ci --workers=1
- * (or `--update-snapshots`). Use `--workers=1` — the CI default — so the
- * read-modify-write of the single JSON is race-free. Commit the result; it may
- * only shrink as later phases fix violations.
+ * Use `--workers=1` — the CI default — so the read-modify-write of the single
+ * JSON is race-free. Commit the result; it may only shrink as later phases fix
+ * violations.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -101,9 +104,25 @@ export function diffCell(route: string, cell: BaselineCell, current: AxeFinding[
   };
 }
 
-/** True when the run should (re)capture the baseline rather than enforce it. */
-export function isUpdateMode(testInfo: TestInfo): boolean {
-  return process.env.UPDATE_A11Y_AXE_BASELINE === '1' || testInfo.config.updateSnapshots !== 'none';
+/**
+ * True ONLY when the run is explicitly (re)capturing the baseline via the
+ * dedicated env var. This is the enforced seam: gating on `UPDATE_A11Y_AXE_BASELINE`
+ * alone means Playwright's `--update-snapshots` — whose CI default is "missing"
+ * (NOT "none") — can NEVER silently rewrite the accessibility ledger, so CI always
+ * ENFORCES `expect(drift).toEqual([])` instead of auto-recapturing.
+ */
+export function isAxeBaselineUpdateMode(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.UPDATE_A11Y_AXE_BASELINE === '1';
+}
+
+/**
+ * Back-compat wrapper for the smoke spec's `isUpdateMode(testInfo)` call. The
+ * `testInfo` arg is intentionally ignored — update mode is env-gated only (see
+ * `isAxeBaselineUpdateMode`); the `testInfo.config.updateSnapshots !== 'none'`
+ * path was REMOVED so `--update-snapshots` can never rewrite the ledger.
+ */
+export function isUpdateMode(_testInfo: TestInfo): boolean {
+  return isAxeBaselineUpdateMode();
 }
 
 /** Overwrite one project/theme/route cell with the current findings (shrink-only in practice). */

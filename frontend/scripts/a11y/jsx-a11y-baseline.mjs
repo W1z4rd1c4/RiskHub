@@ -27,17 +27,32 @@
  * `eslint-suppressions.json` is a generated convenience so `eslint .` exits 0 on
  * the still-broken app; THIS file + validator is the authoritative gate.
  */
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
 
+import {
+  deviationFingerprint,
+  fingerprint,
+  parseBaselineJson,
+  ratchetAgainstBaseRef,
+  validateDeviations,
+} from './jsx-a11y-ratchet.mjs';
+
+// Re-export the pure seam so callers/tests can import from either entry point
+// while the CLI keeps ownership of every impure edge (ESLint, fs, git).
+export { deviationFingerprint, fingerprint, parseBaselineJson, ratchetAgainstBaseRef, validateDeviations };
+
 const ARGS = process.argv.slice(2);
 const SCRIPT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RULE_PREFIX = 'jsx-a11y/';
 const BASELINE_RELPATH = path.join('scripts', 'a11y', 'jsx-a11y-baseline.json');
+const DEVIATIONS_RELPATH = path.join('scripts', 'a11y', 'jsx-a11y-deviations.json');
 const SUPPRESSIONS_RELPATH = 'eslint-suppressions.json';
 const LINT_TARGETS = ['src'];
+const DEFAULT_BASE_REF = 'origin/main';
 
 function toPosix(relPath) {
   return relPath.replaceAll(path.sep, '/');
@@ -98,10 +113,6 @@ async function collectFindings(root) {
   return findings;
 }
 
-function fingerprint(entry) {
-  return `${entry.rule}|${entry.file}|${entry.line}|${entry.column}`;
-}
-
 function sortEntries(entries) {
   return [...entries].sort((a, b) =>
     fingerprint(a) < fingerprint(b) ? -1 : fingerprint(a) > fingerprint(b) ? 1 : 0,
@@ -112,10 +123,82 @@ async function loadBaseline(root) {
   const baselinePath = path.join(root, BASELINE_RELPATH);
   try {
     const raw = await fs.readFile(baselinePath, 'utf8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed.entries) ? parsed.entries : [];
+    return parseBaselineJson(raw);
   } catch (error) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+/** Resolve the base ref for the ratchet: `--base-ref <ref>`, then env, then default. */
+function resolveBaseRef() {
+  const flag = getFlagValue('--base-ref');
+  if (flag !== null && flag !== '') return flag;
+  if (process.env.A11Y_BASELINE_BASE_REF) return process.env.A11Y_BASELINE_BASE_REF;
+  return DEFAULT_BASE_REF;
+}
+
+/** Run a git command under `root`, returning stdout or `null` on any failure. */
+function gitCapture(args, root) {
+  try {
+    return execFileSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the committed baseline as it exists at `ref` (default `origin/main`).
+ * Returns `{ entries: null }` — signalling a graceful ratchet SKIP — whenever the
+ * tree isn't a git repo, the ref is unresolvable, or (the pre-first-merge case)
+ * the baseline file simply does not exist at the base ref because it was
+ * introduced on this branch. Once merged, the file exists on main and the ratchet
+ * is live for every subsequent PR.
+ *
+ * @returns {{ entries: Array | null, notice: string | null }}
+ */
+function loadBaseRefBaseline(root, ref) {
+  const top = gitCapture(['rev-parse', '--show-toplevel'], root);
+  if (top === null) {
+    return { entries: null, notice: 'not a git work tree; base-ref ratchet skipped' };
+  }
+  const repoRelPath = toPosix(path.relative(top.trim(), path.join(root, BASELINE_RELPATH)));
+  if (gitCapture(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], root) === null) {
+    return { entries: null, notice: `base-ref '${ref}' not found; ratchet skipped` };
+  }
+  const raw = gitCapture(['show', `${ref}:${repoRelPath}`], root);
+  if (raw === null) {
+    return { entries: null, notice: 'base-ref has no jsx-a11y baseline; ratchet skipped — first-introduction' };
+  }
+  try {
+    return { entries: parseBaselineJson(raw), notice: null };
+  } catch {
+    return { entries: null, notice: `base-ref baseline at '${ref}' is unparseable; ratchet skipped` };
+  }
+}
+
+/**
+ * Load the deviation registry, or `null` when the file is ABSENT (keeping the
+ * deviation gate dormant until C5a creates it). A present-but-corrupt file throws.
+ * Accepts a bare array or a `{ deviations | entries: [...] }` envelope.
+ *
+ * @returns {Array | null}
+ */
+async function loadDeviations(root) {
+  const deviationsPath = path.join(root, DEVIATIONS_RELPATH);
+  try {
+    const raw = await fs.readFile(deviationsPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed?.deviations)) return parsed.deviations;
+    if (Array.isArray(parsed?.entries)) return parsed.entries;
+    return [];
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') return null;
     throw error;
   }
 }
@@ -182,8 +265,21 @@ async function main() {
   const baselineKeys = new Map(baseline.map((entry) => [fingerprint(entry), entry]));
   const currentKeys = new Set(findings.map(fingerprint));
 
+  // Exact check (UNCHANGED): current findings must equal the committed baseline —
+  // a new finding fails, a stale entry fails, each keyed by exact location.
   const newViolations = findings.filter((f) => !baselineKeys.has(fingerprint(f)));
   const staleEntries = baseline.filter((entry) => !currentKeys.has(fingerprint(entry)));
+
+  // Base-ref ratchet: the COMMITTED baseline may not WIDEN (per (file,rule) count)
+  // relative to the base-ref baseline. Catches a `--write` that recommits a wider
+  // ledger even when the exact check above still passes.
+  const baseRef = resolveBaseRef();
+  const { entries: baseRefEntries, notice: baseRefNotice } = loadBaseRefBaseline(root, baseRef);
+  const ratchet = ratchetAgainstBaseRef(baseline, baseRefEntries);
+
+  // Deviation registry: dormant until scripts/a11y/jsx-a11y-deviations.json exists.
+  const deviations = await loadDeviations(root);
+  const deviationResult = validateDeviations(baseline, deviations);
 
   const reportPath = resolveReportPath(root);
   await writeReport(reportPath, {
@@ -192,9 +288,26 @@ async function main() {
     currentFindings: findings.length,
     newViolations,
     staleEntries,
+    baseRef,
+    ratchet: { skipped: ratchet.skipped, reason: ratchet.reason, widened: ratchet.widened },
+    deviations: {
+      dormant: deviationResult.dormant,
+      ok: deviationResult.ok,
+      missing: deviationResult.missing,
+      stale: deviationResult.stale,
+      duplicates: deviationResult.duplicates,
+    },
   });
 
-  if (newViolations.length > 0 || staleEntries.length > 0) {
+  if (ratchet.skipped) {
+    console.log(`jsx-a11y base-ref ratchet skipped: ${baseRefNotice}.`);
+  }
+
+  const exactFailed = newViolations.length > 0 || staleEntries.length > 0;
+  const ratchetFailed = !ratchet.skipped && ratchet.widened.length > 0;
+  const deviationFailed = !deviationResult.dormant && !deviationResult.ok;
+
+  if (exactFailed || ratchetFailed || deviationFailed) {
     console.error('jsx-a11y baseline check FAILED.\n');
     if (newViolations.length > 0) {
       console.error(`New violations (not in baseline) — fix them or they block the gate: ${newViolations.length}`);
@@ -210,13 +323,49 @@ async function main() {
         console.error(`  - ${v.file}:${v.line}:${v.column} [${v.rule}]`);
       }
     }
+    if (ratchetFailed) {
+      console.error(
+        `\nBaseline WIDENED vs base-ref (${baseRef}) — the committed baseline may only shrink: ${ratchet.widened.length} (file,rule) pair(s)`,
+      );
+      for (const w of ratchet.widened) {
+        const detail =
+          w.kind === 'new-pair'
+            ? `new (file,rule) pair — ${w.committedCount} not present in base-ref`
+            : `count widened ${w.baseCount} -> ${w.committedCount}`;
+        console.error(`  ^ ${w.file} [${w.rule}] — ${detail}`);
+      }
+    }
+    if (deviationFailed) {
+      console.error(`\nDeviation registry (${toPosix(DEVIATIONS_RELPATH)}) is out of sync with the baseline:`);
+      for (const v of sortEntries(deviationResult.missing)) {
+        console.error(`  ? ${v.file}:${v.line}:${v.column} [${v.rule}] — baseline entry has no deviation record`);
+      }
+      for (const record of deviationResult.stale) {
+        console.error(`  - stale deviation (no matching baseline entry): ${deviationFingerprint(record)}`);
+      }
+      for (const fp of deviationResult.duplicates) {
+        console.error(`  ! duplicate deviation record for fingerprint: ${fp}`);
+      }
+    }
     process.exit(1);
   }
 
   console.log(`jsx-a11y baseline OK: ${findings.length} findings all held by baseline (${baseline.length} entries).`);
+  if (!ratchet.skipped) {
+    console.log(`base-ref ratchet OK vs ${baseRef}: committed baseline did not widen.`);
+  }
+  if (!deviationResult.dormant) {
+    console.log(`deviation registry OK: ${baseline.length} baseline entr${baseline.length === 1 ? 'y' : 'ies'} mapped 1:1.`);
+  }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// Run the CLI only when invoked directly (`node scripts/a11y/jsx-a11y-baseline.mjs`),
+// NOT when imported by a unit test — so vitest can import the re-exported pure seam
+// without triggering an ESLint run or a `process.exit`.
+const invokedDirectly = Boolean(process.argv[1]) && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
