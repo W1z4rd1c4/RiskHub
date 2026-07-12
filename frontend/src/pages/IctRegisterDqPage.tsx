@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, RefreshCw } from 'lucide-react';
 
+import { TableErrorState, useTableErrorContract } from '@/components/tables/tableError';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient, isForbiddenApiError } from '@/services/apiClient';
@@ -148,8 +149,46 @@ export function IctRegisterDqPage() {
         void fetchDq();
     }, [fetchDq]);
 
+    // FR-P3-4 (N17 / C3 / C4): the DQ screen does not consume SortableTable, so it
+    // drives the shared table-error contract directly. `hasData` decides whether a
+    // failed fetch replaces the screen (first load) or overlays a retry banner above
+    // the last-good summary — a dropped request is never a false 0/0/0.
+    const hasData = data !== null;
+    const errorContract = useTableErrorContract({ isError: errorKey !== null, hasData });
+
     if (isAccessDenied) {
         return <ReadAccessDeniedState />;
+    }
+
+    // Explicit aria-busy loading branch — only while there is nothing to show yet.
+    // A refetch over existing data keeps the (stale) summary and spins the refresh
+    // button instead of flashing 0/0/0 during load (C3).
+    if (isLoading && !hasData) {
+        return (
+            <div
+                className="flex flex-col items-center justify-center gap-4 py-24"
+                aria-busy="true"
+                data-loading="true"
+                data-testid="dq-loading"
+            >
+                <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">
+                    {t('loading')}
+                </p>
+            </div>
+        );
+    }
+
+    // Failed first load with no last-good data → replace the screen with the shared
+    // localized error + retry, never an empty/zero state (C4, N17).
+    if (errorContract.showErrorBlock) {
+        return (
+            <TableErrorState
+                onRetry={() => void fetchDq()}
+                isRetrying={isLoading}
+                testId="dq-error"
+            />
+        );
     }
 
     const checks = data?.checks ?? [];
@@ -207,11 +246,15 @@ export function IctRegisterDqPage() {
                 />
             </div>
 
-            {errorKey && (
-                <div className="glass-card border border-red-500/30 text-red-400 flex items-center gap-3">
-                    <AlertCircle className="h-5 w-5" />
-                    {t(errorKey)}
-                </div>
+            {/* Refetch failed while last-good data is shown → non-blocking banner over
+                the stale summary (error-overlay), never a silent revert to empty. */}
+            {errorContract.showErrorBanner && (
+                <TableErrorState
+                    variant="banner"
+                    onRetry={() => void fetchDq()}
+                    isRetrying={isLoading}
+                    testId="dq-error-banner"
+                />
             )}
 
             <div className="space-y-3" data-testid="dq-check-list">

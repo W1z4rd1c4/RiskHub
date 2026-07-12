@@ -10,8 +10,9 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
+import { TableErrorState, useTableErrorContract } from '@/components/tables/tableError';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient, isForbiddenApiError } from '@/services/apiClient';
@@ -446,8 +447,45 @@ export function IctRegisterCommitteePage() {
         void fetchCommittee();
     }, [fetchCommittee]);
 
+    // FR-P3-4 (N17 / C3 / C4): the Committee screen does not consume SortableTable,
+    // so it drives the shared table-error contract directly. `hasData` decides whether
+    // a failed fetch replaces the screen (first load) or overlays a retry banner above
+    // the last-good tiles — a dropped request is never rendered as empty.
+    const hasData = data !== null;
+    const errorContract = useTableErrorContract({ isError: errorKey !== null, hasData });
+
     if (isAccessDenied) {
         return <ReadAccessDeniedState />;
+    }
+
+    // Explicit aria-busy loading branch — only while there is nothing to show yet.
+    // A refetch over existing data keeps the (stale) tiles and spins the refresh button.
+    if (isLoading && !hasData) {
+        return (
+            <div
+                className="flex flex-col items-center justify-center gap-4 py-24"
+                aria-busy="true"
+                data-loading="true"
+                data-testid="committee-loading"
+            >
+                <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">
+                    {t('loading')}
+                </p>
+            </div>
+        );
+    }
+
+    // Failed first load with no last-good data → replace the screen with the shared
+    // localized error + retry, never an empty state (C4, N17).
+    if (errorContract.showErrorBlock) {
+        return (
+            <TableErrorState
+                onRetry={() => void fetchCommittee()}
+                isRetrying={isLoading}
+                testId="committee-error"
+            />
+        );
     }
 
     const narrativeValues = data ? narrativeParams(data.cro.narratives) : null;
@@ -470,11 +508,15 @@ export function IctRegisterCommitteePage() {
                 </button>
             </div>
 
-            {errorKey && (
-                <div className="glass-card border border-red-500/30 text-red-400 flex items-center gap-3">
-                    <AlertCircle className="h-5 w-5" />
-                    {t(errorKey)}
-                </div>
+            {/* Refetch failed while last-good tiles are shown → non-blocking banner
+                over the stale data (error-overlay), never a silent revert to empty. */}
+            {errorContract.showErrorBanner && (
+                <TableErrorState
+                    variant="banner"
+                    onRetry={() => void fetchCommittee()}
+                    isRetrying={isLoading}
+                    testId="committee-error-banner"
+                />
             )}
 
             {data && (

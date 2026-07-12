@@ -4,6 +4,7 @@
     "actions": {
         "refresh": "Obnovit"
     },
+    "loading": "Načítání…",
     "summary": {
         "checks": "Kontroly",
         "findings": "Nálezy",

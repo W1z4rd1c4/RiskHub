@@ -4,6 +4,7 @@
     "actions": {
         "refresh": "Refresh"
     },
+    "loading": "Loading…",
     "summary": {
         "checks": "Checks",
         "findings": "Findings",
