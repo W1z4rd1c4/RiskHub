@@ -200,7 +200,18 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
         onRestore: (contract) => restoreContract.mutate(contract),
     });
 
-    const contracts = contractsQuery.data ?? [];
+    const contracts = useMemo(() => contractsQuery.data ?? [], [contractsQuery.data]);
+    // FR-P4-6: archived contracts are demoted into a dimmed, visually separated
+    // section (the VendorLinkedEntitiesTab convention) rather than interleaved
+    // with active rows. Formatting (dates/currency) stays out of scope (P5).
+    const activeContracts = useMemo(
+        () => contracts.filter((contract) => !contract.is_archived),
+        [contracts],
+    );
+    const archivedContracts = useMemo(
+        () => contracts.filter((contract) => contract.is_archived),
+        [contracts],
+    );
 
     const setField = (field: keyof ContractFormFields) => (value: string) =>
         setFields((previous) => ({ ...previous, [field]: value }));
@@ -445,15 +456,40 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
                 </form>
             ) : null}
 
-            <SortableTable
-                data={contracts}
-                columns={columns}
-                keyExtractor={(contract) => contract.id}
-                isLoading={contractsQuery.isLoading}
-                isError={contractsQuery.isError}
-                onRetry={() => void contractsQuery.refetch()}
-                emptyMessage={t('contracts.empty')}
-            />
+            {/* Active contracts carry #61's loading/error/empty contract. The
+                gate keeps the empty state honest: it only shows when there are
+                truly no contracts (not when every contract is archived). */}
+            {activeContracts.length > 0 || contracts.length === 0 ? (
+                <SortableTable
+                    data={activeContracts}
+                    columns={columns}
+                    keyExtractor={(contract) => contract.id}
+                    isLoading={contractsQuery.isLoading}
+                    isError={contractsQuery.isError}
+                    onRetry={() => void contractsQuery.refetch()}
+                    emptyMessage={t('contracts.empty')}
+                />
+            ) : null}
+
+            {archivedContracts.length > 0 ? (
+                <section
+                    data-testid="vendor-contracts-archived"
+                    aria-label={t('contracts.archived_heading', { count: archivedContracts.length })}
+                    className="space-y-3"
+                >
+                    <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                        <span className="h-2 w-2 rounded-full bg-slate-600" aria-hidden="true" />
+                        {t('contracts.archived_heading', { count: archivedContracts.length })}
+                    </h3>
+                    <div className="opacity-60 transition-opacity hover:opacity-100">
+                        <SortableTable
+                            data={archivedContracts}
+                            columns={columns}
+                            keyExtractor={(contract) => contract.id}
+                        />
+                    </div>
+                </section>
+            ) : null}
         </div>
     );
 }

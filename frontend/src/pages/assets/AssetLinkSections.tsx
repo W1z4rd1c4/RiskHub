@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Link2, Plus, Star, Trash2, Workflow } from 'lucide-react';
 
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -28,6 +29,18 @@ interface AssetLinkSectionsProps {
     onLinksChanged?: () => void | Promise<void>;
 }
 
+/**
+ * A link-removal awaiting confirmation (FR-P4-8, P6). Removal is a one-click
+ * destructive action, so it routes through the shared `ConfirmDialog` — a
+ * mis-click is recoverable because nothing mutates until the user confirms.
+ * `id` is the argument the matching remove-mutation expects (process link →
+ * `process_id`; asset/vendor link → the link `id`).
+ */
+type PendingLinkRemoval =
+    | { kind: 'process'; id: number; name: string }
+    | { kind: 'asset'; id: number; name: string }
+    | { kind: 'vendor'; id: number; name: string };
+
 function sectionShell(
     icon: React.ReactNode,
     title: string,
@@ -48,6 +61,8 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
     const { t } = useTranslation(['assets', 'common']);
     const queryClient = useQueryClient();
     const [linkError, setLinkError] = useState<string | null>(null);
+    // FR-P4-8: the single removal awaiting confirmation across all three lists.
+    const [pendingRemoval, setPendingRemoval] = useState<PendingLinkRemoval | null>(null);
 
     // Picker searches (server-driven; the empty search keeps the first page).
     const [processSearch, setProcessSearch] = useState('');
@@ -306,6 +321,22 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         .filter((vendor) => !vendor.is_archived)
         .map((vendor) => ({ value: String(vendor.id), label: vendor.name }));
 
+    // Run the confirmed removal, then close the dialog (optimistic close — the
+    // mutation's own onSuccess/onError refreshes the list / surfaces the error).
+    const confirmRemoval = () => {
+        if (!pendingRemoval) {
+            return;
+        }
+        if (pendingRemoval.kind === 'process') {
+            removeProcessLink.mutate(pendingRemoval.id);
+        } else if (pendingRemoval.kind === 'asset') {
+            removeAssetLink.mutate(pendingRemoval.id);
+        } else {
+            removeVendorLink.mutate(pendingRemoval.id);
+        }
+        setPendingRemoval(null);
+    };
+
     return (
         <>
             {linkError ? (
@@ -363,7 +394,15 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                             <button
                                                 type="button"
                                                 data-testid={`asset-process-link-remove-${link.process_id}`}
-                                                onClick={() => removeProcessLink.mutate(link.process_id)}
+                                                onClick={() =>
+                                                    setPendingRemoval({
+                                                        kind: 'process',
+                                                        id: link.process_id,
+                                                        name:
+                                                            link.process_name ??
+                                                            t('common:fallbacks.unknown_process'),
+                                                    })
+                                                }
                                                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
                                                 title={t('links.remove')}
                                             >
@@ -473,7 +512,17 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                             <button
                                                 type="button"
                                                 data-testid={`asset-asset-link-remove-${link.id}`}
-                                                onClick={() => removeAssetLink.mutate(link.id)}
+                                                onClick={() =>
+                                                    setPendingRemoval({
+                                                        kind: 'asset',
+                                                        id: link.id,
+                                                        name:
+                                                            (isDependent
+                                                                ? link.supporting_asset_name
+                                                                : link.dependent_asset_name) ??
+                                                            t('common:fallbacks.unknown_asset'),
+                                                    })
+                                                }
                                                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
                                                 title={t('links.remove')}
                                             >
@@ -568,7 +617,16 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                         <button
                                             type="button"
                                             data-testid={`asset-vendor-link-remove-${link.id}`}
-                                            onClick={() => removeVendorLink.mutate(link.id)}
+                                            onClick={() =>
+                                                setPendingRemoval({
+                                                    kind: 'vendor',
+                                                    id: link.id,
+                                                    name: assetVendorLinkRowName(
+                                                        link,
+                                                        t('common:fallbacks.unknown_vendor'),
+                                                    ),
+                                                })
+                                            }
                                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
                                             title={t('links.remove')}
                                         >
@@ -646,6 +704,16 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                     ) : null}
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={pendingRemoval !== null}
+                onClose={() => setPendingRemoval(null)}
+                onConfirm={confirmRemoval}
+                title={t('links.remove_confirm.title')}
+                message={t('links.remove_confirm.message', { name: pendingRemoval?.name ?? '' })}
+                confirmLabel={t('links.remove')}
+                variant="danger"
+            />
         </>
     );
 }

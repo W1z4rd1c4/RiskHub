@@ -9,6 +9,7 @@ import {
     buildVendorSubOutsourcingPayload,
     formatSubOutsourcingRank,
     getSubOutsourcingDisplayStatus,
+    groupSubOutsourcingChainRows,
     resolveSubOutsourcingContractLabel,
 } from '@/pages/vendors/vendorSubOutsourcingPresentation';
 import type {
@@ -109,6 +110,31 @@ describe('Vendor sub-outsourcing section presentation helpers', () => {
         const rows = buildSubOutsourcingChainRows([orphan, child, root]);
         expect(rows.map((row) => row.entry.id)).toEqual([1, 2, 3]);
         expect(rows.map((row) => row.depth)).toEqual([0, 1, 0]);
+    });
+
+    it('folds the ordered chain rows into per-contract groups (FR-P4-7)', () => {
+        // Contract 9 carries A -> B; contract 12 carries C. Input order is irrelevant.
+        const a = sampleEntry({ id: 1, contract_id: 9 });
+        const b = sampleEntry({ id: 2, contract_id: 9, predecessor_id: 1, sub_provider_name: 'DC HOSTING GmbH' });
+        const c = sampleEntry({ id: 3, contract_id: 12, sub_provider_name: 'Print Services s.r.o.' });
+        const rows = buildSubOutsourcingChainRows([c, b, a]);
+
+        const labels = new Map([
+            [9, 'SML-9'],
+            [12, 'SML-12'],
+        ]);
+        const groups = groupSubOutsourcingChainRows(rows, (entry) =>
+            resolveSubOutsourcingContractLabel(entry, labels, 'Unknown contract'),
+        );
+
+        // One group per contract, in first-seen (contract-ascending) order.
+        expect(groups.map((group) => group.contractId)).toEqual([9, 12]);
+        // The header label is a real resolved label, never a raw #id.
+        expect(groups.map((group) => group.label)).toEqual(['SML-9', 'SML-12']);
+        // Row order + structural indent depth are preserved verbatim inside a group.
+        expect(groups[0].rows.map((row) => row.entry.id)).toEqual([1, 2]);
+        expect(groups[0].rows.map((row) => row.depth)).toEqual([0, 1]);
+        expect(groups[1].rows.map((row) => row.entry.id)).toEqual([3]);
     });
 
     it('resolves contract labels from real payload labels, never a raw #id', () => {

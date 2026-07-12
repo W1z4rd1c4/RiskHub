@@ -48,6 +48,14 @@ export interface SubOutsourcingChainRow {
     depth: number;
 }
 
+/** A per-contract group of chain rows for the grouped, collapsible render (FR-P4-7). */
+export interface SubOutsourcingChainGroup {
+    contractId: number;
+    /** Real contract label (never a raw `#id`), resolved from the group's first entry. */
+    label: string;
+    rows: SubOutsourcingChainRow[];
+}
+
 /** The workbook's 09!K chain findings (engine literals, never re-spelled). */
 export const CHAIN_CHECK_DUPLICATE = 'DUPLICITA';
 export const CHAIN_CHECK_BROKEN = 'CHYBA ŘETĚZCE';
@@ -111,6 +119,33 @@ export function buildSubOutsourcingChainRows(
         }
     }
     return rows;
+}
+
+/**
+ * Fold the ordered full-depth chain rows into per-contract groups for the
+ * grouped, collapsible render (FR-P4-7, S13). Row order within a group — and
+ * the structural indent `depth` — is preserved verbatim from
+ * `buildSubOutsourcingChainRows`; groups appear in first-seen contract order.
+ * The group label is resolved from the group's first entry via the caller's
+ * real-label resolver, so a group header never leaks a raw `#<id>`.
+ */
+export function groupSubOutsourcingChainRows(
+    rows: SubOutsourcingChainRow[],
+    getContractLabel: (entry: VendorSubOutsourcing) => string,
+): SubOutsourcingChainGroup[] {
+    const groups: SubOutsourcingChainGroup[] = [];
+    const byContract = new Map<number, SubOutsourcingChainGroup>();
+    for (const row of rows) {
+        const contractId = row.entry.contract_id;
+        let group = byContract.get(contractId);
+        if (!group) {
+            group = { contractId, label: getContractLabel(row.entry), rows: [] };
+            byContract.set(contractId, group);
+            groups.push(group);
+        }
+        group.rows.push(row);
+    }
+    return groups;
 }
 
 /**

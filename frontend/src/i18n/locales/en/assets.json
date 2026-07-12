@@ -82,6 +82,10 @@
         "add": "Link",
         "remove": "Remove link",
         "spof": "SPOF",
+        "remove_confirm": {
+            "title": "Remove link?",
+            "message": "Remove the link to {{name}}? You can re-link it at any time."
+        },
         "errors": {
             "mutation_failed": "Failed to update the link."
         },

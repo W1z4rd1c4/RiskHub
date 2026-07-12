@@ -82,6 +82,10 @@
         "add": "Propojit",
         "remove": "Odebrat vazbu",
         "spof": "SPOF",
+        "remove_confirm": {
+            "title": "Odebrat vazbu?",
+            "message": "Odebrat vazbu na {{name}}? Vazbu lze kdykoli znovu vytvořit."
+        },
         "errors": {
             "mutation_failed": "Úpravu vazby se nepodařilo uložit."
         },

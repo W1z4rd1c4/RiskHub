@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Network, Plus, Save, X } from 'lucide-react';
 
@@ -12,10 +12,12 @@ import { vendorContractApi } from '@/services/vendorContractApi';
 import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
 import type { VendorSubOutsourcing } from '@/types/vendorSubOutsourcing';
 
+import { VendorSubOutsourcingChainTable } from './VendorSubOutsourcingChainTable';
 import {
     buildSubOutsourcingChainRows,
     buildVendorSubOutsourcingColumns,
     buildVendorSubOutsourcingPayload,
+    groupSubOutsourcingChainRows,
     resolveSubOutsourcingContractLabel,
 } from './vendorSubOutsourcingPresentation';
 
@@ -211,17 +213,24 @@ export function VendorSubOutsourcingSection({
         onError: handleMutationError,
     });
 
-    // Columns are rebuilt each render (matching AssetsPage/ProcessesPage): the
-    // handlers close over current state and the array is cheap, so memoizing it
-    // would only add an exhaustive-deps burden without a real stability win.
-    const columns = buildVendorSubOutsourcingColumns({
-        t: (key, options) => t(key, options),
-        getContractLabel: (entry) =>
+    // Real contract label (never a raw `#id`) — shared by the per-row Contract
+    // column and the per-Contract chain-group header (FR-P4-7).
+    const getContractLabel = useCallback(
+        (entry: VendorSubOutsourcing) =>
             resolveSubOutsourcingContractLabel(
                 entry,
                 contractLabelById,
                 t('common:fallbacks.unknown_contract'),
             ),
+        [contractLabelById, t],
+    );
+
+    // Columns are rebuilt each render (matching AssetsPage/ProcessesPage): the
+    // handlers close over current state and the array is cheap, so memoizing it
+    // would only add an exhaustive-deps burden without a real stability win.
+    const columns = buildVendorSubOutsourcingColumns({
+        t: (key, options) => t(key, options),
+        getContractLabel,
         onEdit: openEditForm,
         onArchive: (entry) => archiveEntry.mutate(entry),
         onRestore: (entry) => restoreEntry.mutate(entry),
@@ -229,6 +238,11 @@ export function VendorSubOutsourcingSection({
 
     // Full-depth chain render: group by Contract, indent by predecessor depth.
     const chainRows = useMemo(() => buildSubOutsourcingChainRows(entries), [entries]);
+    // FR-P4-7: fold the ordered rows into per-Contract, collapsible groups.
+    const chainGroups = useMemo(
+        () => groupSubOutsourcingChainRows(chainRows, getContractLabel),
+        [chainRows, getContractLabel],
+    );
 
     const setField = (field: keyof SubOutsourcingFormFields) => (value: string) =>
         setFields((previous) => ({ ...previous, [field]: value }));
@@ -361,15 +375,21 @@ export function VendorSubOutsourcingSection({
                 </form>
             ) : null}
 
-            <SortableTable
-                data={chainRows}
-                columns={columns}
-                keyExtractor={(row) => row.entry.id}
-                isLoading={entriesQuery.isLoading}
-                isError={entriesQuery.isError}
-                onRetry={() => void entriesQuery.refetch()}
-                emptyMessage={t('sub_outsourcing.empty')}
-            />
+            {/* Loading / error / empty keep #61's SortableTable contract verbatim;
+                only the populated state switches to the grouped, collapsible render. */}
+            {entriesQuery.isLoading || entriesQuery.isError || chainGroups.length === 0 ? (
+                <SortableTable
+                    data={chainRows}
+                    columns={columns}
+                    keyExtractor={(row) => row.entry.id}
+                    isLoading={entriesQuery.isLoading}
+                    isError={entriesQuery.isError}
+                    onRetry={() => void entriesQuery.refetch()}
+                    emptyMessage={t('sub_outsourcing.empty')}
+                />
+            ) : (
+                <VendorSubOutsourcingChainTable groups={chainGroups} columns={columns} />
+            )}
         </div>
     );
 }

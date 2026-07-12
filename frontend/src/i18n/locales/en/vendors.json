@@ -259,6 +259,7 @@
   "contracts": {
     "title": "Contracts",
     "empty": "No contracts yet.",
+    "archived_heading": "Archived contracts ({{count}})",
     "columns": {
       "reference": "Contract reference (RoI)",
       "arrangement_type": "Arrangement type",
@@ -339,6 +340,9 @@
     "chain_status": {
       "chain_error": "Broken supply chain",
       "duplicate": "Duplicate"
+    },
+    "chain_group": {
+      "count": "Providers ({{count}})"
     }
   },
   "register_links": {
