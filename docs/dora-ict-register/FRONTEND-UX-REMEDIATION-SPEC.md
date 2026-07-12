@@ -433,7 +433,7 @@ disposition is **resolved** at the target-phase checkpoint unless noted.
 | S4 | 🟡 | 4 | FR-P4-1, FR-P4-4, FR-P4-5, FR-P4-9…12 | resolved |
 | S5 | 🟡 | 1 (tokens) / 5 (migrate) | FR-P1-1..3, FR-P5-1 | resolved |
 | S6 | 🟡 | 2a | FR-P2a-3 | resolved |
-| S7 | 🟡 | 2c | FR-P2c-1..4 | resolved — backed by the [dialog interaction inventory](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md) (26 DialogShell surfaces); real-surface matrix 22/22 active, 0 skipped |
+| S7 | 🟡 | 2c | FR-P2c-1..4 | resolved — backed by the [dialog interaction inventory](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md) (26 DialogShell surfaces); real-surface matrix 27 `it()` cases (26 real surfaces), 0 skipped |
 | S8 | 🟡 | 5 | FR-P5-9 | resolved |
 | S9 | 🟡 | 4 (demote) / 5 (format) | FR-P4-6, FR-P5-4 | resolved |
 | S10 | 🟡 | 5 | FR-P5-5 | resolved |
@@ -464,27 +464,33 @@ recorded") — and the ledger's own Dispositions gate C6 against "Phase 5's zero
 This spec follows the capture (Phase 5); the ledger's Phase-4 cell is superseded (audits are
 point-in-time and may be superseded by later remediation).
 
-**Closeout reconciliation (2026-07-12, HEAD `669b9cc4`).** This spec was written at Step 1
-(`/to-spec`) as forward-looking acceptance criteria; the dispositions above default to `resolved`
-"at the target-phase checkpoint." At closeout the honest status is split:
+**Closeout reconciliation (Round 2 — 2026-07-13, HEAD `79ed8c56`).** This spec was written at
+Step 1 (`/to-spec`) as forward-looking acceptance criteria; the dispositions above default to
+`resolved` "at the target-phase checkpoint." At the Round-2 closeout the honest status is split:
 
-- **Automated remediation — COMPLETE and enforced.** Full gate green at HEAD `669b9cc4`
-  (`npm run build`; `npm run test:run` — 1315 tests; `npm run lint` with a11y enforced;
-  `npm run i18n:test`; the authz capability-contract validator). **S7** is now backed by the
-  [dialog interaction inventory](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md) + the 22/22 real-surface
-  matrix. The a11y baselines are **shrink-only and enforced, not empty**: the **jsx-a11y baseline is
-  146 entries, each with a 1:1 documented deviation** ([deviation registry](./FRONTEND-ACCESSIBILITY-BASELINE-DEVIATIONS.md),
-  tracking `accessibility-baseline-debt`), and the **axe baseline is empty for the DORA routes**
-  (`/ict-register/data-quality`, `/?view=ict-committee`) and enforced.
+- **Automated remediation — COMPLETE and enforced, PENDING final verification.** Full gate green
+  at HEAD `79ed8c56` (`npm run build`; `npm run test:run`; `npm run lint` with a11y enforced;
+  `npm run i18n:test`; the authz capability-contract validator). **S7** is backed by the
+  [dialog interaction inventory](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md) + the Round-2
+  real-surface matrix — **26 real dialog/alertdialog surfaces** under the seven-point contract
+  (27 `it()` cases including the non-dialog busy-overlay guard, 0 skipped). The a11y baselines are
+  now **empty and enforced, not merely shrink-only**: the **jsx-a11y baseline is 0 entries**
+  (rebuilt 146 → 0 at `36f579ad`, so the [deviation registry](./FRONTEND-ACCESSIBILITY-BASELINE-DEVIATIONS.md)
+  is 0 too), held by an **exact, fail-closed base-ref ratchet** (resolves `origin/main`-with-baseline
+  else the committed anchor `36f579ad`; unresolved → fails, never skips); and the **axe baseline is
+  empty and enforce-only / zero-tolerance** for the scanned routes (incl. `/ict-register/data-quality`,
+  `/?view=ict-committee`) with the capture path removed. Round 2 also fixed the department-row
+  id-scoping and archived-only refetch table bugs (`cb23cd63`).
 - **Human gates — PENDING.** The **manual / assistive-technology pass** (keyboard, focus order,
   screen reader, 200%/400% zoom with **C6** reproduced — accepted limitation, **not** marked green),
   the user-triggered **ultrareview** (`/code-review ultra`), and the **merge decision** remain open.
   No WCAG 2.2 AA conformance is claimed — AA stays a target (§2.1). Full record:
   [`FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md`](./FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md).
 - **Process note.** The original #55–#70 workstream bypassed the planned per-phase manual/AT gates
-  (CT-2) and per-phase ultrareviews and prematurely reported "done"; the corrective remediation
-  `0fe16977..669b9cc4` + this single final automated gate + the pending human pass are the
-  compensating control — they do **not** retroactively satisfy the missing per-phase gates.
+  (CT-2) and per-phase ultrareviews and prematurely reported "done"; the Round-1 corrective
+  remediation `0fe16977..669b9cc4`, the Round-2 hardening `669b9cc4..79ed8c56`, this single final
+  automated gate, and the pending human pass are the compensating control — they do **not**
+  retroactively satisfy the missing per-phase gates.
 
 ---
 

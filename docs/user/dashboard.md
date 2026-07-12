@@ -1,7 +1,7 @@
 ---
 title: Dashboard and Reporting Overview
 version: "2.5"
-last_updated: "2026-07-12"
+last_updated: "2026-07-13"
 audience: user
 source_of_truth: "frontend/src/pages/DashboardPage.tsx + dashboard widgets and report exports"
 summary: "How to use the Dashboard as an operational cockpit: filters, drill-downs, committee view, export discipline, and interpreting trend changes correctly."
@@ -85,13 +85,13 @@ The dashboard is view-addressable through the `?view=` query parameter, so a spe
 
 - `/` — the overview is the canonical default and carries no `?view=` parameter.
 - `/?view=risk-committee` — the Risk Committee view, shown only to users who hold committee access.
-- `/?view=ict-committee` — the ICT Risk Committee view, shown only to users who hold `ict_committee` read access.
+- `/?view=ict-committee` — the ICT Risk Committee view, shown only to users who have ICT Risk Committee access.
 
 Tab visibility is capability-dependent: each committee tab appears only when your role grants the matching read permission. If you open a committee link you are not authorized for — or a `?view=` value the page does not recognize — the dashboard normalizes the address back to the overview default, shows the overview, and does not load any committee data. The older `/ict-register/committee` address still works and redirects to `/?view=ict-committee`; there is no separate sidebar entry for the committee page.
 
 ## ICT Register evidence export
 
-The DORA ICT Register export itself lives on the Vendor Reports page. From the ICT Register readiness screens — the Data Quality page and the ICT Risk Committee view — a "Download DORA register" link appears only when you hold the register-download capability (`can_download_dora_register`). If you can read a readiness screen but cannot export the register, the link stays hidden so you never see an action you cannot use. Follow the link to reach the export, then set your filters before downloading, using the same export discipline described below.
+The DORA ICT Register export itself lives on the Vendor Reports page. From the ICT Register readiness screens — the Data Quality page and the ICT Risk Committee view — a "Download DORA register" link appears only when you have permission to download the DORA register. If you can read a readiness screen but cannot export the register, the link stays hidden so you never see an action you cannot use. Follow the link to reach the export, then set your filters before downloading, using the same export discipline described below.
 
 ## How To Complete Common Tasks
 
