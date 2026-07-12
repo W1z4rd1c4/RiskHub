@@ -3,6 +3,7 @@ import { AlertCircle } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 
 import { CollectionGroupDrillDown, Pagination, SortableTable, type Column, type SortDirection, type ViewMode } from '@/components/tables';
+import { TableErrorState } from '@/components/tables/tableError';
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
 import { buildRegisterTableModel } from '@/pages/shared/registerTablePresentation';
 import type { CollectionGroup } from '@/types/collection';
@@ -166,7 +167,54 @@ export function IssuesTableSection({
         rowKey: (issue) => issue.id,
     });
 
-    if (errorKey) {
+    const isError = errorKey !== null;
+    const resolvedErrorMessage = errorKey
+        ? errorKey.startsWith('errorKeys.')
+            ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+            : t(errorKey)
+        : undefined;
+
+    // Query-owning render: the shared table-error contract (#70) drives BOTH loading
+    // and error. A first-load error replaces the table; a refetch error while rows are
+    // held keeps the rows + a non-blocking banner (never blanks to a false empty state).
+    if (viewMode === 'all') {
+        const showPagination = tableModel.rows.length > 0 || (!isError && !isLoading);
+        return (
+            <>
+                <SortableTable
+                    data={tableModel.rows}
+                    columns={columns}
+                    keyExtractor={(issue) => issue.id}
+                    onRowClick={onRowClick}
+                    rowHref={(issue) => `/issues/${issue.id}`}
+                    rowLabel={(issue) => issue.title}
+                    emptyMessage={tableModel.emptyText}
+                    sortKey={sortField}
+                    sortDirection={sortDirection}
+                    onSort={(key, direction) =>
+                        onSortChange((direction ? key : null) as IssueListFilters['sort_by'] | null, direction)
+                    }
+                    isLoading={isLoading}
+                    isError={isError}
+                    onRetry={onRetry}
+                    errorMessage={resolvedErrorMessage}
+                />
+                {showPagination && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalCount}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={onPageChange}
+                    />
+                )}
+            </>
+        );
+    }
+
+    // Grouped/drill-down parent guard — the single async-state owner for the grouped
+    // surface (the drill-down sub-tables never re-surface the error, so no double banner).
+    if (isError && groups.length === 0) {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                 <AlertCircle className="h-12 w-12 text-rose-500" />
@@ -236,35 +284,7 @@ export function IssuesTableSection({
         );
     }
 
-    if (viewMode === 'all') {
-        return (
-            <>
-                <SortableTable
-                    data={tableModel.rows}
-                    columns={columns}
-                    keyExtractor={(issue) => issue.id}
-                    onRowClick={onRowClick}
-                    rowHref={(issue) => `/issues/${issue.id}`}
-                    rowLabel={(issue) => issue.title}
-                    emptyMessage={tableModel.emptyText}
-                    sortKey={sortField}
-                    sortDirection={sortDirection}
-                    onSort={(key, direction) =>
-                        onSortChange((direction ? key : null) as IssueListFilters['sort_by'] | null, direction)
-                    }
-                />
-                <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    totalItems={totalCount}
-                    itemsPerPage={itemsPerPage}
-                    onPageChange={onPageChange}
-                />
-            </>
-        );
-    }
-
-    return (
+    const grouped = (
         <CollectionGroupDrillDown
             groups={groups}
             selectedGroupValue={selectedGroupValue}
@@ -292,5 +312,16 @@ export function IssuesTableSection({
                 />
             )}
         />
+    );
+
+    return (
+        <>
+            {isError && (
+                <div className="mb-4">
+                    <TableErrorState variant="banner" onRetry={onRetry} message={resolvedErrorMessage} />
+                </div>
+            )}
+            {grouped}
+        </>
     );
 }

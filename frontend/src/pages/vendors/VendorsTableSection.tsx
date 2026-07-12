@@ -9,6 +9,7 @@ import {
     type SortDirection,
     type ViewMode,
 } from '@/components/tables';
+import { TableErrorState } from '@/components/tables/tableError';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { buildRegisterTableModel } from '@/pages/shared/registerTablePresentation';
@@ -201,7 +202,50 @@ export function VendorsTableSection({
         rowKey: (vendor) => vendor.id,
     });
 
-    if (errorKey) {
+    const isError = errorKey !== null;
+    const resolvedErrorMessage = errorKey ? t(errorKey, { ns: 'errorKeys' }) : undefined;
+
+    // Query-owning render: the shared table-error contract (#70) drives BOTH loading
+    // and error. A first-load error replaces the table; a refetch error while rows are
+    // held keeps the rows + a non-blocking banner (never blanks to a false empty state).
+    if (viewMode === 'all') {
+        const showPagination = tableModel.rows.length > 0 || (!isError && !isLoading);
+        return (
+            <>
+                <SortableTable
+                    data={tableModel.rows}
+                    columns={columns}
+                    keyExtractor={(vendor) => vendor.id}
+                    onRowClick={onRowClick}
+                    rowHref={(vendor) => `/vendors/${vendor.id}`}
+                    rowLabel={(vendor) => vendor.name}
+                    emptyMessage={tableModel.emptyText}
+                    onSort={(key, direction) =>
+                        onSortChange((direction ? key : null) as VendorListParams['sort_by'] | null, direction)
+                    }
+                    sortKey={sortField}
+                    sortDirection={sortDirection}
+                    isLoading={isLoading}
+                    isError={isError}
+                    onRetry={onRetry}
+                    errorMessage={resolvedErrorMessage}
+                />
+                {showPagination && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalCount}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={onPageChange}
+                    />
+                )}
+            </>
+        );
+    }
+
+    // Grouped/drill-down parent guard — the single async-state owner for the grouped
+    // surface (the drill-down sub-tables never re-surface the error, so no double banner).
+    if (isError && groups.length === 0) {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                 <AlertCircle className="h-12 w-12 text-rose-500" />
@@ -264,35 +308,7 @@ export function VendorsTableSection({
         );
     }
 
-    if (viewMode === 'all') {
-        return (
-            <>
-                <SortableTable
-                    data={tableModel.rows}
-                    columns={columns}
-                    keyExtractor={(vendor) => vendor.id}
-                    onRowClick={onRowClick}
-                    rowHref={(vendor) => `/vendors/${vendor.id}`}
-                    rowLabel={(vendor) => vendor.name}
-                    emptyMessage={tableModel.emptyText}
-                    onSort={(key, direction) =>
-                        onSortChange((direction ? key : null) as VendorListParams['sort_by'] | null, direction)
-                    }
-                    sortKey={sortField}
-                    sortDirection={sortDirection}
-                />
-                <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    totalItems={totalCount}
-                    itemsPerPage={itemsPerPage}
-                    onPageChange={onPageChange}
-                />
-            </>
-        );
-    }
-
-    return (
+    const grouped = (
         <CollectionGroupDrillDown
             groups={groups}
             selectedGroupValue={selectedGroupValue}
@@ -321,5 +337,16 @@ export function VendorsTableSection({
                 />
             )}
         />
+    );
+
+    return (
+        <>
+            {isError && (
+                <div className="mb-4">
+                    <TableErrorState variant="banner" onRetry={onRetry} message={resolvedErrorMessage} />
+                </div>
+            )}
+            {grouped}
+        </>
     );
 }

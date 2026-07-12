@@ -573,8 +573,10 @@ describe('KRIsPage monitoring status filters', () => {
 
         await screen.findByText('Server error. Please try again later.');
 
-        expect(screen.getByText('Error Loading KRIs')).toBeInTheDocument();
-        expect(screen.getByText('Try Again')).toBeInTheDocument();
+        // Slice B (N17): the query-owning render now defers to the shared table-error
+        // contract (#70) — the localized message + a "Retry" affordance replace the table
+        // (in place of the former bespoke "Error Loading KRIs" / "Try Again" card).
+        expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
         expect(screen.queryByText('errorKeys.server')).not.toBeInTheDocument();
     });
 

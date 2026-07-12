@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Pagination, SortableTable } from '@/components/tables';
 import { formatDateValue } from '@/i18n/formatters';
 import { useTranslation } from '@/i18n/hooks';
-import { DEPARTMENT_PAGE_SIZE, type DeptUser, type TabView } from '@/hooks/useDepartmentDetail';
+import { DEPARTMENT_PAGE_SIZE, type DeptUser, type TabFetchState, type TabView } from '@/hooks/useDepartmentDetail';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
 import type { ControlSummary } from '@/types/control';
@@ -43,6 +43,11 @@ interface DepartmentTabContentProps {
     users: DeptUser[];
     userPage: number;
     userTotalPages: number;
+    risksState: TabFetchState;
+    controlsState: TabFetchState;
+    krisState: TabFetchState;
+    usersState: TabFetchState;
+    onRetry: () => void;
 }
 
 function KriFilterBar({
@@ -159,6 +164,11 @@ export function DepartmentTabContent(props: DepartmentTabContentProps) {
         users,
         userPage,
         userTotalPages,
+        risksState,
+        controlsState,
+        krisState,
+        usersState,
+        onRetry,
     } = props;
 
     if (activeTab === 'risks') {
@@ -174,6 +184,10 @@ export function DepartmentTabContent(props: DepartmentTabContentProps) {
                     emptyMessage={
                         riskFilter === 'high' ? t('common:empty.no_high_risk_items') : t('common:empty.no_risks_found')
                     }
+                    isLoading={risksState.isLoading}
+                    isError={risksState.errorKey !== null}
+                    onRetry={onRetry}
+                    errorMessage={risksState.errorKey ? t(risksState.errorKey) : undefined}
                 />
                 {riskTotalPages > 1 && (
                     <Pagination
@@ -199,6 +213,10 @@ export function DepartmentTabContent(props: DepartmentTabContentProps) {
                     rowHref={(control) => `/controls/${control.id}`}
                     rowLabel={(control) => control.name}
                     emptyMessage={t('common:empty.no_controls_department')}
+                    isLoading={controlsState.isLoading}
+                    isError={controlsState.errorKey !== null}
+                    onRetry={onRetry}
+                    errorMessage={controlsState.errorKey ? t(controlsState.errorKey) : undefined}
                 />
                 {controlTotalPages > 1 && (
                     <Pagination
@@ -229,6 +247,10 @@ export function DepartmentTabContent(props: DepartmentTabContentProps) {
                             ? t('common:empty.no_kris_breach')
                             : t('common:empty.no_kris_department')
                     }
+                    isLoading={krisState.isLoading}
+                    isError={krisState.errorKey !== null}
+                    onRetry={onRetry}
+                    errorMessage={krisState.errorKey ? t(krisState.errorKey) : undefined}
                 />
                 {kriTotalPages > 1 && (
                     <Pagination
@@ -251,6 +273,10 @@ export function DepartmentTabContent(props: DepartmentTabContentProps) {
                     columns={getUserColumns(t)}
                     keyExtractor={(user) => user.id}
                     emptyMessage={t('common:empty.no_users_department')}
+                    isLoading={usersState.isLoading}
+                    isError={usersState.errorKey !== null}
+                    onRetry={onRetry}
+                    errorMessage={usersState.errorKey ? t(usersState.errorKey) : undefined}
                 />
                 {userTotalPages > 1 && (
                     <Pagination

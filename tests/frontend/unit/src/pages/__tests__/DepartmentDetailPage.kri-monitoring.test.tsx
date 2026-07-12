@@ -120,6 +120,10 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
             controlTotalPages: 1,
             kriTotalPages: 1,
             userTotalPages: 1,
+            risksState: { isLoading: false, errorKey: null },
+            controlsState: { isLoading: false, errorKey: null },
+            krisState: { isLoading: false, errorKey: null },
+            usersState: { isLoading: false, errorKey: null },
             getRiskCount: () => 3,
             refresh: vi.fn(),
         }));
@@ -196,6 +200,10 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
             controlTotalPages: 1,
             kriTotalPages: 1,
             userTotalPages: 1,
+            risksState: { isLoading: false, errorKey: null },
+            controlsState: { isLoading: false, errorKey: null },
+            krisState: { isLoading: false, errorKey: null },
+            usersState: { isLoading: false, errorKey: null },
             getRiskCount: () => 0,
             refresh: vi.fn(),
         }));

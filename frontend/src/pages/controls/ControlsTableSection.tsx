@@ -8,6 +8,7 @@ import {
     type Column,
     type ViewMode,
 } from '@/components/tables';
+import { TableErrorState } from '@/components/tables/tableError';
 import { useTranslation } from '@/i18n/hooks';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -201,7 +202,45 @@ export function ControlsTableSection({
         rowKey: (control) => control.id,
     });
 
-    if (errorKey) {
+    const isError = errorKey !== null;
+    const resolvedErrorMessage = errorKey ? t(errorKey) : undefined;
+
+    // Query-owning render: the shared table-error contract (#70) drives BOTH loading
+    // and error. A first-load error replaces the table; a refetch error while rows are
+    // held keeps the rows + a non-blocking banner (never blanks to a false empty state).
+    if (viewMode === 'all') {
+        const showPagination = tableModel.rows.length > 0 || (!isError && !isLoading);
+        return (
+            <>
+                <SortableTable
+                    data={tableModel.rows}
+                    columns={columns}
+                    keyExtractor={(control) => control.id}
+                    onRowClick={onRowClick}
+                    rowHref={(control) => `/controls/${control.id}`}
+                    rowLabel={(control) => control.name}
+                    emptyMessage={tableModel.emptyText}
+                    isLoading={isLoading}
+                    isError={isError}
+                    onRetry={onRetry}
+                    errorMessage={resolvedErrorMessage}
+                />
+                {showPagination && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalCount}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={onPageChange}
+                    />
+                )}
+            </>
+        );
+    }
+
+    // Grouped/drill-down parent guard — the single async-state owner for the grouped
+    // surface (the drill-down sub-tables never re-surface the error, so no double banner).
+    if (isError && groups.length === 0) {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                 <AlertCircle className="h-12 w-12 text-rose-500" />
@@ -264,30 +303,7 @@ export function ControlsTableSection({
         );
     }
 
-    if (viewMode === 'all') {
-        return (
-            <>
-                <SortableTable
-                    data={tableModel.rows}
-                    columns={columns}
-                    keyExtractor={(control) => control.id}
-                    onRowClick={onRowClick}
-                    rowHref={(control) => `/controls/${control.id}`}
-                    rowLabel={(control) => control.name}
-                    emptyMessage={tableModel.emptyText}
-                />
-                <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    totalItems={totalCount}
-                    itemsPerPage={itemsPerPage}
-                    onPageChange={onPageChange}
-                />
-            </>
-        );
-    }
-
-    return (
+    const grouped = (
         <CollectionGroupDrillDown
             groups={groups}
             selectedGroupValue={selectedGroupValue}
@@ -360,5 +376,16 @@ export function ControlsTableSection({
                 />
             )}
         />
+    );
+
+    return (
+        <>
+            {isError && (
+                <div className="mb-4">
+                    <TableErrorState variant="banner" onRetry={onRetry} message={resolvedErrorMessage} />
+                </div>
+            )}
+            {grouped}
+        </>
     );
 }

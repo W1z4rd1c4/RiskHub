@@ -57,6 +57,10 @@ export function DepartmentDetailPage() {
         controlTotalPages,
         kriTotalPages,
         userTotalPages,
+        risksState,
+        controlsState,
+        krisState,
+        usersState,
         getRiskCount,
         refresh,
     } = useDepartmentDetail({
@@ -179,6 +183,11 @@ export function DepartmentDetailPage() {
                 users={users}
                 userPage={userPage}
                 userTotalPages={userTotalPages}
+                risksState={risksState}
+                controlsState={controlsState}
+                krisState={krisState}
+                usersState={usersState}
+                onRetry={refresh}
             />
         </div>
     );

@@ -8,6 +8,7 @@ import {
     type SortDirection,
     type ViewMode,
 } from '@/components/tables';
+import { TableErrorState } from '@/components/tables/tableError';
 import { useTranslation } from '@/i18n/hooks';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 import { useRiskThresholds, useRiskTypes } from '@/hooks/useRiskHubConfig';
@@ -113,7 +114,48 @@ export function RisksTableSection({
         rowKey: (risk) => risk.id,
     });
 
-    if (errorKey) {
+    const isError = errorKey !== null;
+    const resolvedErrorMessage = errorKey ? t(errorKey) : undefined;
+
+    // Query-owning render: the shared table-error contract (#70) drives BOTH loading
+    // and error. A first-load error replaces the table; a refetch error while rows are
+    // held keeps the rows + a non-blocking banner (never blanks to a false empty state).
+    if (viewMode === 'all') {
+        const showPagination = tableModel.rows.length > 0 || (!isError && !isLoading);
+        return (
+            <>
+                <SortableTable
+                    data={tableModel.rows}
+                    columns={columns}
+                    keyExtractor={(risk) => risk.id}
+                    onRowClick={onRowClick}
+                    rowHref={(risk) => `/risks/${risk.id}`}
+                    rowLabel={(risk) => risk.name}
+                    emptyMessage={tableModel.emptyText}
+                    sortKey={sortField}
+                    sortDirection={sortDirection}
+                    onSort={(key, direction) => onSortChange(direction ? key : null, direction)}
+                    isLoading={isLoading}
+                    isError={isError}
+                    onRetry={onRetry}
+                    errorMessage={resolvedErrorMessage}
+                />
+                {showPagination && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalCount}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={onPageChange}
+                    />
+                )}
+            </>
+        );
+    }
+
+    // Grouped/drill-down parent guard — the single async-state owner for the grouped
+    // surface (the drill-down sub-tables never re-surface the error, so no double banner).
+    if (isError && groups.length === 0) {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                 <AlertCircle className="h-12 w-12 text-rose-500" />
@@ -179,58 +221,39 @@ export function RisksTableSection({
         );
     }
 
-    if (viewMode === 'all') {
-        return (
-            <>
-                <SortableTable
-                    data={tableModel.rows}
-                    columns={columns}
-                    keyExtractor={(risk) => risk.id}
-                    onRowClick={onRowClick}
-                    rowHref={(risk) => `/risks/${risk.id}`}
-                    rowLabel={(risk) => risk.name}
-                    emptyMessage={tableModel.emptyText}
-                    sortKey={sortField}
-                    sortDirection={sortDirection}
-                    onSort={(key, direction) => onSortChange(direction ? key : null, direction)}
-                />
-                <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    totalItems={totalCount}
-                    itemsPerPage={itemsPerPage}
-                    onPageChange={onPageChange}
-                />
-            </>
-        );
-    }
-
     return (
-        <CollectionGroupDrillDown
-            groups={groups}
-            selectedGroupValue={selectedGroupValue}
-            selectedGroupLabel={selectedGroupLabel}
-            items={items}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalCount={totalCount}
-            itemsPerPage={itemsPerPage}
-            onPageChange={onPageChange}
-            onBack={onBackFromGroup}
-            onSelectGroup={onSelectGroup}
-            groupLabel={groupLabel}
-            emptyMessage={tableModel.emptyText}
-            renderTable={(groupItems) => (
-                <SortableTable
-                    data={groupItems}
-                    columns={columns}
-                    keyExtractor={(risk) => risk.id}
-                    onRowClick={onRowClick}
-                    rowHref={(risk) => `/risks/${risk.id}`}
-                    rowLabel={(risk) => risk.name}
-                    emptyMessage={tableModel.emptyText}
-                />
+        <>
+            {isError && (
+                <div className="mb-4">
+                    <TableErrorState variant="banner" onRetry={onRetry} message={resolvedErrorMessage} />
+                </div>
             )}
-        />
+            <CollectionGroupDrillDown
+                groups={groups}
+                selectedGroupValue={selectedGroupValue}
+                selectedGroupLabel={selectedGroupLabel}
+                items={items}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalCount={totalCount}
+                itemsPerPage={itemsPerPage}
+                onPageChange={onPageChange}
+                onBack={onBackFromGroup}
+                onSelectGroup={onSelectGroup}
+                groupLabel={groupLabel}
+                emptyMessage={tableModel.emptyText}
+                renderTable={(groupItems) => (
+                    <SortableTable
+                        data={groupItems}
+                        columns={columns}
+                        keyExtractor={(risk) => risk.id}
+                        onRowClick={onRowClick}
+                        rowHref={(risk) => `/risks/${risk.id}`}
+                        rowLabel={(risk) => risk.name}
+                        emptyMessage={tableModel.emptyText}
+                    />
+                )}
+            />
+        </>
     );
 }

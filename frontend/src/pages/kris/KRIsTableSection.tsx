@@ -1,6 +1,7 @@
 import { ArrowLeft, Building2, ChevronRight, Shield, User } from 'lucide-react';
 
 import { Pagination, SortableTable, type Column, type ViewMode } from '@/components/tables';
+import { TableErrorState } from '@/components/tables/tableError';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
@@ -163,7 +164,50 @@ export function KRIsTableSection({
         rowKey: (kri) => kri.id,
     });
 
-    if (errorKey) {
+    const isError = errorKey !== null;
+    const resolvedErrorMessage = errorKey
+        ? errorKey.startsWith('errorKeys.')
+            ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+            : t(errorKey)
+        : undefined;
+
+    // Query-owning render: the shared table-error contract (#70) drives BOTH loading
+    // and error. A first-load error replaces the table; a refetch error while rows are
+    // held keeps the rows + a non-blocking banner (never blanks to a false empty state).
+    if (viewMode === 'all') {
+        const showPagination = tableModel.rows.length > 0 || (!isError && !isLoading);
+        return (
+            <>
+                <SortableTable
+                    data={tableModel.rows}
+                    columns={columns}
+                    keyExtractor={(kri) => kri.id}
+                    onRowClick={onRowClick}
+                    rowHref={(kri) => `/kris/${kri.id}`}
+                    rowLabel={(kri) => kri.metric_name}
+                    emptyMessage={tableModel.emptyText}
+                    isLoading={isLoading}
+                    isError={isError}
+                    onRetry={onRetry}
+                    errorMessage={resolvedErrorMessage}
+                />
+                {showPagination && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalCount}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={onPageChange}
+                    />
+                )}
+            </>
+        );
+    }
+
+    // Grouped/drill-down parent guard — the single async-state owner for the grouped
+    // surface. The drill-down sub-table below never re-surfaces the error (no double
+    // banner); a stale refetch keeps the group cards / drill-down rows + one banner.
+    if (isError && groups.length === 0) {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                 <p className="text-white font-bold text-xl">{t('errors.title')}</p>
@@ -208,28 +252,11 @@ export function KRIsTableSection({
         );
     }
 
-    if (viewMode === 'all') {
-        return (
-            <>
-                <SortableTable
-                    data={tableModel.rows}
-                    columns={columns}
-                    keyExtractor={(kri) => kri.id}
-                    onRowClick={onRowClick}
-                    rowHref={(kri) => `/kris/${kri.id}`}
-                    rowLabel={(kri) => kri.metric_name}
-                    emptyMessage={tableModel.emptyText}
-                />
-                <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    totalItems={totalCount}
-                    itemsPerPage={itemsPerPage}
-                    onPageChange={onPageChange}
-                />
-            </>
-        );
-    }
+    const groupedBanner = isError ? (
+        <div className="mb-4">
+            <TableErrorState variant="banner" onRetry={onRetry} message={resolvedErrorMessage} />
+        </div>
+    ) : null;
 
     if (selectedGroupValue) {
         const selectedGroup = tableModel.groupCards.find((group) => group.value === selectedGroupValue);
@@ -237,6 +264,7 @@ export function KRIsTableSection({
             selectedGroupLabel || selectedGroup?.label || t('empty.unknown_group', { ns: 'common' });
         return (
             <div className="space-y-4">
+                {groupedBanner}
                 <div className="flex items-center gap-4">
                     <button
                         onClick={onBackFromGroup}
@@ -277,7 +305,7 @@ export function KRIsTableSection({
         );
     }
 
-    return (
+    const groupCardsGrid = (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {tableModel.groupCards.map((card) => {
                 const group = card.group;
@@ -329,5 +357,12 @@ export function KRIsTableSection({
                 );
             })}
         </div>
+    );
+
+    return (
+        <>
+            {groupedBanner}
+            {groupCardsGrid}
+        </>
     );
 }

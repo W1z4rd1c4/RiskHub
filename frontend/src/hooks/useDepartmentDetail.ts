@@ -22,6 +22,21 @@ export interface DeptUser {
 
 export type TabView = 'risks' | 'controls' | 'kris' | 'activity' | 'users';
 
+/**
+ * Per-tab async fetch state. `errorKey` is a localized-message key (resolved by the
+ * consumer) so a failed tab fetch is distinguishable from an empty result (C4).
+ */
+export interface TabFetchState {
+    isLoading: boolean;
+    errorKey: string | null;
+}
+
+const INITIAL_TAB_STATE: TabFetchState = { isLoading: false, errorKey: null };
+
+// Shared table-error message key (N17 contract). Reused for every tab fetch so a
+// failed load surfaces the same localized "couldn't load, retry" affordance.
+const TAB_ERROR_KEY = 'tables.error.message';
+
 interface UseDepartmentDetailParams {
     departmentId: number | undefined;
     activeTab: TabView;
@@ -51,6 +66,13 @@ interface UseDepartmentDetailResult {
     controlTotalPages: number;
     kriTotalPages: number;
     userTotalPages: number;
+
+    // Per-tab async fetch state (loading + localized errorKey) so a failed tab
+    // fetch renders an error + retry surface instead of a false empty state (C4).
+    risksState: TabFetchState;
+    controlsState: TabFetchState;
+    krisState: TabFetchState;
+    usersState: TabFetchState;
 
     // Risk count helper
     getRiskCount: () => number;
@@ -88,6 +110,13 @@ export function useDepartmentDetail({
     const [kris, setKris] = useState<KeyRiskIndicator[]>([]);
     const [users, setUsers] = useState<DeptUser[]>([]);
     const [kriTotalCount, setKriTotalCount] = useState(0);
+
+    // Per-tab async fetch state. Loading is set before each fetch; errorKey is
+    // recorded on failure (last-good rows preserved) and cleared on retry.
+    const [risksState, setRisksState] = useState<TabFetchState>(INITIAL_TAB_STATE);
+    const [controlsState, setControlsState] = useState<TabFetchState>(INITIAL_TAB_STATE);
+    const [krisState, setKrisState] = useState<TabFetchState>(INITIAL_TAB_STATE);
+    const [usersState, setUsersState] = useState<TabFetchState>(INITIAL_TAB_STATE);
 
     // Fetch department metadata once on id change
     useEffect(() => {
@@ -132,6 +161,7 @@ export function useDepartmentDetail({
         if (riskFilter === 'high') {
             params.min_net_score = thresholds.high;
         }
+        setRisksState({ isLoading: true, errorKey: null });
         departmentApi.getDepartmentRisks(departmentId, params)
             .then((data) => {
                 if (!cancelled) {
@@ -139,7 +169,15 @@ export function useDepartmentDetail({
                 }
             })
             .catch((error: unknown) => {
-                logError('Failed to load department risks.', error);
+                if (!cancelled) {
+                    logError('Failed to load department risks.', error);
+                    setRisksState((state) => ({ ...state, errorKey: TAB_ERROR_KEY }));
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setRisksState((state) => ({ ...state, isLoading: false }));
+                }
             });
         return () => {
             cancelled = true;
@@ -151,6 +189,7 @@ export function useDepartmentDetail({
         if (!departmentId || activeTab !== 'controls') return;
         let cancelled = false;
         const skip = (controlPage - 1) * DEPARTMENT_PAGE_SIZE;
+        setControlsState({ isLoading: true, errorKey: null });
         departmentApi.getDepartmentControls(departmentId, { skip, limit: DEPARTMENT_PAGE_SIZE })
             .then((data) => {
                 if (!cancelled) {
@@ -158,7 +197,15 @@ export function useDepartmentDetail({
                 }
             })
             .catch((error: unknown) => {
-                logError('Failed to load department controls.', error);
+                if (!cancelled) {
+                    logError('Failed to load department controls.', error);
+                    setControlsState((state) => ({ ...state, errorKey: TAB_ERROR_KEY }));
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setControlsState((state) => ({ ...state, isLoading: false }));
+                }
             });
         return () => {
             cancelled = true;
@@ -170,6 +217,7 @@ export function useDepartmentDetail({
         if (!departmentId || activeTab !== 'kris') return;
         let cancelled = false;
         const skip = (kriPage - 1) * DEPARTMENT_PAGE_SIZE;
+        setKrisState({ isLoading: true, errorKey: null });
         departmentApi.getDepartmentKRIs(departmentId, {
             skip,
             limit: DEPARTMENT_PAGE_SIZE,
@@ -182,7 +230,15 @@ export function useDepartmentDetail({
                 }
             })
             .catch((error: unknown) => {
-                logError('Failed to load department KRIs.', error);
+                if (!cancelled) {
+                    logError('Failed to load department KRIs.', error);
+                    setKrisState((state) => ({ ...state, errorKey: TAB_ERROR_KEY }));
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setKrisState((state) => ({ ...state, isLoading: false }));
+                }
             });
         return () => {
             cancelled = true;
@@ -194,6 +250,7 @@ export function useDepartmentDetail({
         if (!departmentId || activeTab !== 'users') return;
         let cancelled = false;
         const skip = (userPage - 1) * DEPARTMENT_PAGE_SIZE;
+        setUsersState({ isLoading: true, errorKey: null });
         userApi.listVisibleUsers({ department_id: departmentId, skip, limit: DEPARTMENT_PAGE_SIZE })
             .then((data) => {
                 if (!cancelled) {
@@ -201,7 +258,15 @@ export function useDepartmentDetail({
                 }
             })
             .catch((error: unknown) => {
-                logError('Failed to load department users.', error);
+                if (!cancelled) {
+                    logError('Failed to load department users.', error);
+                    setUsersState((state) => ({ ...state, errorKey: TAB_ERROR_KEY }));
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setUsersState((state) => ({ ...state, isLoading: false }));
+                }
             });
         return () => {
             cancelled = true;
@@ -242,6 +307,10 @@ export function useDepartmentDetail({
         controlTotalPages,
         kriTotalPages,
         userTotalPages,
+        risksState,
+        controlsState,
+        krisState,
+        usersState,
         getRiskCount,
         refresh,
     };
