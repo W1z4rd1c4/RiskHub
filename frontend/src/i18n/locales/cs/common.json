@@ -54,6 +54,9 @@
     "actions": {
       "submit": "Exportovat",
       "cancel": "Zrušit"
+    },
+    "dora_register": {
+      "link": "Stáhnout registr DORA"
     }
   },
   "labels": {
@@ -145,7 +148,8 @@
     "to": "až",
     "entries": "záznamů",
     "per_page": "na stránku",
-    "showing_range": "Zobrazeno {{start}} až {{end}} z {{total}} záznamů"
+    "showing_range": "Zobrazeno {{start}} až {{end}} z {{total}} záznamů",
+    "go_to_page": "Přejít na stránku {{page}}"
   },
   "date": {
     "today": "Dnes",

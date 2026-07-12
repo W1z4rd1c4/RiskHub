@@ -591,4 +591,17 @@ export const handlers = [
             value_type: config.value_type,
         });
     }),
+
+    // Vendor reports — the readiness-screen export link (FR-P5-8) probes this
+    // endpoint for `can_download_dora_register`. Deny by default so screens that
+    // don't opt into the capability render no link; tests that exercise the link
+    // mock `@/services/vendorReportApi` directly to control allowed vs denied.
+    http.get('*/api/v1/vendor-reports/capabilities', () => {
+        return HttpResponse.json({
+            can_read: false,
+            can_download_annual_report: false,
+            can_download_dora_register: false,
+            can_use_department_filter: false,
+        });
+    }),
 ];

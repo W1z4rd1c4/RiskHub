@@ -102,6 +102,7 @@ export function buildAssetColumns({
                                 data-testid={`asset-restore-${asset.id}`}
                                 onClick={(event) => void onRestore(asset.id, event)}
                                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                                aria-label={t('assets:actions.restore')}
                                 title={t('assets:actions.restore')}
                             >
                                 <ArchiveRestore className="h-4 w-4" />

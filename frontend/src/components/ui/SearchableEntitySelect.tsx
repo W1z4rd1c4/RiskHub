@@ -41,6 +41,7 @@ export function SearchableEntitySelect({
                     value={searchValue}
                     onChange={(event) => onSearchChange(event.target.value)}
                     placeholder={searchPlaceholder ?? t('filters.search_items')}
+                    aria-label={searchPlaceholder ?? t('filters.search_items')}
                     data-testid={triggerTestId ? `${triggerTestId}-search` : undefined}
                     className="w-full glass rounded-lg pl-8 pr-3 py-1.5 text-sm text-white placeholder:text-slate-500 bg-white/5 border border-white/10 focus:outline-none focus:border-accent/50"
                 />

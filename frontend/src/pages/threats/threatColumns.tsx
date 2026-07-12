@@ -92,6 +92,7 @@ export function buildThreatColumns({
                                 data-testid={`threat-restore-${threat.id}`}
                                 onClick={(event) => void onRestore(threat.id, event)}
                                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                                aria-label={t('threats:actions.restore')}
                                 title={t('threats:actions.restore')}
                             >
                                 <ArchiveRestore className="h-4 w-4" />

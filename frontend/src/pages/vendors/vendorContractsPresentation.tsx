@@ -215,6 +215,7 @@ export function buildVendorContractColumns({
                             data-testid={`vendor-contract-edit-${contract.id}`}
                             onClick={(event) => onEdit(contract, event)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            aria-label={t('vendors:contracts.actions.edit')}
                             title={t('vendors:contracts.actions.edit')}
                         >
                             <Pencil className="h-4 w-4" />
@@ -226,6 +227,7 @@ export function buildVendorContractColumns({
                             data-testid={`vendor-contract-archive-${contract.id}`}
                             onClick={(event) => void onArchive(contract, event)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                            aria-label={t('vendors:contracts.actions.archive')}
                             title={t('vendors:contracts.actions.archive')}
                         >
                             <Trash2 className="h-4 w-4" />
@@ -237,6 +239,7 @@ export function buildVendorContractColumns({
                             data-testid={`vendor-contract-restore-${contract.id}`}
                             onClick={(event) => void onRestore(contract, event)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            aria-label={t('vendors:contracts.actions.restore')}
                             title={t('vendors:contracts.actions.restore')}
                         >
                             <ArchiveRestore className="h-4 w-4" />

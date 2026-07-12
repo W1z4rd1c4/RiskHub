@@ -54,6 +54,9 @@
     "actions": {
       "submit": "Export",
       "cancel": "Cancel"
+    },
+    "dora_register": {
+      "link": "Download DORA register"
     }
   },
   "labels": {
@@ -145,7 +148,8 @@
     "to": "to",
     "entries": "entries",
     "per_page": "per page",
-    "showing_range": "Showing {{start}} to {{end}} of {{total}} entries"
+    "showing_range": "Showing {{start}} to {{end}} of {{total}} entries",
+    "go_to_page": "Go to page {{page}}"
   },
   "date": {
     "today": "Today",

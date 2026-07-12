@@ -45,6 +45,7 @@ import {
     topVendorPath,
 } from '@/pages/ictRegisterCommittee/committeePresentation';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
+import { RegisterExportLink } from '@/components/ict-register/RegisterExportLink';
 
 // 16_Dashboard §1.1 tile order (inventory rows 7-16).
 const STATE_TILE_KEYS: (keyof IctCommitteeRegisterState)[] = [
@@ -573,15 +574,20 @@ export function IctCommitteeSection() {
                     <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
                     <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => void fetchCommittee()}
-                    data-testid="committee-refresh-button"
-                    className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 font-bold hover:bg-white/10 transition-all flex items-center gap-2"
-                >
-                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    {t('actions.refresh')}
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* FR-P5-8 (S2 / N21): discoverability link to the register export,
+                        gated on the separate can_download_dora_register capability. */}
+                    <RegisterExportLink />
+                    <button
+                        type="button"
+                        onClick={() => void fetchCommittee()}
+                        data-testid="committee-refresh-button"
+                        className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 font-bold hover:bg-white/10 transition-all flex items-center gap-2"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                        {t('actions.refresh')}
+                    </button>
+                </div>
             </div>
 
             {/* Refetch failed while last-good tiles are shown → non-blocking banner

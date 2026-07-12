@@ -116,6 +116,7 @@ export function buildProcessColumns({
                                 data-testid={`process-restore-${process.id}`}
                                 onClick={(event) => void onRestore(process.id, event)}
                                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                                aria-label={t('processes:actions.restore')}
                                 title={t('processes:actions.restore')}
                             >
                                 <ArchiveRestore className="h-4 w-4" />
