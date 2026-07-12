@@ -25,6 +25,9 @@ behind it.
   audit findings ledger (finding IDs, severities, `file:line`, target phases).
 - [`FRONTEND-UX-REMEDIATION-CAPTURE.md`](./FRONTEND-UX-REMEDIATION-CAPTURE.md): grill-with-docs
   capture of the frontend design/UX remediation plan (15 locked decisions, phased execution).
+- [`FRONTEND-UX-REMEDIATION-SPEC.md`](./FRONTEND-UX-REMEDIATION-SPEC.md): implementation- and
+  ticket-ready specification formalizing the capture + ADRs (normative constraints, per-phase
+  requirements with `FR-*` IDs, findings traceability, phase-dependency DAG for ticketing).
 - [`UX-REMEDIATION-VERIFICATION-2026-07-11.md`](./UX-REMEDIATION-VERIFICATION-2026-07-11.md):
   Verification of a code review of the remediation docs against source and W3C primary sources.
 
