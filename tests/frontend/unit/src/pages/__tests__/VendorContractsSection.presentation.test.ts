@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { getVendorDetailScrollTargetId } from '@/pages/vendors/vendorDetailPresentation';
@@ -162,9 +162,61 @@ describe('Vendor contracts section presentation helpers', () => {
         render(costColumn?.render?.(sampleContract(), 0) as ReactElement);
         expect(screen.getByText(/CZK/)).toBeInTheDocument();
 
+        // S9 (FR-P5-4): the term renders locale-formatted dates, never the raw ISO.
         const termColumn = columns.find((column) => column.key === 'term');
         render(termColumn?.render?.(sampleContract(), 0) as ReactElement);
-        expect(screen.getByText(/2020-01-01/)).toBeInTheDocument();
+        expect(screen.getByText(/Jan 1, 2020/)).toBeInTheDocument();
+        expect(screen.queryByText(/2020-01-01/)).not.toBeInTheDocument();
+    });
+
+    it('formats the term via the active locale and right-aligns tabular currency (S9 / FR-P5-4)', () => {
+        const enColumns = buildVendorContractColumns({
+            t: (key: string) => key,
+            locale: 'en',
+            onEdit: () => undefined,
+            onArchive: () => undefined,
+            onRestore: () => undefined,
+        });
+        const termColumn = enColumns.find((column) => column.key === 'term');
+        // Scope each render to its own container — multiple renders share one
+        // jsdom body, so a global query would see an earlier locale's output.
+        const { container: enTerm } = render(
+            termColumn?.render?.(sampleContract(), 0) as ReactElement,
+        );
+        expect(within(enTerm).getByText(/Jan 1, 2020/)).toBeInTheDocument();
+
+        // A different locale reformats the same ISO input (proves locale is wired).
+        const csColumns = buildVendorContractColumns({
+            t: (key: string) => key,
+            locale: 'cs',
+            onEdit: () => undefined,
+            onArchive: () => undefined,
+            onRestore: () => undefined,
+        });
+        const csTerm = csColumns.find((column) => column.key === 'term');
+        const { container: csContainer } = render(
+            csTerm?.render?.(sampleContract(), 0) as ReactElement,
+        );
+        expect(within(csContainer).queryByText(/Jan 1, 2020/)).not.toBeInTheDocument();
+        expect(within(csContainer).getByText(/2020/)).toBeInTheDocument();
+
+        // A null date renders the em-dash, never an empty string.
+        const { container: emptyTerm } = render(
+            termColumn?.render?.(
+                sampleContract({ start_date: null, end_date: null }),
+                0,
+            ) as ReactElement,
+        );
+        expect(within(emptyTerm).getByText('— → —')).toBeInTheDocument();
+
+        // Currency column: right-aligned header + cell, tabular figures.
+        const costColumn = enColumns.find((column) => column.key === 'annual_cost');
+        expect(costColumn?.className).toContain('text-right');
+        expect(costColumn?.headerClassName).toContain('text-right');
+        const { container: costContainer } = render(
+            costColumn?.render?.(sampleContract(), 0) as ReactElement,
+        );
+        expect(within(costContainer).getByText(/CZK/).className).toContain('tabular-nums');
     });
 
     it('gates per-row actions on backend capabilities', () => {

@@ -8,7 +8,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { Threat, ThreatSortField } from '@/types/threat';
 
 import { buildThreatColumns } from './threats/threatColumns';
-import type { ThreatArchiveFilter } from './threats/threatsPagePresentation';
+import { threatsEmptyStateKey, type ThreatArchiveFilter } from './threats/threatsPagePresentation';
 import { useThreatsPageState } from './threats/useThreatsPageState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
@@ -122,7 +122,9 @@ export function ThreatsPage() {
                     isError={Boolean(errorKey)}
                     onRetry={() => void fetchThreats()}
                     errorMessage={errorKey ? t(errorKey) : undefined}
-                    emptyMessage={hasLoadedOnce ? t('empty.no_threats') : undefined}
+                    emptyMessage={
+                        hasLoadedOnce ? t(threatsEmptyStateKey(search.trim().length > 0)) : undefined
+                    }
                     sortKey={sortField}
                     sortDirection={sortDirection}
                     onSort={(key, direction) =>

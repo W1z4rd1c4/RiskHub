@@ -7,6 +7,7 @@ import {
     buildProcessListParams,
     buildProcessWritePayload,
     getProcessDisplayStatus,
+    processesEmptyStateKey,
 } from '@/pages/processes/processesPagePresentation';
 import type { Process, ProcessDerived } from '@/types/process';
 
@@ -188,6 +189,17 @@ describe('Processes page presentation helpers', () => {
         const mtpdColumn = columns.find((column) => column.key === 'mtpd_hours');
         render(mtpdColumn?.render?.(sampleProcess(), 0) as ReactElement);
         expect(screen.getByText('24')).toBeInTheDocument();
+
+        // P8 (FR-P5-4): the numeric MTPD column is right-aligned on both the
+        // header and the cell, and stays tabular so digits line up.
+        expect(mtpdColumn?.className).toContain('text-right');
+        expect(mtpdColumn?.headerClassName).toContain('text-right');
+        expect(screen.getByText('24').className).toContain('tabular-nums');
+    });
+
+    it('distinguishes an empty register from an unmatched search (FR-P5-5)', () => {
+        expect(processesEmptyStateKey(false)).toBe('empty.no_processes');
+        expect(processesEmptyStateKey(true)).toBe('empty.no_results');
     });
 
     it('renders the derived criticality class pill and CIF read-only', () => {

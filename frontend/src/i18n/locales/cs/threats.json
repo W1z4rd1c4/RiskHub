@@ -58,7 +58,8 @@
         }
     },
     "empty": {
-        "no_threats": "Nebyly nalezeny žádné hrozby."
+        "no_threats": "V registru zatím nejsou žádné hrozby.",
+        "no_results": "Vašemu hledání neodpovídají žádné hrozby."
     },
     "errors": {
         "not_found": "Hrozba nenalezena.",

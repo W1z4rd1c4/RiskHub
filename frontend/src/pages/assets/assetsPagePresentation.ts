@@ -7,6 +7,15 @@ export function getAssetDisplayStatus(asset: Pick<Asset, 'is_archived'>): AssetD
     return asset.is_archived ? 'archived' : 'active';
 }
 
+/**
+ * FR-P5-5 (S10): distinguish a genuinely empty register ("no data") from a
+ * search that matched nothing ("no search results"). Keyed on the live search
+ * box (not the status filter) so an unmatched query gets the "no results" copy.
+ */
+export function assetsEmptyStateKey(hasActiveSearch: boolean): string {
+    return hasActiveSearch ? 'empty.no_results' : 'empty.no_assets';
+}
+
 interface BuildAssetListParamsOptions {
     currentPage: number;
     debouncedSearch: string;

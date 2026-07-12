@@ -310,4 +310,137 @@ describe('IctRegisterDqPage', () => {
         expect(rows).toHaveTextContent('Unknown contract → ?');
         expect(rows).not.toHaveTextContent('{{unknown_contract}}');
     });
+
+    it('shows a positive all-clear when the register has checks but zero findings (S10)', async () => {
+        getDataQuality.mockResolvedValue({
+            checks: [sampleCheck(), sampleCheck({ check_id: 'DQ-02', title_cs: 'GAP: RTO > MTPD' })],
+            finding_count: 0,
+        });
+
+        const { IctRegisterDqPage } = await import('@/pages/IctRegisterDqPage');
+        render(
+            <MemoryRouter>
+                <IctRegisterDqPage />
+            </MemoryRouter>
+        );
+
+        const allClear = await screen.findByTestId('dq-all-clear');
+        expect(allClear).toHaveTextContent('All clear');
+        // The count feeds the copy; findings summary reads a genuine 0.
+        expect(allClear).toHaveTextContent('2');
+        expect(screen.getByTestId('dq-summary-findings')).toHaveTextContent('0');
+    });
+
+    it('hides the all-clear as soon as a finding exists', async () => {
+        getDataQuality.mockResolvedValue({
+            checks: [
+                sampleCheck(),
+                sampleCheck({
+                    check_id: 'DQ-16',
+                    status: DQ_STATUS_FINDING,
+                    count: 1,
+                    violating_rows: [
+                        {
+                            entity_type: 'vendor',
+                            entity_id: 3,
+                            label: 'BIZ DATA',
+                            route_entity_type: 'vendor',
+                            route_entity_id: 3,
+                        },
+                    ],
+                }),
+            ],
+            finding_count: 1,
+        });
+
+        const { IctRegisterDqPage } = await import('@/pages/IctRegisterDqPage');
+        render(
+            <MemoryRouter>
+                <IctRegisterDqPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('Process without an owner');
+        expect(screen.queryByTestId('dq-all-clear')).not.toBeInTheDocument();
+    });
+
+    it('notes "N of M shown" when the global count exceeds the RBAC-scoped rows (S12)', async () => {
+        getDataQuality.mockResolvedValue({
+            checks: [
+                sampleCheck({
+                    check_id: 'DQ-16',
+                    area: 'Dodavatelé',
+                    title_cs: 'Kritický/Významný dodavatel bez ID kódu',
+                    status: DQ_STATUS_FINDING,
+                    // Global count 5, but the API returned only the 2 rows this
+                    // user may see → the page must say "2 of 5", not read as a miss.
+                    count: 5,
+                    violating_rows: [
+                        {
+                            entity_type: 'vendor',
+                            entity_id: 3,
+                            label: 'BIZ DATA',
+                            route_entity_type: 'vendor',
+                            route_entity_id: 3,
+                        },
+                        {
+                            entity_type: 'vendor',
+                            entity_id: 4,
+                            label: 'Cloud s.r.o.',
+                            route_entity_type: 'vendor',
+                            route_entity_id: 4,
+                        },
+                    ],
+                }),
+            ],
+            finding_count: 1,
+        });
+
+        const { IctRegisterDqPage } = await import('@/pages/IctRegisterDqPage');
+        render(
+            <MemoryRouter>
+                <IctRegisterDqPage />
+            </MemoryRouter>
+        );
+
+        fireEvent.click(await screen.findByTestId('dq-check-DQ-16'));
+        const scoped = await screen.findByTestId('dq-rows-scoped-DQ-16');
+        expect(scoped).toHaveTextContent('2');
+        expect(scoped).toHaveTextContent('5');
+    });
+
+    it('omits the scoped note when every violating row is shown', async () => {
+        getDataQuality.mockResolvedValue({
+            checks: [
+                sampleCheck({
+                    check_id: 'DQ-16',
+                    status: DQ_STATUS_FINDING,
+                    count: 1,
+                    violating_rows: [
+                        {
+                            entity_type: 'vendor',
+                            entity_id: 3,
+                            label: 'BIZ DATA',
+                            route_entity_type: 'vendor',
+                            route_entity_id: 3,
+                        },
+                    ],
+                }),
+            ],
+            finding_count: 1,
+        });
+
+        const { IctRegisterDqPage } = await import('@/pages/IctRegisterDqPage');
+        render(
+            <MemoryRouter>
+                <IctRegisterDqPage />
+            </MemoryRouter>
+        );
+
+        fireEvent.click(await screen.findByTestId('dq-check-DQ-16'));
+        await waitFor(() => {
+            expect(screen.getByTestId('dq-rows-DQ-16')).toBeInTheDocument();
+        });
+        expect(screen.queryByTestId('dq-rows-scoped-DQ-16')).not.toBeInTheDocument();
+    });
 });

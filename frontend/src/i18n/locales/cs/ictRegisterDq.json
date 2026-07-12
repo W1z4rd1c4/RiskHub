@@ -48,6 +48,11 @@
         "process_vendor_link": "Vazba proces–dodavatel"
     },
     "empty": "Filtru neodpovídá žádná kontrola",
+    "all_clear": {
+        "title": "Vše v pořádku — žádné nálezy",
+        "body": "Všech {{count}} kontrol prošlo. V registru nejsou žádné porušující řádky."
+    },
+    "rows_scoped": "Zobrazeno {{shown}} z {{count}} řádků (omezeno dle vašeho přístupu).",
     "checks": {
         "DQ-01": "Proces bez vlastníka",
         "DQ-02": "GAP: RTO > MTPD",

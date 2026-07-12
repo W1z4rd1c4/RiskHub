@@ -82,7 +82,7 @@ function toNullableNumber(value: string): number | null {
 }
 
 export function VendorContractsSection({ vendorId, canManageContracts }: VendorContractsSectionProps) {
-    const { t } = useTranslation('vendors');
+    const { t, i18n } = useTranslation('vendors');
     const queryClient = useQueryClient();
 
     const [formOpen, setFormOpen] = useState(false);
@@ -195,6 +195,7 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
     // would only add an exhaustive-deps burden without a real stability win.
     const columns = buildVendorContractColumns({
         t: (key, options) => t(key, options),
+        locale: i18n.language,
         onEdit: openEditForm,
         onArchive: (contract) => archiveContract.mutate(contract),
         onRestore: (contract) => restoreContract.mutate(contract),
@@ -203,7 +204,8 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
     const contracts = useMemo(() => contractsQuery.data ?? [], [contractsQuery.data]);
     // FR-P4-6: archived contracts are demoted into a dimmed, visually separated
     // section (the VendorLinkedEntitiesTab convention) rather than interleaved
-    // with active rows. Formatting (dates/currency) stays out of scope (P5).
+    // with active rows. Formatting (locale-aware dates + right-aligned currency)
+    // is applied by the shared column builder (FR-P5-4).
     const activeContracts = useMemo(
         () => contracts.filter((contract) => !contract.is_archived),
         [contracts],

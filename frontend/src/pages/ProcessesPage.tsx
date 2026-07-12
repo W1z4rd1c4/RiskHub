@@ -8,7 +8,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { Process, ProcessSortField } from '@/types/process';
 
 import { buildProcessColumns } from './processes/processColumns';
-import type { ProcessArchiveFilter } from './processes/processesPagePresentation';
+import { processesEmptyStateKey, type ProcessArchiveFilter } from './processes/processesPagePresentation';
 import { useProcessesPageState } from './processes/useProcessesPageState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
@@ -122,7 +122,9 @@ export function ProcessesPage() {
                     isError={Boolean(errorKey)}
                     onRetry={() => void fetchProcesses()}
                     errorMessage={errorKey ? t(errorKey) : undefined}
-                    emptyMessage={hasLoadedOnce ? t('empty.no_processes') : undefined}
+                    emptyMessage={
+                        hasLoadedOnce ? t(processesEmptyStateKey(search.trim().length > 0)) : undefined
+                    }
                     sortKey={sortField}
                     sortDirection={sortDirection}
                     onSort={(key, direction) =>

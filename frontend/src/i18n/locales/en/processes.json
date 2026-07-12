@@ -113,7 +113,8 @@
         "archive_confirm": "Archive process \"{{processName}}\"? It stays in the register history and can be restored."
     },
     "empty": {
-        "no_processes": "No processes in the register yet."
+        "no_processes": "No processes in the register yet.",
+        "no_results": "No processes match your search."
     },
     "errors": {
         "not_found": "Process not found.",

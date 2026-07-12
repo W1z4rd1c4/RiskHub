@@ -76,6 +76,7 @@
         "heatmap_axis": "Gross probability ↓ / Gross impact → (the app plots the risk's gross block where the workbook derived a subject value)",
         "migration_title": "Migration matrix: gross band → net band (control effect)",
         "migration_axis": "Gross ↓ / Net →",
+        "heatmap_legend": "Risks per cell",
         "top_risks_title": "Top 10 risks by net risk",
         "top_vendors_title": "Concentration: top 5 vendors by CIF links (art. 29)",
         "narratives_title": "CIF coverage, BCM and management conclusions",

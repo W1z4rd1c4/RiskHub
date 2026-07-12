@@ -124,7 +124,8 @@
         "archive_confirm": "Archive asset \"{{assetName}}\"? It stays in the register history and can be restored."
     },
     "empty": {
-        "no_assets": "No assets in the register yet."
+        "no_assets": "No assets in the register yet.",
+        "no_results": "No assets match your search."
     },
     "errors": {
         "not_found": "Asset not found.",

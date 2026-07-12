@@ -79,11 +79,24 @@ function SeverityChip({ severity }: { severity: string }) {
 
 function ViolatingRows({ check }: { check: IctDqCheck }) {
     const { t } = useTranslation('ictRegisterDq');
+    // S12 (FR-P5-5): the count badge is the global total, but `violating_rows`
+    // may be RBAC-scoped to fewer rows — say "N of M shown" so the shorter list
+    // never reads as a mismatch with the count.
+    const shown = check.violating_rows.length;
+    const isScoped = shown < check.count;
     return (
         <div
             data-testid={`dq-rows-${check.check_id}`}
             className="mt-3 border-t border-white/10 pt-3 space-y-1.5"
         >
+            {isScoped ? (
+                <p
+                    data-testid={`dq-rows-scoped-${check.check_id}`}
+                    className="text-slate-500 text-xs italic"
+                >
+                    {t('rows_scoped', { shown, count: check.count })}
+                </p>
+            ) : null}
             {check.violating_rows.map((row, index) => {
                 const path = violatingRowPath(row);
                 const label = (
@@ -233,6 +246,23 @@ export function IctRegisterDqPage() {
                     </p>
                 </div>
             </div>
+
+            {/* S10 (FR-P5-5): a positive all-clear when the register has checks but
+                zero findings — never a bare "0" that reads like missing data. */}
+            {summary.total > 0 && summary.findings === 0 ? (
+                <div
+                    data-testid="dq-all-clear"
+                    className="glass-card flex items-center gap-3 border border-emerald-500/20 bg-emerald-500/5"
+                >
+                    <CheckCircle2 className="h-6 w-6 text-emerald-400 shrink-0" aria-hidden="true" />
+                    <div>
+                        <p className="text-emerald-400 font-bold">{t('all_clear.title')}</p>
+                        <p className="text-slate-400 text-sm">
+                            {t('all_clear.body', { count: summary.total })}
+                        </p>
+                    </div>
+                </div>
+            ) : null}
 
             <div className="glass-card flex flex-col md:flex-row md:items-center gap-4">
                 <p className="text-slate-500 text-sm font-medium flex-1">{t('filters.label')}</p>

@@ -68,9 +68,12 @@ export function buildProcessColumns({
             ),
         },
         {
+            // P8 (FR-P5-4): numeric column right-aligned so digits line up under
+            // the header; `tabular-nums` keeps the figures monospaced.
             key: 'mtpd_hours',
             label: t('processes:columns.mtpd'),
-            className: 'w-[90px]',
+            className: 'w-[90px] text-right',
+            headerClassName: 'text-right',
             render: (process) => (
                 <span className="text-sm text-slate-300 tabular-nums">
                     {process.mtpd_hours ?? '—'}

@@ -8,6 +8,15 @@ export function getProcessDisplayStatus(process: Pick<Process, 'is_archived'>): 
     return process.is_archived ? 'archived' : 'active';
 }
 
+/**
+ * FR-P5-5 (S10): distinguish a genuinely empty register ("no data") from a
+ * search that matched nothing ("no search results"). Keyed on the live search
+ * box (not the status filter) so an unmatched query gets the "no results" copy.
+ */
+export function processesEmptyStateKey(hasActiveSearch: boolean): string {
+    return hasActiveSearch ? 'empty.no_results' : 'empty.no_processes';
+}
+
 interface BuildProcessListParamsOptions {
     currentPage: number;
     debouncedSearch: string;

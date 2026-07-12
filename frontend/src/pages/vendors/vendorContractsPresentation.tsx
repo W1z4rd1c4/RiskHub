@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react';
 import { ArchiveRestore, Pencil, Trash2 } from 'lucide-react';
 
 import type { Column } from '@/components/tables/SortableTable';
+import { formatDateValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { VendorContract, VendorContractWritePayload } from '@/types/vendorContract';
 
@@ -63,6 +64,11 @@ type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 type BuildVendorContractColumnsParams = {
     t: TranslateFn;
+    /**
+     * Active i18n locale — feeds `formatDateValue` for the term dates (S9).
+     * Optional: `formatDateValue` falls back to `en` when absent.
+     */
+    locale?: string;
     onEdit: (contract: VendorContract, event?: MouseEvent) => void;
     onArchive: (contract: VendorContract, event?: MouseEvent) => void | Promise<void>;
     onRestore: (contract: VendorContract, event?: MouseEvent) => void | Promise<void>;
@@ -70,6 +76,7 @@ type BuildVendorContractColumnsParams = {
 
 export function buildVendorContractColumns({
     t,
+    locale,
     onEdit,
     onArchive,
     onRestore,
@@ -154,19 +161,31 @@ export function buildVendorContractColumns({
                 ),
         },
         {
+            // S9 (FR-P5-4): render the term via `formatDateValue` (locale-aware,
+            // no raw ISO); `tabular-nums` keeps the two dates aligned.
             key: 'term',
             label: t('vendors:contracts.columns.term'),
-            render: (contract) => (
-                <span className="text-sm text-slate-300">
-                    {contract.start_date ?? '—'} → {contract.end_date ?? '—'}
-                </span>
-            ),
+            render: (contract) => {
+                const start = formatDateValue(contract.start_date, locale);
+                const end = formatDateValue(contract.end_date, locale);
+                return (
+                    <span className="text-sm text-slate-300 tabular-nums">
+                        {start || '—'} → {end || '—'}
+                    </span>
+                );
+            },
         },
         {
+            // S9 (FR-P5-4): currency right-aligned + `tabular-nums` so amounts
+            // read as a money column, not left-aligned free text.
             key: 'annual_cost',
             label: t('vendors:contracts.columns.annual_cost'),
+            className: 'text-right',
+            headerClassName: 'text-right',
             render: (contract) => (
-                <span className="text-sm text-slate-300">{formatContractCost(contract) ?? '—'}</span>
+                <span className="text-sm text-slate-300 tabular-nums">
+                    {formatContractCost(contract) ?? '—'}
+                </span>
             ),
         },
         {

@@ -8,7 +8,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { Asset, AssetSortField } from '@/types/asset';
 
 import { buildAssetColumns } from './assets/assetColumns';
-import type { AssetArchiveFilter } from './assets/assetsPagePresentation';
+import { assetsEmptyStateKey, type AssetArchiveFilter } from './assets/assetsPagePresentation';
 import { useAssetsPageState } from './assets/useAssetsPageState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
@@ -122,7 +122,9 @@ export function AssetsPage() {
                     isError={Boolean(errorKey)}
                     onRetry={() => void fetchAssets()}
                     errorMessage={errorKey ? t(errorKey) : undefined}
-                    emptyMessage={hasLoadedOnce ? t('empty.no_assets') : undefined}
+                    emptyMessage={
+                        hasLoadedOnce ? t(assetsEmptyStateKey(search.trim().length > 0)) : undefined
+                    }
                     sortKey={sortField}
                     sortDirection={sortDirection}
                     onSort={(key, direction) =>

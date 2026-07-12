@@ -82,6 +82,81 @@ const KPI_KEYS = [
 
 const NET_BANDS = ['Nízké', 'Střední', 'Vysoké', 'Kritické'];
 
+// FR-P5-6 (S1): the "blocking" tiles/metrics/KPIs are deficiency counts — gaps
+// that block DORA readiness ("…without…", "pending review", "above tolerance",
+// "open findings"), classified from the tile inventory §1.1 / §1.2 / §2.1. They
+// must not read as the same neutral `text-white` as pure inventory (register
+// sizes): a non-zero backlog reads amber (needs attention), a cleared zero reads
+// emerald. The descriptive tile label carries the meaning so colour is never the
+// sole signal.
+const BLOCKING_STATE_KEYS = new Set<keyof IctCommitteeRegisterState>([
+    'assets_pending_review_count',
+    'assets_without_data_classification_count',
+    'top_tier_vendors_without_orderly_exit_count',
+]);
+const BLOCKING_METRIC_KEYS = new Set<keyof IctCommitteeKeyMetrics>([
+    'processes_without_impact_assessment_count',
+    'risks_above_tolerance_count',
+    'open_dq_finding_count',
+]);
+const BLOCKING_KPI_KEYS = new Set<string>([
+    'risks_above_tolerance_count',
+    'accepted_above_tolerance_count',
+    'cif_without_bcm_count',
+    'open_dq_finding_count',
+]);
+
+function blockingCountClass(value: number): string {
+    return value > 0 ? 'text-amber-300' : 'text-emerald-400';
+}
+
+// FR-P5-7 (P10): the RoI per-template readiness bar gets a colour threshold so a
+// glance separates ready (≥ 80 %) from partial (≥ 50 %) from at-risk (< 50 %).
+function roiReadinessBarClass(pct: number | null): string {
+    if (pct === null) return 'bg-slate-500';
+    if (pct >= 80) return 'bg-emerald-500';
+    if (pct >= 50) return 'bg-amber-500';
+    return 'bg-rose-500';
+}
+
+// FR-P5-7 (P10): a legend for the two magnitude heatmaps — swatches sampled from
+// the same ColorScale the cells use (`heatmapCellFill` / `migrationCellFill`), so
+// a reader can map a fill back to a risk count (0 = unfilled, up to `max`+).
+function HeatmapLegend({
+    fill,
+    max,
+    testId,
+}: {
+    fill: (value: number) => string | null;
+    max: number;
+    testId: string;
+}) {
+    const { t } = useTranslation('ictRegisterCommittee');
+    const stops = Array.from({ length: max + 1 }, (_, index) => index);
+    return (
+        <div data-testid={testId} className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <span className="text-xs text-slate-500 font-medium">{t('cro.heatmap_legend')}</span>
+            <div className="flex items-center gap-2">
+                {stops.map((value) => {
+                    const cellFill = fill(value);
+                    return (
+                        <span key={value} className="flex items-center gap-1">
+                            <span
+                                aria-hidden="true"
+                                style={cellFill ? { backgroundColor: cellFill } : undefined}
+                                className={`h-3 w-3 rounded ${cellFill ? '' : 'bg-white/5'}`}
+                            />
+                            <span className="text-[10px] text-slate-500 tabular-nums">
+                                {value === max ? `${value}+` : value}
+                            </span>
+                        </span>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 function CellPill({
     value,
     style,
@@ -248,7 +323,8 @@ function RoiTemplateRow({ template }: { template: IctRoiTemplateReadiness }) {
                             <div className="flex items-center gap-3">
                                 <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
                                     <div
-                                        className="h-full rounded-full bg-accent"
+                                        data-testid={`committee-roi-bar-${template.code}`}
+                                        className={`h-full rounded-full ${roiReadinessBarClass(template.readiness_pct)}`}
                                         style={{ width: `${template.readiness_pct ?? 0}%` }}
                                     />
                                 </div>
@@ -554,7 +630,13 @@ export function IctCommitteeSection() {
                                         <p className="text-slate-500 text-xs font-medium min-h-8">
                                             {t(`state.${key}`)}
                                         </p>
-                                        <p className="text-2xl font-bold text-white mt-1 tabular-nums">
+                                        <p
+                                            className={`text-2xl font-bold mt-1 tabular-nums ${
+                                                BLOCKING_STATE_KEYS.has(key)
+                                                    ? blockingCountClass(data.dashboard.register_state[key])
+                                                    : 'text-white'
+                                            }`}
+                                        >
                                             {data.dashboard.register_state[key]}
                                         </p>
                                     </div>
@@ -593,7 +675,11 @@ export function IctCommitteeSection() {
                                             <td className="py-2.5 pr-3 text-right">
                                                 <Link
                                                     to={metricDrilldownPath(key)}
-                                                    className="text-lg font-bold text-white tabular-nums hover:text-accent underline decoration-white/20 hover:decoration-accent"
+                                                    className={`text-lg font-bold tabular-nums hover:text-accent underline decoration-white/20 hover:decoration-accent ${
+                                                        BLOCKING_METRIC_KEYS.has(key)
+                                                            ? blockingCountClass(data.dashboard.key_metrics[key])
+                                                            : 'text-white'
+                                                    }`}
                                                 >
                                                     {data.dashboard.key_metrics[key]}
                                                 </Link>
@@ -652,7 +738,13 @@ export function IctCommitteeSection() {
                                                     </p>
                                                 </>
                                             ) : (
-                                                <p className="text-3xl font-bold text-white text-center mt-1 tabular-nums">
+                                                <p
+                                                    className={`text-3xl font-bold text-center mt-1 tabular-nums ${
+                                                        BLOCKING_KPI_KEYS.has(key)
+                                                            ? blockingCountClass(data.cro.kpi[key])
+                                                            : 'text-white'
+                                                    }`}
+                                                >
                                                     {data.cro.kpi[key]}
                                                 </p>
                                             )}
@@ -707,6 +799,11 @@ export function IctCommitteeSection() {
                                         </div>
                                     </div>
                                 </div>
+                                <HeatmapLegend
+                                    fill={heatmapCellFill}
+                                    max={4}
+                                    testId="committee-heatmap-legend"
+                                />
                             </div>
 
                             {/* Migration matrix (§2.3): gross bands down, net bands across. */}
@@ -749,6 +846,11 @@ export function IctCommitteeSection() {
                                         </div>
                                     </div>
                                 </div>
+                                <HeatmapLegend
+                                    fill={migrationCellFill}
+                                    max={5}
+                                    testId="committee-migration-legend"
+                                />
                             </div>
                         </div>
 

@@ -7,6 +7,15 @@ export function getThreatDisplayStatus(threat: Pick<Threat, 'is_archived'>): Thr
     return threat.is_archived ? 'archived' : 'active';
 }
 
+/**
+ * FR-P5-5 (S10): distinguish a genuinely empty register ("no data") from a
+ * search that matched nothing ("no search results"). Keyed on the live search
+ * box (not the status filter) so an unmatched query gets the "no results" copy.
+ */
+export function threatsEmptyStateKey(hasActiveSearch: boolean): string {
+    return hasActiveSearch ? 'empty.no_results' : 'empty.no_threats';
+}
+
 interface BuildThreatListParamsOptions {
     currentPage: number;
     debouncedSearch: string;

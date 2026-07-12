@@ -76,6 +76,7 @@
         "heatmap_axis": "Hrubá pravděpodobnost ↓ / Hrubý dopad → (aplikace vynáší hrubý blok rizika tam, kde sešit odvozoval hodnotu subjektu)",
         "migration_title": "Migrační matice: pásmo hrubého → pásmo čistého rizika (efekt kontrol)",
         "migration_axis": "Hrubé ↓ / Čisté →",
+        "heatmap_legend": "Rizik v buňce",
         "top_risks_title": "Top 10 rizik podle čistého rizika",
         "top_vendors_title": "Koncentrace: top 5 dodavatelů dle CIF vazeb (čl. 29)",
         "narratives_title": "CIF pokrytí, BCM a manažerské závěry",

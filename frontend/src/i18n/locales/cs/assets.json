@@ -124,7 +124,8 @@
         "archive_confirm": "Archivovat aktivum „{{assetName}}“? Zůstane v historii registru a lze jej obnovit."
     },
     "empty": {
-        "no_assets": "V registru zatím nejsou žádná aktiva."
+        "no_assets": "V registru zatím nejsou žádná aktiva.",
+        "no_results": "Vašemu hledání neodpovídají žádná aktiva."
     },
     "errors": {
         "not_found": "Aktivum nenalezeno.",

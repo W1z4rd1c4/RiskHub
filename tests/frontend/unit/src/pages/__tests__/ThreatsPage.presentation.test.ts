@@ -7,6 +7,7 @@ import {
     buildThreatListParams,
     buildThreatWritePayload,
     getThreatDisplayStatus,
+    threatsEmptyStateKey,
 } from '@/pages/threats/threatsPagePresentation';
 import {
     buildLinkTargetOptions,
@@ -124,6 +125,42 @@ describe('Threats page presentation helpers', () => {
         const categoryColumn = columns.find((column) => column.key === 'category');
         render(categoryColumn?.render?.(sampleThreat(), 0) as ReactElement);
         expect(screen.getByText('Dostupnost')).toBeInTheDocument();
+    });
+
+    it('distinguishes an empty register from an unmatched search (FR-P5-5)', () => {
+        expect(threatsEmptyStateKey(false)).toBe('empty.no_threats');
+        expect(threatsEmptyStateKey(true)).toBe('empty.no_results');
+    });
+
+    it('gives truncated free-text cells a title + hover cue, but not the em-dash placeholder (P9)', () => {
+        const columns = buildThreatColumns({
+            t: (key: string) => key,
+            onRestore: () => undefined,
+            canRestoreThreat: () => false,
+        });
+
+        // The name column's secondary line truncates the description → full text
+        // on hover via `title`, `cursor-help` as the cue.
+        const nameColumn = columns.find((column) => column.key === 'name');
+        render(nameColumn?.render?.(sampleThreat(), 0) as ReactElement);
+        const description = screen.getByText('Zašifrování dat a vydírání.');
+        expect(description).toHaveAttribute('title', 'Zašifrování dat a vydírání.');
+        expect(description.className).toContain('truncate');
+        expect(description.className).toContain('cursor-help');
+
+        const weaknessColumn = columns.find((column) => column.key === 'typical_weaknesses');
+        render(weaknessColumn?.render?.(sampleThreat(), 0) as ReactElement);
+        const weakness = screen.getByText('Neaktualizované systémy, phishing');
+        expect(weakness).toHaveAttribute('title', 'Neaktualizované systémy, phishing');
+        expect(weakness.className).toContain('cursor-help');
+
+        // An absent value renders the em-dash with no title and no help cursor.
+        render(
+            weaknessColumn?.render?.(sampleThreat({ typical_weaknesses: null }), 0) as ReactElement,
+        );
+        const placeholder = screen.getByText('—');
+        expect(placeholder).not.toHaveAttribute('title');
+        expect(placeholder.className).not.toContain('cursor-help');
     });
 
     it('renders the archived status pill with the restore affordance gated per row', () => {

@@ -48,6 +48,11 @@
         "process_vendor_link": "Process–vendor link"
     },
     "empty": "No checks match the filter",
+    "all_clear": {
+        "title": "All clear — no findings",
+        "body": "All {{count}} checks pass. No violating rows across the register."
+    },
+    "rows_scoped": "Showing {{shown}} of {{count}} rows (limited to your access).",
     "checks": {
         "DQ-01": "Process without an owner",
         "DQ-02": "GAP: RTO > MTPD",

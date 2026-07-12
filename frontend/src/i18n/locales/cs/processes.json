@@ -113,7 +113,8 @@
         "archive_confirm": "Archivovat proces „{{processName}}“? Zůstane v historii registru a lze jej obnovit."
     },
     "empty": {
-        "no_processes": "V registru zatím nejsou žádné procesy."
+        "no_processes": "V registru zatím nejsou žádné procesy.",
+        "no_results": "Vašemu hledání neodpovídají žádné procesy."
     },
     "errors": {
         "not_found": "Proces nenalezen.",

@@ -58,7 +58,8 @@
         }
     },
     "empty": {
-        "no_threats": "No threats found."
+        "no_threats": "No threats in the register yet.",
+        "no_results": "No threats match your search."
     },
     "errors": {
         "not_found": "Threat not found.",

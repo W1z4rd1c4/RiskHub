@@ -33,7 +33,14 @@ export function buildThreatColumns({
                 <div className="flex flex-col gap-0.5">
                     <span className="text-sm font-bold text-white">{threat.name}</span>
                     {threat.description ? (
-                        <span className="text-xs text-slate-500 truncate max-w-[280px]">{threat.description}</span>
+                        // P9 (FR-P5-4): truncated cell exposes the full value on
+                        // hover via `title`, with `cursor-help` as the hover cue.
+                        <span
+                            title={threat.description}
+                            className="text-xs text-slate-500 truncate max-w-[280px] cursor-help"
+                        >
+                            {threat.description}
+                        </span>
                     ) : null}
                 </div>
             ),
@@ -48,7 +55,14 @@ export function buildThreatColumns({
             key: 'typical_weaknesses',
             label: t('threats:columns.typical_weaknesses'),
             render: (threat) => (
-                <span className="text-sm text-slate-300 truncate block max-w-[260px]">
+                // P9 (FR-P5-4): truncated free text gets `title` (full value on
+                // hover) + `cursor-help` cue; the em-dash placeholder gets neither.
+                <span
+                    title={threat.typical_weaknesses ?? undefined}
+                    className={`text-sm text-slate-300 truncate block max-w-[260px] ${
+                        threat.typical_weaknesses ? 'cursor-help' : ''
+                    }`}
+                >
                     {threat.typical_weaknesses ?? '—'}
                 </span>
             ),

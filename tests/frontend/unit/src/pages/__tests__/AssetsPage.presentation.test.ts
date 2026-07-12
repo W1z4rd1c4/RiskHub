@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildAssetColumns } from '@/pages/assets/assetColumns';
 import {
+    assetsEmptyStateKey,
     buildAssetListParams,
     buildAssetWritePayload,
     getAssetDisplayStatus,
@@ -143,6 +144,11 @@ describe('Assets page presentation helpers', () => {
     it('derives the display status from the archive flag', () => {
         expect(getAssetDisplayStatus(sampleAsset())).toBe('active');
         expect(getAssetDisplayStatus(sampleAsset({ is_archived: true }))).toBe('archived');
+    });
+
+    it('distinguishes an empty register from an unmatched search (FR-P5-5)', () => {
+        expect(assetsEmptyStateKey(false)).toBe('empty.no_assets');
+        expect(assetsEmptyStateKey(true)).toBe('empty.no_results');
     });
 
     it('strips empty strings to nulls and drops untouched fields in write payloads', () => {
