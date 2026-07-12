@@ -118,6 +118,7 @@ export function KRIVendorSelector({
                                     type="checkbox"
                                     checked={checked}
                                     onChange={() => toggleVendor(vendor.id)}
+                                    aria-label={vendor.name}
                                     className="h-4 w-4 rounded border-white/20 bg-slate-950 text-accent focus:ring-accent/40"
                                 />
                                 <div className="min-w-0 flex-1">

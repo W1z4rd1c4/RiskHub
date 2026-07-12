@@ -6,19 +6,36 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
-// ADR-013 (N4): eslint-plugin-jsx-a11y is added to the lint gate with every
-// recommended rule pinned to `error` (jsx-a11y ships a few as `warn`). Existing
-// violations are NOT fixed here — they are held by the committed fingerprinted
-// baseline in `scripts/a11y/jsx-a11y-baseline.json` and enforced (subset-fails-new,
-// stale-fails-shrink) by `scripts/a11y/jsx-a11y-baseline.mjs`, which is the
-// authoritative gate. The committed `eslint-suppressions.json` (ESLint-native,
-// count-keyed) only lets `eslint .` exit 0 on the still-broken app; both files
-// are regenerated together by the validator's `--write` mode. This is NOT a bare
-// `--max-warnings` total (N6).
-const jsxA11yErrorRules = Object.fromEntries(
+// ADR-013 (N4): eslint-plugin-jsx-a11y is added to the lint gate. Each recommended
+// rule KEEPS the severity the plugin ships and we upgrade ONLY `warn` -> `error`;
+// rules the plugin ships as `off` STAY off. In particular the two `off` rules
+// `jsx-a11y/label-has-for` (deprecated) and `jsx-a11y/control-has-associated-label`
+// are NOT force-promoted — doing so would manufacture violations the plugin itself
+// disables, while the modern `jsx-a11y/label-has-associated-control` (shipped
+// `error`) already covers real control labeling. Option tuples are preserved.
+// Existing violations of the genuinely-`error` rules are NOT fixed here — they are
+// held by the committed fingerprinted baseline in `scripts/a11y/jsx-a11y-baseline.json`
+// and enforced (subset-fails-new, stale-fails-shrink) by
+// `scripts/a11y/jsx-a11y-baseline.mjs`, the authoritative gate. The committed
+// `eslint-suppressions.json` (ESLint-native, count-keyed) only lets `eslint .` exit 0
+// on the still-broken app; both files are regenerated together by the validator's
+// `--write` mode. This is NOT a bare `--max-warnings` total (N6).
+
+/**
+ * Preserve a jsx-a11y recommended rule's SHIPPED severity, upgrading only `warn`
+ * (or numeric `1`) to `error`; `off`/`error` pass through unchanged and any options
+ * tuple is preserved. Exported for the config-normalization unit test.
+ */
+export function promoteJsxA11yWarnToError(value) {
+  const [severity, ...options] = Array.isArray(value) ? value : [value];
+  const upgraded = severity === "warn" || severity === 1 ? "error" : severity;
+  return options.length > 0 ? [upgraded, ...options] : upgraded;
+}
+
+const jsxA11yBaselineRules = Object.fromEntries(
   Object.entries(jsxA11y.flatConfigs.recommended.rules).map(([rule, value]) => [
     rule,
-    Array.isArray(value) ? ["error", ...value.slice(1)] : "error",
+    promoteJsxA11yWarnToError(value),
   ]),
 );
 
@@ -104,7 +121,7 @@ export default defineConfig([
     // the header comment and scripts/a11y/jsx-a11y-baseline.mjs.
     files: ["src/**/*.{ts,tsx}"],
     plugins: { "jsx-a11y": jsxA11y },
-    rules: jsxA11yErrorRules,
+    rules: jsxA11yBaselineRules,
   },
   {
     files: [

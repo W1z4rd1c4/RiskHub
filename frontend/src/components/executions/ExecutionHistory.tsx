@@ -108,8 +108,17 @@ export function ExecutionHistory({
                             className={`glass-card !p-0 overflow-hidden transition-all duration-300 border ${isExpanded ? 'border-white/20' : 'border-transparent hover:border-white/10'}`}
                         >
                             <div
+                                role="button"
+                                tabIndex={0}
+                                aria-expanded={isExpanded}
                                 className="p-4 flex items-center justify-between cursor-pointer"
                                 onClick={() => setExpandedId(isExpanded ? null : exe.id)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        event.currentTarget.click();
+                                    }
+                                }}
                             >
                                 <div className="flex items-center gap-4">
                                     <div className={`p-2 rounded-lg border ${config.badgeClassName}`}>

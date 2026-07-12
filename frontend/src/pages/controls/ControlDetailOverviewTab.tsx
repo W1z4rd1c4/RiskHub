@@ -201,7 +201,15 @@ export function ControlDetailOverviewTab({
                                         {activeLinkedRisks.map((link) => (
                                             <div
                                                 key={link.id}
+                                                role="button"
+                                                tabIndex={0}
                                                 onClick={(e) => onRiskClick(link.risk_id, e)}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                        event.preventDefault();
+                                                        event.currentTarget.click();
+                                                    }
+                                                }}
                                                 className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer relative"
                                             >
                                                 <div className="flex justify-between items-start mb-2">
@@ -234,7 +242,15 @@ export function ControlDetailOverviewTab({
                                             {archivedLinkedRisks.map((link) => (
                                                 <div
                                                     key={link.id}
+                                                    role="button"
+                                                    tabIndex={0}
                                                     onClick={(e) => onRiskClick(link.risk_id, e)}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === 'Enter' || event.key === ' ') {
+                                                            event.preventDefault();
+                                                            event.currentTarget.click();
+                                                        }
+                                                    }}
                                                     className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer relative"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">

@@ -116,7 +116,15 @@ export function KRIDetailOverviewTab({
 
                 {linkedRisk ? (
                     <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => onNavigateToRisk(linkedRisk.id)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                event.currentTarget.click();
+                            }
+                        }}
                         className="relative overflow-hidden cursor-pointer rounded-2xl border border-white/5 bg-white/[0.02] p-8 hover:bg-white/[0.04] hover:border-accent/20 transition-all duration-500 group"
                     >
                         {/* Decorative elements */}
