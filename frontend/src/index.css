@@ -32,6 +32,19 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
+    /* Semantic status tokens (ADR-015 / FR-P1-1). --destructive stays the
+       canonical danger token (no rename, no `danger`). Fills are held constant
+       across the three themes (mirroring --destructive); every bg/fg pair
+       clears WCAG AA 4.5:1 text contrast — enforced by
+       tests/frontend/unit/src/design-system/statusTokenContrast.test.ts.
+       Amber warning uses a dark foreground on purpose: white on amber fails AA. */
+    --success: 142 72% 26%;
+    --success-foreground: 210 40% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 26 84% 6%;
+    --info: 211 80% 38%;
+    --info-foreground: 210 40% 98%;
+
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
@@ -209,6 +222,14 @@
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 100%;
 
+  /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale. */
+  --success: 142 72% 26%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 26 84% 6%;
+  --info: 211 80% 38%;
+  --info-foreground: 0 0% 100%;
+
   --border: 0 0% 15%;
   --input: 0 0% 15%;
   --ring: 0 0% 80%;
@@ -323,6 +344,14 @@
 
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 100%;
+
+  /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale. */
+  --success: 142 72% 26%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 26 84% 6%;
+  --info: 211 80% 38%;
+  --info-foreground: 0 0% 100%;
 
   --border: 220 13% 85%;
   --input: 220 13% 85%;
