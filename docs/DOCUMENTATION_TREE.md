@@ -60,12 +60,17 @@ AGENTS.md
 - Documentation screenshots and support assets:
   - [`docs/assets/README.md`](./assets/README.md)
   - [`docs/assets/readme/README.md`](./assets/readme/README.md)
+- Generated report artifacts:
+  - [`docs/reports/README.md`](./reports/README.md) — checked-in third-party dependency/license report.
+- DORA ICT-register specifications:
+  - [`docs/dora-ict-register/README.md`](./dora-ict-register/README.md)
 - Deployment and operations:
   - [`docs/deployment/README.md`](./deployment/README.md)
 - Migration notes:
   - [`docs/migrations/README.md`](./migrations/README.md)
 - Agent governance and execution:
   - [`docs/agent/README.md`](./agent/README.md)
+  - [`docs/agents/README.md`](./agents/README.md) — agent domain glossary, issue-tracker workflow, and triage-label vocabulary.
   - [`AGENTS.md`](../AGENTS.md)
 - Architecture Locks:
   - `tests/backend/pytest/architecture/`
