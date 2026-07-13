@@ -60,7 +60,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         // page — so the stable contract is URL retention + the anchored
         // section rendering.
         await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}\\?tab=contracts$`));
-        await expect(riskManagerPage.locator('h1').first()).toContainText(E2E_ICT_VENDOR.name);
+        await expect(riskManagerPage.locator('main h1').first()).toContainText(E2E_ICT_VENDOR.name);
         await expect(detailPage.contractsSection).toBeVisible();
         await expect(
             detailPage.contractsSection.getByText(/Contracts|Smlouvy/).first(),

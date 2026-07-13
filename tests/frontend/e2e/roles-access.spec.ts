@@ -149,7 +149,7 @@ test.describe('Role-Based Access', () => {
             await page.goto('/admin');
             await waitForDataLoad(page);
             // Should load admin page content
-            await expect(page.locator('h1, h2').first()).toBeVisible();
+            await expect(page.locator('main h1, main h2').first()).toBeVisible();
         });
     });
 

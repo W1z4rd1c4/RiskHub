@@ -49,6 +49,6 @@ export class VendorDetailPage {
     }
 
     async expectLoaded(): Promise<void> {
-        await expect(this.page.locator('h1, h2').first()).toBeVisible();
+        await expect(this.page.locator('main h1, main h2').first()).toBeVisible();
     }
 }

@@ -60,7 +60,7 @@ test.describe('Vendor Management (Deterministic)', () => {
 
         await vendorsPage.openRowByText(E2E_VENDORS.ACTIVE_PRIMARY.name);
         await expect(riskManagerPage).toHaveURL(/\/vendors\/\d+$/);
-        await expect(riskManagerPage.locator('h1').first()).toContainText(E2E_VENDORS.ACTIVE_PRIMARY.name);
+        await expect(riskManagerPage.locator('main h1').first()).toContainText(E2E_VENDORS.ACTIVE_PRIMARY.name);
     });
 
     test('Vendor detail defaults to the merged overview surface', async ({ riskManagerPage }) => {

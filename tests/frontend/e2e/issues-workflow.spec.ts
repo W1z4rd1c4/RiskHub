@@ -68,8 +68,14 @@ test.describe('issues workflow', () => {
         });
         if (exceptionRequestResponse.ok()) {
             const exception = (await exceptionRequestResponse.json()) as { id: number };
+            // The requester cannot approve their own exception. Exercise the real
+            // two-actor workflow with the Risk Manager as the privileged approver.
+            const approverToken = await getDemoTokenByAccountName(DEMO_ACCOUNTS.RISK_MANAGER);
             const approveResponse = await request.post(`/api/v1/issues/${createdIssue.id}/approve-exception`, {
-                headers,
+                headers: {
+                    Authorization: `Bearer ${approverToken}`,
+                    'Content-Type': 'application/json',
+                },
                 data: {
                     exception_id: exception.id,
                     expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),

@@ -70,6 +70,7 @@ test.describe('questionnaire workflow', () => {
 
         await page.getByRole('button', { name: /risk assessment|hodnocení rizik|hodnocení rizika/i }).click();
         await page.getByRole('button', { name: /open|otevřít/i }).click();
+        await expect(page.getByTestId('risk-questionnaire-ready')).toBeVisible({ timeout: 15000 });
 
         // Fill required questions in the modal
         const selectOption = async (questionText: string | RegExp, optionText: string | RegExp) => {
@@ -85,9 +86,9 @@ test.describe('questionnaire workflow', () => {
                     : page.getByRole('option', { name: optionText }).first();
             await expect(option).toBeVisible({ timeout: 10000 });
             await option.click({ timeout: 10000, force: true });
-            await page.keyboard.press('Escape').catch(() => {
-                // no-op when listbox already closed by selection
-            });
+            // Selecting an option closes the portalled listbox. Sending another
+            // Escape here would correctly close the parent dialog.
+            await expect(page.getByRole('listbox')).toHaveCount(0);
         };
 
         await selectOption(
@@ -114,10 +115,11 @@ test.describe('questionnaire workflow', () => {
             timeout: 15000,
         });
 
-        const closeButton = page.getByRole('button', { name: /close|zavřít/i });
-        if (await closeButton.isVisible().catch(() => false)) {
-            await closeButton.click();
-        }
+        const questionnaireDialog = page.getByRole('dialog', {
+            name: /Risk Assessment Questionnaire|Dotazník hodnocení rizika/i,
+        });
+        await questionnaireDialog.getByRole('button', { name: /close|zavřít/i }).first().click();
+        await expect(questionnaireDialog).toHaveCount(0);
         await expect(page.locator('tbody').getByText(/Submitted|Odevzdáno/i)).toBeVisible({ timeout: 15000 });
 
         // Logout Owner

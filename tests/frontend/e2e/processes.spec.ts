@@ -134,7 +134,7 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
 
         await riskManagerPage.waitForURL(/.*processes\/\d+$/);
         await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.locator('h1').first()).toContainText(uniqueName);
+        await expect(riskManagerPage.locator('main h1').first()).toContainText(uniqueName);
         // Server-assigned stable F-code (F{id}), never entered by hand.
         await expect(riskManagerPage.getByText(/^F\d+$/).first()).toBeVisible();
         await expect(riskManagerPage.getByText('Vysoká', { exact: true }).first()).toBeVisible();
@@ -152,9 +152,12 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await riskManagerPage.getByTestId('process-form-l1-process').fill('   ');
         await riskManagerPage.getByTestId('process-form-submit').click();
 
-        await expect(
-            riskManagerPage.getByText(/L0 area and L1 process are required|L0 oblast a L1 proces jsou povinné/),
-        ).toBeVisible();
+        await expect(riskManagerPage.getByRole('alert')).toContainText(
+            /Please correct the highlighted fields|Opravte zvýrazněná pole/,
+        );
+        await expect(riskManagerPage.getByText(/L0 area is required|L0 oblast je povinná/)).toBeVisible();
+        await expect(riskManagerPage.getByText(/L1 process is required|L1 proces je povinný/)).toBeVisible();
+        await expect(riskManagerPage.getByTestId('process-form-l0-area')).toBeFocused();
         await expect(riskManagerPage).toHaveURL(/.*processes\/new$/);
     });
 
@@ -197,7 +200,7 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await riskManagerPage.goto(`/processes/${seeded!.id}`);
         await waitForDataLoad(riskManagerPage);
 
-        await expect(riskManagerPage.locator('h1').first()).toContainText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
+        await expect(riskManagerPage.locator('main h1').first()).toContainText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
         await expect(riskManagerPage.getByText(seeded!.f_code, { exact: true })).toBeVisible();
         await expect(riskManagerPage.getByText(E2E_PROCESSES.CLAIMS_INTAKE.l0_area).first()).toBeVisible();
         await expect(riskManagerPage.getByText('Vysoká', { exact: true }).first()).toBeVisible();

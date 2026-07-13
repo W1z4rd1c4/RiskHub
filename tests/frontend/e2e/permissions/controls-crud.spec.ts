@@ -37,7 +37,7 @@ test.describe('Control CRUD Permissions (Deterministic)', () => {
 
         await controlsPage.openRowByText(E2E_CONTROLS.PENDING_DELETE_APPROVAL.name);
         await expect(riskManagerPage).toHaveURL(/\/controls\/\d+$/);
-        await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
+        await expect(riskManagerPage.locator('main h1, main h2').first()).toBeVisible();
     });
 
     test('Archived deterministic control is hidden by default until status is Archived', async ({ riskManagerPage }) => {

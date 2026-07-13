@@ -19,7 +19,7 @@ async function openDeterministicCrossDeptKriForFinanceOwner(browser: Browser) {
     await krisPage.search(E2E_KRIS.CROSS_DEPT_FIN_REPORTS_IT.metric_name);
     await krisPage.openRowByText(E2E_KRIS.CROSS_DEPT_FIN_REPORTS_IT.metric_name);
     await expect(page).toHaveURL(/\/kris\/\d+$/);
-    await expect(page.locator('h1').first()).toBeVisible();
+    await expect(page.locator('main h1').first()).toBeVisible();
 
     return { context, page };
 }
@@ -27,7 +27,7 @@ async function openDeterministicCrossDeptKriForFinanceOwner(browser: Browser) {
 test.describe('KRI Reporting Owner Cross-Department Access (Deterministic)', () => {
     test('Reporting owner can open deterministic cross-department KRI from list', async ({ browser }) => {
         const { context, page } = await openDeterministicCrossDeptKriForFinanceOwner(browser);
-        await expect(page.locator('h1').first()).toContainText(E2E_KRIS.CROSS_DEPT_FIN_REPORTS_IT.metric_name);
+        await expect(page.locator('main h1').first()).toContainText(E2E_KRIS.CROSS_DEPT_FIN_REPORTS_IT.metric_name);
         await context.close();
     });
 
@@ -46,7 +46,7 @@ test.describe('KRI Reporting Owner Cross-Department Access (Deterministic)', () 
         await linkedRiskHeading.click();
 
         await expect(page).toHaveURL(/\/risks\/\d+$/);
-        await expect(page.locator('h1, h2').first()).toBeVisible();
+        await expect(page.locator('main h1, main h2').first()).toBeVisible();
         await expect(page.locator('h3').filter({ hasText: /Mitigating Controls|Zmírňující kontroly/i }).first()).toBeVisible();
         await context.close();
     });

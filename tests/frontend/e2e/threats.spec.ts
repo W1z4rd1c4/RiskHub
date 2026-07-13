@@ -122,7 +122,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
 
         await riskManagerPage.waitForURL(/\/threats\/\d+$/);
         await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.locator('h1').first()).toContainText(uniqueName);
+        await expect(riskManagerPage.locator('main h1').first()).toContainText(uniqueName);
         await expect(riskManagerPage.getByTestId('threat-detail-category')).toHaveText('Fyzická');
     });
 
@@ -303,7 +303,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         // hides the link rows entirely — with no manage affordances either.
         await employeePage.goto(`/threats/${seeded.id}`);
         await waitForDataLoad(employeePage);
-        await expect(employeePage.locator('h1').first()).toContainText(E2E_THREATS.RANSOMWARE.name);
+        await expect(employeePage.locator('main h1').first()).toContainText(E2E_THREATS.RANSOMWARE.name);
         await expect(employeePage.getByTestId('threat-detail-edit')).toHaveCount(0);
         await expect(employeePage.getByTestId('threat-detail-archive')).toHaveCount(0);
         await expect(employeePage.getByTestId('threat-risk-links-section')).toBeVisible();

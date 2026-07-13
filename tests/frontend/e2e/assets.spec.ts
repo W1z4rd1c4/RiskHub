@@ -138,7 +138,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
 
         await riskManagerPage.waitForURL(/.*assets\/\d+$/);
         await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.locator('h1').first()).toContainText(uniqueName);
+        await expect(riskManagerPage.locator('main h1').first()).toContainText(uniqueName);
         await expect(riskManagerPage.getByText('Aplikace', { exact: true }).first()).toBeVisible();
     });
 
@@ -316,8 +316,16 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
 
         // Remove both links; the section returns to its empty state.
         await riskManagerPage.getByTestId(`asset-process-link-remove-${processA!.id}`).click();
+        await riskManagerPage
+            .getByRole('alertdialog', { name: /Remove link\?/ })
+            .getByRole('button', { name: 'Remove link', exact: true })
+            .click();
         await expect(riskManagerPage.getByTestId(`asset-process-link-remove-${processA!.id}`)).toHaveCount(0);
         await riskManagerPage.getByTestId(`asset-process-link-remove-${processB!.id}`).click();
+        await riskManagerPage
+            .getByRole('alertdialog', { name: /Remove link\?/ })
+            .getByRole('button', { name: 'Remove link', exact: true })
+            .click();
         await expect(
             riskManagerPage.getByText(/No Processes linked yet|Zatím žádné vazby na procesy/),
         ).toBeVisible();
@@ -346,6 +354,10 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(linkRow.getByText('Datová', { exact: true })).toBeVisible();
 
         await linkRow.locator('[data-testid^="asset-asset-link-remove-"]').click();
+        await riskManagerPage
+            .getByRole('alertdialog', { name: /Remove link\?/ })
+            .getByRole('button', { name: 'Remove link', exact: true })
+            .click();
         await expect(
             riskManagerPage.getByText(/No Asset links yet|Zatím žádné vazby mezi aktivy/),
         ).toBeVisible();

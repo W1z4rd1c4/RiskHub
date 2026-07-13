@@ -194,8 +194,9 @@ test.describe('Access Scope Visibility', () => {
             await dashboard.navigateToDepartments();
             await waitForDataLoad(page);
 
-            // Click on any department card/row
-            const deptItem = page.locator('table tbody tr, [class*="card"]').first();
+            // Department cards are native buttons containing the department heading.
+            // Scope to main so the CSS-hidden desktop advisory cannot satisfy the locator.
+            const deptItem = page.locator('main button').filter({ has: page.locator('h3') }).first();
             await expect(deptItem).toBeVisible({ timeout: 15000 });
             await deptItem.click();
             await waitForDataLoad(page);

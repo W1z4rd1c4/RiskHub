@@ -142,6 +142,10 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
         );
         expect(created).toBeDefined();
         await riskManagerPage.getByTestId(`asset-vendor-link-remove-${created!.id}`).click();
+        await riskManagerPage
+            .getByRole('alertdialog', { name: /Remove link\?/ })
+            .getByRole('button', { name: 'Remove link', exact: true })
+            .click();
         await expect(riskManagerPage.getByTestId(`asset-vendor-link-remove-${created!.id}`)).toHaveCount(0);
         const remaining = await listAssetVendorLinks(assetId);
         expect(

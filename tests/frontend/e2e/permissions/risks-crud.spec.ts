@@ -32,7 +32,7 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
 
         await risksPage.openRowByText(E2E_RISKS.CROSS_DEPT_FIN_OWNS_OPS.name);
         await expect(riskManagerPage).toHaveURL(/\/risks\/\d+$/);
-        await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
+        await expect(riskManagerPage.locator('main h1, main h2').first()).toBeVisible();
     });
 
     test('Archived deterministic risk is hidden by default until status is Archived', async ({ riskManagerPage }) => {
@@ -76,7 +76,7 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
 
         await risksPage.openRowByText(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
         await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
+        await expect(riskManagerPage.locator('main h1, main h2').first()).toBeVisible();
     });
 
     test('Risk Manager can restore archived risk and list/detail reflect active state', async ({ riskManagerPage }) => {
