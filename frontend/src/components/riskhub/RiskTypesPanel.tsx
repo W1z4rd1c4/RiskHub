@@ -118,12 +118,14 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
                             <div className="flex items-center gap-2" role="group" aria-labelledby={colorLabelId}>
                                 <input
                                     type="color"
+                                    aria-labelledby={colorLabelId}
                                     value={color}
                                     onChange={(e) => setColor(e.target.value)}
                                     className="w-10 h-10 rounded cursor-pointer"
                                 />
                                 <input
                                     type="text"
+                                    aria-labelledby={colorLabelId}
                                     value={color}
                                     onChange={(e) => setColor(e.target.value)}
                                     className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"

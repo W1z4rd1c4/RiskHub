@@ -125,6 +125,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
+                        data-testid="access-edit-ready"
                         className="space-y-6"
                     >
                         <AccessEditFormSections

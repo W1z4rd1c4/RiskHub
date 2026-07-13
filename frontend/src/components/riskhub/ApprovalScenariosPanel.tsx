@@ -166,7 +166,8 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                                                     onClick={() => handleToggleRole(role)}
                                                     className="hover:text-white"
                                                 >
-                                                    <X className="h-3 w-3" />
+                                                    <span className="sr-only">{t('common:actions.delete')} {getRoleLabel(role)}</span>
+                                                    <X className="h-3 w-3" aria-hidden="true" />
                                                 </button>
                                             </span>
                                         ))}

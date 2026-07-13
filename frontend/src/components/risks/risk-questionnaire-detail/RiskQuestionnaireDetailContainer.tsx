@@ -96,7 +96,7 @@ export function RiskQuestionnaireDetail({
                         </div>
                     </div>
                 ) : workflow.questionnaire ? (
-                    <div className="space-y-6">
+                    <div data-testid="risk-questionnaire-ready" className="space-y-6">
                         <RiskQuestionnaireCompareNotice
                             compareMode={workflow.compareState.compareMode}
                             hasPreviousCycle={workflow.compareState.hasPreviousCycle}
