@@ -27,13 +27,12 @@
     /* Electric Blue */
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 91% 71%;
     --destructive-foreground: 222 47% 11%;
 
     /* Semantic status tokens (ADR-015 / FR-P1-1). --destructive stays the
-       canonical danger token (no rename, no `danger`). Fills are held constant
-       across the three themes (mirroring --destructive); every bg/fg pair
-       clears WCAG AA 4.5:1 text contrast — enforced by
+       canonical danger token (no rename, no `danger`). Token pairs and
+       destructive text/hover states clear WCAG AA 4.5:1 — enforced by
        tests/frontend/unit/src/design-system/statusTokenContrast.test.ts.
        Amber warning uses a dark foreground on purpose: white on amber fails AA. */
     --success: 142 72% 26%;
@@ -217,7 +216,7 @@
   --accent: 210 100% 50%;
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 84.2% 60.2%;
+  --destructive: 0 91% 71%;
   --destructive-foreground: 222 47% 11%;
 
   /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale. */
@@ -340,8 +339,8 @@
   --accent: 210 100% 50%;
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 222 47% 11%;
+  --destructive: 0 74% 42%;
+  --destructive-foreground: 0 0% 100%;
 
   /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale. */
   --success: 142 72% 26%;

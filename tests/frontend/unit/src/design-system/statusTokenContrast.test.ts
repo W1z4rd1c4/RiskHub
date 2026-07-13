@@ -80,10 +80,24 @@ function relativeLuminance([r, g, b]: Rgb): number {
 
 /** WCAG contrast ratio between two HSL colours. */
 function contrastRatio(a: Hsl, b: Hsl): number {
-  const la = relativeLuminance(hslToRgb(a));
-  const lb = relativeLuminance(hslToRgb(b));
+  return contrastRatioRgb(hslToRgb(a), hslToRgb(b));
+}
+
+function contrastRatioRgb(a: Rgb, b: Rgb): number {
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
   const [hi, lo] = la >= lb ? [la, lb] : [lb, la];
   return (hi + 0.05) / (lo + 0.05);
+}
+
+function composite(foreground: Hsl, background: Hsl, alpha: number): Rgb {
+  const fg = hslToRgb(foreground);
+  const bg = hslToRgb(background);
+  return [
+    fg[0] * alpha + bg[0] * (1 - alpha),
+    fg[1] * alpha + bg[1] * (1 - alpha),
+    fg[2] * alpha + bg[2] * (1 - alpha),
+  ];
 }
 
 const THEMES = [
@@ -123,6 +137,19 @@ describe('semantic status tokens — WCAG AA contrast (FR-P1-3, N20)', () => {
   it('keeps --destructive as the canonical danger token (no rename, no danger token)', () => {
     expect(themeBlock(indexCss, ':root')).toContain('--destructive:');
     expect(indexCss).not.toContain('--danger:');
+  });
+
+  it.each(THEMES)('destructive text clears AA against the $name background', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    const ratio = contrastRatio(readHsl(block, 'destructive'), readHsl(block, 'background'));
+    expect(ratio, `text-destructive @ ${name} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+  });
+
+  it.each(THEMES)('90% destructive hover fill clears AA against its foreground in $name', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    const hoverFill = composite(readHsl(block, 'destructive'), readHsl(block, 'background'), 0.9);
+    const ratio = contrastRatioRgb(hoverFill, hslToRgb(readHsl(block, 'destructive-foreground')));
+    expect(ratio, `hover:bg-destructive/90 @ ${name} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
   });
 
   it('wires every semantic status token into Tailwind theme.extend.colors (FR-P1-2)', () => {
