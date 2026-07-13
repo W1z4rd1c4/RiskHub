@@ -22,8 +22,8 @@ Those boxes are for a human operating real assistive technology on this exact co
 |---|---|
 | Branch | `dora` |
 | Under verification | The complete forward-only **Round-3 remediation range** (`924442ac..HEAD`) on 2026-07-13. This record cannot cite its own final documentation commit, so `HEAD` means the commit containing this record. |
-| Automated-remediation range | Round 1 `0fe16977..669b9cc4`; Round 2 `36f579ad..c8a7f7cd`; **Round 3 `924442ac..HEAD`**: native controls + danger tokens; validated two-level dialog inventory; 29-case real unit matrix; 48-site browser matrix; `ci`-project collection/fallback enforcement; strict-zero jsx-a11y + axe policy; owner-keyed department state; canonical E2E repairs; documentation truth reconciliation. |
-| Automated-gate environment | macOS (Darwin 27.0.0), Node `v24.13.1`, system `python3` |
+| Automated-remediation range | Round 1 `0fe16977..669b9cc4`; Round 2 `36f579ad..c8a7f7cd`; **Round 3 `924442ac..HEAD`**: native controls + danger tokens; validated two-level dialog inventory; 29-case real unit matrix; 48-site browser matrix plus exact registry assertion; `ci`-project collection/fallback enforcement; strict-zero jsx-a11y + axe policy; owner-keyed department state; canonical E2E repairs; documentation truth reconciliation. |
+| Automated-gate environment | macOS (Darwin 27.0.0), canonical E2E under bundled Node `v24.14.0`, system `python3` |
 | Assistive-tech environment | **to be recorded by the human tester** (OS + browser + AT versions) |
 
 ---
@@ -37,7 +37,9 @@ test behavior. The manual/AT status is unchanged.
 > **Round-3 correction (2026-07-13).** The 26 implementation owners are not the complete
 > application inventory: the validated manifest contains **48 concrete render sites** and
 > **5 non-dialog surfaces**. The unit matrix executes **29 unique owner/variant cases**, while
-> Playwright executes all **48 application render sites**. The JSX and axe JSON files are exact,
+> Playwright executes all **48 application render sites** plus one registry-integrity assertion.
+> Twenty component-owned sites use source-owner harnesses and 28 page-owned sites drive real
+> authenticated routes; no driver mounts a leaf dialog directly. The JSX and axe JSON files are exact,
 > empty audit evidence; neither has a fingerprint, ratchet, deviation, capture, or update path.
 
 ### 1.1 Full quality gate
@@ -45,13 +47,13 @@ test behavior. The manual/AT status is unchanged.
 | Gate | Command | Result |
 |---|---|---|
 | TypeScript + production build | `npx tsc --noEmit`; `npm run build` | PASS — 4,026 modules transformed |
-| Unit + component tests | `npm run test:run` | PASS — 267 files / 1,355 tests |
+| Unit + component tests | `npm run test:run` | PASS — 268 files / 1,368 tests |
 | Lint (a11y enforced) | `npm run lint` | PASS — strict-zero: 0 findings, 0 baseline entries, 0 suppressions |
 | i18n parity | `npm run i18n:test` | PASS — 20 namespaces; 630 source files; 8 files / 44 tests |
 | Dialog inventory + matrix | `npm run lint:dialog-inventory`; focused Vitest | PASS — 26 implementation owners / 48 render sites / 5 non-dialog surfaces; 29/29 unit cases |
 | Playwright collection | `npm run e2e:a11y:collect` | PASS — all three required accessibility specs collected by `ci` |
-| Accessibility specs, bundled Chromium fallback | unset `PLAYWRIGHT_CHROMIUM_CHANNEL`; three specs on `--project=ci --workers=1` | PASS — 58/58 |
-| Canonical E2E, system Chrome | full `playwright --project=ci --workers=1` | PASS — 370 passed / 22 intentionally skipped / 0 failed (392 collected) |
+| Accessibility specs, bundled Chromium fallback | unset `PLAYWRIGHT_CHROMIUM_CHANNEL`; three specs on `--project=ci --workers=1` | PASS — 59/59 |
+| Canonical E2E, system Chrome | full `playwright --project=ci --workers=1` | PASS — 371 passed / 22 intentionally skipped / 0 failed (393 collected) |
 | Authz capability contract | `python3 scripts/security/validate_authz_capability_contract.py --base-ref origin/main` | PASS |
 | Repository contracts | `AUTHZ_CONTRACT_BASE_REF=origin/main make -f scripts/Makefile quality-repo-contracts` | PASS — including 19/19 repo-hygiene tests |
 | Documentation topology | `make -f scripts/Makefile docs-topology-consistency` | PASS — contract, README coverage, canonical tree, structure metrics |
@@ -78,7 +80,9 @@ test behavior. The manual/AT status is unchanged.
   48 application render sites, and 5 non-dialog surfaces. The validator discovers owners and
   consumers from source and requires exact agreement. The unit matrix executes 29 real
   owner/variant cases, including production `ControlRiskLoadingOverlay`; the browser matrix
-  executes all 48 render sites. Unexpected network, console, uncaught, and React `act` output fail.
+  executes all 48 render sites plus one exact registry assertion. Twenty sites mount production
+  source parents through owner harnesses and 28 drive real authenticated routes; no driver mounts
+  a leaf dialog directly. Unexpected network, console, uncaught, and React `act` output fail.
 - **Native controls + tokens.** Execution-history disclosure and issue creation are separate
   native buttons; KRI/control pseudo-buttons are removed. `ConfirmDialog` consumes
   `bg-destructive text-destructive-foreground`; all three theme pairs and the 90% hover fill meet

@@ -71,11 +71,14 @@ no copied test-only overlay markup.
 ### Browser render-site matrix
 
 `tests/frontend/e2e/dialog-render-sites.spec.ts` reads the same manifest and
-creates one Playwright test for each of the 48 `application_render_site` rows.
-Every row opens the real production component through the test harness and
-verifies semantic role/name, initial focus, forward and reverse focus
+creates one Playwright test for each of the 48 `application_render_site` rows,
+plus a registry-integrity assertion that proves exact driver/manifest equality.
+The 20 component-owned render sites open through owner harnesses that mount the
+production source parents; the 28 page-owned sites drive real authenticated
+application routes. No driver mounts a leaf dialog directly. Every render-site
+case verifies semantic role/name, initial focus, forward and reverse focus
 containment, Escape close, focus restoration, and zero unexpected network or
-console output.
+console output. Network-backed owners wait for deterministic ready sentinels.
 
 `tests/frontend/e2e/dora-ux-stateful-a11y.spec.ts` adds representative
 three-theme state scans and the real dialog + portalled `ThemedSelect` contract:

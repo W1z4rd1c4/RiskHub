@@ -467,8 +467,10 @@ loopholes with production-grounded enforcement:
   hover states pass the three-theme contrast tests.
 - The validated two-level dialog descriptor covers **26 implementation owners**, **48 concrete
   application render sites**, and **5 non-dialog surfaces**. It drives **29 unit contract cases**
-  and one browser test for each of the **48 render sites**. The loading-overlay case mounts the
-  production `ControlRiskLoadingOverlay`, not copied markup.
+  and one browser test for each of the **48 render sites**, plus one registry-integrity assertion.
+  The 20 component-owned sites mount their production source parents through owner harnesses; the
+  28 page-owned sites drive real authenticated routes. No driver mounts a leaf dialog directly.
+  The loading-overlay case mounts the production `ControlRiskLoadingOverlay`, not copied markup.
 - Playwright always collects and runs the accessibility specs on `ci`; bundled Chromium is the
   fallback when system Chrome is absent. A real dialog + portalled `ThemedSelect` proves layered
   focus and Escape behavior with zero axe exclusions.
@@ -477,10 +479,10 @@ loopholes with production-grounded enforcement:
   widening path.
 - Department detail state is owner-keyed; a route change cannot expose the prior department's
   metadata, rows, totals, error, or loading state, and stale responses remain rejected.
-- Final automated verification passed sequentially: 267 unit files / 1,355 tests; TypeScript and
+- Final automated verification passed sequentially: 268 unit files / 1,368 tests; TypeScript and
   the 4,026-module production build; strict-zero lint; 20-namespace i18n parity; 29/29 unit dialog
-  cases; 58/58 bundled-Chromium accessibility cases; and the full system-Chrome `ci` project with
-  370 passed, 22 intentionally skipped, and zero failed. Authorization, repository, documentation
+  cases; 59/59 bundled-Chromium accessibility cases; and the full system-Chrome `ci` project with
+  371 passed, 22 intentionally skipped, and zero failed. Authorization, repository, documentation
   topology, and patch-hygiene contracts also passed.
 - Unrelated documentation-topology housekeeping remains a separate `main` change. No published
   `dora` history is rewritten; integrating that housekeeping requires the separately authorized,

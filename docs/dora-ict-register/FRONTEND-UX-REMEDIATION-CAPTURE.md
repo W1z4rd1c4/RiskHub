@@ -219,8 +219,10 @@ boundary).
 
 The automated implementation is present on `dora`. The validated dialog descriptor currently
 contains 26 implementation owners, 48 application render sites, and 5 non-dialog surfaces; it
-drives 29 unit cases and 48 browser render-site tests. CI collects the three accessibility specs
-on the `ci` project and falls back to bundled Chromium without changing projects. Department
+drives 29 unit cases, 48 browser render-site tests (20 source-owner harnesses + 28 real authenticated
+routes), and one exact registry/manifest assertion. No browser driver mounts a leaf dialog directly.
+CI collects the three accessibility specs on the `ci` project and falls back to bundled Chromium
+without changing projects. Department
 detail state is owner-keyed, and both jsx-a11y and axe enforce direct zero.
 
 This is not merge sign-off. The human keyboard, VoiceOver/Safari, 200%/400% zoom, reflow, and C6
