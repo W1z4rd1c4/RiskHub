@@ -243,7 +243,7 @@ describe('ICT Risk Committee presentation helpers', () => {
         const success = { backgroundColor: 'hsl(var(--success))', color: 'hsl(var(--success-foreground))' };
         const warning = { backgroundColor: 'hsl(var(--warning))', color: 'hsl(var(--warning-foreground))' };
         const destructive = {
-            backgroundColor: 'color-mix(in srgb, hsl(var(--destructive)) 78%, black)',
+            backgroundColor: 'hsl(var(--destructive))',
             color: 'hsl(var(--destructive-foreground))',
         };
 

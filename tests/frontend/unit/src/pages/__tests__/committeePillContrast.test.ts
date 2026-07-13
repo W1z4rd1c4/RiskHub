@@ -21,12 +21,9 @@ import {
  *     red/amber/green (the yellow + orange middles both collapse to amber).
  *  2. Contrast — each pill's background / foreground pair, resolved against the
  *     actual token values PARSED from index.css, clears 4.5:1 in the default /
- *     dark / light themes. Green/amber consume `--success` / `--warning` with
- *     their token foregrounds directly. Red uses a pill-scoped darker red
- *     `color-mix(in srgb, hsl(var(--destructive)) 78%, black)` with
- *     `--destructive-foreground`: solid `--destructive` + white is only 3.76:1,
- *     so the fill is darkened (derived from the token, NOT a redefinition — N19;
- *     `--destructive` and its button/badge consumers are untouched).
+ *     dark / light themes. Every pill consumes its semantic background and
+ *     foreground directly. The destructive foreground is deliberately
+ *     near-black because white on the destructive red does not clear AA.
  */
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../..');

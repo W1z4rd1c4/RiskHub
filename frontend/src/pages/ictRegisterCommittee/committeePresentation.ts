@@ -58,10 +58,10 @@ export function migrationCellFill(value: number): string | null {
 // Status-pill fills (FR-P5-1 / ADR-015 / spec N20): migrated off the Excel
 // pastels onto the semantic status tokens so each pill reads red/amber/green and
 // every bg/fg pair clears WCAG AA text contrast (≥ 4.5:1) in all three themes —
-// verified in committeePillContrast.test.ts. Green/amber use --success / --warning
-// with their token foregrounds; red is a pill-scoped darker red derived from
-// --destructive (see FILL_DESTRUCTIVE) because solid --destructive + white is only
-// 3.76:1. The four Excel bands collapse onto the three-token RAG scale: the yellow
+// verified in committeePillContrast.test.ts. Every fill uses its semantic token
+// together with the paired foreground; destructive uses a near-black foreground
+// because white on the destructive red does not clear AA. The four Excel bands
+// collapse onto the three-token RAG scale: the yellow
 // "Střední" and orange "Vysoké"/"Významný" middles both read amber (--warning),
 // keeping "Kritické"/"Kritický" red distinct from the green low band. Workbook
 // fidelity lives in the data + verbatim labels + the export, not the fill colours.
@@ -74,11 +74,7 @@ const FILL_WARNING: CellStyle = {
     color: 'hsl(var(--warning-foreground))',
 };
 const FILL_DESTRUCTIVE: CellStyle = {
-    // Pill-scoped darker red: white-on-fill clears WCAG AA text (≥ 4.5:1) in all
-    // three themes (≈ 5.5:1), which solid --destructive (3.76:1) does not. Derived
-    // from the token (no redefine — N19); --destructive itself and its other
-    // consumers (buttons, badges) are untouched.
-    backgroundColor: 'color-mix(in srgb, hsl(var(--destructive)) 78%, black)',
+    backgroundColor: 'hsl(var(--destructive))',
     color: 'hsl(var(--destructive-foreground))',
 };
 
