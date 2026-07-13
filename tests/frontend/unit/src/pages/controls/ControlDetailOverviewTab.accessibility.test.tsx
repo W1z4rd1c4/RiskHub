@@ -68,9 +68,13 @@ describe('ControlDetailOverviewTab linked-risk controls', () => {
         const archivedButton = screen.getByRole('button', { name: /Archived risk/i });
         expect(activeButton).not.toHaveAttribute('role');
         expect(archivedButton).not.toHaveAttribute('role');
+        expect(activeButton.className).toContain('focus-visible:ring-2');
+        expect(archivedButton.className).toContain('focus-visible:ring-2');
 
-        await user.click(activeButton);
-        await user.click(archivedButton);
+        activeButton.focus();
+        await user.keyboard('{Enter}');
+        archivedButton.focus();
+        await user.keyboard(' ');
         expect(onRiskClick).toHaveBeenNthCalledWith(1, 41, expect.any(Object));
         expect(onRiskClick).toHaveBeenNthCalledWith(2, 42, expect.any(Object));
     });

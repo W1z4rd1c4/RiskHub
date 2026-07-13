@@ -190,7 +190,11 @@ describe('KRI detail visuals', () => {
 
         const riskButton = screen.getByRole('button', { name: /Cloud concentration risk/i });
         expect(riskButton).not.toHaveAttribute('role');
-        await user.click(riskButton);
-        expect(onNavigateToRisk).toHaveBeenCalledWith(42);
+        expect(riskButton.className).toContain('focus-visible:ring-2');
+        riskButton.focus();
+        await user.keyboard('{Enter}');
+        await user.keyboard(' ');
+        expect(onNavigateToRisk).toHaveBeenNthCalledWith(1, 42);
+        expect(onNavigateToRisk).toHaveBeenNthCalledWith(2, 42);
     });
 });

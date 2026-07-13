@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
 import * as axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -166,6 +167,7 @@ describe('ExecutionHistory', () => {
     });
 
     it('uses sibling native controls for disclosure and issue creation', async () => {
+        const user = userEvent.setup();
         getExecutionsMock.mockResolvedValue([
             {
                 id: 31,
@@ -187,10 +189,17 @@ describe('ExecutionHistory', () => {
         expect(disclosure).toHaveAttribute('aria-expanded', 'false');
         expect(disclosure).toHaveAttribute('aria-controls', 'execution-details-31');
         expect(disclosure.contains(issueAction)).toBe(false);
+        expect(disclosure.className).toContain('focus-visible:ring-2');
+        expect(issueAction.className).toContain('focus-visible:ring-2');
 
-        fireEvent.click(disclosure);
+        disclosure.focus();
+        await user.keyboard('{Enter}');
         expect(disclosure).toHaveAttribute('aria-expanded', 'true');
         expect(document.getElementById('execution-details-31')).toBeInTheDocument();
+
+        await user.keyboard(' ');
+        expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+        expect(document.getElementById('execution-details-31')).not.toBeInTheDocument();
 
         const results = await axe.run(container);
         expect(results.violations).toEqual([]);
