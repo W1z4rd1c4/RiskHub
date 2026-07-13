@@ -13,13 +13,10 @@ import { defineConfig, globalIgnores } from "eslint/config";
 // are NOT force-promoted — doing so would manufacture violations the plugin itself
 // disables, while the modern `jsx-a11y/label-has-associated-control` (shipped
 // `error`) already covers real control labeling. Option tuples are preserved.
-// Existing violations of the genuinely-`error` rules are NOT fixed here — they are
-// held by the committed fingerprinted baseline in `scripts/a11y/jsx-a11y-baseline.json`
-// and enforced (subset-fails-new, stale-fails-shrink) by
-// `scripts/a11y/jsx-a11y-baseline.mjs`, the authoritative gate. The committed
-// `eslint-suppressions.json` (ESLint-native, count-keyed) only lets `eslint .` exit 0
-// on the still-broken app; both files are regenerated together by the validator's
-// `--write` mode. This is NOT a bare `--max-warnings` total (N6).
+// The precise invariant is: every enabled recommended rule is enforced as an
+// error. The strict-zero gate in scripts/a11y/jsx-a11y-baseline.mjs rejects every
+// finding, non-empty baseline, or suppression entry. There is no update path;
+// future exceptions require a separate policy change and tracked approval.
 
 /**
  * Preserve a jsx-a11y recommended rule's SHIPPED severity, upgrading only `warn`
@@ -117,8 +114,8 @@ export default defineConfig([
   },
   {
     // ADR-013 (FR-P1-4, N4): author-time accessibility rules. Scoped to the same
-    // application source the primary lint pass covers. Held in baseline mode — see
-    // the header comment and scripts/a11y/jsx-a11y-baseline.mjs.
+    // application source the primary lint pass covers. Every enabled recommended
+    // rule is an error, with direct strict-zero enforcement in the a11y gate.
     files: ["src/**/*.{ts,tsx}"],
     plugins: { "jsx-a11y": jsxA11y },
     rules: jsxA11yBaselineRules,

@@ -40,6 +40,12 @@ function severityOf(entry: unknown): unknown {
 describe('eslint.config.js — resolved jsx-a11y rule severities', () => {
   const rules = jsxA11yRuleBlock(eslintConfig);
 
+  it('enforces every enabled recommended rule as an error', () => {
+    for (const entry of Object.values(rules)) {
+      expect(['off', 'error']).toContain(severityOf(entry));
+    }
+  });
+
   it('leaves the deprecated, plugin-`off` label-has-for as off (not force-promoted to error)', () => {
     expect(severityOf(rules['jsx-a11y/label-has-for'])).toBe('off');
   });
