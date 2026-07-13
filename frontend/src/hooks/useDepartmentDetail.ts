@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
+
+import { isForbiddenApiError } from '@/services/apiClient';
 import { departmentApi, type DepartmentDetail } from '@/services/departmentApi';
+import { logError } from '@/services/logger';
 import { userApi } from '@/services/userApi';
-import type { RiskSummary } from '@/types/risk';
+import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator, KRIMonitoringStatus } from '@/types/kri';
-import { logError } from '@/services/logger';
-import { isForbiddenApiError } from '@/services/apiClient';
-import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
+import type { RiskSummary } from '@/types/risk';
 
 // Pagination constants - must match backend MAX_PAGE_SIZE
 export const DEPARTMENT_PAGE_SIZE = 100;
 
-// Simplified user type for scoped lookup
 export interface DeptUser {
     id: number;
     name: string;
@@ -22,20 +22,99 @@ export interface DeptUser {
 
 export type TabView = 'risks' | 'controls' | 'kris' | 'activity' | 'users';
 
-/**
- * Per-tab async fetch state. `errorKey` is a localized-message key (resolved by the
- * consumer) so a failed tab fetch is distinguishable from an empty result (C4).
- */
 export interface TabFetchState {
     isLoading: boolean;
     errorKey: string | null;
 }
 
-const INITIAL_TAB_STATE: TabFetchState = { isLoading: false, errorKey: null };
-
-// Shared table-error message key (N17 contract). Reused for every tab fetch so a
-// failed load surfaces the same localized "couldn't load, retry" affordance.
 const TAB_ERROR_KEY = 'tables.error.message';
+
+/**
+ * Internal owner-keyed async state. `ownerId` belongs to the settled data;
+ * `requestedOwnerId` belongs to the in-flight/latest request. Keeping both is
+ * what permits same-department stale-data preservation without ever exposing
+ * department A data while the current route belongs to B.
+ */
+interface ScopedTabState<T> {
+    data: T;
+    ownerId: number | null;
+    requestedOwnerId: number | null;
+    requestId: number;
+    isLoading: boolean;
+    errorKey: string | null;
+}
+
+type ScopedTabAction<T> =
+    | { type: 'start'; ownerId: number; requestId: number }
+    | { type: 'success'; ownerId: number; requestId: number; data: T }
+    | { type: 'failure'; ownerId: number; requestId: number; errorKey: string };
+
+function createScopedState<T>(data: T): ScopedTabState<T> {
+    return {
+        data,
+        ownerId: null,
+        requestedOwnerId: null,
+        requestId: 0,
+        isLoading: false,
+        errorKey: null,
+    };
+}
+
+function scopedTabReducer<T>(state: ScopedTabState<T>, action: ScopedTabAction<T>): ScopedTabState<T> {
+    if (action.type === 'start') {
+        return {
+            ...state,
+            requestedOwnerId: action.ownerId,
+            requestId: action.requestId,
+            isLoading: true,
+            errorKey: null,
+        };
+    }
+    if (action.requestId !== state.requestId || action.ownerId !== state.requestedOwnerId) {
+        return state;
+    }
+    if (action.type === 'failure') {
+        return { ...state, isLoading: false, errorKey: action.errorKey };
+    }
+    return {
+        data: action.data,
+        ownerId: action.ownerId,
+        requestedOwnerId: action.ownerId,
+        requestId: action.requestId,
+        isLoading: false,
+        errorKey: null,
+    };
+}
+
+interface DepartmentOutcome {
+    department: DepartmentDetail | null;
+    isAccessDenied: boolean;
+    error: string | null;
+}
+
+interface KriOutcome {
+    items: KeyRiskIndicator[];
+    total: number;
+}
+
+const EMPTY_DEPARTMENT: DepartmentOutcome = {
+    department: null,
+    isAccessDenied: false,
+    error: null,
+};
+const EMPTY_KRIS: KriOutcome = { items: [], total: 0 };
+
+function dataForOwner<T>(state: ScopedTabState<T>, departmentId: number | undefined, empty: T): T {
+    return departmentId !== undefined && state.ownerId === departmentId ? state.data : empty;
+}
+
+function statusForOwner<T>(state: ScopedTabState<T>, departmentId: number | undefined): TabFetchState {
+    if (departmentId === undefined) return { isLoading: false, errorKey: null };
+    return {
+        isLoading: state.requestedOwnerId !== departmentId || state.isLoading,
+        errorKey: state.requestedOwnerId === departmentId ? state.errorKey : null,
+    };
+}
 
 interface UseDepartmentDetailParams {
     departmentId: number | undefined;
@@ -49,43 +128,26 @@ interface UseDepartmentDetailParams {
 }
 
 interface UseDepartmentDetailResult {
-    // Department metadata
     department: DepartmentDetail | null;
     isLoading: boolean;
     isAccessDenied: boolean;
     error: string | null;
-
-    // Tab data
     risks: RiskSummary[];
     controls: ControlSummary[];
     kris: KeyRiskIndicator[];
     users: DeptUser[];
-
-    // Pagination totals
     riskTotalPages: number;
     controlTotalPages: number;
     kriTotalPages: number;
     userTotalPages: number;
-
-    // Per-tab async fetch state (loading + localized errorKey) so a failed tab
-    // fetch renders an error + retry surface instead of a false empty state (C4).
     risksState: TabFetchState;
     controlsState: TabFetchState;
     krisState: TabFetchState;
     usersState: TabFetchState;
-
-    // Risk count helper
     getRiskCount: () => number;
-
-    // Refresh handler
     refresh: () => void;
 }
 
-/**
- * Custom hook to manage department detail data fetching.
- * Fetches department metadata once on id change, then fetches
- * tab-specific data only when that tab is active and page changes.
- */
 export function useDepartmentDetail({
     departmentId,
     activeTab,
@@ -98,61 +160,62 @@ export function useDepartmentDetail({
 }: UseDepartmentDetailParams): UseDepartmentDetailResult {
     const { thresholds } = useRiskThresholds();
     const [refreshNonce, setRefreshNonce] = useState(0);
-    // Department metadata
-    const [department, setDepartment] = useState<DepartmentDetail | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isAccessDenied, setIsAccessDenied] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const requestSequence = useRef(0);
+    const nextRequestId = () => {
+        requestSequence.current += 1;
+        return requestSequence.current;
+    };
 
-    // Tab data
-    const [risks, setRisks] = useState<RiskSummary[]>([]);
-    const [controls, setControls] = useState<ControlSummary[]>([]);
-    const [kris, setKris] = useState<KeyRiskIndicator[]>([]);
-    const [users, setUsers] = useState<DeptUser[]>([]);
-    const [kriTotalCount, setKriTotalCount] = useState(0);
+    const [departmentResource, dispatchDepartment] = useReducer(
+        scopedTabReducer<DepartmentOutcome>,
+        createScopedState(EMPTY_DEPARTMENT),
+    );
+    const [risksResource, dispatchRisks] = useReducer(
+        scopedTabReducer<RiskSummary[]>,
+        createScopedState<RiskSummary[]>([]),
+    );
+    const [controlsResource, dispatchControls] = useReducer(
+        scopedTabReducer<ControlSummary[]>,
+        createScopedState<ControlSummary[]>([]),
+    );
+    const [krisResource, dispatchKris] = useReducer(
+        scopedTabReducer<KriOutcome>,
+        createScopedState(EMPTY_KRIS),
+    );
+    const [usersResource, dispatchUsers] = useReducer(
+        scopedTabReducer<DeptUser[]>,
+        createScopedState<DeptUser[]>([]),
+    );
 
-    // R3a: the departmentId each tab array currently belongs to. The hook does NOT
-    // remount on a departmentId change (the route element `departments-detail` is
-    // stable), so the raw arrays above are retained across an A->B navigation. Each
-    // array is exposed to the consumer only while its owning id matches the current
-    // `departmentId` (see the scoped* values below) — so a B tab fetch that is still
-    // pending or has failed can never render department A's rows under department B.
-    const [risksDeptId, setRisksDeptId] = useState<number | null>(null);
-    const [controlsDeptId, setControlsDeptId] = useState<number | null>(null);
-    const [krisDeptId, setKrisDeptId] = useState<number | null>(null);
-    const [usersDeptId, setUsersDeptId] = useState<number | null>(null);
-
-    // Per-tab async fetch state. Loading is set before each fetch; errorKey is
-    // recorded on failure (last-good rows preserved) and cleared on retry.
-    const [risksState, setRisksState] = useState<TabFetchState>(INITIAL_TAB_STATE);
-    const [controlsState, setControlsState] = useState<TabFetchState>(INITIAL_TAB_STATE);
-    const [krisState, setKrisState] = useState<TabFetchState>(INITIAL_TAB_STATE);
-    const [usersState, setUsersState] = useState<TabFetchState>(INITIAL_TAB_STATE);
-
-    // Fetch department metadata once on id change
     useEffect(() => {
         if (!departmentId) return;
-        setIsLoading(true);
-        setError(null);
+        const requestId = nextRequestId();
         let cancelled = false;
+        dispatchDepartment({ type: 'start', ownerId: departmentId, requestId });
         departmentApi.getDepartment(departmentId)
             .then((data) => {
                 if (!cancelled) {
-                    setDepartment(data);
-                    setIsAccessDenied(false);
+                    dispatchDepartment({
+                        type: 'success',
+                        ownerId: departmentId,
+                        requestId,
+                        data: { department: data, isAccessDenied: false, error: null },
+                    });
                 }
             })
             .catch((error: unknown) => {
                 if (!cancelled) {
-                    const accessDenied = isForbiddenApiError(error);
-                    setIsAccessDenied(accessDenied);
-                    setDepartment(null);
-                    setError(accessDenied ? null : 'errors.load_department_detail_failed');
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setIsLoading(false);
+                    const isAccessDenied = isForbiddenApiError(error);
+                    dispatchDepartment({
+                        type: 'success',
+                        ownerId: departmentId,
+                        requestId,
+                        data: {
+                            department: null,
+                            isAccessDenied,
+                            error: isAccessDenied ? null : 'errors.load_department_detail_failed',
+                        },
+                    });
                 }
             });
         return () => {
@@ -160,35 +223,24 @@ export function useDepartmentDetail({
         };
     }, [departmentId, refreshNonce]);
 
-    // Fetch risks when risks tab is active or page/filter changes
     useEffect(() => {
         if (!departmentId || activeTab !== 'risks') return;
+        const requestId = nextRequestId();
         let cancelled = false;
-        const skip = (riskPage - 1) * DEPARTMENT_PAGE_SIZE;
         const params: { skip: number; limit: number; min_net_score?: number } = {
-            skip,
+            skip: (riskPage - 1) * DEPARTMENT_PAGE_SIZE,
             limit: DEPARTMENT_PAGE_SIZE,
         };
-        if (riskFilter === 'high') {
-            params.min_net_score = thresholds.high;
-        }
-        setRisksState({ isLoading: true, errorKey: null });
+        if (riskFilter === 'high') params.min_net_score = thresholds.high;
+        dispatchRisks({ type: 'start', ownerId: departmentId, requestId });
         departmentApi.getDepartmentRisks(departmentId, params)
             .then((data) => {
-                if (!cancelled) {
-                    setRisks(data);
-                    setRisksDeptId(departmentId);
-                }
+                if (!cancelled) dispatchRisks({ type: 'success', ownerId: departmentId, requestId, data });
             })
             .catch((error: unknown) => {
                 if (!cancelled) {
                     logError('Failed to load department risks.', error);
-                    setRisksState((state) => ({ ...state, errorKey: TAB_ERROR_KEY }));
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setRisksState((state) => ({ ...state, isLoading: false }));
+                    dispatchRisks({ type: 'failure', ownerId: departmentId, requestId, errorKey: TAB_ERROR_KEY });
                 }
             });
         return () => {
@@ -196,28 +248,22 @@ export function useDepartmentDetail({
         };
     }, [departmentId, activeTab, riskPage, riskFilter, refreshNonce, thresholds.high]);
 
-    // Fetch controls when controls tab is active or page changes
     useEffect(() => {
         if (!departmentId || activeTab !== 'controls') return;
+        const requestId = nextRequestId();
         let cancelled = false;
-        const skip = (controlPage - 1) * DEPARTMENT_PAGE_SIZE;
-        setControlsState({ isLoading: true, errorKey: null });
-        departmentApi.getDepartmentControls(departmentId, { skip, limit: DEPARTMENT_PAGE_SIZE })
+        dispatchControls({ type: 'start', ownerId: departmentId, requestId });
+        departmentApi.getDepartmentControls(departmentId, {
+            skip: (controlPage - 1) * DEPARTMENT_PAGE_SIZE,
+            limit: DEPARTMENT_PAGE_SIZE,
+        })
             .then((data) => {
-                if (!cancelled) {
-                    setControls(data);
-                    setControlsDeptId(departmentId);
-                }
+                if (!cancelled) dispatchControls({ type: 'success', ownerId: departmentId, requestId, data });
             })
             .catch((error: unknown) => {
                 if (!cancelled) {
                     logError('Failed to load department controls.', error);
-                    setControlsState((state) => ({ ...state, errorKey: TAB_ERROR_KEY }));
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setControlsState((state) => ({ ...state, isLoading: false }));
+                    dispatchControls({ type: 'failure', ownerId: departmentId, requestId, errorKey: TAB_ERROR_KEY });
                 }
             });
         return () => {
@@ -225,33 +271,30 @@ export function useDepartmentDetail({
         };
     }, [departmentId, activeTab, controlPage, refreshNonce]);
 
-    // Fetch KRIs when kris tab is active or page changes
     useEffect(() => {
         if (!departmentId || activeTab !== 'kris') return;
+        const requestId = nextRequestId();
         let cancelled = false;
-        const skip = (kriPage - 1) * DEPARTMENT_PAGE_SIZE;
-        setKrisState({ isLoading: true, errorKey: null });
+        dispatchKris({ type: 'start', ownerId: departmentId, requestId });
         departmentApi.getDepartmentKRIs(departmentId, {
-            skip,
+            skip: (kriPage - 1) * DEPARTMENT_PAGE_SIZE,
             limit: DEPARTMENT_PAGE_SIZE,
             monitoring_status: kriFilter === 'all' ? undefined : kriFilter,
         })
-            .then((response) => {
+            .then((data) => {
                 if (!cancelled) {
-                    setKris(response.items);
-                    setKriTotalCount(response.total);
-                    setKrisDeptId(departmentId);
+                    dispatchKris({
+                        type: 'success',
+                        ownerId: departmentId,
+                        requestId,
+                        data: { items: data.items, total: data.total },
+                    });
                 }
             })
             .catch((error: unknown) => {
                 if (!cancelled) {
                     logError('Failed to load department KRIs.', error);
-                    setKrisState((state) => ({ ...state, errorKey: TAB_ERROR_KEY }));
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setKrisState((state) => ({ ...state, isLoading: false }));
+                    dispatchKris({ type: 'failure', ownerId: departmentId, requestId, errorKey: TAB_ERROR_KEY });
                 }
             });
         return () => {
@@ -259,28 +302,23 @@ export function useDepartmentDetail({
         };
     }, [departmentId, activeTab, kriFilter, kriPage, refreshNonce]);
 
-    // Fetch users when users tab is active or page changes
     useEffect(() => {
         if (!departmentId || activeTab !== 'users') return;
+        const requestId = nextRequestId();
         let cancelled = false;
-        const skip = (userPage - 1) * DEPARTMENT_PAGE_SIZE;
-        setUsersState({ isLoading: true, errorKey: null });
-        userApi.listVisibleUsers({ department_id: departmentId, skip, limit: DEPARTMENT_PAGE_SIZE })
+        dispatchUsers({ type: 'start', ownerId: departmentId, requestId });
+        userApi.listVisibleUsers({
+            department_id: departmentId,
+            skip: (userPage - 1) * DEPARTMENT_PAGE_SIZE,
+            limit: DEPARTMENT_PAGE_SIZE,
+        })
             .then((data) => {
-                if (!cancelled) {
-                    setUsers(data);
-                    setUsersDeptId(departmentId);
-                }
+                if (!cancelled) dispatchUsers({ type: 'success', ownerId: departmentId, requestId, data });
             })
             .catch((error: unknown) => {
                 if (!cancelled) {
                     logError('Failed to load department users.', error);
-                    setUsersState((state) => ({ ...state, errorKey: TAB_ERROR_KEY }));
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setUsersState((state) => ({ ...state, isLoading: false }));
+                    dispatchUsers({ type: 'failure', ownerId: departmentId, requestId, errorKey: TAB_ERROR_KEY });
                 }
             });
         return () => {
@@ -288,54 +326,41 @@ export function useDepartmentDetail({
         };
     }, [departmentId, activeTab, userPage, refreshNonce]);
 
-    // Compute risk count based on filter
+    const departmentOutcome = dataForOwner(departmentResource, departmentId, EMPTY_DEPARTMENT);
+    const risks = dataForOwner(risksResource, departmentId, []);
+    const controls = dataForOwner(controlsResource, departmentId, []);
+    const kriOutcome = dataForOwner(krisResource, departmentId, EMPTY_KRIS);
+    const users = dataForOwner(usersResource, departmentId, []);
+
     const getRiskCount = () => {
+        const department = departmentOutcome.department;
         if (!department) return 0;
-        if (riskFilter === 'high') {
-            return department.high_risk_count;
-        }
-        return department.risk_count;
+        return riskFilter === 'high' ? department.high_risk_count : department.risk_count;
     };
 
-    // R3a scoping: only surface tab rows (and the KRI total) that belong to the
-    // department currently in the route. Until B's own fetch resolves, each scoped
-    // value falls back to empty/zero, so the consumer renders loading/empty/error
-    // instead of department A's retained rows.
-    const scopedRisks = risksDeptId === departmentId ? risks : [];
-    const scopedControls = controlsDeptId === departmentId ? controls : [];
-    const scopedKris = krisDeptId === departmentId ? kris : [];
-    const scopedUsers = usersDeptId === departmentId ? users : [];
-    const scopedKriTotalCount = krisDeptId === departmentId ? kriTotalCount : 0;
-
-    // Compute pagination totals from department metadata
-    const riskTotalPages = Math.ceil(getRiskCount() / DEPARTMENT_PAGE_SIZE) || 1;
-    const controlTotalPages = Math.ceil((department?.control_count || 0) / DEPARTMENT_PAGE_SIZE) || 1;
-    const kriTotalPages = Math.ceil(scopedKriTotalCount / DEPARTMENT_PAGE_SIZE) || 1;
-    const userTotalPages = Math.ceil((department?.user_count || 0) / DEPARTMENT_PAGE_SIZE) || 1;
-
-    // Refresh handler - re-fetches department metadata
     const refresh = () => {
-        if (!departmentId) return;
-        setRefreshNonce((current) => current + 1);
+        if (departmentId) setRefreshNonce((current) => current + 1);
     };
 
     return {
-        department,
-        isLoading,
-        isAccessDenied,
-        error,
-        risks: scopedRisks,
-        controls: scopedControls,
-        kris: scopedKris,
-        users: scopedUsers,
-        riskTotalPages,
-        controlTotalPages,
-        kriTotalPages,
-        userTotalPages,
-        risksState,
-        controlsState,
-        krisState,
-        usersState,
+        department: departmentOutcome.department,
+        isLoading: departmentId !== undefined && (
+            departmentResource.requestedOwnerId !== departmentId || departmentResource.isLoading
+        ),
+        isAccessDenied: departmentOutcome.isAccessDenied,
+        error: departmentOutcome.error,
+        risks,
+        controls,
+        kris: kriOutcome.items,
+        users,
+        riskTotalPages: Math.ceil(getRiskCount() / DEPARTMENT_PAGE_SIZE) || 1,
+        controlTotalPages: Math.ceil((departmentOutcome.department?.control_count ?? 0) / DEPARTMENT_PAGE_SIZE) || 1,
+        kriTotalPages: Math.ceil(kriOutcome.total / DEPARTMENT_PAGE_SIZE) || 1,
+        userTotalPages: Math.ceil((departmentOutcome.department?.user_count ?? 0) / DEPARTMENT_PAGE_SIZE) || 1,
+        risksState: statusForOwner(risksResource, departmentId),
+        controlsState: statusForOwner(controlsResource, departmentId),
+        krisState: statusForOwner(krisResource, departmentId),
+        usersState: statusForOwner(usersResource, departmentId),
         getRiskCount,
         refresh,
     };
