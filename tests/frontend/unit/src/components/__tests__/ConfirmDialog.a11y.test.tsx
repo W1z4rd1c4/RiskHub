@@ -122,4 +122,12 @@ describe('ConfirmDialog accessibility', () => {
         expect(confirmButton).toHaveClass('bg-destructive', 'text-destructive-foreground');
         expect(confirmButton.className).not.toMatch(/bg-\[#|text-\[#/);
     });
+
+    it('uses the semantic warning token pair for the warning action', () => {
+        renderConfirmDialog({ variant: 'warning', confirmLabel: 'Continue anyway' });
+
+        const confirmButton = screen.getByRole('button', { name: 'Continue anyway' });
+        expect(confirmButton).toHaveClass('bg-warning', 'hover:bg-warning/90', 'text-warning-foreground');
+        expect(confirmButton).not.toHaveClass('text-white');
+    });
 });

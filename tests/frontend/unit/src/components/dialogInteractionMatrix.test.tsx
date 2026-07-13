@@ -168,16 +168,29 @@ async function assertOpenDialogContract(
     // Initial focus lands inside the surface (element self-contains).
     await waitFor(() => expect(surface.contains(document.activeElement)).toBe(true));
 
-    // Tab stays trapped (cycle well past the focusable count).
-    for (let i = 0; i < 8; i += 1) {
-        await user.tab();
-        expect(surface.contains(document.activeElement)).toBe(true);
-    }
-    // Shift+Tab stays trapped too.
-    for (let i = 0; i < 8; i += 1) {
-        await user.tab({ shift: true });
-        expect(surface.contains(document.activeElement)).toBe(true);
-    }
+    // Prove both trap boundaries, independent of how many controls the dialog has.
+    const focusable = Array.from(surface.querySelectorAll<HTMLElement>([
+        'a[href]',
+        'button:not([disabled])',
+        'textarea:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+    ].join(','))).filter((element) => (
+        element.getAttribute('aria-hidden') !== 'true'
+        && !element.closest('[aria-hidden="true"]')
+    ));
+    expect(focusable.length, 'dialog must expose at least one tabbable control').toBeGreaterThan(0);
+    const firstFocusable = focusable[0]!;
+    const lastFocusable = focusable.at(-1)!;
+
+    lastFocusable.focus();
+    await user.tab();
+    expect(firstFocusable).toHaveFocus();
+
+    firstFocusable.focus();
+    await user.tab({ shift: true });
+    expect(lastFocusable).toHaveFocus();
 
     // Open-state axe sweep with the shared pinned tags.
     await expectNoAxeViolations(document.body);

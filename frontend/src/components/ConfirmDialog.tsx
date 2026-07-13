@@ -37,9 +37,7 @@ const variantStyles = {
         iconColor: 'text-warning',
         buttonBg: 'bg-warning hover:bg-warning/90',
         buttonRing: 'focus:ring-warning/50',
-        // Amber button: text-white (re-colored dark in light theme) is the
-        // readable pairing on amber — unchanged.
-        buttonText: 'text-white',
+        buttonText: 'text-warning-foreground',
     },
     info: {
         icon: AlertTriangle,
@@ -47,7 +45,7 @@ const variantStyles = {
         iconColor: 'text-info',
         buttonBg: 'bg-info hover:bg-info/90',
         buttonRing: 'focus:ring-info/50',
-        buttonText: 'text-white',
+        buttonText: 'text-info-foreground',
     },
 };
 

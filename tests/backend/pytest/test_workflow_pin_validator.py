@@ -377,6 +377,7 @@ def test_e2e_workflow_prefers_system_chrome_with_bounded_browser_fallback() -> N
     assert "timeout-minutes: 8" in install_step
     run_step = text[text.index("      - name: Run E2E tests") : text.index("      - name: Upload test results")]
     assert "npm run e2e:a11y:collect" in run_step
+    assert "npm run e2e:a11y:results" in run_step
     assert "--project=ci" in run_step
     assert "--project=chromium" not in run_step
     assert "unset PLAYWRIGHT_CHROMIUM_CHANNEL" in run_step

@@ -36,24 +36,18 @@ export function StepIndicator({
                 const isCompleted = currentStep > idx;
 
                 return (
-                    <div
+                    <button
                         key={step.id}
-                        role="button"
-                        tabIndex={isClickable ? 0 : -1}
-                        aria-disabled={!isClickable}
+                        type="button"
+                        disabled={!isClickable}
+                        aria-current={isActive ? 'step' : undefined}
                         className={`flex flex-col items-center gap-2 group transition-all ${isClickable
                                 ? 'cursor-pointer'
                                 : isActive
                                     ? 'cursor-default'
                                     : 'cursor-not-allowed opacity-50'
                             }`}
-                        onClick={() => isClickable && onStepClick(idx)}
-                        onKeyDown={(event) => {
-                            if (isClickable && (event.key === 'Enter' || event.key === ' ')) {
-                                event.preventDefault();
-                                onStepClick(idx);
-                            }
-                        }}
+                        onClick={() => onStepClick(idx)}
                     >
                         <div
                             className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${isActive
@@ -79,7 +73,7 @@ export function StepIndicator({
                         >
                             {step.title}
                         </span>
-                    </div>
+                    </button>
                 );
             })}
         </div>

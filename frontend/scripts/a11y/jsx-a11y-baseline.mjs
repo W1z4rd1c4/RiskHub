@@ -61,7 +61,11 @@ async function resolveRoot() {
 }
 
 async function collectFindings(root) {
-  const eslint = new ESLint({ cwd: root, errorOnUnmatchedPattern: false });
+  const eslint = new ESLint({
+    cwd: root,
+    errorOnUnmatchedPattern: false,
+    allowInlineConfig: false,
+  });
   const results = await eslint.lintFiles(['src']);
   return results.flatMap((result) => {
     const file = path.relative(root, result.filePath).replaceAll(path.sep, '/');

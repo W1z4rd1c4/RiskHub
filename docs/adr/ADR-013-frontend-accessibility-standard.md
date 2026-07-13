@@ -81,10 +81,12 @@ Two legs of work toward the target:
 - `eslint-plugin-jsx-a11y` in `frontend/eslint.config.js`; every enabled recommended rule is an
   `error`. `frontend/scripts/a11y/jsx-a11y-baseline.mjs` enforces zero findings, a well-formed
   empty evidence file, and zero suppression entries, with no writable exception path.
-- Extended, **stateful** `accessibility-smoke.spec.ts` — DORA coverage, pinned WCAG tags, no
-  severity filter, strict zero findings, primary `ci` project, per-state scans + focus-trap
-  assertions. E2E collection is asserted before the run, and CI falls back from system Chrome to
-  bundled Chromium without changing projects.
+- Extended `accessibility-smoke.spec.ts` route/theme coverage with pinned WCAG tags, no severity
+  filter, and strict-zero findings. `dora-ux-stateful-a11y.spec.ts` separately opens validation,
+  loading/error, disclosure, select, and layered dialog states; `dialog-render-sites.spec.ts`
+  enforces the inventoried dialog interaction contract. All three run on the primary `ci` project.
+  E2E collection is asserted before the run, and CI falls back from system Chrome to bundled
+  Chromium without changing projects.
 - A per-phase manual/AT checklist (keyboard, focus order, screen reader, zoom/reflow with C6
   failures recorded).
 

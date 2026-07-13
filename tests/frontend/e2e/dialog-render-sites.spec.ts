@@ -218,14 +218,30 @@ test.describe('validated application dialog render sites', () => {
       expect(accessibleName.length).toBeGreaterThan(0);
       await assertFocusInside(page, surface);
 
-      for (let index = 0; index < 8; index += 1) {
-        await page.keyboard.press('Tab');
-        await assertFocusInside(page, surface);
+      const focusable = surface.locator([
+        'a[href]',
+        'button:not([disabled])',
+        'textarea:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+      ].join(','));
+      const visibleFocusable = [];
+      for (let index = 0; index < await focusable.count(); index += 1) {
+        const candidate = focusable.nth(index);
+        if (await candidate.isVisible()) visibleFocusable.push(candidate);
       }
-      for (let index = 0; index < 8; index += 1) {
-        await page.keyboard.press('Shift+Tab');
-        await assertFocusInside(page, surface);
-      }
+      expect(visibleFocusable.length, 'dialog must expose at least one tabbable control').toBeGreaterThan(0);
+      const firstFocusable = visibleFocusable[0]!;
+      const lastFocusable = visibleFocusable.at(-1)!;
+
+      await lastFocusable.focus();
+      await page.keyboard.press('Tab');
+      await expect(firstFocusable).toBeFocused();
+
+      await firstFocusable.focus();
+      await page.keyboard.press('Shift+Tab');
+      await expect(lastFocusable).toBeFocused();
 
       await page.keyboard.press('Escape');
       await expect(surface).toHaveCount(0);

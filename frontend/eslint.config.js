@@ -50,6 +50,11 @@ const maintainedModulePaths = [
 export default defineConfig([
   globalIgnores(["dist"]),
   {
+    linterOptions: {
+      noInlineConfig: true,
+    },
+  },
+  {
     files: ["src/**/*.{ts,tsx}"],
     extends: [
       js.configs.recommended,

@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const frontendRoot = resolve(scriptDir, '../..');
+const e2eRoot = resolve(frontendRoot, '../tests/frontend/e2e');
 
 export const REQUIRED_A11Y_SPECS = [
   'accessibility-smoke.spec.ts',
@@ -20,7 +22,20 @@ export function assertA11ySpecsCollected(output) {
   }
 }
 
+export function assertNoDisabledA11yTests(sources) {
+  const disabledPattern = /\b(?:test|test\.describe|describe)\.(?:skip|fixme)\s*\(/;
+  for (const [spec, source] of sources) {
+    if (disabledPattern.test(source)) {
+      throw new Error(`Required accessibility spec contains a skip or fixme annotation: ${spec}`);
+    }
+  }
+}
+
 export function validatePlaywrightA11yCollection() {
+  assertNoDisabledA11yTests(new Map(REQUIRED_A11Y_SPECS.map((spec) => [
+    spec,
+    readFileSync(resolve(e2eRoot, spec), 'utf8'),
+  ])));
   const playwright = resolve(frontendRoot, 'node_modules/.bin/playwright');
   const result = spawnSync(
     playwright,

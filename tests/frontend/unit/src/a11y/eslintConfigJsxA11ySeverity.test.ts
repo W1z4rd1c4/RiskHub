@@ -20,7 +20,10 @@ import eslintConfig, { promoteJsxA11yWarnToError } from '../../../../../frontend
  * dropping those two loses no real labeling coverage.
  */
 
-type FlatConfigBlock = { rules?: Record<string, unknown> };
+type FlatConfigBlock = {
+  rules?: Record<string, unknown>;
+  linterOptions?: { noInlineConfig?: boolean };
+};
 
 /** The single flat-config block that carries the jsx-a11y rule severities. */
 function jsxA11yRuleBlock(config: unknown): Record<string, unknown> {
@@ -44,6 +47,11 @@ describe('eslint.config.js — resolved jsx-a11y rule severities', () => {
     for (const entry of Object.values(rules)) {
       expect(['off', 'error']).toContain(severityOf(entry));
     }
+  });
+
+  it('forbids inline ESLint configuration so source cannot suppress the zero policy', () => {
+    const blocks = eslintConfig as FlatConfigBlock[];
+    expect(blocks.some((block) => block.linterOptions?.noInlineConfig === true)).toBe(true);
   });
 
   it('leaves the deprecated, plugin-`off` label-has-for as off (not force-promoted to error)', () => {
