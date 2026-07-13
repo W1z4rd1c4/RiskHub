@@ -23,10 +23,10 @@ const reportDir = path.join(resultsRoot, 'playwright-report');
 const testResultsDir = path.join(resultsRoot, 'test-results');
 
 // ADR-013 (N8): the extended accessibility smoke is restricted to the `ci`
-// project — the only one with a committed axe rule/selector baseline cell
+// project — the only one with the committed strict-zero axe evidence matrix
 // (tests/frontend/e2e/accessibility-axe-baseline.json). It is excluded from the
-// chromium/firefox/webkit projects so they never run it against an empty
-// baseline. Keep in sync with the guard note in accessibility-smoke.spec.ts.
+// chromium/firefox/webkit projects so the enforced matrix remains exact. Keep
+// in sync with the guard note in accessibility-smoke.spec.ts.
 // The N10 stateful a11y sweep (dora-ux-stateful-a11y.spec.ts) is likewise
 // `ci`-only: its focus-trap/restoration + interception timing target the `ci`
 // (Chromium) project e2e.yml runs, not the firefox/webkit matrix.

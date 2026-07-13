@@ -1,13 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { test, type Page, type TestInfo } from '@playwright/test';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 import { navigateSpa } from './helpers/spaNavigate';
 import { waitForDataLoad } from './helpers/wait';
 import {
+  assertZeroAxeFindings,
   WCAG_TAGS,
-  diffCell,
-  loadBaselineCell,
   toFindings,
+  validateCommittedZeroAxeBaseline,
   type AxeFinding,
 } from './helpers/axeBaseline';
 
@@ -60,7 +60,6 @@ async function auditRoutes(
   const project = testInfo.project.name;
 
   const attach: Array<{ route: string; findingCount: number; findings: AxeFinding[] }> = [];
-  const drift: string[] = [];
 
   for (const route of routes) {
     await navigateSpa(page, route, { timeout: 30000 });
@@ -71,48 +70,29 @@ async function auditRoutes(
     const analysis = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).analyze();
     const findings = toFindings(analysis.violations);
     attach.push({ route, findingCount: findings.length, findings });
-
-    // Zero-tolerance, ENFORCE-ONLY: the committed baseline cells are all empty and
-    // there is no update/overwrite path, so every current finding is NEW drift.
-    const { newFindings, staleFingerprints } = diffCell(route, loadBaselineCell(project, theme, route), findings);
-    for (const finding of newFindings) {
-      drift.push(`NEW    ${route}  [${finding.rule}]  impact=${finding.impact ?? 'n/a'}  ${finding.selector}`);
-    }
-    for (const fingerprint of staleFingerprints) {
-      drift.push(`STALE  ${route}  ${fingerprint}`);
-    }
+    assertZeroAxeFindings(findings, `${project}/${theme} ${route}`);
   }
 
   await testInfo.attach(`axe-${project}-${theme}`, {
     body: JSON.stringify(attach, null, 2),
     contentType: 'application/json',
   });
-
-  expect(
-    drift,
-    `axe WCAG violations (${project}/${theme}). The baseline is zero-tolerance and enforce-only — ` +
-      `every finding must be fixed in the app (there is no capture/overwrite path):\n${drift.join('\n')}`
-  ).toEqual([]);
 }
 
 // ADR-013 (N8): the old chromium-only guard skipped this on CI's primary `ci`
-// project (e2e.yml runs `playwright test --project=ci`). It is replaced by a
-// `ci`-ONLY restriction, applied at collection time via per-project `testIgnore`
-// in playwright.config.ts: the rule/selector baseline (accessibility-axe-baseline.json)
-// is captured and enforced PER PROJECT, and only `ci` — the project CI actually
-// runs — has a committed cell, so this suite is assigned to the `ci` project
-// alone (absent from chromium/firefox/webkit) rather than reported red against an
-// empty baseline. Existing violations are held in the shrink-only baseline; only
-// NEW violations fail. See helpers/axeBaseline.ts for the one-time capture command.
-test.describe('Accessibility smoke (WCAG 2.2 AA tags, baseline mode)', () => {
+// project. Collection is restricted to `ci` in playwright.config.ts, and the
+// committed JSON is immutable audit evidence for the exact route/theme matrix.
+// Every scanned axe finding fails directly; there is no fingerprint or update path.
+test.describe('Accessibility smoke (WCAG 2.2 AA tags, strict-zero)', () => {
+  test.beforeAll(() => validateCommittedZeroAxeBaseline());
   for (const theme of THEMES) {
-    test(`business + DORA register surfaces have no new axe violations in ${theme}`, async ({ page }, testInfo) => {
+    test(`business + DORA register surfaces have zero axe violations in ${theme}`, async ({ page }, testInfo) => {
       await seedTheme(page, theme);
       await loginAsDemoUser(page, DEMO_ACCOUNTS.RISK_MANAGER);
       await auditRoutes(page, [...BUSINESS_ROUTES, ...DORA_ROUTES], theme, testInfo);
     });
 
-    test(`admin routes have no new axe violations in ${theme}`, async ({ page }, testInfo) => {
+    test(`admin routes have zero axe violations in ${theme}`, async ({ page }, testInfo) => {
       await seedTheme(page, theme);
       await loginAsDemoUser(page, DEMO_ACCOUNTS.ADMIN);
       await auditRoutes(page, ADMIN_ROUTES, theme, testInfo);
