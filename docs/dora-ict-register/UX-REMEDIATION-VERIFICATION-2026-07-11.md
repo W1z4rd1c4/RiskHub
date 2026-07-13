@@ -51,9 +51,9 @@ sources** (5 verification agents), and what was changed as a result. Repo facts 
 | Claim | Verdict | Basis / fix |
 |-------|---------|-------------|
 | "AA at ≥lg" is an invalid conformance claim | **CONFIRMED** | WCAG conformance is per full page and cannot exclude an automatically-presented viewport (<https://www.w3.org/TR/WCAG22/#cc2>). Reframed everywhere: AA is the **target**; desktop-only leaves 1.4.4/1.4.10 as documented exceptions → **no full AA conformance claim**. |
-| Phase 1 can't be green while enabling gates that detect deferred violations | **CONFIRMED** | Phase 1 now runs the gate in **baseline mode** (record existing violations; fail only new ones); later phases shrink the baseline. |
+| Phase 1 can't be green while enabling gates that detect deferred violations | **CONFIRMED** | The initial plan used a temporary migration baseline. Round 3 supersedes that migration mechanism: the current tree has zero findings and direct strict-zero enforcement with no writable exception path. |
 | Removing native `required` drops useful semantics | **CONFIRMED** | Decision 4 now **keeps `required` + adds `noValidate`**, wires `aria-required`/`aria-invalid`/`aria-describedby` incl. on `ThemedSelect` (which must not let its fallback `aria-label` override a real label — `ThemedSelect.tsx:89`). |
-| axe severity filter ≠ WCAG conformance | **CONFIRMED** | Gate now **fails on all violations the WCAG tags select** (no serious/critical filter), held by a ratcheting baseline. |
+| axe severity filter ≠ WCAG conformance | **CONFIRMED** | Gate **fails on all violations the WCAG tags select** (no serious/critical filter). Round 3 validates an exact empty audit-evidence matrix and fails findings directly; it has no ratchet or capture path. |
 | Export needs capability gating | **CONFIRMED** | `vendor_report_capabilities` (`vendor_report_policy.py:20`) returns a **distinct** `can_download_dora_register` (needs `reports:read` + role), not implied by `ict_committee:read`/`vendors:read`. Readiness links gate on it; test allowed + denied. |
 | `SortableTable` blast radius understated | **CONFIRMED** | **11 files / 20 sites** (Controls/Departments/Issues/KRIs/Risks/Vendors list + the new ones). Phase 3 acceptance now requires regression coverage across all consumers. |
 | "Everything found" not provable (statuses/inventories) | **CONFIRMED** | Ledger gains a **Dispositions** taxonomy (resolved / accepted limitation / deferred); S7 reframed to an **interaction-contract** inventory (dialog vs loading overlay vs popover — `ControlDetailPage`'s loading overlay excluded; exact render-site enumeration is a Phase 2c task); C3/S2 anchors; P11 in-scope; C6 = accepted limitation reconciled with Phase 5. |
@@ -61,6 +61,22 @@ sources** (5 verification agents), and what was changed as a result. Repo facts 
 | "2.2 supersedes 2.1" inaccurate | **CONFIRMED** | Reworded to "upgrades its target"; both remain active W3C standards. |
 | Phase 4 URL/RBAC criteria thin | **CONFIRMED** | Added: authorized deep-link + legacy redirect; unauthorized/invalid `view` → overview **without** fetching committee data; back/forward updates tab; ICT loading/error independent of the overview request (`DashboardPage.tsx:69`). |
 | Chart tokens: "define or remove" left open | **CONFIRMED** | Decided **remove** (no `chart-*`/`var(--chart-*)` usage in source). |
+
+## Round 3 implementation reconciliation (2026-07-13)
+
+- The canonical dialog descriptor now separates 26 implementation owners from 48 application
+  render sites and 5 non-dialog surfaces. Source discovery, 29 unit cases, and 48 Playwright
+  render-site cases must agree.
+- The control-risk loading overlay is tested through production `ControlRiskLoadingOverlay`, not
+  a copied test mirror.
+- jsx-a11y enforces every enabled recommended rule as an error and requires zero findings, an
+  empty well-formed evidence JSON, and zero suppressions. Axe requires the exact empty `ci` /
+  theme / route evidence matrix. Neither mechanism has a write, fingerprint, deviation, anchor,
+  ratchet, capture, or branch-controlled widening path.
+- CI always runs the `ci` Playwright project; bundled Chromium is the fallback when system Chrome
+  is absent. Collection fails unless all three accessibility specs are present.
+- These automated corrections do not complete the human keyboard, VoiceOver/Safari, zoom/reflow,
+  C6 reproduction, ultrareview, or merge gates.
 
 ## Sources (W3C primary)
 

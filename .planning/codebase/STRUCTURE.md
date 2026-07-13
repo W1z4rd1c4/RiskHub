@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-05-26
+**Analysis Date:** 2026-07-13
 
 ## Top-Level Layout
 
@@ -39,7 +39,7 @@
 
 ### Primary subdirectories
 - `frontend/src/pages/` - 218 tracked files (measured git-tracked snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
-- `frontend/src/components/` - 308 tracked files (measured git-tracked snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, and KRI modal modules)
+- `frontend/src/components/` - 309 tracked files (measured git-tracked snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
 - `frontend/src/services/` - API client, auth transport, session state packages, domain service wrappers, and split runtime schema modules
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -48,7 +48,7 @@
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 53 E2E specs among 92 tracked files (measured git-tracked `*.spec.ts` snapshot; domain-focused test suites plus setup/helpers/fixtures)
+- `tests/frontend/e2e/` - 54 E2E specs among 93 tracked files (measured git-tracked `*.spec.ts` snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
 
 ## Planning and Documentation Structure
 
@@ -79,4 +79,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-05-26*
+*Structure audit refreshed on 2026-07-13*

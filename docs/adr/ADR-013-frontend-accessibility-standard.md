@@ -12,7 +12,7 @@ controls, many `ThemedSelect`s deriving their accessible name from a repeated "N
 placeholder (most app-wide selects omit an explicit label; a few pass one), `SortableTable`
 sort headers and rows operable only by mouse, and icon-only actions relying on `title` alone.
 
-The repo already runs a **narrow** accessibility gate:
+At the time of adoption, the repo ran a **narrow** accessibility gate:
 `tests/frontend/e2e/accessibility-smoke.spec.ts` runs `@axe-core/playwright` over `/`,
 `/controls`, `/risks`, `/settings` and `/admin` (three themes) and fails on serious/critical
 violations. But it (a) covers **none** of the new DORA surfaces, (b) runs axe with default
@@ -41,19 +41,16 @@ is insufficient while desktop-only stands.
 
 Two legs of work toward the target:
 
-1. **Automated (machine-checkable subset), gated in CI — each leg carries its own baseline so a
-   phase never has to be green on the still-broken app:**
-   - `eslint-plugin-jsx-a11y` (new) in the lint gate, rules kept as **`error`**, with the
-     existing violations held by a **committed fingerprinted baseline file** (keyed by
-     file + rule + location) plus a CI validator: current findings must be a **subset** of the
-     baseline (new findings fail), and **stale/unused baseline entries also fail** so the baseline
-     can only shrink. A bare total `--max-warnings` budget is **insufficient** — it only fails
-     when the total exceeds the threshold, so a new violation can replace a fixed one, and
-     unrelated rules consume the same budget.
+1. **Automated (machine-checkable subset), gated in CI with direct zero enforcement:**
+   - `eslint-plugin-jsx-a11y` in the lint gate. Every **enabled recommended rule is enforced as
+     an error**; rules the plugin intentionally disables remain `off`. The committed baseline
+     JSON is audit evidence only and must remain well-formed with zero entries. The gate fails
+     for any enabled-rule finding, any non-empty or malformed baseline, or any ESLint suppression
+     entry. There is no write, anchor, fingerprint, deviation, or update workflow.
    - **Extend** `accessibility-smoke.spec.ts` to the DORA surfaces, **pin explicit axe WCAG
      tags** (`wcag2a wcag2aa wcag21a wcag21aa wcag22aa`), **remove the `chromium`-only guard**,
-     **fail on every violation the tags select (not filtered by axe `impact`)** against an
-     explicit **rule/selector baseline** that may only shrink.
+     **fail on every violation the tags select (not filtered by axe `impact`)**. The committed
+     route/theme JSON is an exact, empty audit-evidence matrix, not an exception ledger.
    - Make the axe sweep **stateful**: open each modal/overlay, trigger representative validation
      errors, open Radix selects, expand disclosure/chain rows, and scan each state — plus assert
      focus trapping + restoration on Radix portals inside `DialogShell`. Route-level scans alone
@@ -72,18 +69,22 @@ Two legs of work toward the target:
 - **Claim "AA conformant" on automation alone, before implementation, or while 1.4.4 / 1.4.10
   are open exceptions:** rejected as an overclaim (see Decision).
 - **Filter the gate by axe severity (serious/critical only):** rejected — severity ≠ WCAG level.
-- **Enable jsx-a11y with no baseline, or gate it with a bare `--max-warnings` total:** rejected
-  — no-baseline goes red on day one; a total warning budget does **not** guarantee new findings
-  fail (a new violation can replace a fixed one). Use the fingerprinted baseline file + validator.
+- **Gate jsx-a11y with a bare `--max-warnings` total:** rejected — a total warning budget does
+  **not** guarantee new findings fail because a new violation can replace a fixed one.
+- **Retain a writable fingerprint/deviation mechanism after reaching zero:** rejected — it lets
+  a branch weaken policy. Any future exception mechanism requires a separate policy change and
+  tracked approval.
 - **Target AAA:** rejected — disproportionate for an internal enterprise console.
 
 ## Enforcement
 
-- `eslint-plugin-jsx-a11y` in `frontend/eslint.config.js` (new), rules as `error` with a
-  committed **fingerprinted baseline file + CI validator** (subset check fails new findings;
-  stale entries fail so it only shrinks). Not a bare `--max-warnings` total.
+- `eslint-plugin-jsx-a11y` in `frontend/eslint.config.js`; every enabled recommended rule is an
+  `error`. `frontend/scripts/a11y/jsx-a11y-baseline.mjs` enforces zero findings, a well-formed
+  empty evidence file, and zero suppression entries, with no writable exception path.
 - Extended, **stateful** `accessibility-smoke.spec.ts` — DORA coverage, pinned WCAG tags, no
-  severity filter, shrinking baseline, primary CI project, per-state scans + focus-trap assertions.
+  severity filter, strict zero findings, primary `ci` project, per-state scans + focus-trap
+  assertions. E2E collection is asserted before the run, and CI falls back from system Chrome to
+  bundled Chromium without changing projects.
 - A per-phase manual/AT checklist (keyboard, focus order, screen reader, zoom/reflow with C6
   failures recorded).
 
@@ -95,5 +96,5 @@ Two legs of work toward the target:
 
 ## Rollback Strategy
 
-Downgrade or baseline a specific rule with an inline justification only when a false positive is
-confirmed. Removing the gate wholesale, or dropping the AA target, requires superseding this ADR.
+Any future rule exception or baseline mechanism requires a separate policy change with tracked
+approval. Removing the gate wholesale, or dropping the AA target, requires superseding this ADR.

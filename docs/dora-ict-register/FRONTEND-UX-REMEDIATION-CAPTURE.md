@@ -1,8 +1,9 @@
 # ICT Register — frontend design/UX remediation, grilling capture
 
-_grill-with-docs session, 2026-07-11 (corrected against two code-review rounds, 2026-07-11/12).
-Shared understanding reached across 15 decisions. The code is **not yet enacted** —
-implementation is gated on explicit go-ahead. Domain vocabulary lives in the root
+_grill-with-docs session, 2026-07-11 (corrected through automated remediation Round 3,
+2026-07-13). Shared understanding reached across 15 decisions. The automated implementation
+has landed on `dora`; human manual/assistive-technology verification, C6 reproduction,
+ultrareview, and merge remain pending. Domain vocabulary lives in the root
 [CONTEXT.md](../../CONTEXT.md); app-wide architectural decisions are recorded as
 [ADR-013](../adr/ADR-013-frontend-accessibility-standard.md),
 [ADR-014](../adr/ADR-014-desktop-first-support.md), and
@@ -39,7 +40,8 @@ tokens, accessible primitives, keyboard tables, IA restructure) into the pre-mer
    gated in CI: **new** `eslint-plugin-jsx-a11y` + the **existing** `axe`/Playwright smoke
    (`accessibility-smoke.spec.ts`) **extended** to the DORA surfaces, with pinned WCAG tags,
    its `chromium`-only guard removed, and **failing on every violation the WCAG tags select
-   (not filtered by axe severity)** against a **ratcheting baseline**. See ADR-013.
+   (not filtered by axe severity)** with direct strict-zero enforcement. The committed JSON
+   files are empty audit evidence, not writable exception ledgers. See ADR-013.
 3. **Primitive strategy** — build a **minimal set of accessible primitives** matching the
    current aesthetic (shared `Field` wrapper + `Label`/`Input`, **all true dialog / alert-dialog
    surfaces** — inventoried by *interaction contract* in Phase 2c; loading overlays and
@@ -99,9 +101,9 @@ Two code-review rounds of these docs were verified against source and W3C primar
 
 - **Route** — redirect is `/?view=ict-committee`, not `/dashboard?view=…` (no `/dashboard`
   route; dashboard is `/`).
-- **A11y gate** — a narrow axe smoke gate already exists; the plan *extends* it (WCAG tags,
-  DORA coverage, project-guard fix, **no severity filter**, ratcheting baseline) and *adds*
-  jsx-a11y.
+- **A11y gate** — a narrow axe smoke gate existed; the implementation extends it (WCAG tags,
+  DORA coverage, `ci` project, **no severity filter**, direct zero enforcement) and adds
+  strict-zero jsx-a11y.
 - **Standard** — the project **upgrades its target** to 2.2 AA (2.2 does not "supersede" 2.1;
   both are active standards).
 - **Conformance framing** — AA is a **target**, not a present claim; desktop-only keeps 1.4.4 /
@@ -143,13 +145,11 @@ boundary).
    (jsx-a11y + extended axe with pinned WCAG tags, project-guard fix);
    `index.html`/fonts/chart-token cleanup.
    - _Acceptance:_ tokens defined + wired with zero visual regression + passing contrast tests;
-     **both** a11y gates run in baseline mode — **jsx-a11y** rules as `error` with a **committed
-     fingerprinted baseline file + CI validator** (file+rule+location; new findings fail, stale
-     entries fail so it only shrinks — **not** a bare `--max-warnings` total, which lets a new
-     violation replace a fixed one), **axe** as an explicit rule/selector baseline — so any
-     **new** violation fails; both baselines only shrink; metadata/preconnect landed; dead chart
+     every enabled recommended jsx-a11y rule is an error; jsx-a11y and axe both enforce strict
+     zero; their audit-evidence JSON is present, well-formed, and empty; no write, suppression,
+     anchor, deviation, or baseline-widening path exists; metadata/preconnect landed; dead chart
      tokens removed; full gate green.
-   - _Rollback:_ additive only (new tokens + CI job + baselines) — revert the phase range.
+   - _Rollback:_ additive only (new tokens + CI job + evidence files) — revert the phase range.
 2. **Primitives + forms + modals** — split into three independently-revertable sub-phases:
    - **2a — primitives + tokenized select.** `Field`/`Label`/`Input`; `select.tsx` on tokens;
      `ThemedSelect` ARIA extended (`id`/`aria-labelledby`/`aria-describedby`/`aria-invalid`/
@@ -162,20 +162,22 @@ boundary).
    - **2b — forms.** Migrate Asset/Process/Threat/Vendor sub-forms to `Field` with
      `required`+`noValidate`+per-field validation. _Acceptance:_ every label associated, distinct
      accessible names, `aria-required`/`aria-invalid` exposed, focus-first-invalid, submit
-     success/failure e2e; the corresponding jsx-a11y baseline entries (label/control rules) are
-     **removed** (rules are already `error` from Phase 1). _Rollback:_ one commit per form.
+     success/failure e2e; the corresponding jsx-a11y findings are fixed while the evidence file
+     remains empty (rules are already `error` from Phase 1). _Rollback:_ one commit per form.
    - **2c — dialog migration.** First **inventory every overlay render-site by interaction
      contract**, classifying each as **dialog / alert-dialog** (→ `DialogShell`: focus trap, Esc,
      focus restoration), **loading overlay** (→ `aria-busy`/status, *no* focus transfer — e.g.
      `ControlDetailPage.tsx:292` `isLoadingRisk`), or **popover/listbox/menu** (→ its own ARIA
-     pattern, not `DialogShell`). Migrate only the **dialog/alert-dialog** surfaces (today only
-     `ConfirmDialog` + `ArchiveConfirmDialog` are on `DialogShell`; the rest include
+     pattern, not `DialogShell`). Migrate only the **dialog/alert-dialog** surfaces (the
+     pre-remediation tree had only `ConfirmDialog` + `ArchiveConfirmDialog` on `DialogShell`;
+     the remaining candidates included
      `RiskHubModalFrame` + consumers, the inline delete dialogs,
      `RiskQuestionnaireDetailContainer`, `ADUserPicker`, and the named `*Modal`/`*Dialog` files).
      _Acceptance:_ `DialogShell` extended with `role?: "dialog" | "alertdialog"` (initial-focus
-     behaviour tested per role — it hardcodes `role="dialog"` today at `DialogShell.tsx:176`);
-     every dialog surface has focus trap + Esc + focus restoration (stateful axe/e2e matrix); the
-     dialog/focus-trap baseline reaches 0. _Rollback:_ one commit per surface or cluster.
+     behavior tested per role);
+     the validated two-level inventory covers every implementation owner and concrete render
+     site; every render site has a browser interaction driver; unique variants pass the strict
+     unit matrix. _Rollback:_ one commit per surface or cluster.
 3. **Tables + loading/error states** — (a) `SortableTable` keyboard access (`<button>` in
    `<th aria-sort>`, focusable row `<Link>`), `isLoading` skeleton, and an `isError` branch using
    the **reusable table error contract** (decision 8: localized message + retry callback +
@@ -208,12 +210,19 @@ boundary).
    sweep; radius/z-index/motion tokenization.
    - _Acceptance:_ **every ledger finding reaches an explicit disposition** — `resolved`,
      `accepted limitation` (C6), or `deferred` (with rationale) — with no un-triaged findings;
-     both a11y baselines are empty (or only documented deviations remain); the manual pass shows
+     both a11y evidence files are empty with no exception mechanism; the manual pass shows
      applicable criteria passing and **C6's expected 1.4.4 / 1.4.10 failures reproduced and
      recorded** (not asserted green); keyboard / focus-order / screen-reader passes green.
    - _Rollback:_ cosmetic/additive, grouped by finding ID — partial rollback of any single commit.
 
-## Next step (when go-ahead is given — not before)
+## Current closeout state
 
-Turn Phase 1 into concrete edits on `dora`, gate-green (baseline mode), checkpoint, then proceed
-phase by phase. Nothing above has been implemented yet.
+The automated implementation is present on `dora`. The validated dialog descriptor currently
+contains 26 implementation owners, 48 application render sites, and 5 non-dialog surfaces; it
+drives 29 unit cases and 48 browser render-site tests. CI collects the three accessibility specs
+on the `ci` project and falls back to bundled Chromium without changing projects. Department
+detail state is owner-keyed, and both jsx-a11y and axe enforce direct zero.
+
+This is not merge sign-off. The human keyboard, VoiceOver/Safari, 200%/400% zoom, reflow, and C6
+reproduction rows remain unchecked, as do ultrareview and merge approval. Unrelated documentation
+topology is handled separately from the DORA feature work; published `dora` history is not rewritten.

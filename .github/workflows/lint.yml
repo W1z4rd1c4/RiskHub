@@ -110,12 +110,10 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      # `npm run lint` = `eslint .` (now including eslint-plugin-jsx-a11y at `error`,
-      # held green by eslint-suppressions.json) followed by the ADR-013 jsx-a11y
-      # fingerprinted baseline validator (scripts/a11y/jsx-a11y-baseline.mjs):
-      # any NEW jsx-a11y violation fails and stale baseline entries fail so the
-      # baseline can only shrink (FR-P1-4 · N4–N6).
-      - name: Frontend lint (eslint + jsx-a11y baseline)
+      # `npm run lint` = `eslint .` followed by the ADR-013 strict-zero validator.
+      # Every enabled recommended jsx-a11y rule is an error; any finding, non-empty
+      # audit evidence, or suppression entry fails (FR-P1-4 · N4–N6).
+      - name: Frontend lint (eslint + jsx-a11y strict zero)
         run: |
           set -euo pipefail
           npm run lint | tee ../lint-frontend.log
@@ -174,7 +172,7 @@ jobs:
             echo "# Lint Summary";
             echo "";
             echo "- Frontend unit tests: PASS";
-            echo "- Frontend lint (eslint + jsx-a11y baseline): PASS";
+            echo "- Frontend lint (eslint + jsx-a11y strict zero): PASS";
             echo "- Frontend typecheck: PASS";
             echo "- Frontend build: PASS";
             echo "- Repo artifact + script syntax contracts: PASS";

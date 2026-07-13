@@ -1,10 +1,9 @@
 # ICT Register — frontend design/UX remediation specification
 
-_Status: **Approved** — fidelity pass clean; **O1 resolved 2026-07-12** (Step 1 `/to-spec`
-complete). Formalizes the locked plan into an implementation- and ticket-ready specification.
-**No application code is enacted by this document.** Ticket generation (`/to-tickets`) proceeds
-against this committed spec. Nothing here re-opens a decision: it transcribes and structures the
-15 locked decisions and their ADRs into normative requirements._
+_Status: **Approved and implemented through automated Round 3**; **O1 resolved 2026-07-12**.
+This began as the implementation- and ticket-ready specification for the 15 locked decisions.
+Its closeout section now distinguishes the landed automation from the still-pending human
+manual/assistive-technology and merge gates. It does not re-open the product decisions._
 
 _Baseline: `dora` @ `db0826e0` (audit) / plan committed at `99e4ed0e`. Author date: 2026-07-12._
 
@@ -47,7 +46,6 @@ explicit disposition — `resolved`, `accepted limitation`, or `deferred` (with 
 
 ### 1.3 Out of scope (MUST NOT be pulled in)
 
-- **Application code, this round.** This is Step 1 (`/to-spec`): specification only.
 - **A responsive / reflowing shell** (drawer nav, stacked forms, reflowed tables). Desktop-only
   stands (ADR-014); the reflow shell is the deferred path to closing 1.4.4 / 1.4.10.
 - **A full shadcn/ui migration.** Only a minimal, bespoke-aesthetic primitive set is built
@@ -55,8 +53,8 @@ explicit disposition — `resolved`, `accepted limitation`, or `deferred` (with 
 - **A `danger` token / renaming `--destructive`.** Reuse `--destructive` as canonical danger.
 - **Chart tokens.** Dead `--chart-1..5` are **removed**, not redefined (no `chart-*` utility or
   `var(--chart-*)` usage in source; Recharts uses inline colours).
-- **The 5 pre-existing orphan docs** (`docs/agents/*`, `docs/security/reports/prod-readiness-*`).
-  These predate this effort and are not this spec's concern.
+- **Unrelated documentation-topology housekeeping.** That content is prepared independently
+  from `main`; DORA-specific structure changes remain on `dora`.
 
 ### 1.4 What this spec is NOT
 
@@ -88,27 +86,28 @@ be declared green if any is violated.
 
 ### 2.2 jsx-a11y author-time gate (ADR-013, decision 2)
 
-- **N4.** Add `eslint-plugin-jsx-a11y` to the lint gate with rules kept as **`error`**.
-- **N5.** Existing violations are held by a **committed fingerprinted baseline file** (keyed by
-  **file + rule + location**) plus a **CI validator**: current findings MUST be a **subset** of
-  the baseline (new findings fail) **and stale/unused baseline entries MUST also fail** so the
-  baseline can only **shrink**.
-- **N6.** A bare `--max-warnings` total is **insufficient and MUST NOT** be used as the mechanism
-  — it only fails on total-count overflow, so a new violation can replace a fixed one and
-  unrelated rules share the budget.
+- **N4.** `eslint-plugin-jsx-a11y` MUST remain in the lint gate. Every **enabled recommended
+  rule is enforced as an error**; rules the plugin intentionally disables remain `off`.
+- **N5.** The committed baseline JSON is audit evidence only and MUST be present, well-formed,
+  and empty. Any enabled-rule finding, non-empty/malformed baseline, or ESLint suppression entry
+  MUST fail CI. There is no writable fingerprint, deviation, anchor, or update path.
+- **N6.** A bare `--max-warnings` total MUST NOT be used. Any future exception mechanism
+  requires a separate policy change and tracked approval.
 
 ### 2.3 axe / Playwright stateful gate (ADR-013, decision 2)
 
-- **N7.** **Extend** the existing `tests/frontend/e2e/accessibility-smoke.spec.ts` to the DORA
-  surfaces (it covers none today).
-- **N8.** **Pin explicit axe WCAG tags** (`wcag2a wcag2aa wcag21a wcag21aa wcag22aa`); **remove
-  the `chromium`-only guard** so it runs on CI's primary project.
+- **N7.** `tests/frontend/e2e/accessibility-smoke.spec.ts` MUST cover the business and DORA
+  route matrix recorded in the strict-zero evidence JSON.
+- **N8.** **Pin explicit axe WCAG tags** (`wcag2a wcag2aa wcag21a wcag21aa wcag22aa`) and run
+  all accessibility specs on CI's `ci` project. CI MUST assert collection before execution and,
+  when system Chrome is unavailable, use bundled Chromium without switching projects.
 - **N9.** **Fail on every violation the WCAG tags select — NOT filtered by axe `impact`/severity**
-  — against an explicit **rule/selector baseline that may only shrink.**
-- **N10.** The sweep MUST be **stateful**: open each modal/overlay, trigger representative
-  validation errors, open Radix selects, expand disclosure/chain rows, and scan each state — and
-  assert **focus trapping + restoration** on Radix portals inside `DialogShell`. Route-level scans
-  alone are insufficient.
+  with direct strict-zero enforcement. The committed axe JSON MUST match the exact project,
+  theme, and route matrix and every cell MUST be empty.
+- **N10.** The sweep MUST be **stateful**: every inventoried application render site is
+  browser-driven, and representative states open dialogs, validation errors, Radix selects,
+  disclosure rows, and loading/error branches. A real dialog + portalled Radix listbox MUST prove
+  active-layer focus, layered Escape behavior, opener restoration, and zero axe violations.
 
 ### 2.4 Forms & field ARIA (ADR-015, decision 4)
 
@@ -119,7 +118,7 @@ be declared green if any is violated.
   first invalid field; a `role="alert"` summary is present.
 - **N13.** For `ThemedSelect`, propagate `aria-required` / `aria-invalid` and associate the
   visible label via **`aria-labelledby`**. Its fallback `aria-label` **MUST NOT override a real
-  visible label** (today `aria-label={triggerAriaLabel ?? placeholder}` at `ThemedSelect.tsx:89`
+  visible label** (the pre-remediation fallback `aria-label={triggerAriaLabel ?? placeholder}`
   would). `ThemedSelect` ARIA is extended across **~95 call sites / 48 files** — an **active**
   migration requiring **three-theme component / visual-regression** coverage, not a dormant one.
 
@@ -131,11 +130,9 @@ be declared green if any is violated.
   - **loading overlay** → `aria-busy` / status, **no focus transfer** (e.g.
     `ControlDetailPage.tsx:292` `isLoadingRisk` is a **loading overlay, NOT a dialog**);
   - **popover / listbox / menu** → its own ARIA pattern, **not** `DialogShell`.
-- **N15.** `DialogShell` is **extended** with `role?: "dialog" | "alertdialog"` (it hardcodes
-  `role="dialog"` at `DialogShell.tsx:176` today), with **initial-focus behaviour tested per
-  role**. Only **2** surfaces (`ConfirmDialog`, `ArchiveConfirmDialog`) are on `DialogShell`
-  today. The **exhaustive render-site inventory is the first task of Phase 2c**; it is not
-  pre-enumerated here.
+- **N15.** `DialogShell` exposes `role?: "dialog" | "alertdialog"`, with initial-focus behavior
+  tested per role. The machine-readable two-level inventory MUST distinguish implementation
+  owners from concrete application render sites and fail when source discovery diverges.
 
 ### 2.6 Tables & error contract (decisions 8 & 9, C2/C3/C4)
 
@@ -182,10 +179,10 @@ be declared green if any is violated.
 
 ### 2.10 Packaging (decision 15)
 
-- **N25.** All work executes **on the `dora` branch**, in **ordered, independently-revertable
-  phases**, each an ultrareview / `code-review` **checkpoint**. **No main-first split.** The full
-  gate (tsc/build, lint, vitest, a11y) MUST be green at every phase boundary — in **baseline mode**
-  where a gate would otherwise be red on the still-broken app.
+- **N25.** Feature work executes **on the `dora` branch** as forward-only, independently
+  reviewable commits; published history is not rewritten. Unrelated documentation-topology
+  housekeeping is kept separate on `main`. The final automated gates run sequentially, and the
+  manual/AT plus review checkpoints remain human merge gates.
 
 ---
 
@@ -228,17 +225,15 @@ later phases build on tokens and the gate catches regressions from day one.
 | FR-P1-1 | Define `--success`/`-foreground`, `--warning`/`-foreground`, `--info`/`-foreground` HSL variables across all three themes; keep `--destructive` as canonical danger (no rename). | N19, S5 |
 | FR-P1-2 | Wire the new tokens into Tailwind (`bg-success text-success-foreground`, …). | N19 |
 | FR-P1-3 | Add contrast acceptance tests: every bg/fg pair ≥ 4.5:1 (text) / ≥ 3:1 (graphical) in each theme. | N20 |
-| FR-P1-4 | Add `eslint-plugin-jsx-a11y` (rules `error`) + committed **fingerprinted baseline file** + **CI validator** (subset-fails-new, stale-fails-shrink). Not `--max-warnings`. | N4–N6 |
-| FR-P1-5 | Extend `accessibility-smoke.spec.ts`: DORA surfaces, pinned WCAG tags, remove `chromium` guard, no severity filter, rule/selector baseline. (Stateful coverage lands with the surfaces in later phases.) | N7–N9 |
+| FR-P1-4 | Add `eslint-plugin-jsx-a11y`; enforce every enabled recommended rule as `error`, require zero findings + an empty evidence JSON + zero suppressions, and expose no writable exception path. | N4–N6 |
+| FR-P1-5 | Extend `accessibility-smoke.spec.ts`: DORA surfaces, pinned WCAG tags, direct zero enforcement, exact empty evidence matrix, and `ci`-project collection enforcement. | N7–N9 |
 | FR-P1-6 | `index.html`: real `<title>` + favicon + meta description (replaces `<title>frontend</title>` + vite favicon). | P1 |
 | FR-P1-7 | Fonts: move blocking `@import` → `preconnect` + `link`. | P2 |
 | FR-P1-8 | Remove dead `--chart-1..5` tokens (referenced, undefined, unused). | P3, decision correction |
 
 - **Acceptance.** Tokens defined + wired with **zero visual regression** + passing contrast tests;
-  **both** a11y gates run in **baseline mode** — jsx-a11y as `error` with a committed fingerprinted
-  baseline + CI validator (new findings fail; stale entries fail so it only shrinks — **not** a
-  bare `--max-warnings` total, which lets a new violation replace a fixed one); axe as an explicit
-  rule/selector baseline — so any **new** violation fails; both baselines only shrink;
+  both a11y gates enforce **strict zero** with no write/update mechanism; the jsx-a11y evidence
+  file and axe project/theme/route matrix are present, well-formed, and empty; any finding fails;
   metadata/preconnect landed; dead chart tokens removed; full gate green.
 - **Rollback.** Additive only (new tokens + CI job + baselines) — revert the phase range.
 - **Resolves:** S5 (tokens), P1, P2, P3 (fully); establishes N4–N10, N19–N20 for later phases.
@@ -277,7 +272,7 @@ model.
 | FR-P2b-2 | Every label associated; distinct accessible names; `aria-required`/`aria-invalid` exposed; focus-first-invalid; `role="alert"` summary. | N12, C1/C5/S11 |
 | FR-P2b-3 | Read `.isError` on in-form fetches (e.g. `AssetForm.tsx:116`) so a dropped request is not an empty dropdown. | C4 (forms portion) |
 | FR-P2b-4 | `ThreatForm` regains submit feedback; split the two collapsed required-field messages into per-field errors. | S11 |
-| FR-P2b-5 | Remove the corresponding jsx-a11y baseline entries (label/control rules) — rules are already `error` from P1, so the baseline shrinks. | N5 |
+| FR-P2b-5 | Fix the corresponding jsx-a11y findings; the audit-evidence baseline remains empty and every enabled recommended rule remains an error. | N5 |
 
 - **Acceptance.** Every label associated, distinct accessible names, `aria-required`/`aria-invalid`
   exposed, focus-first-invalid, submit success/failure e2e; the corresponding jsx-a11y baseline
@@ -296,10 +291,10 @@ model.
 | FR-P2c-3 | Migrate **only** dialog/alert-dialog surfaces onto `DialogShell` (focus trap + Esc + focus restoration). Candidates include `RiskHubModalFrame` + consumers, inline delete dialogs (`DepartmentsPanel.tsx:313`, `RiskTypesPanel.tsx:310`), `RiskQuestionnaireDetailContainer.tsx:58`, `ADUserPicker.tsx:13`, and the named `*Modal`/`*Dialog` files — the exact set is FR-P2c-1's output. | N14–N15, S7 |
 | FR-P2c-4 | Loading overlays (e.g. `ControlDetailPage.tsx:292`) use `aria-busy`/status with **no focus transfer**; popovers/menus keep their own ARIA — **neither** migrates to `DialogShell`. | N14 |
 
-- **Acceptance.** `DialogShell` extended with `role?: "dialog"|"alertdialog"` (initial-focus tested
-  per role — it hardcodes `role="dialog"` at `DialogShell.tsx:176` today); every dialog surface has
-  focus trap + Esc + focus restoration (**stateful axe/e2e matrix**); the dialog/focus-trap
-  baseline reaches **0**.
+- **Acceptance.** `DialogShell` exposes `role?: "dialog"|"alertdialog"` with initial focus tested
+  per role; the validated two-level inventory covers every implementation owner and concrete
+  application render site; every render site has a browser interaction driver; unique variants
+  pass the strict unit matrix with zero skipped cases and zero axe violations.
 - **Rollback.** One commit per surface or cluster.
 - **Resolves:** S7.
 
@@ -404,8 +399,8 @@ remaining ledger finding to a disposition.
 
 - **Acceptance.** **Every ledger finding reaches an explicit disposition** — `resolved`,
   `accepted limitation` (**C6**), or `deferred` (with rationale) — with **no un-triaged findings**;
-  the axe baseline is **empty for the DORA routes** and the jsx-a11y baseline is **shrink-only with
-  each residual entry carrying a 1:1 documented deviation** (not required to be empty); the manual pass shows
+  both automated accessibility gates enforce strict zero with empty audit-evidence files and no
+  exception/update mechanism; the manual pass shows
   applicable criteria passing and **C6's expected 1.4.4 / 1.4.10 failures reproduced and recorded**
   (not asserted green); keyboard / focus-order / screen-reader passes green.
 - **Rollback.** Cosmetic/additive, grouped by finding ID — partial rollback of any single commit.
@@ -433,7 +428,7 @@ disposition is **resolved** at the target-phase checkpoint unless noted.
 | S4 | 🟡 | 4 | FR-P4-1, FR-P4-4, FR-P4-5, FR-P4-9…12 | resolved |
 | S5 | 🟡 | 1 (tokens) / 5 (migrate) | FR-P1-1..3, FR-P5-1 | resolved |
 | S6 | 🟡 | 2a | FR-P2a-3 | resolved |
-| S7 | 🟡 | 2c | FR-P2c-1..4 | resolved — backed by the [dialog interaction inventory](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md) (26 DialogShell surfaces); real-surface matrix 27 `it()` cases (26 real surfaces), 0 skipped |
+| S7 | 🟡 | 2c | FR-P2c-1..4 | resolved — validated manifest: 26 implementation owners, 48 application render sites, 5 non-dialog surfaces; 29 unit contract cases + 48 browser render-site drivers, 0 skipped |
 | S8 | 🟡 | 5 | FR-P5-9 | resolved |
 | S9 | 🟡 | 4 (demote) / 5 (format) | FR-P4-6, FR-P5-4 | resolved |
 | S10 | 🟡 | 5 | FR-P5-5 | resolved |
@@ -464,42 +459,35 @@ recorded") — and the ledger's own Dispositions gate C6 against "Phase 5's zero
 This spec follows the capture (Phase 5); the ledger's Phase-4 cell is superseded (audits are
 point-in-time and may be superseded by later remediation).
 
-**Closeout reconciliation (Round 2 — 2026-07-13, the Round-2 tip `36f579ad..HEAD`).** This spec was written at
-Step 1 (`/to-spec`) as forward-looking acceptance criteria; the dispositions above default to
-`resolved` "at the target-phase checkpoint." At the Round-2 closeout the honest status is split:
+**Closeout reconciliation (Round 3 — 2026-07-13, `924442ac..HEAD`).** This spec began as
+forward-looking acceptance criteria. Round 3 replaces the remaining test mirrors and policy
+loopholes with production-grounded enforcement:
 
-- **Automated remediation — COMPLETE and enforced, PENDING final verification.** Full gate green
-  at the **Round-2 tip** (`36f579ad..HEAD`; the automated remediation is the 7 commits
-  `36f579ad..c8a7f7cd`) (`npm run build`; `npm run test:run`; `npm run lint` with a11y enforced;
-  `npm run i18n:test`; the authz capability-contract validator). **S7** is backed by the
-  [dialog interaction inventory](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md) + the Round-2
-  real-surface matrix — **26 real dialog/alertdialog surfaces** under the seven-point contract
-  (27 `it()` cases including the non-dialog busy-overlay guard, 0 skipped). The a11y baselines are
-  now **empty and enforced, not merely shrink-only**: the **jsx-a11y baseline is 0 entries**
-  (rebuilt 146 → 0 at `36f579ad`, so the [deviation registry](./FRONTEND-ACCESSIBILITY-BASELINE-DEVIATIONS.md)
-  is 0 too), held by an **exact, fail-closed base-ref ratchet** (resolves `origin/main`-with-baseline
-  else the committed anchor `36f579ad`; unresolved → fails, never skips); and the **axe baseline is
-  empty and enforce-only / zero-tolerance** for the scanned routes (incl. `/ict-register/data-quality`,
-  `/?view=ict-committee`) with the capture path removed. Round 2 also fixed the department-row
-  id-scoping and archived-only refetch table bugs (`cb23cd63`). The arc also lands the **N10
-  stateful browser a11y gate** (`tests/frontend/e2e/dora-ux-stateful-a11y.spec.ts` at `c8a7f7cd`)
-  — five real stateful surfaces driven open and axe-scanned **enforce-only / zero-tolerance**
-  across riskhub / light / dark with **no rule-disables**, one case per theme, all passing — with
-  its surfaced findings (**RN10**) fixed at source (detail-page back-button `aria-label`s;
-  `ConfirmDialog` danger button white-on-`#ba3535` = **5.76:1** AA without redefining
-  `--destructive`); and the **docs topology is green** (`51442533`; `make -f scripts/Makefile
-  docs-topology-consistency` — docs contract + README coverage + tree reachability +
-  structure-metrics guard).
-- **Human gates — PENDING.** The **manual / assistive-technology pass** (keyboard, focus order,
-  screen reader, 200%/400% zoom with **C6** reproduced — accepted limitation, **not** marked green),
-  the user-triggered **ultrareview** (`/code-review ultra`), and the **merge decision** remain open.
-  No WCAG 2.2 AA conformance is claimed — AA stays a target (§2.1). Full record:
-  [`FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md`](./FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md).
-- **Process note.** The original #55–#70 workstream bypassed the planned per-phase manual/AT gates
-  (CT-2) and per-phase ultrareviews and prematurely reported "done"; the Round-1 corrective
-  remediation `0fe16977..669b9cc4`, the **7-commit Round-2 hardening arc `36f579ad..c8a7f7cd`**, this single final
-  automated gate, and the pending human pass are the compensating control — they do **not**
-  retroactively satisfy the missing per-phase gates.
+- Native controls replace the remaining keyboard emulation; destructive token foregrounds and
+  hover states pass the three-theme contrast tests.
+- The validated two-level dialog descriptor covers **26 implementation owners**, **48 concrete
+  application render sites**, and **5 non-dialog surfaces**. It drives **29 unit contract cases**
+  and one browser test for each of the **48 render sites**. The loading-overlay case mounts the
+  production `ControlRiskLoadingOverlay`, not copied markup.
+- Playwright always collects and runs the accessibility specs on `ci`; bundled Chromium is the
+  fallback when system Chrome is absent. A real dialog + portalled `ThemedSelect` proves layered
+  focus and Escape behavior with zero axe exclusions.
+- jsx-a11y and axe now use direct strict-zero enforcement. Their JSON files are immutable empty
+  audit evidence, not exception ledgers. There is no write, anchor, deviation, or branch-controlled
+  widening path.
+- Department detail state is owner-keyed; a route change cannot expose the prior department's
+  metadata, rows, totals, error, or loading state, and stale responses remain rejected.
+- Final automated verification passed sequentially: 267 unit files / 1,355 tests; TypeScript and
+  the 4,026-module production build; strict-zero lint; 20-namespace i18n parity; 29/29 unit dialog
+  cases; 58/58 bundled-Chromium accessibility cases; and the full system-Chrome `ci` project with
+  370 passed, 22 intentionally skipped, and zero failed. Authorization, repository, documentation
+  topology, and patch-hygiene contracts also passed.
+- Unrelated documentation-topology housekeeping remains a separate `main` change. No published
+  `dora` history is rewritten; integrating that housekeeping requires the separately authorized,
+  non-rewriting merge described in the implementation plan.
+- **Human gates remain PENDING.** The manual/AT pass, C6 reproduction, user-triggered ultrareview,
+  and merge decision are not satisfied by automation. No WCAG 2.2 AA conformance is claimed.
+  See [`FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md`](./FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md).
 
 ---
 
@@ -507,9 +495,9 @@ Step 1 (`/to-spec`) as forward-looking acceptance criteria; the dispositions abo
 
 These MUST hold at the relevant checkpoints regardless of phase:
 
-- **CT-1 (a11y gate, baseline mode).** From P1 onward, jsx-a11y (`error` + fingerprinted baseline
-  + validator) and the extended stateful axe (pinned tags, no severity filter, shrinking baseline)
-  both run on CI's primary project. New violations fail; baselines only shrink. (N4–N10.)
+- **CT-1 (strict-zero a11y gate).** jsx-a11y and the extended stateful axe run on CI's `ci`
+  project with direct zero enforcement, empty audit-evidence files, no suppression/update path,
+  pinned axe tags, and no severity filter. Any finding fails. (N4–N10.)
 - **CT-2 (manual/AT per phase).** Each phase checkpoint adds a manual pass: keyboard-only
   operation, focus order, screen-reader walkthrough, and 200%/400% zoom + reflow in which **C6's
   1.4.4 / 1.4.10 failures are expected, reproduced, and recorded** — not treated as a pass, not
@@ -525,7 +513,7 @@ These MUST hold at the relevant checkpoints regardless of phase:
   independent of the overview request; DQ `?check=` deep-links survive; routing-manifest tests
   green. (N22–N23, CT-6.)
 - **CT-7 (full gate at boundaries).** tsc/build + lint + vitest + a11y green at every phase
-  boundary (baseline mode where applicable). Note: **vitest green ≠ build green** — the `tsc` /
+  boundary and sequentially on the final tree. Note: **vitest green ≠ build green** — the `tsc` /
   `npm run build` type-check MUST be re-run against the final commit of each phase. (N25.)
 
 ---
@@ -590,7 +578,7 @@ change product scope — they encode a safe execution order and gate ownership.
 - **P3 precedes the overlapping P4 work** on shared surfaces (the two edges above).
 - **Phase closeouts are PM/human-owned gates.** A phase's downstream tickets flip from `blocked`
   to `ready-for-agent` **only after** that phase's terminal gate passes: full **tsc/build + lint +
-  vitest + a11y** (baseline mode, CT-7), **CT-2 manual/AT** evidence (keyboard, focus order,
+  vitest + strict-zero a11y** (CT-7), **CT-2 manual/AT** evidence (keyboard, focus order,
   screen reader, zoom/reflow with C6 recorded), and the **ultrareview / `code-review` checkpoint**
   (decision 15). The ultrareview is user-triggered; the gate owner is the PM/human, not an AFK
   agent. Tracked on the epic's phase-closeout checklist.
