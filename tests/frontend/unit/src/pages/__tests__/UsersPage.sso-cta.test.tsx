@@ -245,7 +245,7 @@ describe('UsersPage SSO add CTA', () => {
         });
 
         expect(screen.getByTestId('users-table')).toBeInTheDocument();
-        expect(screen.getByText(/create and directory actions are disabled/i)).toBeInTheDocument();
+        expect(await screen.findByText(/create and directory actions are disabled/i)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Add from AD' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'access.add_user' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Check AD' })).not.toBeInTheDocument();
