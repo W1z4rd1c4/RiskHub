@@ -135,6 +135,10 @@ describe('select.tsx — tokenization (S6 / FR-P2a-3)', () => {
         expect(content.className).toContain('bg-popover/95');
         expect(content.className).toContain('text-popover-foreground');
         expect(content.className).not.toContain('bg-slate-900');
+        // Fading the whole menu changes text and backdrop opacity together;
+        // axe can sample the opening frame before unselected options reach AA.
+        // Transform-only motion keeps the foreground/background pair opaque.
+        expect(content.className).not.toMatch(/fade-(?:in|out)-/);
         const option = screen.getByTestId('opt-prod');
         expect(option.className).toContain('data-[highlighted]:bg-accent/15');
         expect(option.className).not.toContain('bg-white/');

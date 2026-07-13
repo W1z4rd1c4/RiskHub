@@ -82,11 +82,20 @@ async function axeScanZero(page: Page, include: string[], label: string): Promis
     }
     const analysis = await builder.analyze();
     const findings = toFindings(analysis.violations);
+    const details = analysis.violations
+        .flatMap((violation) => violation.nodes.map((node) => {
+            const checks = [...node.any, ...node.all, ...node.none]
+                .map((check) => `${check.message}; data=${JSON.stringify(check.data)}`)
+                .join(' | ');
+            return `  [${violation.id}] ${JSON.stringify(node.target)} ${checks}`;
+        }))
+        .join('\n');
     expect(
         findings,
         `axe WCAG violations on "${label}" — zero-tolerance, enforce-only ` +
             `(fix at the component source; there is no baseline/capture path):\n` +
-            findings.map((f) => `  [${f.rule}] impact=${f.impact ?? 'n/a'} ${f.selector}`).join('\n'),
+            findings.map((f) => `  [${f.rule}] impact=${f.impact ?? 'n/a'} ${f.selector}`).join('\n') +
+            (details ? `\n${details}` : ''),
     ).toEqual([]);
 }
 
