@@ -27,23 +27,9 @@ const variantStyles = {
         icon: Trash2,
         iconBg: 'bg-destructive/20',
         iconColor: 'text-destructive',
-        // White button text on the raw --destructive red (red-500) is only
-        // 3.78:1 (fails AA). Darken the BUTTON's OWN background so white text
-        // clears AA: #ba3535 is --destructive (red-500) mixed 78% toward black
-        // (white-on-#ba3535 = 5.76:1). The token --destructive, the global
-        // bg-destructive utility, and text-destructive error text (which needs
-        // the lighter red on the dark theme) are ALL left untouched.
-        // Written as explicit hex, NOT color-mix(): Chromium resolves color-mix()
-        // to `color(srgb …)` in getComputedStyle, which axe-core 4.11 cannot read
-        // (it composites over the ancestor → a theme-dependent false-fail).
-        buttonBg: 'bg-[#ba3535] hover:bg-[#a73030]',
+        buttonBg: 'bg-destructive hover:bg-destructive/90',
         buttonRing: 'focus:ring-destructive/50',
-        // Keep white text on the dark-red button in ALL themes. index.css
-        // re-colors `.text-white` to near-black in light mode (!important), which
-        // would give dark text on the dark-red bg (fails AA). The arbitrary
-        // text-[#fff] dodges that `.text-white` selector, so white-on-#ba3535
-        // stays 5.76:1 everywhere.
-        buttonText: 'text-[#fff]',
+        buttonText: 'text-destructive-foreground',
     },
     warning: {
         icon: AlertTriangle,

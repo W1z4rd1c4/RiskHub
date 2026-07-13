@@ -107,79 +107,72 @@ export function ExecutionHistory({
                             key={exe.id}
                             className={`glass-card !p-0 overflow-hidden transition-all duration-300 border ${isExpanded ? 'border-white/20' : 'border-transparent hover:border-white/10'}`}
                         >
-                            <div
-                                role="button"
-                                tabIndex={0}
-                                aria-expanded={isExpanded}
-                                className="p-4 flex items-center justify-between cursor-pointer"
-                                onClick={() => setExpandedId(isExpanded ? null : exe.id)}
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter' || event.key === ' ') {
-                                        event.preventDefault();
-                                        event.currentTarget.click();
-                                    }
-                                }}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-2 rounded-lg border ${config.badgeClassName}`}>
-                                        <ResultIcon className={`h-5 w-5 ${config.iconClassName}`} />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <span className={`text-xs font-black uppercase tracking-widest ${config.iconClassName}`}>
-                                                {t(config.labelKey)}
+                            <div className="p-4 flex items-center gap-4">
+                                <button
+                                    type="button"
+                                    aria-expanded={isExpanded}
+                                    aria-controls={`execution-details-${exe.id}`}
+                                    className="flex flex-1 min-w-0 items-center justify-between gap-4 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+                                    onClick={() => setExpandedId(isExpanded ? null : exe.id)}
+                                >
+                                    <span className="flex items-center gap-4 min-w-0">
+                                        <span className={`p-2 rounded-lg border ${config.badgeClassName}`}>
+                                            <ResultIcon className={`h-5 w-5 ${config.iconClassName}`} />
+                                        </span>
+                                        <span className="min-w-0">
+                                            <span className="flex items-center gap-2 mb-0.5">
+                                                <span className={`text-xs font-black uppercase tracking-widest ${config.iconClassName}`}>
+                                                    {t(config.labelKey)}
+                                                </span>
+                                                <span className="text-slate-600">•</span>
+                                                <span className="text-xs font-bold text-white">
+                                                    {formatDateTimeValue(exe.executed_at, i18n.language)}
+                                                </span>
                                             </span>
-                                            <span className="text-slate-600">•</span>
-                                            <span className="text-xs font-bold text-white">
-                                                {formatDateTimeValue(exe.executed_at, i18n.language)}
+                                            <span className="flex items-center gap-3 text-[10px] text-slate-500 font-medium">
+                                                <span className="flex items-center gap-1">
+                                                    <User className="h-3 w-3" />
+                                                    {exe.executed_by?.name || t('labels.unknown', { ns: 'common' })}
+                                                </span>
+                                                {exe.next_scheduled && (
+                                                    <>
+                                                        <span className="text-slate-700">|</span>
+                                                        <span className="flex items-center gap-1 text-accent">
+                                                            <Calendar className="h-3 w-3" />
+                                                            {t('executions.next')}: {formatDateValue(exe.next_scheduled, i18n.language)}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </span>
-                                        </div>
-                                        <div className="flex items-center gap-3 text-[10px] text-slate-500 font-medium">
-                                            <div className="flex items-center gap-1">
-                                                <User className="h-3 w-3" />
-                                                {exe.executed_by?.name || t('labels.unknown', { ns: 'common' })}
-                                            </div>
-                                            {exe.next_scheduled && (
-                                                <>
-                                                    <span className="text-slate-700">|</span>
-                                                    <div className="flex items-center gap-1 text-accent">
-                                                        <Calendar className="h-3 w-3" />
-                                                        {t('executions.next')}: {formatDateValue(exe.next_scheduled, i18n.language)}
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    {exe.findings && !isExpanded && (
-                                        <p className="text-xs text-slate-400 line-clamp-1 max-w-[200px] hidden md:block italic">
-                                            "{exe.findings}"
-                                        </p>
-                                    )}
-                                    {canCreateExecutionIssue && (
-                                        <button
-                                            type="button"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                setIssueExecution(exe);
-                                            }}
-                                            className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-accent/50 hover:text-white transition-colors"
-                                        >
-                                            <span className="inline-flex items-center gap-1.5">
-                                                <PlusCircle className="h-3 w-3" />
-                                                {createIssueLabel ?? t('actions.new_issue', { ns: 'issues' })}
+                                        </span>
+                                    </span>
+                                    <span className="flex items-center gap-4 min-w-0">
+                                        {exe.findings && !isExpanded && (
+                                            <span className="text-xs text-slate-400 line-clamp-1 max-w-[200px] hidden md:block italic">
+                                                "{exe.findings}"
                                             </span>
-                                        </button>
-                                    )}
-                                    <div className="p-1.5 hover:bg-white/5 rounded-lg text-slate-500 transition-colors">
-                                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                    </div>
-                                </div>
+                                        )}
+                                        <span className="p-1.5 hover:bg-white/5 rounded-lg text-slate-500 transition-colors">
+                                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                        </span>
+                                    </span>
+                                </button>
+                                {canCreateExecutionIssue && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIssueExecution(exe)}
+                                        className="shrink-0 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-accent/50 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 transition-colors"
+                                    >
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <PlusCircle className="h-3 w-3" />
+                                            {createIssueLabel ?? t('actions.new_issue', { ns: 'issues' })}
+                                        </span>
+                                    </button>
+                                )}
                             </div>
 
                             {isExpanded && (
-                                <div className="px-14 pb-5 pt-2 border-t border-white/5 bg-white/[0.01]">
+                                <div id={`execution-details-${exe.id}`} className="px-14 pb-5 pt-2 border-t border-white/5 bg-white/[0.01]">
                                     <div className="grid md:grid-cols-2 gap-8 mt-2">
                                         {exe.findings && (
                                             <div className="space-y-2">

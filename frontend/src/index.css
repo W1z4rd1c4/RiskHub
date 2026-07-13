@@ -28,7 +28,7 @@
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 222 47% 11%;
 
     /* Semantic status tokens (ADR-015 / FR-P1-1). --destructive stays the
        canonical danger token (no rename, no `danger`). Fills are held constant
@@ -218,7 +218,7 @@
   --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive-foreground: 222 47% 11%;
 
   /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale. */
   --success: 142 72% 26%;
@@ -341,7 +341,7 @@
   --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive-foreground: 222 47% 11%;
 
   /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale. */
   --success: 142 72% 26%;

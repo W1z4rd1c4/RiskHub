@@ -115,17 +115,10 @@ export function KRIDetailOverviewTab({
                 </div>
 
                 {linkedRisk ? (
-                    <div
-                        role="button"
-                        tabIndex={0}
+                    <button
+                        type="button"
                         onClick={() => onNavigateToRisk(linkedRisk.id)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                event.currentTarget.click();
-                            }
-                        }}
-                        className="relative overflow-hidden cursor-pointer rounded-2xl border border-white/5 bg-white/[0.02] p-8 hover:bg-white/[0.04] hover:border-accent/20 transition-all duration-500 group"
+                        className="relative block w-full overflow-hidden cursor-pointer rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-left hover:bg-white/[0.04] hover:border-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 transition-all duration-500 group"
                     >
                         {/* Decorative elements */}
                         <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-3xl rounded-full -mr-32 -mt-32 pointer-events-none group-hover:bg-accent/10 transition-colors duration-500" />
@@ -182,7 +175,7 @@ export function KRIDetailOverviewTab({
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </button>
                 ) : (
                     <div className="p-12 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
                         <span className="text-sm text-slate-500 italic">{t('common:empty.no_risk_info')}</span>

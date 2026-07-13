@@ -114,4 +114,12 @@ describe('ConfirmDialog accessibility', () => {
         await user.click(backdrop as Element);
         expect(props.onClose).not.toHaveBeenCalled();
     });
+
+    it('uses the semantic destructive token pair for the danger action', () => {
+        renderConfirmDialog();
+
+        const confirmButton = screen.getByRole('button', { name: 'Delete evidence' });
+        expect(confirmButton).toHaveClass('bg-destructive', 'text-destructive-foreground');
+        expect(confirmButton.className).not.toMatch(/bg-\[#|text-\[#/);
+    });
 });

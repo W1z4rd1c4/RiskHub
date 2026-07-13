@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import * as axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getExecutionsMock = vi.fn();
@@ -162,6 +163,37 @@ describe('ExecutionHistory', () => {
 
         fireEvent.click(screen.getAllByRole('button', { name: 'New Issue' })[0]);
         expect(screen.getByTestId('execution-issue-context')).toHaveTextContent('execution:11:Access Review');
+    });
+
+    it('uses sibling native controls for disclosure and issue creation', async () => {
+        getExecutionsMock.mockResolvedValue([
+            {
+                id: 31,
+                control_id: 1,
+                result: 'failed',
+                findings: 'Access evidence is incomplete',
+                executed_at: '2026-03-07T10:00:00Z',
+                executed_by: { id: 1, name: 'Anna Kowalski' },
+                created_at: '2026-03-07T10:00:00Z',
+            },
+        ]);
+
+        const { container } = render(
+            <ExecutionHistory controlId={1} canCreateIssue createIssueLabel="New Issue" />
+        );
+
+        const disclosure = await screen.findByRole('button', { name: /controls:results.failed/i });
+        const issueAction = screen.getByRole('button', { name: 'New Issue' });
+        expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+        expect(disclosure).toHaveAttribute('aria-controls', 'execution-details-31');
+        expect(disclosure.contains(issueAction)).toBe(false);
+
+        fireEvent.click(disclosure);
+        expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+        expect(document.getElementById('execution-details-31')).toBeInTheDocument();
+
+        const results = await axe.run(container);
+        expect(results.violations).toEqual([]);
     });
 
     it('hides execution-specific issue actions when backend capability is false', async () => {

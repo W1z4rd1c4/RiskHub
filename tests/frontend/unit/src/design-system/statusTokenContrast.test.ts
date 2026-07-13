@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
  * FR-P1-3 — WCAG AA contrast acceptance test for the semantic status tokens
  * (FR-P1-1 / FR-P1-2, ADR-015, spec N20).
  *
- * Every `bg`/`foreground` pair for --success, --warning and --info MUST clear
+ * Every semantic `bg`/`foreground` pair, including --destructive, MUST clear
  * 4.5:1 text contrast in each of the three themes (default `:root`,
  * `.theme-dark`, `.theme-light`). The 4.5:1 text floor subsumes the 3:1
  * graphical/UI floor from N20.
@@ -92,7 +92,7 @@ const THEMES = [
   { name: 'light (.theme-light)', selector: '\\.theme-light' },
 ] as const;
 
-const STATUS_TOKENS = ['success', 'warning', 'info'] as const;
+const STATUS_TOKENS = ['destructive', 'success', 'warning', 'info'] as const;
 
 const cases = THEMES.flatMap(({ name, selector }) =>
   STATUS_TOKENS.map((token) => ({ theme: name, selector, token })),
@@ -110,7 +110,7 @@ describe('semantic status tokens — WCAG AA contrast (FR-P1-3, N20)', () => {
     ).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
   });
 
-  it('defines all three status tokens (+foreground) in every theme', () => {
+  it('defines every semantic status token (+foreground) in every theme', () => {
     for (const { selector } of THEMES) {
       const block = themeBlock(indexCss, selector);
       for (const token of STATUS_TOKENS) {
@@ -125,7 +125,7 @@ describe('semantic status tokens — WCAG AA contrast (FR-P1-3, N20)', () => {
     expect(indexCss).not.toContain('--danger:');
   });
 
-  it('wires success/warning/info into Tailwind theme.extend.colors (FR-P1-2)', () => {
+  it('wires every semantic status token into Tailwind theme.extend.colors (FR-P1-2)', () => {
     for (const token of STATUS_TOKENS) {
       expect(tailwindConfig).toContain(`hsl(var(--${token}))`);
       expect(tailwindConfig).toContain(`hsl(var(--${token}-foreground))`);

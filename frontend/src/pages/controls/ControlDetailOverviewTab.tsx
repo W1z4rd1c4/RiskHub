@@ -199,18 +199,11 @@ export function ControlDetailOverviewTab({
                                 {activeLinkedRisks.length > 0 && (
                                     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                                         {activeLinkedRisks.map((link) => (
-                                            <div
+                                            <button
+                                                type="button"
                                                 key={link.id}
-                                                role="button"
-                                                tabIndex={0}
                                                 onClick={(e) => onRiskClick(link.risk_id, e)}
-                                                onKeyDown={(event) => {
-                                                    if (event.key === 'Enter' || event.key === ' ') {
-                                                        event.preventDefault();
-                                                        event.currentTarget.click();
-                                                    }
-                                                }}
-                                                className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer relative"
+                                                className="group w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl text-left hover:bg-white/[0.05] hover:border-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 transition-all cursor-pointer relative"
                                             >
                                                 <div className="flex justify-between items-start mb-2">
                                                     <div>
@@ -229,7 +222,7 @@ export function ControlDetailOverviewTab({
                                                 </div>
                                                 {link.risk?.description && <p className="mt-1 text-[10px] text-slate-400 line-clamp-2">{link.risk.description}</p>}
                                                 {link.notes && <p className="mt-2 text-[10px] text-slate-500 font-medium italic">"{link.notes}"</p>}
-                                            </div>
+                                            </button>
                                         ))}
                                     </div>
                                 )}
@@ -240,18 +233,11 @@ export function ControlDetailOverviewTab({
                                         </h4>
                                         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 opacity-70">
                                             {archivedLinkedRisks.map((link) => (
-                                                <div
+                                                <button
+                                                    type="button"
                                                     key={link.id}
-                                                    role="button"
-                                                    tabIndex={0}
                                                     onClick={(e) => onRiskClick(link.risk_id, e)}
-                                                    onKeyDown={(event) => {
-                                                        if (event.key === 'Enter' || event.key === ' ') {
-                                                            event.preventDefault();
-                                                            event.currentTarget.click();
-                                                        }
-                                                    }}
-                                                    className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer relative"
+                                                    className="group w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl text-left hover:bg-white/[0.05] hover:border-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 transition-all cursor-pointer relative"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
@@ -270,7 +256,7 @@ export function ControlDetailOverviewTab({
                                                     </div>
                                                     {link.risk?.description && <p className="mt-1 text-[10px] text-slate-400 line-clamp-2">{link.risk.description}</p>}
                                                     {link.notes && <p className="mt-2 text-[10px] text-slate-500 font-medium italic">"{link.notes}"</p>}
-                                                </div>
+                                                </button>
                                             ))}
                                         </div>
                                     </div>
@@ -282,6 +268,7 @@ export function ControlDetailOverviewTab({
 
                 {(canLinkRisk || canUnlinkRisk) && (
                     <button
+                        type="button"
                         onClick={onOpenLinkDialog}
                         className="w-full mt-4 py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all"
                     >
