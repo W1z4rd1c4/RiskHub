@@ -190,7 +190,16 @@ export function DialogShell({
             } : {};
         }
 
-        const focusTimer = window.setTimeout(focusInitialElement, 0);
+        const focusTimer = window.setTimeout(() => {
+            const dialog = dialogRef.current;
+            // A busy event loop may let the user move focus into the dialog
+            // before this initial-focus task runs. Never overwrite that valid
+            // choice (especially in an alertdialog, whose default target is
+            // the container).
+            if (dialog && !dialog.contains(document.activeElement)) {
+                focusInitialElement();
+            }
+        }, 0);
         // Native form activation can finish after the first zero-delay focus
         // task and put focus back on the submitter. Re-check after that event
         // cycle, but never override focus that is already inside the dialog.
