@@ -3,7 +3,6 @@ import path from 'node:path';
 
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 
-import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 import {
   E2E_ASSETS,
   E2E_CONTROLS,
@@ -13,6 +12,11 @@ import {
   E2E_THREATS,
   E2E_VENDORS,
 } from './fixtures/e2e-data';
+import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
+import {
+  describeLiveNetworkFailure,
+  describeLiveNetworkResponse,
+} from './helpers/renderSiteOwnerMonitoring';
 import { AssetsPage } from './pages/AssetsPage';
 import { ControlsPage } from './pages/ControlsPage';
 import { KRIsPage } from './pages/KRIsPage';
@@ -34,6 +38,8 @@ interface ImplementationSurface {
 interface RenderSiteDriver {
   mode: 'live' | 'parent';
   account?: string;
+  allowedNetworkFailures?: readonly string[];
+  allowedNetworkErrors?: readonly string[];
   arrange: (page: Page, site: RenderSite) => Promise<void>;
   opener: (page: Page) => Locator;
   ownerSentinel: (page: Page, site: RenderSite) => Locator;
@@ -42,6 +48,13 @@ interface RenderSiteDriver {
 }
 
 const contractPath = path.resolve(__dirname, '../contracts/dialog-surfaces.json');
+const loginHandoffFailure = 'GET /api/v1/users/me/shell-summary net::ERR_ABORTED';
+const governanceRefreshFailure = 'GET /api/v1/orphaned-items/overview?status=pending net::ERR_ABORTED';
+const adminSectionHandoffFailures = [
+  'GET /api/v1/admin/health net::ERR_ABORTED',
+  'GET /api/v1/admin/jobs/status net::ERR_ABORTED',
+  'GET /api/v1/admin/outbox/status net::ERR_ABORTED',
+] as const;
 const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8')) as {
   implementationSurfaces: ImplementationSurface[];
   applicationRenderSites: RenderSite[];
@@ -386,14 +399,12 @@ async function arrangeParent(page: Page, site: RenderSite) {
   }
 }
 
-async function loginAndGoto(page: Page, account: string, route: string) {
-  await loginAsDemoUser(page, account);
+async function gotoOwnerRoute(page: Page, route: string) {
   await page.goto(route);
   await expect(page.locator('main')).toBeVisible();
 }
 
 async function arrangeGovernance(page: Page) {
-  await loginAsDemoUser(page, CRO);
   await page.route('**/api/v1/orphaned-items/overview**', (route) => json(route, {
     stats: { risk_count: 1, control_count: 0, kri_count: 0, total_count: 1 },
     items: [governanceOrphan],
@@ -408,14 +419,12 @@ async function arrangeGovernance(page: Page) {
 }
 
 async function arrangeUserLifecycle(page: Page) {
-  await loginAsDemoUser(page, ADMIN);
   await page.route('**/api/v1/access/users', (route) => json(route, [lifecycleAccessUser]));
   await page.goto('/users');
   await expect(page.getByText(lifecycleAccessUser.name)).toBeVisible();
 }
 
 async function arrangeKriWithHistory(page: Page) {
-  await loginAsDemoUser(page, RM);
   await page.route('**/api/v1/kris/*/history**', (route) => json(route, {
     items: [{
       id: 9001,
@@ -445,8 +454,7 @@ async function arrangeKriWithHistory(page: Page) {
   await page.getByRole('button', { name: /history/i }).click();
 }
 
-async function gotoFirstDetail(page: Page, account: string, listRoute: string, detailPattern: RegExp) {
-  await loginAsDemoUser(page, account);
+async function gotoFirstDetail(page: Page, listRoute: string, detailPattern: RegExp) {
   if (listRoute === '/assets') {
     const register = new AssetsPage(page);
     await register.navigate();
@@ -527,10 +535,12 @@ function liveDriver(
   arrange: (page: Page) => Promise<void>,
   opener: (page: Page) => Locator,
   ready?: (page: Page, surface: Locator) => Promise<void>,
+  allowedNetworkFailures: readonly string[] = [],
 ): RenderSiteDriver {
   return {
     mode: 'live',
     account,
+    allowedNetworkFailures: [loginHandoffFailure, ...allowedNetworkFailures],
     arrange: async (page) => arrange(page),
     opener,
     ownerSentinel: (page) => page.locator('main'),
@@ -541,17 +551,17 @@ function liveDriver(
 const RM = DEMO_ACCOUNTS.RISK_MANAGER;
 const CRO = DEMO_ACCOUNTS.CRO;
 const ADMIN = DEMO_ACCOUNTS.ADMIN;
-const list = (route: string) => (page: Page) => loginAndGoto(page, RM, route);
-const detail = (route: string, pattern: RegExp) => (page: Page) => gotoFirstDetail(page, RM, route, pattern);
+const list = (route: string) => (page: Page) => gotoOwnerRoute(page, route);
+const detail = (route: string, pattern: RegExp) => (page: Page) => gotoFirstDetail(page, route, pattern);
 
 const drivers: Record<string, RenderSiteDriver> = Object.fromEntries(
   [...parentSiteIds].map((siteId) => [siteId, parentDriver(siteId)]),
 );
 
 Object.assign(drivers, {
-  'approval-resolution.approvals-page': liveDriver(CRO, (page) => loginAndGoto(page, CRO, '/approvals'), (page) => page.getByRole('button', { name: /approve/i }).first()),
+  'approval-resolution.approvals-page': liveDriver(CRO, (page) => gotoOwnerRoute(page, '/approvals'), (page) => page.getByRole('button', { name: /approve/i }).first()),
   'confirm.approvals-page': liveDriver(DEMO_ACCOUNTS.EMPLOYEE_OPERATIONS, async (page) => {
-    await loginAndGoto(page, DEMO_ACCOUNTS.EMPLOYEE_OPERATIONS, '/approvals');
+    await gotoOwnerRoute(page, '/approvals');
     await page.getByRole('button', { name: /my requests/i }).click();
   }, (page) => page.getByRole('button', { name: /cancel request/i }).first()),
   'confirm.asset-detail': liveDriver(RM, detail('/assets', /\/assets\/\d+$/), (page) => page.getByTestId('asset-detail-archive')),
@@ -566,12 +576,14 @@ Object.assign(drivers, {
     arrangeGovernance,
     (page) => page.getByRole('button', { name: /resolve/i }).first(),
     async (page) => expect(page.getByTestId('resolve-orphan-ready')).toBeVisible(),
+    [governanceRefreshFailure],
   ),
   'orphan-view.governance-page': liveDriver(
     CRO,
     arrangeGovernance,
     (page) => page.getByRole('button', { name: /view authentication drift/i }),
     async (page) => expect(page.getByTestId('orphan-quick-view-ready')).toBeVisible(),
+    [governanceRefreshFailure],
   ),
   'export.issues-page': liveDriver(RM, list('/issues'), (page) => page.getByRole('button', { name: /^export$/i }).first()),
   'kri-modal.kri-detail': liveDriver(RM, detail('/kris', /\/kris\/\d+$/), (page) => page.getByRole('button', { name: /^edit$/i }).first()),
@@ -584,21 +596,21 @@ Object.assign(drivers, {
   'confirm.risk-detail': liveDriver(RM, detail('/risks', /\/risks\/\d+$/), (page) => page.getByRole('button', { name: /^archive$/i }).first()),
   'export.risks-page': liveDriver(RM, list('/risks'), (page) => page.getByTestId('risks-export-button')),
   'confirm.threat-detail': liveDriver(RM, detail('/threats', /\/threats\/\d+$/), (page) => page.getByTestId('threat-detail-archive')),
-  'access-edit.users-page': liveDriver(CRO, (page) => loginAndGoto(page, CRO, '/users'), (page) => page.getByRole('button', { name: /edit access/i }).first()),
+  'access-edit.users-page': liveDriver(CRO, (page) => gotoOwnerRoute(page, '/users'), (page) => page.getByRole('button', { name: /edit access/i }).first()),
   'confirm.users-page': liveDriver(ADMIN, arrangeUserLifecycle, (page) => page.getByRole('button', { name: /deactivate|reactivate|activate/i }).first()),
-  'ad-picker.users-page': liveDriver(ADMIN, (page) => loginAndGoto(page, ADMIN, '/users'), (page) => page.getByRole('button', { name: /add from ad/i }).first()),
+  'ad-picker.users-page': liveDriver(ADMIN, (page) => gotoOwnerRoute(page, '/users'), (page) => page.getByRole('button', { name: /add from ad/i }).first()),
   'break-glass.users-page': liveDriver(ADMIN, arrangeUserLifecycle, (page) => page.getByRole('button', { name: /break.?glass/i }).first()),
   'issue.vendor-detail': liveDriver(RM, detail('/vendors', /\/vendors\/\d+$/), (page) => page.getByRole('button', { name: /new issue/i }).first()),
   'confirm.vendor-detail': liveDriver(RM, detail('/vendors', /\/vendors\/\d+$/), (page) => page.getByRole('button', { name: /^archive$/i }).first()),
   'export.vendors-page': liveDriver(RM, list('/vendors'), (page) => page.getByTestId('vendors-export-button')),
   'audit-details.audit-logs': liveDriver(ADMIN, async (page) => {
-    await loginAndGoto(page, ADMIN, '/admin');
+    await gotoOwnerRoute(page, '/admin');
     await page.getByRole('button', { name: /audit logs/i }).click();
-  }, (page) => page.getByRole('button', { name: /^view$/i }).first()),
+  }, (page) => page.getByRole('button', { name: /^view$/i }).first(), undefined, adminSectionHandoffFailures),
   'confirm.sessions-panel': liveDriver(ADMIN, async (page) => {
-    await loginAndGoto(page, ADMIN, '/admin');
+    await gotoOwnerRoute(page, '/admin');
     await page.getByRole('button', { name: /active sessions/i }).click();
-  }, (page) => page.getByRole('button', { name: /revoke/i }).first()),
+  }, (page) => page.getByRole('button', { name: /revoke/i }).first(), undefined, adminSectionHandoffFailures),
 });
 
 async function assertFocusInside(page: Page, surface: Locator) {
@@ -614,8 +626,18 @@ test.describe('validated application dialog render sites', () => {
     test(`[render-site:${site.id}] ${site.component} via ${site.file}`, async ({ page }) => {
       const driver = drivers[site.id];
       expect(driver, `source-linked driver registered for ${site.id}`).toBeTruthy();
-      const unexpectedRequests: string[] = [];
+      const unexpectedNetwork: string[] = [];
       const unexpectedOutput: string[] = [];
+
+      if (driver.mode === 'live') {
+        if (!driver.account) throw new Error(`Live render-site driver ${site.id} has no account`);
+        await loginAsDemoUser(page, driver.account);
+        // End the authenticated dashboard lifecycle before owner monitoring
+        // starts. Its in-flight query cancellations are login handoff noise,
+        // not evidence about the render-site owner loaded next.
+        await page.goto('about:blank');
+      }
+
       page.on('console', (message) => {
         if (message.type() === 'warning' || message.type() === 'error') {
           unexpectedOutput.push(`console.${message.type()}: ${message.text()}`);
@@ -623,15 +645,29 @@ test.describe('validated application dialog render sites', () => {
       });
       page.on('pageerror', (error) => unexpectedOutput.push(`pageerror: ${error.message}`));
       if (driver.mode === 'parent') {
-        await installApiContract(page, unexpectedRequests);
+        await installApiContract(page, unexpectedNetwork);
+      } else {
+        page.on('requestfailed', (request) => {
+          const failure = describeLiveNetworkFailure({
+            method: request.method(),
+            url: request.url(),
+            failureText: request.failure()?.errorText ?? 'unknown failure',
+          }, driver.allowedNetworkFailures);
+          if (failure) unexpectedNetwork.push(failure);
+        });
+        page.on('response', (response) => {
+          const failure = describeLiveNetworkResponse({
+            method: response.request().method(),
+            url: response.url(),
+            status: response.status(),
+          }, driver.allowedNetworkErrors);
+          if (failure) unexpectedNetwork.push(failure);
+        });
       }
       await driver.arrange(page, site);
       await expect(driver.ownerSentinel(page, site)).toBeVisible();
       if (driver.mode === 'live') {
         expect(new URL(page.url()).pathname).not.toBe('/dialog-contract.html');
-        // Login briefly traverses the dashboard. Only output emitted by the
-        // arranged source page and its dialog is part of this render-site seam.
-        unexpectedOutput.length = 0;
       }
 
       const opener = driver.opener(page);
@@ -685,7 +721,7 @@ test.describe('validated application dialog render sites', () => {
       await page.keyboard.press('Escape');
       await expect(surface).toHaveCount(0);
       await expect(opener).toBeFocused();
-      expect(unexpectedRequests).toEqual([]);
+      expect(unexpectedNetwork).toEqual([]);
       expect(unexpectedOutput).toEqual([]);
     });
   }

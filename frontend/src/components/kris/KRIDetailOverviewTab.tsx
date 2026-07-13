@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Target, Calendar, User, Shield, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { MetricGaugeSvg } from '@/components/ui/MetricGaugeSvg';
 import type { KeyRiskIndicator } from '@/types/kri';
 import type { Risk } from '@/types/risk';
@@ -12,7 +13,6 @@ interface KRIDetailOverviewTabProps {
     linkedRisk: Risk | null;
     dueDate: Date | null;
     formatNumber: (val: number) => string;
-    onNavigateToRisk: (riskId: number) => void;
 }
 
 export function KRIDetailOverviewTab({
@@ -20,7 +20,6 @@ export function KRIDetailOverviewTab({
     linkedRisk,
     dueDate,
     formatNumber,
-    onNavigateToRisk,
 }: KRIDetailOverviewTabProps) {
     const { t, i18n } = useTranslation(['kris', 'common', 'risks']);
     const monitoring = getKriMonitoringMeta(kri.monitoring_status);
@@ -115,9 +114,8 @@ export function KRIDetailOverviewTab({
                 </div>
 
                 {linkedRisk ? (
-                    <button
-                        type="button"
-                        onClick={() => onNavigateToRisk(linkedRisk.id)}
+                    <Link
+                        to={`/risks/${linkedRisk.id}`}
                         className="relative block w-full overflow-hidden cursor-pointer rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-left hover:bg-white/[0.04] hover:border-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 transition-all duration-500 group"
                     >
                         {/* Decorative elements */}
@@ -175,7 +173,7 @@ export function KRIDetailOverviewTab({
                                 </div>
                             </div>
                         </div>
-                    </button>
+                    </Link>
                 ) : (
                     <div className="p-12 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
                         <span className="text-sm text-slate-500 italic">{t('common:empty.no_risk_info')}</span>

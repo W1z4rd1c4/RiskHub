@@ -78,7 +78,12 @@ production source parents; the 28 page-owned sites drive real authenticated
 application routes. No driver mounts a leaf dialog directly. Every render-site
 case verifies semantic role/name, initial focus, forward and reverse focus
 containment, Escape close, focus restoration, and zero unexpected network or
-console output. Network-backed owners wait for deterministic ready sentinels.
+console output. Live-route monitoring starts after authentication but before
+owner navigation, retains owner-load output through close/restoration, and
+fails request failures or HTTP error responses except for exact documented
+`net::ERR_ABORTED` handoffs: the login shell summary, the mocked governance
+overview refresh, and the admin health/jobs/outbox queries cancelled when
+switching sections. Network-backed owners wait for deterministic ready sentinels.
 
 `tests/frontend/e2e/dora-ux-stateful-a11y.spec.ts` adds representative
 three-theme state scans and the real dialog + portalled `ThemedSelect` contract:

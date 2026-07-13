@@ -47,7 +47,7 @@ test behavior. The manual/AT status is unchanged.
 | Gate | Command | Result |
 |---|---|---|
 | TypeScript + production build | `npx tsc --noEmit`; `npm run build` | PASS — 4,026 modules transformed |
-| Unit + component tests | `npm run test:run` | PASS — 268 files / 1,368 tests |
+| Unit + component tests | `npm run test:run` | PASS — 269 files / 1,374 tests |
 | Lint (a11y enforced) | `npm run lint` | PASS — strict-zero: 0 findings, 0 baseline entries, 0 suppressions |
 | i18n parity | `npm run i18n:test` | PASS — 20 namespaces; 630 source files; 8 files / 44 tests |
 | Dialog inventory + matrix | `npm run lint:dialog-inventory`; focused Vitest | PASS — 26 implementation owners / 48 render sites / 5 non-dialog surfaces; 29/29 unit cases |
@@ -82,7 +82,11 @@ test behavior. The manual/AT status is unchanged.
   owner/variant cases, including production `ControlRiskLoadingOverlay`; the browser matrix
   executes all 48 render sites plus one exact registry assertion. Twenty sites mount production
   source parents through owner harnesses and 28 drive real authenticated routes; no driver mounts
-  a leaf dialog directly. Unexpected network, console, uncaught, and React `act` output fail.
+  a leaf dialog directly. Live monitoring begins before owner navigation and retains owner-load
+  output; failed requests, HTTP error responses, console/page errors, uncaught errors, and React
+  `act` output fail. The only network exceptions are exact `net::ERR_ABORTED` handoffs for the
+  login shell summary, mocked governance overview refresh, and admin health/jobs/outbox queries
+  cancelled during section changes.
 - **Native controls + tokens.** Execution-history disclosure and issue creation are separate
   native buttons; KRI/control pseudo-buttons are removed. `ConfirmDialog` consumes
   `bg-destructive text-destructive-foreground`; all three theme pairs and the 90% hover fill meet

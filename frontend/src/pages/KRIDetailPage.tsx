@@ -227,7 +227,6 @@ export function KRIDetailPage() {
                     linkedRisk={linkedRisk}
                     dueDate={dueDate}
                     formatNumber={formatNumber}
-                    onNavigateToRisk={(riskId) => navigate(`/risks/${riskId}`)}
                 />
             )}
 

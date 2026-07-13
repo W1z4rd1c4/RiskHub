@@ -1,4 +1,5 @@
 import * as axe from 'axe-core';
+import { act } from '@testing-library/react';
 import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -158,6 +159,32 @@ describe('DialogShell — focus trap + Esc + restoration (FR-P2c-3 / N10)', () =
             expect(screen.getByRole('dialog')).toBeInTheDocument();
         } finally {
             selectPortal.remove();
+        }
+    });
+
+    it('does not steal immediate portal focus in delayed initial-focus guards', () => {
+        vi.useFakeTimers();
+        const selectPortal = document.createElement('div');
+        selectPortal.className = 'themed-select-content';
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.textContent = 'Immediate portalled option';
+        selectPortal.append(option);
+        document.body.append(selectPortal);
+
+        try {
+            renderWithoutProviders(
+                <DialogShell isOpen onClose={() => {}} titleId="immediate-portal-title">
+                    <h2 id="immediate-portal-title">Immediate select</h2>
+                    <button type="button">dialog action</button>
+                </DialogShell>,
+            );
+            option.focus();
+            act(() => vi.advanceTimersByTime(250));
+            expect(option).toHaveFocus();
+        } finally {
+            selectPortal.remove();
+            vi.useRealTimers();
         }
     });
 

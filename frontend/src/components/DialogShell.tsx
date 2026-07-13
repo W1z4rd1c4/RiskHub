@@ -45,6 +45,16 @@ function getFocusableElements(container: HTMLElement) {
     ));
 }
 
+function isTopmostModal(dialog: HTMLElement) {
+    const openModalSurfaces = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]'));
+    return openModalSurfaces.at(-1) === dialog;
+}
+
+function isInActiveInteractionLayer(dialog: HTMLElement, target: EventTarget | null) {
+    return target instanceof HTMLElement
+        && (dialog.contains(target) || Boolean(target.closest('.themed-select-content')));
+}
+
 export function DialogShell({
     isOpen,
     onClose,
@@ -106,8 +116,7 @@ export function DialogShell({
 
         const dialog = dialogRef.current;
         if (!dialog) return;
-        const openModalSurfaces = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]'));
-        if (openModalSurfaces.at(-1) !== dialog) return;
+        if (!isTopmostModal(dialog)) return;
 
         if (event.key === 'Escape') {
             const eventTarget = event.target;
@@ -128,6 +137,10 @@ export function DialogShell({
         }
 
         if (event.key !== 'Tab') return;
+
+        if (isInActiveInteractionLayer(dialog, event.target) && !dialog.contains(event.target as Node)) {
+            return;
+        }
 
         const focusableElements = getFocusableElements(dialog);
         if (focusableElements.length === 0) {
@@ -164,9 +177,8 @@ export function DialogShell({
         const dialog = dialogRef.current;
         const target = event.target;
         if (!dialog || !(target instanceof HTMLElement)) return;
-        const openModalSurfaces = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]'));
-        if (openModalSurfaces.at(-1) !== dialog) return;
-        if (dialog.contains(target) || target.closest('.themed-select-content')) return;
+        if (!isTopmostModal(dialog)) return;
+        if (isInActiveInteractionLayer(dialog, target)) return;
 
         focusInitialElement();
     }, [focusInitialElement, isOpen]);
@@ -205,7 +217,11 @@ export function DialogShell({
             // before this initial-focus task runs. Never overwrite that valid
             // choice (especially in an alertdialog, whose default target is
             // the container).
-            if (dialog && !dialog.contains(document.activeElement)) {
+            if (
+                dialog
+                && isTopmostModal(dialog)
+                && !isInActiveInteractionLayer(dialog, document.activeElement)
+            ) {
                 focusInitialElement();
             }
         }, 0);
@@ -214,7 +230,11 @@ export function DialogShell({
         // cycle, but never override focus that is already inside the dialog.
         const focusGuardTimer = window.setTimeout(() => {
             const dialog = dialogRef.current;
-            if (dialog && !dialog.contains(document.activeElement)) {
+            if (
+                dialog
+                && isTopmostModal(dialog)
+                && !isInActiveInteractionLayer(dialog, document.activeElement)
+            ) {
                 focusInitialElement();
             }
         }, 50);
@@ -282,7 +302,11 @@ export function DialogShell({
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                     onAnimationComplete={() => {
                         const dialog = dialogRef.current;
-                        if (dialog && !dialog.contains(document.activeElement)) {
+                        if (
+                            dialog
+                            && isTopmostModal(dialog)
+                            && !isInActiveInteractionLayer(dialog, document.activeElement)
+                        ) {
                             focusInitialElement();
                         }
                     }}

@@ -275,8 +275,8 @@ model.
 | FR-P2b-5 | Fix the corresponding jsx-a11y findings; the audit-evidence baseline remains empty and every enabled recommended rule remains an error. | N5 |
 
 - **Acceptance.** Every label associated, distinct accessible names, `aria-required`/`aria-invalid`
-  exposed, focus-first-invalid, submit success/failure e2e; the corresponding jsx-a11y baseline
-  entries removed.
+  exposed, focus-first-invalid, submit success/failure e2e; the strict-zero gate remains at zero
+  findings with empty audit evidence throughout, and any new finding fails.
 - **Rollback.** One commit per form.
 - **Resolves:** C5, S11, C1 (forms), C4 (forms portion), P7 (search-input name, forms portion).
 
@@ -479,7 +479,7 @@ loopholes with production-grounded enforcement:
   widening path.
 - Department detail state is owner-keyed; a route change cannot expose the prior department's
   metadata, rows, totals, error, or loading state, and stale responses remain rejected.
-- Final automated verification passed sequentially: 268 unit files / 1,368 tests; TypeScript and
+- Final automated verification passed sequentially: 269 unit files / 1,374 tests; TypeScript and
   the 4,026-module production build; strict-zero lint; 20-namespace i18n parity; 29/29 unit dialog
   cases; 59/59 bundled-Chromium accessibility cases; and the full system-Chrome `ci` project with
   371 passed, 22 intentionally skipped, and zero failed. Authorization, repository, documentation
