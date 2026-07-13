@@ -14,6 +14,7 @@
     "lint:a11y": "node scripts/a11y/jsx-a11y-baseline.mjs",
     "lint:a11y:write": "node scripts/a11y/jsx-a11y-baseline.mjs --write",
     "lint:dialog-inventory": "node scripts/a11y/validate-dialog-inventory.mjs",
+    "e2e:a11y:collect": "node scripts/a11y/validate-playwright-a11y-collection.mjs",
     "quality:debt": "node scripts/quality/debt-budget.mjs",
     "i18n:inventory": "node scripts/i18n/inventory-ui-text.mjs",
     "i18n:scan": "node scripts/i18n/scan-hardcoded-ui.mjs",

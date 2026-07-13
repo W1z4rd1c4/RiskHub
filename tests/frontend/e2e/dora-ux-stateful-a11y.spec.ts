@@ -300,4 +300,50 @@ test.describe('DORA UX stateful accessibility (WCAG 2.2 AA tags, enforce-only)',
             );
         });
     }
+
+    test('a real dialog keeps a portalled ThemedSelect in the active interaction layer', async ({ page }) => {
+        await seedTheme(page, 'riskhub');
+        await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
+        await page.goto('/users');
+        await waitForDataLoad(page);
+
+        const opener = page.getByRole('button', { name: /edit access/i }).first();
+        await opener.waitFor({ state: 'visible' });
+        await opener.focus();
+        await opener.click();
+
+        const dialogRole = page.getByRole('dialog', { name: /edit access settings/i });
+        await expect(dialogRole).toBeVisible();
+        const dialog = page.locator('[role="dialog"]');
+        await expect(dialog.getByTestId('access-edit-ready')).toBeVisible();
+
+        const selectTrigger = dialog.getByRole('combobox').first();
+        await selectTrigger.click();
+
+        // Radix renders the listbox in a portal outside the DialogShell DOM,
+        // while the modal itself remains open and semantically active.
+        const listbox = page.getByRole('listbox');
+        await expect(listbox).toBeVisible();
+        await expect(dialog).toBeVisible();
+        await expect.poll(async () => listbox.evaluate((node) => node.contains(document.activeElement)))
+            .toBe(true);
+
+        await axeScanZero(page, [], 'Access edit dialog with portalled ThemedSelect (riskhub)');
+
+        await page.keyboard.press('Tab');
+        await expect.poll(async () => page.evaluate(() => {
+            const active = document.activeElement;
+            const modal = document.querySelector('[role="dialog"]');
+            const popup = document.querySelector('[role="listbox"]');
+            return Boolean(active && (modal?.contains(active) || popup?.contains(active)));
+        })).toBe(true);
+
+        await page.keyboard.press('Escape');
+        await expect(listbox).toHaveCount(0);
+        await expect(dialog).toBeVisible();
+
+        await page.keyboard.press('Escape');
+        await expect(dialog).toHaveCount(0);
+        await expect(opener).toBeFocused();
+    });
 });

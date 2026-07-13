@@ -13,9 +13,10 @@ process.env.NODE_PATH = process.env.NODE_PATH
   : frontendNodeModules;
 (Module as unknown as { _initPaths?: () => void })._initPaths?.();
 
-const ciChromiumChannel =
-  process.env.PLAYWRIGHT_CHROMIUM_CHANNEL ||
-  (process.env.CI && process.platform === 'darwin' ? 'chrome' : undefined);
+// The workflow selects system Chrome explicitly. With no override, the `ci`
+// project must use Playwright's bundled Chromium so a missing system browser
+// never changes projects or silently drops the ci-only accessibility suites.
+const ciChromiumChannel = process.env.PLAYWRIGHT_CHROMIUM_CHANNEL || undefined;
 const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 const resultsRoot = path.resolve(frontendRoot, '../tests/results/frontend/playwright');
 const reportDir = path.join(resultsRoot, 'playwright-report');

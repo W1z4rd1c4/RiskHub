@@ -375,8 +375,11 @@ def test_e2e_workflow_prefers_system_chrome_with_bounded_browser_fallback() -> N
     assert "command -v google-chrome-stable" in text
     assert "steps.system-chrome.outputs.available != 'true'" in install_step
     assert "timeout-minutes: 8" in install_step
-    assert "--project=ci" in text
-    assert "--project=chromium" in text
+    run_step = text[text.index("      - name: Run E2E tests") : text.index("      - name: Upload test results")]
+    assert "npm run e2e:a11y:collect" in run_step
+    assert "--project=ci" in run_step
+    assert "--project=chromium" not in run_step
+    assert "unset PLAYWRIGHT_CHROMIUM_CHANNEL" in run_step
     assert "PLAYWRIGHT_CHROMIUM_CHANNEL: chrome" in text
 
 
@@ -385,6 +388,7 @@ def test_playwright_ci_project_allows_workflow_selected_chromium_channel() -> No
 
     assert "PLAYWRIGHT_CHROMIUM_CHANNEL" in text
     assert "process.env.PLAYWRIGHT_CHROMIUM_CHANNEL" in text
+    assert "process.platform === 'darwin'" not in text
 
 
 def test_e2e_workflow_allows_runtime_headroom_for_cache_misses() -> None:

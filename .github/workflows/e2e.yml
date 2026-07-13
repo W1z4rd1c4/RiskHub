@@ -193,11 +193,11 @@ jobs:
           PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
-          if [ "${{ steps.system-chrome.outputs.available }}" = "true" ]; then
-            npx playwright test -c playwright.config.ts --project=ci
-          else
-            npx playwright test -c playwright.config.ts --project=chromium
+          if [ "${{ steps.system-chrome.outputs.available }}" != "true" ]; then
+            unset PLAYWRIGHT_CHROMIUM_CHANNEL
           fi
+          npm run e2e:a11y:collect
+          npx playwright test -c playwright.config.ts --project=ci
 
       - name: Upload test results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
