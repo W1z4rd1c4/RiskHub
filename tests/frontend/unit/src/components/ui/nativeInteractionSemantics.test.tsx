@@ -3,7 +3,24 @@ import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { LinkSearchResultItem } from '@/components/linking/LinkSearchResultItem';
+import { RiskDistributionMatrix } from '@/components/dashboard/RiskDistributionMatrix';
 import { StepIndicator } from '@/components/ui/StepIndicator';
+
+vi.mock('@/hooks/useRiskHubConfig', () => ({
+  useRiskThresholds: () => ({ thresholds: { criticalMin: 16, highMin: 10, mediumMin: 5 } }),
+}));
+
+vi.mock('@/hooks/useStatusTheme', () => ({
+  useStatusTheme: () => ({
+    matrix: {
+      emptyCell: 'bg-empty',
+      low: 'bg-low',
+      medium: 'bg-medium',
+      high: 'bg-high',
+      critical: 'bg-critical',
+    },
+  }),
+}));
 
 const TestIcon = ({ className }: { className?: string }) => <span aria-hidden="true" className={className}>*</span>;
 
@@ -61,5 +78,23 @@ describe('shared native interaction semantics', () => {
     await user.click(buttons[1]!);
     expect(onUnarchive).toHaveBeenCalledWith(7);
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('uses a native button for an actionable risk-matrix cell', async () => {
+    const user = userEvent.setup();
+    const onCellClick = vi.fn();
+    const { container } = render(
+      <RiskDistributionMatrix
+        distribution={[{ probability: 4, impact: 4, count: 1 }]}
+        onCellClick={onCellClick}
+      />,
+    );
+
+    const cell = screen.getByRole('button', { name: /1.*probability.*4.*impact.*4/i });
+    expect(cell).toHaveAttribute('type', 'button');
+    expect(container.querySelector('[role="button"]')).toBeNull();
+    cell.focus();
+    await user.keyboard(' ');
+    expect(onCellClick).toHaveBeenCalledWith(4, 4);
   });
 });

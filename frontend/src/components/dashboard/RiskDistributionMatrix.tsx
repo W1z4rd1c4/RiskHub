@@ -43,13 +43,6 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent, p: number, i: number) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleCellClick(p, i);
-        }
-    };
-
     return (
         <div className="flex flex-col items-center">
             <div className="flex gap-2">
@@ -66,33 +59,46 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                             {[1, 2, 3, 4, 5].map((i) => {
                                 const count = getCountForCell(p, i);
                                 const isClickable = count > 0 && !!onCellClick;
-                                return (
+                                const cellContent = count > 0 ? (
+                                    <>
+                                        <span className="text-white font-black text-2xl leading-none">{count}</span>
+                                        <span className="text-[9px] text-white/70 font-bold uppercase mt-1">{t('risk_distribution_matrix.risks')}</span>
+                                    </>
+                                ) : null;
+                                const cellClassName = cn(
+                                    'm-1.5 flex h-16 w-16 flex-col items-center justify-center rounded-xl border border-white/10 backdrop-blur-xl transition-all duration-300',
+                                    getCellClasses(p, i),
+                                    count > 0 ? 'scale-100 shadow-lg shadow-black/20' : 'scale-95',
+                                    isClickable && 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent hover:opacity-80',
+                                );
+                                const cellTitle = `${t('risk_distribution_matrix.cell_title', { probability: p, impact: i, count })}${isClickable ? t('risk_distribution_matrix.click_to_view') : ''}`;
+
+                                return isClickable ? (
+                                    <motion.button
+                                        key={`${p}-${i}`}
+                                        type="button"
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: (p + i) * 0.02 }}
+                                        onClick={() => handleCellClick(p, i)}
+                                        aria-label={t('risk_distribution_matrix.cell_aria', { count, probability: p, impact: i })}
+                                        className={cellClassName}
+                                        title={cellTitle}
+                                        whileHover={{ scale: 1.08, y: -3 }}
+                                        whileTap={{ scale: 0.95 }}
+                                    >
+                                        {cellContent}
+                                    </motion.button>
+                                ) : (
                                     <motion.div
                                         key={`${p}-${i}`}
                                         initial={{ opacity: 0, scale: 0.8 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: (p + i) * 0.02 }}
-                                        onClick={() => handleCellClick(p, i)}
-                                        onKeyDown={(e) => handleKeyDown(e, p, i)}
-                                        tabIndex={isClickable ? 0 : -1}
-                                        role={isClickable ? 'button' : undefined}
-                                        aria-label={isClickable ? t('risk_distribution_matrix.cell_aria', { count, probability: p, impact: i }) : undefined}
-                                        className={cn(
-                                            'm-1.5 flex h-16 w-16 flex-col items-center justify-center rounded-xl border border-white/10 backdrop-blur-xl transition-all duration-300',
-                                            getCellClasses(p, i),
-                                            count > 0 ? 'scale-100 shadow-lg shadow-black/20' : 'scale-95',
-                                            isClickable && 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent hover:opacity-80',
-                                        )}
-                                        title={`${t('risk_distribution_matrix.cell_title', { probability: p, impact: i, count })}${isClickable ? t('risk_distribution_matrix.click_to_view') : ''}`}
-                                        whileHover={isClickable ? { scale: 1.08, y: -3 } : undefined}
-                                        whileTap={isClickable ? { scale: 0.95 } : undefined}
+                                        className={cellClassName}
+                                        title={cellTitle}
                                     >
-                                        {count > 0 && (
-                                            <>
-                                                <span className="text-white font-black text-2xl leading-none">{count}</span>
-                                                <span className="text-[9px] text-white/70 font-bold uppercase mt-1">{t('risk_distribution_matrix.risks')}</span>
-                                            </>
-                                        )}
+                                        {cellContent}
                                     </motion.div>
                                 );
                             })}

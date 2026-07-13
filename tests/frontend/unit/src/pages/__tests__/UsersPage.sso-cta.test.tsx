@@ -104,7 +104,9 @@ vi.mock('@/components/ConfirmDialog', () => ({
 }));
 
 vi.mock('@/components/users/ADUserPicker', () => ({
-    ADUserPicker: () => null,
+    ADUserPicker: ({ isOpen }: { isOpen: boolean }) => isOpen
+        ? <div role="dialog" aria-label="Directory user picker" />
+        : null,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -174,7 +176,8 @@ describe('UsersPage SSO add CTA', () => {
         const ssoAddButton = await screen.findByRole('button', { name: 'Add from AD' });
         fireEvent.click(ssoAddButton);
 
-        expect(mockNavigate).toHaveBeenCalledWith('/users/new');
+        expect(mockNavigate).not.toHaveBeenCalledWith('/users/new');
+        expect(screen.getByRole('dialog', { name: 'Directory user picker' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'access.add_user' })).not.toBeInTheDocument();
     });
 
@@ -205,7 +208,8 @@ describe('UsersPage SSO add CTA', () => {
         const ssoAddButton = await screen.findByRole('button', { name: 'Add from AD' });
         fireEvent.click(ssoAddButton);
 
-        expect(mockNavigate).toHaveBeenCalledWith('/users/new');
+        expect(mockNavigate).not.toHaveBeenCalledWith('/users/new');
+        expect(screen.getByRole('dialog', { name: 'Directory user picker' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'access.add_user' })).not.toBeInTheDocument();
     });
 

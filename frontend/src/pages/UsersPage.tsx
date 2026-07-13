@@ -121,6 +121,14 @@ export function UsersPage() {
         await fetchUsers();
     };
 
+    const handleAddUser = () => {
+        if (isDirectoryFirstMode) {
+            setIsADPickerOpen(true);
+            return;
+        }
+        void navigate('/users/new');
+    };
+
     const handleCheckAllDirectory = async () => {
         try {
             setIsCheckingAllDirectory(true);
@@ -216,6 +224,7 @@ export function UsersPage() {
                 isAccessMode={isAccessMode}
                 isCheckingAllDirectory={isCheckingAllDirectory}
                 isDirectoryFirstMode={isDirectoryFirstMode}
+                onAddUser={handleAddUser}
                 onCheckAllDirectory={handleCheckAllDirectory}
             />
 

@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 import { TriangleAlert } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
@@ -20,6 +20,7 @@ export function KriMismatchDialog({
     const { t } = useTranslation(['common', 'kris']);
     const titleId = useId();
     const messageId = useId();
+    const cancelRef = useRef<HTMLButtonElement>(null);
 
     return (
         <DialogShell
@@ -28,6 +29,7 @@ export function KriMismatchDialog({
             titleId={titleId}
             descriptionIds={[messageId]}
             role="alertdialog"
+            initialFocusRef={cancelRef}
             closeDisabled={isSubmitting}
             backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
             contentClassName="relative w-full max-w-lg rounded-3xl border border-white/10 bg-slate-950/95 p-6 shadow-2xl"
@@ -64,6 +66,7 @@ export function KriMismatchDialog({
                         {t('kris:vendor_assignment.mismatch_dialog.continue_without_linking')}
                     </button>
                     <button
+                        ref={cancelRef}
                         type="button"
                         onClick={onCancel}
                         className="w-full rounded-xl px-4 py-3 text-sm font-bold text-slate-400 transition-colors hover:text-white"

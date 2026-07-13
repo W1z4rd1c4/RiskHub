@@ -1,106 +1,38 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { StrictMode, useState, type ReactNode } from 'react';
+import { StrictMode, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 
 import '@/index.css';
 import '@/i18n';
 
-import { AccessEditModal } from '@/components/access/AccessEditModal';
-import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { ControlCreateDialog } from '@/components/ControlCreateDialog';
-import { RiskDrilldownModal } from '@/components/dashboard/RiskDrilldownModal';
-import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
-import { OrphanQuickViewModal } from '@/components/governance/OrphanQuickViewModal';
-import { ResolveOrphanModal } from '@/components/governance/ResolveOrphanModal';
-import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
-import { KriMismatchDialog } from '@/components/kri-form/KriMismatchDialog';
-import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
+import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
+import { KRIFormContainer } from '@/components/kri-form/KRIFormContainer';
 import { KRIModal } from '@/components/kri/KRIModal';
-import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
-import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ApprovalScenariosPanel } from '@/components/riskhub/ApprovalScenariosPanel';
 import { DepartmentsPanel } from '@/components/riskhub/DepartmentsPanel';
+import { RolesPanel } from '@/components/riskhub/RolesPanel';
 import { RiskTypesPanel } from '@/components/riskhub/RiskTypesPanel';
-import { RoleDeleteDialog } from '@/components/riskhub/roles/RoleDeleteDialog';
-import { RoleModal } from '@/components/riskhub/roles/RoleModal';
-import { RiskQuestionnaireDetail } from '@/components/risks/risk-questionnaire-detail/RiskQuestionnaireDetailContainer';
-import { RiskQuickViewModal } from '@/components/RiskQuickViewModal';
-import { ADUserPicker } from '@/components/users/ADUserPicker';
+import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
+import { RiskLinkedControlsSection } from '@/components/risks/detail-overview/RiskLinkedControlsSection';
+import { VendorLinkedEntitiesTab } from '@/components/vendors/VendorLinkedEntitiesTab';
+import type { VendorLinkedEntitiesAdapter } from '@/components/vendors/useVendorLinkedEntities';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
-import { useTranslation } from '@/i18n/hooks';
-import { AuditDetailsModal } from '@/pages/admin-console/sections/audit/AuditDetailsModal';
-import { ApprovalResolutionDialog } from '@/pages/approvals/ApprovalResolutionDialog';
-import { BreakGlassEnableDialog } from '@/pages/users/BreakGlassEnableDialog';
-import type { ApprovalRequest } from '@/types/approval';
-import type { AccessUserRead } from '@/types/access';
-import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
-import type { OrphanedItem } from '@/types/orphanedItem';
-import type { Risk } from '@/types/risk';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { AssetLinkSections } from '@/pages/assets/AssetLinkSections';
+import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
+import { DashboardRiskSections } from '@/pages/dashboard/DashboardRiskSections';
+import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
+import type { Asset } from '@/types/asset';
+import type { Control, ControlRiskLink } from '@/types/control';
+import type { KeyRiskIndicator } from '@/types/kri';
+import type { Risk, RiskControlLink } from '@/types/risk';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 });
-
-const roleFixture = {
-  id: 1,
-  name: 'auditor',
-  display_name: 'Auditor',
-  description: 'Read-only auditor role',
-  is_system: false,
-  is_active: true,
-  user_count: 0,
-  permissions: [],
-};
-
-const accessUserFixture = {
-  id: 1,
-  email: 'ada@example.test',
-  name: 'Ada Lovelace',
-  is_active: true,
-  role_id: 1,
-  role: { id: 1, name: 'auditor', display_name: 'Auditor', description: null },
-  department_id: 1,
-  department_name: 'IT',
-  manager_id: null,
-  manager_name: null,
-  access_scope: 'department',
-  scope_label: 'Department',
-  effective_permissions: [],
-  capabilities: {
-    can_edit_identity: false,
-    can_edit_business_access: true,
-    can_edit_role: false,
-    can_deactivate: false,
-    can_change_active_status: false,
-    can_break_glass_enable: true,
-    can_revoke_sessions: false,
-  },
-} as unknown as AccessUserRead;
-
-const approvalFixture = {
-  id: 1,
-  resource_type: 'risk',
-  resource_id: 1,
-  resource_name: 'Authentication Drift',
-  action_type: 'update',
-  pending_changes: null,
-  status: 'pending',
-  reason: 'needs review',
-  requested_by_id: 2,
-  requested_by_name: 'Jo Requester',
-  requested_by_email: 'jo@example.test',
-  resolved_by_id: null,
-  resolved_by_name: null,
-  resolved_at: null,
-  resolution_notes: null,
-  created_at: '2026-02-01T00:00:00Z',
-  can_approve: true,
-  can_reject: true,
-} as unknown as ApprovalRequest;
 
 const riskFixture = {
   id: 1,
@@ -118,6 +50,9 @@ const riskFixture = {
   updated_at: '2026-02-01T00:00:00Z',
   owner: { id: 9, name: 'Ada Owner', email: 'ada@example.test' },
   department: { id: 1, name: 'IT' },
+  capabilities: {
+    can_send_questionnaire: true,
+  },
 } as unknown as Risk;
 
 const kriFixture = {
@@ -133,156 +68,254 @@ const kriFixture = {
   capabilities: null,
 } as unknown as KeyRiskIndicator;
 
-const kriHistoryFixture = {
+const controlFixture = {
   id: 1,
-  kri_id: 1,
-  period_start: '2026-01-01',
-  period_end: '2026-01-31',
-  recorded_at: '2026-02-01T00:00:00Z',
-  value: 95,
-  lower_limit: 90,
-  upper_limit: 100,
-  unit: '%',
-  breach_status: 'within',
-} as KRIHistoryEntry;
+  name: 'Access Control Review',
+  description: 'Quarterly access review.',
+  control_form: 'preventive',
+  frequency: 'quarterly',
+  risk_level: 3,
+  status: 'active',
+  is_archived: false,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  capabilities: { can_link_risk: true, can_unlink_risk: true },
+} as unknown as Control;
 
-const orphanFixture: OrphanedItem = {
+const linkedRiskFixture = {
+  id: 11,
+  control_id: 1,
+  risk_id: 1,
+  effectiveness: 'high',
+  risk: riskFixture,
+} as unknown as ControlRiskLink;
+
+const linkedControlFixture = {
+  id: 12,
+  control_id: 1,
+  risk_id: 1,
+  effectiveness: 'high',
+  created_at: '2026-01-01T00:00:00Z',
+  control: controlFixture,
+} as unknown as RiskControlLink;
+
+const assetFixture = {
   id: 1,
-  item_type: 'risk',
-  item_id: 1,
-  item_name: 'Authentication Drift',
-  item_description: null,
-  item_identifier: null,
-  department_name: 'IT',
-  previous_owner_name: 'Jo Owner',
-  previous_owner_email: 'jo@example.test',
-  orphaned_at: '2026-02-01T00:00:00Z',
-  status: 'pending',
-  capabilities: {
-    can_resolve: true,
-    can_view_detail: true,
-    requires_department: false,
-    requires_owner: true,
-    requires_risk: false,
-  },
-};
+  name: 'Claims Platform',
+  is_archived: false,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+} as Asset;
 
-const questionnaireFixtureRisk = riskFixture;
-
-function ApprovalSurface({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation(['approvals', 'common']);
+function LinkManagementOwner() {
   return (
-    <ApprovalResolutionDialog
-      selectedApproval={approvalFixture}
-      dialogMode="approve"
-      resolutionNotes="Ready for approval"
-      isSubmitting={false}
-      onClose={onClose}
-      onResolve={() => {}}
-      onResolutionNotesChange={() => {}}
-      t={t}
+    <LinkManagementDialog
+      isOpen
+      onClose={() => {}}
+      mode="risk-to-control"
+      existingLinks={[{ id: 1, control_id: 1, control: controlFixture, effectiveness: 'high', notes: 'Existing mitigation' }]}
+      onLink={async () => {}}
+      onUnlink={async () => {}}
+      showSearch={false}
     />
   );
 }
 
-function linkModeForSite(siteId: string) {
-  if (siteId.includes('vendor')) return 'vendor-to-kri' as const;
-  if (siteId.includes('control-overview')) return 'control-to-risk' as const;
-  return 'risk-to-control' as const;
+function KriModalOwner() {
+  return (
+    <KRIModal
+      risk_id={1}
+      kri={kriFixture}
+      isOpen
+      onClose={() => {}}
+      onDelete={async () => {}}
+      onSave={async () => ({ kind: 'updated' })}
+    />
+  );
 }
 
-function DirectSurface({ component, siteId, onClose }: { component: string; siteId: string; onClose: () => void }) {
-  switch (component) {
-    case 'ConfirmDialog':
-      return <ConfirmDialog isOpen onClose={onClose} onConfirm={() => {}} title={siteId} message="This action requires confirmation." />;
-    case 'ArchiveConfirmDialog':
-      return <ArchiveConfirmDialog isOpen onClose={onClose} onConfirm={async () => {}} resourceType="control" resourceName="Access Control Review" />;
-    case 'KriMismatchDialog':
-      return <KriMismatchDialog isSubmitting={false} onCancel={onClose} onContinueWithoutLinking={() => {}} onLinkRiskAndContinue={() => {}} />;
-    case 'RoleDeleteDialog':
-      return <RoleDeleteDialog role={roleFixture} onCancel={onClose} onConfirm={() => {}} />;
-    case 'RoleModal':
-      return <RoleModal isOpen role={null} allPermissions={[]} permissionsLoading={false} onClose={onClose} onSave={async () => {}} />;
-    case 'AuditDetailsModal':
-      return <AuditDetailsModal extra={{ action: siteId, field: 'name' }} onClose={onClose} />;
-    case 'BreakGlassEnableDialog':
-      return <BreakGlassEnableDialog breakGlassHours={4} breakGlassReason="" breakGlassUser={accessUserFixture} isBreakGlassSubmitting={false} onClose={onClose} onReasonChange={() => {}} onSubmit={() => {}} onHoursChange={() => {}} />;
-    case 'IssueQuickCreateModal':
-      return <IssueQuickCreateModal isOpen onClose={onClose} contextEntityType="risk" contextEntityId={1} contextEntityLabel={siteId} onCreated={() => {}} />;
-    case 'ApprovalResolutionDialog':
-      return <ApprovalSurface onClose={onClose} />;
-    case 'ExportDialog':
-      return <ExportDialog isOpen onClose={onClose} onSubmit={async () => {}} title={siteId} />;
-    case 'RiskQuickViewModal':
-      return <RiskQuickViewModal isOpen onClose={onClose} risk={riskFixture} />;
-    case 'ExecutionLogModal':
-      return <ExecutionLogModal isOpen onClose={onClose} controlId={1} controlName="Access Control Review" />;
-    case 'KRIValueModal':
-      return <KRIValueModal isOpen onClose={onClose} onSuccess={() => {}} kri={kriFixture} />;
-    case 'KRIHistoryEditModal':
-      return <KRIHistoryEditModal isOpen onClose={onClose} onSuccess={() => {}} kriId={1} entry={kriHistoryFixture} />;
-    case 'RiskDrilldownModal':
-      return <RiskDrilldownModal isOpen onClose={onClose} probability={4} impact={4} />;
-    case 'OrphanQuickViewModal':
-      return <OrphanQuickViewModal isOpen onClose={onClose} orphan={orphanFixture} />;
-    case 'ResolveOrphanModal':
-      return <ResolveOrphanModal isOpen onClose={onClose} orphan={orphanFixture} onResolved={() => {}} />;
-    case 'KRIModal':
-      return <KRIModal risk_id={1} kri={null} isOpen onClose={onClose} onSave={async () => ({ kind: 'updated' })} />;
-    case 'AccessEditModal':
-      return <AccessEditModal isOpen onClose={onClose} user={accessUserFixture} onSaved={() => {}} />;
-    case 'RiskQuestionnaireDetail':
-      return <RiskQuestionnaireDetail isOpen onClose={onClose} questionnaireId={1} risk={questionnaireFixtureRisk} />;
-    case 'LinkManagementDialog':
-      return <LinkManagementDialog isOpen onClose={onClose} mode={linkModeForSite(siteId)} existingLinks={[]} onLink={async () => {}} onUnlink={async () => {}} />;
-    case 'ADUserPicker':
-      return <ADUserPicker isOpen onClose={onClose} onImported={() => {}} />;
-    case 'ControlCreateDialog':
-      return <ControlCreateDialog isOpen onClose={onClose} onSuccess={() => {}} />;
-    default:
-      throw new Error(`No direct dialog harness for ${component} (${siteId})`);
+function RiskLinkedControlsOwner() {
+  const [isLinkOpen, setIsLinkOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'both' | 'search-only' | 'links-only'>('both');
+  return (
+    <RiskLinkedControlsSection
+      linkedControls={[linkedControlFixture]}
+      activeControls={[linkedControlFixture]}
+      draftControls={[]}
+      archivedControls={[]}
+      isLinkDialogOpen={isLinkOpen}
+      setIsLinkDialogOpen={setIsLinkOpen}
+      dialogMode={dialogMode}
+      setDialogMode={setDialogMode}
+      isCreateDialogOpen={isCreateOpen}
+      setIsCreateDialogOpen={setIsCreateOpen}
+      onLinkControl={async () => {}}
+      onUnlinkControl={async () => {}}
+      onOpenCreateControl={() => setIsCreateOpen(true)}
+      onNavigateToControl={() => {}}
+      onRefreshData={() => {}}
+      canCreateLinkedControl
+      canLinkControls
+      canUnlinkControls
+    />
+  );
+}
+
+type VendorEntity = { id: number; name: string; is_archived: boolean };
+
+function VendorLinkedOwner() {
+  const adapter = useMemo<VendorLinkedEntitiesAdapter<VendorEntity>>(() => ({
+    fetch: async () => [{ id: 1, name: 'Uptime KRI', is_archived: false }],
+    link: async () => {},
+    unlink: async () => {},
+    isArchived: (item) => item.is_archived,
+    toExistingLink: (item) => ({ id: item.id, kri_id: item.id, kri: { id: item.id, metric_name: item.name }, effectiveness: 'high' }),
+    errorLogPrefix: 'dialog contract vendor fixture',
+  }), []);
+  return (
+    <VendorLinkedEntitiesTab
+      vendorId={1}
+      adapter={adapter}
+      canCreate
+      canEdit
+      onAdd={() => {}}
+      renderCard={(item) => <button key={item.id} type="button">{item.name}</button>}
+      onNavigate={() => {}}
+      icon={<span aria-hidden="true">K</span>}
+      headerColorClass="text-accent"
+      i18nKeys={{
+        tabTitle: 'links.kris.title',
+        subtitle: 'links.kris.subtitle',
+        empty: 'links.kris.empty',
+        archived: 'links.kris.archived',
+        dialogTitle: 'links.kris.dialog_title',
+        addAction: 'links.kris.add',
+      }}
+      linkDialogMode="vendor-to-kri"
+      dataTestIdPrefix="vendor-linked-kris"
+    />
+  );
+}
+
+function ControlOverviewOwner() {
+  const [isLinkOpen, setIsLinkOpen] = useState(false);
+  const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
+  return (
+    <ControlDetailOverviewTab
+      control={controlFixture}
+      t={(key) => key}
+      linkedRisks={[linkedRiskFixture]}
+      activeLinkedRisks={[linkedRiskFixture]}
+      archivedLinkedRisks={[]}
+      canLinkRisk
+      canUnlinkRisk
+      linkErrorKey={null}
+      linkedRisksErrorKey={null}
+      isLinkDialogOpen={isLinkOpen}
+      selectedRisk={selectedRisk}
+      isRiskModalOpen={selectedRisk !== null}
+      onOpenLinkDialog={() => setIsLinkOpen(true)}
+      onCloseLinkDialog={() => setIsLinkOpen(false)}
+      onLinkRisk={async () => {}}
+      onUnlinkRisk={async () => {}}
+      onRiskClick={() => setSelectedRisk(riskFixture)}
+      onCloseRiskModal={() => setSelectedRisk(null)}
+    />
+  );
+}
+
+function DashboardOwner() {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <DashboardRiskSections
+      breachHistoryTitle="Breach history"
+      breachTrends={[]}
+      canUseDepartmentFilter={false}
+      controlExecutionTitle="Execution"
+      departmentMetrics={[]}
+      departmentVisibilityTitle="Departments"
+      grossDistribution={{ distribution: [{ probability: 4, impact: 4, count: 1 }] }}
+      grossMatrixTitle="Gross risk"
+      historicalTitle="History"
+      netDistribution={null}
+      netMatrixTitle="Net risk"
+      noExecutionHistoryLabel="No history"
+      onGrossCellClick={() => setIsOpen(true)}
+      onNetCellClick={() => setIsOpen(true)}
+      onRiskModalClose={() => setIsOpen(false)}
+      riskCreationTitle="Risk creation"
+      riskModal={{ impact: 4, isOpen, probability: 4, riskType: 'gross' }}
+      riskTrends={[]}
+      trends={[]}
+    />
+  );
+}
+
+function ContextualIssueOwner() {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <ContextualIssueAction
+      buttonLabel="New issue"
+      canCreateIssue
+      contextEntityId={1}
+      contextEntityLabel="Authentication Drift"
+      contextEntityType="risk"
+      isOpen={isOpen}
+      onClose={() => setIsOpen(false)}
+      onCreated={() => {}}
+      onOpen={() => setIsOpen(true)}
+    />
+  );
+}
+
+function OwnerSurface({ siteId }: { siteId: string }) {
+  switch (siteId) {
+    case 'confirm.link-management': return <LinkManagementOwner />;
+    case 'issue.execution-history': return <ExecutionHistory controlId={1} controlName="Access Control Review" canCreateIssue />;
+    case 'mismatch.kri-form': return <KRIFormContainer initialData={{ risk_id: 1, metric_name: 'Uptime', description: 'Availability', current_value: 99, lower_limit: 90, upper_limit: 100, unit: '%', frequency: 'monthly' }} vendorContext={{ vendorId: 1, vendorName: 'Cloud Vendor', returnTo: '/vendors/1' }} />;
+    case 'confirm.kri-modal': return <KriModalOwner />;
+    case 'role-modal.roles-panel':
+    case 'role-delete.roles-panel': return <RolesPanel />;
+    case 'questionnaire.risk-detail-tab': return <RiskDetailQuestionnairesTab risk={riskFixture} />;
+    case 'link.risk-linked-controls':
+    case 'control-create.risk-linked-controls': return <RiskLinkedControlsOwner />;
+    case 'link.vendor-linked-entities': return <VendorLinkedOwner />;
+    case 'confirm.asset-links': return <AssetLinkSections asset={assetFixture} canManageLinks />;
+    case 'link.control-overview':
+    case 'risk-view.control-overview': return <ControlOverviewOwner />;
+    case 'risk-drilldown.dashboard': return <DashboardOwner />;
+    case 'issue.contextual-action': return <ContextualIssueOwner />;
+    case 'inline.departments-delete':
+    case 'frame.departments': return <DepartmentsPanel />;
+    case 'inline.risk-types-delete':
+    case 'frame.risk-types': return <RiskTypesPanel />;
+    case 'frame.approval-scenarios': return <ApprovalScenariosPanel />;
+    default: throw new Error(`No owning component harness for ${siteId}`);
   }
-}
-
-function PanelSurface({ siteId }: { siteId: string }) {
-  if (siteId.includes('approval-scenarios')) return <ApprovalScenariosPanel />;
-  if (siteId.includes('risk-types')) return <RiskTypesPanel />;
-  return <DepartmentsPanel />;
 }
 
 function Harness() {
   const params = new URLSearchParams(window.location.search);
   const siteId = params.get('site') ?? '';
-  const component = params.get('component') ?? '';
-  const panel = component === 'DepartmentsPanel' || component === 'RiskTypesPanel' || component === 'RiskHubModalFrame';
-  const [open, setOpen] = useState(false);
-  let content: ReactNode;
-
-  if (panel) {
-    content = <PanelSurface siteId={siteId} />;
-  } else {
-    content = (
-      <>
-        <button type="button" data-testid="dialog-contract-opener" onClick={() => setOpen(true)}>
-          Open surface
-        </button>
-        {open ? <DirectSurface component={component} siteId={siteId} onClose={() => setOpen(false)} /> : null}
-      </>
-    );
-  }
-
-  return <main className="min-h-screen p-8">{content}</main>;
+  return (
+    <main className="min-h-screen p-8" data-testid="dialog-owner-ready" data-render-site={siteId}>
+      <OwnerSurface siteId={siteId} />
+    </main>
+  );
 }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
-          <DashboardFilterProvider>
-            <Harness />
-          </DashboardFilterProvider>
-        </BrowserRouter>
+        <ThemeProvider>
+          <BrowserRouter>
+            <DashboardFilterProvider>
+              <Harness />
+            </DashboardFilterProvider>
+          </BrowserRouter>
+        </ThemeProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

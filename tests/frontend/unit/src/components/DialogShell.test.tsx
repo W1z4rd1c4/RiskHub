@@ -188,14 +188,52 @@ function NestedHarness() {
                     role="alertdialog"
                 >
                     <h2 id="inner-t">Inner alert</h2>
-                    <button type="button">inner-ok</button>
+                    <button type="button">inner-first</button>
+                    <button type="button">inner-last</button>
                 </DialogShell>
             </DialogShell>
         </div>
     );
 }
 
+function ReplacedOpenerHarness() {
+    const [open, setOpen] = useState(false);
+    return (
+        <div>
+            <button
+                key={open ? 'open' : 'closed'}
+                type="button"
+                data-testid="replaceable-opener"
+                onClick={() => setOpen(true)}
+            >
+                replaceable opener
+            </button>
+            <DialogShell isOpen={open} onClose={() => setOpen(false)} titleId="replace-title">
+                <h2 id="replace-title">Replacement dialog</h2>
+                <button type="button">inside</button>
+            </DialogShell>
+        </div>
+    );
+}
+
 describe('DialogShell — stacked dialogs (Esc peels off the topmost only)', () => {
+    it('keeps both Tab boundaries inside the topmost dialog', async () => {
+        const user = userEvent.setup();
+        renderWithoutProviders(<NestedHarness />);
+
+        await user.click(screen.getByRole('button', { name: 'launch-outer' }));
+        await user.click(screen.getByRole('button', { name: 'open-inner' }));
+
+        const first = screen.getByRole('button', { name: 'inner-first' });
+        const last = screen.getByRole('button', { name: 'inner-last' });
+        await user.click(last);
+        await user.tab();
+        expect(first).toHaveFocus();
+
+        await user.tab({ shift: true });
+        expect(last).toHaveFocus();
+    });
+
     it('Escape closes only the focused (inner) dialog, leaving the outer open', async () => {
         const user = userEvent.setup();
         renderWithoutProviders(<NestedHarness />);
@@ -215,6 +253,19 @@ describe('DialogShell — stacked dialogs (Esc peels off the topmost only)', () 
         // A second Escape (focus now back in the outer) closes the outer too.
         await user.keyboard('{Escape}');
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+});
+
+describe('DialogShell — focus restoration across owner rerenders', () => {
+    it('restores focus to a replacement node with the same stable test id', async () => {
+        const user = userEvent.setup();
+        renderWithoutProviders(<ReplacedOpenerHarness />);
+
+        await user.click(screen.getByTestId('replaceable-opener'));
+        await screen.findByRole('dialog');
+        await user.keyboard('{Escape}');
+
+        await waitFor(() => expect(screen.getByTestId('replaceable-opener')).toHaveFocus());
     });
 });
 

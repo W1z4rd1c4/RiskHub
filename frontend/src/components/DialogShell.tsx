@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -61,6 +61,8 @@ export function DialogShell({
 }: DialogShellProps) {
     const dialogRef = useRef<HTMLDivElement>(null);
     const openerRef = useRef<HTMLElement | null>(null);
+    const openerStableIdentityRef = useRef<{ id?: string; testId?: string; ariaLabel?: string }>({});
+    const lastFocusedWhileClosedRef = useRef<HTMLElement | null>(null);
     const describedBy = descriptionIds.filter(Boolean).join(' ') || undefined;
 
     const focusInitialElement = useCallback(() => {
@@ -102,21 +104,21 @@ export function DialogShell({
     const handleKeyDown = useCallback((event: KeyboardEvent) => {
         if (!isOpen) return;
 
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+        const openModalSurfaces = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]'));
+        if (openModalSurfaces.at(-1) !== dialog) return;
+
         if (event.key === 'Escape') {
-            // With stacked dialogs, only the one that currently holds focus (the
-            // topmost — focus is trapped inside it) should close, so Escape peels
-            // them off one at a time instead of collapsing the whole stack.
-            const dialog = dialogRef.current;
-            if (dialog && !dialog.contains(document.activeElement)) return;
+            // Only the topmost modal owns keyboard handling. This makes Escape
+            // peel stacked dialogs one at a time and prevents the outer trap
+            // from stealing Tab after the inner trap has moved focus.
             event.preventDefault();
             handleClose();
             return;
         }
 
         if (event.key !== 'Tab') return;
-
-        const dialog = dialogRef.current;
-        if (!dialog) return;
 
         const focusableElements = getFocusableElements(dialog);
         if (focusableElements.length === 0) {
@@ -148,22 +150,70 @@ export function DialogShell({
     }, [handleClose, isOpen]);
 
     useEffect(() => {
+        if (isOpen || typeof document === 'undefined') return undefined;
+
+        const recordFocusedElement = (event: FocusEvent) => {
+            if (event.target instanceof HTMLElement) {
+                lastFocusedWhileClosedRef.current = event.target;
+            }
+        };
+        if (document.activeElement instanceof HTMLElement) {
+            lastFocusedWhileClosedRef.current = document.activeElement;
+        }
+        document.addEventListener('focusin', recordFocusedElement);
+        return () => document.removeEventListener('focusin', recordFocusedElement);
+    }, [isOpen]);
+
+    useLayoutEffect(() => {
         if (!isOpen || typeof document === 'undefined') return undefined;
 
-        openerRef.current = document.activeElement instanceof HTMLElement
-            ? document.activeElement
-            : null;
+        if (openerRef.current === null) {
+            openerRef.current = lastFocusedWhileClosedRef.current
+                ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+            openerStableIdentityRef.current = openerRef.current ? {
+                id: openerRef.current.id || undefined,
+                testId: openerRef.current.dataset.testid || undefined,
+                ariaLabel: openerRef.current.getAttribute('aria-label') || undefined,
+            } : {};
+        }
 
         const focusTimer = window.setTimeout(focusInitialElement, 0);
+        // Native form activation can finish after the first zero-delay focus
+        // task and put focus back on the submitter. Re-check after that event
+        // cycle, but never override focus that is already inside the dialog.
+        const focusGuardTimer = window.setTimeout(() => {
+            const dialog = dialogRef.current;
+            if (dialog && !dialog.contains(document.activeElement)) {
+                focusInitialElement();
+            }
+        }, 50);
 
         return () => {
             window.clearTimeout(focusTimer);
+            window.clearTimeout(focusGuardTimer);
             const opener = openerRef.current;
+            const stableIdentity = openerStableIdentityRef.current;
             openerRef.current = null;
+            openerStableIdentityRef.current = {};
 
-            if (opener?.isConnected) {
-                opener.focus();
-            }
+            const restoreOpenerFocus = () => {
+                let target = opener?.isConnected ? opener : null;
+                if (!target && stableIdentity.id) {
+                    target = document.getElementById(stableIdentity.id);
+                }
+                if (!target && stableIdentity.testId) {
+                    target = Array.from(document.querySelectorAll<HTMLElement>('[data-testid]'))
+                        .find((element) => element.dataset.testid === stableIdentity.testId) ?? null;
+                }
+                if (!target && stableIdentity.ariaLabel) {
+                    target = Array.from(document.querySelectorAll<HTMLElement>('[aria-label]'))
+                        .find((element) => element.getAttribute('aria-label') === stableIdentity.ariaLabel) ?? null;
+                }
+                target?.focus();
+            };
+
+            restoreOpenerFocus();
+            window.setTimeout(restoreOpenerFocus, 0);
         };
     }, [focusInitialElement, isOpen]);
 
@@ -195,6 +245,12 @@ export function DialogShell({
                     animate={{ scale: 1, y: 0 }}
                     exit={{ scale: 0.95, y: 10 }}
                     transition={{ duration: 0.2, ease: 'easeOut' }}
+                    onAnimationComplete={() => {
+                        const dialog = dialogRef.current;
+                        if (dialog && !dialog.contains(document.activeElement)) {
+                            focusInitialElement();
+                        }
+                    }}
                     role={role}
                     aria-modal="true"
                     aria-labelledby={titleId}
