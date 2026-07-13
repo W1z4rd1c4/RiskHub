@@ -136,6 +136,31 @@ describe('DialogShell — focus trap + Esc + restoration (FR-P2c-3 / N10)', () =
         await waitFor(() => expect(launch).toHaveFocus());
     });
 
+    it('defers Escape to an active portalled ThemedSelect layer', async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        renderWithoutProviders(<DialogHarness onClose={onClose} />);
+        await user.click(screen.getByRole('button', { name: 'launch' }));
+        await screen.findByRole('dialog');
+
+        const selectPortal = document.createElement('div');
+        selectPortal.className = 'themed-select-content';
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.textContent = 'Portalled option';
+        selectPortal.append(option);
+        document.body.append(selectPortal);
+
+        try {
+            option.focus();
+            await user.keyboard('{Escape}');
+            expect(onClose).not.toHaveBeenCalled();
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+        } finally {
+            selectPortal.remove();
+        }
+    });
+
     it('a backdrop click closes the dialog', async () => {
         const user = userEvent.setup();
         const onClose = vi.fn();

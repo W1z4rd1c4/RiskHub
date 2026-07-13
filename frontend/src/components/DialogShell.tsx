@@ -110,6 +110,15 @@ export function DialogShell({
         if (openModalSurfaces.at(-1) !== dialog) return;
 
         if (event.key === 'Escape') {
+            const eventTarget = event.target;
+            // Radix Select renders its active listbox outside the dialog DOM.
+            // That top interaction layer owns the first Escape; closing the
+            // parent here would collapse both layers in a single keystroke.
+            if (
+                eventTarget instanceof HTMLElement
+                && eventTarget.closest('.themed-select-content')
+            ) return;
+
             // Only the topmost modal owns keyboard handling. This makes Escape
             // peel stacked dialogs one at a time and prevents the outer trap
             // from stealing Tab after the inner trap has moved focus.
