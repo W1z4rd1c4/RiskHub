@@ -149,6 +149,19 @@ export function DialogShell({
         }
     }, [handleClose, isOpen]);
 
+    const handleFocusIn = useCallback((event: FocusEvent) => {
+        if (!isOpen) return;
+
+        const dialog = dialogRef.current;
+        const target = event.target;
+        if (!dialog || !(target instanceof HTMLElement)) return;
+        const openModalSurfaces = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]'));
+        if (openModalSurfaces.at(-1) !== dialog) return;
+        if (dialog.contains(target) || target.closest('.themed-select-content')) return;
+
+        focusInitialElement();
+    }, [focusInitialElement, isOpen]);
+
     useEffect(() => {
         if (isOpen || typeof document === 'undefined') return undefined;
 
@@ -221,8 +234,12 @@ export function DialogShell({
         if (!isOpen || typeof document === 'undefined') return undefined;
 
         document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [handleKeyDown, isOpen]);
+        document.addEventListener('focusin', handleFocusIn);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            document.removeEventListener('focusin', handleFocusIn);
+        };
+    }, [handleFocusIn, handleKeyDown, isOpen]);
 
     if (!isOpen || typeof document === 'undefined') return null;
 

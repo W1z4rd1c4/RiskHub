@@ -267,6 +267,20 @@ describe('DialogShell — focus restoration across owner rerenders', () => {
 
         await waitFor(() => expect(screen.getByTestId('replaceable-opener')).toHaveFocus());
     });
+
+    it('returns programmatic focus escapes to the open dialog', async () => {
+        const user = userEvent.setup();
+        renderWithoutProviders(<ReplacedOpenerHarness />);
+
+        const opener = screen.getByTestId('replaceable-opener');
+        await user.click(opener);
+        const inside = await screen.findByRole('button', { name: 'inside' });
+        await waitFor(() => expect(inside).toHaveFocus());
+
+        opener.focus();
+
+        await waitFor(() => expect(inside).toHaveFocus());
+    });
 });
 
 describe('ConfirmDialog — real alert-dialog surface on DialogShell', () => {

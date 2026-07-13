@@ -379,7 +379,10 @@ async function arrangeParent(page: Page, site: RenderSite) {
   await page.goto(`/dialog-contract.html?site=${encodeURIComponent(site.id)}`);
   await expect(page.getByTestId('dialog-owner-ready')).toHaveAttribute('data-render-site', site.id);
   if (site.id === 'mismatch.kri-form') {
-    await page.getByRole('button', { name: /next/i }).click();
+    const next = page.getByRole('button', { name: /next/i });
+    await next.evaluate((button: HTMLButtonElement) => button.click());
+    await expect(page.getByRole('button', { name: /create kri/i })).toBeVisible();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
   }
 }
 
