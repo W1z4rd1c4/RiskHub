@@ -48,7 +48,7 @@
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 52 E2E specs among 91 tracked files (measured git-tracked `*.spec.ts` snapshot; domain-focused test suites plus setup/helpers/fixtures)
+- `tests/frontend/e2e/` - 53 E2E specs among 92 tracked files (measured git-tracked `*.spec.ts` snapshot; domain-focused test suites plus setup/helpers/fixtures)
 
 ## Planning and Documentation Structure
 

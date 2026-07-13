@@ -21,10 +21,8 @@ Those boxes are for a human operating real assistive technology on this exact co
 | Field | Value |
 |---|---|
 | Branch | `dora` |
-| HEAD commit | `79ed8c5644e442c384b0961c5398378c52d51734` (`79ed8c56`) |
-| HEAD subject | `test(dialog): real 26-surface matrix + fix invalid footer markup + reconcile inventory` |
-| HEAD commit date | `2026-07-13T00:22:40+02:00` |
-| Remediation commit range | Round 1 `0fe16977..669b9cc4`; Round 2 hardening `669b9cc4..79ed8c56` (jsx-a11y baseline 146→0 at `36f579ad`, exact fail-closed ratchet + zero-tolerance axe at `225e9ed6`, table/department-scope fixes at `cb23cd63`, 26-surface dialog matrix at `79ed8c56`) |
+| Under verification | The **Round-2 tip** (`36f579ad..HEAD`). The automated remediation is the 7 commits `36f579ad..c8a7f7cd` enumerated below; its last app/test change is the N10 gate `c8a7f7cd` (2026-07-13). This docs-only reconciliation record sits on top and adds **no** app/test surface — and cannot cite its own commit SHA. |
+| Automated-remediation range | Round 1 `0fe16977..669b9cc4`; **Round 2 `36f579ad..c8a7f7cd` (7 commits)**: `36f579ad` honest jsx-a11y config, baseline **146 → 0** · `225e9ed6` exact fail-closed ratchet + zero-tolerance axe · `cb23cd63` department id-scope + archived-only refetch + presentation helper · `79ed8c56` real 26-surface / 27-case dialog matrix + footer fix · `416ec077` humanized manuals + a11y testing contract · `51442533` docs-topology green · `c8a7f7cd` N10 stateful browser a11y gate + RN10 source fixes |
 | Automated-gate environment | macOS (Darwin 27.0.0), Node `v24.13.1`, system `python3` |
 | Assistive-tech environment | **to be recorded by the human tester** (OS + browser + AT versions) |
 
@@ -32,19 +30,25 @@ Those boxes are for a human operating real assistive technology on this exact co
 
 ## 1. Automated evidence (automated remediation COMPLETE — PENDING final verification)
 
-These gates are machine-checkable and green at HEAD `79ed8c56`. Entries marked
+These gates are machine-checkable and green at the Round-2 tip (`36f579ad..HEAD`). Entries marked
 **(re-verified at Round-2 closeout)** were re-run/re-read directly against this HEAD while
 writing this record; the remainder are the gate results carried by the landed
 remediation commits and are reproducible via the cited commands.
 
-> **Round-2 update (2026-07-13, HEAD `79ed8c56`).** After the Round-1 closeout (HEAD
-> `669b9cc4`) a hardening pass landed (`36f579ad`, `225e9ed6`, `cb23cd63`, `79ed8c56`), and
-> the automated numbers below are refreshed to it: the jsx-a11y baseline was rebuilt
-> **146 → 0** (so the deviation registry is **0** too), the base-ref ratchet is now
-> **exact and fail-closed**, the axe smoke is **enforce-only / zero-tolerance** (its capture
-> path removed), and the dialog matrix was rebuilt to **26 real surfaces (27 cases)**. This
-> does not change the human status: the manual / AT passes in §2–§3 and the ultrareview in §5
-> remain **outstanding**, so the automated work is complete **pending final verification**,
+> **Round-2 closeout (2026-07-13, the Round-2 tip `36f579ad..HEAD`).** After the Round-1
+> closeout (HEAD `669b9cc4`) a **7-commit** hardening arc landed — `36f579ad` (honest jsx-a11y
+> config; baseline **146 → 0**), `225e9ed6` (exact fail-closed ratchet + zero-tolerance axe),
+> `cb23cd63` (department id-scope + archived-only refetch + presentation helper), `79ed8c56`
+> (real **26-surface / 27-case** dialog matrix + footer fix), `416ec077` (humanized manuals +
+> a11y testing contract in TESTING.md), `51442533` (**docs-topology green** — 25 directory
+> READMEs + STRUCTURE.md reconciled + orphans indexed), and `c8a7f7cd` (the **N10 stateful
+> browser a11y gate** + RN10 source fixes). The automated numbers below are refreshed to this
+> tip: the jsx-a11y baseline is **0 entries** (so the deviation registry is **0** too), the
+> base-ref ratchet is **exact and fail-closed**, the axe checks are **enforce-only /
+> zero-tolerance** (capture path removed), the dialog matrix is **26 real surfaces (27 cases)**,
+> and the N10 gate drives five real stateful surfaces open under axe across all three themes.
+> This does not change the human status: the manual / AT passes in §2–§3 and the ultrareview in
+> §5 remain **outstanding**, so the automated work is complete **pending final verification**,
 > not a merge sign-off.
 
 ### 1.1 Full quality gate
@@ -57,6 +61,7 @@ remediation commits and are reproducible via the cited commands.
 | i18n parity | `npm run i18n:test` | green |
 | Authz capability contract | `python3 scripts/security/validate_authz_capability_contract.py` | passes plain **and** `--base-ref 69ffc76d` |
 | Docs contract | `python3 scripts/check_docs_contract.py` | **OK** (re-verified at Round-2 closeout) |
+| Docs topology | `make -f scripts/Makefile docs-topology-consistency` | **green** — docs contract + README coverage + tree reachability + structure-metrics guard (re-verified at Round-2 closeout) |
 
 ### 1.2 Accessibility state (the honest baselines)
 
@@ -83,6 +88,18 @@ remediation commits and are reproducible via the cited commands.
   update mode** anymore, so a violation can only be resolved by fixing the app. The scan pins
   explicit WCAG tags (`wcag2a`/`wcag2aa`/`wcag21a`/`wcag21aa`/`wcag22aa`), is **not** filtered
   by impact, and runs on the `ci` Playwright project only.
+- **Stateful browser a11y gate (N10 — new in `c8a7f7cd`).** A dedicated Playwright spec
+  (`tests/frontend/e2e/dora-ux-stateful-a11y.spec.ts`) drives **five real stateful surfaces**
+  open and axe-scans each with the pinned WCAG 2.2 AA tags: (1) an opened DORA `alertdialog`
+  (focus-trap + restoration), (2) an invalid entity-form error state, (3) an open Radix
+  `ThemedSelect` listbox, (4) an expanded sub-outsourcing disclosure chain, and (5) the
+  Data-Quality + ICT-Committee loading/error states. It is **enforce-only** (no
+  baseline/capture path — every finding is a hard failure) with **zero rule-disables**,
+  running one case per theme (**riskhub / light / dark**) on the `ci` Playwright project;
+  all three pass. The findings it surfaced (**RN10**) were fixed **at source**: back-button
+  `aria-label`s on the Process / Threat / Asset detail pages, and the `ConfirmDialog` danger
+  button re-set to white-on-`#ba3535` (**5.76:1**, clears AA) **without** redefining the
+  `--destructive` token.
 - **Dialog / overlay contract.** The interaction inventory
   ([`FRONTEND-DIALOG-INTERACTION-INVENTORY.md`](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md))
   classifies the DialogShell surfaces; the Round-2 real-surface matrix
@@ -114,7 +131,7 @@ verified for merge (§4).
 ## 2. Manual / assistive-technology matrix (HUMAN-OWNED — UNCHECKED)
 
 Every row below is **pending** and must be completed by a human operating real
-assistive technology against HEAD `79ed8c56`. An automated agent **cannot** run screen
+assistive technology against the Round-2 tip (`36f579ad..HEAD`). An automated agent **cannot** run screen
 readers or judge focus order, so no agent may check these boxes or backdate them.
 Record the tester, date, OS/browser/AT versions, and pass/fail + notes per row.
 
@@ -180,8 +197,8 @@ per-phase manual/AT gates and per-phase ultrareviews **did not happen** as desig
 this document does not claim otherwise.
 
 **Compensating control (what was actually done instead):** a corrective remediation pass
-landed as the Round-1 commits `0fe16977..669b9cc4`, extended by the Round-2 hardening pass
-`669b9cc4..79ed8c56`, which (a) reconciled the false dispositions,
+landed as the Round-1 commits `0fe16977..669b9cc4`, extended by the **7-commit Round-2
+hardening arc `36f579ad..c8a7f7cd`**, which (a) reconciled the false dispositions,
 (b) brought the **full final automated gate** to green and **enforced** the a11y baselines
 (§1), and (c) scheduled the **still-pending human manual/AT pass** (§2–§3) and the
 user-triggered ultrareview (§5) as explicit, un-checked gates before merge. The
@@ -193,7 +210,7 @@ human pass for the missing **per-phase** gates; it does not retroactively satisf
 ## 5. Remaining human-owned items (all PENDING)
 
 - [ ] pending (human) — Complete the manual / AT matrix in §2 and the C6 reproduction in §3.
-- [ ] pending (human) — Run the user-triggered **`/code-review ultra`** (ultrareview) against HEAD `79ed8c56`.
+- [ ] pending (human) — Run the user-triggered **`/code-review ultra`** (ultrareview) against the Round-2 tip (`36f579ad..HEAD`).
 - [ ] pending (human) — Make the **merge decision** for `dora` once §2–§3 pass (with C6 recorded as an accepted limitation) and §5 ultrareview is clean.
 
 Until every box above is checked by a human, `dora` is **not** established as

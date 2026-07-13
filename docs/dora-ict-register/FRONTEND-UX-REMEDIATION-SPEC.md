@@ -464,12 +464,13 @@ recorded") — and the ledger's own Dispositions gate C6 against "Phase 5's zero
 This spec follows the capture (Phase 5); the ledger's Phase-4 cell is superseded (audits are
 point-in-time and may be superseded by later remediation).
 
-**Closeout reconciliation (Round 2 — 2026-07-13, HEAD `79ed8c56`).** This spec was written at
+**Closeout reconciliation (Round 2 — 2026-07-13, the Round-2 tip `36f579ad..HEAD`).** This spec was written at
 Step 1 (`/to-spec`) as forward-looking acceptance criteria; the dispositions above default to
 `resolved` "at the target-phase checkpoint." At the Round-2 closeout the honest status is split:
 
 - **Automated remediation — COMPLETE and enforced, PENDING final verification.** Full gate green
-  at HEAD `79ed8c56` (`npm run build`; `npm run test:run`; `npm run lint` with a11y enforced;
+  at the **Round-2 tip** (`36f579ad..HEAD`; the automated remediation is the 7 commits
+  `36f579ad..c8a7f7cd`) (`npm run build`; `npm run test:run`; `npm run lint` with a11y enforced;
   `npm run i18n:test`; the authz capability-contract validator). **S7** is backed by the
   [dialog interaction inventory](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md) + the Round-2
   real-surface matrix — **26 real dialog/alertdialog surfaces** under the seven-point contract
@@ -480,7 +481,15 @@ Step 1 (`/to-spec`) as forward-looking acceptance criteria; the dispositions abo
   else the committed anchor `36f579ad`; unresolved → fails, never skips); and the **axe baseline is
   empty and enforce-only / zero-tolerance** for the scanned routes (incl. `/ict-register/data-quality`,
   `/?view=ict-committee`) with the capture path removed. Round 2 also fixed the department-row
-  id-scoping and archived-only refetch table bugs (`cb23cd63`).
+  id-scoping and archived-only refetch table bugs (`cb23cd63`). The arc also lands the **N10
+  stateful browser a11y gate** (`tests/frontend/e2e/dora-ux-stateful-a11y.spec.ts` at `c8a7f7cd`)
+  — five real stateful surfaces driven open and axe-scanned **enforce-only / zero-tolerance**
+  across riskhub / light / dark with **no rule-disables**, one case per theme, all passing — with
+  its surfaced findings (**RN10**) fixed at source (detail-page back-button `aria-label`s;
+  `ConfirmDialog` danger button white-on-`#ba3535` = **5.76:1** AA without redefining
+  `--destructive`); and the **docs topology is green** (`51442533`; `make -f scripts/Makefile
+  docs-topology-consistency` — docs contract + README coverage + tree reachability +
+  structure-metrics guard).
 - **Human gates — PENDING.** The **manual / assistive-technology pass** (keyboard, focus order,
   screen reader, 200%/400% zoom with **C6** reproduced — accepted limitation, **not** marked green),
   the user-triggered **ultrareview** (`/code-review ultra`), and the **merge decision** remain open.
@@ -488,7 +497,7 @@ Step 1 (`/to-spec`) as forward-looking acceptance criteria; the dispositions abo
   [`FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md`](./FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md).
 - **Process note.** The original #55–#70 workstream bypassed the planned per-phase manual/AT gates
   (CT-2) and per-phase ultrareviews and prematurely reported "done"; the Round-1 corrective
-  remediation `0fe16977..669b9cc4`, the Round-2 hardening `669b9cc4..79ed8c56`, this single final
+  remediation `0fe16977..669b9cc4`, the **7-commit Round-2 hardening arc `36f579ad..c8a7f7cd`**, this single final
   automated gate, and the pending human pass are the compensating control — they do **not**
   retroactively satisfy the missing per-phase gates.
 
