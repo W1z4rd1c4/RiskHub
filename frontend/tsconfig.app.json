@@ -36,7 +36,8 @@
     "noUncheckedSideEffectImports": true
   },
   "include": [
-    "src"
+    "src",
+    "e2e-harness"
   ],
   "exclude": [
     "src/**/*.test.ts",

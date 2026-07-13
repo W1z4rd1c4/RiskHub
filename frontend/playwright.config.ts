@@ -33,6 +33,7 @@ const testResultsDir = path.join(resultsRoot, 'test-results');
 const CI_ONLY_SPECS = [
     '**/accessibility-smoke.spec.ts',
     '**/dora-ux-stateful-a11y.spec.ts',
+    '**/dialog-render-sites.spec.ts',
 ];
 
 export default defineConfig({
