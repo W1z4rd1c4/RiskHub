@@ -67,6 +67,8 @@ AGENTS.md
   - [`docs/assets/readme/README.md`](./assets/readme/README.md)
 - Generated report artifacts:
   - [`docs/reports/README.md`](./reports/README.md) — checked-in third-party dependency/license report.
+- DORA ICT-register specifications:
+  - [`docs/dora-ict-register/README.md`](./dora-ict-register/README.md)
 - Deployment and operations:
   - [`docs/deployment/README.md`](./deployment/README.md)
 - Migration notes:
