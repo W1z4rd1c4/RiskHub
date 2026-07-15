@@ -26,6 +26,7 @@ export const processApi = {
                 include_archived: params.include_archived,
                 sort_by: params.sort_by,
                 sort_order: params.sort_order,
+                cif: params.cif,
             },
             schema: processListResponseSchema,
         });

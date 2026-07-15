@@ -35,6 +35,8 @@ export const assetApi = {
                 include_archived: params.include_archived,
                 sort_by: params.sort_by,
                 sort_order: params.sort_order,
+                has_process_link: params.has_process_link,
+                criticality: params.criticality,
             },
             schema: assetListResponseSchema,
         });

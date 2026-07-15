@@ -1,15 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Legend,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { RefreshCw } from 'lucide-react';
 
 import { TableErrorState, useTableErrorContract } from '@/components/tables/tableError';
@@ -28,15 +19,19 @@ import type {
 } from '@/types/ictRegisterCommittee';
 
 import {
+    assetCriticalityDrilldownPath,
     HEATMAP_SUBJECT_VALUES,
     heatmapCellFill,
+    heatmapDrilldownPath,
     kpiDrilldownPath,
     localizeRegisterRowLabel,
     metricDrilldownPath,
     migrationCellFill,
+    migrationDrilldownPath,
     narrativeParams,
     netBandStyle,
     riskBandChartRows,
+    riskBandDrilldownPath,
     roiGapRoutePath,
     stateTileDrilldownPath,
     tierStyle,
@@ -111,6 +106,41 @@ function blockingCountClass(value: number): string {
     return value > 0 ? 'text-amber-300' : 'text-emerald-400';
 }
 
+interface DrilldownBarShapeProps {
+    fill?: string;
+    height?: number;
+    payload?: { band: string };
+    width?: number;
+    x?: number;
+    y?: number;
+}
+
+function DrilldownBarShape({
+    fill = 'currentColor',
+    height = 0,
+    payload,
+    width = 0,
+    x = 0,
+    y = 0,
+    hrefForBand,
+    testIdPrefix,
+}: DrilldownBarShapeProps & {
+    hrefForBand: (band: string) => string;
+    testIdPrefix: string;
+}) {
+    if (!payload) return null;
+    return (
+        <a
+            href={hrefForBand(payload.band)}
+            tabIndex={0}
+            data-testid={`${testIdPrefix}-${payload.band}`}
+            aria-label={payload.band}
+        >
+            <rect x={x} y={y} width={width} height={height} rx={6} ry={6} fill={fill} />
+        </a>
+    );
+}
+
 // FR-P5-7 (P10): the RoI per-template readiness bar gets a colour threshold so a
 // glance separates ready (≥ 80 %) from partial (≥ 50 %) from at-risk (< 50 %).
 function roiReadinessBarClass(pct: number | null): string {
@@ -123,15 +153,7 @@ function roiReadinessBarClass(pct: number | null): string {
 // FR-P5-7 (P10): a legend for the two magnitude heatmaps — swatches sampled from
 // the same ColorScale the cells use (`heatmapCellFill` / `migrationCellFill`), so
 // a reader can map a fill back to a risk count (0 = unfilled, up to `max`+).
-function HeatmapLegend({
-    fill,
-    max,
-    testId,
-}: {
-    fill: (value: number) => string | null;
-    max: number;
-    testId: string;
-}) {
+function HeatmapLegend({ fill, max, testId }: { fill: (value: number) => string | null; max: number; testId: string }) {
     const { t } = useTranslation('ictRegisterCommittee');
     const stops = Array.from({ length: max + 1 }, (_, index) => index);
     return (
@@ -232,20 +254,13 @@ function TopRisksTable({ risks }: { risks: IctCommitteeTopRisk[] }) {
                             </td>
                             <td className="py-2 pr-3 text-slate-300">{risk.subject_label}</td>
                             <td className="py-2 pr-3 text-slate-300">{risk.threat_label}</td>
-                            <td className="py-2 pr-3 text-right tabular-nums text-slate-300">
-                                {risk.gross_score}
-                            </td>
-                            <td className="py-2 pr-3 text-right tabular-nums font-bold text-white">
-                                {risk.net_score}
-                            </td>
+                            <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{risk.gross_score}</td>
+                            <td className="py-2 pr-3 text-right tabular-nums font-bold text-white">{risk.net_score}</td>
                             <td className="py-2 pr-3">
                                 <CellPill value={risk.net_band} style={netBandStyle(risk.net_band)} />
                             </td>
                             <td className="py-2 pr-3">
-                                <CellPill
-                                    value={risk.vs_tolerance}
-                                    style={toleranceStyle(risk.vs_tolerance)}
-                                />
+                                <CellPill value={risk.vs_tolerance} style={toleranceStyle(risk.vs_tolerance)} />
                             </td>
                             <td className="py-2 text-slate-300">{risk.status_label}</td>
                         </tr>
@@ -293,18 +308,14 @@ function RoiTemplateRow({ template }: { template: IctRoiTemplateReadiness }) {
     const { t, i18n } = useTranslation('ictRegisterCommittee');
     const [expanded, setExpanded] = useState(false);
     const documentary = template.coverage === 'documentary';
-    const name = i18n.language?.toLowerCase().startsWith('cs')
-        ? template.name_cs
-        : template.name_en;
+    const name = i18n.language?.toLowerCase().startsWith('cs') ? template.name_cs : template.name_en;
 
     return (
         <div className="py-3 first:pt-0 last:pb-0" data-testid={`committee-roi-template-${template.code}`}>
             <div className="flex flex-col lg:flex-row lg:items-center gap-3">
                 <div className="lg:w-2/5">
                     <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-slate-400">
-                            {template.code}
-                        </span>
+                        <span className="font-mono text-xs font-bold text-slate-400">{template.code}</span>
                         <RoiCoverageBadge coverage={template.coverage} />
                     </div>
                     <p className={`font-semibold mt-0.5 ${documentary ? 'text-slate-400' : 'text-slate-200'}`}>
@@ -330,9 +341,7 @@ function RoiTemplateRow({ template }: { template: IctRoiTemplateReadiness }) {
                                     />
                                 </div>
                                 <span className="text-white font-bold tabular-nums text-sm w-16 text-right">
-                                    {template.readiness_pct === null
-                                        ? '—'
-                                        : `${template.readiness_pct} %`}
+                                    {template.readiness_pct === null ? '—' : `${template.readiness_pct} %`}
                                 </span>
                             </div>
                             <div className="flex items-center gap-3 text-xs text-slate-500 mt-1.5 font-medium">
@@ -427,9 +436,7 @@ function RoiReadinessSection({ roi }: { roi: IctRoiReadiness }) {
                 </div>
                 <div className="glass-card" data-testid="committee-roi-total-gaps">
                     <p className="text-slate-500 text-xs font-bold min-h-8">{t('roi.total_gaps')}</p>
-                    <p className="text-3xl font-bold text-white mt-1 tabular-nums">
-                        {roi.total_gap_row_count}
-                    </p>
+                    <p className="text-3xl font-bold text-white mt-1 tabular-nums">{roi.total_gap_row_count}</p>
                 </div>
             </div>
             <div className="glass-card divide-y divide-white/5">
@@ -529,7 +536,10 @@ export function IctCommitteeSection() {
     // a failed fetch replaces the screen (first load) or overlays a retry banner above
     // the last-good tiles — a dropped request is never rendered as empty.
     const hasData = data !== null;
-    const errorContract = useTableErrorContract({ isError: errorKey !== null, hasData });
+    const errorContract = useTableErrorContract({
+        isError: errorKey !== null,
+        hasData,
+    });
 
     if (isAccessDenied) {
         return <ReadAccessDeniedState />;
@@ -557,11 +567,7 @@ export function IctCommitteeSection() {
     // localized error + retry, never an empty state (C4, N17).
     if (errorContract.showErrorBlock) {
         return (
-            <TableErrorState
-                onRetry={() => void fetchCommittee()}
-                isRetrying={isLoading}
-                testId="committee-error"
-            />
+            <TableErrorState onRetry={() => void fetchCommittee()} isRetrying={isLoading} testId="committee-error" />
         );
     }
 
@@ -631,7 +637,11 @@ export function IctCommitteeSection() {
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                             {STATE_TILE_KEYS.map((key) => (
-                                <Link key={key} to={stateTileDrilldownPath(key)} className="glass-card block hover:bg-white/5 transition-colors">
+                                <Link
+                                    key={key}
+                                    to={stateTileDrilldownPath(key)}
+                                    className="glass-card block hover:bg-white/5 transition-colors"
+                                >
                                     <div data-testid={`committee-state-${key}`}>
                                         <p className="text-slate-500 text-xs font-medium min-h-8">
                                             {t(`state.${key}`)}
@@ -658,12 +668,8 @@ export function IctCommitteeSection() {
                                 <thead>
                                     <tr className="text-left text-slate-500 text-xs uppercase tracking-wide">
                                         <th className="py-2 pr-3">{t('dashboard.metrics_columns.metric')}</th>
-                                        <th className="py-2 pr-3 text-right">
-                                            {t('dashboard.metrics_columns.value')}
-                                        </th>
-                                        <th className="py-2 pr-3">
-                                            {t('dashboard.metrics_columns.interpretation')}
-                                        </th>
+                                        <th className="py-2 pr-3 text-right">{t('dashboard.metrics_columns.value')}</th>
+                                        <th className="py-2 pr-3">{t('dashboard.metrics_columns.interpretation')}</th>
                                         <th className="py-2 pr-3">{t('dashboard.metrics_columns.source')}</th>
                                         <th className="py-2">{t('dashboard.metrics_columns.action')}</th>
                                     </tr>
@@ -721,40 +727,45 @@ export function IctCommitteeSection() {
                                 const inert =
                                     key === 'material_risk_count' &&
                                     Boolean(data.cro.kpi.material_risk_count_production_inert);
-                                return (
+                                const content = (
+                                    <div
+                                        data-testid={`committee-kpi-${key}`}
+                                        title={inert ? t('kpi_not_measurable_hint') : undefined}
+                                    >
+                                        <p className="text-slate-500 text-xs font-bold text-center min-h-8">
+                                            {t(`kpi.${key}`)}
+                                        </p>
+                                        {inert ? (
+                                            <>
+                                                <p className="text-3xl font-bold text-slate-600 text-center mt-1">—</p>
+                                                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 text-center mt-1">
+                                                    {t('kpi_not_measurable')}
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <p
+                                                className={`text-3xl font-bold text-center mt-1 tabular-nums ${
+                                                    BLOCKING_KPI_KEYS.has(key)
+                                                        ? blockingCountClass(data.cro.kpi[key])
+                                                        : 'text-white'
+                                                }`}
+                                            >
+                                                {data.cro.kpi[key]}
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                                return inert ? (
+                                    <div key={key} className="glass-card block cursor-default">
+                                        {content}
+                                    </div>
+                                ) : (
                                     <Link
                                         key={key}
                                         to={kpiDrilldownPath(key)}
                                         className="glass-card block hover:bg-white/5 transition-colors"
                                     >
-                                        <div
-                                            data-testid={`committee-kpi-${key}`}
-                                            title={inert ? t('kpi_not_measurable_hint') : undefined}
-                                        >
-                                            <p className="text-slate-500 text-xs font-bold text-center min-h-8">
-                                                {t(`kpi.${key}`)}
-                                            </p>
-                                            {inert ? (
-                                                <>
-                                                    <p className="text-3xl font-bold text-slate-600 text-center mt-1">
-                                                        —
-                                                    </p>
-                                                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 text-center mt-1">
-                                                        {t('kpi_not_measurable')}
-                                                    </p>
-                                                </>
-                                            ) : (
-                                                <p
-                                                    className={`text-3xl font-bold text-center mt-1 tabular-nums ${
-                                                        BLOCKING_KPI_KEYS.has(key)
-                                                            ? blockingCountClass(data.cro.kpi[key])
-                                                            : 'text-white'
-                                                    }`}
-                                                >
-                                                    {data.cro.kpi[key]}
-                                                </p>
-                                            )}
-                                        </div>
+                                        {content}
                                     </Link>
                                 );
                             })}
@@ -778,7 +789,8 @@ export function IctCommitteeSection() {
                                                 {row.cells.map((count, index) => (
                                                     <Link
                                                         key={index}
-                                                        to="/risks"
+                                                        to={heatmapDrilldownPath(row.probability, index + 1)}
+                                                        data-testid={`committee-heatmap-link-${row.probability}-${index + 1}`}
                                                         className="block"
                                                     >
                                                         <MatrixCell
@@ -805,11 +817,7 @@ export function IctCommitteeSection() {
                                         </div>
                                     </div>
                                 </div>
-                                <HeatmapLegend
-                                    fill={heatmapCellFill}
-                                    max={4}
-                                    testId="committee-heatmap-legend"
-                                />
+                                <HeatmapLegend fill={heatmapCellFill} max={4} testId="committee-heatmap-legend" />
                             </div>
 
                             {/* Migration matrix (§2.3): gross bands down, net bands across. */}
@@ -827,7 +835,12 @@ export function IctCommitteeSection() {
                                             </span>
                                             <div className="grid grid-cols-4 gap-1.5 flex-1">
                                                 {row.cells.map((count, index) => (
-                                                    <Link key={index} to="/risks" className="block">
+                                                    <Link
+                                                        key={index}
+                                                        to={migrationDrilldownPath(row.gross_band, NET_BANDS[index])}
+                                                        data-testid={`committee-migration-link-${row.gross_band}-${NET_BANDS[index]}`}
+                                                        className="block"
+                                                    >
                                                         <MatrixCell
                                                             fill={migrationCellFill(count)}
                                                             count={count}
@@ -852,11 +865,7 @@ export function IctCommitteeSection() {
                                         </div>
                                     </div>
                                 </div>
-                                <HeatmapLegend
-                                    fill={migrationCellFill}
-                                    max={5}
-                                    testId="committee-migration-legend"
-                                />
+                                <HeatmapLegend fill={migrationCellFill} max={5} testId="committee-migration-legend" />
                             </div>
                         </div>
 
@@ -899,7 +908,11 @@ export function IctCommitteeSection() {
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                             <div className="glass-card" data-testid="committee-chart-assets">
                                 <h3 className="text-white font-bold mb-3">{t('cro.assets_chart_title')}</h3>
-                                <ResponsiveContainer width="100%" height={240} initialDimension={{ width: 1, height: 240 }}>
+                                <ResponsiveContainer
+                                    width="100%"
+                                    height={240}
+                                    initialDimension={{ width: 1, height: 240 }}
+                                >
                                     <BarChart
                                         data={data.cro.assets_by_criticality}
                                         margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
@@ -911,7 +924,11 @@ export function IctCommitteeSection() {
                                         />
                                         <XAxis
                                             dataKey="band"
-                                            tick={{ fill: chartTheme.axisTickFill, fontSize: 11, fontWeight: 600 }}
+                                            tick={{
+                                                fill: chartTheme.axisTickFill,
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                            }}
                                             axisLine={false}
                                             tickLine={false}
                                         />
@@ -931,13 +948,27 @@ export function IctCommitteeSection() {
                                             cursor={{ fill: 'transparent' }}
                                         />
                                         {/* ch1 is legendless (inventory §2.7). */}
-                                        <Bar dataKey="count" fill={chartTheme.series.primary} radius={[6, 6, 0, 0]} />
+                                        <Bar
+                                            dataKey="count"
+                                            fill={chartTheme.series.primary}
+                                            shape={(props: DrilldownBarShapeProps) => (
+                                                <DrilldownBarShape
+                                                    {...props}
+                                                    hrefForBand={assetCriticalityDrilldownPath}
+                                                    testIdPrefix="committee-asset-bar"
+                                                />
+                                            )}
+                                        />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                             <div className="glass-card" data-testid="committee-chart-risk-bands">
                                 <h3 className="text-white font-bold mb-3">{t('cro.risk_bands_chart_title')}</h3>
-                                <ResponsiveContainer width="100%" height={240} initialDimension={{ width: 1, height: 240 }}>
+                                <ResponsiveContainer
+                                    width="100%"
+                                    height={240}
+                                    initialDimension={{ width: 1, height: 240 }}
+                                >
                                     <BarChart
                                         data={riskBandChartRows(data.cro.risks_by_band)}
                                         margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
@@ -949,7 +980,11 @@ export function IctCommitteeSection() {
                                         />
                                         <XAxis
                                             dataKey="band"
-                                            tick={{ fill: chartTheme.axisTickFill, fontSize: 11, fontWeight: 600 }}
+                                            tick={{
+                                                fill: chartTheme.axisTickFill,
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                            }}
                                             axisLine={false}
                                             tickLine={false}
                                         />
@@ -974,13 +1009,25 @@ export function IctCommitteeSection() {
                                             dataKey="gross"
                                             name={t('cro.risk_bands_gross')}
                                             fill={chartTheme.series.neutral}
-                                            radius={[6, 6, 0, 0]}
+                                            shape={(props: DrilldownBarShapeProps) => (
+                                                <DrilldownBarShape
+                                                    {...props}
+                                                    hrefForBand={(band) => riskBandDrilldownPath(band, 'gross')}
+                                                    testIdPrefix="committee-risk-bar-gross"
+                                                />
+                                            )}
                                         />
                                         <Bar
                                             dataKey="net"
                                             name={t('cro.risk_bands_net')}
                                             fill={chartTheme.series.primary}
-                                            radius={[6, 6, 0, 0]}
+                                            shape={(props: DrilldownBarShapeProps) => (
+                                                <DrilldownBarShape
+                                                    {...props}
+                                                    hrefForBand={(band) => riskBandDrilldownPath(band, 'net')}
+                                                    testIdPrefix="committee-risk-bar-net"
+                                                />
+                                            )}
                                         />
                                     </BarChart>
                                 </ResponsiveContainer>

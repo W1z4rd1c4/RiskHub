@@ -11,9 +11,14 @@ import { buildProcessColumns } from './processes/processColumns';
 import { processesEmptyStateKey, type ProcessArchiveFilter } from './processes/processesPagePresentation';
 import { useProcessesPageState } from './processes/useProcessesPageState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
+import { parseProcessSemanticFilters } from './shared/ictRegisterSemanticFilters';
+import { useIctRegisterSemanticPageState } from './shared/useIctRegisterPageState';
 
 export function ProcessesPage() {
     const navigate = useNavigate();
+    const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } =
+        useIctRegisterSemanticPageState(parseProcessSemanticFilters);
     const { t } = useTranslation('processes');
     const {
         capabilities,
@@ -36,7 +41,7 @@ export function ProcessesPage() {
         updateSearch,
         updateSort,
         updateStatusFilter,
-    } = useProcessesPageState();
+    } = useProcessesPageState(semanticFilters);
 
     if (isAccessDenied) {
         return <ReadAccessDeniedState />;
@@ -48,8 +53,7 @@ export function ProcessesPage() {
             event.stopPropagation();
             void restoreProcess(processId);
         },
-        canRestoreProcess: (process: Process) =>
-            resolveCapabilityFlag(process.capabilities, 'can_restore'),
+        canRestoreProcess: (process: Process) => resolveCapabilityFlag(process.capabilities, 'can_restore'),
     });
 
     return (
@@ -71,6 +75,8 @@ export function ProcessesPage() {
                     </button>
                 )}
             </div>
+
+            <SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} />
 
             <div className="glass-card flex flex-col md:flex-row gap-4">
                 <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
@@ -107,7 +113,10 @@ export function ProcessesPage() {
                         title={t('common:actions.refresh')}
                         aria-label={t('common:actions.refresh')}
                     >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
+                        <RefreshCw
+                            className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`}
+                            aria-hidden="true"
+                        />
                     </button>
                 </div>
             </div>
@@ -124,9 +133,7 @@ export function ProcessesPage() {
                     isError={Boolean(errorKey)}
                     onRetry={() => void fetchProcesses()}
                     errorMessage={errorKey ? t(errorKey) : undefined}
-                    emptyMessage={
-                        hasLoadedOnce ? t(processesEmptyStateKey(search.trim().length > 0)) : undefined
-                    }
+                    emptyMessage={hasLoadedOnce ? t(processesEmptyStateKey(search.trim().length > 0)) : undefined}
                     sortKey={sortField}
                     sortDirection={sortDirection}
                     onSort={(key, direction) =>

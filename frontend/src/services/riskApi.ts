@@ -41,6 +41,13 @@ export const riskApi = {
         include_archived?: boolean;
         group_by?: string;
         group_value?: string;
+        ict_linked?: boolean;
+        above_tolerance?: boolean;
+        response?: 'acceptance';
+        gross_probability?: number;
+        gross_impact?: number;
+        gross_band?: string;
+        net_band?: string;
     }): Promise<RiskListResponse> {
         const response = await apiClient.get('/risks', {
             params: buildCollectionParams({
@@ -57,6 +64,13 @@ export const riskApi = {
                     process: params.process,
                     category: params.category,
                     include_archived: params.include_archived,
+                    ict_linked: params.ict_linked,
+                    above_tolerance: params.above_tolerance,
+                    response: params.response,
+                    gross_probability: params.gross_probability,
+                    gross_impact: params.gross_impact,
+                    gross_band: params.gross_band,
+                    net_band: params.net_band,
                 },
                 sort: params.sort_by ? { field: params.sort_by, direction: params.sort_order ?? 'asc' } : null,
                 groupBy: params.group_by,

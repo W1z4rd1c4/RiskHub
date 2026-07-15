@@ -101,6 +101,50 @@ async def test_list_risks(auth_client: AsyncClient, test_user: User, test_depart
 
 
 @pytest.mark.asyncio
+async def test_risk_sort_ties_use_id_as_deterministic_secondary_key(
+    auth_client: AsyncClient,
+    db_session,
+    test_department: Department,
+):
+    risks = [
+        Risk(
+            risk_id_code=f"R-TIE-{index}",
+            name=f"Stable risk {index}",
+            process="Stable tie process",
+            description="Stable pagination tie",
+            department_id=test_department.id,
+            risk_type="operational",
+            category="Operations",
+            gross_probability=3,
+            gross_impact=3,
+            gross_score=9,
+            net_probability=2,
+            net_impact=2,
+            net_score=4,
+            status="active",
+            is_priority=False,
+        )
+        for index in range(3)
+    ]
+    db_session.add_all(risks)
+    await db_session.commit()
+
+    response = await auth_client.get(
+        "/api/v1/risks",
+        params={
+            "process": "Stable tie process",
+            "sort_by": "gross_score",
+            "sort_order": "desc",
+        },
+    )
+
+    assert response.status_code == 200
+    assert [row["id"] for row in response.json()["items"]] == sorted(
+        (risk.id for risk in risks), reverse=True
+    )
+
+
+@pytest.mark.asyncio
 async def test_employee_listing_other_department_risks_returns_filtered_200(
     client_employee: AsyncClient,
     db_session,

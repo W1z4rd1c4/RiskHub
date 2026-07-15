@@ -1,7 +1,7 @@
 # DORA Registr aktiv a dodavatelů — Functional Reproduction Spec
 
 Extracted from the openpyxl builder at
-`/Users/stefanlesnak/Antigravity/Personal Assistant/exports/dora-registr-aktiv-2026/builder/`
+`<external-workbook-export>/builder/`
 (`build.py`, `sheets_core.py`, `sheets_vendors.py`, `sheets_out.py`, `seed.py`,
 `prep_source.py`, `ui.py`, `verify.py`, `source_data.json`, `build_expected.json`)
 plus `README.md`. **The builder source is the ground truth**; the `.xlsx` was not
@@ -697,7 +697,12 @@ or a `subst` value for a given vendor.
 | `VyznamVazby` | Kritická podpora procesu, Významná podpora procesu, Podpůrná vazba, Nepřímá / sdílená vazba, BCM/DR vazba, Neposouzeno |
 | `RoleDodavatele` | Dodává, Provozuje, Hostuje, Spravuje, Podporuje, Zpracovává data, Zálohuje / obnova, Bezpečnostní služba, Jiné |
 | `TypOsoby` | Právnická osoba, Fyzická osoba podnikající |
-| `TypKodu` | LEI, EUID, IČO (CRN), VAT, Jiný |
+| `TypKodu` | LEI, EUID, CRN, VAT, PNR, NIN |
+
+The application advertises the six CIR identifier codes above. For transitional
+compatibility, write APIs still accept the workbook-era values `IČO (CRN)`
+(evaluated as `CRN`) and `Jiný`; existing rows remain readable without a data
+migration, while neither deprecated value is offered for new UI selections.
 | `TypUjednani` | Samostatné, Rámcové (master), Navazující |
 | `Substituce` | Nenahraditelný, Velmi obtížně nahraditelný, Středně obtížně nahraditelný, Snadno nahraditelný |
 | `DuvodSubst` | Omezená nabídka na trhu, Obtížná migrace, Obojí |

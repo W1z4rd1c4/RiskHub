@@ -16,9 +16,14 @@ from __future__ import annotations
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
-from app.services._ict_register_reference import ICT_SERVICE_TAXONOMY, is_closed_list_value
+from app.services._ict_register_reference import (
+    ICT_SERVICE_TAXONOMY,
+    is_closed_list_value,
+    is_provider_identifier_type_write_value,
+)
 
 _CLOSED_LIST_FIELDS: dict[str, str] = {
+    "person_type": "TypOsoby",
     "identifier_type": "TypKodu",
     "country": "ZemeList",
 }
@@ -35,7 +40,12 @@ class VendorSubOutsourcingWriteValidators(BaseModel):
         if value is None:
             return value
         list_name = _CLOSED_LIST_FIELDS[info.field_name]
-        if not is_closed_list_value(list_name, value):
+        valid = (
+            is_provider_identifier_type_write_value(value)
+            if info.field_name == "identifier_type"
+            else is_closed_list_value(list_name, value)
+        )
+        if not valid:
             raise ValueError(f"Value must come from the workbook closed list {list_name}")
         return value
 
@@ -52,6 +62,7 @@ class VendorSubOutsourcingWriteValidators(BaseModel):
 class VendorSubOutsourcingBase(VendorSubOutsourcingWriteValidators):
     predecessor_id: int | None = None
     sub_provider_name: str | None = Field(None, max_length=255)
+    person_type: str | None = Field(None, max_length=50)
     identifier_type: str | None = Field(None, max_length=20)
     identifier_value: str | None = Field(None, max_length=100)
     country: str | None = Field(None, max_length=2)
@@ -121,6 +132,7 @@ class VendorSubOutsourcingRead(BaseModel):
     predecessor_id: int | None = None
 
     sub_provider_name: str | None = None
+    person_type: str | None = None
     identifier_type: str | None = None
     identifier_value: str | None = None
     country: str | None = None

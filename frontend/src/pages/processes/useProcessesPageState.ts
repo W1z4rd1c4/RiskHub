@@ -5,14 +5,9 @@ import { apiClient } from '@/services/apiClient';
 import { processApi } from '@/services/processApi';
 import type { Process, ProcessSortField } from '@/types/process';
 
-import {
-    buildProcessListParams,
-    type ProcessArchiveFilter,
-} from './processesPagePresentation';
-import {
-    type RegisterPageLoadRequest,
-    useRegisterPageController,
-} from '../shared/useRegisterPageController';
+import { buildProcessListParams, type ProcessArchiveFilter } from './processesPagePresentation';
+import { type RegisterPageLoadRequest, useRegisterPageController } from '../shared/useRegisterPageController';
+import type { ProcessSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 
 type ProcessRegisterFilters = {
     sortDirection: SortDirection;
@@ -20,24 +15,21 @@ type ProcessRegisterFilters = {
     statusFilter: ProcessArchiveFilter;
 };
 
-export function useProcessesPageState() {
+export function useProcessesPageState(semanticFilters: ProcessSemanticFilters = {}) {
     const loadProcessPage = useCallback(
-        ({
-            currentPage,
-            debouncedSearch,
-            filters,
-            limit,
-        }: RegisterPageLoadRequest<ProcessRegisterFilters, 'all'>) => processApi.getProcesses(
-            buildProcessListParams({
-                currentPage,
-                debouncedSearch,
-                includeArchived: filters.statusFilter !== 'active',
-                limit,
-                sortDirection: filters.sortDirection,
-                sortField: filters.sortField,
-            })
-        ),
-        []
+        ({ currentPage, debouncedSearch, filters, limit }: RegisterPageLoadRequest<ProcessRegisterFilters, 'all'>) =>
+            processApi.getProcesses({
+                ...buildProcessListParams({
+                    currentPage,
+                    debouncedSearch,
+                    includeArchived: filters.statusFilter !== 'active',
+                    limit,
+                    sortDirection: filters.sortDirection,
+                    sortField: filters.sortField,
+                }),
+                ...semanticFilters,
+            }),
+        [semanticFilters],
     );
 
     const toUiErrorKey = useCallback((error: unknown) => apiClient.toUiMessageKey(error), []);
@@ -67,16 +59,22 @@ export function useProcessesPageState() {
                 setErrorKey(apiClient.toUiMessageKey(error));
             }
         },
-        [fetchProcesses, setErrorKey]
+        [fetchProcesses, setErrorKey],
     );
 
-    const updateStatusFilter = useCallback((value: ProcessArchiveFilter) => {
-        updateFilter('statusFilter', value);
-    }, [updateFilter]);
+    const updateStatusFilter = useCallback(
+        (value: ProcessArchiveFilter) => {
+            updateFilter('statusFilter', value);
+        },
+        [updateFilter],
+    );
 
-    const updateSort = useCallback((sortField: ProcessSortField | null, sortDirection: SortDirection) => {
-        updateFilters({ sortDirection, sortField });
-    }, [updateFilters]);
+    const updateSort = useCallback(
+        (sortField: ProcessSortField | null, sortDirection: SortDirection) => {
+            updateFilters({ sortDirection, sortField });
+        },
+        [updateFilters],
+    );
 
     return {
         capabilities: registerController.capabilities,

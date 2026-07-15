@@ -22,6 +22,9 @@ from app.services._collection_filters import (
     coerce_optional_string,
     merge_collection_filters,
 )
+from app.services._ict_register_lifecycle.derivation import derive_ict_register
+from app.services._ict_register_lifecycle.derivation_inputs import load_ict_register_graph
+from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
 from app.services._vendor_governance.projection import (
     get_visible_vendor_risk_ids,
     serialize_vendor_list_items,
@@ -473,6 +476,10 @@ async def list_vendor_governance(
     risk_score_1_5: int | None,
     sort_by: str | None,
     sort_order: str | None,
+    has_direct_process_link: bool | None = None,
+    has_roi_contract: bool | None = None,
+    has_sub_outsourcing: bool | None = None,
+    tier: str | None = None,
     check_permission_fn=check_permission,
     visible_risk_ids_loader=get_visible_vendor_risk_ids,
 ) -> VendorListResponse:
@@ -500,9 +507,46 @@ async def list_vendor_governance(
     )
     base_query = apply_vendor_list_filters(select(Vendor), current_user, criteria)
 
+    if (
+        has_direct_process_link is not None
+        or has_roi_contract is not None
+        or has_sub_outsourcing is not None
+        or tier is not None
+    ):
+        candidates = list((await db.execute(base_query.order_by(Vendor.id))).scalars().all())
+        parameters = await load_ict_workbook_parameter_set(db)
+        graph = await load_ict_register_graph(db, vendors=candidates)
+        derivation = derive_ict_register(graph, parameters)
+        roi_vendor_ids = {
+            contract.vendor_id for contract in graph.contracts if contract.roi_scope == "Ano"
+        }
+        eligible_ids = []
+        for vendor in candidates:
+            derived = derivation.vendors[vendor.id]
+            if (
+                has_direct_process_link is not None
+                and ((derived.inputs.manual_process_link_count > 0) is not has_direct_process_link)
+            ):
+                continue
+            if (
+                has_roi_contract is not None
+                and ((vendor.id in roi_vendor_ids) is not has_roi_contract)
+            ):
+                continue
+            if (
+                has_sub_outsourcing is not None
+                and ((derived.direct_sub_provider_count > 0) is not has_sub_outsourcing)
+            ):
+                continue
+            if tier is not None and derived.tier != tier:
+                continue
+            eligible_ids.append(vendor.id)
+        base_query = base_query.where(Vendor.id.in_(eligible_ids))
+
     total = (await db.execute(select(func.count()).select_from(base_query.subquery()))).scalar() or 0
     order_column = vendor_order_column(criteria.sort_by)
-    base_query = base_query.order_by(desc(order_column) if criteria.sort_order == "desc" else asc(order_column))
+    direction = desc if criteria.sort_order == "desc" else asc
+    base_query = base_query.order_by(direction(order_column), direction(Vendor.id))
 
     query_options = (
         selectinload(Vendor.department),

@@ -110,6 +110,17 @@ def _full_payload(**overrides: object) -> dict[str, object]:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("endpoint", ["/api/v1/processes", "/api/v1/assets", "/api/v1/threats"])
+async def test_register_lists_reject_invalid_sort_order(
+    client_factory, test_user_cro: User, endpoint: str
+):
+    async with client_factory(user=test_user_cro) as client:
+        response = await client.get(endpoint, params={"sort_order": "sideways"})
+
+    assert response.status_code == 422, response.text
+
+
+@pytest.mark.asyncio
 async def test_create_and_read_process_with_all_entered_fields(client_factory, test_user_cro: User):
     async with client_factory(user=test_user_cro) as client:
         created = await client.post("/api/v1/processes", json=_full_payload())
@@ -351,6 +362,65 @@ async def test_register_listing_supports_search_pagination_and_sorting(client_fa
 
         invalid_sort = await client.get("/api/v1/processes", params={"sort_by": "no_such_column"})
         assert invalid_sort.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_register_listing_uses_id_tiebreaker_for_stable_offset_pages(
+    client_factory,
+    test_user_cro: User,
+):
+    async with client_factory(user=test_user_cro) as client:
+        created_ids = []
+        for _ in range(3):
+            response = await client.post(
+                "/api/v1/processes",
+                json=_minimal_payload(l1_process="Identical process name"),
+            )
+            assert response.status_code == 201
+            created_ids.append(response.json()["id"])
+
+        first_page = (
+            await client.get(
+                "/api/v1/processes",
+                params={"sort_by": "l1_process", "sort_order": "desc", "offset": 0, "limit": 2},
+            )
+        ).json()
+        second_page = (
+            await client.get(
+                "/api/v1/processes",
+                params={"sort_by": "l1_process", "sort_order": "desc", "offset": 2, "limit": 2},
+            )
+        ).json()
+
+        assert [row["id"] for row in first_page["items"] + second_page["items"]] == sorted(
+            created_ids,
+            reverse=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_register_listing_filters_cif_processes_before_count_and_pagination(
+    client_factory, test_user_cro: User
+):
+    async with client_factory(user=test_user_cro) as client:
+        cif = (
+            await client.post(
+                "/api/v1/processes",
+                json=_minimal_payload(l1_process="CIF process", cif_override="Ano"),
+            )
+        ).json()
+        await client.post(
+            "/api/v1/processes",
+            json=_minimal_payload(l1_process="Ordinary process", cif_override="Ne"),
+        )
+
+        response = await client.get(
+            "/api/v1/processes", params={"cif": True, "offset": 0, "limit": 1}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [cif["id"]]
 
 
 @pytest.mark.asyncio

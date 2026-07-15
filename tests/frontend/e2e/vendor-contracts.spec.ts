@@ -28,7 +28,7 @@ const TYP_UJEDNANI = ['Samostatné', 'Rámcové (master)', 'Navazující'];
 // MenaList — verbatim workbook closed list.
 const MENA_LIST = ['CZK', 'EUR', 'USD', 'GBP'];
 // TypKodu — verbatim workbook closed list (vendor register identifier type).
-const TYP_KODU = ['LEI', 'EUID', 'IČO (CRN)', 'VAT', 'Jiný'];
+const TYP_KODU = ['LEI', 'EUID', 'CRN', 'VAT', 'PNR', 'NIN'];
 // Substituce — verbatim workbook closed list (vendor substitutability input).
 const SUBSTITUCE = [
     'Nenahraditelný',

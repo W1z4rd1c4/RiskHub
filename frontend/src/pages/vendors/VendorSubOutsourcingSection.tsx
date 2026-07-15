@@ -30,6 +30,7 @@ type SubOutsourcingFormFields = {
     contract_id: string;
     predecessor_id: string;
     sub_provider_name: string;
+    person_type: string;
     identifier_type: string;
     identifier_value: string;
     country: string;
@@ -46,6 +47,7 @@ function initialSubOutsourcingFields(entry?: VendorSubOutsourcing): SubOutsourci
         contract_id: toFieldValue(entry?.contract_id),
         predecessor_id: toFieldValue(entry?.predecessor_id),
         sub_provider_name: toFieldValue(entry?.sub_provider_name),
+        person_type: toFieldValue(entry?.person_type),
         identifier_type: toFieldValue(entry?.identifier_type),
         identifier_value: toFieldValue(entry?.identifier_value),
         country: toFieldValue(entry?.country),
@@ -111,8 +113,16 @@ export function VendorSubOutsourcingSection({
         const lists = closedListsQuery.data ?? {};
         const toOptions = (name: string) =>
             (lists[name] ?? []).map((value) => ({ value: String(value), label: String(value) }));
+        const identifierTypes = toOptions('TypKodu');
+        if (
+            fields.identifier_type &&
+            !identifierTypes.some((option) => option.value === fields.identifier_type)
+        ) {
+            identifierTypes.unshift({ value: fields.identifier_type, label: fields.identifier_type });
+        }
         return {
-            identifierTypes: toOptions('TypKodu'),
+            personTypes: toOptions('TypOsoby'),
+            identifierTypes,
             countries: toOptions('ZemeList'),
             contracts: contracts
                 .filter((contract) => !contract.is_archived || String(contract.id) === fields.contract_id)
@@ -125,7 +135,7 @@ export function VendorSubOutsourcingSection({
                 label: `${service.code} — ${service.label}`,
             })),
         };
-    }, [closedListsQuery.data, contracts, taxonomyQuery.data, fields.contract_id, t]);
+    }, [closedListsQuery.data, contracts, taxonomyQuery.data, fields.contract_id, fields.identifier_type, t]);
 
     // Predecessors live on the SAME Contract; the entry can never precede itself.
     const predecessorOptions = useMemo(
@@ -175,6 +185,7 @@ export function VendorSubOutsourcingSection({
             contract_id: toNullableInt(fields.contract_id),
             predecessor_id: toNullableInt(fields.predecessor_id),
             sub_provider_name: fields.sub_provider_name,
+            person_type: fields.person_type,
             identifier_type: fields.identifier_type,
             identifier_value: fields.identifier_value,
             country: fields.country,
@@ -331,6 +342,11 @@ export function VendorSubOutsourcingSection({
                             predecessorOptions,
                         )}
                         {textInput('sub_provider_name', t('sub_outsourcing.form.sub_provider_name'))}
+                        {selectInput(
+                            'person_type',
+                            t('sub_outsourcing.form.person_type'),
+                            listOptions.personTypes,
+                        )}
                         {selectInput(
                             'identifier_type',
                             t('sub_outsourcing.form.identifier_type'),

@@ -48,11 +48,26 @@ async def _hidden_department(db_session: AsyncSession, *, code: str = "HIDE") ->
     return department
 
 
+async def _hidden_user(db_session: AsyncSession, *, department: Department, role_id: int) -> User:
+    user = User(
+        name=f"Hidden User {department.code}",
+        email=f"hidden-{department.code.lower()}@test.com",
+        department_id=department.id,
+        role_id=role_id,
+        is_active=True,
+        access_scope="department",
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
 def _vendor(
     *,
     name: str,
     department_id: int,
-    owner_user_id: int = 99999,
+    owner_user_id: int,
 ) -> Vendor:
     return Vendor(
         name=name,
@@ -639,6 +654,11 @@ async def test_risks_vendor_grouping_treats_hidden_only_links_as_unlinked(
     seed_risk_types,
 ):
     hidden_department = await _hidden_department(db_session, code="RHV")
+    hidden_user = await _hidden_user(
+        db_session,
+        department=hidden_department,
+        role_id=test_user_employee.role_id,
+    )
     risk = Risk(
         risk_id_code="GRP-RISK-HIDDEN-VENDOR-001",
         name="Risk With Hidden Vendor Only",
@@ -654,7 +674,11 @@ async def test_risks_vendor_grouping_treats_hidden_only_links_as_unlinked(
         net_impact=2,
         status="active",
     )
-    hidden_vendor = _vendor(name="Hidden Risk Group Vendor", department_id=hidden_department.id)
+    hidden_vendor = _vendor(
+        name="Hidden Risk Group Vendor",
+        department_id=hidden_department.id,
+        owner_user_id=hidden_user.id,
+    )
     db_session.add_all([risk, hidden_vendor])
     await db_session.commit()
     db_session.add(VendorRiskLink(vendor_id=hidden_vendor.id, risk_id=risk.id))
@@ -949,13 +973,18 @@ async def test_controls_grouping_redacts_hidden_linked_risk_and_vendor_contexts(
     seed_risk_types,
 ):
     hidden_department = await _hidden_department(db_session, code="CHV")
+    hidden_user = await _hidden_user(
+        db_session,
+        department=hidden_department,
+        role_id=test_user_employee.role_id,
+    )
     hidden_risk = Risk(
         risk_id_code="GRP-CONTROL-HIDDEN-RISK-001",
         name="Hidden Control Group Risk",
         process="Hidden Control Process",
         description="Hidden risk linked to visible control",
         department_id=hidden_department.id,
-        owner_id=99999,
+        owner_id=hidden_user.id,
         risk_type="operational",
         category="Hidden Control Category",
         gross_probability=3,
@@ -968,13 +997,17 @@ async def test_controls_grouping_redacts_hidden_linked_risk_and_vendor_contexts(
         name="Visible Control Hidden Links",
         description="Visible control with hidden linked risk and vendor",
         department_id=test_department.id,
-        control_owner_id=99999,
+        control_owner_id=hidden_user.id,
         control_form="manual",
         frequency="daily",
         risk_level=5,
         status="active",
     )
-    hidden_vendor = _vendor(name="Hidden Control Group Vendor", department_id=hidden_department.id)
+    hidden_vendor = _vendor(
+        name="Hidden Control Group Vendor",
+        department_id=hidden_department.id,
+        owner_user_id=hidden_user.id,
+    )
     db_session.add_all([hidden_risk, control, hidden_vendor])
     await db_session.commit()
     db_session.add_all(
@@ -1180,13 +1213,18 @@ async def test_issues_grouping_redacts_hidden_linked_risk_and_vendor_contexts(
 ):
     await _grant_permission(db_session, test_role_employee, "issues", "read")
     hidden_department = await _hidden_department(db_session, code="IHV")
+    hidden_user = await _hidden_user(
+        db_session,
+        department=hidden_department,
+        role_id=test_user_employee.role_id,
+    )
     hidden_risk = Risk(
         risk_id_code="GRP-ISSUE-HIDDEN-RISK-001",
         name="Hidden Issue Group Risk",
         process="Hidden Issue Process",
         description="Hidden risk linked to visible issue",
         department_id=hidden_department.id,
-        owner_id=99999,
+        owner_id=hidden_user.id,
         risk_type="operational",
         category="Hidden Issue Category",
         gross_probability=3,
@@ -1205,7 +1243,11 @@ async def test_issues_grouping_redacts_hidden_linked_risk_and_vendor_contexts(
         owner_user_id=test_user_employee.id,
         created_by_id=test_user_employee.id,
     )
-    hidden_vendor = _vendor(name="Hidden Issue Group Vendor", department_id=hidden_department.id)
+    hidden_vendor = _vendor(
+        name="Hidden Issue Group Vendor",
+        department_id=hidden_department.id,
+        owner_user_id=hidden_user.id,
+    )
     db_session.add_all([hidden_risk, issue, hidden_vendor])
     await db_session.commit()
     db_session.add_all(
@@ -1376,6 +1418,11 @@ async def test_kris_vendor_grouping_treats_hidden_only_links_as_unlinked(
     seed_risk_types,
 ):
     hidden_department = await _hidden_department(db_session, code="KHV")
+    hidden_user = await _hidden_user(
+        db_session,
+        department=hidden_department,
+        role_id=test_user_employee.role_id,
+    )
     risk = Risk(
         risk_id_code="GRP-KRI-HIDDEN-VENDOR-RISK-001",
         name="KRI Hidden Vendor Risk",
@@ -1403,7 +1450,11 @@ async def test_kris_vendor_grouping_treats_hidden_only_links_as_unlinked(
         unit="%",
         frequency="monthly",
     )
-    hidden_vendor = _vendor(name="Hidden KRI Group Vendor", department_id=hidden_department.id)
+    hidden_vendor = _vendor(
+        name="Hidden KRI Group Vendor",
+        department_id=hidden_department.id,
+        owner_user_id=hidden_user.id,
+    )
     db_session.add_all([kri, hidden_vendor])
     await db_session.commit()
     db_session.add(VendorKRILink(vendor_id=hidden_vendor.id, kri_id=kri.id))

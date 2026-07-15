@@ -231,4 +231,8 @@ export interface VendorListParams {
     sort_order?: 'asc' | 'desc';
     group_by?: string;
     group_value?: string;
+    has_direct_process_link?: boolean;
+    has_roi_contract?: boolean;
+    has_sub_outsourcing?: boolean;
+    tier?: string;
 }

@@ -9,11 +9,16 @@ import { RisksTableSection } from './risks/RisksTableSection';
 import { parseRisksPageQueryParams } from './risks/risksPagePresentation';
 import { useRisksPageState } from './risks/useRisksPageState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
+import { parseRiskSemanticFilters } from './shared/ictRegisterSemanticFilters';
+import { useIctRegisterSemanticPageState } from './shared/useIctRegisterPageState';
 
 export function RisksPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [initialState] = useState(() => parseRisksPageQueryParams(searchParams));
+    const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } =
+        useIctRegisterSemanticPageState(parseRiskSemanticFilters);
     const {
         criticalFilter,
         capabilities,
@@ -57,6 +62,7 @@ export function RisksPage() {
         togglePriorityFilter,
     } = useRisksPageState({
         initialState,
+        semanticFilters,
     });
 
     const clearCriticalFilter = () => {
@@ -86,10 +92,16 @@ export function RisksPage() {
                 onOpenExport={openExportDialog}
             />
 
+            <SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} />
+
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={resolveCapabilityFlag(capabilities, 'can_view_vendor_contexts') ? ['risk', 'flag', 'type'] : ['risk', 'flag', 'vendor', 'type']}
+                exclude={
+                    resolveCapabilityFlag(capabilities, 'can_view_vendor_contexts')
+                        ? ['risk', 'flag', 'type']
+                        : ['risk', 'flag', 'vendor', 'type']
+                }
             />
 
             <RisksFilterBar

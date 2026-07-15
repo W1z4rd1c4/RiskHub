@@ -877,6 +877,73 @@ async def test_committee_endpoint_allows_cro_via_wildcard(client_factory, test_u
     assert resp.status_code == 200, resp.text
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("person_type", "country", "identifier_type", "identifier_value", "ready"),
+    [
+        ("Právnická osoba", "CZ", "LEI", "LEI-1", True),
+        ("Právnická osoba", "DE", "EUID", "EUID-1", True),
+        ("Právnická osoba", "CZ", "VAT", "VAT-1", False),
+        ("Právnická osoba", "US", "LEI", "LEI-2", True),
+        ("Právnická osoba", "US", "EUID", "EUID-2", False),
+        ("Fyzická osoba podnikající", "CZ", "LEI", "LEI-3", True),
+        ("Fyzická osoba podnikající", "CZ", "EUID", "EUID-3", True),
+        ("Fyzická osoba podnikající", "CZ", "CRN", "CRN-1", True),
+        ("Fyzická osoba podnikající", "CZ", "VAT", "VAT-2", True),
+        ("Fyzická osoba podnikající", "CZ", "PNR", "PNR-1", True),
+        ("Fyzická osoba podnikající", "CZ", "NIN", "NIN-1", True),
+        ("Fyzická osoba podnikající", "US", "IČO (CRN)", "12345678", True),
+        ("Právnická osoba", "CZ", "IČO (CRN)", "12345678", False),
+        ("Fyzická osoba podnikající", "CZ", "Jiný", "legacy", False),
+        ("Právnická osoba", "ZZ", "LEI", "LEI-4", False),
+        ("Právnická osoba", "CZ", None, "LEI-5", False),
+        ("Právnická osoba", "CZ", "LEI", None, False),
+    ],
+)
+async def test_vendor_api_identifier_rules_flow_into_committee_roi_readiness(
+    client_factory,
+    test_user_cro: User,
+    person_type: str,
+    country: str,
+    identifier_type: str | None,
+    identifier_value: str | None,
+    ready: bool,
+):
+    async with client_factory(user=test_user_cro) as client:
+        created = await client.post(
+            "/api/v1/vendors",
+            json={
+                "name": "Provider One",
+                "process": "IT",
+                "outsourcing_owner_user_id": test_user_cro.id,
+                "person_type": person_type,
+                "country": country,
+                "identifier_type": identifier_type,
+                "identifier_value": identifier_value,
+            },
+        )
+        assert created.status_code == 201, created.text
+
+        committee = await client.get("/api/v1/ict-register/committee")
+
+    assert committee.status_code == 200, committee.text
+    b0501 = next(
+        template
+        for template in committee.json()["roi_readiness"]["templates"]
+        if template["code"] == "B_05.01"
+    )
+    identifier_gaps = {
+        missing["key"]
+        for gap in b0501["gap_rows"]
+        if gap["entity_id"] == created.json()["id"]
+        for missing in gap["missing"]
+        if missing["key"].startswith("provider_identification_")
+    }
+    assert identifier_gaps == (
+        set() if ready else {"provider_identification_code", "provider_identification_type"}
+    )
+
+
 def _risk_payload(**overrides: object) -> dict[str, object]:
     payload: dict[str, object] = {
         "name": "Výpadek jádrového systému",

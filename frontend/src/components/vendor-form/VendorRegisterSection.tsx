@@ -126,6 +126,14 @@ export function VendorRegisterSection({ formData, onChange }: VendorRegisterSect
     const renderField = ({ field, kind, listName }: RegisterFieldSpec) => {
         const label = t(`form.register.fields.${field}`);
         if (kind === 'select') {
+            const canonicalOptions = optionsByList[listName ?? ''] ?? [];
+            const current = fieldValue(field);
+            const options =
+                field === 'identifier_type' &&
+                current &&
+                !canonicalOptions.some((option) => option.value === current)
+                    ? [{ value: current, label: current }, ...canonicalOptions]
+                    : canonicalOptions;
             return (
                 <Field
                     key={field}
@@ -138,7 +146,7 @@ export function VendorRegisterSection({ formData, onChange }: VendorRegisterSect
                             {...control}
                             value={fieldValue(field)}
                             onValueChange={(value) => onChange(field, value || null)}
-                            options={optionsByList[listName ?? ''] ?? []}
+                            options={options}
                             allowEmpty
                             emptyLabel={t('form.register.not_set')}
                             placeholder={t('form.register.not_set')}

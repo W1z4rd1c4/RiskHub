@@ -6,10 +6,13 @@ docs/dora-ict-register/dora-excel-functional-spec.md is the source of truth.
 """
 
 from app.services._ict_register_reference.closed_lists import (
+    CANONICAL_PROVIDER_IDENTIFIER_TYPES,
     CLOSED_LISTS,
+    DEPRECATED_PROVIDER_IDENTIFIER_TYPES,
     ClosedListValue,
     closed_list_values,
     is_closed_list_value,
+    is_provider_identifier_type_write_value,
 )
 from app.services._ict_register_reference.country_categories import COUNTRY_CATEGORIES
 from app.services._ict_register_reference.ict_service_taxonomy import (
@@ -34,8 +37,10 @@ from app.services._ict_register_reference.roi_maps import (
 
 __all__ = [
     "CLOSED_LISTS",
+    "CANONICAL_PROVIDER_IDENTIFIER_TYPES",
     "CLOUD_SERVICE_S_CODES",
     "COUNTRY_CATEGORIES",
+    "DEPRECATED_PROVIDER_IDENTIFIER_TYPES",
     "ICT_APP_SCALE_RISK_BAND_DEFAULTS",
     "ICT_PARAMETER_CONFIG_CATEGORY",
     "ICT_SERVICE_TAXONOMY",
@@ -48,6 +53,7 @@ __all__ = [
     "IctWorkbookParameterSet",
     "closed_list_values",
     "is_closed_list_value",
+    "is_provider_identifier_type_write_value",
     "load_ict_workbook_parameter_set",
     "roi_en_value",
     "roi_map_entries",

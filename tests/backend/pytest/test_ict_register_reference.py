@@ -57,7 +57,7 @@ async def test_closed_lists_expose_all_45_workbook_lists_verbatim(client_factory
         "Středně obtížně nahraditelný",
         "Snadno nahraditelný",
     ]
-    assert lists["TypKodu"] == ["LEI", "EUID", "IČO (CRN)", "VAT", "Jiný"]
+    assert lists["TypKodu"] == ["LEI", "EUID", "CRN", "VAT", "PNR", "NIN"]
     assert lists["TierDod"] == ["Kritický dodavatel", "Významný dodavatel", "Standardní dodavatel"]
     assert lists["MenaList"] == ["CZK", "EUR", "USD", "GBP"]
     assert lists["ZemeList"] == ["CZ", "SK", "DE", "AT", "NL", "PL", "GB", "US", "IE", "FR", "LU"]

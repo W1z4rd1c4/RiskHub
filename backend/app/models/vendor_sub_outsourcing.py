@@ -44,7 +44,9 @@ class VendorSubOutsourcing(ArchivableMixin, Base):
 
     # F/G "Subdodavatel" — sub-provider identity entered inline.
     sub_provider_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # TypKodu closed list + entered value (LEI/EUID/IČO/VAT/Jiný).
+    # TypOsoby determines which DORA identifier codes are legally valid.
+    person_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Canonical TypKodu + entered value; deprecated IČO (CRN)/Jiný stay readable.
     identifier_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     identifier_value: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # ZemeList closed list (ISO country).

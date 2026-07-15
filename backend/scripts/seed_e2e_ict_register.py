@@ -50,7 +50,11 @@ from app.models import (
     VendorContract,
     VendorSubOutsourcing,
 )
-from app.services._ict_register_reference import ICT_SERVICE_TAXONOMY, is_closed_list_value
+from app.services._ict_register_reference import (
+    ICT_SERVICE_TAXONOMY,
+    is_closed_list_value,
+    is_provider_identifier_type_write_value,
+)
 from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
 
 # Closed-list membership guards per coded column (workbook reference registry).
@@ -462,6 +466,7 @@ _CONTRACT_CLOSED_LIST_FIELDS = {
 }
 
 _SUB_OUTSOURCING_CLOSED_LIST_FIELDS = {
+    "person_type": "TypOsoby",
     "identifier_type": "TypKodu",
     "country": "ZemeList",
 }
@@ -572,6 +577,7 @@ E2E_SUB_OUTSOURCING = [
         "sub_provider_name": "E2E-SUB-001 Primary DC Operator",
         "contract": "E2E-CTR-001",
         "predecessor": None,
+        "person_type": "Právnická osoba",
         "identifier_type": "LEI",
         "identifier_value": "E2E00LEI00000000SUB1",
         "country": "CZ",
@@ -583,6 +589,7 @@ E2E_SUB_OUTSOURCING = [
         "sub_provider_name": "E2E-SUB-002 Network Backbone",
         "contract": "E2E-CTR-001",
         "predecessor": None,
+        "person_type": "Právnická osoba",
         "identifier_type": "EUID",
         "identifier_value": "E2E-EUID-SUB2",
         "country": "DE",
@@ -595,6 +602,7 @@ E2E_SUB_OUTSOURCING = [
         "sub_provider_name": "E2E-SUB-003 Offsite Backup Facility",
         "contract": "E2E-CTR-001",
         "predecessor": "E2E-SUB-001 Primary DC Operator",
+        "person_type": "Právnická osoba",
         "identifier_type": "IČO (CRN)",
         "identifier_value": "12345678",
         "country": "SK",
@@ -613,6 +621,7 @@ E2E_SUB_OUTSOURCING = [
         "sub_provider_name": "E2E-SUB-BROKEN Cross-Contract Orphan",
         "contract": "E2E-CTR-002",
         "predecessor": "E2E-SUB-001 Primary DC Operator",
+        "person_type": "Právnická osoba",
         "identifier_type": "Jiný",
         "identifier_value": "E2E-BROKEN-1",
         "country": "PL",
@@ -710,7 +719,12 @@ def _assert_closed_list_values(entry: dict, fields: dict[str, str], context: str
         value = entry.get(field)
         if value is None:
             continue
-        if not is_closed_list_value(list_name, value):
+        valid = (
+            is_provider_identifier_type_write_value(value)
+            if list_name == "TypKodu"
+            else is_closed_list_value(list_name, value)
+        )
+        if not valid:
             raise RuntimeError(f"{context} fixture value {field}={value!r} is not in closed list {list_name}")
 
 
@@ -937,6 +951,7 @@ async def seed_ict_register():
                 "contract_id": contract_ids[entry["contract"]],
                 "predecessor_id": sub_ids[predecessor_name] if predecessor_name is not None else None,
                 "sub_provider_name": entry["sub_provider_name"],
+                "person_type": entry["person_type"],
                 "identifier_type": entry["identifier_type"],
                 "identifier_value": entry["identifier_value"],
                 "country": entry["country"],

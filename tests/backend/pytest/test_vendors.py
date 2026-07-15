@@ -851,3 +851,40 @@ async def test_list_vendors_rejects_invalid_sort_by(auth_client: AsyncClient):
     response = await auth_client.get("/api/v1/vendors", params={"sort_by": "unknown_field"})
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid sort_by value"
+
+
+@pytest.mark.asyncio
+async def test_vendor_sort_ties_use_id_as_deterministic_secondary_key(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+):
+    vendors = [
+        Vendor(
+            name="Stable tie vendor",
+            process="IT",
+            department_id=test_department.id,
+            outsourcing_owner_user_id=test_user.id,
+            vendor_type="ict",
+            risk_score_1_5=3,
+            supports_important_core_insurance_function=False,
+            dora_relevant=False,
+            is_significant_vendor=False,
+            has_alternative_providers=False,
+            status="active",
+        )
+        for _ in range(3)
+    ]
+    db_session.add_all(vendors)
+    await db_session.commit()
+
+    response = await auth_client.get(
+        "/api/v1/vendors",
+        params={"search": "Stable tie vendor", "sort_by": "name", "sort_order": "desc"},
+    )
+
+    assert response.status_code == 200
+    assert [row["id"] for row in response.json()["items"]] == sorted(
+        (vendor.id for vendor in vendors), reverse=True
+    )

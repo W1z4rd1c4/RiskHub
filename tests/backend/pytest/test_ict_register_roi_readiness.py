@@ -25,6 +25,8 @@ import re
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from app.services._ict_register_lifecycle.derivation import (
     AssetDerivationInput,
     AssetVendorLinkInput,
@@ -619,8 +621,20 @@ def test_b_05_02_supply_chain_rows_rank_one_links_plus_sub_outsourcing_chain():
         graph,
         supplement=RoiRegisterSupplement(
             sub_outsourcing={
-                1: RoiSubOutsourcingSupplement(ict_service_code="S19", identifier_value="87654321"),
-                2: RoiSubOutsourcingSupplement(ict_service_code="S19", identifier_value="11223344"),
+                1: RoiSubOutsourcingSupplement(
+                    ict_service_code="S19",
+                    person_type="Právnická osoba",
+                    identifier_type="LEI",
+                    identifier_value="87654321",
+                    country="CZ",
+                ),
+                2: RoiSubOutsourcingSupplement(
+                    ict_service_code="S19",
+                    person_type="Právnická osoba",
+                    identifier_type="LEI",
+                    identifier_value="11223344",
+                    country="CZ",
+                ),
             }
         ),
     )
@@ -636,6 +650,87 @@ def test_b_05_02_supply_chain_rows_rank_one_links_plus_sub_outsourcing_chain():
     assert gap.route_entity_type == "vendor"
     assert gap.route_entity_id == 1
     assert [missing.key for missing in gap.missing] == ["rank", "recipient"]
+
+
+def test_provider_identifier_legality_applies_to_b_02_02_and_b_05_02():
+    graph = IctRegisterGraph(
+        assets=(AssetDerivationInput(id=1, name="Veris"),),
+        vendors=(_filled_vendor(1, identifier_type="VAT", identifier_value="VAT-1"),),
+        asset_vendor_links=(
+            AssetVendorLinkInput(
+                asset_id=1,
+                vendor_id=1,
+                ict_service_code="S19",
+                contract_reference="SML-1",
+            ),
+        ),
+    )
+
+    result = run_readiness(graph)
+
+    assert [missing.key for missing in readiness_by_code(result)["B_02.02"].gap_rows[0].missing] == [
+        "provider_identification_code",
+        "provider_identification_type",
+        "function_identifier",
+        "start_date",
+    ]
+    assert [missing.key for missing in readiness_by_code(result)["B_05.02"].gap_rows[0].missing] == [
+        "provider_identification_code"
+    ]
+
+
+def test_b_05_02_sub_provider_identifier_requires_legal_type_and_country():
+    graph = IctRegisterGraph(
+        vendors=(_filled_vendor(1),),
+        contracts=(VendorContractInput(id=1, vendor_id=1, contract_reference="SML-1"),),
+        sub_outsourcing=(
+            SubOutsourcingInput(id=1, vendor_id=1, contract_id=1, sub_provider_name="Sub A"),
+        ),
+    )
+    result = run_readiness(
+        graph,
+        supplement=RoiRegisterSupplement(
+            sub_outsourcing={
+                1: RoiSubOutsourcingSupplement(
+                    ict_service_code="S19",
+                    person_type="Právnická osoba",
+                    identifier_type="EUID",
+                    identifier_value="EUID-1",
+                    country="US",
+                )
+            }
+        ),
+    )
+
+    gap = readiness_by_code(result)["B_05.02"].gap_rows[0]
+    assert [missing.key for missing in gap.missing] == ["provider_identification_code"]
+
+
+def test_b_05_02_accepts_business_individual_sub_provider_identifier():
+    graph = IctRegisterGraph(
+        vendors=(_filled_vendor(1),),
+        contracts=(VendorContractInput(id=1, vendor_id=1, contract_reference="SML-1"),),
+        sub_outsourcing=(
+            SubOutsourcingInput(id=1, vendor_id=1, contract_id=1, sub_provider_name="Jan Novák"),
+        ),
+    )
+
+    result = run_readiness(
+        graph,
+        supplement=RoiRegisterSupplement(
+            sub_outsourcing={
+                1: RoiSubOutsourcingSupplement(
+                    person_type="Fyzická osoba podnikající",
+                    identifier_type="NIN",
+                    identifier_value="NIN-1",
+                    country="CZ",
+                    ict_service_code="S19",
+                )
+            }
+        ),
+    )
+
+    assert readiness_by_code(result)["B_05.02"].gap_row_count == 0
 
 
 def test_b_07_01_reads_the_vendor_assessment_block_per_link():
@@ -702,6 +797,60 @@ def test_b_05_01_vendor_master_data_gaps():
         "headquarters_country",
     ]
     assert gap.missing[1].code == "B_05.01.0020"
+
+
+@pytest.mark.parametrize(
+    ("person_type", "country", "identifier_type", "identifier_value", "ready"),
+    [
+        ("Právnická osoba", "CZ", "LEI", "LEI-1", True),
+        ("Právnická osoba", "DE", "EUID", "EUID-1", True),
+        ("Právnická osoba", "CZ", "VAT", "VAT-1", False),
+        ("Právnická osoba", "US", "LEI", "LEI-2", True),
+        ("Právnická osoba", "US", "EUID", "EUID-2", False),
+        ("Fyzická osoba podnikající", "CZ", "LEI", "LEI-3", True),
+        ("Fyzická osoba podnikající", "CZ", "EUID", "EUID-3", True),
+        ("Fyzická osoba podnikající", "CZ", "CRN", "CRN-1", True),
+        ("Fyzická osoba podnikající", "CZ", "VAT", "VAT-2", True),
+        ("Fyzická osoba podnikající", "CZ", "PNR", "PNR-1", True),
+        ("Fyzická osoba podnikající", "CZ", "NIN", "NIN-1", True),
+        ("Fyzická osoba podnikající", "US", "IČO (CRN)", "12345678", True),
+        ("Právnická osoba", "CZ", "IČO (CRN)", "12345678", False),
+        ("Fyzická osoba podnikající", "CZ", "Jiný", "legacy", False),
+        ("Právnická osoba", "ZZ", "LEI", "LEI-4", False),
+        ("Právnická osoba", "CZ", None, "LEI-5", False),
+        ("Právnická osoba", "CZ", "LEI", None, False),
+    ],
+)
+def test_b_05_01_identifier_pair_obeys_person_and_country_rules(
+    person_type: str,
+    country: str,
+    identifier_type: str | None,
+    identifier_value: str | None,
+    ready: bool,
+):
+    graph = IctRegisterGraph(
+        vendors=(
+            _filled_vendor(
+                1,
+                person_type=person_type,
+                country=country,
+                identifier_type=identifier_type,
+                identifier_value=identifier_value,
+            ),
+        )
+    )
+    result = run_readiness(
+        graph,
+        supplement=RoiRegisterSupplement(
+            vendors={1: RoiVendorSupplement(latin_name="Provider One")}
+        ),
+    )
+    b0501 = readiness_by_code(result)["B_05.01"]
+
+    assert b0501.readiness_pct == (100.0 if ready else 66.7)
+    assert b0501.gap_rows == () if ready else [
+        missing.key for missing in b0501.gap_rows[0].missing
+    ] == ["provider_identification_code", "provider_identification_type"]
 
 
 def test_fully_populated_register_reaches_one_hundred_percent_overall():

@@ -161,6 +161,8 @@ export interface AssetListParams {
     include_archived?: boolean;
     sort_by?: AssetSortField;
     sort_order?: 'asc' | 'desc';
+    has_process_link?: boolean;
+    criticality?: string;
 }
 
 export type AssetSortField = 'name' | 'asset_type' | 'owner_department' | 'lifecycle_state' | 'created_at';

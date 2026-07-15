@@ -141,6 +141,7 @@ export interface ProcessListParams {
     include_archived?: boolean;
     sort_by?: ProcessSortField;
     sort_order?: 'asc' | 'desc';
+    cif?: boolean;
 }
 
 export type ProcessSortField = 'f_code' | 'l0_area' | 'l1_process' | 'owner' | 'created_at';

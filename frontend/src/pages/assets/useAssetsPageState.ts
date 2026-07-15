@@ -5,14 +5,9 @@ import { apiClient } from '@/services/apiClient';
 import { assetApi } from '@/services/assetApi';
 import type { Asset, AssetSortField } from '@/types/asset';
 
-import {
-    buildAssetListParams,
-    type AssetArchiveFilter,
-} from './assetsPagePresentation';
-import {
-    type RegisterPageLoadRequest,
-    useRegisterPageController,
-} from '../shared/useRegisterPageController';
+import { buildAssetListParams, type AssetArchiveFilter } from './assetsPagePresentation';
+import { type RegisterPageLoadRequest, useRegisterPageController } from '../shared/useRegisterPageController';
+import type { AssetSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 
 type AssetRegisterFilters = {
     sortDirection: SortDirection;
@@ -20,24 +15,21 @@ type AssetRegisterFilters = {
     statusFilter: AssetArchiveFilter;
 };
 
-export function useAssetsPageState() {
+export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}) {
     const loadAssetPage = useCallback(
-        ({
-            currentPage,
-            debouncedSearch,
-            filters,
-            limit,
-        }: RegisterPageLoadRequest<AssetRegisterFilters, 'all'>) => assetApi.getAssets(
-            buildAssetListParams({
-                currentPage,
-                debouncedSearch,
-                includeArchived: filters.statusFilter !== 'active',
-                limit,
-                sortDirection: filters.sortDirection,
-                sortField: filters.sortField,
-            })
-        ),
-        []
+        ({ currentPage, debouncedSearch, filters, limit }: RegisterPageLoadRequest<AssetRegisterFilters, 'all'>) =>
+            assetApi.getAssets({
+                ...buildAssetListParams({
+                    currentPage,
+                    debouncedSearch,
+                    includeArchived: filters.statusFilter !== 'active',
+                    limit,
+                    sortDirection: filters.sortDirection,
+                    sortField: filters.sortField,
+                }),
+                ...semanticFilters,
+            }),
+        [semanticFilters],
     );
 
     const toUiErrorKey = useCallback((error: unknown) => apiClient.toUiMessageKey(error), []);
@@ -67,16 +59,22 @@ export function useAssetsPageState() {
                 setErrorKey(apiClient.toUiMessageKey(error));
             }
         },
-        [fetchAssets, setErrorKey]
+        [fetchAssets, setErrorKey],
     );
 
-    const updateStatusFilter = useCallback((value: AssetArchiveFilter) => {
-        updateFilter('statusFilter', value);
-    }, [updateFilter]);
+    const updateStatusFilter = useCallback(
+        (value: AssetArchiveFilter) => {
+            updateFilter('statusFilter', value);
+        },
+        [updateFilter],
+    );
 
-    const updateSort = useCallback((sortField: AssetSortField | null, sortDirection: SortDirection) => {
-        updateFilters({ sortDirection, sortField });
-    }, [updateFilters]);
+    const updateSort = useCallback(
+        (sortField: AssetSortField | null, sortDirection: SortDirection) => {
+            updateFilters({ sortDirection, sortField });
+        },
+        [updateFilters],
+    );
 
     return {
         capabilities: registerController.capabilities,

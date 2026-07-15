@@ -116,6 +116,176 @@ def _asset_payload(**overrides: object) -> dict[str, object]:
 
 
 @pytest.mark.asyncio
+async def test_risk_listing_filters_ict_linked_rows_before_pagination(
+    client_factory, test_user_cro: User, seed_risk_types
+):
+    async with client_factory(user=test_user_cro) as client:
+        linked_response = await client.post("/api/v1/risks", json=_risk_payload(name="Linked"))
+        assert linked_response.status_code == 201, linked_response.text
+        linked = linked_response.json()
+        unlinked_response = await client.post("/api/v1/risks", json=_risk_payload(name="Unlinked"))
+        assert unlinked_response.status_code == 201, unlinked_response.text
+        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        created = await client.post(
+            f"/api/v1/risks/{linked['id']}/process-links",
+            json={"process_id": process["id"]},
+        )
+        assert created.status_code == 201, created.text
+
+        response = await client.get(
+            "/api/v1/risks", params={"ict_linked": True, "limit": 1}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [linked["id"]]
+
+
+@pytest.mark.asyncio
+async def test_risk_listing_filters_above_configured_tolerance(
+    client_factory, db_session: AsyncSession, test_user_cro: User, seed_risk_types
+):
+    from app.models import GlobalConfig
+    from app.models.global_config import clear_config_cache
+
+    db_session.add(
+        GlobalConfig(
+            key="ict_register_tolerance",
+            value="7",
+            value_type="int",
+            category="ict_register_parameters",
+            display_name="P_Tolerance",
+            is_editable=False,
+        )
+    )
+    await db_session.commit()
+    clear_config_cache()
+    async with client_factory(user=test_user_cro) as client:
+        above_response = await client.post(
+            "/api/v1/risks",
+            json=_risk_payload(name="Above", net_probability=5, net_impact=5),
+        )
+        assert above_response.status_code == 201, above_response.text
+        above = above_response.json()
+        below_response = await client.post(
+            "/api/v1/risks",
+            json=_risk_payload(name="Below", net_probability=1, net_impact=1),
+        )
+        assert below_response.status_code == 201, below_response.text
+
+        response = await client.get("/api/v1/risks", params={"above_tolerance": True})
+
+    clear_config_cache()
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [above["id"]]
+
+
+@pytest.mark.asyncio
+async def test_risk_listing_filters_acceptance_response(
+    client_factory, test_user_cro: User, seed_risk_types
+):
+    async with client_factory(user=test_user_cro) as client:
+        accepted_response = await client.post(
+            "/api/v1/risks",
+            json=_risk_payload(name="Accepted", acceptance_approver="CRO"),
+        )
+        assert accepted_response.status_code == 201, accepted_response.text
+        accepted = accepted_response.json()
+        ordinary_response = await client.post(
+            "/api/v1/risks", json=_risk_payload(name="Ordinary")
+        )
+        assert ordinary_response.status_code == 201, ordinary_response.text
+
+        response = await client.get("/api/v1/risks", params={"response": "acceptance"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [accepted["id"]]
+
+
+@pytest.mark.asyncio
+async def test_risk_listing_filters_heatmap_coordinates(
+    client_factory, test_user_cro: User, seed_risk_types
+):
+    async with client_factory(user=test_user_cro) as client:
+        target_response = await client.post(
+            "/api/v1/risks",
+            json=_risk_payload(name="Heatmap target", gross_probability=4, gross_impact=5),
+        )
+        assert target_response.status_code == 201, target_response.text
+        target = target_response.json()
+        other_response = await client.post(
+            "/api/v1/risks",
+            json=_risk_payload(name="Other cell", gross_probability=4, gross_impact=3),
+        )
+        assert other_response.status_code == 201, other_response.text
+
+        response = await client.get(
+            "/api/v1/risks", params={"gross_probability": 4, "gross_impact": 5}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [target["id"]]
+
+
+@pytest.mark.asyncio
+async def test_risk_listing_filters_configured_gross_and_net_bands(
+    client_factory, db_session: AsyncSession, test_user_cro: User, seed_risk_types
+):
+    from app.models import GlobalConfig
+    from app.models.global_config import clear_config_cache
+
+    for key, value, display_name in (
+        ("ict_register_riz_str", "5", "P_RizStr"),
+        ("ict_register_riz_vys", "10", "P_RizVys"),
+        ("ict_register_riz_krit", "20", "P_RizKrit"),
+    ):
+        db_session.add(
+            GlobalConfig(
+                key=key,
+                value=value,
+                value_type="int",
+                category="ict_register_parameters",
+                display_name=display_name,
+                is_editable=False,
+            )
+        )
+    await db_session.commit()
+    clear_config_cache()
+
+    async with client_factory(user=test_user_cro) as client:
+        target_response = await client.post(
+            "/api/v1/risks",
+            json=_risk_payload(
+                name="Migration target",
+                gross_probability=4,
+                gross_impact=5,
+                net_probability=3,
+                net_impact=4,
+            ),
+        )
+        assert target_response.status_code == 201, target_response.text
+        target = target_response.json()
+        other_response = await client.post(
+            "/api/v1/risks",
+            json=_risk_payload(name="Other band", gross_probability=2, gross_impact=2),
+        )
+        assert other_response.status_code == 201, other_response.text
+
+        response = await client.get(
+            "/api/v1/risks", params={"gross_band": "Kritické", "net_band": "Vysoké"}
+        )
+
+    clear_config_cache()
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [target["id"]]
+
+
+@pytest.mark.asyncio
 async def test_create_and_read_threat_with_all_entered_fields(client_factory, test_user_cro: User):
     async with client_factory(user=test_user_cro) as client:
         created = await client.post("/api/v1/threats", json=_full_payload())

@@ -18,6 +18,7 @@ import {
     type RegisterPageLoadRequest,
     useRegisterPageController,
 } from '../shared/useRegisterPageController';
+import type { VendorSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 
 type VendorRegisterFilters = {
     sortDirection: SortDirection;
@@ -26,7 +27,7 @@ type VendorRegisterFilters = {
     typeFilter: VendorType | '';
 };
 
-export function useVendorsPageState() {
+export function useVendorsPageState(semanticFilters: VendorSemanticFilters = {}) {
     const loadVendorPage = useCallback(
         ({
             currentPage,
@@ -35,31 +36,28 @@ export function useVendorsPageState() {
             groupBy,
             groupValue,
             limit,
-        }: RegisterPageLoadRequest<VendorRegisterFilters, ViewMode>) => vendorApi.getVendors(
-            buildVendorListParams({
-                currentPage,
-                debouncedSearch,
-                includeArchived: filters.statusFilter !== 'active',
-                limit,
-                sortDirection: filters.sortDirection,
-                sortField: filters.sortField,
-                typeFilter: filters.typeFilter,
-                groupBy,
-                groupValue,
-            })
-        ),
-        []
+        }: RegisterPageLoadRequest<VendorRegisterFilters, ViewMode>) =>
+            vendorApi.getVendors({
+                ...buildVendorListParams({
+                    currentPage,
+                    debouncedSearch,
+                    includeArchived: filters.statusFilter !== 'active',
+                    limit,
+                    sortDirection: filters.sortDirection,
+                    sortField: filters.sortField,
+                    typeFilter: filters.typeFilter,
+                    groupBy,
+                    groupValue,
+                }),
+                ...semanticFilters,
+            }),
+        [semanticFilters],
     );
 
     const toUiErrorKey = useCallback((error: unknown) => apiClient.toUiMessageKey(error), []);
 
     const submitExport = useCallback(
-        async ({
-            format,
-            asOfDate,
-            filters,
-            search,
-        }: RegisterPageExportRequest<VendorRegisterFilters, ViewMode>) => {
+        async ({ format, asOfDate, filters, search }: RegisterPageExportRequest<VendorRegisterFilters, ViewMode>) => {
             await reportApi.exportVendors({
                 format,
                 asOfDate,
@@ -70,7 +68,7 @@ export function useVendorsPageState() {
                 }),
             });
         },
-        []
+        [],
     );
 
     const registerController = useRegisterPageController<Vendor, VendorRegisterFilters, ViewMode>({
@@ -123,20 +121,29 @@ export function useVendorsPageState() {
                 setErrorKey(apiClient.toUiMessageKey(error));
             }
         },
-        [fetchVendors, setErrorKey]
+        [fetchVendors, setErrorKey],
     );
 
-    const updateStatusFilter = useCallback((value: VendorArchiveFilter) => {
-        updateFilter('statusFilter', value);
-    }, [updateFilter]);
+    const updateStatusFilter = useCallback(
+        (value: VendorArchiveFilter) => {
+            updateFilter('statusFilter', value);
+        },
+        [updateFilter],
+    );
 
-    const updateTypeFilter = useCallback((value: VendorType | '') => {
-        updateFilter('typeFilter', value);
-    }, [updateFilter]);
+    const updateTypeFilter = useCallback(
+        (value: VendorType | '') => {
+            updateFilter('typeFilter', value);
+        },
+        [updateFilter],
+    );
 
-    const updateSort = useCallback((sortField: VendorListParams['sort_by'] | null, sortDirection: SortDirection) => {
-        updateFilters({ sortDirection, sortField });
-    }, [updateFilters]);
+    const updateSort = useCallback(
+        (sortField: VendorListParams['sort_by'] | null, sortDirection: SortDirection) => {
+            updateFilters({ sortDirection, sortField });
+        },
+        [updateFilters],
+    );
 
     return {
         currentPage: registerController.currentPage,

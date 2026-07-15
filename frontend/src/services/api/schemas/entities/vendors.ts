@@ -263,6 +263,7 @@ export const vendorSubOutsourcingSchema: z.ZodType<VendorSubOutsourcing> = passt
     contract_id: z.number(),
     predecessor_id: z.number().nullable().optional(),
     sub_provider_name: z.string().nullable().optional(),
+    person_type: z.string().nullable().optional(),
     identifier_type: z.string().nullable().optional(),
     identifier_value: z.string().nullable().optional(),
     country: z.string().nullable().optional(),

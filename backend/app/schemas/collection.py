@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+SortDirection = Literal["asc", "desc"]
 
 
 class CollectionGroupRead(BaseModel):
@@ -14,4 +16,3 @@ class CollectionGroupRead(BaseModel):
     active_count: int | None = None
     highlighted_count: int | None = None
     meta: dict[str, Any] = Field(default_factory=dict)
-

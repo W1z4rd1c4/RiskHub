@@ -15,7 +15,7 @@ characterization against the workbook's documented profile.
 | Item | Value |
 |---|---|
 | Workbook | `DORA_registr_aktiv_a_dodavatelu.xlsx` **v6 (2026-07-07)**, 19 sheets, 1 058 390 bytes, modified 2026-07-07 15:31 |
-| External path (read-only, NEVER committed) | `/Users/stefanlesnak/Antigravity/Personal Assistant/exports/dora-registr-aktiv-2026/` |
+| External path (read-only, NEVER committed) | `<external-workbook-export>/` |
 | Workbook SHA-256 | `29a364885cc7d1c1abbc389a988cc85487f5b081d63f75051478e27a78d4bf04` |
 | Machine-readable source actually read | the workbook **builder's data module** — `builder/seed.py` + `builder/source_data.json` — never the xlsx |
 | `builder/seed.py` SHA-256 | `9b635405b06668a45253a9bd5e977158a81ea23e6b391b94c048af89fd086110` |
@@ -229,7 +229,7 @@ Deliberately **not** tuned away. Two honest resolutions, PM to choose:
 cd backend
 DATABASE_URL=postgresql+asyncpg://<prod-db>  SECRET_KEY=<prod> \
   ./venv/bin/python -m scripts.import_ict_register_workbook \
-  --source "/Users/stefanlesnak/Antigravity/Personal Assistant/exports/dora-registr-aktiv-2026"
+  --source "<external-workbook-export>"
 # re-run the same command: must print "TOTAL created: 0"
 # then the one-time fidelity proof:
 DATABASE_URL=... SECRET_KEY=... ./venv/bin/python -m scripts.import_ict_register_workbook \

@@ -486,6 +486,31 @@
     "recent_activity": "Nedávná aktivita",
     "risk_exposure_by_dept": "Riziková expozice podle oddělení"
   },
+  "semantic_filters": {
+    "filtered_by": "Filtrováno podle",
+    "remove": "Odebrat filtr {{key}}",
+    "keys": {
+      "cif": "Kritická nebo důležitá funkce",
+      "has_process_link": "Propojeno s procesem",
+      "criticality": "Kritičnost",
+      "has_direct_process_link": "Přímé propojení s procesem",
+      "has_roi_contract": "Smlouva v RoI",
+      "has_sub_outsourcing": "Subdodávky",
+      "tier": "Úroveň dodavatele",
+      "ict_linked": "Propojeno s ICT",
+      "above_tolerance": "Nad tolerancí",
+      "response": "Reakce na riziko",
+      "gross_probability": "Hrubá pravděpodobnost",
+      "gross_impact": "Hrubý dopad",
+      "gross_band": "Hrubé pásmo",
+      "net_band": "Čisté pásmo",
+      "unknown": "Filtr registru"
+    },
+    "values": {
+      "yes": "Ano",
+      "acceptance": "Akceptace"
+    }
+  },
   "stats": {
     "active_depts": "Aktivní oddělení",
     "avg_risk_score": "Průměrné skóre rizika",

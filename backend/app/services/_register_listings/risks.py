@@ -17,6 +17,8 @@ from app.models import (
     Department,
     KeyRiskIndicator,
     Risk,
+    RiskAssetLink,
+    RiskProcessLink,
     User,
     VendorRiskLink,
 )
@@ -33,11 +35,19 @@ from app.services._collection_filters import (
     coerce_optional_int,
     coerce_optional_string,
 )
+from app.services._ict_register_lifecycle.dq import (
+    RISK_BAND_CRITICAL,
+    RISK_BAND_HIGH,
+    RISK_BAND_LOW,
+    RISK_BAND_MEDIUM,
+)
+from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
 from app.services.authorization_capabilities import risk_capabilities
 
 from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan
 from .shared import GROUP_UNCATEGORIZED, GROUP_UNLINKED_VENDOR, parse_prefixed_group_value, visible_vendor_link_context
 
+RISK_BANDS = (RISK_BAND_LOW, RISK_BAND_MEDIUM, RISK_BAND_HIGH, RISK_BAND_CRITICAL)
 RISK_GROUP_UNLINKED_VENDOR = GROUP_UNLINKED_VENDOR
 RISK_GROUP_UNCATEGORIZED = GROUP_UNCATEGORIZED
 RISK_GROUP_UNKNOWN_DEPARTMENT = "__unknown_department__"
@@ -268,6 +278,19 @@ async def plan_risk_listing(
     min_net_score = coerce_optional_int("min_net_score", filter_values.get("min_net_score"), min_value=0, max_value=25)
     process = coerce_optional_string("process", filter_values.get("process"))
     category = coerce_optional_string("category", filter_values.get("category"))
+    ict_linked = coerce_optional_bool("ict_linked", filter_values.get("ict_linked"))
+    above_tolerance = coerce_optional_bool(
+        "above_tolerance", filter_values.get("above_tolerance")
+    )
+    response = coerce_optional_string("response", filter_values.get("response"))
+    gross_probability = coerce_optional_int(
+        "gross_probability", filter_values.get("gross_probability"), min_value=1, max_value=5
+    )
+    gross_impact = coerce_optional_int(
+        "gross_impact", filter_values.get("gross_impact"), min_value=1, max_value=5
+    )
+    gross_band = coerce_optional_string("gross_band", filter_values.get("gross_band"))
+    net_band = coerce_optional_string("net_band", filter_values.get("net_band"))
     sort_by = collection_query.sort.field if collection_query.sort else criteria.sort_by
     sort_order = collection_query.sort.direction if collection_query.sort else criteria.sort_order
 
@@ -326,6 +349,61 @@ async def plan_risk_listing(
     if category:
         base_query = base_query.where(Risk.category == category)
 
+    if ict_linked is not None:
+        linked_ids = (
+            select(RiskProcessLink.risk_id)
+            .union(select(RiskAssetLink.risk_id), select(VendorRiskLink.risk_id))
+            .scalar_subquery()
+        )
+        base_query = base_query.where(
+            Risk.id.in_(linked_ids) if ict_linked else Risk.id.notin_(linked_ids)
+        )
+
+    if above_tolerance is not None:
+        parameters = await load_ict_workbook_parameter_set(db)
+        tolerance = int(parameters.value("P_Tolerance"))
+        base_query = base_query.where(
+            Risk.net_score > tolerance if above_tolerance else Risk.net_score <= tolerance
+        )
+
+    if response is not None:
+        if response != "acceptance":
+            raise ValidationError("Invalid response value")
+        base_query = base_query.where(
+            or_(
+                Risk.acceptance_approver.is_not(None),
+                Risk.acceptance_justification.is_not(None),
+                Risk.acceptance_date.is_not(None),
+            )
+        )
+
+    if gross_probability is not None:
+        base_query = base_query.where(Risk.gross_probability == gross_probability)
+    if gross_impact is not None:
+        base_query = base_query.where(Risk.gross_impact == gross_impact)
+
+    if gross_band is not None or net_band is not None:
+        parameters = await load_ict_workbook_parameter_set(db)
+        medium_from = int(parameters.value("P_RizStr"))
+        high_from = int(parameters.value("P_RizVys"))
+        critical_from = int(parameters.value("P_RizKrit"))
+
+        def band_clause(score_column, band: str):
+            if band not in RISK_BANDS:
+                raise ValidationError("Invalid risk band value")
+            if band == RISK_BANDS[3]:
+                return score_column >= critical_from
+            if band == RISK_BANDS[2]:
+                return and_(score_column >= high_from, score_column < critical_from)
+            if band == RISK_BANDS[1]:
+                return and_(score_column >= medium_from, score_column < high_from)
+            return score_column < medium_from
+
+        if gross_band is not None:
+            base_query = base_query.where(band_clause(Risk.gross_score, gross_band))
+        if net_band is not None:
+            base_query = base_query.where(band_clause(Risk.net_score, net_band))
+
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
@@ -365,9 +443,9 @@ async def plan_risk_listing(
     order_column: Any = sortable_fields[sort_by] if sort_by else Risk.risk_id_code
 
     if sort_order == "desc":
-        base_query = base_query.order_by(desc(order_column))
+        base_query = base_query.order_by(desc(order_column), desc(Risk.id))
     else:
-        base_query = base_query.order_by(asc(order_column))
+        base_query = base_query.order_by(asc(order_column), asc(Risk.id))
 
     query_options = (
         *risk_summary_load_options(),

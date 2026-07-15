@@ -288,6 +288,39 @@ async def test_process_vendor_link_round_trip_readable_from_both_ends(
 
 
 @pytest.mark.asyncio
+async def test_vendor_listing_filters_direct_process_links_before_pagination(
+    client_factory, test_user_cro: User, test_department: Department
+):
+    async with client_factory(user=test_user_cro) as client:
+        process = await _create_process(client)
+        linked = await _create_vendor(
+            client,
+            department_id=test_department.id,
+            owner_user_id=test_user_cro.id,
+            name="Directly linked",
+        )
+        await _create_vendor(
+            client,
+            department_id=test_department.id,
+            owner_user_id=test_user_cro.id,
+            name="Unlinked",
+        )
+        created = await client.post(
+            f"/api/v1/processes/{process['id']}/vendor-links",
+            json={"vendor_id": linked["id"]},
+        )
+        assert created.status_code == 201, created.text
+
+        response = await client.get(
+            "/api/v1/vendors", params={"has_direct_process_link": True, "limit": 1}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [linked["id"]]
+
+
+@pytest.mark.asyncio
 async def test_process_vendor_link_enforces_unique_pair_and_write_shape(
     client_factory, test_user_cro: User, test_department: Department
 ):

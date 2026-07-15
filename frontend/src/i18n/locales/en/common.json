@@ -486,6 +486,31 @@
     "recent_activity": "Recent activity",
     "risk_exposure_by_dept": "Risk exposure by department"
   },
+  "semantic_filters": {
+    "filtered_by": "Filtered by",
+    "remove": "Remove {{key}} filter",
+    "keys": {
+      "cif": "Critical or important function",
+      "has_process_link": "Linked to a process",
+      "criticality": "Criticality",
+      "has_direct_process_link": "Direct process link",
+      "has_roi_contract": "RoI contract",
+      "has_sub_outsourcing": "Sub-outsourcing",
+      "tier": "Vendor tier",
+      "ict_linked": "ICT-linked",
+      "above_tolerance": "Above tolerance",
+      "response": "Risk response",
+      "gross_probability": "Gross probability",
+      "gross_impact": "Gross impact",
+      "gross_band": "Gross band",
+      "net_band": "Net band",
+      "unknown": "Register filter"
+    },
+    "values": {
+      "yes": "Yes",
+      "acceptance": "Acceptance"
+    }
+  },
   "stats": {
     "active_depts": "Active departments",
     "avg_risk_score": "Average risk score",

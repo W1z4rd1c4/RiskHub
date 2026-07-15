@@ -52,6 +52,10 @@ async def list_vendors(
     filters: str | None = Query(None),
     group_by: str | None = Query(None),
     group_value: str | None = Query(None),
+    has_direct_process_link: bool | None = Query(None),
+    has_roi_contract: bool | None = Query(None),
+    has_sub_outsourcing: bool | None = Query(None),
+    tier: str | None = Query(None, description="Filter by derived ICT provider tier"),
 ):
     collection_query = parse_collection_query(
         offset=skip if skip is not None else offset,
@@ -80,6 +84,10 @@ async def list_vendors(
         risk_score_1_5=risk_score_1_5,
         sort_by=sort_by,
         sort_order=sort_order,
+        has_direct_process_link=has_direct_process_link,
+        has_roi_contract=has_roi_contract,
+        has_sub_outsourcing=has_sub_outsourcing,
+        tier=tier,
         check_permission_fn=check_permission,
         visible_risk_ids_loader=_get_visible_risk_ids,
     )

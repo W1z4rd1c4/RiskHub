@@ -38,6 +38,13 @@ async def list_risks(
     filters: str | None = Query(None),
     group_by: str | None = Query(None),
     group_value: str | None = Query(None),
+    ict_linked: bool | None = Query(None),
+    above_tolerance: bool | None = Query(None),
+    response: str | None = Query(None),
+    gross_probability: int | None = Query(None, ge=1, le=5),
+    gross_impact: int | None = Query(None, ge=1, le=5),
+    gross_band: str | None = Query(None),
+    net_band: str | None = Query(None),
 ) -> RiskListResponse:
     """
     List risks with pagination and filters.
@@ -64,6 +71,13 @@ async def list_risks(
             "min_net_score": min_net_score,
             "process": process,
             "category": category,
+            "ict_linked": ict_linked,
+            "above_tolerance": above_tolerance,
+            "response": response,
+            "gross_probability": gross_probability,
+            "gross_impact": gross_impact,
+            "gross_band": gross_band,
+            "net_band": net_band,
         },
     )
     collection_query = collection_context.query

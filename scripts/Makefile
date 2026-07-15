@@ -143,7 +143,8 @@ test-cov:
 
 # Run E2E tests
 test-e2e:
-	cd frontend && npx playwright test --workers=1
+	@test "$${RISKHUB_E2E_TEST_DATABASE:-}" = "1" || (echo "Refusing E2E reset: export RISKHUB_E2E_TEST_DATABASE=1 and use a DATABASE_URL ending in _test" >&2; exit 1)
+	cd backend && venv/bin/python -m scripts.run_playwright_matrix
 
 # Run frontend lint and debt budget
 lint-frontend:

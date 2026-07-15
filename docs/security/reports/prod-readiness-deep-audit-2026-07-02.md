@@ -19,6 +19,6 @@
 - production readiness: **needs-attention** (0/5)
 
 ## Evidence
-- Command matrix: `/Users/stefanlesnak/Antigravity/RiskHubOSS/tests/results/prod/prod-readiness-audit-20260702-115755/reports/command-matrix.json`
-- Findings: `/Users/stefanlesnak/Antigravity/RiskHubOSS/tests/results/prod/prod-readiness-audit-20260702-115755/reports/findings.json`
-- Scorecard: `/Users/stefanlesnak/Antigravity/RiskHubOSS/tests/results/prod/prod-readiness-audit-20260702-115755/reports/scorecard.json`
+- Command matrix: `tests/results/prod/prod-readiness-audit-20260702-115755/reports/command-matrix.json`
+- Findings: `tests/results/prod/prod-readiness-audit-20260702-115755/reports/findings.json`
+- Scorecard: `tests/results/prod/prod-readiness-audit-20260702-115755/reports/scorecard.json`

@@ -88,7 +88,11 @@ const TOKENS: Record<ThemeKey, ThemeTokens> = (() => {
             }
             return value;
         };
-        return { input: require('--input'), foreground: require('--foreground'), ring: require('--ring') };
+        return {
+            input: require('--input'),
+            foreground: require('--foreground'),
+            ring: require('--ring'),
+        };
     };
     return {
         riskhub: build(THEME_SELECTOR.riskhub),
@@ -101,7 +105,11 @@ async function applyTheme(page: Page, theme: ThemeKey): Promise<void> {
     await page.evaluate((value) => {
         localStorage.setItem('riskhub-theme', value);
         window.dispatchEvent(
-            new StorageEvent('storage', { key: 'riskhub-theme', newValue: value, storageArea: localStorage }),
+            new StorageEvent('storage', {
+                key: 'riskhub-theme',
+                newValue: value,
+                storageArea: localStorage,
+            }),
         );
     }, theme);
     await page.waitForFunction(
@@ -157,7 +165,11 @@ for (const theme of THEMES) {
         // text-foreground tokens.
         const resting = await trigger.evaluate((el) => {
             const cs = getComputedStyle(el);
-            return { border: cs.borderTopColor, background: cs.backgroundColor, color: cs.color };
+            return {
+                border: cs.borderTopColor,
+                background: cs.backgroundColor,
+                color: cs.color,
+            };
         });
         expect(resting.border, `${theme} border == --input`).toBe(expectedBorder);
         expect(resting.background, `${theme} background == --input @ 0.4`).toBe(expectedBackground);
@@ -166,7 +178,9 @@ for (const theme of THEMES) {
         // Focus-visible ring == --ring. Keyboard focus (Tab from the adjacent
         // search box) is what activates :focus-visible / the ring box-shadow.
         await page.getByTestId(SEARCH_TESTID).focus();
-        await page.keyboard.press('Tab');
+        const focusTraversalKey =
+            test.info().project.name === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
+        await page.keyboard.press(focusTraversalKey);
         await expect(trigger).toBeFocused();
         const focused = await trigger.evaluate((el) => ({
             focusVisible: el.matches(':focus-visible'),

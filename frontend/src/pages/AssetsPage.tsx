@@ -11,9 +11,14 @@ import { buildAssetColumns } from './assets/assetColumns';
 import { assetsEmptyStateKey, type AssetArchiveFilter } from './assets/assetsPagePresentation';
 import { useAssetsPageState } from './assets/useAssetsPageState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
+import { parseAssetSemanticFilters } from './shared/ictRegisterSemanticFilters';
+import { useIctRegisterSemanticPageState } from './shared/useIctRegisterPageState';
 
 export function AssetsPage() {
     const navigate = useNavigate();
+    const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } =
+        useIctRegisterSemanticPageState(parseAssetSemanticFilters);
     const { t } = useTranslation('assets');
     const {
         capabilities,
@@ -36,7 +41,7 @@ export function AssetsPage() {
         updateSearch,
         updateSort,
         updateStatusFilter,
-    } = useAssetsPageState();
+    } = useAssetsPageState(semanticFilters);
 
     if (isAccessDenied) {
         return <ReadAccessDeniedState />;
@@ -48,8 +53,7 @@ export function AssetsPage() {
             event.stopPropagation();
             void restoreAsset(assetId);
         },
-        canRestoreAsset: (asset: Asset) =>
-            resolveCapabilityFlag(asset.capabilities, 'can_restore'),
+        canRestoreAsset: (asset: Asset) => resolveCapabilityFlag(asset.capabilities, 'can_restore'),
     });
 
     return (
@@ -71,6 +75,8 @@ export function AssetsPage() {
                     </button>
                 )}
             </div>
+
+            <SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} />
 
             <div className="glass-card flex flex-col md:flex-row gap-4">
                 <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
@@ -107,7 +113,10 @@ export function AssetsPage() {
                         title={t('common:actions.refresh')}
                         aria-label={t('common:actions.refresh')}
                     >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
+                        <RefreshCw
+                            className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`}
+                            aria-hidden="true"
+                        />
                     </button>
                 </div>
             </div>
@@ -124,9 +133,7 @@ export function AssetsPage() {
                     isError={Boolean(errorKey)}
                     onRetry={() => void fetchAssets()}
                     errorMessage={errorKey ? t(errorKey) : undefined}
-                    emptyMessage={
-                        hasLoadedOnce ? t(assetsEmptyStateKey(search.trim().length > 0)) : undefined
-                    }
+                    emptyMessage={hasLoadedOnce ? t(assetsEmptyStateKey(search.trim().length > 0)) : undefined}
                     sortKey={sortField}
                     sortDirection={sortDirection}
                     onSort={(key, direction) =>

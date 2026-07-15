@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
+from app.schemas.collection import SortDirection
 from app.schemas.process import ProcessCreate, ProcessListResponse, ProcessRead, ProcessUpdate
 from app.services._ict_register_lifecycle.lifecycle import (
     create_process_detail,
@@ -28,7 +29,8 @@ async def list_processes(
     search: Optional[str] = None,
     include_archived: bool = Query(False, description="Include archived processes"),
     sort_by: Optional[str] = None,
-    sort_order: Optional[str] = Query("asc"),
+    sort_order: SortDirection = Query("asc"),
+    cif: bool | None = Query(None, description="Filter by derived critical/important function status"),
 ):
     return await list_process_register(
         db=db,
@@ -39,6 +41,7 @@ async def list_processes(
         include_archived=include_archived,
         sort_by=sort_by,
         sort_order=sort_order,
+        cif=cif,
     )
 
 

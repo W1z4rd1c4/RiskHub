@@ -3,13 +3,13 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass
 from inspect import isawaitable
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 from sqlalchemy import false, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.collection import CollectionGroupRead
+from app.schemas.collection import CollectionGroupRead, SortDirection
 
 TModel = TypeVar("TModel")
 TItem = TypeVar("TItem")
@@ -18,7 +18,7 @@ TResponse = TypeVar("TResponse")
 
 class CollectionSort(BaseModel):
     field: str
-    direction: Literal["asc", "desc"] = "asc"
+    direction: SortDirection = "asc"
 
 
 class CollectionQuery(BaseModel):

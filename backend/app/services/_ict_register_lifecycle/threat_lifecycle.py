@@ -1,15 +1,20 @@
 from __future__ import annotations
 
-from sqlalchemy import asc, desc, func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import threat as audit_threat
-from app.core.exceptions import ValidationError
 from app.models import Threat, User
 from app.models._archivable import archived_clause
 from app.schemas.threat import ThreatCreate, ThreatListResponse, ThreatRead, ThreatUpdate
 from app.services.transaction_boundary import commit_service_boundary
 
+from .lifecycle_adapters import (
+    apply_archive_lifecycle,
+    apply_update_lifecycle,
+    extract_updates,
+    load_register_page,
+)
 from .threat_policy import (
     assert_threat_archive_allowed,
     assert_threat_create_allowed,
@@ -63,19 +68,20 @@ async def update_threat_detail(
     current_user: User,
 ) -> ThreatRead:
     threat = await assert_threat_update_allowed(db, threat_id=threat_id, current_user=current_user)
-    updates = {field: getattr(payload, field) for field in payload.model_fields_set}
-    if "name" in updates and updates["name"] is None:
-        raise ValidationError("name cannot be null")
+    updates = extract_updates(payload, non_nullable_fields=("name",))
     if not updates:
         return serialize_threat_detail(threat, current_user=current_user)
 
-    changes = audit_threat.threat_update_changes(threat, updates)
-    for field, value in updates.items():
-        setattr(threat, field, value)
-
-    await audit_threat.threat_updated(db, actor=current_user, threat=threat, changes=changes)
-    await commit_service_boundary(db, boundary="ict_register_threat_update")
-    await db.refresh(threat)
+    await apply_update_lifecycle(
+        db=db,
+        entity=threat,
+        updates=updates,
+        changes_factory=audit_threat.threat_update_changes,
+        audit=lambda changes: audit_threat.threat_updated(
+            db, actor=current_user, threat=threat, changes=changes
+        ),
+        boundary="ict_register_threat_update",
+    )
     return serialize_threat_detail(threat, current_user=current_user)
 
 
@@ -86,11 +92,16 @@ async def archive_threat_detail(
     current_user: User,
 ) -> None:
     threat = await assert_threat_archive_allowed(db, threat_id=threat_id, current_user=current_user)
-    changes = audit_threat.threat_archive_changes(threat)
-    threat.mark_archived(current_user)
-
-    await audit_threat.threat_archived(db, actor=current_user, threat=threat, changes=changes)
-    await commit_service_boundary(db, boundary="ict_register_threat_archive")
+    await apply_archive_lifecycle(
+        db=db,
+        entity=threat,
+        current_user=current_user,
+        changes_factory=audit_threat.threat_archive_changes,
+        audit=lambda changes: audit_threat.threat_archived(
+            db, actor=current_user, threat=threat, changes=changes
+        ),
+        boundary="ict_register_threat_archive",
+    )
 
 
 async def restore_threat_detail(
@@ -100,12 +111,18 @@ async def restore_threat_detail(
     current_user: User,
 ) -> ThreatRead:
     threat = await assert_threat_restore_allowed(db, threat_id=threat_id, current_user=current_user)
-    changes = audit_threat.threat_restore_changes(threat)
-    threat.mark_restored(current_user)
-
-    await audit_threat.threat_restored(db, actor=current_user, threat=threat, changes=changes)
-    await commit_service_boundary(db, boundary="ict_register_threat_restore")
-    await db.refresh(threat)
+    await apply_archive_lifecycle(
+        db=db,
+        entity=threat,
+        current_user=current_user,
+        changes_factory=audit_threat.threat_restore_changes,
+        audit=lambda changes: audit_threat.threat_restored(
+            db, actor=current_user, threat=threat, changes=changes
+        ),
+        boundary="ict_register_threat_restore",
+        restore=True,
+        refresh=True,
+    )
     return serialize_threat_detail(threat, current_user=current_user)
 
 
@@ -133,14 +150,16 @@ async def list_threat_register(
             )
         )
 
-    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
-
-    if sort_by is not None and sort_by not in _SORT_COLUMNS:
-        raise ValidationError("Invalid sort_by value")
-    order_column = _SORT_COLUMNS[sort_by] if sort_by else Threat.id
-    query = query.order_by(desc(order_column) if sort_order == "desc" else asc(order_column))
-
-    rows = (await db.execute(query.offset(offset).limit(limit))).scalars().all()
+    rows, total = await load_register_page(
+        db=db,
+        query=query,
+        model=Threat,
+        offset=offset,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        sort_columns=_SORT_COLUMNS,
+    )
     return serialize_threat_list(
         list(rows),
         current_user=current_user,

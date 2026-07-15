@@ -402,6 +402,54 @@ async def test_register_listing_supports_search_pagination_and_sorting(client_fa
 
 
 @pytest.mark.asyncio
+async def test_register_listing_filters_assets_with_process_links_before_pagination(
+    client_factory, test_user_cro: User
+):
+    async with client_factory(user=test_user_cro) as client:
+        linked = (await client.post("/api/v1/assets", json=_minimal_payload(name="Linked"))).json()
+        await client.post("/api/v1/assets", json=_minimal_payload(name="Unlinked"))
+        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        link = await client.post(
+            f"/api/v1/assets/{linked['id']}/process-links",
+            json={"process_id": process["id"]},
+        )
+        assert link.status_code == 201, link.text
+
+        response = await client.get(
+            "/api/v1/assets", params={"has_process_link": True, "limit": 1}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [linked["id"]]
+
+
+@pytest.mark.asyncio
+async def test_register_listing_filters_assets_by_derived_criticality(
+    client_factory, test_user_cro: User
+):
+    async with client_factory(user=test_user_cro) as client:
+        critical = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(name="Critical", preliminary_criticality="Kritická"),
+            )
+        ).json()
+        await client.post(
+            "/api/v1/assets",
+            json=_minimal_payload(name="Low", preliminary_criticality="Nízká"),
+        )
+
+        response = await client.get(
+            "/api/v1/assets", params={"criticality": "Kritická"}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [critical["id"]]
+
+
+@pytest.mark.asyncio
 async def test_process_asset_link_round_trip_readable_from_both_ends(client_factory, test_user_cro: User):
     """AC: link Assets to Processes with SPOF, managed from the Asset detail, readable from both ends."""
     async with client_factory(user=test_user_cro) as client:

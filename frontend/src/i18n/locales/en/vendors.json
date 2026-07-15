@@ -328,6 +328,7 @@
       "contract": "Contract",
       "predecessor": "Predecessor provider (empty = direct)",
       "sub_provider_name": "Sub-provider (name)",
+      "person_type": "Person type",
       "identifier_type": "ID code type",
       "identifier_value": "ID code",
       "country": "Country",

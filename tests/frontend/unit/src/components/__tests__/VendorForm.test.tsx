@@ -124,7 +124,7 @@ describe('VendorForm', () => {
                 'Snadno nahraditelný',
             ],
             TypOsoby: ['Právnická osoba', 'Fyzická osoba podnikající'],
-            TypKodu: ['LEI', 'EUID', 'IČO (CRN)', 'VAT', 'Jiný'],
+            TypKodu: ['LEI', 'EUID', 'CRN', 'VAT', 'PNR', 'NIN'],
         });
     });
 

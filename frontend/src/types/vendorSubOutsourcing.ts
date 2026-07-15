@@ -22,6 +22,7 @@ export interface VendorSubOutsourcing {
     predecessor_id?: number | null;
 
     sub_provider_name?: string | null;
+    person_type?: string | null;
     identifier_type?: string | null;
     identifier_value?: string | null;
     country?: string | null;

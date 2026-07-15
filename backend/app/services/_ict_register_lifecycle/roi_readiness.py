@@ -58,6 +58,10 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
+from app.services._ict_register_reference import (
+    CANONICAL_PROVIDER_IDENTIFIER_TYPES,
+    COUNTRY_CATEGORIES,
+)
 from app.services._ict_register_reference.parameters import (
     ICT_WORKBOOK_PARAMETERS_BY_NAME,
     IctWorkbookParameterSet,
@@ -422,7 +426,10 @@ class RoiContractSupplement:
 @dataclass(frozen=True)
 class RoiSubOutsourcingSupplement:
     ict_service_code: str | None = None
+    person_type: str | None = None
+    identifier_type: str | None = None
     identifier_value: str | None = None
+    country: str | None = None
 
 
 @dataclass(frozen=True)
@@ -509,6 +516,28 @@ def _filled(value: object) -> bool:
     if isinstance(value, str):
         return value != "" and value != UNKNOWN_LOOKUP
     return True
+
+
+def _provider_identifier_pair_is_ready(
+    *, person_type: str | None, country: str | None, identifier_type: str | None, identifier_value: str | None
+) -> bool:
+    """Validate the B_05.01 identifier pair against CIR provider rules."""
+    if not _filled(identifier_type) or not _filled(identifier_value):
+        return False
+    country_category = COUNTRY_CATEGORIES.get(country or "")
+    if country_category is None:
+        return False
+
+    normalized_type = "CRN" if identifier_type == "IČO (CRN)" else identifier_type
+    if normalized_type not in CANONICAL_PROVIDER_IDENTIFIER_TYPES:
+        return False
+    if person_type == "Fyzická osoba podnikající":
+        return True
+    if person_type != "Právnická osoba":
+        return False
+    if country_category in {"ČR", "EU"}:
+        return normalized_type in {"LEI", "EUID"}
+    return normalized_type == "LEI"
 
 
 def _lei_is_filled(parameters: IctWorkbookParameterSet) -> bool:
@@ -635,12 +664,18 @@ def derive_roi_readiness(
         rows: list[_TemplateRow] = []
         for row in graph.vendors:
             extra = vendor_supplement(row.id)
+            identifier_ready = _provider_identifier_pair_is_ready(
+                person_type=row.person_type,
+                country=row.country,
+                identifier_type=row.identifier_type,
+                identifier_value=row.identifier_value,
+            )
             rows.append(
                 (
                     _RowAnchor("vendor", row.id, row.name or UNKNOWN_VENDOR_LABEL, "vendor", row.id),
                     {
-                        "provider_identification_code": _filled(row.identifier_value),
-                        "provider_identification_type": _filled(row.identifier_type),
+                        "provider_identification_code": identifier_ready,
+                        "provider_identification_type": identifier_ready,
                         "legal_name": _filled(row.name),
                         "latin_name": _filled(extra.latin_name),
                         "person_type": _filled(row.person_type),
@@ -722,6 +757,16 @@ def derive_roi_readiness(
             vendor_extra = vendor_supplement(link.vendor_id)
             vendor_result = derivation.vendors.get(link.vendor_id)
             asset_result = derivation.assets.get(link.asset_id)
+            identifier_ready = (
+                _provider_identifier_pair_is_ready(
+                    person_type=vendor.person_type,
+                    country=vendor.country,
+                    identifier_type=vendor.identifier_type,
+                    identifier_value=vendor.identifier_value,
+                )
+                if vendor is not None
+                else False
+            )
             primary_process_id = (
                 asset_result.inputs.primary_process_id if asset_result is not None else None
             )
@@ -731,8 +776,8 @@ def derive_roi_readiness(
             fields: dict[str, bool] = {
                 "contractual_arrangement_reference": _filled(link.contract_reference),
                 "entity_lei": lei_filled,
-                "provider_identification_code": _filled(vendor.identifier_value if vendor else None),
-                "provider_identification_type": _filled(vendor.identifier_type if vendor else None),
+                "provider_identification_code": identifier_ready,
+                "provider_identification_type": identifier_ready,
                 "function_identifier": function_identifier_filled,
                 "ict_service_type": _filled(link.ict_service_code),
                 "start_date": (
@@ -761,6 +806,16 @@ def derive_roi_readiness(
         rows: list[_TemplateRow] = []
         for link in graph.asset_vendor_links:
             vendor = vendors_by_id.get(link.vendor_id)
+            identifier_ready = (
+                _provider_identifier_pair_is_ready(
+                    person_type=vendor.person_type,
+                    country=vendor.country,
+                    identifier_type=vendor.identifier_type,
+                    identifier_value=vendor.identifier_value,
+                )
+                if vendor is not None
+                else False
+            )
             rows.append(
                 (
                     link_anchor(link.asset_id, link.vendor_id, link.ict_service_code),
@@ -768,9 +823,7 @@ def derive_roi_readiness(
                         "contractual_arrangement_reference": _filled(link.contract_reference),
                         "ict_service_type": _filled(link.ict_service_code),
                         "provider_name": _filled(vendor.name if vendor else None),
-                        "provider_identification_code": _filled(
-                            vendor.identifier_value if vendor else None
-                        ),
+                        "provider_identification_code": identifier_ready,
                         "rank": True,  # constant rank 1
                         "recipient": True,  # legitimately blank at rank 1
                     },
@@ -779,6 +832,12 @@ def derive_roi_readiness(
         for sub in graph.sub_outsourcing:
             sub_result = derivation.sub_outsourcing.get(sub.id)
             extra = sub_supplement(sub.id)
+            identifier_ready = _provider_identifier_pair_is_ready(
+                person_type=extra.person_type,
+                country=extra.country,
+                identifier_type=extra.identifier_type,
+                identifier_value=extra.identifier_value,
+            )
             if sub.predecessor_id is None:
                 # Direct sub-outsourcer: the recipient is the contract's prime
                 # vendor (the engine's own lookup, "?" on a missing contract).
@@ -805,7 +864,7 @@ def derive_roi_readiness(
                         ),
                         "ict_service_type": _filled(extra.ict_service_code),
                         "provider_name": _filled(sub.sub_provider_name),
-                        "provider_identification_code": _filled(extra.identifier_value),
+                        "provider_identification_code": identifier_ready,
                         # A broken chain derives no rank (the "?" sentinel).
                         "rank": sub_result is not None and sub_result.rank is not None,
                         "recipient": recipient_filled,

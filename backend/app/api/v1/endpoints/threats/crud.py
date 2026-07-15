@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
+from app.schemas.collection import SortDirection
 from app.schemas.threat import ThreatCreate, ThreatListResponse, ThreatRead, ThreatUpdate
 from app.services._ict_register_lifecycle.threat_lifecycle import (
     create_threat_detail,
@@ -28,7 +29,7 @@ async def list_threats(
     search: Optional[str] = None,
     include_archived: bool = Query(False, description="Include archived threats"),
     sort_by: Optional[str] = None,
-    sort_order: Optional[str] = Query("asc"),
+    sort_order: SortDirection = Query("asc"),
 ):
     return await list_threat_register(
         db=db,

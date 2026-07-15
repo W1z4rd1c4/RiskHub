@@ -12,9 +12,14 @@ import { VendorsTableSection } from './vendors/VendorsTableSection';
 import { useVendorsPageState } from './vendors/useVendorsPageState';
 import type { VendorArchiveFilter } from './vendors/vendorsPagePresentation';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
+import { parseVendorSemanticFilters } from './shared/ictRegisterSemanticFilters';
+import { useIctRegisterSemanticPageState } from './shared/useIctRegisterPageState';
 
 export function VendorsPage() {
     const navigate = useNavigate();
+    const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } =
+        useIctRegisterSemanticPageState(parseVendorSemanticFilters);
     const { t } = useTranslation('vendors');
     const {
         capabilities,
@@ -51,7 +56,7 @@ export function VendorsPage() {
         viewMode,
         selectGroup,
         clearSelectedGroup,
-    } = useVendorsPageState();
+    } = useVendorsPageState(semanticFilters);
 
     if (isAccessDenied) {
         return <ReadAccessDeniedState />;
@@ -91,10 +96,16 @@ export function VendorsPage() {
                 </div>
             </div>
 
+            <SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} />
+
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={resolveCapabilityFlag(capabilities, 'can_view_risk_contexts') ? ['category', 'risk_type', 'vendor'] : ['category', 'risk_type', 'risk', 'vendor']}
+                exclude={
+                    resolveCapabilityFlag(capabilities, 'can_view_risk_contexts')
+                        ? ['category', 'risk_type', 'vendor']
+                        : ['category', 'risk_type', 'risk', 'vendor']
+                }
             />
 
             <div className="glass-card flex flex-col md:flex-row gap-4">
@@ -136,7 +147,10 @@ export function VendorsPage() {
                         options={[
                             { value: 'ict', label: t('type.ict') },
                             { value: 'outsourcing', label: t('type.outsourcing') },
-                            { value: 'professional_services', label: t('type.professional_services') },
+                            {
+                                value: 'professional_services',
+                                label: t('type.professional_services'),
+                            },
                             { value: 'partner', label: t('type.partner') },
                             { value: 'other', label: t('type.other') },
                         ]}
@@ -149,7 +163,10 @@ export function VendorsPage() {
                         title={t('common:actions.refresh')}
                         aria-label={t('common:actions.refresh')}
                     >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
+                        <RefreshCw
+                            className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`}
+                            aria-hidden="true"
+                        />
                     </button>
                 </div>
             </div>

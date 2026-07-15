@@ -14,6 +14,7 @@ from app.schemas.vendor_sub_outsourcing import (
 from app.services.transaction_boundary import commit_service_boundary
 
 from .sub_outsourcing_policy import (
+    acquire_sub_outsourcing_chain_lock,
     assert_chain_contract,
     assert_chain_predecessor,
     assert_sub_outsourcing_archive_allowed,
@@ -35,6 +36,7 @@ async def create_vendor_sub_outsourcing_detail(
     payload: VendorSubOutsourcingCreate,
     current_user: User,
 ) -> VendorSubOutsourcingRead:
+    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     vendor = await assert_sub_outsourcing_mutation_vendor(
         db, vendor_id=vendor_id, current_user=current_user
     )
@@ -85,6 +87,7 @@ async def update_vendor_sub_outsourcing_detail(
     payload: VendorSubOutsourcingUpdate,
     current_user: User,
 ) -> VendorSubOutsourcingRead:
+    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     entry = await assert_sub_outsourcing_update_allowed(
         db, vendor_id=vendor_id, entry_id=entry_id, current_user=current_user
     )

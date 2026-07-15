@@ -193,9 +193,15 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.getByTestId('threat-risk-links-section')).toBeVisible();
 
+        // Narrow through the public server-backed search seam before opening
+        // the portalled select. This is the real large-register path and avoids
+        // a Firefox/Radix scroll race when the target sits deep in a long list.
+        await riskManagerPage.getByTestId('threat-risk-link-select-search').fill(E2E_ICT_REGISTER_RISK.code);
         await riskManagerPage.getByTestId('threat-risk-link-select').click();
         await riskManagerPage.getByRole('option', { name: riskOptionLabel, exact: true }).click();
-        await riskManagerPage.getByTestId('threat-risk-link-add').click();
+        const addLinkButton = riskManagerPage.getByTestId('threat-risk-link-add');
+        await expect(addLinkButton).toBeEnabled();
+        await addLinkButton.click();
 
         const riskLinks = riskManagerPage.getByTestId('threat-risk-links');
         await expect(riskLinks.getByText(riskOptionLabel, { exact: true })).toBeVisible();

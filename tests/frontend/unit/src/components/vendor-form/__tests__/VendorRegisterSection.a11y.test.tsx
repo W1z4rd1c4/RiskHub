@@ -5,7 +5,7 @@
  * retryable notice instead of silently-empty dropdowns.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import * as axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -32,12 +32,12 @@ async function expectNoAxeViolations(node: Element): Promise<void> {
     expect(summary, summary).toBe('');
 }
 
-function renderSection() {
+function renderSection(formData: VendorFormData = {} as VendorFormData) {
     const onChange = vi.fn();
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const utils = render(
         <QueryClientProvider client={client}>
-            <VendorRegisterSection formData={{} as VendorFormData} onChange={onChange} />
+            <VendorRegisterSection formData={formData} onChange={onChange} />
         </QueryClientProvider>,
     );
     return { onChange, ...utils };
@@ -71,5 +71,23 @@ describe('VendorRegisterSection — label association (#59)', () => {
     it('has no axe violations across the migrated register fields', async () => {
         const { container } = renderSection();
         await expectNoAxeViolations(container);
+    });
+
+    it('offers only canonical identifier types while preserving a stored legacy selection', async () => {
+        mockGetClosedLists.mockResolvedValue({
+            TypKodu: ['LEI', 'EUID', 'CRN', 'VAT', 'PNR', 'NIN'],
+        });
+        renderSection({ identifier_type: 'IČO (CRN)' } as VendorFormData);
+
+        const select = await screen.findByRole('combobox', {
+            name: i18n.t('vendors:form.register.fields.identifier_type'),
+        });
+        expect(select).toHaveTextContent('IČO (CRN)');
+        fireEvent.click(select);
+        expect(screen.getByRole('option', { name: 'IČO (CRN)' })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'Jiný' })).not.toBeInTheDocument();
+        for (const code of ['LEI', 'EUID', 'CRN', 'VAT', 'PNR', 'NIN']) {
+            expect(await screen.findByRole('option', { name: code })).toBeInTheDocument();
+        }
     });
 });

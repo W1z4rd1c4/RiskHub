@@ -9,6 +9,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
 from app.schemas.asset import AssetCreate, AssetListResponse, AssetRead, AssetUpdate
+from app.schemas.collection import SortDirection
 from app.services._ict_register_lifecycle.asset_lifecycle import (
     create_asset_detail,
     list_asset_register,
@@ -28,7 +29,9 @@ async def list_assets(
     search: Optional[str] = None,
     include_archived: bool = Query(False, description="Include archived assets"),
     sort_by: Optional[str] = None,
-    sort_order: Optional[str] = Query("asc"),
+    sort_order: SortDirection = Query("asc"),
+    has_process_link: bool | None = Query(None),
+    criticality: str | None = Query(None, description="Filter by derived resulting criticality"),
 ):
     return await list_asset_register(
         db=db,
@@ -39,6 +42,8 @@ async def list_assets(
         include_archived=include_archived,
         sort_by=sort_by,
         sort_order=sort_order,
+        has_process_link=has_process_link,
+        criticality=criticality,
     )
 
 

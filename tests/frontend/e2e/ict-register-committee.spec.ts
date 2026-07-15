@@ -74,14 +74,13 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
         // The committee body renders inside the dashboard.
         await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toBeVisible();
         // The ICT Committee tab is the active tab (aria-current=page).
-        await expect(
-            riskManagerPage.getByRole('button', { name: ICT_COMMITTEE_TAB }),
-        ).toHaveAttribute('aria-current', 'page');
+        await expect(riskManagerPage.getByRole('button', { name: ICT_COMMITTEE_TAB })).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
     });
 
-    test('the committee tab is ?view=-addressable and browser back/forward move tabs', async ({
-        riskManagerPage,
-    }) => {
+    test('the committee tab is ?view=-addressable and browser back/forward move tabs', async ({ riskManagerPage }) => {
         // Start on the canonical overview (no ?view=). The risk-manager holds the
         // ict_committee capability, so the dashboard tab bar renders.
         await riskManagerPage.goto('/');
@@ -107,9 +106,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toBeVisible();
     });
 
-    test('authorized user sees the dashboard tiles, heatmap, Top-10 and KPIs', async ({
-        riskManagerPage,
-    }) => {
+    test('authorized user sees the dashboard tiles, heatmap, Top-10 and KPIs', async ({ riskManagerPage }) => {
         await riskManagerPage.goto(COMMITTEE_PAGE);
         await waitForDataLoad(riskManagerPage);
 
@@ -123,9 +120,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId('committee-state-process_count')).toContainText(/\d/);
         // The ICT-linked risk slice is exactly the one seeded risk (the KPI
         // tile bundles its label + value, so target the value paragraph).
-        await expect(
-            riskManagerPage.getByTestId('committee-kpi-risk_count').locator('p').last(),
-        ).toHaveText('1');
+        await expect(riskManagerPage.getByTestId('committee-kpi-risk_count').locator('p').last()).toHaveText('1');
         // The Top-10 renders at least the seeded risk at rank 1.
         await expect(riskManagerPage.getByTestId('committee-top-risk-1')).toBeVisible();
     });
@@ -152,6 +147,54 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
         await expect(riskRow).toHaveCount(1);
         await expect(riskRow).toContainText(BAND_CRITICAL);
         await expect(riskRow).toContainText(OVER_TOLERANCE);
+    });
+
+    test('semantic drill-downs retain exact filters and show a removable summary in every destination register', async ({
+        riskManagerPage,
+    }) => {
+        const cases = [
+            {
+                source: 'committee-kpi-risk_count',
+                href: '/risks?ict_linked=true',
+                summary: 'ICT-linked: Yes',
+            },
+            {
+                source: 'committee-metric-cif_process_count',
+                href: '/processes?cif=true',
+                summary: 'Critical or important function: Yes',
+            },
+            {
+                source: 'committee-state-process_asset_link_count',
+                href: '/assets?has_process_link=true',
+                summary: 'Linked to a process: Yes',
+            },
+            {
+                source: 'committee-state-direct_process_vendor_link_count',
+                href: '/vendors?has_direct_process_link=true',
+                summary: 'Direct process link: Yes',
+            },
+            {
+                source: `committee-migration-link-${BAND_CRITICAL}-${BAND_CRITICAL}`,
+                href: '/risks?gross_band=Kritick%C3%A9&net_band=Kritick%C3%A9',
+                summary: 'Gross band: Kritické',
+            },
+        ] as const;
+
+        for (const entry of cases) {
+            await test.step(entry.href, async () => {
+                await riskManagerPage.goto(COMMITTEE_PAGE);
+                await waitForDataLoad(riskManagerPage);
+                const source = riskManagerPage.getByTestId(entry.source);
+                let link = source;
+                if (!(await source.evaluate((node) => node.tagName === 'A'))) {
+                    const descendant = source.locator('a').first();
+                    link = (await descendant.count()) > 0 ? descendant : source.locator('xpath=ancestor::a[1]');
+                }
+                await link.click();
+                await expect(riskManagerPage).toHaveURL(new RegExp(`${entry.href.replace(/[?]/g, '\\?')}$`));
+                await expect(riskManagerPage.getByTestId('semantic-filter-summary')).toContainText(entry.summary);
+            });
+        }
     });
 
     test('the Materiální KPI shows the muted "not yet measurable" state', async ({ riskManagerPage }) => {
@@ -192,9 +235,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
         await expect(gaps.locator('a[href^="/processes/"]').first()).toBeVisible();
     });
 
-    test('a non-authorized base user (employee) is gated out of the committee tab', async ({
-        employeePage,
-    }) => {
+    test('a non-authorized base user (employee) is gated out of the committee tab', async ({ employeePage }) => {
         // The employee holds no ict_committee:read. Following the legacy redirect,
         // the Dashboard normalizes the unauthorized ?view= away to the overview:
         // the URL search is stripped, no committee body/loading renders, and the

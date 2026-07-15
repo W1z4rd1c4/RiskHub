@@ -1,11 +1,29 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.permissions import can_read_vendor
 from app.models import User, Vendor, VendorContract, VendorSubOutsourcing
+
+_SUB_OUTSOURCING_LOCK_NAMESPACE = 0x5248
+
+
+async def acquire_sub_outsourcing_chain_lock(db: AsyncSession, *, vendor_id: int) -> None:
+    """Serialize chain mutations for one Vendor until commit or rollback.
+
+    PostgreSQL transaction-scoped advisory locks close the gap between reading
+    the predecessor graph and committing its mutation. SQLite has no matching
+    primitive and remains an intentional no-op for the default unit-test mode.
+    """
+    bind = db.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(:namespace, :vendor_id)"),
+        {"namespace": _SUB_OUTSOURCING_LOCK_NAMESPACE, "vendor_id": vendor_id},
+    )
 
 
 async def load_sub_outsourcing_vendor(db: AsyncSession, vendor_id: int) -> Vendor | None:

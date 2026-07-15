@@ -8,7 +8,10 @@ from pydantic import BaseModel, Field, computed_field, field_validator, model_va
 
 from app.core.datetime_utils import UtcAwareDatetime
 from app.schemas.collection import CollectionGroupRead
-from app.services._ict_register_reference import is_closed_list_value
+from app.services._ict_register_reference import (
+    is_closed_list_value,
+    is_provider_identifier_type_write_value,
+)
 
 
 class VendorTypeEnum(str, Enum):
@@ -85,7 +88,12 @@ class VendorRegisterWriteValidators(BaseModel):
         if value is None:
             return value
         list_name = _VENDOR_CLOSED_LIST_FIELDS[info.field_name]
-        if not is_closed_list_value(list_name, value):
+        valid = (
+            is_provider_identifier_type_write_value(value)
+            if info.field_name == "identifier_type"
+            else is_closed_list_value(list_name, value)
+        )
+        if not valid:
             raise ValueError(f"Value must come from the workbook closed list {list_name}")
         return value
 

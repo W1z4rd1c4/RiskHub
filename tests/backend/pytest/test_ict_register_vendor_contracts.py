@@ -563,6 +563,66 @@ async def test_vendor_register_extension_fields_round_trip(
 
 
 @pytest.mark.asyncio
+async def test_vendor_listing_filters_roi_contracts_before_pagination(
+    client_factory, test_user_cro: User, test_department: Department
+):
+    async with client_factory(user=test_user_cro) as client:
+        in_scope = await _create_vendor(
+            client,
+            department_id=test_department.id,
+            owner_user_id=test_user_cro.id,
+            name="RoI provider",
+        )
+        await _create_vendor(
+            client,
+            department_id=test_department.id,
+            owner_user_id=test_user_cro.id,
+            name="No RoI contract",
+        )
+        contract = await client.post(
+            f"/api/v1/vendors/{in_scope['id']}/contracts",
+            json=_minimal_contract_payload(roi_scope="Ano"),
+        )
+        assert contract.status_code == 201, contract.text
+
+        response = await client.get(
+            "/api/v1/vendors", params={"has_roi_contract": True, "limit": 1}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [in_scope["id"]]
+
+
+@pytest.mark.asyncio
+async def test_vendor_listing_filters_by_derived_tier(
+    client_factory, test_user_cro: User, test_department: Department
+):
+    async with client_factory(user=test_user_cro) as client:
+        significant = await _create_vendor(
+            client,
+            department_id=test_department.id,
+            owner_user_id=test_user_cro.id,
+            name="Significant provider",
+            replaceability="Nenahraditelný",
+        )
+        await _create_vendor(
+            client,
+            department_id=test_department.id,
+            owner_user_id=test_user_cro.id,
+            name="Standard provider",
+        )
+
+        response = await client.get(
+            "/api/v1/vendors", params={"tier": "Významný dodavatel"}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [significant["id"]]
+
+
+@pytest.mark.asyncio
 async def test_vendor_register_coded_fields_enforce_workbook_closed_lists(
     client_factory, test_user_cro: User, test_department: Department
 ):
@@ -609,6 +669,32 @@ async def test_vendor_register_coded_fields_enforce_workbook_closed_lists(
         assert (
             await client.patch(f"/api/v1/vendors/{vendor['id']}", json={"reference_occurrence_count": -1})
         ).status_code == 422
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "identifier_type",
+    ["LEI", "EUID", "CRN", "VAT", "PNR", "NIN", "IČO (CRN)", "Jiný"],
+)
+async def test_vendor_identifier_writes_accept_canonical_codes_and_transitional_aliases(
+    client_factory,
+    test_user_cro: User,
+    test_department: Department,
+    identifier_type: str,
+):
+    async with client_factory(user=test_user_cro) as client:
+        created = await client.post(
+            "/api/v1/vendors",
+            json=_vendor_payload(
+                department_id=test_department.id,
+                owner_user_id=test_user_cro.id,
+                identifier_type=identifier_type,
+                identifier_value="provider-code",
+            ),
+        )
+
+    assert created.status_code == 201, created.text
+    assert created.json()["identifier_type"] == identifier_type
 
 
 @pytest.mark.asyncio

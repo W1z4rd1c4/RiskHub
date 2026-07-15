@@ -328,6 +328,7 @@
       "contract": "Smlouva",
       "predecessor": "Nadřazený poskytovatel (prázdné = přímý)",
       "sub_provider_name": "Subdodavatel (název)",
+      "person_type": "Typ osoby",
       "identifier_type": "Typ ID kódu",
       "identifier_value": "ID kód",
       "country": "Země",

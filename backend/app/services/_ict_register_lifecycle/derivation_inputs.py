@@ -707,14 +707,21 @@ async def load_ict_register_committee_graph(db: "AsyncSession") -> IctCommitteeG
     }
     sub_supplements = {
         sub_id: RoiSubOutsourcingSupplement(
-            ict_service_code=ict_service_code, identifier_value=identifier_value
+            ict_service_code=ict_service_code,
+            person_type=person_type,
+            identifier_type=identifier_type,
+            identifier_value=identifier_value,
+            country=country,
         )
-        for sub_id, ict_service_code, identifier_value in (
+        for sub_id, ict_service_code, person_type, identifier_type, identifier_value, country in (
             await db.execute(
                 select(
                     VendorSubOutsourcing.id,
                     VendorSubOutsourcing.ict_service_code,
+                    VendorSubOutsourcing.person_type,
+                    VendorSubOutsourcing.identifier_type,
                     VendorSubOutsourcing.identifier_value,
+                    VendorSubOutsourcing.country,
                 )
             )
         ).all()

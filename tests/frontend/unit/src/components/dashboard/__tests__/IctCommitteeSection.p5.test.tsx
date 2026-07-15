@@ -99,8 +99,8 @@ function makeCommittee(): IctCommittee {
                 sub_outsourcing_link_count: 0,
                 vendors_in_sub_role_count: 0,
             },
-            assets_by_criticality: [],
-            risks_by_band: [],
+            assets_by_criticality: [{ band: 'Kritická', count: 2 }],
+            risks_by_band: [{ band: 'Vysoké', gross_count: 3, net_count: 1 }],
         },
         roi_readiness: {
             templates: [
@@ -183,10 +183,35 @@ describe('IctCommitteeSection — heatmap legend + RoI threshold (FR-P5-7 / P10)
         getCommittee.mockResolvedValue(makeCommittee());
         renderSection();
 
-        expect((await screen.findByTestId('committee-roi-bar-RT01')).className).toContain(
-            'bg-emerald-500',
-        );
+        expect((await screen.findByTestId('committee-roi-bar-RT01')).className).toContain('bg-emerald-500');
         expect(screen.getByTestId('committee-roi-bar-RT02').className).toContain('bg-amber-500');
         expect(screen.getByTestId('committee-roi-bar-RT03').className).toContain('bg-rose-500');
+    });
+});
+
+describe('IctCommitteeSection — semantic drill-downs', () => {
+    it('links matrix coordinates and keyboard-accessible chart bars to exact filters', async () => {
+        getCommittee.mockResolvedValue(makeCommittee());
+        renderSection();
+
+        expect(await screen.findByTestId('committee-heatmap-link-5-3')).toHaveAttribute(
+            'href',
+            '/risks?gross_probability=5&gross_impact=3',
+        );
+        expect(screen.getByTestId('committee-migration-link-Vysoké-Střední')).toHaveAttribute(
+            'href',
+            '/risks?gross_band=Vysok%C3%A9&net_band=St%C5%99edn%C3%AD',
+        );
+    });
+
+    it('renders a production-inert material-risk KPI without an interactive link', async () => {
+        const committee = makeCommittee();
+        committee.cro.kpi.material_risk_count_production_inert = true;
+        getCommittee.mockResolvedValue(committee);
+        renderSection();
+
+        const tile = await screen.findByTestId('committee-kpi-material_risk_count');
+        expect(tile.closest('a')).toBeNull();
+        expect(tile).toHaveTextContent('Not yet measurable');
     });
 });

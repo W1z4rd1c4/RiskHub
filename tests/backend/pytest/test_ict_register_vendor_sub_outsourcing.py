@@ -33,12 +33,15 @@ section 1.5 (09_Subdodávky). Expected values are spec literals.
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
+from app.core.config import Settings
 from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_keys
 from app.models import Department, Permission, Role, RolePermission, User
 from app.models.user import AccessScope
@@ -117,6 +120,7 @@ def _full_entry_payload(contract_id: int, **overrides: object) -> dict[str, obje
         "contract_id": contract_id,
         "predecessor_id": None,
         "sub_provider_name": "CLOUD OPS s.r.o.",
+        "person_type": "Právnická osoba",
         "identifier_type": "IČO (CRN)",
         "identifier_value": "87654321",
         "country": "CZ",
@@ -145,6 +149,7 @@ async def test_create_and_read_direct_entry_with_all_entered_fields(
         # NULL predecessor = a direct sub-outsourcer of the Contract.
         assert body["predecessor_id"] is None
         assert body["sub_provider_name"] == "CLOUD OPS s.r.o."
+        assert body["person_type"] == "Právnická osoba"
         assert body["identifier_type"] == "IČO (CRN)"
         assert body["identifier_value"] == "87654321"
         assert body["country"] == "CZ"
@@ -164,11 +169,18 @@ async def test_create_and_read_direct_entry_with_all_entered_fields(
         minimal_body = minimal.json()
         assert minimal_body["predecessor_id"] is None
         assert minimal_body["sub_provider_name"] is None
+        assert minimal_body["person_type"] is None
         assert minimal_body["identifier_type"] is None
         assert minimal_body["identifier_value"] is None
         assert minimal_body["country"] is None
         assert minimal_body["ict_service_code"] is None
         assert minimal_body["note"] is None
+
+        invalid_person_type = await client.post(
+            chain_url,
+            json=_minimal_entry_payload(contract["id"], person_type="Neplatný typ"),
+        )
+        assert invalid_person_type.status_code == 422
 
         # Every chain hangs off a Contract: the reference is required...
         assert (await client.post(chain_url, json={})).status_code == 422
@@ -189,6 +201,39 @@ async def test_create_and_read_direct_entry_with_all_entered_fields(
             await client.post("/api/v1/vendors/999999/sub-outsourcing", json=_minimal_entry_payload(contract["id"]))
         ).status_code == 404
         assert (await client.get("/api/v1/vendors/999999/sub-outsourcing")).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_vendor_listing_filters_sub_outsourcing_before_pagination(
+    client_factory, test_user_cro: User, test_department: Department
+):
+    async with client_factory(user=test_user_cro) as client:
+        chained = await _create_vendor(
+            client,
+            department_id=test_department.id,
+            owner_user_id=test_user_cro.id,
+            name="Chained provider",
+        )
+        await _create_vendor(
+            client,
+            department_id=test_department.id,
+            owner_user_id=test_user_cro.id,
+            name="No chain",
+        )
+        contract = await _create_contract(client, chained["id"])
+        created = await client.post(
+            f"/api/v1/vendors/{chained['id']}/sub-outsourcing",
+            json=_minimal_entry_payload(contract["id"], sub_provider_name="Sub provider"),
+        )
+        assert created.status_code == 201, created.text
+
+        response = await client.get(
+            "/api/v1/vendors", params={"has_sub_outsourcing": True, "limit": 1}
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert [row["id"] for row in response.json()["items"]] == [chained["id"]]
 
 
 @pytest.mark.asyncio
@@ -369,6 +414,62 @@ async def test_self_references_and_cycles_are_rejected(
         rechained = await client.patch(f"{chain_url}/{c['id']}", json={"predecessor_id": a["id"]})
         assert rechained.status_code == 200
         assert rechained.json()["predecessor_id"] == a["id"]
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_concurrent_opposite_predecessor_updates_cannot_commit_a_cycle(
+    async_engine,
+    db_session: AsyncSession,
+    client_factory,
+    test_user_cro: User,
+    test_department: Department,
+):
+    """The public API serializes competing writes to one Vendor chain."""
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("Requires PostgreSQL transaction-scoped advisory locks")
+
+    async with client_factory(user=test_user_cro) as setup_client:
+        vendor = await _create_vendor(
+            setup_client,
+            department_id=test_department.id,
+            owner_user_id=test_user_cro.id,
+        )
+        contract = await _create_contract(setup_client, vendor["id"])
+        chain_url = f"/api/v1/vendors/{vendor['id']}/sub-outsourcing"
+        a = (await setup_client.post(chain_url, json=_minimal_entry_payload(contract["id"]))).json()
+        b = (await setup_client.post(chain_url, json=_minimal_entry_payload(contract["id"]))).json()
+
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def override_get_db():
+        async with session_maker() as session:
+            try:
+                yield session
+            except Exception:
+                await session.rollback()
+                raise
+
+    settings = Settings(mock_auth_enabled=True, debug=True)
+    async with client_factory(
+        user=test_user_cro,
+        settings=settings,
+        db_override=override_get_db,
+    ) as client:
+        responses = await asyncio.gather(
+            client.patch(f"{chain_url}/{a['id']}", json={"predecessor_id": b["id"]}),
+            client.patch(f"{chain_url}/{b['id']}", json={"predecessor_id": a["id"]}),
+        )
+
+    assert sorted(response.status_code for response in responses) == [200, 422]
+
+    async with client_factory(user=test_user_cro) as verify_client:
+        rows = (await verify_client.get(chain_url)).json()
+    predecessor_by_id = {row["id"]: row["predecessor_id"] for row in rows}
+    assert not (
+        predecessor_by_id[a["id"]] == b["id"]
+        and predecessor_by_id[b["id"]] == a["id"]
+    )
 
 
 # Derived 09_Subdodávky columns (spec section 1.5) arrive with the derivation

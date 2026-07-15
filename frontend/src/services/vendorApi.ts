@@ -14,10 +14,11 @@ import type { Vendor, VendorCreate, VendorListParams, VendorListResponse, Vendor
 export const vendorApi = {
     async getVendors(params: VendorListParams): Promise<VendorListResponse> {
         const response = await apiClient.get('/vendors', {
-            params: buildCollectionParams({
-                offset: params.offset,
-                limit: params.limit,
-                filters: {
+            params: {
+                ...buildCollectionParams({
+                    offset: params.offset,
+                    limit: params.limit,
+                    filters: {
                     search: params.search,
                     include_archived: params.include_archived,
                     vendor_type: params.vendor_type,
@@ -29,11 +30,16 @@ export const vendorApi = {
                     process: params.process,
                     subprocess: params.subprocess,
                     risk_score_1_5: params.risk_score_1_5,
-                },
-                sort: params.sort_by ? { field: params.sort_by, direction: params.sort_order ?? 'asc' } : null,
-                groupBy: params.group_by,
-                groupValue: params.group_value,
-            }),
+                    },
+                    sort: params.sort_by ? { field: params.sort_by, direction: params.sort_order ?? 'asc' } : null,
+                    groupBy: params.group_by,
+                    groupValue: params.group_value,
+                }),
+                has_direct_process_link: params.has_direct_process_link,
+                has_roi_contract: params.has_roi_contract,
+                has_sub_outsourcing: params.has_sub_outsourcing,
+                tier: params.tier,
+            },
             schema: vendorListResponseSchema,
         });
         return normalizeCollectionResponse(response);

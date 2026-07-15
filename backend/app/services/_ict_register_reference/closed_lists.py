@@ -16,6 +16,16 @@ from app.core.exceptions import NotFoundError
 
 ClosedListValue = str | int
 
+CANONICAL_PROVIDER_IDENTIFIER_TYPES: tuple[str, ...] = (
+    "LEI",
+    "EUID",
+    "CRN",
+    "VAT",
+    "PNR",
+    "NIN",
+)
+DEPRECATED_PROVIDER_IDENTIFIER_TYPES: tuple[str, ...] = ("IČO (CRN)", "Jiný")
+
 # 45 named closed lists, verbatim from the workbook (spec section 3.1).
 CLOSED_LISTS: Mapping[str, tuple[ClosedListValue, ...]] = MappingProxyType(
     {
@@ -59,7 +69,7 @@ CLOSED_LISTS: Mapping[str, tuple[ClosedListValue, ...]] = MappingProxyType(
             "Jiné",
         ),
         "TypOsoby": ("Právnická osoba", "Fyzická osoba podnikající"),
-        "TypKodu": ("LEI", "EUID", "IČO (CRN)", "VAT", "Jiný"),
+        "TypKodu": CANONICAL_PROVIDER_IDENTIFIER_TYPES,
         "TypUjednani": ("Samostatné", "Rámcové (master)", "Navazující"),
         "Substituce": (
             "Nenahraditelný",
@@ -182,3 +192,12 @@ def is_closed_list_value(name: str, value: ClosedListValue) -> bool:
     Raises ``NotFoundError`` for an unknown list name.
     """
     return value in closed_list_values(name)
+
+
+def is_provider_identifier_type_write_value(value: str) -> bool:
+    """Accept the public taxonomy plus transitional aliases on write.
+
+    The aliases remain readable and writable for existing integrations, but
+    are deliberately absent from the advertised ``TypKodu`` reference list.
+    """
+    return value in CANONICAL_PROVIDER_IDENTIFIER_TYPES + DEPRECATED_PROVIDER_IDENTIFIER_TYPES

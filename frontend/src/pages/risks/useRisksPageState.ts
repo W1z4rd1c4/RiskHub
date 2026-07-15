@@ -20,9 +20,11 @@ import {
     type RegisterPageLoadRequest,
     useRegisterPageController,
 } from '../shared/useRegisterPageController';
+import type { RiskSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 
 interface UseRisksPageStateOptions {
     initialState: RisksPageInitialState;
+    semanticFilters?: RiskSemanticFilters;
 }
 
 type RiskRegisterFilters = {
@@ -35,7 +37,7 @@ type RiskRegisterFilters = {
     typeFilter: string;
 };
 
-export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
+export function useRisksPageState({ initialState, semanticFilters = {} }: UseRisksPageStateOptions) {
     const { thresholds } = useRiskThresholds();
 
     const loadRiskPage = useCallback(
@@ -46,24 +48,26 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
             groupBy,
             groupValue,
             limit,
-        }: RegisterPageLoadRequest<RiskRegisterFilters, ViewMode>) => riskApi.getRisks(
-            buildRiskListParams({
-                criticalMinNetScore: thresholds.critical,
-                currentPage,
-                criticalFilter: filters.criticalFilter,
-                hasBreachFilter: filters.hasBreachFilter,
-                limit,
-                priorityFilter: filters.priorityFilter,
-                search: debouncedSearch,
-                sortDirection: filters.sortDirection,
-                sortField: filters.sortField,
-                statusFilter: filters.statusFilter,
-                typeFilter: filters.typeFilter,
-                groupBy,
-                groupValue,
-            })
-        ),
-        [thresholds.critical]
+        }: RegisterPageLoadRequest<RiskRegisterFilters, ViewMode>) =>
+            riskApi.getRisks({
+                ...buildRiskListParams({
+                    criticalMinNetScore: thresholds.critical,
+                    currentPage,
+                    criticalFilter: filters.criticalFilter,
+                    hasBreachFilter: filters.hasBreachFilter,
+                    limit,
+                    priorityFilter: filters.priorityFilter,
+                    search: debouncedSearch,
+                    sortDirection: filters.sortDirection,
+                    sortField: filters.sortField,
+                    statusFilter: filters.statusFilter,
+                    typeFilter: filters.typeFilter,
+                    groupBy,
+                    groupValue,
+                }),
+                ...semanticFilters,
+            }),
+        [thresholds.critical, semanticFilters],
     );
 
     const logLoadError = useCallback((error: unknown) => {
@@ -71,12 +75,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     }, []);
 
     const submitExport = useCallback(
-        async ({
-            format,
-            asOfDate,
-            filters,
-            search,
-        }: RegisterPageExportRequest<RiskRegisterFilters, ViewMode>) => {
+        async ({ format, asOfDate, filters, search }: RegisterPageExportRequest<RiskRegisterFilters, ViewMode>) => {
             await reportApi.exportRisks({
                 format,
                 asOfDate,
@@ -88,7 +87,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
                 }),
             });
         },
-        []
+        [],
     );
 
     const logExportError = useCallback((error: unknown) => {
@@ -139,32 +138,47 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
                 setErrorKey('errors.load_failed');
             }
         },
-        [fetchRisks, setErrorKey]
+        [fetchRisks, setErrorKey],
     );
 
-    const updateStatusFilter = useCallback((value: RiskListStatusFilter) => {
-        updateFilter('statusFilter', value);
-    }, [updateFilter]);
+    const updateStatusFilter = useCallback(
+        (value: RiskListStatusFilter) => {
+            updateFilter('statusFilter', value);
+        },
+        [updateFilter],
+    );
 
-    const updateTypeFilter = useCallback((value: string) => {
-        updateFilter('typeFilter', value);
-    }, [updateFilter]);
+    const updateTypeFilter = useCallback(
+        (value: string) => {
+            updateFilter('typeFilter', value);
+        },
+        [updateFilter],
+    );
 
     const togglePriorityFilter = useCallback(() => {
         updateFilter('priorityFilter', registerController.filters.priorityFilter === true ? undefined : true);
     }, [registerController.filters.priorityFilter, updateFilter]);
 
-    const updateCriticalFilter = useCallback((value: boolean) => {
-        updateFilter('criticalFilter', value);
-    }, [updateFilter]);
+    const updateCriticalFilter = useCallback(
+        (value: boolean) => {
+            updateFilter('criticalFilter', value);
+        },
+        [updateFilter],
+    );
 
-    const updateHasBreachFilter = useCallback((value: boolean | undefined) => {
-        updateFilter('hasBreachFilter', value);
-    }, [updateFilter]);
+    const updateHasBreachFilter = useCallback(
+        (value: boolean | undefined) => {
+            updateFilter('hasBreachFilter', value);
+        },
+        [updateFilter],
+    );
 
-    const updateSort = useCallback((sortField: string | null, sortDirection: SortDirection) => {
-        updateFilters({ sortDirection, sortField });
-    }, [updateFilters]);
+    const updateSort = useCallback(
+        (sortField: string | null, sortDirection: SortDirection) => {
+            updateFilters({ sortDirection, sortField });
+        },
+        [updateFilters],
+    );
 
     return {
         criticalFilter: registerController.filters.criticalFilter,

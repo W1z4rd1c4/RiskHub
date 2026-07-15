@@ -6,13 +6,17 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProviderWithReady } from '@test/authBootstrap';
 import {
     heatmapCellFill,
+    heatmapDrilldownPath,
     kpiDrilldownPath,
     localizeRegisterRowLabel,
     metricDrilldownPath,
     migrationCellFill,
+    migrationDrilldownPath,
     narrativeParams,
     netBandStyle,
     riskBandChartRows,
+    riskBandDrilldownPath,
+    assetCriticalityDrilldownPath,
     roiGapRoutePath,
     stateTileDrilldownPath,
     tierStyle,
@@ -240,8 +244,14 @@ describe('ICT Risk Committee presentation helpers', () => {
         // FR-P5-1: migrated off the Excel pastels onto the semantic status tokens.
         // The four Excel bands collapse onto the three-token RAG scale — Střední +
         // Vysoké both read amber (--warning); Kritické reads red (--destructive).
-        const success = { backgroundColor: 'hsl(var(--success))', color: 'hsl(var(--success-foreground))' };
-        const warning = { backgroundColor: 'hsl(var(--warning))', color: 'hsl(var(--warning-foreground))' };
+        const success = {
+            backgroundColor: 'hsl(var(--success))',
+            color: 'hsl(var(--success-foreground))',
+        };
+        const warning = {
+            backgroundColor: 'hsl(var(--warning))',
+            color: 'hsl(var(--warning-foreground))',
+        };
         const destructive = {
             backgroundColor: 'hsl(var(--destructive))',
             color: 'hsl(var(--destructive-foreground))',
@@ -265,47 +275,53 @@ describe('ICT Risk Committee presentation helpers', () => {
         // Plain register counts land on the register pages...
         expect(stateTileDrilldownPath('process_count')).toBe('/processes');
         expect(stateTileDrilldownPath('asset_count')).toBe('/assets');
-        expect(stateTileDrilldownPath('process_asset_link_count')).toBe('/assets');
+        expect(stateTileDrilldownPath('process_asset_link_count')).toBe('/assets?has_process_link=true');
         expect(stateTileDrilldownPath('vendor_count')).toBe('/vendors');
-        expect(stateTileDrilldownPath('direct_process_vendor_link_count')).toBe('/vendors');
-        expect(stateTileDrilldownPath('contracts_in_roi_scope_count')).toBe('/vendors');
-        expect(stateTileDrilldownPath('sub_outsourcing_link_count')).toBe('/vendors');
-        // ...and the DQ-equivalent tiles land on the DQ page filtered to their check.
-        expect(stateTileDrilldownPath('assets_pending_review_count')).toBe(
-            '/ict-register/data-quality?check=DQ-09'
+        expect(stateTileDrilldownPath('direct_process_vendor_link_count')).toBe(
+            '/vendors?has_direct_process_link=true',
         );
+        expect(stateTileDrilldownPath('contracts_in_roi_scope_count')).toBe('/vendors?has_roi_contract=true');
+        expect(stateTileDrilldownPath('sub_outsourcing_link_count')).toBe('/vendors?has_sub_outsourcing=true');
+        // ...and the DQ-equivalent tiles land on the DQ page filtered to their check.
+        expect(stateTileDrilldownPath('assets_pending_review_count')).toBe('/ict-register/data-quality?check=DQ-09');
         expect(stateTileDrilldownPath('assets_without_data_classification_count')).toBe(
-            '/ict-register/data-quality?check=DQ-46'
+            '/ict-register/data-quality?check=DQ-46',
         );
         expect(stateTileDrilldownPath('top_tier_vendors_without_orderly_exit_count')).toBe(
-            '/ict-register/data-quality?check=DQ-49'
+            '/ict-register/data-quality?check=DQ-49',
         );
 
-        expect(metricDrilldownPath('cif_process_count')).toBe('/processes');
+        expect(metricDrilldownPath('cif_process_count')).toBe('/processes?cif=true');
         expect(metricDrilldownPath('processes_without_impact_assessment_count')).toBe(
-            '/ict-register/data-quality?check=DQ-04'
+            '/ict-register/data-quality?check=DQ-04',
         );
-        expect(metricDrilldownPath('critical_asset_count')).toBe('/assets');
-        expect(metricDrilldownPath('critical_vendor_count')).toBe('/vendors');
-        expect(metricDrilldownPath('risks_above_tolerance_count')).toBe('/risks');
-        expect(metricDrilldownPath('open_dq_finding_count')).toBe(
-            '/ict-register/data-quality?status=findings'
-        );
+        expect(metricDrilldownPath('critical_asset_count')).toBe('/assets?criticality=Kritick%C3%A1');
+        expect(metricDrilldownPath('critical_vendor_count')).toBe('/vendors?tier=Kritick%C3%BD+dodavatel');
+        expect(metricDrilldownPath('risks_above_tolerance_count')).toBe('/risks?above_tolerance=true');
+        expect(metricDrilldownPath('open_dq_finding_count')).toBe('/ict-register/data-quality?status=findings');
     });
 
     it('drills every CRO KPI tile down to the surface behind it', () => {
         // The DQ-equivalent tiles land on the DQ page (I7 ≡ DQ-05; K7 = the
         // findings tally); the risk-fed tiles land on the risk register.
-        expect(kpiDrilldownPath('risk_count')).toBe('/risks');
+        expect(kpiDrilldownPath('risk_count')).toBe('/risks?ict_linked=true');
         expect(kpiDrilldownPath('material_risk_count')).toBe('/risks');
-        expect(kpiDrilldownPath('risks_above_tolerance_count')).toBe('/risks');
-        expect(kpiDrilldownPath('accepted_above_tolerance_count')).toBe('/risks');
-        expect(kpiDrilldownPath('cif_without_bcm_count')).toBe(
-            '/ict-register/data-quality?check=DQ-05'
+        expect(kpiDrilldownPath('risks_above_tolerance_count')).toBe('/risks?above_tolerance=true');
+        expect(kpiDrilldownPath('accepted_above_tolerance_count')).toBe(
+            '/risks?above_tolerance=true&response=acceptance',
         );
-        expect(kpiDrilldownPath('open_dq_finding_count')).toBe(
-            '/ict-register/data-quality?status=findings'
+        expect(kpiDrilldownPath('cif_without_bcm_count')).toBe('/ict-register/data-quality?check=DQ-05');
+        expect(kpiDrilldownPath('open_dq_finding_count')).toBe('/ict-register/data-quality?status=findings');
+    });
+
+    it('maps every matrix coordinate and chart bar to its semantic register filter', () => {
+        expect(heatmapDrilldownPath(5, 3)).toBe('/risks?gross_probability=5&gross_impact=3');
+        expect(migrationDrilldownPath('Vysoké', 'Střední')).toBe(
+            '/risks?gross_band=Vysok%C3%A9&net_band=St%C5%99edn%C3%AD',
         );
+        expect(assetCriticalityDrilldownPath('Kritická')).toBe('/assets?criticality=Kritick%C3%A1');
+        expect(riskBandDrilldownPath('Kritické', 'gross')).toBe('/risks?gross_band=Kritick%C3%A9');
+        expect(riskBandDrilldownPath('Nízké', 'net')).toBe('/risks?net_band=N%C3%ADzk%C3%A9');
     });
 
     it('anchors RoI gap rows on their register detail pages (the DQ route shape)', () => {
@@ -317,7 +333,7 @@ describe('ICT Risk Committee presentation helpers', () => {
                 route_entity_type: 'process',
                 route_entity_id: 12,
                 missing: [],
-            })
+            }),
         ).toBe('/processes/12');
         expect(
             roiGapRoutePath({
@@ -327,7 +343,7 @@ describe('ICT Risk Committee presentation helpers', () => {
                 route_entity_type: 'vendor',
                 route_entity_id: 9,
                 missing: [],
-            })
+            }),
         ).toBe('/vendors/9');
         expect(
             roiGapRoutePath({
@@ -337,7 +353,7 @@ describe('ICT Risk Committee presentation helpers', () => {
                 route_entity_type: 'asset',
                 route_entity_id: 7,
                 missing: [],
-            })
+            }),
         ).toBe('/assets/7');
         expect(
             roiGapRoutePath({
@@ -347,7 +363,7 @@ describe('ICT Risk Committee presentation helpers', () => {
                 route_entity_type: 'unknown',
                 route_entity_id: 1,
                 missing: [],
-            })
+            }),
         ).toBeNull();
     });
 
@@ -358,13 +374,9 @@ describe('ICT Risk Committee presentation helpers', () => {
                 'common:fallbacks.unknown_sub_outsourcing': 'Unknown sub-outsourcing provider',
             })[key] ?? key;
         expect(localizeRegisterRowLabel('{{unknown_vendor}}', t)).toBe('Unknown vendor');
-        expect(localizeRegisterRowLabel('{{unknown_sub_outsourcing}}', t)).toBe(
-            'Unknown sub-outsourcing provider'
-        );
+        expect(localizeRegisterRowLabel('{{unknown_sub_outsourcing}}', t)).toBe('Unknown sub-outsourcing provider');
         // Real business labels pass through untouched.
-        expect(localizeRegisterRowLabel('F12 — Správa pojistných smluv', t)).toBe(
-            'F12 — Správa pojistných smluv'
-        );
+        expect(localizeRegisterRowLabel('F12 — Správa pojistných smluv', t)).toBe('F12 — Správa pojistných smluv');
     });
 
     it('stages the gross-vs-net chart rows from the band aggregate', () => {
@@ -397,7 +409,7 @@ describe('IctRegisterCommitteePage', () => {
                         <IctRegisterCommitteePage />
                     </ThemeProvider>
                 </AuthProviderWithReady>
-            </MemoryRouter>
+            </MemoryRouter>,
         );
     }
 
@@ -410,10 +422,7 @@ describe('IctRegisterCommitteePage', () => {
         expect(screen.getByTestId('committee-state-vendor_count')).toHaveTextContent('30');
         const reviewTile = screen.getByTestId('committee-state-assets_pending_review_count');
         expect(reviewTile).toHaveTextContent('36');
-        expect(reviewTile.closest('a')).toHaveAttribute(
-            'href',
-            '/ict-register/data-quality?check=DQ-09'
-        );
+        expect(reviewTile.closest('a')).toHaveAttribute('href', '/ict-register/data-quality?check=DQ-09');
 
         // Key-metric rows show the live value plus the static texts (EN).
         const cifRow = screen.getByTestId('committee-metric-cif_process_count');
@@ -424,18 +433,17 @@ describe('IctRegisterCommitteePage', () => {
         // CRO KPI strip; tiles drill down (I7 lands on its DQ check).
         expect(screen.getByTestId('committee-kpi-risk_count')).toHaveTextContent('8');
         expect(screen.getByTestId('committee-kpi-accepted_above_tolerance_count')).toHaveTextContent('1');
-        expect(
-            screen.getByTestId('committee-kpi-cif_without_bcm_count').closest('a')
-        ).toHaveAttribute('href', '/ict-register/data-quality?check=DQ-05');
+        expect(screen.getByTestId('committee-kpi-cif_without_bcm_count').closest('a')).toHaveAttribute(
+            'href',
+            '/ict-register/data-quality?check=DQ-05',
+        );
 
         // Heatmap renders the full 5×5 grid in probability 5..1 order, and its
         // caption states what the app actually plots (gross probability ×
         // gross impact — the loader's mapping of the workbook's subject axis).
         expect(screen.getByTestId('committee-heatmap-cell-5-5')).toHaveTextContent('2');
         expect(screen.getByTestId('committee-heatmap-cell-1-1')).toHaveTextContent('0');
-        expect(screen.getByTestId('committee-heatmap')).toHaveTextContent(
-            'Gross probability ↓ / Gross impact →'
-        );
+        expect(screen.getByTestId('committee-heatmap')).toHaveTextContent('Gross probability ↓ / Gross impact →');
 
         // Migration matrix band edges.
         expect(screen.getByTestId('committee-migration-cell-Kritické-Kritické')).toHaveTextContent('2');
@@ -457,21 +465,16 @@ describe('IctRegisterCommitteePage', () => {
 
         // Narratives compose the five sentences from the structured values (EN).
         expect(screen.getByTestId('committee-narrative-a34')).toHaveTextContent(
-            'CIF functions: 79 of 148 processes; with BCM evidence: 76'
+            'CIF functions: 79 of 148 processes; with BCM evidence: 76',
         );
-        expect(screen.getByTestId('committee-narrative-a38')).toHaveTextContent(
-            'P_Tolerance = 39'
-        );
+        expect(screen.getByTestId('committee-narrative-a38')).toHaveTextContent('P_Tolerance = 39');
 
         // The two aggregate charts are staged.
         expect(screen.getByTestId('committee-chart-assets')).toBeInTheDocument();
         expect(screen.getByTestId('committee-chart-risk-bands')).toBeInTheDocument();
 
         // The workbook's nav-link chrome maps to in-app navigation.
-        expect(screen.getByTestId('committee-nav-dq')).toHaveAttribute(
-            'href',
-            '/ict-register/data-quality'
-        );
+        expect(screen.getByTestId('committee-nav-dq')).toHaveAttribute('href', '/ict-register/data-quality');
     });
 
     it('mutes the material KPI as not yet measurable — never a silent 0', async () => {
@@ -505,9 +508,7 @@ describe('IctRegisterCommitteePage', () => {
         expect(entity).not.toHaveTextContent('%');
 
         // A gated template with no feeding rows shows the empty affordance.
-        expect(screen.getByTestId('committee-roi-template-B_02.01')).toHaveTextContent(
-            'No feeding rows'
-        );
+        expect(screen.getByTestId('committee-roi-template-B_02.01')).toHaveTextContent('No feeding rows');
 
         // The gap drill-down expands to the rows and their missing field codes,
         // linking each row to its register detail page.
@@ -516,9 +517,10 @@ describe('IctRegisterCommitteePage', () => {
         expect(gaps).toHaveTextContent('F12 — Správa pojistných smluv');
         expect(gaps).toHaveTextContent('B_06.01.0020');
         expect(gaps).toHaveTextContent('B_06.01.0080');
-        expect(
-            screen.getByRole('link', { name: /F12 — Správa pojistných smluv/ })
-        ).toHaveAttribute('href', '/processes/12');
+        expect(screen.getByRole('link', { name: /F12 — Správa pojistných smluv/ })).toHaveAttribute(
+            'href',
+            '/processes/12',
+        );
     });
 
     it('renders a tokenized RoI gap-row label as the localized Unknown fallback, never the token', async () => {
