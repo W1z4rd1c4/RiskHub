@@ -25,16 +25,16 @@ interface VendorRegisterLinksSectionProps {
     vendorId: number;
     capabilities?: Pick<
         VendorCapabilities,
-        'can_manage_asset_links' | 'can_manage_process_links'
+        'can_view_asset_links' | 'can_manage_asset_links' | 'can_manage_process_links'
     > | null;
 }
 
 /**
  * The Vendor end of the ICT Register Link relations (issue #46): the Assets
  * that depend on this Vendor (sheet 10_VAD, typed by S-code) and the
- * Processes linked to it directly (sheet 11 §1). Reads need both ends' read
- * permissions; mutations call the register-end routes and are gated on the
- * backend's per-row capabilities (assets:write / processes:write).
+ * Processes linked to it directly (sheet 11 §1). Backend collection-view
+ * metadata controls whether each block is fetched; mutations call the
+ * register-end routes and are gated separately by add and per-row capabilities.
  */
 export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorRegisterLinksSectionProps) {
     const { t } = useTranslation(['vendors', 'common']);
@@ -50,6 +50,9 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
     const debouncedAssetSearch = useDebouncedValue(assetSearch);
     const debouncedProcessSearch = useDebouncedValue(processSearch);
 
+    const backendCanViewAssetLinks = capabilities == null
+        ? null
+        : resolveCapabilityFlag(capabilities, 'can_view_asset_links');
     const backendCanManageAssetLinks = capabilities == null
         ? null
         : resolveCapabilityFlag(capabilities, 'can_manage_asset_links');
@@ -58,7 +61,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
         : resolveCapabilityFlag(capabilities, 'can_manage_process_links');
     const localCanReadAssetLinks = authz.can('read', 'assets');
     const localCanReadProcessLinks = authz.can('read', 'processes');
-    const canReadAssetLinks = localCanReadAssetLinks || backendCanManageAssetLinks === true;
+    const canReadAssetLinks = backendCanViewAssetLinks ?? localCanReadAssetLinks;
     const canReadProcessLinks = localCanReadProcessLinks || backendCanManageProcessLinks === true;
     const canManageAssetLinks = backendCanManageAssetLinks
         ?? (localCanReadAssetLinks && authz.can('write', 'assets'));

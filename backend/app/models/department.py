@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.asset import Asset
     from app.models.control import Control
     from app.models.process import Process
     from app.models.risk import Risk
@@ -40,6 +41,9 @@ class Department(Base):
     vendors: Mapped[list["Vendor"]] = relationship("Vendor", back_populates="department")
     processes: Mapped[list["Process"]] = relationship(
         "Process", foreign_keys="Process.owning_department_id", back_populates="owning_department"
+    )
+    assets: Mapped[list["Asset"]] = relationship(
+        "Asset", foreign_keys="Asset.owning_department_id", back_populates="owning_department"
     )
 
     # Timestamps

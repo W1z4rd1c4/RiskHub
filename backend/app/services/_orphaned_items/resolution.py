@@ -9,6 +9,7 @@ from app.core.activity_logger import build_change_set, log_activity
 from app.core.datetime_utils import utc_now
 from app.core.exceptions import ConflictError, ValidationError
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.models.asset import Asset
 from app.models.control import Control
 from app.models.department import Department
 from app.models.key_risk_indicator import KeyRiskIndicator
@@ -18,6 +19,11 @@ from app.models.risk import Risk
 from app.models.role import Role, RoleType
 from app.models.threat import Threat
 from app.models.user import User
+from app.services._asset_owner_lock import lock_asset_for_owner_mutation
+from app.services._ict_register_lifecycle.asset_policy import (
+    assert_active_asset_department,
+    assert_active_asset_owner,
+)
 from app.services._ict_register_lifecycle.policy import (
     assert_active_owning_department,
     assert_active_process_owner,
@@ -172,6 +178,39 @@ async def validate_resolution_context(
             target_department_id,
         )
 
+    if orphan.item_type == "asset":
+        if new_owner is None:
+            raise ValueError("new_owner_id is required to resolve orphaned Assets")
+        if target_risk is not None:
+            raise ValueError("target_risk_id is not supported for orphaned Assets")
+        if orphan.responsibility_role not in {"business_owner", "ict_owner"}:
+            raise ValueError("Asset orphan responsibility_role is invalid")
+        try:
+            await assert_active_asset_owner(
+                db,
+                user_id=new_owner.id,
+                acquire_identity_lock=False,
+            )
+        except ValidationError as exc:
+            raise ValueError(str(exc)) from exc
+        asset = await db.get(Asset, orphan.item_id)
+        if asset is None:
+            raise ValueError(f"Asset {orphan.item_id} no longer exists")
+        target_department_id = department_id or asset.owning_department_id
+        if target_department_id is None:
+            raise ValueError("department_id is required for orphaned Assets")
+        department_is_active = await db.scalar(
+            select(Department.is_active).where(Department.id == target_department_id)
+        )
+        if department_is_active is not True:
+            raise ValueError("Owning department must be active")
+        return OrphanResolutionContext(
+            orphan,
+            new_owner,
+            None,
+            target_department_id,
+        )
+
     raise ValueError(f"Unsupported orphaned item type: {requirements.item_type}")
 
 
@@ -205,6 +244,15 @@ async def resolve_orphan(
     )
     if orphan_type == "process":
         return await _resolve_process_orphan(
+            db,
+            orphan_id=orphan_id,
+            resolved_by_id=resolved_by_id,
+            new_owner_id=new_owner_id,
+            department_id=department_id,
+            target_risk_id=target_risk_id,
+        )
+    if orphan_type == "asset":
+        return await _resolve_asset_orphan(
             db,
             orphan_id=orphan_id,
             resolved_by_id=resolved_by_id,
@@ -487,6 +535,142 @@ async def _resolve_process_orphan(
         department_id=target_dept_id,
         changes=process_changes,
         description=f"Resolved orphaned process via governance workflow #{orphan.id}",
+    )
+
+    orphan.status = "resolved"
+    orphan.resolved_at = utc_now()
+    orphan.resolved_by_id = resolved_by_id
+    orphan.new_owner_id = new_owner_id
+    await commit_service_boundary(db, boundary="orphaned_items.resolve")
+    return orphan
+
+
+async def _resolve_asset_orphan(
+    db: AsyncSession,
+    *,
+    orphan_id: int,
+    resolved_by_id: int,
+    new_owner_id: int | None,
+    department_id: int | None,
+    target_risk_id: int | None,
+) -> OrphanedItem:
+    """Resolve one Asset responsibility using identity -> Asset -> orphan locks."""
+    if new_owner_id is None:
+        raise ValueError("new_owner_id is required to resolve orphaned Assets")
+    if target_risk_id is not None:
+        raise ValueError("target_risk_id is not supported for orphaned Assets")
+
+    preview = (
+        await db.execute(
+            select(
+                OrphanedItem.item_id,
+                OrphanedItem.status,
+                OrphanedItem.previous_owner_id,
+                OrphanedItem.responsibility_role,
+            ).where(OrphanedItem.id == orphan_id)
+        )
+    ).one_or_none()
+    if preview is None:
+        raise ValueError(f"Orphaned item {orphan_id} not found")
+    if preview.status != "pending":
+        raise OrphanResolutionConflict(f"Orphaned item {orphan_id} is already resolved")
+    if preview.responsibility_role not in {"business_owner", "ict_owner"}:
+        raise ValueError("Asset orphan responsibility_role is invalid")
+
+    snapshot = (
+        await db.execute(
+            select(
+                Asset.business_owner_user_id,
+                Asset.ict_owner_user_id,
+                Asset.owning_department_id,
+            ).where(Asset.id == preview.item_id)
+        )
+    ).one_or_none()
+    if snapshot is None:
+        raise ValueError(f"Asset {preview.item_id} no longer exists")
+    expected_owner_ids = (
+        snapshot.business_owner_user_id,
+        snapshot.ict_owner_user_id,
+    )
+    asset = await lock_asset_for_owner_mutation(
+        db,
+        asset_id=preview.item_id,
+        user_ids=(*expected_owner_ids, new_owner_id),
+        expected_owner_user_ids=expected_owner_ids,
+    )
+    if asset is None:
+        raise ValueError(f"Asset {preview.item_id} no longer exists")
+
+    orphan = (
+        await db.execute(
+            select(OrphanedItem)
+            .where(OrphanedItem.id == orphan_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if orphan is None:
+        raise ValueError(f"Orphaned item {orphan_id} not found")
+    if orphan.item_type != "asset" or orphan.item_id != asset.id:
+        raise ConflictError("Orphaned Asset target changed concurrently; retry")
+    if orphan.status != "pending":
+        raise OrphanResolutionConflict(f"Orphaned item {orphan_id} is already resolved")
+    if orphan.responsibility_role != preview.responsibility_role:
+        raise ConflictError("Orphaned Asset responsibility changed concurrently; retry")
+
+    try:
+        new_owner = await assert_active_asset_owner(
+            db,
+            user_id=int(new_owner_id),
+            acquire_identity_lock=False,
+        )
+        target_department_id = department_id or asset.owning_department_id
+        if target_department_id is None:
+            raise ValueError("department_id is required for orphaned Assets")
+        owning_department = await assert_active_asset_department(
+            db,
+            department_id=int(target_department_id),
+        )
+    except ValidationError as exc:
+        raise ValueError(str(exc)) from exc
+
+    await assert_orphan_still_matches_target_state(
+        db,
+        orphan=orphan,
+        target_entity=asset,
+    )
+    owner_field = f"{orphan.responsibility_role}_user_id"
+    changes = build_change_set(
+        asset,
+        {
+            owner_field: new_owner_id,
+            "owning_department_id": target_department_id,
+        },
+    )
+    if orphan.responsibility_role == "business_owner":
+        asset.business_owner = new_owner
+        asset.business_owner_user_id = new_owner_id
+    else:
+        asset.ict_owner = new_owner
+        asset.ict_owner_user_id = new_owner_id
+    asset.owning_department = owning_department
+    asset.owning_department_id = target_department_id
+
+    resolving_user = await db.get(User, resolved_by_id)
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.ASSET,
+        entity_id=asset.id,
+        entity_name=asset.name,
+        safe_entity_label=f"AST-{asset.id}",
+        action=ActivityAction.UPDATE,
+        actor=resolving_user,
+        department_id=target_department_id,
+        changes=changes,
+        description=(
+            "Resolved orphaned Asset "
+            f"{orphan.responsibility_role} via governance workflow #{orphan.id}"
+        ),
     )
 
     orphan.status = "resolved"

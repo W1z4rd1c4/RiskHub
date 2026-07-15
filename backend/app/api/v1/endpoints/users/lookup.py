@@ -12,7 +12,11 @@ from app.db.session import get_db
 from app.models import Role, User
 from app.models.role import RoleType
 from app.schemas import RoleRead
+from app.schemas.asset import AssetOwnerLookup
 from app.schemas.user import AssignableOwnerLookup, ThreatStewardLookup, UserLookup
+from app.services._ict_register_lifecycle.asset_policy import (
+    assert_asset_assignment_lookup_allowed,
+)
 from app.services._ict_register_lifecycle.policy import assert_process_assignment_lookup_allowed
 
 from ._lifecycle import ensure_admin_user_lifecycle
@@ -237,6 +241,47 @@ async def lookup_process_owners(
             role_name=user.role.name if user.role else None,
             department_id=user.department_id,
             department_name=user.department.name if user.department else None,
+        )
+        for user in users
+    ]
+
+
+@router.get("/lookup/asset-owners", response_model=list[AssetOwnerLookup])
+async def lookup_asset_owners(
+    q: str | None = None,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[AssetOwnerLookup]:
+    """Return active identities eligible for either Asset responsibility."""
+    await assert_asset_assignment_lookup_allowed(db, current_user=current_user)
+    query = (
+        select(User)
+        .options(selectinload(User.role), selectinload(User.department))
+        .where(User.is_active.is_(True))
+    )
+    if q:
+        search_term = f"%{q}%"
+        query = query.where(
+            or_(User.name.ilike(search_term), User.email.ilike(search_term))
+        )
+    users = (
+        await db.execute(
+            query.order_by(User.name.asc(), User.id.asc()).limit(
+                min(limit, MAX_LOOKUP_SIZE)
+            )
+        )
+    ).scalars().all()
+    return [
+        AssetOwnerLookup(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role_name=user.role.name,
+            department_id=user.department_id,
+            department_name=(
+                user.department.name if user.department is not None else None
+            ),
         )
         for user in users
     ]

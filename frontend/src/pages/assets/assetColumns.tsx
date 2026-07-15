@@ -5,7 +5,7 @@ import { CriticalityClassPill } from '@/components/ict-register/CriticalityClass
 import type { Column } from '@/components/tables/SortableTable';
 import type { Asset } from '@/types/asset';
 
-import { getAssetDisplayStatus, type AssetDisplayStatus } from './assetsPagePresentation';
+import { assetDepartmentDisplay, assetDerivedBooleanLabel, assetDerivedCriticalityLabel, assetOwnerDisplayName, getAssetDisplayStatus, type AssetDisplayStatus } from './assetsPagePresentation';
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
@@ -34,7 +34,7 @@ export function buildAssetColumns({
                 <div className="flex flex-col gap-0.5">
                     <span className="text-sm font-bold text-white">{asset.name}</span>
                     {asset.asset_level ? (
-                        <span className="text-xs text-slate-500">{asset.asset_level}</span>
+                        <span className="text-xs text-slate-500">{t(`assets:values.asset_level.${asset.asset_level}`)}</span>
                     ) : null}
                 </div>
             ),
@@ -43,16 +43,16 @@ export function buildAssetColumns({
             key: 'asset_type',
             label: t('assets:columns.asset_type'),
             sortable: true,
-            render: (asset) => <span className="text-sm text-slate-300">{asset.asset_type ?? '—'}</span>,
+            render: (asset) => <span className="text-sm text-slate-300">{asset.asset_type ? t(`assets:values.asset_type.${asset.asset_type}`) : '—'}</span>,
         },
         {
             key: 'business_owner',
             label: t('assets:columns.owner'),
             render: (asset) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-slate-300">{asset.business_owner ?? '—'}</span>
-                    {asset.owner_department ? (
-                        <span className="text-xs text-slate-500">{asset.owner_department}</span>
+                    <span className="text-sm text-slate-300">{assetOwnerDisplayName(asset.business_owner) ?? t('assets:detail.unknown_owner')}</span>
+                    {assetDepartmentDisplay(asset) ? (
+                        <span className="text-xs text-slate-500">{assetDepartmentDisplay(asset)}</span>
                     ) : null}
                 </div>
             ),
@@ -62,7 +62,10 @@ export function buildAssetColumns({
             key: 'derived_resulting_criticality',
             label: t('assets:columns.resulting_criticality'),
             render: (asset) => (
-                <CriticalityClassPill criticalityClass={asset.derived?.resulting_criticality} />
+                <CriticalityClassPill
+                    criticalityClass={asset.derived?.resulting_criticality}
+                    displayValue={assetDerivedCriticalityLabel(t, asset.derived?.resulting_criticality)}
+                />
             ),
         },
         {
@@ -71,7 +74,9 @@ export function buildAssetColumns({
             label: t('assets:columns.cif'),
             className: 'w-[90px]',
             render: (asset) => (
-                <span className="text-sm text-slate-300">{asset.derived?.cif ?? '—'}</span>
+                <span className="text-sm text-slate-300">
+                    {assetDerivedBooleanLabel(t, asset.derived?.cif) ?? '—'}
+                </span>
             ),
         },
         {
@@ -80,7 +85,7 @@ export function buildAssetColumns({
             sortable: true,
             className: 'w-[130px]',
             render: (asset) => (
-                <span className="text-sm text-slate-300">{asset.lifecycle_state ?? '—'}</span>
+                <span className="text-sm text-slate-300">{asset.lifecycle_state ? t(`assets:values.lifecycle_state.${asset.lifecycle_state}`) : '—'}</span>
             ),
         },
         {

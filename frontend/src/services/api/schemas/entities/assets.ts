@@ -13,6 +13,17 @@ export const assetListCapabilitiesSchema = passthroughObject({
     can_create: z.boolean().optional(),
 });
 
+export const assetOwnerReadSchema = passthroughObject({
+    name: z.string(),
+    role_name: z.string(),
+    department_name: z.string().nullable().optional(),
+});
+
+export const assetDepartmentReadSchema = passthroughObject({
+    name: z.string(),
+    code: z.string(),
+});
+
 // Engine-derived block (ticket #48): read-only values computed on read, with
 // the explain inputs (h_rank signals, parameter thresholds) behind them.
 export const assetDerivedInputsSchema = passthroughObject({
@@ -80,9 +91,15 @@ export const assetSchema: z.ZodType<Asset> = passthroughObject({
     deployment_model: z.string().nullable().optional(),
     alternative_names: z.string().nullable().optional(),
 
-    business_owner: z.string().nullable().optional(),
-    owner_department: z.string().nullable().optional(),
-    ict_owner: z.string().nullable().optional(),
+    business_owner_user_id: z.number().nullable().optional(),
+    ict_owner_user_id: z.number().nullable().optional(),
+    owning_department_id: z.number().nullable().optional(),
+    business_owner: assetOwnerReadSchema.nullable().optional(),
+    ict_owner: assetOwnerReadSchema.nullable().optional(),
+    owning_department: assetDepartmentReadSchema.nullable().optional(),
+    business_owner_orphaned: z.boolean(),
+    ict_owner_orphaned: z.boolean(),
+    ownership_status: z.enum(['assigned', 'legacy_unassigned', 'pending_governance', 'invalid_assignment']),
     gdpr_relevance: z.string().nullable().optional(),
     ai_relevance: z.string().nullable().optional(),
     data_classification: z.string().nullable().optional(),

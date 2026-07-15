@@ -157,24 +157,24 @@ def asset_row(aid: int = 1, **overrides: object) -> AssetDerivationInput:
     defaults: dict[str, object] = {
         "id": aid,
         "name": f"Aktivum {aid}",
-        "asset_type": "Aplikace",
-        "asset_level": "B – podpůrné",
+        "asset_type": "application",
+        "asset_level": "supporting",
         "business_owner": "Petr Svoboda",
         "ict_owner": "IT Operations",
         "owner_department": "Úsek IT",
-        "gdpr_relevance": "Ne",
-        "ai_relevance": "Ne",
-        "data_classification": "Interní data",
-        "deployment_model": "On-premise",
+        "gdpr_relevance": "no",
+        "ai_relevance": "no",
+        "data_classification": "internal",
+        "deployment_model": "on_premise",
         "confidentiality_rating": 2,
         "integrity_rating": 2,
         "availability_rating": 2,
         "authenticity_rating": 2,
         "impact_client": 2,
         "impact_regulatory": 2,
-        "internet_exposed": "Ne",
-        "lifecycle_state": "V provozu",
-        "review_state": "Zkontrolováno",
+        "internet_exposed": "no",
+        "lifecycle_state": "operational",
+        "review_state": "reviewed",
     }
     defaults.update(overrides)
     return AssetDerivationInput(**defaults)  # type: ignore[arg-type]
@@ -389,7 +389,7 @@ def test_dq06_asset_without_any_owner_and_dq34_ai_variant():
             assets=(
                 asset_row(1, business_owner=None, ict_owner=None),
                 asset_row(2, business_owner=None),
-                asset_row(3, business_owner=None, ict_owner=None, ai_relevance="Ano"),
+                asset_row(3, business_owner=None, ict_owner=None, ai_relevance="yes"),
             )
         )
     )
@@ -415,19 +415,23 @@ def test_dq08_critical_asset_requires_an_identified_risk():
     COUNTIF (sheets_core.py:412-413) -> Risk<->Asset links in-app."""
     graph = IctRegisterGraph(
         assets=(
-            asset_row(1, preliminary_criticality="Kritická"),
-            asset_row(2, preliminary_criticality="Kritická"),
+            asset_row(1, preliminary_criticality="critical"),
+            asset_row(2, preliminary_criticality="critical"),
             asset_row(3),
         )
     )
-    result = run_dq(graph, risk_asset_links=(RiskAssetLinkDqInput(risk_id=7, asset_id=2),))
+    result = run_dq(
+        graph, risk_asset_links=(RiskAssetLinkDqInput(risk_id=7, asset_id=2),)
+    )
     assert violating_ids(result, "DQ-08") == [1]
 
 
 def test_dq09_asset_flagged_for_review():
     """=COUNTIF(04.stav_revize,"K revizi") — sheets_out.py:384-386."""
     result = run_dq(
-        IctRegisterGraph(assets=(asset_row(1, review_state="K revizi"), asset_row(2)))
+        IctRegisterGraph(
+            assets=(asset_row(1, review_state="review_required"), asset_row(2))
+        )
     )
     assert violating_ids(result, "DQ-09") == [1]
 
@@ -438,9 +442,13 @@ def test_dq10_legacy_asset_without_risk_assessment():
     result = run_dq(
         IctRegisterGraph(
             assets=(
-                asset_row(1, lifecycle_state="Legacy"),
+                asset_row(1, lifecycle_state="legacy"),
                 asset_row(2, standard_support_end_date=date(2026, 1, 1)),
-                asset_row(3, lifecycle_state="Legacy", last_legacy_risk_assessment_date=date(2026, 5, 1)),
+                asset_row(
+                    3,
+                    lifecycle_state="legacy",
+                    last_legacy_risk_assessment_date=date(2026, 5, 1),
+                ),
                 asset_row(4),
             )
         )
@@ -454,8 +462,8 @@ def test_dq27_dq28_missing_or_undetermined_relevance_flags():
         IctRegisterGraph(
             assets=(
                 asset_row(1, gdpr_relevance=None),
-                asset_row(2, gdpr_relevance="Neurčeno"),
-                asset_row(3, ai_relevance="Neurčeno"),
+                asset_row(2, gdpr_relevance="undetermined"),
+                asset_row(3, ai_relevance="undetermined"),
                 asset_row(4),
             )
         )
@@ -471,8 +479,8 @@ def test_dq29_dq33_ciaa_completeness_general_and_internet_exposed():
         IctRegisterGraph(
             assets=(
                 asset_row(1, authenticity_rating=None),
-                asset_row(2, internet_exposed="Ano", confidentiality_rating=None),
-                asset_row(3, internet_exposed="Ano"),
+                asset_row(2, internet_exposed="yes", confidentiality_rating=None),
+                asset_row(3, internet_exposed="yes"),
             )
         )
     )
@@ -511,11 +519,19 @@ def test_dq35_dq47_confidentiality_thresholds_with_blank_counting():
     result = run_dq(
         IctRegisterGraph(
             assets=(
-                asset_row(1, gdpr_relevance="Ano", confidentiality_rating=2),
-                asset_row(2, gdpr_relevance="Ano", confidentiality_rating=None),
-                asset_row(3, gdpr_relevance="Ano", confidentiality_rating=3),
-                asset_row(4, data_classification="Vysoce důvěrná / regulovaná data", confidentiality_rating=2),
-                asset_row(5, data_classification="Vysoce důvěrná / regulovaná data", confidentiality_rating=5),
+                asset_row(1, gdpr_relevance="yes", confidentiality_rating=2),
+                asset_row(2, gdpr_relevance="yes", confidentiality_rating=None),
+                asset_row(3, gdpr_relevance="yes", confidentiality_rating=3),
+                asset_row(
+                    4,
+                    data_classification="highly_confidential_regulated",
+                    confidentiality_rating=2,
+                ),
+                asset_row(
+                    5,
+                    data_classification="highly_confidential_regulated",
+                    confidentiality_rating=5,
+                ),
             )
         )
     )
@@ -524,7 +540,9 @@ def test_dq35_dq47_confidentiality_thresholds_with_blank_counting():
 
     # The threshold is the live P_GdprMinC parameter, not a constant.
     relaxed = run_dq(
-        IctRegisterGraph(assets=(asset_row(1, gdpr_relevance="Ano", confidentiality_rating=2),)),
+        IctRegisterGraph(
+            assets=(asset_row(1, gdpr_relevance="yes", confidentiality_rating=2),)
+        ),
         parameters=parameter_set(P_GdprMinC=2),
     )
     assert check(relaxed, "DQ-35").status == DQ_STATUS_OK
@@ -537,7 +555,7 @@ def test_dq36_spof_asset_requires_reviewed_record():
         processes=(process_row(1),),
         assets=(
             asset_row(1, review_state=None),
-            asset_row(2, review_state="K revizi"),
+            asset_row(2, review_state="review_required"),
             asset_row(3),
         ),
         process_asset_links=(
@@ -560,9 +578,9 @@ def test_dq44_dq46_dq48_missing_department_classification_and_model():
             assets=(
                 asset_row(1, owner_department=None),
                 asset_row(2, data_classification=None),
-                asset_row(3, data_classification="Neposouzeno"),
+                asset_row(3, data_classification="not_assessed"),
                 asset_row(4, deployment_model=None),
-                asset_row(5, deployment_model="Neposouzeno"),
+                asset_row(5, deployment_model="not_assessed"),
                 asset_row(6),
             )
         )
@@ -578,10 +596,14 @@ def test_dq51_gdpr_asset_with_no_data_or_public_classification():
     result = run_dq(
         IctRegisterGraph(
             assets=(
-                asset_row(1, gdpr_relevance="Ano", data_classification="Bez dat / nerelevantní"),
-                asset_row(2, gdpr_relevance="Ano", data_classification="Veřejná data"),
-                asset_row(3, gdpr_relevance="Ano", data_classification="Důvěrná data"),
-                asset_row(4, gdpr_relevance="Ne", data_classification="Veřejná data"),
+                asset_row(
+                    1,
+                    gdpr_relevance="yes",
+                    data_classification="no_data_not_applicable",
+                ),
+                asset_row(2, gdpr_relevance="yes", data_classification="public"),
+                asset_row(3, gdpr_relevance="yes", data_classification="confidential"),
+                asset_row(4, gdpr_relevance="no", data_classification="public"),
             )
         )
     )
@@ -686,22 +708,36 @@ def test_dq37_dependency_direction_uses_level_first_chars():
     fires. A blank level coerces to "0" (LEFT of the XLOOKUP zero), so a
     blank-level SUPPORTING asset under a leveled dependent also fires —
     the workbook quirk, verbatim."""
-    a_primary = asset_row(1, asset_level="A – primární")
-    b_support = asset_row(2, asset_level="B – podpůrné")
-    c_infra = asset_row(3, asset_level="C – infrastrukturní")
+    a_primary = asset_row(1, asset_level="primary")
+    b_support = asset_row(2, asset_level="supporting")
+    c_infra = asset_row(3, asset_level="infrastructure")
     blank = asset_row(4, asset_level=None)
     graph = IctRegisterGraph(
         assets=(a_primary, b_support, c_infra, blank),
         asset_asset_links=(
-            AssetAssetLinkInput(dependent_asset_id=1, supporting_asset_id=2),  # A->B expected
-            AssetAssetLinkInput(dependent_asset_id=2, supporting_asset_id=1),  # B->A suspicious
-            AssetAssetLinkInput(dependent_asset_id=3, supporting_asset_id=1),  # C->A suspicious
-            AssetAssetLinkInput(dependent_asset_id=2, supporting_asset_id=4),  # "0" < "B" fires
-            AssetAssetLinkInput(dependent_asset_id=4, supporting_asset_id=2),  # "B" > "0" OK
+            AssetAssetLinkInput(
+                dependent_asset_id=1, supporting_asset_id=2
+            ),  # A->B expected
+            AssetAssetLinkInput(
+                dependent_asset_id=2, supporting_asset_id=1
+            ),  # B->A suspicious
+            AssetAssetLinkInput(
+                dependent_asset_id=3, supporting_asset_id=1
+            ),  # C->A suspicious
+            AssetAssetLinkInput(
+                dependent_asset_id=2, supporting_asset_id=4
+            ),  # "0" < "B" fires
+            AssetAssetLinkInput(
+                dependent_asset_id=4, supporting_asset_id=2
+            ),  # "B" > "0" OK
         ),
     )
     result = run_dq(graph)
-    assert [(row.route_entity_id) for row in check(result, "DQ-37").violating_rows] == [2, 3, 2]
+    assert [(row.route_entity_id) for row in check(result, "DQ-37").violating_rows] == [
+        2,
+        3,
+        2,
+    ]
 
 
 def test_dq38_chain_breaks_reuse_the_engine_sentinel_and_duplicates_mask():
@@ -1388,9 +1424,27 @@ async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
         )
         assert vendor_resp.status_code == 201, vendor_resp.text
         vendor = vendor_resp.json()
-        asset_resp = await client.post("/api/v1/assets", json={"name": "Veris"})
+        asset_resp = await client.post(
+            "/api/v1/assets",
+            json={
+                "name": "Veris",
+                "business_owner_user_id": test_user_cro.id,
+                "ict_owner_user_id": test_user_cro.id,
+                "owning_department_id": test_department.id,
+            },
+        )
         assert asset_resp.status_code == 201, asset_resp.text
         asset = asset_resp.json()
+        # DQ-06/DQ-44 remain historical-data guards even though #75 requires
+        # all three responsibility relationships on every new active Asset.
+        from app.models import Asset
+
+        stored_asset = await db_session.get(Asset, asset["id"])
+        assert stored_asset is not None
+        stored_asset.business_owner_user_id = None
+        stored_asset.ict_owner_user_id = None
+        stored_asset.owning_department_id = None
+        await db_session.commit()
         link = await client.post(
             f"/api/v1/assets/{asset['id']}/process-links",
             json={"process_id": process["id"], "is_primary": True},

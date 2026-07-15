@@ -310,31 +310,53 @@ export const E2E_ASSETS = {
     /** Linked to PROC-001 (primary) and PROC-002; depends on ASSET-002 and ASSET-003. */
     CORE_CLAIMS_SYSTEM: {
         name: 'E2E-ASSET-001 Core Claims System',
-        asset_type: 'Aplikace',
-        preliminary_criticality: 'Vysoká',
+        asset_type: 'application',
+        preliminary_criticality: 'high',
         status: 'active',
     },
     CLAIMS_DATABASE: {
         name: 'E2E-ASSET-002 Claims Database',
-        asset_type: 'Databáze',
-        preliminary_criticality: 'Kritická',
+        asset_type: 'database',
+        preliminary_criticality: 'critical',
         status: 'active',
     },
     /** Dedicated target of the UI process-link management test (links reset in-test). */
     INTEGRATION_BUS: {
         name: 'E2E-ASSET-003 Integration Message Bus',
-        asset_type: 'Infrastruktura',
+        asset_type: 'infrastructure',
         status: 'active',
     },
     /** Dedicated target of the UI asset-link management test (links reset in-test). */
     REPORTING_WAREHOUSE: {
         name: 'E2E-ASSET-004 Reporting Warehouse',
-        asset_type: 'Datové úložiště',
+        asset_type: 'data_storage',
         status: 'active',
+    },
+    OWNER_SCOPED_ACTIVE: {
+        name: 'E2E-ASSET-005 Cross-Department Owner Scope',
+        asset_type: 'cloud_service',
+        business_owner_email: 'ops.analyst@riskhub.local',
+        business_owner_name: 'Jana Horáková',
+        ict_owner_email: 'it.analyst@riskhub.local',
+        ict_owner_name: 'Barbora Němcová',
+        owning_department: 'Finance',
+        owning_department_code: 'FIN',
+        status: 'active',
+    },
+    OWNER_SCOPED_ARCHIVED: {
+        name: 'E2E-ASSET-OWNER-ARCH Archived Owner Scope',
+        asset_type: 'cloud_service',
+        business_owner_email: 'ops.analyst@riskhub.local',
+        business_owner_name: 'Jana Horáková',
+        ict_owner_email: 'it.analyst@riskhub.local',
+        ict_owner_name: 'Barbora Němcová',
+        owning_department: 'Finance',
+        owning_department_code: 'FIN',
+        status: 'archived',
     },
     ARCHIVED: {
         name: 'E2E-ASSET-ARCH Fax Gateway',
-        asset_type: 'Hardware',
+        asset_type: 'hardware',
         status: 'archived',
     },
 } as const;
@@ -461,6 +483,8 @@ export const E2E_REQUIRED_FIXTURES = {
     ],
     assets: [
         E2E_ASSETS.CORE_CLAIMS_SYSTEM.name,
+        E2E_ASSETS.OWNER_SCOPED_ACTIVE.name,
+        E2E_ASSETS.OWNER_SCOPED_ARCHIVED.name,
         E2E_ASSETS.ARCHIVED.name,
     ],
     threats: [

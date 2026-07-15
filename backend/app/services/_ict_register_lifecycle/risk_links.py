@@ -36,7 +36,7 @@ from app.services._authorization_capabilities import (
 )
 from app.services.transaction_boundary import commit_service_boundary
 
-from .asset_policy import load_asset
+from .asset_policy import assert_asset_readable, can_read_asset_record, load_asset
 from .derivation import process_display_name
 from .policy import load_process
 from .threat_links import require_risk_end_access
@@ -265,7 +265,14 @@ async def list_risk_asset_links(
         select(RiskAssetLink).where(RiskAssetLink.risk_id == risk_id).order_by(RiskAssetLink.id)
     )
     links = list(result.scalars().all())
-    asset_names = await _asset_names_by_id(db, {link.asset_id for link in links})
+    readable_assets = [
+        asset
+        for link in links
+        if (asset := await load_asset(db, link.asset_id)) is not None
+        and can_read_asset_record(current_user, asset)
+    ]
+    readable_asset_ids = {asset.id for asset in readable_assets}
+    asset_names = {asset.id: asset.name for asset in readable_assets}
     return [
         _serialize_risk_asset_link(
             link,
@@ -275,6 +282,7 @@ async def list_risk_asset_links(
             risk_name=risk.name,
         )
         for link in links
+        if link.asset_id in readable_asset_ids
     ]
 
 
@@ -290,13 +298,13 @@ async def list_asset_risk_links(
     a dept-scoped user sees only the linked Risks the Risk register itself
     would show them.
     """
-    if not check_permission(current_user, "assets", "read"):
-        raise AuthorizationError("Permission denied: assets:read")
     if not check_permission(current_user, "risks", "read"):
         raise AuthorizationError("Permission denied: risks:read")
-    asset = await load_asset(db, asset_id)
-    if not asset:
-        raise NotFoundError("Asset not found")
+    asset = await assert_asset_readable(
+        db,
+        asset_id=asset_id,
+        current_user=current_user,
+    )
 
     result = await db.execute(
         select(RiskAssetLink).where(RiskAssetLink.asset_id == asset_id).order_by(RiskAssetLink.id)
@@ -327,9 +335,11 @@ async def add_risk_asset_link(
         db, risk_id=risk_id, current_user=current_user, other_resource="assets", require_write=True
     )
 
-    asset = await load_asset(db, payload.asset_id)
-    if not asset:
-        raise NotFoundError("Asset not found")
+    asset = await assert_asset_readable(
+        db,
+        asset_id=payload.asset_id,
+        current_user=current_user,
+    )
     if asset.is_archived:
         raise ConflictError("Cannot link archived asset")
 

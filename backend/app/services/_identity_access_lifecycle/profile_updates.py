@@ -12,6 +12,7 @@ from app.core.user_query_options import user_selectinload_options
 from app.models import Role, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas import UserCreate, UserUpdate
+from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
 from app.services._org_chart import (
     acquire_org_chart_lock,
     clear_manager_references_for_inactive_user,
@@ -128,6 +129,7 @@ async def update_user_profile(
         await acquire_threat_steward_identity_lock(db, user_id=user.id)
         if update_data.get("is_active") is False:
             await acquire_process_owner_identity_lock(db, user_id=user.id)
+            await acquire_asset_owner_identity_lock(db, user_id=user.id)
         user = (
             await db.execute(
                 select(User)

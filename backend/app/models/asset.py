@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -15,10 +16,14 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models._archivable import ArchivableMixin
+
+if TYPE_CHECKING:
+    from app.models.department import Department
+    from app.models.user import User
 
 
 class Asset(ArchivableMixin, Base):
@@ -45,9 +50,30 @@ class Asset(ArchivableMixin, Base):
     alternative_names: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # B·VLASTNICTVÍ A REGULACE
-    business_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    owner_department: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    ict_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    business_owner_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    ict_owner_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    owning_department_id: Mapped[int | None] = mapped_column(
+        ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    business_owner: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[business_owner_user_id],
+        back_populates="business_owned_assets",
+    )
+    ict_owner: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[ict_owner_user_id],
+        back_populates="ict_owned_assets",
+    )
+    owning_department: Mapped["Department | None"] = relationship(
+        "Department",
+        foreign_keys=[owning_department_id],
+        back_populates="assets",
+    )
     gdpr_relevance: Mapped[str | None] = mapped_column(String(20), nullable=True)
     ai_relevance: Mapped[str | None] = mapped_column(String(20), nullable=True)
     data_classification: Mapped[str | None] = mapped_column(String(100), nullable=True)

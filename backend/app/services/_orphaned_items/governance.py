@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.asset import Asset
 from app.models.control import Control
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.process import Process
@@ -79,6 +80,13 @@ ORPHAN_ITEM_DEFINITIONS: dict[str, OrphanItemDefinition] = {
     "process": OrphanItemDefinition(
         item_type="process",
         unknown_label="Unknown process",
+        requires_owner=True,
+        requires_risk=False,
+        requires_department=True,
+    ),
+    "asset": OrphanItemDefinition(
+        item_type="asset",
+        unknown_label="Unknown asset",
         requires_owner=True,
         requires_risk=False,
         requires_department=True,
@@ -183,6 +191,27 @@ async def load_orphan_display_projection(
             department_name=(
                 process.owning_department.name
                 if process.owning_department is not None
+                else None
+            ),
+        )
+
+    if item_type == "asset":
+        asset = (
+            await db.execute(
+                select(Asset)
+                .options(selectinload(Asset.owning_department))
+                .where(Asset.id == item_id)
+            )
+        ).scalar_one_or_none()
+        if asset is None:
+            return _unknown_projection(definition)
+        return OrphanDisplayProjection(
+            item_name=asset.name or definition.unknown_label,
+            item_description=asset.description,
+            item_identifier=None,
+            department_name=(
+                asset.owning_department.name
+                if asset.owning_department is not None
                 else None
             ),
         )

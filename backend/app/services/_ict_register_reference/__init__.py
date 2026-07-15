@@ -5,6 +5,22 @@ seeded parameter rows; owns no commits. The functional reproduction spec at
 docs/dora-ict-register/dora-excel-functional-spec.md is the source of truth.
 """
 
+from app.services._ict_register_reference.asset_values import (
+    ASSET_CONTROLLED_CODES_BY_FIELD,
+    ASSET_DATA_CLASSIFICATION_CODES,
+    ASSET_DEPLOYMENT_MODEL_CODES,
+    ASSET_INTERNET_EXPOSED_CODES,
+    ASSET_LEVEL_CODES,
+    ASSET_LIFECYCLE_STATE_CODES,
+    ASSET_PRELIMINARY_CRITICALITY_CODES,
+    ASSET_REGULATORY_EN_VALUES_BY_FIELD,
+    ASSET_RELEVANCE_CODES,
+    ASSET_REVIEW_STATE_CODES,
+    ASSET_TYPE_CODES,
+    WORKBOOK_ASSET_VALUE_TO_CODE_BY_FIELD,
+    asset_controlled_value_code,
+    asset_regulatory_value,
+)
 from app.services._ict_register_reference.closed_lists import (
     CANONICAL_PROVIDER_IDENTIFIER_TYPES,
     CLOSED_LISTS,
@@ -54,6 +70,17 @@ from app.services._ict_register_reference.threat_categories import (
 )
 
 __all__ = [
+    "ASSET_CONTROLLED_CODES_BY_FIELD",
+    "ASSET_DATA_CLASSIFICATION_CODES",
+    "ASSET_DEPLOYMENT_MODEL_CODES",
+    "ASSET_INTERNET_EXPOSED_CODES",
+    "ASSET_LEVEL_CODES",
+    "ASSET_LIFECYCLE_STATE_CODES",
+    "ASSET_PRELIMINARY_CRITICALITY_CODES",
+    "ASSET_REGULATORY_EN_VALUES_BY_FIELD",
+    "ASSET_RELEVANCE_CODES",
+    "ASSET_REVIEW_STATE_CODES",
+    "ASSET_TYPE_CODES",
     "CLOSED_LISTS",
     "CANONICAL_PROVIDER_IDENTIFIER_TYPES",
     "CLOUD_SERVICE_S_CODES",
@@ -76,11 +103,14 @@ __all__ = [
     "THREAT_CATEGORY_CODES",
     "WORKBOOK_THREAT_CATEGORY_TO_CODE",
     "WORKBOOK_PROCESS_VALUE_TO_CODE_BY_FIELD",
+    "WORKBOOK_ASSET_VALUE_TO_CODE_BY_FIELD",
     "ClosedListValue",
     "IctParameterValue",
     "IctWorkbookParameter",
     "IctWorkbookParameterSet",
     "closed_list_values",
+    "asset_controlled_value_code",
+    "asset_regulatory_value",
     "is_closed_list_value",
     "is_provider_identifier_type_write_value",
     "load_ict_workbook_parameter_set",

@@ -4,6 +4,7 @@ import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-r
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
+import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
 import { assetApi } from '@/services/assetApi';
@@ -14,7 +15,16 @@ import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { AssetForm } from './assets/AssetForm';
 import { AssetLinkSections } from './assets/AssetLinkSections';
-import { getAssetDisplayStatus } from './assets/assetsPagePresentation';
+import {
+    assetCompletenessFieldLabel,
+    assetDepartmentDisplay,
+    assetDerivedArticle8Label,
+    assetDerivedBooleanLabel,
+    assetDerivedCriticalityLabel,
+    assetOwnerDisplayName,
+    assetOwnerMetadata,
+    getAssetDisplayStatus,
+} from './assets/assetsPagePresentation';
 import { getAssetStatusColor } from './assets/assetColumns';
 import { useAssetDetailState, type AssetDetailMode } from './assets/useAssetDetailState';
 
@@ -44,16 +54,18 @@ function DetailField({
 function DerivedPillField({
     label,
     criticalityClass,
+    displayValue,
     testId,
 }: {
     label: string;
     criticalityClass: string | null | undefined;
+    displayValue: string | null;
     testId?: string;
 }) {
     return (
         <div className="space-y-1" data-testid={testId}>
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
-            <CriticalityClassPill criticalityClass={criticalityClass} />
+            <CriticalityClassPill criticalityClass={criticalityClass} displayValue={displayValue} />
         </div>
     );
 }
@@ -62,6 +74,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
     const navigate = useNavigate();
     const { t } = useTranslation('assets');
     const { t: tCommon } = useTranslation('common');
+    const authz = useAuthz();
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
@@ -76,6 +89,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         isAccessDenied,
         isLoading,
         restoreAsset,
+        setAsset,
     } = useAssetDetailState({ mode, notFoundMessage: t('errors.not_found') });
 
     const createGateState = useCreateCapabilityGate({
@@ -158,6 +172,17 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
     }
 
     if (mode === 'edit') {
+        if (asset.ownership_status === 'pending_governance') {
+            return (
+                <div className="space-y-8">
+                    <button type="button" onClick={() => navigate(`/assets/${asset.id}`)} className="p-2.5 glass rounded-xl text-slate-400 hover:text-white"><ArrowLeft className="h-4 w-4" /></button>
+                    <div role="alert" data-testid="asset-orphan-edit-blocked" className="glass-card flex items-center justify-between gap-4 border border-amber-400/30 text-amber-200">
+                        <p className="text-sm font-medium">{t('detail.ownership_pending')}</p>
+                        {authz.canViewGovernance ? <button type="button" onClick={() => navigate('/governance?type=asset')} className="rounded-xl bg-amber-400/10 px-4 py-2 text-sm font-bold">{t('detail.resolve_in_governance')}</button> : null}
+                    </div>
+                </div>
+            );
+        }
         if (canEdit !== true) {
             return <FormCapabilityGateState state="denied" />;
         }
@@ -180,7 +205,10 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 <AssetForm
                     initialData={asset}
                     isEdit
-                    onSaved={(saved: Asset) => navigate(`/assets/${saved.id}`)}
+                    onSaved={(saved: Asset) => {
+                        setAsset(saved);
+                        void navigate(`/assets/${saved.id}`);
+                    }}
                     onCancel={() => navigate(`/assets/${asset.id}`)}
                 />
             </div>
@@ -195,6 +223,12 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 <div className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{actionError}</p>
+                </div>
+            ) : null}
+            {asset.ownership_status === 'pending_governance' ? (
+                <div role="alert" className="glass-card flex items-center justify-between gap-4 border border-amber-400/30 text-amber-200">
+                    <p className="text-sm font-medium">{t('detail.ownership_pending')}</p>
+                    {authz.canViewGovernance ? <button type="button" data-testid="asset-orphan-governance" onClick={() => navigate('/governance?type=asset')} className="rounded-xl bg-amber-400/10 px-4 py-2 text-sm font-bold">{t('detail.resolve_in_governance')}</button> : null}
                 </div>
             ) : null}
 
@@ -217,13 +251,13 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                                 {t(`status.${status}`)}
                             </span>
                             {asset.asset_type ? (
-                                <span className="text-xs font-bold text-slate-400">{asset.asset_type}</span>
+                                <span className="text-xs font-bold text-slate-400">{t(`values.asset_type.${asset.asset_type}`)}</span>
                             ) : null}
                         </div>
                         <h1 className="text-3xl font-bold text-white mt-1">{asset.name}</h1>
                         <p className="text-slate-500 font-medium mt-1">
-                            {asset.asset_level ?? ''}
-                            {asset.deployment_model ? `${asset.asset_level ? ' · ' : ''}${asset.deployment_model}` : ''}
+                            {asset.asset_level ? t(`values.asset_level.${asset.asset_level}`) : ''}
+                            {asset.deployment_model ? `${asset.asset_level ? ' · ' : ''}${t(`values.deployment_model.${asset.deployment_model}`)}` : ''}
                         </p>
                     </div>
                 </div>
@@ -239,7 +273,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             {t('actions.restore')}
                         </button>
                     )}
-                    {canEdit && (
+                    {canEdit && asset.ownership_status !== 'pending_governance' && (
                         <button
                             type="button"
                             onClick={() => navigate(`/assets/${asset.id}/edit`)}
@@ -269,9 +303,9 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     {t('form.sections.identity')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <DetailField label={t('form.asset_type')} value={asset.asset_type} />
-                    <DetailField label={t('form.asset_level')} value={asset.asset_level} />
-                    <DetailField label={t('form.deployment_model')} value={asset.deployment_model} />
+                    <DetailField label={t('form.asset_type')} value={asset.asset_type ? t(`values.asset_type.${asset.asset_type}`) : null} />
+                    <DetailField label={t('form.asset_level')} value={asset.asset_level ? t(`values.asset_level.${asset.asset_level}`) : null} />
+                    <DetailField label={t('form.deployment_model')} value={asset.deployment_model ? t(`values.deployment_model.${asset.deployment_model}`) : null} />
                     <DetailField label={t('form.physical_location')} value={asset.physical_location} />
                     <DetailField label={t('form.alternative_names')} value={asset.alternative_names} />
                 </div>
@@ -288,12 +322,14 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     {t('form.sections.ownership')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <DetailField label={t('form.business_owner')} value={asset.business_owner} />
-                    <DetailField label={t('form.owner_department')} value={asset.owner_department} />
-                    <DetailField label={t('form.ict_owner')} value={asset.ict_owner} />
-                    <DetailField label={t('form.gdpr_relevance')} value={asset.gdpr_relevance} />
-                    <DetailField label={t('form.ai_relevance')} value={asset.ai_relevance} />
-                    <DetailField label={t('form.data_classification')} value={asset.data_classification} />
+                    <DetailField label={t('form.business_owner')} value={assetOwnerDisplayName(asset.business_owner) ?? t('detail.unknown_owner')} />
+                    <DetailField label={t('form.business_owner') + ' — ' + t('form.owner_department')} value={assetOwnerMetadata(asset.business_owner)} />
+                    <DetailField label={t('form.ict_owner')} value={assetOwnerDisplayName(asset.ict_owner) ?? t('detail.unknown_owner')} />
+                    <DetailField label={t('form.ict_owner') + ' — ' + t('form.owner_department')} value={assetOwnerMetadata(asset.ict_owner)} />
+                    <DetailField label={t('form.owner_department')} value={assetDepartmentDisplay(asset) ?? t('detail.unknown_department')} />
+                    <DetailField label={t('form.gdpr_relevance')} value={asset.gdpr_relevance ? t(`values.gdpr_relevance.${asset.gdpr_relevance}`) : null} />
+                    <DetailField label={t('form.ai_relevance')} value={asset.ai_relevance ? t(`values.ai_relevance.${asset.ai_relevance}`) : null} />
+                    <DetailField label={t('form.data_classification')} value={asset.data_classification ? t(`values.data_classification.${asset.data_classification}`) : null} />
                 </div>
             </div>
 
@@ -320,31 +356,40 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         <DerivedPillField
                             label={t('derived.score_criticality')}
                             criticalityClass={asset.derived.score_criticality}
+                            displayValue={assetDerivedCriticalityLabel(t, asset.derived.score_criticality)}
                         />
                         <DerivedPillField
                             label={t('derived.business_criticality')}
                             criticalityClass={asset.derived.business_criticality}
+                            displayValue={assetDerivedCriticalityLabel(t, asset.derived.business_criticality)}
                         />
                         <DerivedPillField
                             label={t('derived.resulting_criticality')}
                             criticalityClass={asset.derived.resulting_criticality}
+                            displayValue={assetDerivedCriticalityLabel(t, asset.derived.resulting_criticality)}
                             testId="asset-derived-resulting-criticality"
                         />
                         <DetailField
                             label={t('derived.article8_classification')}
-                            value={asset.derived.article8_classification}
+                            value={assetDerivedArticle8Label(t, asset.derived.article8_classification)}
                         />
                         <DetailField
                             label={t('derived.cif')}
-                            value={asset.derived.cif}
+                            value={assetDerivedBooleanLabel(t, asset.derived.cif)}
                             testId="asset-derived-cif"
                         />
-                        <DetailField label={t('derived.spof')} value={asset.derived.spof} />
+                        <DetailField
+                            label={t('derived.spof')}
+                            value={assetDerivedBooleanLabel(t, asset.derived.spof)}
+                        />
                         <DetailField
                             label={t('derived.external_dependency')}
-                            value={asset.derived.external_dependency}
+                            value={assetDerivedBooleanLabel(t, asset.derived.external_dependency)}
                         />
-                        <DetailField label={t('derived.legacy')} value={asset.derived.legacy} />
+                        <DetailField
+                            label={t('derived.legacy')}
+                            value={assetDerivedBooleanLabel(t, asset.derived.legacy)}
+                        />
                         <DetailField
                             label={t('derived.linked_process_count')}
                             value={asset.derived.linked_process_count}
@@ -372,6 +417,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         <DerivedPillField
                             label={t('derived.primary_process_criticality')}
                             criticalityClass={asset.derived.primary_process_criticality}
+                            displayValue={assetDerivedCriticalityLabel(t, asset.derived.primary_process_criticality)}
                         />
                         <DetailField
                             label={t('derived.inherited_rto_hours')}
@@ -445,7 +491,9 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                                 label={t('derived.inputs.missing')}
                                 value={
                                     asset.derived.inputs.missing_for_completeness.length
-                                        ? asset.derived.inputs.missing_for_completeness.join(', ')
+                                        ? asset.derived.inputs.missing_for_completeness
+                                            .map((field) => assetCompletenessFieldLabel(t, field))
+                                            .join(', ')
                                         : t('derived.inputs.none')
                                 }
                                 testId="asset-derived-missing"
@@ -465,8 +513,8 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     <DetailField label={t('form.impact_regulatory')} value={asset.impact_regulatory} />
                     <DetailField label={t('form.substitutability_rating')} value={asset.substitutability_rating} />
                     <DetailField label={t('form.vendor_dependency_rating')} value={asset.vendor_dependency_rating} />
-                    <DetailField label={t('form.internet_exposed')} value={asset.internet_exposed} />
-                    <DetailField label={t('form.preliminary_criticality')} value={asset.preliminary_criticality} />
+                    <DetailField label={t('form.internet_exposed')} value={asset.internet_exposed ? t(`values.internet_exposed.${asset.internet_exposed}`) : null} />
+                    <DetailField label={t('form.preliminary_criticality')} value={asset.preliminary_criticality ? t(`values.preliminary_criticality.${asset.preliminary_criticality}`) : null} />
                 </div>
             </div>
 
@@ -475,12 +523,12 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     {t('form.sections.lifecycle')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-                    <DetailField label={t('form.lifecycle_state')} value={asset.lifecycle_state} />
+                    <DetailField label={t('form.lifecycle_state')} value={asset.lifecycle_state ? t(`values.lifecycle_state.${asset.lifecycle_state}`) : null} />
                     <DetailField label={t('form.standard_support_end_date')} value={asset.standard_support_end_date} />
                     <DetailField label={t('form.extended_support_end_date')} value={asset.extended_support_end_date} />
                     <DetailField label={t('form.custom_support_end_date')} value={asset.custom_support_end_date} />
                     <DetailField label={t('form.last_legacy_risk_assessment_date')} value={asset.last_legacy_risk_assessment_date} />
-                    <DetailField label={t('form.review_state')} value={asset.review_state} />
+                    <DetailField label={t('form.review_state')} value={asset.review_state ? t(`values.review_state.${asset.review_state}`) : null} />
                 </div>
                 {asset.notes ? (
                     <div className="space-y-1">

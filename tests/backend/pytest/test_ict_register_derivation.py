@@ -537,8 +537,8 @@ def test_asset_worked_example_veris():
             impact_regulatory=5,
             substitutability_rating=5,
             vendor_dependency_rating=4,
-            preliminary_criticality="Kritická",
-            lifecycle_state="V provozu",
+            preliminary_criticality="critical",
+            lifecycle_state="operational",
         ),
         processes=(_P_CIF_LOW,),
         process_asset_links=(
@@ -724,7 +724,7 @@ def test_asset_own_signals_only_raise_above_the_primary_process():
 def test_asset_cif_floor_lifts_resulting_criticality_to_stredni():
     """IF(cif="Ano",2,0): a CIF-supporting asset never reads below Střední."""
     derived = derive_single_asset(
-        asset_row(1, preliminary_criticality="Nízká"),
+        asset_row(1, preliminary_criticality="low"),
         processes=(_P_CIF_LOW,),
         process_asset_links=(ProcessAssetLinkInput(process_id=103, asset_id=1),),
     )
@@ -771,11 +771,11 @@ def test_asset_empty_links_h_rank_zero_blanks_the_resulting_class():
 
 def test_asset_klas8_binary_over_the_top_two_classes():
     """klas8 = Kritické iff vysledna in {Kritická, Vysoká} (spec 1.2)."""
-    high = derive_single_asset(asset_row(1, preliminary_criticality="Vysoká"))
+    high = derive_single_asset(asset_row(1, preliminary_criticality="high"))
     assert high.resulting_criticality == "Vysoká"
     assert high.article8_classification == "Kritické"
 
-    medium = derive_single_asset(asset_row(1, preliminary_criticality="Střední"))
+    medium = derive_single_asset(asset_row(1, preliminary_criticality="medium"))
     assert medium.resulting_criticality == "Střední"
     assert medium.article8_classification == "Nekritické"
 
@@ -892,23 +892,25 @@ def test_asset_external_dependency_and_vendor_aggregates_run_over_emptiness():
 
 def test_asset_legacy_flag_from_state_or_support_end_before_reference_date():
     """legacy = Ano if stav="Legacy" OR (konec_radne filled AND < P_RefDatum)."""
-    assert derive_single_asset(asset_row(1, lifecycle_state="Legacy")).legacy == "Ano"
+    assert derive_single_asset(asset_row(1, lifecycle_state="legacy")).legacy == "Ano"
 
     before_ref = derive_single_asset(
         asset_row(
-            1, lifecycle_state="V provozu", standard_support_end_date=date(2026, 7, 2)
+            1, lifecycle_state="operational", standard_support_end_date=date(2026, 7, 2)
         )
     )
     assert before_ref.legacy == "Ano"  # P_RefDatum default is 2026-07-03
 
     on_ref = derive_single_asset(
         asset_row(
-            1, lifecycle_state="V provozu", standard_support_end_date=date(2026, 7, 3)
+            1, lifecycle_state="operational", standard_support_end_date=date(2026, 7, 3)
         )
     )
     assert on_ref.legacy == "Ne"  # strictly-before comparison
 
-    assert derive_single_asset(asset_row(1, lifecycle_state="V provozu")).legacy == "Ne"
+    assert (
+        derive_single_asset(asset_row(1, lifecycle_state="operational")).legacy == "Ne"
+    )
 
     # The reference date is a parameter: moving it moves the flag.
     moved = derive_single_asset(
@@ -981,6 +983,15 @@ def _accountable_process_payload(user: User, **fields: object) -> dict[str, obje
     }
 
 
+def _accountable_asset_payload(user: User, **fields: object) -> dict[str, object]:
+    return {
+        "business_owner_user_id": user.id,
+        "ict_owner_user_id": user.id,
+        "owning_department_id": user.department_id,
+        **fields,
+    }
+
+
 @pytest.mark.asyncio
 async def test_process_read_payloads_carry_the_derived_block(
     client_factory, test_user_cro: User
@@ -1008,7 +1019,11 @@ async def test_process_read_payloads_carry_the_derived_block(
                 },
             ),
         )
-        asset = await _create_via_api(client, "/api/v1/assets", {"name": "Veris"})
+        asset = await _create_via_api(
+            client,
+            "/api/v1/assets",
+            _accountable_asset_payload(test_user_cro, name="Veris"),
+        )
         link = await client.post(
             f"/api/v1/assets/{asset['id']}/process-links",
             json={"process_id": process["id"], "is_primary": True},
@@ -1158,22 +1173,23 @@ async def test_asset_read_payloads_carry_the_derived_block_with_explain(
         asset = await _create_via_api(
             client,
             "/api/v1/assets",
-            {
-                "name": "Veris",
-                "confidentiality_rating": 5,
-                "integrity_rating": 5,
-                "availability_rating": 5,
-                "authenticity_rating": 5,
-                "impact_client": 5,
-                "impact_regulatory": 5,
-                "substitutability_rating": 5,
-                "vendor_dependency_rating": 4,
-                "preliminary_criticality": "Kritická",
-                "lifecycle_state": "V provozu",
-            },
+            _accountable_asset_payload(
+                test_user_cro,
+                name="Veris",
+                confidentiality_rating=5,
+                integrity_rating=5,
+                availability_rating=5,
+                authenticity_rating=5,
+                impact_client=5,
+                impact_regulatory=5,
+                substitutability_rating=5,
+                vendor_dependency_rating=4,
+                preliminary_criticality="critical",
+                lifecycle_state="operational",
+            ),
         )
         # A fresh asset already carries its derived block (empty-links shape).
-        assert asset["derived"]["cif"] == "Ne"
+        assert asset["derived"]["cif"] == "no"
         assert asset["derived"]["linked_process_count"] == 0
 
         for payload in (
@@ -1192,19 +1208,19 @@ async def test_asset_read_payloads_carry_the_derived_block_with_explain(
         # The spec 2.5 worked example, end to end over HTTP.
         assert derived["ciaa_value"] == 5
         assert derived["weighted_score"] == 4.95
-        assert derived["score_criticality"] == "Kritická"
-        assert derived["business_criticality"] == "Kritická"
+        assert derived["score_criticality"] == "critical"
+        assert derived["business_criticality"] == "critical"
         assert derived["h_rank"] == 4
-        assert derived["resulting_criticality"] == "Kritická"
-        assert derived["article8_classification"] == "Kritické"
-        assert derived["cif"] == "Ano"
+        assert derived["resulting_criticality"] == "critical"
+        assert derived["article8_classification"] == "critical"
+        assert derived["cif"] == "yes"
         assert derived["cif_process_count"] == 1
         assert derived["cif_process_names"] == ["Sjednání pojištění – Online"]
-        assert derived["spof"] == "Ano"
+        assert derived["spof"] == "yes"
         assert (
-            derived["external_dependency"] == "Ne"
+            derived["external_dependency"] == "no"
         )  # Asset<->Vendor links arrive with #46
-        assert derived["legacy"] == "Ne"
+        assert derived["legacy"] == "no"
         assert derived["linked_process_count"] == 2
         assert derived["linked_vendor_count"] == 0
         assert derived["vendor_names"] == []
@@ -1213,7 +1229,7 @@ async def test_asset_read_payloads_carry_the_derived_block_with_explain(
 
         # Primary-process lookups inherit from the ONE designated primary.
         assert derived["primary_process_name"] == "Sjednání pojištění – Online"
-        assert derived["primary_process_criticality"] == "Kritická"
+        assert derived["primary_process_criticality"] == "critical"
         assert derived["inherited_impact_operations"] == 4
         assert derived["inherited_impact_financial"] == 4
         assert derived["inherited_rto_hours"] == 6
@@ -1231,8 +1247,8 @@ async def test_asset_read_payloads_carry_the_derived_block_with_explain(
         listing = await client.get("/api/v1/assets", params={"search": "Veris"})
         assert listing.status_code == 200
         [row] = [item for item in listing.json()["items"] if item["id"] == asset["id"]]
-        assert row["derived"]["resulting_criticality"] == "Kritická"
-        assert row["derived"]["cif"] == "Ano"
+        assert row["derived"]["resulting_criticality"] == "critical"
+        assert row["derived"]["cif"] == "yes"
         assert row["primary_process_id"] == cif_process["id"]
 
 
@@ -1252,7 +1268,9 @@ async def test_derived_fields_stay_rejected_on_write(
             ),
         )
         asset = await _create_via_api(
-            client, "/api/v1/assets", {"name": "Aktivum bez odvozenin"}
+            client,
+            "/api/v1/assets",
+            _accountable_asset_payload(test_user_cro, name="Aktivum bez odvozenin"),
         )
 
         process_writes = [

@@ -11,6 +11,7 @@ from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
 from app.services._directory_identity import DirectoryIdentityConflictError, apply_directory_profile
 from app.services._org_chart import acquire_org_chart_lock, clear_manager_references_for_inactive_user
 from app.services._orphaned_items import flag_orphaned_items
@@ -263,6 +264,7 @@ class ADDeprovisionService:
     ) -> dict[str, Any]:
         await acquire_threat_steward_identity_lock(db, user_id=user.id)
         await acquire_process_owner_identity_lock(db, user_id=user.id)
+        await acquire_asset_owner_identity_lock(db, user_id=user.id)
         user = (
             await db.execute(
                 select(User)

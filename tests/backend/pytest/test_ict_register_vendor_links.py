@@ -17,11 +17,11 @@ Behavior under test, at the HTTP seam via ``client_factory``:
   per the register's strict archived-end stance (#43 precedent, deliberately
   unlike #45's pinned contract-chain divergence); unlinking an archived
   TARGET stays possible from an active register end;
-- link reads require BOTH ends' read permissions; mutations require the
-  register end's write permission (assets:write / processes:write) per the
-  RBAC seed; platform admins are excluded; rows carry per-row capabilities;
+- link reads compose canonical register-row visibility with independent Vendor
+  visibility; mutations require canonical active, non-orphan row update
+  authority; platform admins are excluded; rows carry per-row capabilities;
 - the derivation engine's vendor-link inputs go LIVE: an Asset with a Vendor
-  link derives ``ext_zavis`` = "Ano" and its vendor aggregates; a Process's
+  link derives canonical ``external_dependency`` = "yes" and its vendor aggregates; a Process's
   ``dod_n`` counts its §1 links (spec 1.2/1.1);
 - link mutations land on the audit trail;
 - the migration ships per repo convention (ADR-010, forward-only).
@@ -78,8 +78,19 @@ async def test_user_seeded_risk_manager(db_session: AsyncSession) -> User:
     return result.scalar_one()
 
 
-async def _create_asset(client, **overrides: object) -> dict:
-    payload: dict[str, object] = {"name": "Veris"}
+async def _create_asset(
+    client,
+    *,
+    owner_user_id: int,
+    department_id: int,
+    **overrides: object,
+) -> dict:
+    payload: dict[str, object] = {
+        "name": "Veris",
+        "business_owner_user_id": owner_user_id,
+        "ict_owner_user_id": owner_user_id,
+        "owning_department_id": department_id,
+    }
     payload.update(overrides)
     response = await client.post("/api/v1/assets", json=payload)
     assert response.status_code == 201, response.text
@@ -131,7 +142,11 @@ async def test_asset_vendor_link_round_trip_readable_from_both_ends(
     """AC: link Assets to Vendors with an S-code, managed from the Asset detail,
     readable from the Asset end and the Vendor end."""
     async with client_factory(user=test_user_cro) as client:
-        asset = await _create_asset(client)
+        asset = await _create_asset(
+            client,
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
+        )
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
 
         created = await client.post(
@@ -189,7 +204,11 @@ async def test_asset_vendor_link_enforces_unique_tuple_and_closed_lists(
     tuple (asset, vendor, S-code) is unique — one Vendor may serve one Asset
     with several typed services (the Veris seed carries S02 AND S14)."""
     async with client_factory(user=test_user_cro) as client:
-        asset = await _create_asset(client)
+        asset = await _create_asset(
+            client,
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
+        )
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
 
         first = await client.post(
@@ -369,7 +388,11 @@ async def test_archived_ends_conflict_vendor_link_mutations(
     conflicts every link mutation; an archived Vendor target conflicts NEW
     links while unlinking it from an active register end stays possible."""
     async with client_factory(user=test_user_cro) as client:
-        asset = await _create_asset(client)
+        asset = await _create_asset(
+            client,
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
+        )
         process = await _create_process(
             client,
             process_owner_user_id=test_user_cro.id,
@@ -453,7 +476,11 @@ async def test_risk_manager_seed_maintains_vendor_links_with_capabilities(
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
 
     async with client_factory(user=test_user_seeded_risk_manager) as client:
-        asset = await _create_asset(client)
+        asset = await _create_asset(
+            client,
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
+        )
         process = await _create_process(
             client,
             process_owner_user_id=test_user_cro.id,
@@ -497,9 +524,13 @@ async def test_risk_manager_seed_maintains_vendor_links_with_capabilities(
 async def test_employee_reads_vendor_links_but_cannot_maintain_them(
     client_factory, test_user_cro: User, test_department: Department, test_user_employee: User
 ):
-    """Reads follow both ends' read permissions; register-end writes 403."""
+    """Reads follow canonical row visibility; unauthorized mutations return 403."""
     async with client_factory(user=test_user_cro) as client:
-        asset = await _create_asset(client)
+        asset = await _create_asset(
+            client,
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
+        )
         process = await _create_process(
             client,
             process_owner_user_id=test_user_cro.id,
@@ -555,7 +586,11 @@ async def test_archived_register_end_suppresses_vendor_link_delete_capability(
     client_factory, test_user_cro: User, test_department: Department
 ):
     async with client_factory(user=test_user_cro) as client:
-        asset = await _create_asset(client)
+        asset = await _create_asset(
+            client,
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
+        )
         process = await _create_process(
             client,
             process_owner_user_id=test_user_cro.id,
@@ -588,7 +623,11 @@ async def test_archived_vendor_end_preserves_vendor_link_cleanup_capability(
     client_factory, test_user_cro: User, test_department: Department
 ):
     async with client_factory(user=test_user_cro) as client:
-        asset = await _create_asset(client)
+        asset = await _create_asset(
+            client,
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
+        )
         process = await _create_process(
             client,
             process_owner_user_id=test_user_cro.id,
@@ -620,7 +659,11 @@ async def test_platform_admin_is_excluded_and_unauthenticated_is_rejected(
     client_factory, test_user_cro: User, test_department: Department, test_user_platform_admin: User
 ):
     async with client_factory(user=test_user_cro) as client:
-        asset = await _create_asset(client)
+        asset = await _create_asset(
+            client,
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
+        )
         process = await _create_process(
             client,
             process_owner_user_id=test_user_cro.id,
@@ -666,7 +709,11 @@ async def test_vendor_link_mutations_land_on_the_audit_trail(
     Asset<->Vendor rides the asset_link surface (#43 precedent, kind
     "vendor"); Process<->Vendor gets the process_link surface."""
     async with client_factory(user=test_user_cro) as client:
-        asset = await _create_asset(client)
+        asset = await _create_asset(
+            client,
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
+        )
         process = await _create_process(
             client,
             process_owner_user_id=test_user_cro.id,
@@ -721,14 +768,18 @@ async def test_asset_vendor_link_flips_ext_zavis_and_vendor_aggregates_on_read(
     client_factory, test_user_cro: User, test_department: Department
 ):
     """The engine's sheet-10 input goes LIVE (spec 1.2): ``ext_zavis`` is
-    "Ano" iff the Asset has a 10_VAD link, and the ``dod_seznam`` /
+    canonical "yes" iff the Asset has a 10_VAD link, and the ``dod_seznam`` /
     ``ict_sluzby`` / ``smlouvy`` TEXTJOIN aggregates carry the link columns."""
     async with client_factory(user=test_user_cro) as client:
-        asset = await _create_asset(client)
+        asset = await _create_asset(
+            client,
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
+        )
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
 
         before = (await client.get(f"/api/v1/assets/{asset['id']}")).json()["derived"]
-        assert before["external_dependency"] == "Ne"
+        assert before["external_dependency"] == "no"
         assert before["linked_vendor_count"] == 0
         assert before["vendor_names"] == []
 
@@ -739,7 +790,7 @@ async def test_asset_vendor_link_flips_ext_zavis_and_vendor_aggregates_on_read(
         ).status_code == 201
 
         after = (await client.get(f"/api/v1/assets/{asset['id']}")).json()["derived"]
-        assert after["external_dependency"] == "Ano"
+        assert after["external_dependency"] == "yes"
         assert after["linked_vendor_count"] == 1
         assert after["vendor_names"] == ["BIZ DATA"]
         assert after["ict_service_codes"] == ["S02"]
@@ -748,7 +799,7 @@ async def test_asset_vendor_link_flips_ext_zavis_and_vendor_aggregates_on_read(
         # The register listing recomputes the same way (compute-on-read).
         listing = (await client.get("/api/v1/assets")).json()["items"]
         listed = next(row for row in listing if row["id"] == asset["id"])
-        assert listed["derived"]["external_dependency"] == "Ano"
+        assert listed["derived"]["external_dependency"] == "yes"
         assert listed["derived"]["linked_vendor_count"] == 1
 
         # Removing the link flips the derivation straight back — no staleness.
@@ -757,7 +808,7 @@ async def test_asset_vendor_link_flips_ext_zavis_and_vendor_aggregates_on_read(
             await client.delete(f"/api/v1/assets/{asset['id']}/vendor-links/{link_id}")
         ).status_code == 204
         reverted = (await client.get(f"/api/v1/assets/{asset['id']}")).json()["derived"]
-        assert reverted["external_dependency"] == "Ne"
+        assert reverted["external_dependency"] == "no"
         assert reverted["linked_vendor_count"] == 0
 
 

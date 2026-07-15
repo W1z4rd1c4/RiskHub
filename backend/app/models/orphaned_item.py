@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -21,12 +21,31 @@ class OrphanedItem(Base):
     """
 
     __tablename__ = "orphaned_items"
+    __table_args__ = (
+        CheckConstraint(
+            "responsibility_role IS NULL OR responsibility_role IN ('business_owner', 'ict_owner')",
+            name="ck_orphaned_items_responsibility_role",
+        ),
+        Index(
+            "uq_orphaned_items_pending_item_role",
+            "item_type",
+            "item_id",
+            "responsibility_role",
+            unique=True,
+            sqlite_where=text("status = 'pending' AND responsibility_role IS NOT NULL"),
+            postgresql_where=text("status = 'pending' AND responsibility_role IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # What type of item lost its owner
     item_type: Mapped[str] = mapped_column(String(20), index=True)  # "risk" | "control"
     item_id: Mapped[int] = mapped_column(Integer, index=True)  # FK to risks.id or controls.id
+    # Asset responsibility rows are role-specific so one deactivated User can
+    # independently orphan both responsibilities on the same Asset. Existing
+    # non-Asset orphan types keep this nullable.
+    responsibility_role: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
 
     # Who was the previous owner
     previous_owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)

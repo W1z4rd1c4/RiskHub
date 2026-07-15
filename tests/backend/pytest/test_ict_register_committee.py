@@ -153,24 +153,24 @@ def asset_row(aid: int = 1, **overrides: object) -> AssetDerivationInput:
     defaults: dict[str, object] = {
         "id": aid,
         "name": f"Aktivum {aid}",
-        "asset_type": "Aplikace",
-        "asset_level": "B – podpůrné",
+        "asset_type": "application",
+        "asset_level": "supporting",
         "business_owner": "Petr Svoboda",
         "ict_owner": "IT Operations",
         "owner_department": "Úsek IT",
-        "gdpr_relevance": "Ne",
-        "ai_relevance": "Ne",
-        "data_classification": "Interní data",
-        "deployment_model": "On-premise",
+        "gdpr_relevance": "no",
+        "ai_relevance": "no",
+        "data_classification": "internal",
+        "deployment_model": "on_premise",
         "confidentiality_rating": 2,
         "integrity_rating": 2,
         "availability_rating": 2,
         "authenticity_rating": 2,
         "impact_client": 2,
         "impact_regulatory": 2,
-        "internet_exposed": "Ne",
-        "lifecycle_state": "V provozu",
-        "review_state": "Zkontrolováno",
+        "internet_exposed": "no",
+        "lifecycle_state": "operational",
+        "review_state": "reviewed",
     }
     defaults.update(overrides)
     return AssetDerivationInput(**defaults)  # type: ignore[arg-type]
@@ -250,7 +250,7 @@ def test_register_state_tiles_reproduce_the_ten_dashboard_formulas():
         processes=(process_row(1), process_row(2)),
         assets=(
             asset_row(1),
-            asset_row(2, review_state="K revizi", data_classification=None),
+            asset_row(2, review_state="review_required", data_classification=None),
         ),
         process_asset_links=(pal(1, 1, is_primary=True), pal(2, 1)),
         vendors=(
@@ -291,11 +291,13 @@ def test_dq_equivalent_tiles_agree_with_the_dq_engine_counts():
     one derivation invoked once, so the committee counts EQUAL the DQ counts."""
     graph = IctRegisterGraph(
         assets=(
-            asset_row(1, review_state="K revizi"),
-            asset_row(2, data_classification="Neposouzeno"),
+            asset_row(1, review_state="review_required"),
+            asset_row(2, data_classification="not_assessed"),
             asset_row(3, data_classification=None),
         ),
-        vendors=(vendor_row(1, substitutability="Nenahraditelný", exit_plan_state="Ukončen"),),
+        vendors=(
+            vendor_row(1, substitutability="Nenahraditelný", exit_plan_state="Ukončen"),
+        ),
     )
     committee = run_committee(graph)
     dq = derive_ict_register_dq(IctRegisterDqGraph(graph=graph), parameter_set())
@@ -1110,9 +1112,27 @@ async def test_committee_endpoint_over_an_api_seeded_register(
             )
             assert vendor_resp.status_code == 201, vendor_resp.text
             vendor = vendor_resp.json()
-            asset_resp = await client.post("/api/v1/assets", json={"name": "Veris"})
+            asset_resp = await client.post(
+                "/api/v1/assets",
+                json={
+                    "name": "Veris",
+                    "business_owner_user_id": test_user_cro.id,
+                    "ict_owner_user_id": test_user_cro.id,
+                    "owning_department_id": test_department.id,
+                },
+            )
             assert asset_resp.status_code == 201, asset_resp.text
             asset = asset_resp.json()
+            # Preserve coverage of the historical DQ-06/DQ-44 guards after
+            # #75 made these relationships mandatory for new active Assets.
+            from app.models import Asset
+
+            stored_asset = await db_session.get(Asset, asset["id"])
+            assert stored_asset is not None
+            stored_asset.business_owner_user_id = None
+            stored_asset.ict_owner_user_id = None
+            stored_asset.owning_department_id = None
+            await db_session.commit()
             link = await client.post(
                 f"/api/v1/assets/{asset['id']}/process-links",
                 json={"process_id": process["id"], "is_primary": True},

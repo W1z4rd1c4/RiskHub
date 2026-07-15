@@ -12,6 +12,7 @@ import {
     TrendingUp,
     Building2,
     Workflow,
+    Database,
 } from 'lucide-react';
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
@@ -42,12 +43,13 @@ function GovernancePageInner() {
     const [selectedOrphan, setSelectedOrphan] = useState<OrphanedItem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewingOrphan, setViewingOrphan] = useState<OrphanedItem | null>(null);
-    type GovernanceItemType = 'risk' | 'control' | 'kri' | 'threat' | 'process';
+    type GovernanceItemType = 'risk' | 'control' | 'kri' | 'threat' | 'process' | 'asset';
     const requestedType = searchParams.get('type');
     const activeTab: GovernanceItemType = requestedType === 'control'
         || requestedType === 'kri'
         || requestedType === 'threat'
         || requestedType === 'process'
+        || requestedType === 'asset'
         ? requestedType
         : 'risk';
 
@@ -145,6 +147,17 @@ function GovernancePageInner() {
             icon: Workflow,
             color: 'text-sky-400',
             bg: 'bg-sky-400/10',
+            trend: t('governance.action_required'),
+            clickable: true,
+        },
+        {
+            id: 'asset' as const,
+            title: t('governance.orphaned_assets'),
+            subtitle: t('governance.assets'),
+            value: stats?.asset_count ?? 0,
+            icon: Database,
+            color: 'text-violet-400',
+            bg: 'bg-violet-400/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -267,7 +280,9 @@ function GovernancePageInner() {
                                     ? t('governance.orphaned_kris_section')
                                     : activeTab === 'threat'
                                         ? t('governance.orphaned_threats_section')
-                                        : t('governance.orphaned_processes_section')}
+                                        : activeTab === 'process'
+                                            ? t('governance.orphaned_processes_section')
+                                            : t('governance.orphaned_assets_section')}
                     </span>
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </div>

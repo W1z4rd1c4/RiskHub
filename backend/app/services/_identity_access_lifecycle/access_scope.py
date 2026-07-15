@@ -16,6 +16,7 @@ from app.services._access_workflow import (
     authorize_access_update_fields,
     is_platform_admin,
 )
+from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
 from app.services._org_chart import (
     acquire_org_chart_lock,
     clear_manager_references_for_inactive_user,
@@ -79,6 +80,7 @@ async def update_access_profile(
         await acquire_threat_steward_identity_lock(db, user_id=user.id)
         if update_data.get("is_active") is False:
             await acquire_process_owner_identity_lock(db, user_id=user.id)
+            await acquire_asset_owner_identity_lock(db, user_id=user.id)
         user = (
             await db.execute(
                 select(User)

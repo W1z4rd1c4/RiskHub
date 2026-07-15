@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.asset import Asset
     from app.models.control import Control
     from app.models.control_execution import ControlExecution
     from app.models.department import Department
@@ -116,6 +117,16 @@ class User(Base):
     )
     owned_processes: Mapped[list["Process"]] = relationship(
         "Process", foreign_keys="Process.process_owner_user_id", back_populates="process_owner"
+    )
+    business_owned_assets: Mapped[list["Asset"]] = relationship(
+        "Asset",
+        foreign_keys="Asset.business_owner_user_id",
+        back_populates="business_owner",
+    )
+    ict_owned_assets: Mapped[list["Asset"]] = relationship(
+        "Asset",
+        foreign_keys="Asset.ict_owner_user_id",
+        back_populates="ict_owner",
     )
 
     # Vendor relationships (Phase 18)

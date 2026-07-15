@@ -17,6 +17,7 @@ async def _already_flagged(
     item_type: str,
     item_id: int,
     status: str = "pending",
+    responsibility_role: str | None = None,
 ) -> bool:
     """Check if an orphan record already exists for this item."""
     result = await db.execute(
@@ -24,6 +25,7 @@ async def _already_flagged(
             OrphanedItem.item_type == item_type,
             OrphanedItem.item_id == item_id,
             OrphanedItem.status == status,
+            OrphanedItem.responsibility_role == responsibility_role,
         )
     )
     return result.scalar_one_or_none() is not None
@@ -36,12 +38,14 @@ async def _create_orphan(
     previous_owner_id: int,
     *,
     orphaned_at: datetime | None = None,
+    responsibility_role: str | None = None,
 ) -> OrphanedItem:
     """Create and add a new OrphanedItem record."""
     orphan = OrphanedItem(
         item_type=item_type,
         item_id=item_id,
         previous_owner_id=previous_owner_id,
+        responsibility_role=responsibility_role,
         status="pending",
         orphaned_at=orphaned_at or utc_now(),
     )

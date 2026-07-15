@@ -16,6 +16,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mockGetClosedLists = vi.fn();
 const mockCreateAsset = vi.fn();
 const mockUpdateAsset = vi.fn();
+const mockGetAssetOwners = vi.fn();
+const mockGetAssetDepartments = vi.fn();
 
 vi.mock('@/services/assetApi', () => ({
     assetApi: {
@@ -25,6 +27,12 @@ vi.mock('@/services/assetApi', () => ({
     },
 }));
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
+vi.mock('@/services/lookupApi', () => ({
+    lookupApi: {
+        getAssetOwners: (...args: unknown[]) => mockGetAssetOwners(...args),
+        getAssetDepartments: (...args: unknown[]) => mockGetAssetDepartments(...args),
+    },
+}));
 
 import { AssetForm } from '@/pages/assets/AssetForm';
 import i18n from '@/i18n';
@@ -40,7 +48,7 @@ async function expectNoAxeViolations(node: Element): Promise<void> {
     expect(summary, summary).toBe('');
 }
 
-function renderForm() {
+async function renderForm() {
     const onSaved = vi.fn();
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -52,6 +60,11 @@ function renderForm() {
             </MemoryRouter>
         </QueryClientProvider>,
     );
+    await waitFor(() => {
+        expect(mockGetClosedLists).toHaveBeenCalledTimes(1);
+        expect(mockGetAssetOwners).toHaveBeenCalledTimes(2);
+        expect(mockGetAssetDepartments).toHaveBeenCalledTimes(1);
+    });
     return { onSaved, ...utils };
 }
 
@@ -60,15 +73,28 @@ const nameLabel = () => i18n.t('assets:form.name');
 beforeEach(() => {
     vi.clearAllMocks();
     mockGetClosedLists.mockResolvedValue({});
+    mockGetAssetOwners.mockResolvedValue([{
+        id: 11, name: 'Alex Owner', email: 'alex@example.test', role_name: 'business_owner',
+        department_id: 4, department_name: 'Operations',
+    }]);
+    mockGetAssetDepartments.mockResolvedValue([{ id: 4, name: 'Operations', code: 'OPS' }]);
 });
+
+async function fillRequiredOwnership(user: ReturnType<typeof userEvent.setup>) {
+    await waitFor(() => expect(mockGetAssetOwners).toHaveBeenCalledTimes(2));
+    await user.click(screen.getByTestId('asset-form-business-owner'));
+    await user.click(await screen.findByRole('option', { name: /Alex Owner/ }));
+    await user.click(screen.getByTestId('asset-form-ict-owner'));
+    await user.click(await screen.findByRole('option', { name: /Alex Owner/ }));
+}
 
 afterEach(async () => {
     await i18n.changeLanguage('en');
 });
 
 describe('AssetForm — Field migration + validation (#59)', () => {
-    it('associates the required name control with its label and exposes aria-required', () => {
-        renderForm();
+    it('associates the required name control with its label and exposes aria-required', async () => {
+        await renderForm();
         const name = screen.getByRole('textbox', { name: nameLabel() });
         expect(name).toHaveAttribute('aria-required', 'true');
         expect(name).not.toHaveAttribute('aria-invalid');
@@ -76,7 +102,7 @@ describe('AssetForm — Field migration + validation (#59)', () => {
 
     it('on invalid submit: focuses the first invalid field, sets aria-invalid, and shows a role=alert summary', async () => {
         const user = userEvent.setup();
-        renderForm();
+        await renderForm();
 
         await user.click(screen.getByTestId('asset-form-submit'));
 
@@ -93,22 +119,29 @@ describe('AssetForm — Field migration + validation (#59)', () => {
     it('submits successfully once the required field is filled', async () => {
         const user = userEvent.setup();
         mockCreateAsset.mockResolvedValue({ id: 7, name: 'Payroll DB' });
-        const { onSaved } = renderForm();
+        const { onSaved } = await renderForm();
 
         await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Payroll DB');
+        await fillRequiredOwnership(user);
         await user.click(screen.getByTestId('asset-form-submit'));
 
         await waitFor(() => expect(mockCreateAsset).toHaveBeenCalledTimes(1));
         expect(onSaved).toHaveBeenCalledTimes(1);
+        expect(mockCreateAsset).toHaveBeenCalledWith(expect.objectContaining({
+            business_owner_user_id: 11,
+            ict_owner_user_id: 11,
+            owning_department_id: 4,
+        }));
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('surfaces the save-failed banner when the request rejects', async () => {
         const user = userEvent.setup();
         mockCreateAsset.mockRejectedValue(new Error('boom'));
-        renderForm();
+        await renderForm();
 
         await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Payroll DB');
+        await fillRequiredOwnership(user);
         await user.click(screen.getByTestId('asset-form-submit'));
 
         expect(await screen.findByText(i18n.t('assets:form.errors.save_failed'))).toBeInTheDocument();
@@ -116,7 +149,7 @@ describe('AssetForm — Field migration + validation (#59)', () => {
 
     it('reads .isError on the closed-lists fetch — a retryable notice, not a silent empty dropdown', async () => {
         mockGetClosedLists.mockRejectedValue(new Error('network down'));
-        renderForm();
+        await renderForm();
 
         expect(await screen.findByText(i18n.t('assets:form.errors.lists_failed'))).toBeInTheDocument();
         expect(screen.getByRole('button', { name: i18n.t('assets:actions.retry') })).toBeInTheDocument();
@@ -124,11 +157,106 @@ describe('AssetForm — Field migration + validation (#59)', () => {
 
     it('has no axe violations in the validation-error state (N10)', async () => {
         const user = userEvent.setup();
-        const { container } = renderForm();
+        const { container } = await renderForm();
 
         await user.click(screen.getByTestId('asset-form-submit'));
         expect(screen.getByRole('alert')).toBeInTheDocument();
 
         await expectNoAxeViolations(container);
+    });
+});
+
+describe('AssetForm — ownership acceptance (#75)', () => {
+    beforeEach(() => {
+        mockGetAssetOwners.mockResolvedValue([
+            {
+                id: 11, name: 'Alex Owner', email: 'alex@example.test', role_name: 'business_owner',
+                department_id: 4, department_name: 'Operations',
+            },
+            {
+                id: 22, name: 'Taylor Owner', email: 'taylor@example.test', role_name: 'ict_owner',
+                department_id: 9, department_name: 'IT',
+            },
+            {
+                id: 33, name: 'Casey Owner', email: 'casey@example.test', role_name: 'asset_owner',
+                department_id: 8, department_name: 'Finance',
+            },
+        ]);
+        mockGetAssetDepartments.mockResolvedValue([
+            { id: 4, name: 'Operations', code: 'OPS' },
+            { id: 8, name: 'Finance', code: 'FIN' },
+            { id: 9, name: 'IT', code: 'IT' },
+        ]);
+    });
+
+    it('fills an empty Department from Business Owner while ICT Owner changes remain independent', async () => {
+        const user = userEvent.setup();
+        mockCreateAsset.mockResolvedValue({ id: 75, name: 'Cross-department service' });
+        await renderForm();
+        await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Cross-department service');
+
+        const department = screen.getByTestId('asset-form-owner-department');
+        await user.click(screen.getByTestId('asset-form-business-owner'));
+        const operationsOwner = await screen.findByRole('option', { name: /Alex Owner.*Operations/ });
+        expect(operationsOwner).toHaveTextContent('Operations');
+        await user.click(operationsOwner);
+        expect(department).toHaveTextContent('Operations (OPS)');
+
+        await user.click(screen.getByTestId('asset-form-ict-owner'));
+        const itOwner = await screen.findByRole('option', { name: /Taylor Owner.*IT/ });
+        expect(itOwner).toHaveTextContent('IT');
+        await user.click(itOwner);
+        expect(department).toHaveTextContent('Operations (OPS)');
+
+        await user.click(screen.getByTestId('asset-form-ict-owner'));
+        const financeOwner = await screen.findByRole('option', { name: /Casey Owner.*Finance/ });
+        expect(financeOwner).toHaveTextContent('Finance');
+        await user.click(financeOwner);
+        expect(department).toHaveTextContent('Operations (OPS)');
+
+        await user.click(screen.getByTestId('asset-form-submit'));
+        await waitFor(() => expect(mockCreateAsset).toHaveBeenCalledTimes(1));
+        expect(mockCreateAsset).toHaveBeenCalledWith(expect.objectContaining({
+            business_owner_user_id: 11,
+            ict_owner_user_id: 33,
+            owning_department_id: 4,
+        }));
+    });
+
+    it('preserves a manually selected Department across Business Owner changes', async () => {
+        const user = userEvent.setup();
+        mockCreateAsset.mockResolvedValue({ id: 76, name: 'Manual-department service' });
+        await renderForm();
+        await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Manual-department service');
+
+        const department = screen.getByTestId('asset-form-owner-department');
+        await user.click(department);
+        await user.click(await screen.findByRole('option', { name: 'Finance (FIN)' }));
+
+        await user.click(screen.getByTestId('asset-form-business-owner'));
+        const operationsOwner = await screen.findByRole('option', { name: /Alex Owner.*Operations/ });
+        expect(operationsOwner).toHaveTextContent('Operations');
+        await user.click(operationsOwner);
+        expect(department).toHaveTextContent('Finance (FIN)');
+
+        await user.click(screen.getByTestId('asset-form-business-owner'));
+        const itOwner = await screen.findByRole('option', { name: /Taylor Owner.*IT/ });
+        expect(itOwner).toHaveTextContent('IT');
+        await user.click(itOwner);
+        expect(department).toHaveTextContent('Finance (FIN)');
+
+        await user.click(screen.getByTestId('asset-form-ict-owner'));
+        const financeOwner = await screen.findByRole('option', { name: /Casey Owner.*Finance/ });
+        expect(financeOwner).toHaveTextContent('Finance');
+        await user.click(financeOwner);
+        expect(department).toHaveTextContent('Finance (FIN)');
+
+        await user.click(screen.getByTestId('asset-form-submit'));
+        await waitFor(() => expect(mockCreateAsset).toHaveBeenCalledTimes(1));
+        expect(mockCreateAsset).toHaveBeenCalledWith(expect.objectContaining({
+            business_owner_user_id: 22,
+            ict_owner_user_id: 33,
+            owning_department_id: 8,
+        }));
     });
 });

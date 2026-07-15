@@ -16,29 +16,21 @@ them. Coded fields are validated against the workbook closed lists in
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
-from app.services._ict_register_reference import ICT_SERVICE_TAXONOMY, is_closed_list_value
+from app.services._ict_register_reference import (
+    ASSET_CONTROLLED_CODES_BY_FIELD,
+    ICT_SERVICE_TAXONOMY,
+    is_closed_list_value,
+)
 
 # Ratings and manual impacts are Skala15 integers (1-5); strict, so "5" is rejected.
 RatingDimension = Annotated[int, Field(strict=True)]
 
-_CLOSED_LIST_FIELDS: dict[str, str] = {
-    "asset_type": "TypAktiva",
-    "asset_level": "UrovenAktiva",
-    "deployment_model": "ModelNasazeni",
-    "owner_department": "VlastnickyUtvar",
-    "gdpr_relevance": "AnoNeNeurceno",
-    "ai_relevance": "AnoNeNeurceno",
-    "data_classification": "KlasifikaceDat",
-    "internet_exposed": "AnoNe",
-    "preliminary_criticality": "TridyKrit",
-    "lifecycle_state": "StavAktiva",
-    "review_state": "StavRevize",
-}
+_ASSET_CONTROLLED_FIELDS = tuple(ASSET_CONTROLLED_CODES_BY_FIELD)
 
 _RATING_FIELDS = (
     "confidentiality_rating",
@@ -57,14 +49,13 @@ class AssetWriteValidators(BaseModel):
 
     model_config = {"extra": "forbid"}
 
-    @field_validator(*_CLOSED_LIST_FIELDS, check_fields=False)
+    @field_validator(*_ASSET_CONTROLLED_FIELDS, check_fields=False)
     @classmethod
-    def _validate_closed_list_fields(cls, value: str | None, info) -> str | None:
+    def _validate_controlled_fields(cls, value: str | None, info) -> str | None:
         if value is None:
             return value
-        list_name = _CLOSED_LIST_FIELDS[info.field_name]
-        if not is_closed_list_value(list_name, value):
-            raise ValueError(f"Value must come from the workbook closed list {list_name}")
+        if value not in ASSET_CONTROLLED_CODES_BY_FIELD[info.field_name]:
+            raise ValueError(f"Value must be a canonical Asset {info.field_name} code")
         return value
 
     @field_validator(*_RATING_FIELDS, check_fields=False)
@@ -88,9 +79,9 @@ class AssetBase(AssetWriteValidators):
     alternative_names: str | None = Field(None, max_length=255)
 
     # B·VLASTNICTVÍ A REGULACE
-    business_owner: str | None = Field(None, max_length=255)
-    owner_department: str | None = Field(None, max_length=100)
-    ict_owner: str | None = Field(None, max_length=255)
+    business_owner_user_id: int = Field(..., ge=1)
+    ict_owner_user_id: int = Field(..., ge=1)
+    owning_department_id: int = Field(..., ge=1)
     gdpr_relevance: str | None = Field(None, max_length=20)
     ai_relevance: str | None = Field(None, max_length=20)
     data_classification: str | None = Field(None, max_length=100)
@@ -138,9 +129,9 @@ class AssetUpdate(AssetWriteValidators):
     deployment_model: str | None = Field(None, max_length=50)
     alternative_names: str | None = Field(None, max_length=255)
 
-    business_owner: str | None = Field(None, max_length=255)
-    owner_department: str | None = Field(None, max_length=100)
-    ict_owner: str | None = Field(None, max_length=255)
+    business_owner_user_id: int | None = Field(None, ge=1)
+    ict_owner_user_id: int | None = Field(None, ge=1)
+    owning_department_id: int | None = Field(None, ge=1)
     gdpr_relevance: str | None = Field(None, max_length=20)
     ai_relevance: str | None = Field(None, max_length=20)
     data_classification: str | None = Field(None, max_length=100)
@@ -174,6 +165,40 @@ class AssetCapabilities(BaseModel):
     can_update: bool
     can_archive: bool
     can_restore: bool
+
+
+class AssetOwnerRead(BaseModel):
+    """Safe Asset owner projection; raw numeric ids are never display labels."""
+
+    name: str
+    role_name: str
+    department_name: str | None = None
+
+
+class AssetDepartmentRead(BaseModel):
+    """Safe canonical Owning Department projection."""
+
+    name: str
+    code: str
+
+
+class AssetOwnerLookup(BaseModel):
+    """Active User option for either Asset responsibility picker."""
+
+    id: int
+    name: str
+    email: str
+    role_name: str
+    department_id: int | None = None
+    department_name: str | None = None
+
+
+class AssetDepartmentLookup(AssetDepartmentRead):
+    """Active Department option for Asset ownership."""
+
+    id: int
+
+    model_config = {"from_attributes": True}
 
 
 class AssetDerivedInputs(BaseModel):
@@ -251,9 +276,20 @@ class AssetRead(BaseModel):
     deployment_model: str | None = None
     alternative_names: str | None = None
 
-    business_owner: str | None = None
-    owner_department: str | None = None
-    ict_owner: str | None = None
+    business_owner_user_id: int | None = None
+    ict_owner_user_id: int | None = None
+    owning_department_id: int | None = None
+    business_owner: AssetOwnerRead | None = None
+    ict_owner: AssetOwnerRead | None = None
+    owning_department: AssetDepartmentRead | None = None
+    business_owner_orphaned: bool = False
+    ict_owner_orphaned: bool = False
+    ownership_status: Literal[
+        "assigned",
+        "legacy_unassigned",
+        "pending_governance",
+        "invalid_assignment",
+    ] = "legacy_unassigned"
     gdpr_relevance: str | None = None
     ai_relevance: str | None = None
     data_classification: str | None = None

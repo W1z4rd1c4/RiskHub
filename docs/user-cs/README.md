@@ -51,6 +51,7 @@ První týden používejte hlavně k vytvoření správných návyků. Při otev
 - [Nálezy](./issues.md): remediation, výjimky a uzavření.
 - [Dodavatelé](./vendors.md): třetí strany a navázaná práce.
 - [Procesy](./processes.md): vlastníci procesů, vlastnické útvary, kontinuita a odvozená kritičnost.
+- [Aktiva](./assets.md): Business a ICT vlastníci, vlastnické útvary, kanonické klasifikace a odvozené výsledky.
 - [Hrozby](./threats.md): globální katalog hrozeb spravovaný rolí CISO a vazby na rizika.
 - [Oddělení](./departments.md): expozice podle organizační oblasti.
 - [Governance](./governance.md): chybějící ownership nebo kontext.

@@ -129,7 +129,7 @@ export function getOrphanResolutionRequirements(
         requiresDepartment,
         shouldShowOwner: requiresOwner,
         shouldShowRisk,
-        shouldShowDepartment: orphan.item_type === 'process' && requiresDepartment,
+        shouldShowDepartment: (orphan.item_type === 'process' || orphan.item_type === 'asset') && requiresDepartment,
     };
 }
 

@@ -24,6 +24,7 @@ export function useAssetDetailState({ mode, notFoundMessage }: UseAssetDetailSta
         refetch: fetchAsset,
         resource: asset,
         resourceId: assetId,
+        setResource: setAsset,
     } = useDetailQuery<Asset>({
         enabled: mode !== 'new',
         entity: 'asset',
@@ -56,5 +57,6 @@ export function useAssetDetailState({ mode, notFoundMessage }: UseAssetDetailSta
         asset,
         assetId,
         restoreAsset,
+        setAsset,
     };
 }

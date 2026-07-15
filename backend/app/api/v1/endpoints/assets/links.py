@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import require_permission
+from app.api import deps
 from app.db.session import get_db
 from app.models import User
 from app.schemas.asset import (
@@ -39,7 +39,7 @@ router = APIRouter()
 async def list_asset_risk_links_route(
     asset_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "read")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """The Asset-end read of the Risk<->Asset Link relation (issue #47, read-only)."""
     return await list_asset_risk_links(db, asset_id=asset_id, current_user=current_user)
@@ -49,7 +49,7 @@ async def list_asset_risk_links_route(
 async def list_asset_process_links_route(
     asset_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "read")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await list_asset_process_links(db, asset_id=asset_id, current_user=current_user)
 
@@ -63,7 +63,7 @@ async def create_asset_process_link(
     asset_id: int,
     payload: ProcessAssetLinkCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await add_asset_process_link(db, asset_id=asset_id, payload=payload, current_user=current_user)
 
@@ -74,7 +74,7 @@ async def update_asset_process_link_route(
     process_id: int,
     payload: ProcessAssetLinkUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await update_asset_process_link(
         db, asset_id=asset_id, process_id=process_id, payload=payload, current_user=current_user
@@ -86,7 +86,7 @@ async def delete_asset_process_link(
     asset_id: int,
     process_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     await remove_asset_process_link(db, asset_id=asset_id, process_id=process_id, current_user=current_user)
     return None
@@ -96,7 +96,7 @@ async def delete_asset_process_link(
 async def list_asset_asset_links_route(
     asset_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "read")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await list_asset_asset_links(db, asset_id=asset_id, current_user=current_user)
 
@@ -110,7 +110,7 @@ async def create_asset_asset_link(
     asset_id: int,
     payload: AssetAssetLinkCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await add_asset_asset_link(db, asset_id=asset_id, payload=payload, current_user=current_user)
 
@@ -120,7 +120,7 @@ async def delete_asset_asset_link(
     asset_id: int,
     link_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     await remove_asset_asset_link(db, asset_id=asset_id, link_id=link_id, current_user=current_user)
     return None
@@ -130,7 +130,7 @@ async def delete_asset_asset_link(
 async def list_asset_vendor_links_route(
     asset_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "read")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await list_asset_vendor_links(db, asset_id=asset_id, current_user=current_user)
 
@@ -144,7 +144,7 @@ async def create_asset_vendor_link(
     asset_id: int,
     payload: AssetVendorLinkCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await add_asset_vendor_link(db, asset_id=asset_id, payload=payload, current_user=current_user)
 
@@ -154,7 +154,7 @@ async def delete_asset_vendor_link(
     asset_id: int,
     link_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     await remove_asset_vendor_link(db, asset_id=asset_id, link_id=link_id, current_user=current_user)
     return None

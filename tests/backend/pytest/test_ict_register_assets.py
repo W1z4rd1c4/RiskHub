@@ -42,7 +42,9 @@ from app.models.user import AccessScope
 
 
 @pytest_asyncio.fixture
-async def test_user_seeded_risk_manager(db_session: AsyncSession) -> User:
+async def test_user_seeded_risk_manager(
+    db_session: AsyncSession, test_department
+) -> User:
     """Risk manager holding exactly the canonical RBAC seed permissions."""
     role = Role(name="risk_manager", display_name="Risk Manager", description="Seed-contract risk manager")
     db_session.add(role)
@@ -63,40 +65,51 @@ async def test_user_seeded_risk_manager(db_session: AsyncSession) -> User:
         role_id=role.id,
         is_active=True,
         access_scope=AccessScope.GLOBAL,
+        department_id=test_department.id,
     )
     db_session.add(user)
     await db_session.commit()
 
     result = await db_session.execute(
         select(User)
-        .options(selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission))
+        .options(
+            selectinload(User.role)
+            .selectinload(Role.permissions)
+            .selectinload(RolePermission.permission)
+        )
         .where(User.id == user.id)
     )
     return result.scalar_one()
 
 
-def _minimal_payload(**overrides: object) -> dict[str, object]:
-    payload: dict[str, object] = {"name": "Veris"}
+def _minimal_payload(owner: User, **overrides: object) -> dict[str, object]:
+    assert owner.department_id is not None
+    payload: dict[str, object] = {
+        "name": "Veris",
+        "business_owner_user_id": owner.id,
+        "ict_owner_user_id": owner.id,
+        "owning_department_id": owner.department_id,
+    }
     payload.update(overrides)
     return payload
 
 
-def _full_payload(**overrides: object) -> dict[str, object]:
+def _full_payload(owner: User, **overrides: object) -> dict[str, object]:
     """Every entered 04_Aktiva field (spec section 1.2); values mirror the Veris seed row."""
     payload: dict[str, object] = {
         "name": "Veris",
-        "asset_type": "Aplikace",
-        "asset_level": "A – primární",
+        "asset_type": "application",
+        "asset_level": "primary",
         "description": "Jádrový pojistný systém.",
         "physical_location": "Datové centrum Praha",
-        "deployment_model": "On-premise",
+        "deployment_model": "on_premise",
         "alternative_names": "VERIS, Veris Core",
-        "business_owner": "Provozní úsek",
-        "owner_department": "IT",
-        "ict_owner": "IT provoz",
-        "gdpr_relevance": "Ano",
-        "ai_relevance": "Ne",
-        "data_classification": "Vysoce důvěrná / regulovaná data",
+        "business_owner_user_id": owner.id,
+        "ict_owner_user_id": owner.id,
+        "owning_department_id": owner.department_id,
+        "gdpr_relevance": "yes",
+        "ai_relevance": "no",
+        "data_classification": "highly_confidential_regulated",
         "confidentiality_rating": 5,
         "integrity_rating": 5,
         "availability_rating": 5,
@@ -105,50 +118,55 @@ def _full_payload(**overrides: object) -> dict[str, object]:
         "impact_regulatory": 5,
         "substitutability_rating": 5,
         "vendor_dependency_rating": 4,
-        "internet_exposed": "Ne",
-        "preliminary_criticality": "Kritická",
-        "lifecycle_state": "V provozu",
+        "internet_exposed": "no",
+        "preliminary_criticality": "critical",
+        "lifecycle_state": "operational",
         "standard_support_end_date": "2027-12-31",
         "extended_support_end_date": "2028-12-31",
         "custom_support_end_date": "2029-06-30",
         "last_legacy_risk_assessment_date": "2026-01-15",
-        "review_state": "K revizi",
+        "review_state": "review_required",
         "notes": "Poznámka k aktivu.",
     }
     payload.update(overrides)
     return payload
 
 
-def _process_payload(**overrides: object) -> dict[str, object]:
+def _process_payload(owner: User, **overrides: object) -> dict[str, object]:
+    assert owner.department_id is not None
     payload: dict[str, object] = {
         "l0_area": "Provoz a služby klientům",
         "l1_process": "Správa pojistných smluv",
+        "process_owner_user_id": owner.id,
+        "owning_department_id": owner.department_id,
     }
     payload.update(overrides)
     return payload
 
 
 @pytest.mark.asyncio
-async def test_create_and_read_asset_with_all_entered_fields(client_factory, test_user_cro: User):
+async def test_create_and_read_asset_with_all_entered_fields(
+    client_factory, test_user_cro: User
+):
     async with client_factory(user=test_user_cro) as client:
-        created = await client.post("/api/v1/assets", json=_full_payload())
+        created = await client.post("/api/v1/assets", json=_full_payload(test_user_cro))
 
         assert created.status_code == 201, created.text
         body = created.json()
         assert body["id"] > 0
         assert body["name"] == "Veris"
-        assert body["asset_type"] == "Aplikace"
-        assert body["asset_level"] == "A – primární"
+        assert body["asset_type"] == "application"
+        assert body["asset_level"] == "primary"
         assert body["description"] == "Jádrový pojistný systém."
         assert body["physical_location"] == "Datové centrum Praha"
-        assert body["deployment_model"] == "On-premise"
+        assert body["deployment_model"] == "on_premise"
         assert body["alternative_names"] == "VERIS, Veris Core"
-        assert body["business_owner"] == "Provozní úsek"
-        assert body["owner_department"] == "IT"
-        assert body["ict_owner"] == "IT provoz"
-        assert body["gdpr_relevance"] == "Ano"
-        assert body["ai_relevance"] == "Ne"
-        assert body["data_classification"] == "Vysoce důvěrná / regulovaná data"
+        assert body["business_owner_user_id"] == test_user_cro.id
+        assert body["ict_owner_user_id"] == test_user_cro.id
+        assert body["owning_department_id"] == test_user_cro.department_id
+        assert body["gdpr_relevance"] == "yes"
+        assert body["ai_relevance"] == "no"
+        assert body["data_classification"] == "highly_confidential_regulated"
         assert body["confidentiality_rating"] == 5
         assert body["integrity_rating"] == 5
         assert body["availability_rating"] == 5
@@ -157,14 +175,14 @@ async def test_create_and_read_asset_with_all_entered_fields(client_factory, tes
         assert body["impact_regulatory"] == 5
         assert body["substitutability_rating"] == 5
         assert body["vendor_dependency_rating"] == 4
-        assert body["internet_exposed"] == "Ne"
-        assert body["preliminary_criticality"] == "Kritická"
-        assert body["lifecycle_state"] == "V provozu"
+        assert body["internet_exposed"] == "no"
+        assert body["preliminary_criticality"] == "critical"
+        assert body["lifecycle_state"] == "operational"
         assert body["standard_support_end_date"] == "2027-12-31"
         assert body["extended_support_end_date"] == "2028-12-31"
         assert body["custom_support_end_date"] == "2029-06-30"
         assert body["last_legacy_risk_assessment_date"] == "2026-01-15"
-        assert body["review_state"] == "K revizi"
+        assert body["review_state"] == "review_required"
         assert body["notes"] == "Poznámka k aktivu."
         # No linked Process yet: the primary designation is empty, never defaulted.
         assert body["primary_process_id"] is None
@@ -179,9 +197,16 @@ async def test_create_and_read_asset_with_all_entered_fields(client_factory, tes
 
 
 @pytest.mark.asyncio
-async def test_create_with_minimal_fields_leaves_optional_fields_null(client_factory, test_user_cro: User):
+async def test_create_with_minimal_fields_leaves_optional_fields_null(
+    client_factory, test_user_cro: User
+):
     async with client_factory(user=test_user_cro) as client:
-        created = await client.post("/api/v1/assets", json=_minimal_payload())
+        created = await client.post(
+            "/api/v1/assets",
+            json=_minimal_payload(
+                test_user_cro,
+            ),
+        )
 
     assert created.status_code == 201, created.text
     body = created.json()
@@ -196,26 +221,43 @@ async def test_create_with_minimal_fields_leaves_optional_fields_null(client_fac
 
 
 @pytest.mark.asyncio
-async def test_update_asset_round_trips_entered_fields(client_factory, test_user_cro: User):
+async def test_update_asset_round_trips_entered_fields(
+    client_factory, test_user_cro: User
+):
     async with client_factory(user=test_user_cro) as client:
-        created = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
+        created = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
 
         updated = await client.patch(
             f"/api/v1/assets/{created['id']}",
-            json={"lifecycle_state": "Utlumováno", "availability_rating": 3, "notes": "Po revizi."},
+            json={
+                "lifecycle_state": "being_decommissioned",
+                "availability_rating": 3,
+                "notes": "Po revizi.",
+            },
         )
         assert updated.status_code == 200, updated.text
-        assert updated.json()["lifecycle_state"] == "Utlumováno"
+        assert updated.json()["lifecycle_state"] == "being_decommissioned"
         assert updated.json()["availability_rating"] == 3
         assert updated.json()["notes"] == "Po revizi."
         # Untouched fields stay untouched.
         assert updated.json()["name"] == "Veris"
 
         # Clearing an optional field with null works; nulling the name does not.
-        cleared = await client.patch(f"/api/v1/assets/{created['id']}", json={"notes": None})
+        cleared = await client.patch(
+            f"/api/v1/assets/{created['id']}", json={"notes": None}
+        )
         assert cleared.status_code == 200
         assert cleared.json()["notes"] is None
-        assert (await client.patch(f"/api/v1/assets/{created['id']}", json={"name": None})).status_code in (400, 422)
+        assert (
+            await client.patch(f"/api/v1/assets/{created['id']}", json={"name": None})
+        ).status_code in (400, 422)
 
         missing = await client.patch("/api/v1/assets/999999", json={"notes": "x"})
         assert missing.status_code == 404
@@ -250,16 +292,33 @@ DERIVED_FIELD_WRITES: dict[str, object] = {
 
 
 @pytest.mark.asyncio
-async def test_writes_that_include_derived_fields_are_rejected(client_factory, test_user_cro: User):
+async def test_writes_that_include_derived_fields_are_rejected(
+    client_factory, test_user_cro: User
+):
     async with client_factory(user=test_user_cro) as client:
-        existing = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
+        existing = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
 
         for field, value in DERIVED_FIELD_WRITES.items():
-            create_resp = await client.post("/api/v1/assets", json=_minimal_payload(**{field: value}))
-            assert create_resp.status_code == 422, f"POST accepted derived field {field}"
+            create_resp = await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, **{field: value})
+            )
+            assert (
+                create_resp.status_code == 422
+            ), f"POST accepted derived field {field}"
 
-            patch_resp = await client.patch(f"/api/v1/assets/{existing['id']}", json={field: value})
-            assert patch_resp.status_code == 422, f"PATCH accepted derived field {field}"
+            patch_resp = await client.patch(
+                f"/api/v1/assets/{existing['id']}", json={field: value}
+            )
+            assert (
+                patch_resp.status_code == 422
+            ), f"PATCH accepted derived field {field}"
 
         # The register did not silently change.
         unchanged = await client.get(f"/api/v1/assets/{existing['id']}")
@@ -284,61 +343,92 @@ async def test_ratings_are_skala15_integers(client_factory, test_user_cro: User)
     )
     async with client_factory(user=test_user_cro) as client:
         for field in rating_fields:
-            ok = await client.post("/api/v1/assets", json=_minimal_payload(**{field: 5}))
+            ok = await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, **{field: 5})
+            )
             assert ok.status_code == 201, f"{field}=5 rejected: {ok.text}"
 
             for invalid in ("5", 0, 6, 2.5, "Ano"):
-                resp = await client.post("/api/v1/assets", json=_minimal_payload(**{field: invalid}))
+                resp = await client.post(
+                    "/api/v1/assets",
+                    json=_minimal_payload(test_user_cro, **{field: invalid}),
+                )
                 assert resp.status_code == 422, f"{field}={invalid!r} accepted"
 
 
 @pytest.mark.asyncio
-async def test_coded_fields_are_enforced_against_workbook_closed_lists(client_factory, test_user_cro: User):
-    """Closed-list fields accept verbatim workbook values only (spec section 3.1)."""
+async def test_coded_fields_are_enforced_as_canonical_codes(
+    client_factory, test_user_cro: User
+):
+    """Controlled Asset fields accept locale-independent codes only."""
     cases = {
-        "asset_type": ("Datové úložiště", "Server"),
-        "asset_level": ("B – podpůrné", "D – ostatní"),
-        "deployment_model": ("Externě hostováno", "Mainframe"),
-        "owner_department": ("Provoz", "Neexistující útvar"),
-        "gdpr_relevance": ("Neurčeno", "Možná"),
-        "ai_relevance": ("Ano", "Částečně"),
-        "data_classification": ("Bez dat / nerelevantní", "Tajná data"),
-        "internet_exposed": ("Ano", "Neurčeno"),
-        "preliminary_criticality": ("Střední", "Extrémní"),
-        "lifecycle_state": ("Vyřazeno", "Plánováno"),
-        "review_state": ("Zkontrolováno", "Rozpracováno"),
+        "asset_type": ("data_storage", "Datové úložiště"),
+        "asset_level": ("supporting", "B – podpůrné"),
+        "deployment_model": ("externally_hosted", "Externě hostováno"),
+        "gdpr_relevance": ("undetermined", "Neurčeno"),
+        "ai_relevance": ("yes", "Ano"),
+        "data_classification": ("no_data_not_applicable", "Bez dat / nerelevantní"),
+        "internet_exposed": ("yes", "Ano"),
+        "preliminary_criticality": ("medium", "Střední"),
+        "lifecycle_state": ("retired", "Vyřazeno"),
+        "review_state": ("reviewed", "Zkontrolováno"),
     }
     async with client_factory(user=test_user_cro) as client:
         for field, (valid, invalid) in cases.items():
-            ok = await client.post("/api/v1/assets", json=_minimal_payload(**{field: valid}))
+            ok = await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, **{field: valid})
+            )
             assert ok.status_code == 201, f"{field}={valid!r} rejected: {ok.text}"
             assert ok.json()[field] == valid
 
-            rejected = await client.post("/api/v1/assets", json=_minimal_payload(**{field: invalid}))
+            rejected = await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(test_user_cro, **{field: invalid}),
+            )
             assert rejected.status_code == 422, f"{field}={invalid!r} accepted"
 
-        # Case-sensitivity: closed lists are verbatim ("v provozu" is not a state).
-        lowercase = await client.post("/api/v1/assets", json=_minimal_payload(lifecycle_state="v provozu"))
-        assert lowercase.status_code == 422
+        workbook_label = await client.post(
+            "/api/v1/assets",
+            json=_minimal_payload(test_user_cro, lifecycle_state="V provozu"),
+        )
+        assert workbook_label.status_code == 422
 
         # PATCH enforces the same lists.
-        created = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
+        created = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
         patched_bad = await client.patch(
-            f"/api/v1/assets/{created['id']}", json={"preliminary_criticality": "Extrémní"}
+            f"/api/v1/assets/{created['id']}",
+            json={"preliminary_criticality": "Extrémní"},
         )
         assert patched_bad.status_code == 422
         patched_ok = await client.patch(
-            f"/api/v1/assets/{created['id']}", json={"preliminary_criticality": "Nízká"}
+            f"/api/v1/assets/{created['id']}", json={"preliminary_criticality": "low"}
         )
         assert patched_ok.status_code == 200
-        assert patched_ok.json()["preliminary_criticality"] == "Nízká"
+        assert patched_ok.json()["preliminary_criticality"] == "low"
 
 
 @pytest.mark.asyncio
-async def test_archive_restore_lifecycle_and_register_listing(client_factory, test_user_cro: User):
+async def test_archive_restore_lifecycle_and_register_listing(
+    client_factory, test_user_cro: User
+):
     async with client_factory(user=test_user_cro) as client:
-        veris = (await client.post("/api/v1/assets", json=_minimal_payload(name="Veris"))).json()
-        sap = (await client.post("/api/v1/assets", json=_minimal_payload(name="SAP"))).json()
+        veris = (
+            await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name="Veris")
+            )
+        ).json()
+        sap = (
+            await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name="SAP")
+            )
+        ).json()
 
         # Archive hides the row from the default register listing.
         assert (await client.delete(f"/api/v1/assets/{sap['id']}")).status_code == 204
@@ -357,7 +447,7 @@ async def test_archive_restore_lifecycle_and_register_listing(client_factory, te
 
         # Archived rows cannot be edited (409) or re-archived (400).
         assert (
-            await client.patch(f"/api/v1/assets/{sap['id']}", json={"business_owner": "Finance"})
+            await client.patch(f"/api/v1/assets/{sap['id']}", json={"notes": "blocked"})
         ).status_code == 409
         assert (await client.delete(f"/api/v1/assets/{sap['id']}")).status_code == 400
 
@@ -376,28 +466,44 @@ async def test_archive_restore_lifecycle_and_register_listing(client_factory, te
 
 
 @pytest.mark.asyncio
-async def test_register_listing_supports_search_pagination_and_sorting(client_factory, test_user_cro: User):
+async def test_register_listing_supports_search_pagination_and_sorting(
+    client_factory, test_user_cro: User
+):
     async with client_factory(user=test_user_cro) as client:
         for name in ("Veris", "SAP", "Datový sklad"):
-            resp = await client.post("/api/v1/assets", json=_minimal_payload(name=name))
+            resp = await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name=name)
+            )
             assert resp.status_code == 201
 
-        searched = (await client.get("/api/v1/assets", params={"search": "veris"})).json()
+        searched = (
+            await client.get("/api/v1/assets", params={"search": "veris"})
+        ).json()
         assert searched["total"] == 1
         assert searched["items"][0]["name"] == "Veris"
 
-        paged = (await client.get("/api/v1/assets", params={"offset": 1, "limit": 1})).json()
+        paged = (
+            await client.get("/api/v1/assets", params={"offset": 1, "limit": 1})
+        ).json()
         assert paged["total"] == 3
         assert len(paged["items"]) == 1
         assert paged["offset"] == 1
         assert paged["limit"] == 1
 
         sorted_desc = (
-            await client.get("/api/v1/assets", params={"sort_by": "name", "sort_order": "desc"})
+            await client.get(
+                "/api/v1/assets", params={"sort_by": "name", "sort_order": "desc"}
+            )
         ).json()
-        assert [item["name"] for item in sorted_desc["items"]] == ["Veris", "SAP", "Datový sklad"]
+        assert [item["name"] for item in sorted_desc["items"]] == [
+            "Veris",
+            "SAP",
+            "Datový sklad",
+        ]
 
-        invalid_sort = await client.get("/api/v1/assets", params={"sort_by": "no_such_column"})
+        invalid_sort = await client.get(
+            "/api/v1/assets", params={"sort_by": "no_such_column"}
+        )
         assert invalid_sort.status_code == 400
 
 
@@ -406,9 +512,22 @@ async def test_register_listing_filters_assets_with_process_links_before_paginat
     client_factory, test_user_cro: User
 ):
     async with client_factory(user=test_user_cro) as client:
-        linked = (await client.post("/api/v1/assets", json=_minimal_payload(name="Linked"))).json()
-        await client.post("/api/v1/assets", json=_minimal_payload(name="Unlinked"))
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        linked = (
+            await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name="Linked")
+            )
+        ).json()
+        await client.post(
+            "/api/v1/assets", json=_minimal_payload(test_user_cro, name="Unlinked")
+        )
+        process = (
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
         link = await client.post(
             f"/api/v1/assets/{linked['id']}/process-links",
             json={"process_id": process["id"]},
@@ -432,12 +551,16 @@ async def test_register_listing_filters_assets_by_derived_criticality(
         critical = (
             await client.post(
                 "/api/v1/assets",
-                json=_minimal_payload(name="Critical", preliminary_criticality="Kritická"),
+                json=_minimal_payload(
+                    test_user_cro, name="Critical", preliminary_criticality="critical"
+                ),
             )
         ).json()
         await client.post(
             "/api/v1/assets",
-            json=_minimal_payload(name="Low", preliminary_criticality="Nízká"),
+            json=_minimal_payload(
+                test_user_cro, name="Low", preliminary_criticality="low"
+            ),
         )
 
         response = await client.get(
@@ -450,11 +573,27 @@ async def test_register_listing_filters_assets_by_derived_criticality(
 
 
 @pytest.mark.asyncio
-async def test_process_asset_link_round_trip_readable_from_both_ends(client_factory, test_user_cro: User):
+async def test_process_asset_link_round_trip_readable_from_both_ends(
+    client_factory, test_user_cro: User
+):
     """AC: link Assets to Processes with SPOF, managed from the Asset detail, readable from both ends."""
     async with client_factory(user=test_user_cro) as client:
-        asset = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        asset = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
+        process = (
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
 
         created = await client.post(
             f"/api/v1/assets/{asset['id']}/process-links",
@@ -480,57 +619,100 @@ async def test_process_asset_link_round_trip_readable_from_both_ends(client_fact
         assert [row["id"] for row in from_asset.json()] == [link["id"]]
 
         # Readable from the Process end.
-        from_process = await client.get(f"/api/v1/processes/{process['id']}/asset-links")
+        from_process = await client.get(
+            f"/api/v1/processes/{process['id']}/asset-links"
+        )
         assert from_process.status_code == 200
         assert [row["asset_id"] for row in from_process.json()] == [asset["id"]]
         assert from_process.json()[0]["spof"] == "Ano"
 
         # Remove from the Asset detail; both ends empty out.
-        removed = await client.delete(f"/api/v1/assets/{asset['id']}/process-links/{process['id']}")
+        removed = await client.delete(
+            f"/api/v1/assets/{asset['id']}/process-links/{process['id']}"
+        )
         assert removed.status_code == 204
-        assert (await client.get(f"/api/v1/assets/{asset['id']}/process-links")).json() == []
-        assert (await client.get(f"/api/v1/processes/{process['id']}/asset-links")).json() == []
+        assert (
+            await client.get(f"/api/v1/assets/{asset['id']}/process-links")
+        ).json() == []
+        assert (
+            await client.get(f"/api/v1/processes/{process['id']}/asset-links")
+        ).json() == []
 
         # Unknown ends 404.
         assert (
             await client.post(
-                f"/api/v1/assets/{asset['id']}/process-links", json={"process_id": 999999}
+                f"/api/v1/assets/{asset['id']}/process-links",
+                json={"process_id": 999999},
             )
         ).status_code == 404
         assert (
-            await client.post("/api/v1/assets/999999/process-links", json={"process_id": process["id"]})
+            await client.post(
+                "/api/v1/assets/999999/process-links",
+                json={"process_id": process["id"]},
+            )
         ).status_code == 404
         assert (
-            await client.delete(f"/api/v1/assets/{asset['id']}/process-links/{process['id']}")
+            await client.delete(
+                f"/api/v1/assets/{asset['id']}/process-links/{process['id']}"
+            )
         ).status_code == 404
-        assert (await client.get("/api/v1/assets/999999/process-links")).status_code == 404
-        assert (await client.get("/api/v1/processes/999999/asset-links")).status_code == 404
+        assert (
+            await client.get("/api/v1/assets/999999/process-links")
+        ).status_code == 404
+        assert (
+            await client.get("/api/v1/processes/999999/asset-links")
+        ).status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_process_asset_link_enforces_unique_pair_and_closed_lists(client_factory, test_user_cro: User):
+async def test_process_asset_link_enforces_unique_pair_and_closed_lists(
+    client_factory, test_user_cro: User
+):
     async with client_factory(user=test_user_cro) as client:
-        asset = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        asset = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
+        process = (
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
 
         first = await client.post(
-            f"/api/v1/assets/{asset['id']}/process-links", json={"process_id": process["id"]}
+            f"/api/v1/assets/{asset['id']}/process-links",
+            json={"process_id": process["id"]},
         )
         assert first.status_code == 201
 
         duplicate = await client.post(
-            f"/api/v1/assets/{asset['id']}/process-links", json={"process_id": process["id"]}
+            f"/api/v1/assets/{asset['id']}/process-links",
+            json={"process_id": process["id"]},
         )
         assert duplicate.status_code == 400
 
         # Closed lists: SPOF is AnoNe, significance is VyznamVazby — verbatim.
-        other = (await client.post("/api/v1/processes", json=_process_payload(l1_process="Upisování"))).json()
+        other = (
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(test_user_cro, l1_process="Upisování"),
+            )
+        ).json()
         for bad_payload in (
             {"process_id": other["id"], "spof": "Možná"},
             {"process_id": other["id"], "significance": "Zásadní vazba"},
             {"process_id": other["id"], "unknown_field": 1},
         ):
-            resp = await client.post(f"/api/v1/assets/{asset['id']}/process-links", json=bad_payload)
+            resp = await client.post(
+                f"/api/v1/assets/{asset['id']}/process-links", json=bad_payload
+            )
             assert resp.status_code == 422, f"{bad_payload} accepted"
 
         # PATCH edits the entered link columns under the same closed lists.
@@ -563,10 +745,27 @@ async def test_primary_designation_atomic_swap_and_read_projection(client_factor
     leaves the Asset with no primary.
     """
     async with client_factory(user=test_user_cro) as client:
-        asset = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
-        process_a = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        asset = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
+        process_a = (
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
         process_b = (
-            await client.post("/api/v1/processes", json=_process_payload(l1_process="Upisování rizik"))
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(test_user_cro, l1_process="Upisování rizik"),
+            )
         ).json()
 
         # Create the first link directly as primary.
@@ -680,32 +879,54 @@ async def test_primary_designation_has_a_db_level_partial_unique_index(db_sessio
     # trigger a lazy refresh outside the async greenlet.
     asset_id, process_a_id, process_b_id = asset.id, process_a.id, process_b.id
 
-    db_session.add(ProcessAssetLink(asset_id=asset_id, process_id=process_a_id, is_primary=True))
+    db_session.add(
+        ProcessAssetLink(asset_id=asset_id, process_id=process_a_id, is_primary=True)
+    )
     await db_session.commit()
 
-    db_session.add(ProcessAssetLink(asset_id=asset_id, process_id=process_b_id, is_primary=True))
+    db_session.add(
+        ProcessAssetLink(asset_id=asset_id, process_id=process_b_id, is_primary=True)
+    )
     with pytest.raises(IntegrityError):
         await db_session.commit()
     await db_session.rollback()
 
     # Non-primary rows stay outside the partial index.
-    db_session.add(ProcessAssetLink(asset_id=asset_id, process_id=process_b_id, is_primary=False))
+    db_session.add(
+        ProcessAssetLink(asset_id=asset_id, process_id=process_b_id, is_primary=False)
+    )
     await db_session.commit()
 
     flags = (
-        await db_session.execute(
-            select(ProcessAssetLink.is_primary).where(ProcessAssetLink.asset_id == asset_id)
+        (
+            await db_session.execute(
+                select(ProcessAssetLink.is_primary).where(
+                    ProcessAssetLink.asset_id == asset_id
+                )
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert sorted(flags) == [False, True]
 
 
 @pytest.mark.asyncio
-async def test_asset_asset_link_directional_round_trip(client_factory, test_user_cro: User):
+async def test_asset_asset_link_directional_round_trip(
+    client_factory, test_user_cro: User
+):
     """AC: link Assets to Assets, manageable from the Asset detail; direction matters."""
     async with client_factory(user=test_user_cro) as client:
-        veris = (await client.post("/api/v1/assets", json=_minimal_payload(name="Veris"))).json()
-        db_asset = (await client.post("/api/v1/assets", json=_minimal_payload(name="Oracle DB"))).json()
+        veris = (
+            await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name="Veris")
+            )
+        ).json()
+        db_asset = (
+            await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name="Oracle DB")
+            )
+        ).json()
 
         created = await client.post(
             f"/api/v1/assets/{veris['id']}/asset-links",
@@ -756,26 +977,47 @@ async def test_asset_asset_link_rejects_self_links_duplicates_and_bad_values(
     client_factory, test_user_cro: User
 ):
     async with client_factory(user=test_user_cro) as client:
-        veris = (await client.post("/api/v1/assets", json=_minimal_payload(name="Veris"))).json()
-        db_asset = (await client.post("/api/v1/assets", json=_minimal_payload(name="Oracle DB"))).json()
+        veris = (
+            await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name="Veris")
+            )
+        ).json()
+        db_asset = (
+            await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name="Oracle DB")
+            )
+        ).json()
 
         # Self-links are rejected.
         self_link = await client.post(
             f"/api/v1/assets/{veris['id']}/asset-links",
-            json={"dependent_asset_id": veris["id"], "supporting_asset_id": veris["id"]},
+            json={
+                "dependent_asset_id": veris["id"],
+                "supporting_asset_id": veris["id"],
+            },
         )
         assert self_link.status_code == 422
 
         # The link must involve the Asset whose detail manages it.
-        third = (await client.post("/api/v1/assets", json=_minimal_payload(name="Firewall"))).json()
+        third = (
+            await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name="Firewall")
+            )
+        ).json()
         unrelated = await client.post(
             f"/api/v1/assets/{third['id']}/asset-links",
-            json={"dependent_asset_id": veris["id"], "supporting_asset_id": db_asset["id"]},
+            json={
+                "dependent_asset_id": veris["id"],
+                "supporting_asset_id": db_asset["id"],
+            },
         )
         assert unrelated.status_code == 400
 
         # Unique pair: the same ordered pair cannot be linked twice.
-        payload = {"dependent_asset_id": veris["id"], "supporting_asset_id": db_asset["id"]}
+        payload = {
+            "dependent_asset_id": veris["id"],
+            "supporting_asset_id": db_asset["id"],
+        }
         assert (
             await client.post(f"/api/v1/assets/{veris['id']}/asset-links", json=payload)
         ).status_code == 201
@@ -806,38 +1048,66 @@ async def test_archived_asset_rejects_link_mutations_but_keeps_links_readable(
     client_factory, test_user_cro: User
 ):
     async with client_factory(user=test_user_cro) as client:
-        asset = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
-        other = (await client.post("/api/v1/assets", json=_minimal_payload(name="Oracle DB"))).json()
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        asset = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
+        other = (
+            await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name="Oracle DB")
+            )
+        ).json()
+        process = (
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
         link = (
             await client.post(
-                f"/api/v1/assets/{asset['id']}/process-links", json={"process_id": process["id"]}
+                f"/api/v1/assets/{asset['id']}/process-links",
+                json={"process_id": process["id"]},
             )
         ).json()
 
         assert (await client.delete(f"/api/v1/assets/{asset['id']}")).status_code == 204
 
         # Link relations stay readable on an archived Asset...
-        assert (await client.get(f"/api/v1/assets/{asset['id']}/process-links")).status_code == 200
+        assert (
+            await client.get(f"/api/v1/assets/{asset['id']}/process-links")
+        ).status_code == 200
 
         # ...but every link mutation conflicts until the Asset is restored.
         assert (
             await client.post(
-                f"/api/v1/assets/{asset['id']}/process-links", json={"process_id": process["id"]}
+                f"/api/v1/assets/{asset['id']}/process-links",
+                json={"process_id": process["id"]},
             )
         ).status_code == 409
         assert (
             await client.patch(
-                f"/api/v1/assets/{asset['id']}/process-links/{process['id']}", json={"is_primary": True}
+                f"/api/v1/assets/{asset['id']}/process-links/{process['id']}",
+                json={"is_primary": True},
             )
         ).status_code == 409
         assert (
-            await client.delete(f"/api/v1/assets/{asset['id']}/process-links/{process['id']}")
+            await client.delete(
+                f"/api/v1/assets/{asset['id']}/process-links/{process['id']}"
+            )
         ).status_code == 409
         assert (
             await client.post(
                 f"/api/v1/assets/{asset['id']}/asset-links",
-                json={"dependent_asset_id": asset["id"], "supporting_asset_id": other["id"]},
+                json={
+                    "dependent_asset_id": asset["id"],
+                    "supporting_asset_id": other["id"],
+                },
             )
         ).status_code == 409
 
@@ -869,7 +1139,9 @@ async def test_risk_manager_seed_grants_full_asset_maintenance(
 ):
     """Maintenance goes to the risk_manager role via the RBAC seed (CRO wildcard aside)."""
     async with client_factory(user=test_user_seeded_risk_manager) as client:
-        created = await client.post("/api/v1/assets", json=_full_payload())
+        created = await client.post(
+            "/api/v1/assets", json=_full_payload(test_user_seeded_risk_manager)
+        )
         assert created.status_code == 201, created.text
         asset_id = created.json()["id"]
         assert created.json()["capabilities"] == {
@@ -880,14 +1152,21 @@ async def test_risk_manager_seed_grants_full_asset_maintenance(
         }
 
         assert (
-            await client.patch(f"/api/v1/assets/{asset_id}", json={"business_owner": "Úsek UW"})
+            await client.patch(
+                f"/api/v1/assets/{asset_id}", json={"notes": "Updated by RM"}
+            )
         ).status_code == 200
 
         listing = (await client.get("/api/v1/assets")).json()
         assert listing["capabilities"] == {"can_create": True}
 
         # Link maintenance is part of asset maintenance.
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        process = (
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(test_user_seeded_risk_manager),
+            )
+        ).json()
         assert (
             await client.post(
                 f"/api/v1/assets/{asset_id}/process-links",
@@ -905,11 +1184,35 @@ async def test_employee_reads_assets_but_cannot_maintain_them(
 ):
     """Reads follow the standard business-entity pattern; writes 403 for employees."""
     async with client_factory(user=test_user_cro) as client:
-        seeded = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        seeded = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
+        supporting = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                    name="Employee authorization supporting asset",
+                ),
+            )
+        ).json()
+        process = (
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
         assert (
             await client.post(
-                f"/api/v1/assets/{seeded['id']}/process-links", json={"process_id": process["id"]}
+                f"/api/v1/assets/{seeded['id']}/process-links",
+                json={"process_id": process["id"]},
             )
         ).status_code == 201
 
@@ -928,20 +1231,38 @@ async def test_employee_reads_assets_but_cannot_maintain_them(
         }
 
         # Links are readable from both ends with the standard read set.
-        assert (await client.get(f"/api/v1/assets/{seeded['id']}/process-links")).status_code == 200
-        assert (await client.get(f"/api/v1/processes/{process['id']}/asset-links")).status_code == 200
-        assert (await client.get(f"/api/v1/assets/{seeded['id']}/asset-links")).status_code == 200
+        assert (
+            await client.get(f"/api/v1/assets/{seeded['id']}/process-links")
+        ).status_code == 200
+        assert (
+            await client.get(f"/api/v1/processes/{process['id']}/asset-links")
+        ).status_code == 200
+        assert (
+            await client.get(f"/api/v1/assets/{seeded['id']}/asset-links")
+        ).status_code == 200
 
         # Every maintenance verb is denied.
-        assert (await client.post("/api/v1/assets", json=_minimal_payload())).status_code == 403
-        assert (
-            await client.patch(f"/api/v1/assets/{seeded['id']}", json={"business_owner": "X"})
-        ).status_code == 403
-        assert (await client.delete(f"/api/v1/assets/{seeded['id']}")).status_code == 403
-        assert (await client.post(f"/api/v1/assets/{seeded['id']}/restore")).status_code == 403
         assert (
             await client.post(
-                f"/api/v1/assets/{seeded['id']}/process-links", json={"process_id": process["id"]}
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).status_code == 403
+        assert (
+            await client.patch(f"/api/v1/assets/{seeded['id']}", json={"notes": "X"})
+        ).status_code == 403
+        assert (
+            await client.delete(f"/api/v1/assets/{seeded['id']}")
+        ).status_code == 403
+        assert (
+            await client.post(f"/api/v1/assets/{seeded['id']}/restore")
+        ).status_code == 403
+        assert (
+            await client.post(
+                f"/api/v1/assets/{seeded['id']}/process-links",
+                json={"process_id": process["id"]},
             )
         ).status_code == 403
         assert (
@@ -956,7 +1277,10 @@ async def test_employee_reads_assets_but_cannot_maintain_them(
         assert (
             await client.post(
                 f"/api/v1/assets/{seeded['id']}/asset-links",
-                json={"dependent_asset_id": seeded["id"], "supporting_asset_id": 1},
+                json={
+                    "dependent_asset_id": seeded["id"],
+                    "supporting_asset_id": supporting["id"],
+                },
             )
         ).status_code == 403
         assert (
@@ -969,20 +1293,52 @@ async def test_platform_admin_is_excluded_and_unauthenticated_is_rejected(
     client_factory, test_user_cro: User, test_user_platform_admin: User
 ):
     async with client_factory(user=test_user_cro) as client:
-        seeded = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        seeded = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
+        process = (
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
 
     paths_and_calls = [
         ("get", "/api/v1/assets", None),
         ("get", f"/api/v1/assets/{seeded['id']}", None),
-        ("post", "/api/v1/assets", _minimal_payload()),
-        ("patch", f"/api/v1/assets/{seeded['id']}", {"business_owner": "X"}),
+        (
+            "post",
+            "/api/v1/assets",
+            _minimal_payload(
+                test_user_cro,
+            ),
+        ),
+        ("patch", f"/api/v1/assets/{seeded['id']}", {"notes": "X"}),
         ("delete", f"/api/v1/assets/{seeded['id']}", None),
         ("post", f"/api/v1/assets/{seeded['id']}/restore", None),
         ("get", f"/api/v1/assets/{seeded['id']}/process-links", None),
-        ("post", f"/api/v1/assets/{seeded['id']}/process-links", {"process_id": process["id"]}),
-        ("patch", f"/api/v1/assets/{seeded['id']}/process-links/{process['id']}", {"is_primary": True}),
-        ("delete", f"/api/v1/assets/{seeded['id']}/process-links/{process['id']}", None),
+        (
+            "post",
+            f"/api/v1/assets/{seeded['id']}/process-links",
+            {"process_id": process["id"]},
+        ),
+        (
+            "patch",
+            f"/api/v1/assets/{seeded['id']}/process-links/{process['id']}",
+            {"is_primary": True},
+        ),
+        (
+            "delete",
+            f"/api/v1/assets/{seeded['id']}/process-links/{process['id']}",
+            None,
+        ),
         ("get", f"/api/v1/assets/{seeded['id']}/asset-links", None),
         (
             "post",
@@ -998,25 +1354,48 @@ async def test_platform_admin_is_excluded_and_unauthenticated_is_rejected(
             return await getattr(client, method)(path, json=body)
         return await getattr(client, method)(path)
 
-    # Platform admin holds no business permissions: 403 everywhere, reads included.
+    # Platform admin has no business visibility: collection reads are an empty
+    # success while record/action routes remain concealed or denied.
     async with client_factory(user=test_user_platform_admin) as client:
         for method, path, body in paths_and_calls:
             resp = await call(client, method, path, body)
-            assert resp.status_code == 403, f"{method.upper()} {path} -> {resp.status_code}"
+            expected = (
+                200 if method == "get" and path == "/api/v1/assets" else {403, 404}
+            )
+            if expected == 200:
+                assert resp.status_code == 200
+                assert resp.json()["items"] == []
+            else:
+                assert (
+                    resp.status_code in expected
+                ), f"{method.upper()} {path} -> {resp.status_code}"
 
     # Unauthenticated requests are rejected outright.
     async with client_factory() as client:
         for method, path, body in paths_and_calls:
             resp = await call(client, method, path, body)
-            assert resp.status_code == 401, f"{method.upper()} {path} -> {resp.status_code}"
+            assert (
+                resp.status_code == 401
+            ), f"{method.upper()} {path} -> {resp.status_code}"
 
 
 @pytest.mark.asyncio
-async def test_asset_mutations_land_on_the_audit_trail(client_factory, test_user_cro: User):
+async def test_asset_mutations_land_on_the_audit_trail(
+    client_factory, test_user_cro: User
+):
     """Register mutations are attributable via the activity log (spec story 39)."""
     async with client_factory(user=test_user_cro) as client:
-        created = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
-        await client.patch(f"/api/v1/assets/{created['id']}", json={"business_owner": "Provozní úsek"})
+        created = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
+        await client.patch(
+            f"/api/v1/assets/{created['id']}", json={"notes": "Provozní úsek"}
+        )
         await client.delete(f"/api/v1/assets/{created['id']}")
         await client.post(f"/api/v1/assets/{created['id']}/restore")
 
@@ -1038,30 +1417,59 @@ async def test_asset_mutations_land_on_the_audit_trail(client_factory, test_user
     update_entry = next(
         entry
         for entry in entries
-        if entry["action"] == "update" and "business_owner" in (entry["changes"] or {})
+        if entry["action"] == "update" and "notes" in (entry["changes"] or {})
     )
-    assert update_entry["changes"]["business_owner"]["new"] == "[REDACTED]"
+    assert update_entry["changes"]["notes"]["new"] == "[REDACTED]"
 
     archive_entry = next(entry for entry in entries if entry["action"] == "archive")
     assert archive_entry["changes"]["is_archived"]["new"] is True
 
 
 @pytest.mark.asyncio
-async def test_link_mutations_land_on_the_audit_trail(client_factory, test_user_cro: User):
+async def test_link_mutations_land_on_the_audit_trail(
+    client_factory, test_user_cro: User
+):
     async with client_factory(user=test_user_cro) as client:
-        asset = (await client.post("/api/v1/assets", json=_minimal_payload())).json()
-        other = (await client.post("/api/v1/assets", json=_minimal_payload(name="Oracle DB"))).json()
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        asset = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
+        other = (
+            await client.post(
+                "/api/v1/assets", json=_minimal_payload(test_user_cro, name="Oracle DB")
+            )
+        ).json()
+        process = (
+            await client.post(
+                "/api/v1/processes",
+                json=_process_payload(
+                    test_user_cro,
+                ),
+            )
+        ).json()
 
-        await client.post(f"/api/v1/assets/{asset['id']}/process-links", json={"process_id": process["id"]})
+        await client.post(
+            f"/api/v1/assets/{asset['id']}/process-links",
+            json={"process_id": process["id"]},
+        )
         await client.patch(
-            f"/api/v1/assets/{asset['id']}/process-links/{process['id']}", json={"is_primary": True}
+            f"/api/v1/assets/{asset['id']}/process-links/{process['id']}",
+            json={"is_primary": True},
         )
         await client.post(
             f"/api/v1/assets/{asset['id']}/asset-links",
-            json={"dependent_asset_id": asset["id"], "supporting_asset_id": other["id"]},
+            json={
+                "dependent_asset_id": asset["id"],
+                "supporting_asset_id": other["id"],
+            },
         )
-        await client.delete(f"/api/v1/assets/{asset['id']}/process-links/{process['id']}")
+        await client.delete(
+            f"/api/v1/assets/{asset['id']}/process-links/{process['id']}"
+        )
 
         log = await client.get(
             "/api/v1/activity-log",
@@ -1078,11 +1486,13 @@ async def test_link_mutations_land_on_the_audit_trail(client_factory, test_user_
 
 
 def test_asset_migrations_follow_repo_convention_and_are_forward_only():
-    """Both migrations ship per repo convention (ADR-010, non-negotiable).
+    """Asset migrations ship per repo convention (ADR-010, non-negotiable).
 
     ``<rev>_add_assets.py`` creates the assets table plus both link tables and
     is forward-only; ``<rev>_sync_asset_permissions_for_existing_dbs.py``
-    idempotently backfills deployed DBs and mirrors the RBAC seed exactly.
+    idempotently backfills deployed DBs. A later forward-only correction adds
+    the CISO read grant introduced after that historical migration; together,
+    the immutable migration records mirror the current RBAC seed exactly.
     Precedent: p3q4r5s6t7u8/q4r5s6t7u8v9 (processes).
     """
     import importlib.util
@@ -1120,16 +1530,38 @@ def test_asset_migrations_follow_repo_convention_and_are_forward_only():
         "assets:delete",
     }
 
-    # Role grants mirror the seed exactly: risk_manager holds assets:*;
-    # every role holding vendors:read in the seed gains assets:read.
+    correction = load_migration(
+        "h9c0d1e2f3g4_sync_ciso_asset_read_permission.py",
+        "ciso_asset_permission_sync_migration",
+    )
+    current_asset_head = load_migration(
+        "g8b9c0d1e2f3_replace_asset_responsibility_text.py",
+        "asset_responsibility_migration",
+    )
+    assert correction.down_revision == current_asset_head.revision
+    assert correction.ASSET_READ_PERMISSION == PERMISSION_BY_KEY["assets:read"]
+
+    # Effective role grants across the immutable historical sync and the
+    # forward-only CISO correction mirror the current seed exactly.
     seed_asset_grants = {
-        role_name: {key for key in expand_permission_keys(permission_keys) if key.startswith("assets:")}
+        role_name: {
+            key
+            for key in expand_permission_keys(permission_keys)
+            if key.startswith("assets:")
+        }
         for role_name, permission_keys in RBAC_ROLE_PERMISSIONS.items()
-        if role_name != "cro"  # CRO holds the wildcard; the migration re-ensures it explicitly
+        # CRO holds the wildcard; the historical migration re-ensures it explicitly.
+        if role_name != "cro"
     }
     seed_asset_grants = {role: keys for role, keys in seed_asset_grants.items() if keys}
-    migration_grants = {role: set(keys) for role, keys in sync.ROLE_ASSET_GRANTS.items()}
-    assert migration_grants == seed_asset_grants
+    effective_migration_grants = {
+        role: set(keys) for role, keys in sync.ROLE_ASSET_GRANTS.items()
+    }
+    for role_name, permission_keys in correction.ROLE_ASSET_GRANTS.items():
+        effective_migration_grants.setdefault(role_name, set()).update(permission_keys)
+    assert effective_migration_grants == seed_asset_grants
 
     with pytest.raises(NotImplementedError):
         sync.downgrade()
+    with pytest.raises(NotImplementedError):
+        correction.downgrade()

@@ -12,6 +12,8 @@ const mockGetRisks = vi.fn();
 const mockListUsers = vi.fn();
 const mockGetProcessOwners = vi.fn();
 const mockGetProcessDepartments = vi.fn();
+const mockGetAssetOwners = vi.fn();
+const mockGetAssetDepartments = vi.fn();
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -57,6 +59,8 @@ vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
         getProcessOwners: (...args: unknown[]) => mockGetProcessOwners(...args),
         getProcessDepartments: (...args: unknown[]) => mockGetProcessDepartments(...args),
+        getAssetOwners: (...args: unknown[]) => mockGetAssetOwners(...args),
+        getAssetDepartments: (...args: unknown[]) => mockGetAssetDepartments(...args),
     },
 }));
 
@@ -156,6 +160,21 @@ describe('ResolveOrphanModal', () => {
             },
         ]);
         mockGetProcessDepartments.mockImplementation(({ q }: { q?: string } = {}) => Promise.resolve(
+            q === 'fin'
+                ? [{ id: 4, name: 'Finance', code: 'FIN' }]
+                : [{ id: 3, name: 'Operations', code: 'OPS' }],
+        ));
+        mockGetAssetOwners.mockResolvedValue([
+            {
+                id: 17,
+                name: 'Asset Owner',
+                email: 'asset-owner@example.com',
+                department_id: 3,
+                department_name: 'Operations',
+                role_name: 'Business user',
+            },
+        ]);
+        mockGetAssetDepartments.mockImplementation(({ q }: { q?: string } = {}) => Promise.resolve(
             q === 'fin'
                 ? [{ id: 4, name: 'Finance', code: 'FIN' }]
                 : [{ id: 3, name: 'Operations', code: 'OPS' }],
@@ -334,6 +353,88 @@ describe('ResolveOrphanModal', () => {
         await waitFor(() => {
             expect(mockGetProcessOwners).toHaveBeenCalledWith({ limit: 50, q: 'ops' });
         });
+    });
+
+    it.each([
+        ['business_owner', 'Business Owner responsibility'],
+        ['ict_owner', 'ICT Owner responsibility'],
+    ] as const)('renders the role-specific Asset reassignment context for %s', async (responsibilityRole, label) => {
+        await openModal(orphan({
+            item_type: 'asset',
+            item_name: 'Payroll database',
+            responsibility_role: responsibilityRole,
+            capabilities: {
+                can_resolve: true,
+                can_view_detail: true,
+                requires_department: true,
+                requires_owner: true,
+                requires_risk: false,
+            },
+        }));
+
+        expect(screen.getByText(label)).toBeInTheDocument();
+        expect(screen.getByText(new RegExp(`Reassign the ${responsibilityRole === 'business_owner' ? 'Business' : 'ICT'} Owner`))).toBeInTheDocument();
+    });
+
+    it('uses Asset-purpose lookups and submits owner plus independently selected Department atomically', async () => {
+        const { container } = await openModal(orphan({
+            item_type: 'asset',
+            item_name: 'Payroll database',
+            responsibility_role: 'business_owner',
+            capabilities: {
+                can_resolve: true,
+                can_view_detail: true,
+                requires_department: true,
+                requires_owner: true,
+                requires_risk: false,
+            },
+        }));
+
+        fireEvent.change(screen.getByTestId('process-department-search'), { target: { value: 'fin' } });
+        fireEvent.click(await screen.findByRole('button', { name: /FIN Finance/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Asset Owner.*asset-owner@example.com.*Operations/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Resolve Item/i }));
+
+        await waitFor(() => expect(mockResolveOrphan).toHaveBeenCalledWith(901, {
+            department_id: 4,
+            new_owner_id: 17,
+            target_risk_id: undefined,
+        }));
+        expect(mockGetAssetOwners).toHaveBeenCalledWith({ limit: 50, q: undefined });
+        expect(mockGetAssetDepartments).toHaveBeenCalledWith({ limit: 50, q: undefined });
+        expect(mockGetAssetDepartments).toHaveBeenCalledWith({ limit: 50, q: 'fin' });
+        expect(mockGetProcessOwners).not.toHaveBeenCalled();
+        expect(mockGetProcessDepartments).not.toHaveBeenCalled();
+        expect(mockListUsers).not.toHaveBeenCalled();
+        expect(mockGetDepartments).not.toHaveBeenCalled();
+
+        const results = await axe.run(container, { rules: { 'color-contrast': { enabled: false } } });
+        expect(results.violations.map((violation) => violation.id)).toEqual([]);
+    });
+
+    it('ignores late Asset owner and Department results after switching orphan type', async () => {
+        const owners = deferred<Array<{ id: number; name: string; email: string; department_id: number; department_name: string }>>();
+        const departments = deferred<Array<{ id: number; name: string; code: string }>>();
+        mockGetAssetOwners.mockImplementationOnce(() => owners.promise);
+        mockGetAssetDepartments.mockImplementationOnce(() => departments.promise);
+
+        const { rerender } = render(<ResolveOrphanModal isOpen onClose={vi.fn()} onResolved={vi.fn()} orphan={orphan({ item_type: 'asset', item_name: 'Slow Asset', responsibility_role: 'ict_owner' })} />);
+        await waitFor(() => {
+            expect(mockGetAssetOwners).toHaveBeenCalledTimes(1);
+            expect(mockGetAssetDepartments).toHaveBeenCalledTimes(1);
+        });
+        rerender(<ResolveOrphanModal isOpen onClose={vi.fn()} onResolved={vi.fn()} orphan={orphan({ item_name: 'Next Risk' })} />);
+        expect(await screen.findByText('Next Risk')).toBeInTheDocument();
+        expect(await screen.findByText('Ops Owner')).toBeInTheDocument();
+
+        await act(async () => {
+            owners.resolve([{ id: 99, name: 'Late Asset User', email: 'late@example.com', department_id: 4, department_name: 'Finance' }]);
+            departments.resolve([{ id: 4, name: 'Late Asset Department', code: 'LATE' }]);
+            await Promise.all([owners.promise, departments.promise]);
+        });
+        expect(screen.queryByText('Late Asset User')).not.toBeInTheDocument();
+        expect(screen.queryByText('Late Asset Department')).not.toBeInTheDocument();
+        expect(screen.getByText('Ops Owner')).toBeInTheDocument();
     });
 
     it('ignores late Process owner and Department results after switching to a Risk orphan', async () => {

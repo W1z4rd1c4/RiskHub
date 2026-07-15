@@ -7,23 +7,25 @@ from app.schemas.process import ProcessVendorLinkCapabilities
 
 
 def asset_vendor_link_capabilities(
-    current_user: User,
+    _current_user: User,
     *,
+    can_update_asset: bool,
+    ownership_pending: bool = False,
     register_end_active: bool = True,
+    vendor_visible: bool,
 ) -> AssetVendorLinkCapabilities:
     """Per-row Asset<->Vendor link capabilities (ADR-001 capability SSOT).
 
-    Link rows carry no ownership or department scope of their own: reading
-    needs BOTH ends' read permissions (enforced at the service seam) and
-    mutating needs the REGISTER end's write permission — ``assets:write`` —
-    so the manage-from-both-ends UI (the Vendor detail included) can gate
-    row actions without re-deriving backend policy.
+    ``can_update_asset`` is the authoritative record policy result. Asset
+    ownership and Owning Department Head scope may grant this capability
+    without broad ``assets:write`` access. The Vendor end must remain
+    independently visible, including for archived-Vendor cleanup.
     """
     can_delete = (
         register_end_active
-        and has_permission(current_user, "assets", "read")
-        and has_permission(current_user, "vendors", "read")
-        and has_permission(current_user, "assets", "write")
+        and not ownership_pending
+        and vendor_visible
+        and can_update_asset
     )
     return AssetVendorLinkCapabilities(can_delete=bool(can_delete))
 

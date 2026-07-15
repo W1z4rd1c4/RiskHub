@@ -8,7 +8,11 @@ from app.api import deps
 from app.core.pagination import MAX_LOOKUP_SIZE
 from app.db.session import get_db
 from app.models import Department, User
+from app.schemas.asset import AssetDepartmentLookup
 from app.schemas.process import ProcessDepartmentLookup
+from app.services._ict_register_lifecycle.asset_policy import (
+    assert_asset_assignment_lookup_allowed,
+)
 from app.services._ict_register_lifecycle.policy import (
     assert_process_assignment_lookup_allowed,
 )
@@ -39,3 +43,28 @@ async def lookup_process_owning_departments(
         )
     ).scalars().all()
     return [ProcessDepartmentLookup.model_validate(department) for department in departments]
+
+
+@router.get("/lookup/asset-owners", response_model=list[AssetDepartmentLookup])
+async def lookup_asset_owning_departments(
+    q: str | None = None,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[AssetDepartmentLookup]:
+    """Return active canonical Departments for Asset ownership assignment."""
+    await assert_asset_assignment_lookup_allowed(db, current_user=current_user)
+    query = select(Department).where(Department.is_active.is_(True))
+    if q:
+        search_term = f"%{q}%"
+        query = query.where(
+            or_(Department.name.ilike(search_term), Department.code.ilike(search_term))
+        )
+    departments = (
+        await db.execute(
+            query.order_by(Department.name.asc(), Department.id.asc()).limit(
+                min(limit, MAX_LOOKUP_SIZE)
+            )
+        )
+    ).scalars().all()
+    return [AssetDepartmentLookup.model_validate(department) for department in departments]

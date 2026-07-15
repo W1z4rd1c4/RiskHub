@@ -74,6 +74,39 @@ async function defaultProcessAccountability(): Promise<{
     };
 }
 
+async function defaultAssetAccountability(): Promise<{
+    business_owner_user_id: number;
+    ict_owner_user_id: number;
+    owning_department_id: number;
+}> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const [businessOwnersResponse, ictOwnersResponse, departmentsResponse] = await Promise.all([
+        fetch(`${apiBase}/api/v1/users/lookup/asset-owners?q=ops.head%40riskhub.local&limit=10`, { headers }),
+        fetch(`${apiBase}/api/v1/users/lookup/asset-owners?q=it.head%40riskhub.local&limit=10`, { headers }),
+        fetch(`${apiBase}/api/v1/departments/lookup/asset-owners?q=Operations&limit=10`, { headers }),
+    ]);
+    if (!businessOwnersResponse.ok || !ictOwnersResponse.ok || !departmentsResponse.ok) {
+        throw new Error(
+            `Failed to resolve Asset accountability fixtures: business=${businessOwnersResponse.status}, ict=${ictOwnersResponse.status}, departments=${departmentsResponse.status}`,
+        );
+    }
+    const businessOwners = await businessOwnersResponse.json() as Array<{ id: number; email: string }>;
+    const ictOwners = await ictOwnersResponse.json() as Array<{ id: number; email: string }>;
+    const departments = await departmentsResponse.json() as Array<{ id: number; name: string }>;
+    const businessOwner = businessOwners.find((candidate) => candidate.email === 'ops.head@riskhub.local');
+    const ictOwner = ictOwners.find((candidate) => candidate.email === 'it.head@riskhub.local');
+    const department = departments.find((candidate) => candidate.name === 'Operations');
+    if (!businessOwner || !ictOwner || !department) {
+        throw new Error('Required default Asset owners or Owning Department fixture is missing');
+    }
+    return {
+        business_owner_user_id: businessOwner.id,
+        ict_owner_user_id: ictOwner.id,
+        owning_department_id: department.id,
+    };
+}
+
 export async function getProcessByL1(l1Process: string): Promise<ProcessLookup | null> {
     const apiBase = getApiBaseUrl();
     const headers = await riskManagerHeaders();
@@ -175,10 +208,11 @@ export async function createAssetViaApi(
 ): Promise<AssetLookup> {
     const apiBase = getApiBaseUrl();
     const headers = await riskManagerHeaders();
+    const accountability = await defaultAssetAccountability();
     const response = await fetch(`${apiBase}/api/v1/assets`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...accountability, ...payload }),
     });
     if (!response.ok) {
         throw new Error(`Failed to create asset: ${response.status} - ${await response.text()}`);
@@ -204,10 +238,11 @@ export async function postProcessExpectingStatus(payload: Record<string, unknown
 export async function postAssetExpectingStatus(payload: Record<string, unknown>): Promise<number> {
     const apiBase = getApiBaseUrl();
     const headers = await riskManagerHeaders();
+    const accountability = await defaultAssetAccountability();
     const response = await fetch(`${apiBase}/api/v1/assets`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...accountability, ...payload }),
     });
     return response.status;
 }

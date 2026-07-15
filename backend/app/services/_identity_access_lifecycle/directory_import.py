@@ -12,6 +12,7 @@ from app.core.email import email_equals
 from app.core.exceptions import ConflictError, ServiceFailure, ValidationError
 from app.models import Role, User
 from app.schemas.directory import DirectoryImportRequest, DirectoryUserRead
+from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
 from app.services._directory_identity import (
     DirectoryIdentityConflictError,
     apply_directory_profile,
@@ -104,6 +105,7 @@ async def import_directory_identity(
         await acquire_threat_steward_identity_lock(db, user_id=user.id)
         if not directory_user.account_enabled:
             await acquire_process_owner_identity_lock(db, user_id=user.id)
+            await acquire_asset_owner_identity_lock(db, user_id=user.id)
         user = (
             await db.execute(
                 select(User)

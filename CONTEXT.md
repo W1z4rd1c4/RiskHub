@@ -48,6 +48,14 @@ _Avoid_: issue, exposure
 The Accountable owner for a Process and its business-continuity assessment.
 _Avoid_: process responsible, free-text owner
 
+**Business Owner**:
+The Asset responsibility role accountable for the business purpose and business impact of an Asset.
+_Avoid_: asset owner (ambiguous), sponsor
+
+**ICT Owner**:
+The Asset responsibility role accountable for the technical lifecycle and operation of an Asset.
+_Avoid_: technical contact, administrator
+
 ### Criticality & derivation
 
 **Critical or Important Function (CIF)**:

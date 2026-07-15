@@ -17,8 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import asset as audit_asset
-from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
-from app.core.security import check_permission
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models import Asset, AssetAssetLink, Process, ProcessAssetLink, User
 from app.schemas.asset import (
     AssetAssetLinkCreate,
@@ -29,17 +28,14 @@ from app.schemas.asset import (
 )
 from app.services.transaction_boundary import commit_service_boundary
 
-from .asset_policy import load_asset
+from .asset_policy import (
+    assert_asset_ordinary_mutation_allowed,
+    assert_asset_readable,
+    can_read_asset_record,
+    load_asset,
+)
 from .derivation import process_display_name
-from .policy import load_process
-
-
-async def _asset_names_by_id(db: AsyncSession, asset_ids: set[int]) -> dict[int, str]:
-    """Display names for the Asset ends of link rows (guardrail: names, not ids)."""
-    if not asset_ids:
-        return {}
-    rows = await db.execute(select(Asset.id, Asset.name).where(Asset.id.in_(asset_ids)))
-    return {asset_id: name for asset_id, name in rows.all()}
+from .policy import assert_process_readable, can_read_process_record, load_process
 
 
 async def _process_names_by_id(db: AsyncSession, process_ids: set[int]) -> dict[int, str]:
@@ -104,24 +100,19 @@ async def _require_asset_link_access(
     asset_id: int,
     current_user: User,
     require_write: bool,
-    require_process_read: bool,
 ) -> Asset:
     """Check Asset read access, optional Asset write access, and Process read access."""
-    if not check_permission(current_user, "assets", "read"):
-        raise AuthorizationError("Permission denied: assets:read")
-    if require_process_read and not check_permission(current_user, "processes", "read"):
-        raise AuthorizationError("Permission denied: processes:read")
-
-    asset = await load_asset(db, asset_id)
-    if not asset:
-        raise NotFoundError("Asset not found")
-
-    if require_write and not check_permission(current_user, "assets", "write"):
-        raise AuthorizationError("Permission denied: assets:write")
-    if require_write and asset.is_archived:
-        raise ConflictError("Cannot mutate links for archived asset")
-
-    return asset
+    if require_write:
+        return await assert_asset_ordinary_mutation_allowed(
+            db,
+            asset_id=asset_id,
+            current_user=current_user,
+        )
+    return await assert_asset_readable(
+        db,
+        asset_id=asset_id,
+        current_user=current_user,
+    )
 
 
 async def _load_process_asset_link(
@@ -152,18 +143,29 @@ async def list_asset_process_links(
     current_user: User,
 ) -> list[ProcessAssetLinkRead]:
     asset = await _require_asset_link_access(
-        db, asset_id=asset_id, current_user=current_user, require_write=False, require_process_read=True
+        db, asset_id=asset_id, current_user=current_user, require_write=False
     )
     result = await db.execute(
         select(ProcessAssetLink).where(ProcessAssetLink.asset_id == asset_id).order_by(ProcessAssetLink.id)
     )
     links = list(result.scalars().all())
-    process_names = await _process_names_by_id(db, {link.process_id for link in links})
+    processes = [
+        process
+        for link in links
+        if (process := await load_process(db, link.process_id)) is not None
+        and can_read_process_record(current_user, process)
+    ]
+    readable_process_ids = {process.id for process in processes}
+    process_names = {
+        process.id: process_display_name(process.l1_process, process.l2_subprocess)
+        for process in processes
+    }
     return [
         _serialize_process_asset_link(
             link, process_name=process_names.get(link.process_id), asset_name=asset.name
         )
         for link in links
+        if link.process_id in readable_process_ids
     ]
 
 
@@ -174,13 +176,11 @@ async def list_process_asset_links(
     current_user: User,
 ) -> list[ProcessAssetLinkRead]:
     """The Process-end read of the same Link relation."""
-    if not check_permission(current_user, "processes", "read"):
-        raise AuthorizationError("Permission denied: processes:read")
-    if not check_permission(current_user, "assets", "read"):
-        raise AuthorizationError("Permission denied: assets:read")
-    process = await load_process(db, process_id)
-    if not process:
-        raise NotFoundError("Process not found")
+    process = await assert_process_readable(
+        db,
+        process_id=process_id,
+        current_user=current_user,
+    )
 
     result = await db.execute(
         select(ProcessAssetLink)
@@ -188,13 +188,21 @@ async def list_process_asset_links(
         .order_by(ProcessAssetLink.id)
     )
     links = list(result.scalars().all())
-    asset_names = await _asset_names_by_id(db, {link.asset_id for link in links})
+    assets = [
+        asset
+        for link in links
+        if (asset := await load_asset(db, link.asset_id)) is not None
+        and can_read_asset_record(current_user, asset)
+    ]
+    readable_asset_ids = {asset.id for asset in assets}
+    asset_names = {asset.id: asset.name for asset in assets}
     process_name = process_display_name(process.l1_process, process.l2_subprocess)
     return [
         _serialize_process_asset_link(
             link, process_name=process_name, asset_name=asset_names.get(link.asset_id)
         )
         for link in links
+        if link.asset_id in readable_asset_ids
     ]
 
 
@@ -206,12 +214,14 @@ async def add_asset_process_link(
     current_user: User,
 ) -> ProcessAssetLinkRead:
     asset = await _require_asset_link_access(
-        db, asset_id=asset_id, current_user=current_user, require_write=True, require_process_read=True
+        db, asset_id=asset_id, current_user=current_user, require_write=True
     )
 
-    process = await load_process(db, payload.process_id)
-    if not process:
-        raise NotFoundError("Process not found")
+    process = await assert_process_readable(
+        db,
+        process_id=payload.process_id,
+        current_user=current_user,
+    )
     if process.is_archived:
         raise ConflictError("Cannot link archived process")
 
@@ -253,12 +263,17 @@ async def update_asset_process_link(
     current_user: User,
 ) -> ProcessAssetLinkRead:
     asset = await _require_asset_link_access(
-        db, asset_id=asset_id, current_user=current_user, require_write=True, require_process_read=True
+        db, asset_id=asset_id, current_user=current_user, require_write=True
     )
 
     link = await _load_process_asset_link(db, asset_id=asset_id, process_id=process_id)
     if not link:
         raise NotFoundError("Link not found")
+    await assert_process_readable(
+        db,
+        process_id=process_id,
+        current_user=current_user,
+    )
     process_names = await _process_names_by_id(db, {process_id})
 
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
@@ -307,12 +322,17 @@ async def remove_asset_process_link(
     current_user: User,
 ) -> None:
     asset = await _require_asset_link_access(
-        db, asset_id=asset_id, current_user=current_user, require_write=True, require_process_read=True
+        db, asset_id=asset_id, current_user=current_user, require_write=True
     )
 
     link = await _load_process_asset_link(db, asset_id=asset_id, process_id=process_id)
     if not link:
         raise NotFoundError("Link not found")
+    await assert_process_readable(
+        db,
+        process_id=process_id,
+        current_user=current_user,
+    )
 
     # Removing the primary link simply leaves the Asset with no primary.
     await db.delete(link)
@@ -332,7 +352,7 @@ async def list_asset_asset_links(
 ) -> list[AssetAssetLinkRead]:
     """Both directions: links where this Asset is the dependent or the supporting end."""
     await _require_asset_link_access(
-        db, asset_id=asset_id, current_user=current_user, require_write=False, require_process_read=False
+        db, asset_id=asset_id, current_user=current_user, require_write=False
     )
     result = await db.execute(
         select(AssetAssetLink)
@@ -343,11 +363,31 @@ async def list_asset_asset_links(
         .order_by(AssetAssetLink.id)
     )
     links = list(result.scalars().all())
-    asset_names = await _asset_names_by_id(
-        db,
-        {link.dependent_asset_id for link in links} | {link.supporting_asset_id for link in links},
-    )
-    return [_serialize_asset_asset_link(link, asset_names) for link in links]
+    candidate_ids = {
+        link.dependent_asset_id for link in links
+    } | {link.supporting_asset_id for link in links}
+    candidates = [
+        asset
+        for candidate_id in candidate_ids
+        if (asset := await load_asset(db, candidate_id)) is not None
+    ]
+    readable_ids = {
+        candidate.id
+        for candidate in candidates
+        if candidate.id == asset_id or can_read_asset_record(current_user, candidate)
+    }
+    visible_links = [
+        link
+        for link in links
+        if link.dependent_asset_id in readable_ids
+        and link.supporting_asset_id in readable_ids
+    ]
+    asset_names = {
+        candidate.id: candidate.name
+        for candidate in candidates
+        if candidate.id in readable_ids
+    }
+    return [_serialize_asset_asset_link(link, asset_names) for link in visible_links]
 
 
 async def add_asset_asset_link(
@@ -358,7 +398,7 @@ async def add_asset_asset_link(
     current_user: User,
 ) -> AssetAssetLinkRead:
     asset = await _require_asset_link_access(
-        db, asset_id=asset_id, current_user=current_user, require_write=True, require_process_read=False
+        db, asset_id=asset_id, current_user=current_user, require_write=True
     )
 
     if asset_id not in (payload.dependent_asset_id, payload.supporting_asset_id):
@@ -369,9 +409,11 @@ async def add_asset_asset_link(
         if payload.dependent_asset_id == asset_id
         else payload.dependent_asset_id
     )
-    other = await load_asset(db, other_id)
-    if not other:
-        raise NotFoundError("Asset not found")
+    other = await assert_asset_readable(
+        db,
+        asset_id=other_id,
+        current_user=current_user,
+    )
     if other.is_archived:
         raise ConflictError("Cannot link archived asset")
 
@@ -410,7 +452,7 @@ async def remove_asset_asset_link(
     current_user: User,
 ) -> None:
     asset = await _require_asset_link_access(
-        db, asset_id=asset_id, current_user=current_user, require_write=True, require_process_read=False
+        db, asset_id=asset_id, current_user=current_user, require_write=True
     )
 
     result = await db.execute(select(AssetAssetLink).where(AssetAssetLink.id == link_id))

@@ -39,6 +39,7 @@ export interface VendorCapabilities {
     can_manage_contracts: boolean;
     can_view_sub_outsourcing: boolean;
     can_manage_sub_outsourcing: boolean;
+    can_view_asset_links: boolean;
     can_manage_asset_links: boolean;
     can_manage_process_links: boolean;
 }

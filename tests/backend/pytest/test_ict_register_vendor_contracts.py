@@ -933,14 +933,16 @@ def test_rbac_seed_grants_follow_the_pm_matrix():
 
 
 def test_vendor_contract_migrations_follow_repo_convention_and_are_forward_only():
-    """Both migrations ship per repo convention (ADR-010, non-negotiable).
+    """Vendor-contract migrations follow ADR-010 and current seed parity.
 
     ``<rev>_add_vendor_contracts.py`` creates the vendor_contracts table plus
     the new vendor register columns and is forward-only;
     ``<rev>_sync_vendor_contract_permissions_for_existing_dbs.py`` idempotently
-    backfills deployed DBs and mirrors the RBAC seed exactly — including the
-    retirement of the reserved-era compliance write grant. Precedent:
-    q4r5s6t7u8v9 (processes) and s6t7u8v9w0x1 (assets).
+    backfills deployed DBs. A later forward-only correction adds the CISO read
+    grant introduced after that historical migration; together the immutable
+    revisions mirror the current RBAC seed, including retirement of the
+    reserved-era compliance write grant. Precedent: q4r5s6t7u8v9 (processes)
+    and s6t7u8v9w0x1 (assets).
     """
     import importlib.util
     from pathlib import Path
@@ -986,19 +988,36 @@ def test_vendor_contract_migrations_follow_repo_convention_and_are_forward_only(
         "vendor_contracts:write",
     }
 
-    # Role grants mirror the seed exactly: risk_manager holds
-    # vendor_contracts:*; every role holding vendors:read gains
-    # vendor_contracts:read.
+    correction = load_migration(
+        "i0d1e2f3g4h5_sync_ciso_vendor_contract_read_permission.py",
+        "ciso_vendor_contract_permission_sync_migration",
+    )
+    current_head = load_migration(
+        "h9c0d1e2f3g4_sync_ciso_asset_read_permission.py",
+        "ciso_asset_permission_sync_migration",
+    )
+    assert correction.down_revision == current_head.revision
+    assert correction.VENDOR_CONTRACT_READ_PERMISSION == PERMISSION_BY_KEY[
+        "vendor_contracts:read"
+    ]
+
+    # Effective grants across the historical sync and forward-only CISO
+    # correction mirror the current seed exactly.
     seed_contract_grants = {
         role_name: {
             key for key in expand_permission_keys(permission_keys) if key.startswith("vendor_contracts:")
         }
         for role_name, permission_keys in RBAC_ROLE_PERMISSIONS.items()
-        if role_name != "cro"  # CRO holds the wildcard; the migration re-ensures it explicitly
+        # CRO holds the wildcard; the historical migration re-ensures it explicitly.
+        if role_name != "cro"
     }
     seed_contract_grants = {role: keys for role, keys in seed_contract_grants.items() if keys}
-    migration_grants = {role: set(keys) for role, keys in sync.ROLE_VENDOR_CONTRACT_GRANTS.items()}
-    assert migration_grants == seed_contract_grants
+    effective_migration_grants = {
+        role: set(keys) for role, keys in sync.ROLE_VENDOR_CONTRACT_GRANTS.items()
+    }
+    for role_name, permission_keys in correction.ROLE_VENDOR_CONTRACT_GRANTS.items():
+        effective_migration_grants.setdefault(role_name, set()).update(permission_keys)
+    assert effective_migration_grants == seed_contract_grants
 
     # The reserved-era seed granted compliance vendor_contracts:*; the seed now
     # grants read only, and the sync retires exactly that stale write grant.
@@ -1006,3 +1025,5 @@ def test_vendor_contract_migrations_follow_repo_convention_and_are_forward_only(
 
     with pytest.raises(NotImplementedError):
         sync.downgrade()
+    with pytest.raises(NotImplementedError):
+        correction.downgrade()

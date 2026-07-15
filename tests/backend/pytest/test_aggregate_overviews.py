@@ -574,6 +574,9 @@ async def test_orphaned_items_overview_cache_key_includes_effective_permissions(
             "risk_count": permission_count,
             "control_count": 0,
             "kri_count": 0,
+            "threat_count": 0,
+            "process_count": 0,
+            "asset_count": 0,
             "total_count": permission_count,
         }
 

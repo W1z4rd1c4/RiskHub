@@ -58,6 +58,9 @@ export interface ProcessOwnershipLookupParams extends Record<string, QueryValue>
     q?: string;
 }
 
+export type AssetOwnershipLookupParams = ProcessOwnershipLookupParams;
+export type AssetDepartmentLookupItem = ProcessDepartmentLookupItem;
+
 export const lookupApi = {
     async getUsers(params?: UserLookupParams): Promise<UserLookupItem[]> {
         // Generic user lookup is restricted to callers with users:read.
@@ -92,6 +95,20 @@ export const lookupApi = {
 
     async getProcessDepartments(params?: ProcessOwnershipLookupParams): Promise<ProcessDepartmentLookupItem[]> {
         return apiClient.get('/departments/lookup/process-owners', {
+            params,
+            schema: z.array(processDepartmentReadSchema.extend({ id: z.number() })),
+        });
+    },
+
+    async getAssetOwners(params?: AssetOwnershipLookupParams): Promise<UserLookupItem[]> {
+        return apiClient.get('/users/lookup/asset-owners', {
+            params,
+            schema: userLookupArraySchema,
+        });
+    },
+
+    async getAssetDepartments(params?: AssetOwnershipLookupParams): Promise<AssetDepartmentLookupItem[]> {
+        return apiClient.get('/departments/lookup/asset-owners', {
             params,
             schema: z.array(processDepartmentReadSchema.extend({ id: z.number() })),
         });

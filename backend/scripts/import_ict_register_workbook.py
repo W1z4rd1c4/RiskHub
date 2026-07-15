@@ -95,6 +95,10 @@ from app.services._ict_register_lifecycle.risk_links import add_risk_asset_link,
 from app.services._ict_register_lifecycle.threat_lifecycle import create_threat_detail, update_threat_detail
 from app.services._ict_register_lifecycle.threat_links import add_risk_threat_link
 from app.services._ict_register_lifecycle.vendor_links import add_asset_vendor_link, add_process_vendor_link
+from app.services._ict_register_reference.asset_values import (
+    ASSET_CONTROLLED_CODES_BY_FIELD,
+    asset_controlled_value_code,
+)
 from app.services._ict_register_reference.parameters import (
     ICT_PARAMETER_CONFIG_CATEGORY,
     ICT_WORKBOOK_PARAMETERS_BY_NAME,
@@ -633,7 +637,53 @@ async def import_processes(
     return process_ids
 
 
-def _asset_payload(seed: ModuleType, row: dict[str, Any]) -> dict[str, Any]:
+def _asset_accountability_ids(
+    *,
+    row: dict[str, Any],
+    key: str,
+    report: ImportReport,
+) -> tuple[int, int, int] | None:
+    """Accept only explicit canonical Asset responsibility identifiers.
+
+    Workbook presentation names are deliberately ignored. Import operators
+    must enrich each source row with the three canonical relationship IDs;
+    the service layer then validates that those references are active and
+    eligible for the requested role.
+    """
+
+    required_fields = (
+        "business_owner_user_id",
+        "ict_owner_user_id",
+        "owning_department_id",
+    )
+    invalid_fields = [
+        field
+        for field in required_fields
+        if isinstance(row.get(field), bool) or not isinstance(row.get(field), int) or row[field] <= 0
+    ]
+    if invalid_fields:
+        report.finding(
+            f"Asset {key!r} has missing or invalid explicit canonical relationship "
+            f"identifiers ({', '.join(invalid_fields)}); legacy owner presentation text "
+            "is not reconciled and the row was not imported"
+        )
+        return None
+
+    return (
+        row["business_owner_user_id"],
+        row["ict_owner_user_id"],
+        row["owning_department_id"],
+    )
+
+
+def _asset_payload(
+    seed: ModuleType,
+    row: dict[str, Any],
+    *,
+    business_owner_user_id: int,
+    ict_owner_user_id: int,
+    owning_department_id: int,
+) -> dict[str, Any]:
     is_veris = row["key"] == "veris"
     overlay = seed.VERIS_OVERLAY
     payload: dict[str, Any] = {
@@ -644,9 +694,9 @@ def _asset_payload(seed: ModuleType, row: dict[str, Any]) -> dict[str, Any]:
         "physical_location": None,
         "deployment_model": None,
         "alternative_names": join_aliases(row["aliases"]),
-        "business_owner": None,
-        "owner_department": None,
-        "ict_owner": None,
+        "business_owner_user_id": business_owner_user_id,
+        "ict_owner_user_id": ict_owner_user_id,
+        "owning_department_id": owning_department_id,
         "gdpr_relevance": row["gdpr"] or None,
         "ai_relevance": row["ai"] or None,
         "data_classification": None,
@@ -677,8 +727,6 @@ def _asset_payload(seed: ModuleType, row: dict[str, Any]) -> dict[str, Any]:
                 "description": overlay["popis"],
                 "physical_location": overlay["umisteni"],
                 "deployment_model": overlay["nasazeni"],
-                "business_owner": overlay["bus"],
-                "ict_owner": overlay["ict"],
                 "data_classification": overlay["klasdat"],
                 "confidentiality_rating": overlay["C"],
                 "integrity_rating": overlay["I"],
@@ -693,14 +741,12 @@ def _asset_payload(seed: ModuleType, row: dict[str, Any]) -> dict[str, Any]:
             }
         )
     else:
-        owner = row["owner"] or None
-        payload.update(
-            {
-                "business_owner": owner,
-                "owner_department": seed.OWNER_UTVAR_MAP.get(owner) if owner else None,
-                "lifecycle_state": "V provozu",
-            }
-        )
+        payload["lifecycle_state"] = "V provozu"
+
+    for field in ASSET_CONTROLLED_CODES_BY_FIELD:
+        value = payload[field]
+        if value is not None:
+            payload[field] = asset_controlled_value_code(field, value)
     return payload
 
 
@@ -709,10 +755,27 @@ async def import_assets(db, seed: ModuleType, user: User, report: ImportReport) 
     counters = report.counters("assets (04)")
     asset_ids: dict[str, int] = {}
     for row in seed.SRC["assets"]:
-        target = _asset_payload(seed, row)
-        existing = (
-            await db.execute(select(Asset).where(Asset.name == row["display"]))
-        ).scalar_one_or_none()
+        accountability = _asset_accountability_ids(
+            row=row,
+            key=row["key"],
+            report=report,
+        )
+        if accountability is None:
+            continue
+        try:
+            target = _asset_payload(
+                seed,
+                row,
+                business_owner_user_id=accountability[0],
+                ict_owner_user_id=accountability[1],
+                owning_department_id=accountability[2],
+            )
+        except ValueError as error:
+            report.finding(
+                f"Asset {row['display']!r} has an unsupported controlled value " f"({error}); the row was not imported"
+            )
+            continue
+        existing = (await db.execute(select(Asset).where(Asset.name == row["display"]))).scalar_one_or_none()
         try:
             if existing is None:
                 created = await create_asset_detail(db=db, payload=AssetCreate(**target), current_user=user)

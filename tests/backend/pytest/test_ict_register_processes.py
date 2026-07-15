@@ -31,7 +31,6 @@ from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_k
 from app.models import Department, Permission, Role, RolePermission, User
 from app.models.user import AccessScope
 
-
 _ACCOUNTABILITY: dict[str, int] = {}
 
 

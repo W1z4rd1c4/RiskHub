@@ -68,15 +68,42 @@
         "notes": "Poznámka",
         "not_set": "Nevyplněno",
         "ratings_note": "Hodnota aktiva (CIAA) se odvozuje jako maximum ze čtyř hodnocení.",
+        "business_owner_placeholder": "Vyberte Business vlastníka...",
+        "ict_owner_placeholder": "Vyberte ICT vlastníka...",
+        "owner_search": "Hledat aktivní uživatele...",
+        "department_placeholder": "Vyberte útvar...",
+        "department_search": "Hledat útvary...",
+        "owner_no_department": "Bez útvaru",
+        "owner_no_role": "Bez role",
         "errors": {
             "name_required": "Název aktiva je povinný.",
+            "business_owner_required": "Business vlastník je povinný.",
+            "ict_owner_required": "ICT vlastník je povinný.",
+            "owning_department_required": "Vlastnický útvar je povinný.",
             "save_failed": "Uložení aktiva se nezdařilo.",
             "fix_fields": "Opravte prosím zvýrazněná pole.",
             "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."
         }
     },
     "detail": {
-        "derived_fields_note": "Hodnota aktiva, vážené skóre, výsledná kritičnost, CIF a SPOF jsou odvozovány registrem a nelze je zadat ručně."
+        "derived_fields_note": "Hodnota aktiva, vážené skóre, výsledná kritičnost, CIF a SPOF jsou odvozovány registrem a nelze je zadat ručně.",
+        "ownership_pending": "Přiřazení odpovědnosti čeká na změnu v Governance. Běžné úpravy jsou do vyřešení zablokovány.",
+        "resolve_in_governance": "Vyřešit v Governance",
+        "unknown_owner": "Neznámý uživatel",
+        "unknown_department": "Neznámý útvar"
+    },
+    "values": {
+        "asset_type": {"application":"Aplikace","database":"Databáze","infrastructure":"Infrastruktura","network_component":"Síťový prvek","hardware":"Hardware","cloud_service":"Cloud služba","data_storage":"Datové úložiště","information_asset":"Informační aktivum","security_asset":"Bezpečnostní aktivum","bcm_dr_asset":"BCM/DR aktivum","other":"Jiné"},
+        "asset_level": {"primary":"Primární","supporting":"Podpůrné","infrastructure":"Infrastrukturní"},
+        "deployment_model": {"on_premise":"On-premise","cloud":"Cloud","saas":"SaaS","paas":"PaaS","iaas":"IaaS","hybrid":"Hybrid","externally_hosted":"Externě hostováno","not_assessed":"Neposouzeno","not_applicable":"Nerelevantní"},
+        "gdpr_relevance": {"yes":"Ano","no":"Ne","undetermined":"Neurčeno"},
+        "ai_relevance": {"yes":"Ano","no":"Ne","undetermined":"Neurčeno"},
+        "data_classification": {"no_data_not_applicable":"Bez dat / nerelevantní","public":"Veřejná data","internal":"Interní data","confidential":"Důvěrná data","highly_confidential_regulated":"Vysoce důvěrná / regulovaná data","not_assessed":"Neposouzeno"},
+        "internet_exposed": {"yes":"Ano","no":"Ne"},
+        "preliminary_criticality": {"low":"Nízká","medium":"Střední","high":"Vysoká","critical":"Kritická"},
+        "lifecycle_state": {"operational":"V provozu","in_development":"Ve vývoji","being_decommissioned":"Utlumováno","legacy":"Legacy","retired":"Vyřazeno"},
+        "review_state": {"review_required":"K revizi","reviewed":"Zkontrolováno"},
+        "unknown": "Neznámá hodnota"
     },
     "links": {
         "add": "Propojit",
@@ -133,6 +160,10 @@
         "archive_failed": "Archivace aktiva se nezdařila."
     },
     "derived": {
+        "values": {
+            "boolean": {"yes": "Ano", "no": "Ne"},
+            "article8": {"critical": "Kritické", "non_critical": "Nekritické"}
+        },
         "title": "Odvozeno registrem",
         "ciaa_value": "Hodnota aktiva (CIAA)",
         "weighted_score": "Vážené skóre aktiva",

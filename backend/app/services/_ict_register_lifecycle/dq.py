@@ -92,15 +92,17 @@ RISK_STATUS_ACCEPTED = "Akceptováno"
 RISK_STATUS_CLOSED = "Uzavřené"
 
 # Formula literals quoted by the DQ rules (builder sheets_out.py:352-547).
-_UNDETERMINED = "Neurčeno"
+_UNDETERMINED = "undetermined"
 _UNASSESSED = "Neposouzeno"
-_REVIEW_PENDING = "K revizi"
-_REVIEW_DONE = "Zkontrolováno"
+_ASSET_UNASSESSED = "not_assessed"
+_REVIEW_PENDING = "review_required"
+_REVIEW_DONE = "reviewed"
+_ASSET_YES = "yes"
 _EXIT_FUNCTIONAL_STATES = ("Schválen", "Testován", "K revizi")  # DQ-17
 _EXIT_ORDERLY_STATES = ("Návrh", "Schválen", "Testován", "K revizi")  # DQ-49
 _DD_NOT_STARTED_STATES = (None, "Nezahájeno", "Neposouzeno")  # DQ-50
-_DATA_CLASS_HIGHLY_CONFIDENTIAL = "Vysoce důvěrná / regulovaná data"  # DQ-47
-_DATA_CLASS_CONFLICTS_WITH_GDPR = ("Bez dat / nerelevantní", "Veřejná data")  # DQ-51
+_DATA_CLASS_HIGHLY_CONFIDENTIAL = "highly_confidential_regulated"  # DQ-47
+_DATA_CLASS_CONFLICTS_WITH_GDPR = ("no_data_not_applicable", "public")  # DQ-51
 
 _CLASS_CRITICAL = CRITICALITY_CLASSES[3]
 _TOP_TIERS = (TIER_CRITICAL, TIER_SIGNIFICANT)
@@ -481,6 +483,13 @@ def _asset_level_char(asset_level: str | None, *, row_exists: bool) -> str | Non
         return None
     if asset_level is None or asset_level == "":
         return "0"
+    canonical_level_chars = {
+        "primary": "A",
+        "supporting": "B",
+        "infrastructure": "C",
+    }
+    if asset_level in canonical_level_chars:
+        return canonical_level_chars[asset_level]
     return asset_level[0]
 
 
@@ -672,21 +681,17 @@ def derive_ict_register_dq(
     # derives both from the same links, so this reads 0 unless the engine
     # itself regresses.
     checks["DQ-31"] = tuple(
-        asset_row(aid)
-        for aid, d in derivation.assets.items()
-        if d.cif == ANO and d.cif_process_count == 0
+        asset_row(aid) for aid, d in derivation.assets.items() if d.cif == ANO and d.cif_process_count == 0
     )
     # DQ-33 — internet="Ano" with incomplete CIAA (:472-474).
     checks["DQ-33"] = tuple(
-        asset_row(row.id)
-        for row in graph.assets
-        if row.internet_exposed == ANO and _ciaa_incomplete(row)
+        asset_row(row.id) for row in graph.assets if row.internet_exposed == _ASSET_YES and _ciaa_incomplete(row)
     )
     # DQ-34 — ai="Ano" with no owner of either kind (:475-477).
     checks["DQ-34"] = tuple(
         asset_row(row.id)
         for row in graph.assets
-        if row.ai_relevance == ANO and row.business_owner is None and row.ict_owner is None
+        if row.ai_relevance == _ASSET_YES and row.business_owner is None and row.ict_owner is None
     )
 
     def _confidentiality_below(row: AssetDerivationInput) -> bool:
@@ -694,9 +699,7 @@ def derive_ict_register_dq(
 
     # DQ-35 — gdpr="Ano" and C blank or < P_GdprMinC (:478-480).
     checks["DQ-35"] = tuple(
-        asset_row(row.id)
-        for row in graph.assets
-        if row.gdpr_relevance == ANO and _confidentiality_below(row)
+        asset_row(row.id) for row in graph.assets if row.gdpr_relevance == _ASSET_YES and _confidentiality_below(row)
     )
     # DQ-36 — spof="Ano" (engine) and stav_revize<>"Zkontrolováno" (:481-483).
     checks["DQ-36"] = tuple(
@@ -705,14 +708,10 @@ def derive_ict_register_dq(
         if d.spof == ANO and assets_by_id[aid].review_state != _REVIEW_DONE
     )
     # DQ-44 — utvar blank (:513-515).
-    checks["DQ-44"] = tuple(
-        asset_row(row.id) for row in graph.assets if row.owner_department is None
-    )
+    checks["DQ-44"] = tuple(asset_row(row.id) for row in graph.assets if row.owner_department is None)
     # DQ-46 — klasdat blank/Neposouzeno (:519-521).
     checks["DQ-46"] = tuple(
-        asset_row(row.id)
-        for row in graph.assets
-        if row.data_classification in (None, _UNASSESSED)
+        asset_row(row.id) for row in graph.assets if row.data_classification in (None, _ASSET_UNASSESSED)
     )
     # DQ-47 — highly-confidential data with C blank or < P_GdprMinC (:522-524).
     checks["DQ-47"] = tuple(
@@ -722,15 +721,13 @@ def derive_ict_register_dq(
     )
     # DQ-48 — model blank/Neposouzeno (:525-527).
     checks["DQ-48"] = tuple(
-        asset_row(row.id)
-        for row in graph.assets
-        if row.deployment_model in (None, _UNASSESSED)
+        asset_row(row.id) for row in graph.assets if row.deployment_model in (None, _ASSET_UNASSESSED)
     )
     # DQ-51 — gdpr="Ano" with a no-data/public data classification (:538-542).
     checks["DQ-51"] = tuple(
         asset_row(row.id)
         for row in graph.assets
-        if row.gdpr_relevance == ANO and row.data_classification in _DATA_CLASS_CONFLICTS_WITH_GDPR
+        if row.gdpr_relevance == _ASSET_YES and row.data_classification in _DATA_CLASS_CONFLICTS_WITH_GDPR
     )
 
     # --------------------------------------------------------------- links --

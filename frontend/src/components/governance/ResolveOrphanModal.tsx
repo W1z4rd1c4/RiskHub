@@ -53,7 +53,9 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                             : tAdmin('governance.resolve_modal.resolve_orphaned_item')}
                     </h3>
                     <p id={descriptionId} className="text-xs text-slate-500 font-medium">
-                        {tAdmin('governance.resolve_modal.configure_ownership')}
+                        {orphan.item_type === 'asset' && orphan.responsibility_role
+                            ? tAdmin(`governance.resolve_modal.asset_${orphan.responsibility_role}`)
+                            : tAdmin('governance.resolve_modal.configure_ownership')}
                     </p>
                 </div>
                 <button
@@ -116,7 +118,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                             {(shouldShowDepartment || (orphan.item_type === 'control' && !workflow.selectedUserId)) && (
                                 <ResolveOrphanDepartmentSelection
                                     departments={workflow.allDepartments}
-                                    isSearchable={orphan.item_type === 'process'}
+                                    isSearchable={orphan.item_type === 'process' || orphan.item_type === 'asset'}
                                     searchQuery={workflow.departmentSearchQuery}
                                     selectedDepartmentId={workflow.selectedDepartmentId}
                                     setSearchQuery={workflow.setDepartmentSearchQuery}

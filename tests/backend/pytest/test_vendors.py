@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.vendors import crud as vendor_crud
 from app.core.user_query_options import user_selectinload_options
-from app.models import Department, Permission, Process, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
+from app.models import Asset, Department, Permission, Process, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
 from app.models.user import AccessScope
 from app.schemas.vendor import VendorCreate, VendorUpdate
 from app.services._register_listings import vendors as vendor_listing
@@ -207,7 +207,13 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
         process_owner_user_id=test_user_employee.id,
         owning_department_id=test_department.id,
     )
-    db_session.add_all([vendor, process])
+    asset = Asset(
+        name="Editable Asset for Vendor capability",
+        business_owner_user_id=test_user_employee.id,
+        ict_owner_user_id=test_user_employee.id,
+        owning_department_id=test_department.id,
+    )
+    db_session.add_all([vendor, process, asset])
     await db_session.commit()
     await db_session.refresh(vendor)
 
@@ -225,6 +231,7 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
     assert capabilities["can_link_control"] is False
     assert capabilities["can_link_kri"] is False
     assert capabilities["can_create_issue"] is False
+    assert capabilities["can_view_asset_links"] is True
     assert capabilities["can_manage_asset_links"] is False
     assert capabilities["can_manage_process_links"] is False
     assert capabilities["can_restore"] is True
@@ -234,6 +241,7 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
     restored_capabilities = restore_resp.json()["capabilities"]
     assert restored_capabilities["can_update"] is True
     assert restored_capabilities["can_create_issue"] is True
+    assert restored_capabilities["can_view_asset_links"] is True
     assert restored_capabilities["can_manage_asset_links"] is True
     assert restored_capabilities["can_manage_process_links"] is True
 

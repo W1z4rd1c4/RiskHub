@@ -148,13 +148,17 @@ def asset_derivation_input(asset: Asset) -> AssetDerivationInput:
         description=asset.description,
         physical_location=asset.physical_location,
         deployment_model=asset.deployment_model,
-        business_owner=asset.business_owner,
-        ict_owner=asset.ict_owner,
+        business_owner=(
+            "assigned" if asset.business_owner_user_id is not None else None
+        ),
+        ict_owner="assigned" if asset.ict_owner_user_id is not None else None,
         gdpr_relevance=asset.gdpr_relevance,
         ai_relevance=asset.ai_relevance,
         data_classification=asset.data_classification,
         internet_exposed=asset.internet_exposed,
-        owner_department=asset.owner_department,
+        owner_department=(
+            "assigned" if asset.owning_department_id is not None else None
+        ),
         review_state=asset.review_state,
         last_legacy_risk_assessment_date=asset.last_legacy_risk_assessment_date,
     )

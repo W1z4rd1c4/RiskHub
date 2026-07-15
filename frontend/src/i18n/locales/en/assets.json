@@ -68,15 +68,42 @@
         "notes": "Notes",
         "not_set": "Not set",
         "ratings_note": "The asset value (CIAA) is derived as the maximum of the four ratings.",
+        "business_owner_placeholder": "Select a Business Owner...",
+        "ict_owner_placeholder": "Select an ICT Owner...",
+        "owner_search": "Search active users...",
+        "department_placeholder": "Select a department...",
+        "department_search": "Search departments...",
+        "owner_no_department": "No department",
+        "owner_no_role": "No role",
         "errors": {
             "name_required": "Asset name is required.",
+            "business_owner_required": "Business Owner is required.",
+            "ict_owner_required": "ICT Owner is required.",
+            "owning_department_required": "Owning Department is required.",
             "save_failed": "Failed to save the asset.",
             "fix_fields": "Please correct the highlighted fields.",
             "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."
         }
     },
     "detail": {
-        "derived_fields_note": "Asset value, weighted score, resulting criticality, CIF, and SPOF are derived by the register engine and cannot be entered by hand."
+        "derived_fields_note": "Asset value, weighted score, resulting criticality, CIF, and SPOF are derived by the register engine and cannot be entered by hand.",
+        "ownership_pending": "A responsibility assignment is awaiting governance reassignment. Ordinary edits are blocked until it is resolved.",
+        "resolve_in_governance": "Resolve in Governance",
+        "unknown_owner": "Unknown user",
+        "unknown_department": "Unknown department"
+    },
+    "values": {
+        "asset_type": {"application":"Application","database":"Database","infrastructure":"Infrastructure","network_component":"Network component","hardware":"Hardware","cloud_service":"Cloud service","data_storage":"Data storage","information_asset":"Information asset","security_asset":"Security asset","bcm_dr_asset":"BCM/DR asset","other":"Other"},
+        "asset_level": {"primary":"Primary","supporting":"Supporting","infrastructure":"Infrastructure"},
+        "deployment_model": {"on_premise":"On-premise","cloud":"Cloud","saas":"SaaS","paas":"PaaS","iaas":"IaaS","hybrid":"Hybrid","externally_hosted":"Externally hosted","not_assessed":"Not assessed","not_applicable":"Not applicable"},
+        "gdpr_relevance": {"yes":"Yes","no":"No","undetermined":"Undetermined"},
+        "ai_relevance": {"yes":"Yes","no":"No","undetermined":"Undetermined"},
+        "data_classification": {"no_data_not_applicable":"No data / not applicable","public":"Public","internal":"Internal","confidential":"Confidential","highly_confidential_regulated":"Highly confidential / regulated","not_assessed":"Not assessed"},
+        "internet_exposed": {"yes":"Yes","no":"No"},
+        "preliminary_criticality": {"low":"Low","medium":"Medium","high":"High","critical":"Critical"},
+        "lifecycle_state": {"operational":"Operational","in_development":"In development","being_decommissioned":"Being decommissioned","legacy":"Legacy","retired":"Retired"},
+        "review_state": {"review_required":"Review required","reviewed":"Reviewed"},
+        "unknown": "Unknown value"
     },
     "links": {
         "add": "Link",
@@ -133,6 +160,10 @@
         "archive_failed": "Failed to archive the asset."
     },
     "derived": {
+        "values": {
+            "boolean": {"yes": "Yes", "no": "No"},
+            "article8": {"critical": "Critical", "non_critical": "Non-critical"}
+        },
         "title": "Derived by the register engine",
         "ciaa_value": "Asset value (CIAA)",
         "weighted_score": "Weighted asset score",
@@ -163,7 +194,7 @@
             "rank_cif_floor": "CIF floor (rank)",
             "h_rank": "h_rank (MAX)",
             "reference_date": "Reference date (P_RefDatum)",
-            "thresholds": "Score thresholds (Nízká / Střední / Vysoká)",
+            "thresholds": "Score thresholds (Low / Medium / High)",
             "none": "None",
             "missing": "Missing for completeness"
         },

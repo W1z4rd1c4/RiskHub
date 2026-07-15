@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest';
 
 import { buildAssetColumns } from '@/pages/assets/assetColumns';
 import {
+    assetCompletenessFieldLabel,
+    assetDerivedArticle8Label,
+    assetDerivedBooleanLabel,
+    assetDerivedCriticalityLabel,
     assetsEmptyStateKey,
     buildAssetListParams,
     buildAssetWritePayload,
@@ -15,22 +19,22 @@ function sampleAssetDerived(overrides: Partial<AssetDerived> = {}): AssetDerived
     return {
         ciaa_value: 5,
         primary_process_name: 'Sjednání pojištění – Online',
-        primary_process_criticality: 'Kritická',
+        primary_process_criticality: 'critical',
         inherited_impact_operations: 4,
         inherited_impact_financial: 4,
         inherited_rto_hours: 6,
-        business_criticality: 'Kritická',
+        business_criticality: 'critical',
         weighted_score: 4.95,
-        score_criticality: 'Kritická',
+        score_criticality: 'critical',
         h_rank: 4,
-        resulting_criticality: 'Kritická',
-        article8_classification: 'Kritické',
-        cif: 'Ano',
+        resulting_criticality: 'critical',
+        article8_classification: 'critical',
+        cif: 'yes',
         cif_process_count: 1,
         cif_process_names: ['Sjednání pojištění – Online'],
-        spof: 'Ano',
-        external_dependency: 'Ne',
-        legacy: 'Ne',
+        spof: 'yes',
+        external_dependency: 'no',
+        legacy: 'no',
         linked_process_count: 2,
         linked_vendor_count: 0,
         linked_asset_names: [],
@@ -46,8 +50,8 @@ function sampleAssetDerived(overrides: Partial<AssetDerived> = {}): AssetDerived
             impact_regulatory: 5,
             substitutability_rating: 5,
             vendor_dependency_rating: 4,
-            preliminary_criticality: 'Kritická',
-            lifecycle_state: 'V provozu',
+            preliminary_criticality: 'critical',
+            lifecycle_state: 'operational',
             standard_support_end_date: null,
             reference_date: '2026-07-03',
             threshold_low_score: 2,
@@ -59,6 +63,7 @@ function sampleAssetDerived(overrides: Partial<AssetDerived> = {}): AssetDerived
             rank_preliminary_criticality: 4,
             rank_business_criticality: 4,
             rank_cif_floor: 2,
+            missing_for_completeness: [],
         },
         ...overrides,
     };
@@ -68,17 +73,23 @@ function sampleAsset(overrides: Partial<Asset> = {}): Asset {
     return {
         id: 7,
         name: 'Veris',
-        asset_type: 'Aplikace',
-        asset_level: 'A – primární',
+        asset_type: 'application',
+        asset_level: 'primary',
         description: null,
         physical_location: null,
-        deployment_model: 'On-premise',
+        deployment_model: 'on_premise',
         alternative_names: null,
-        business_owner: 'Provozní úsek',
-        owner_department: 'IT',
-        ict_owner: null,
-        gdpr_relevance: 'Ano',
-        ai_relevance: 'Ne',
+        business_owner_user_id: 11,
+        ict_owner_user_id: 12,
+        owning_department_id: 4,
+        business_owner: { name: 'Alex Owner', role_name: 'business_owner', department_name: 'Operations' },
+        ict_owner: { name: 'Ivy ICT', role_name: 'ict_owner', department_name: 'Technology' },
+        owning_department: { name: 'Operations', code: 'OPS' },
+        business_owner_orphaned: false,
+        ict_owner_orphaned: false,
+        ownership_status: 'assigned',
+        gdpr_relevance: 'yes',
+        ai_relevance: 'no',
         data_classification: null,
         confidentiality_rating: 5,
         integrity_rating: 5,
@@ -88,14 +99,14 @@ function sampleAsset(overrides: Partial<Asset> = {}): Asset {
         impact_regulatory: 5,
         substitutability_rating: 5,
         vendor_dependency_rating: 4,
-        internet_exposed: 'Ne',
-        preliminary_criticality: 'Kritická',
-        lifecycle_state: 'V provozu',
+        internet_exposed: 'no',
+        preliminary_criticality: 'critical',
+        lifecycle_state: 'operational',
         standard_support_end_date: null,
         extended_support_end_date: null,
         custom_support_end_date: null,
         last_legacy_risk_assessment_date: null,
-        review_state: 'K revizi',
+        review_state: 'review_required',
         notes: null,
         primary_process_id: null,
         derived: sampleAssetDerived(),
@@ -151,12 +162,33 @@ describe('Assets page presentation helpers', () => {
         expect(assetsEmptyStateKey(true)).toBe('empty.no_results');
     });
 
+    it('maps canonical derived API codes and completeness keys to translations only', () => {
+        const t = (key: string) => key;
+        expect(assetDerivedCriticalityLabel(t, 'critical')).toBe(
+            'assets:values.preliminary_criticality.critical',
+        );
+        expect(assetDerivedBooleanLabel(t, 'yes')).toBe(
+            'assets:derived.values.boolean.yes',
+        );
+        expect(assetDerivedArticle8Label(t, 'non_critical')).toBe(
+            'assets:derived.values.article8.non_critical',
+        );
+        expect(assetCompletenessFieldLabel(t, 'business_owner')).toBe(
+            'assets:form.business_owner',
+        );
+        expect(assetCompletenessFieldLabel(t, 'primary_process')).toBe(
+            'assets:derived.primary_process_name',
+        );
+        expect(assetDerivedBooleanLabel(t, 'Ano')).toBe('assets:values.unknown');
+        expect(assetDerivedCriticalityLabel(t, 'Kritická')).toBe('assets:values.unknown');
+    });
+
     it('strips empty strings to nulls and drops untouched fields in write payloads', () => {
         expect(
             buildAssetWritePayload({
                 name: 'Veris',
                 asset_type: '',
-                business_owner: '  Provozní úsek ',
+                business_owner_user_id: 11,
                 confidentiality_rating: 5,
                 integrity_rating: null,
                 lifecycle_state: 'V provozu',
@@ -165,7 +197,7 @@ describe('Assets page presentation helpers', () => {
         ).toEqual({
             name: 'Veris',
             asset_type: null,
-            business_owner: 'Provozní úsek',
+            business_owner_user_id: 11,
             confidentiality_rating: 5,
             integrity_rating: null,
             lifecycle_state: 'V provozu',
@@ -189,11 +221,11 @@ describe('Assets page presentation helpers', () => {
         const criticalityColumn = columns.find((column) => column.key === 'derived_resulting_criticality');
         render(
             criticalityColumn?.render?.(
-                sampleAsset({ derived: sampleAssetDerived({ resulting_criticality: 'Vysoká' }) }),
+                sampleAsset({ derived: sampleAssetDerived({ resulting_criticality: 'high' }) }),
                 0
             ) as ReactElement
         );
-        expect(screen.getByText('Vysoká')).toBeInTheDocument();
+        expect(screen.getByText('assets:values.preliminary_criticality.high')).toBeInTheDocument();
 
         const statusColumn = columns.find((column) => column.key === 'status');
         render(statusColumn?.render?.(sampleAsset({ is_archived: true }), 0) as ReactElement);
@@ -209,7 +241,7 @@ describe('Assets page presentation helpers', () => {
 
         const cifColumn = columns.find((column) => column.key === 'derived_cif');
         render(cifColumn?.render?.(sampleAsset(), 0) as ReactElement);
-        expect(screen.getByText('Ano')).toBeInTheDocument();
+        expect(screen.getByText('assets:derived.values.boolean.yes')).toBeInTheDocument();
 
         render(cifColumn?.render?.(sampleAsset({ derived: null }), 0) as ReactElement);
         expect(screen.getByText('—')).toBeInTheDocument();
@@ -230,6 +262,6 @@ describe('Assets page presentation helpers', () => {
 
         const lifecycleColumn = columns.find((column) => column.key === 'lifecycle_state');
         render(lifecycleColumn?.render?.(sampleAsset(), 0) as ReactElement);
-        expect(screen.getByText('V provozu')).toBeInTheDocument();
+        expect(screen.getByText('assets:values.lifecycle_state.operational')).toBeInTheDocument();
     });
 });

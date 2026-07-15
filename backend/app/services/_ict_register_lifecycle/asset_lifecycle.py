@@ -2,24 +2,32 @@ from __future__ import annotations
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.audit import asset as audit_asset
-from app.models import Asset, User
+from app.models import Asset, Department, User
 from app.models._archivable import archived_clause
 from app.schemas.asset import AssetCreate, AssetListResponse, AssetRead, AssetUpdate
-from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
+from app.services._asset_owner_lock import acquire_asset_owner_identity_locks
 from app.services.transaction_boundary import commit_service_boundary
 
 from .asset_policy import (
+    assert_active_asset_department,
+    assert_active_asset_owner,
     assert_asset_archive_allowed,
     assert_asset_create_allowed,
+    assert_asset_ordinary_mutation_allowed,
     assert_asset_readable,
     assert_asset_restore_allowed,
     assert_asset_update_allowed,
+    asset_visibility_clause,
+    load_asset,
 )
-from .asset_projection import serialize_asset_detail_with_primary, serialize_asset_list
-from .derivation import derive_ict_register
-from .derivation_inputs import load_ict_register_graph
+from .asset_projection import (
+    load_asset_derived_blocks,
+    serialize_asset_detail_with_primary,
+    serialize_asset_list,
+)
 from .lifecycle_adapters import (
     apply_archive_lifecycle,
     apply_update_lifecycle,
@@ -30,9 +38,16 @@ from .lifecycle_adapters import (
 _SORT_COLUMNS = {
     "name": Asset.name,
     "asset_type": Asset.asset_type,
-    "owner_department": Asset.owner_department,
+    "owning_department": Asset.owning_department_id,
     "lifecycle_state": Asset.lifecycle_state,
     "created_at": Asset.created_at,
+}
+
+_ASSET_CRITICALITY_FILTER_CODES = {
+    "Nízká": "low",
+    "Střední": "medium",
+    "Vysoká": "high",
+    "Kritická": "critical",
 }
 
 
@@ -44,13 +59,36 @@ async def create_asset_detail(
 ) -> AssetRead:
     await assert_asset_create_allowed(current_user=current_user)
 
+    await acquire_asset_owner_identity_locks(
+        db,
+        user_ids=(payload.business_owner_user_id, payload.ict_owner_user_id),
+    )
+    business_owner = await assert_active_asset_owner(
+        db,
+        user_id=payload.business_owner_user_id,
+        acquire_identity_lock=False,
+    )
+    ict_owner = await assert_active_asset_owner(
+        db,
+        user_id=payload.ict_owner_user_id,
+        acquire_identity_lock=False,
+    )
+    department = await assert_active_asset_department(
+        db,
+        department_id=payload.owning_department_id,
+    )
+
     asset = Asset(**payload.model_dump())
+    asset.business_owner = business_owner
+    asset.ict_owner = ict_owner
+    asset.owning_department = department
     db.add(asset)
     await db.flush()
 
     await audit_asset.asset_created(db, actor=current_user, asset=asset)
     await commit_service_boundary(db, boundary="ict_register_asset_create")
-    await db.refresh(asset)
+    asset = await load_asset(db, asset.id)
+    assert asset is not None
     # A freshly created Asset has no Link relations yet; the derived block
     # still rides the payload with its empty-links shape (compute-on-read).
     return await serialize_asset_detail_with_primary(db, asset, current_user=current_user)
@@ -74,9 +112,55 @@ async def update_asset_detail(
     current_user: User,
 ) -> AssetRead:
     asset = await assert_asset_update_allowed(db, asset_id=asset_id, current_user=current_user)
-    updates = extract_updates(payload, non_nullable_fields=("name",))
+    updates = extract_updates(
+        payload,
+        non_nullable_fields=(
+            "name",
+            "business_owner_user_id",
+            "ict_owner_user_id",
+            "owning_department_id",
+        ),
+    )
     if not updates:
         return await serialize_asset_detail_with_primary(db, asset, current_user=current_user)
+
+    proposed_business_owner_id = (
+        int(updates["business_owner_user_id"])
+        if "business_owner_user_id" in updates
+        else asset.business_owner_user_id
+    )
+    proposed_ict_owner_id = (
+        int(updates["ict_owner_user_id"])
+        if "ict_owner_user_id" in updates
+        else asset.ict_owner_user_id
+    )
+    asset = await assert_asset_ordinary_mutation_allowed(
+        db,
+        asset_id=asset_id,
+        current_user=current_user,
+        additional_owner_user_ids=(
+            proposed_business_owner_id,
+            proposed_ict_owner_id,
+        ),
+    )
+
+    if "business_owner_user_id" in updates:
+        asset.business_owner = await assert_active_asset_owner(
+            db,
+            user_id=int(updates["business_owner_user_id"]),
+            acquire_identity_lock=False,
+        )
+    if "ict_owner_user_id" in updates:
+        asset.ict_owner = await assert_active_asset_owner(
+            db,
+            user_id=int(updates["ict_owner_user_id"]),
+            acquire_identity_lock=False,
+        )
+    if "owning_department_id" in updates:
+        asset.owning_department = await assert_active_asset_department(
+            db,
+            department_id=int(updates["owning_department_id"]),
+        )
 
     await apply_update_lifecycle(
         db=db,
@@ -88,7 +172,9 @@ async def update_asset_detail(
         ),
         boundary="ict_register_asset_update",
     )
-    return await serialize_asset_detail_with_primary(db, asset, current_user=current_user)
+    refreshed = await load_asset(db, asset.id)
+    assert refreshed is not None
+    return await serialize_asset_detail_with_primary(db, refreshed, current_user=current_user)
 
 
 async def archive_asset_detail(
@@ -129,7 +215,9 @@ async def restore_asset_detail(
         restore=True,
         refresh=True,
     )
-    return await serialize_asset_detail_with_primary(db, asset, current_user=current_user)
+    restored = await load_asset(db, asset.id)
+    assert restored is not None
+    return await serialize_asset_detail_with_primary(db, restored, current_user=current_user)
 
 
 async def list_asset_register(
@@ -145,7 +233,16 @@ async def list_asset_register(
     has_process_link: bool | None = None,
     criticality: str | None = None,
 ) -> AssetListResponse:
-    query = select(Asset)
+    query = select(Asset).options(
+        selectinload(Asset.business_owner).selectinload(User.role),
+        selectinload(Asset.business_owner).selectinload(User.department),
+        selectinload(Asset.ict_owner).selectinload(User.role),
+        selectinload(Asset.ict_owner).selectinload(User.department),
+        selectinload(Asset.owning_department),
+    )
+    visibility_clause = asset_visibility_clause(current_user)
+    if visibility_clause is not None:
+        query = query.where(visibility_clause)
     if not include_archived:
         query = query.where(archived_clause(Asset, archived=False))
     if search:
@@ -154,26 +251,37 @@ async def list_asset_register(
             or_(
                 Asset.name.ilike(pattern),
                 Asset.asset_type.ilike(pattern),
-                Asset.business_owner.ilike(pattern),
-                Asset.ict_owner.ilike(pattern),
+                Asset.business_owner.has(User.name.ilike(pattern)),
+                Asset.ict_owner.has(User.name.ilike(pattern)),
+                Asset.owning_department.has(Department.name.ilike(pattern)),
                 Asset.alternative_names.ilike(pattern),
             )
         )
 
     if has_process_link is not None or criticality is not None:
         candidates = list((await db.execute(query.order_by(Asset.id))).scalars().all())
-        parameters = await load_ict_workbook_parameter_set(db)
-        graph = await load_ict_register_graph(db, assets=candidates)
-        derivation = derive_ict_register(graph, parameters)
+        derived_by_asset_id = await load_asset_derived_blocks(
+            db,
+            candidates,
+            current_user=current_user,
+        )
+        criticality_filter = (
+            _ASSET_CRITICALITY_FILTER_CODES.get(criticality, criticality)
+            if criticality is not None
+            else None
+        )
         eligible_ids = []
         for asset in candidates:
-            derived = derivation.assets[asset.id]
+            derived = derived_by_asset_id[asset.id]
             if (
                 has_process_link is not None
                 and ((derived.linked_process_count > 0) is not has_process_link)
             ):
                 continue
-            if criticality is not None and derived.resulting_criticality != criticality:
+            if (
+                criticality_filter is not None
+                and derived.resulting_criticality != criticality_filter
+            ):
                 continue
             eligible_ids.append(asset.id)
         query = query.where(Asset.id.in_(eligible_ids))

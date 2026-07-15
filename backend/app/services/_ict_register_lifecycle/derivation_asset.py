@@ -164,7 +164,7 @@ def _derive_asset(
     # --- legacy: state or standard-support end before P_RefDatum (spec 1.2).
     legacy = (
         ANO
-        if row.lifecycle_state == "Legacy"
+        if row.lifecycle_state == "legacy"
         or (row.standard_support_end_date is not None and row.standard_support_end_date < params.reference_date)
         else NE
     )

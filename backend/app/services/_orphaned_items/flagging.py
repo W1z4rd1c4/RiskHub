@@ -9,6 +9,10 @@ from app.models.department import Department
 from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
 from app.models.threat import Threat
+from app.services._asset_owner_lock import (
+    acquire_asset_owner_identity_lock,
+    lock_assets_for_owner_deactivation,
+)
 from app.services._process_owner_lock import (
     acquire_process_owner_identity_lock,
     lock_processes_for_owner_deactivation,
@@ -36,6 +40,7 @@ async def flag_orphaned_items(db: AsyncSession, user_id: int) -> list[OrphanedIt
     # Every full deactivation path enters the Process ownership protocol here,
     # even if its caller already acquired the transaction advisory lock.
     await acquire_process_owner_identity_lock(db, user_id=user_id)
+    await acquire_asset_owner_identity_lock(db, user_id=user_id)
     created_records = []
 
     # Find risks owned by this user
@@ -64,15 +69,51 @@ async def flag_orphaned_items(db: AsyncSession, user_id: int) -> list[OrphanedIt
     process_records, process_count = await _flag_orphaned_processes(db, user_id=user_id)
     created_records.extend(process_records)
 
+    asset_records, asset_count = await _flag_orphaned_assets(db, user_id=user_id)
+    created_records.extend(asset_records)
+
     await db.flush()
 
     logger.info(
         f"Flagged {len(created_records)} orphaned items for user {user_id}: "
         f"{len(risks)} risks, {len(controls)} controls, {threat_count} threats, "
-        f"{process_count} processes"
+        f"{process_count} processes, {asset_count} asset responsibilities"
     )
 
     return created_records
+
+
+async def _flag_orphaned_assets(
+    db: AsyncSession,
+    *,
+    user_id: int,
+) -> tuple[list[OrphanedItem], int]:
+    assets = await lock_assets_for_owner_deactivation(db, user_id=user_id)
+    created_records: list[OrphanedItem] = []
+    for asset in assets:
+        roles = []
+        if asset.business_owner_user_id == user_id:
+            roles.append("business_owner")
+        if asset.ict_owner_user_id == user_id:
+            roles.append("ict_owner")
+        for responsibility_role in roles:
+            if await _already_flagged(
+                db,
+                "asset",
+                asset.id,
+                responsibility_role=responsibility_role,
+            ):
+                continue
+            created_records.append(
+                await _create_orphan(
+                    db,
+                    "asset",
+                    asset.id,
+                    user_id,
+                    responsibility_role=responsibility_role,
+                )
+            )
+    return created_records, len(created_records)
 
 
 async def _flag_orphaned_processes(

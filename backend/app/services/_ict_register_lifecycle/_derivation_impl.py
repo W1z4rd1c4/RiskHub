@@ -695,6 +695,9 @@ def _criticality_rank(label: str | None) -> int:
     """MATCH(label, TridyKrit, 0) with IFERROR(...,0): 1-4, blank/unknown -> 0."""
     if label is None:
         return 0
+    canonical_ranks = {"low": 1, "medium": 2, "high": 3, "critical": 4}
+    if label in canonical_ranks:
+        return canonical_ranks[label]
     try:
         return CRITICALITY_CLASSES.index(label) + 1
     except ValueError:

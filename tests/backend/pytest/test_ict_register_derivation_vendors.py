@@ -188,8 +188,10 @@ def test_vendor_h_rank_is_max_of_max_and_empty_maxifs_resolves_to_zero():
     """
     graph = IctRegisterGraph(
         assets=(
-            asset_row(1, preliminary_criticality="Střední"),  # vysledna Střední (rank 2)
-            asset_row(2, preliminary_criticality="Kritická"),  # vysledna Kritická (rank 4)
+            asset_row(1, preliminary_criticality="medium"),  # vysledna Střední (rank 2)
+            asset_row(
+                2, preliminary_criticality="critical"
+            ),  # vysledna Kritická (rank 4)
             asset_row(3),  # no signals: vysledna blank, contributes nothing
         ),
         asset_vendor_links=(vad(1, 1), vad(2, 1), vad(3, 1), vad(3, 2)),
@@ -247,8 +249,8 @@ def test_tier_significant_via_max_linked_asset_rank_at_least_high():
     boundary stays Standardní."""
     graph = IctRegisterGraph(
         assets=(
-            asset_row(1, preliminary_criticality="Vysoká"),
-            asset_row(2, preliminary_criticality="Střední"),
+            asset_row(1, preliminary_criticality="high"),
+            asset_row(2, preliminary_criticality="medium"),
         ),
         asset_vendor_links=(vad(1, 1), vad(2, 2)),
         vendors=(vendor_row(1), vendor_row(2)),
@@ -674,16 +676,16 @@ def test_vendor_main_contract_lookup_takes_the_first_main_in_row_order():
 
 def _complete_asset_kwargs() -> dict[str, object]:
     return {
-        "asset_type": "Aplikace",
-        "asset_level": "A – primární",
+        "asset_type": "application",
+        "asset_level": "primary",
         "description": "Core pojistný systém",
         "physical_location": "DC Praha",
-        "deployment_model": "On-premise",
+        "deployment_model": "on_premise",
         "business_owner": "Vlastník B",
         "ict_owner": "Vlastník ICT",
-        "gdpr_relevance": "Ano",
-        "ai_relevance": "Ne",
-        "data_classification": "Vysoce důvěrná / regulovaná data",
+        "gdpr_relevance": "yes",
+        "ai_relevance": "no",
+        "data_classification": "highly_confidential_regulated",
         "confidentiality_rating": 5,
         "integrity_rating": 5,
         "availability_rating": 5,
@@ -692,8 +694,8 @@ def _complete_asset_kwargs() -> dict[str, object]:
         "impact_regulatory": 5,
         "substitutability_rating": 5,
         "vendor_dependency_rating": 4,
-        "internet_exposed": "Ne",
-        "lifecycle_state": "V provozu",
+        "internet_exposed": "no",
+        "lifecycle_state": "operational",
     }
 
 
@@ -937,7 +939,16 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
                 "mtpd_hours": 4,
             },
         )
-        asset = await _create_via_api(client, "/api/v1/assets", {"name": "Veris"})
+        asset = await _create_via_api(
+            client,
+            "/api/v1/assets",
+            {
+                "name": "Veris",
+                "business_owner_user_id": test_user_cro.id,
+                "ict_owner_user_id": test_user_cro.id,
+                "owning_department_id": test_department.id,
+            },
+        )
         link = await client.post(
             f"/api/v1/assets/{asset['id']}/process-links",
             json={"process_id": process["id"], "is_primary": True},

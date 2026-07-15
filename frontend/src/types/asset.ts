@@ -9,6 +9,23 @@ export interface AssetListCapabilities {
     can_create?: boolean;
 }
 
+export interface AssetOwnerRead {
+    name: string;
+    role_name: string;
+    department_name?: string | null;
+}
+
+export interface AssetDepartmentRead {
+    name: string;
+    code: string;
+}
+
+export type AssetOwnershipStatus =
+    | 'assigned'
+    | 'legacy_unassigned'
+    | 'pending_governance'
+    | 'invalid_assignment';
+
 /** The signals, ranks, and parameter values behind the derived block. */
 export interface AssetDerivedInputs {
     confidentiality_rating?: number | null;
@@ -78,9 +95,15 @@ export interface Asset {
     deployment_model?: string | null;
     alternative_names?: string | null;
 
-    business_owner?: string | null;
-    owner_department?: string | null;
-    ict_owner?: string | null;
+    business_owner_user_id?: number | null;
+    ict_owner_user_id?: number | null;
+    owning_department_id?: number | null;
+    business_owner?: AssetOwnerRead | null;
+    ict_owner?: AssetOwnerRead | null;
+    owning_department?: AssetDepartmentRead | null;
+    business_owner_orphaned: boolean;
+    ict_owner_orphaned: boolean;
+    ownership_status: AssetOwnershipStatus;
     gdpr_relevance?: string | null;
     ai_relevance?: string | null;
     data_classification?: string | null;
@@ -129,9 +152,9 @@ export interface AssetWritePayload {
     physical_location?: string | null;
     deployment_model?: string | null;
     alternative_names?: string | null;
-    business_owner?: string | null;
-    owner_department?: string | null;
-    ict_owner?: string | null;
+    business_owner_user_id?: number | null;
+    ict_owner_user_id?: number | null;
+    owning_department_id?: number | null;
     gdpr_relevance?: string | null;
     ai_relevance?: string | null;
     data_classification?: string | null;
@@ -165,7 +188,7 @@ export interface AssetListParams {
     criticality?: string;
 }
 
-export type AssetSortField = 'name' | 'asset_type' | 'owner_department' | 'lifecycle_state' | 'created_at';
+export type AssetSortField = 'name' | 'asset_type' | 'owning_department' | 'lifecycle_state' | 'created_at';
 
 export interface AssetListResponse {
     items: Asset[];

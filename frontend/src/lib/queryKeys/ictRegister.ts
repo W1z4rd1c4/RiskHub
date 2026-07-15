@@ -1,5 +1,8 @@
 export const ictRegisterKeys = {
     closedLists: () => ['ictRegister', 'closedLists'] as const,
+    assetOwnerLookup: (role: 'business_owner' | 'ict_owner', search = '') =>
+        ['ictRegister', 'assetOwnerLookup', role, search] as const,
+    assetDepartmentLookup: (search = '') => ['ictRegister', 'assetDepartmentLookup', search] as const,
     assetProcessLinks: (assetId: number) => ['ictRegister', 'assetProcessLinks', assetId] as const,
     assetAssetLinks: (assetId: number) => ['ictRegister', 'assetAssetLinks', assetId] as const,
     assetVendorLinks: (assetId: number) => ['ictRegister', 'assetVendorLinks', assetId] as const,

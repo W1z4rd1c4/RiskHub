@@ -2,7 +2,7 @@
  * ICT Register — Asset register E2E (issues #43 + #48, deterministic fixtures).
  *
  * Asserts CURRENT behavior: entered 04_Aktiva fields round-trip through
- * the UI, closed lists come verbatim from the workbook reference registry,
+ * the UI, stable controlled codes render as localized labels,
  * Process<->Asset links carry at most one primary designation per asset, and
  * Asset<->Asset links are directional. The ENGINE-DERIVED values (CIAA value,
  * weighted score, resulting criticality, CIF, SPOF rollups — ticket #48)
@@ -21,26 +21,27 @@ import {
     resetAssetProcessLinks,
 } from './helpers/ict-register';
 import { waitForDataLoad } from './helpers/wait';
+import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 import { AssetsPage } from './pages/AssetsPage';
 
-// TypAktiva — verbatim workbook closed list (docs/dora-ict-register spec section 3.1).
-const TYP_AKTIVA = [
-    'Aplikace',
-    'Databáze',
-    'Infrastruktura',
-    'Síťový prvek',
-    'Hardware',
-    'Cloud služba',
-    'Datové úložiště',
-    'Informační aktivum',
-    'Bezpečnostní aktivum',
-    'BCM/DR aktivum',
-    'Jiné',
+const ASSET_TYPE_LABELS = [
+    'Application', 'Database', 'Infrastructure', 'Network component', 'Hardware',
+    'Cloud service', 'Data storage', 'Information asset', 'Security asset', 'BCM/DR asset', 'Other',
 ];
 const SKALA_15 = ['1', '2', '3', '4', '5'];
 
 const ARCHIVE_CONFIRM_BUTTON = /^(Archive|Archivovat)$/;
 const PRIMARY_BADGE_SELECTOR = '[data-testid^="asset-process-link-primary-"]';
+const OWNER_PERSONAS = [
+    {
+        account: DEMO_ACCOUNTS.EMPLOYEE_OPERATIONS,
+        unrelatedAsset: E2E_ASSETS.INTEGRATION_BUS,
+    },
+    {
+        account: DEMO_ACCOUNTS.EMPLOYEE_IT,
+        unrelatedAsset: E2E_ASSETS.CLAIMS_DATABASE,
+    },
+] as const;
 
 test.describe('ICT Register — Assets (Deterministic)', () => {
     test('Risk manager sees Assets in the sidebar and navigates to the register', async ({ riskManagerPage }) => {
@@ -76,6 +77,123 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(employeePage.locator('[data-testid^="asset-process-link-remove-"]')).toHaveCount(0);
     });
 
+    test('distinct cross-department owners can list, safely read, and edit without lifecycle powers', async ({ browser }) => {
+        test.slow();
+        const asset = await getAssetByName(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
+        const archivedAsset = await getAssetByName(E2E_ASSETS.OWNER_SCOPED_ARCHIVED.name);
+        expect(asset).not.toBeNull();
+        expect(archivedAsset).not.toBeNull();
+
+        for (const { account, unrelatedAsset } of OWNER_PERSONAS) {
+            const unrelated = await getAssetByName(unrelatedAsset.name);
+            expect(unrelated).not.toBeNull();
+            const context = await browser.newContext();
+            const page = await context.newPage();
+            try {
+                await loginAsDemoUser(page, account);
+
+                const assetsPage = new AssetsPage(page);
+                await assetsPage.navigate();
+                await assetsPage.search(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
+                await expect(assetsPage.rowByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name)).toBeVisible();
+                await expect(assetsPage.createButton).toHaveCount(0);
+
+                await assetsPage.openRowByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
+                await expect(page.locator('main h1').first()).toContainText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
+                await expect(page.getByText('Cloud service', { exact: true }).first()).toBeVisible();
+                await expect(page.getByText('Supporting', { exact: true }).first()).toBeVisible();
+                await expect(page.getByText('SaaS', { exact: true }).first()).toBeVisible();
+
+                const ownership = page.locator('.glass-card').filter({
+                    has: page.getByRole('heading', { name: 'Ownership', exact: true }),
+                });
+                await expect(ownership).toContainText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.business_owner_name);
+                await expect(ownership).toContainText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.ict_owner_name);
+                await expect(ownership).toContainText('Operations · employee');
+                await expect(ownership).toContainText('IT · employee');
+                await expect(ownership).toContainText('Finance (FIN)');
+                await expect(ownership).not.toContainText(/@riskhub\.local/i);
+                await expect(ownership).not.toContainText(/\b(?:user|owner|department)\s*#?\d+\b/i);
+
+                await expect(page.getByTestId('asset-detail-edit')).toBeVisible();
+                await expect(page.getByTestId('asset-detail-archive')).toHaveCount(0);
+                await expect(page.getByTestId('asset-detail-restore')).toHaveCount(0);
+                await page.getByTestId('asset-detail-edit').click();
+                await expect(page).toHaveURL(new RegExp(`/assets/${asset!.id}/edit$`));
+                await expect(page.getByTestId('asset-form-submit')).toBeVisible();
+
+                await page.goto('/assets/new');
+                await expect(page.getByText('Access Denied', { exact: true })).toBeVisible();
+                await expect(page.getByTestId('asset-form-submit')).toHaveCount(0);
+
+                await assetsPage.navigate();
+                await assetsPage.search(unrelatedAsset.name);
+                await expect(assetsPage.tableRows.filter({ hasText: unrelatedAsset.name })).toHaveCount(0);
+                await page.goto(`/assets/${unrelated!.id}`);
+                await expect(page.getByText(/Asset not found\.|Aktivum nenalezeno\./)).toBeVisible();
+                await page.goto(`/assets/${unrelated!.id}/edit`);
+                await expect(page.getByTestId('asset-form-submit')).toHaveCount(0);
+
+                await assetsPage.navigate();
+                await assetsPage.setStatusFilterArchived();
+                await assetsPage.search(E2E_ASSETS.OWNER_SCOPED_ARCHIVED.name);
+                await expect(assetsPage.rowByText(E2E_ASSETS.OWNER_SCOPED_ARCHIVED.name)).toBeVisible();
+                await assetsPage.openRowByText(E2E_ASSETS.OWNER_SCOPED_ARCHIVED.name);
+                await expect(page.getByTestId('asset-detail-edit')).toHaveCount(0);
+                await expect(page.getByTestId('asset-detail-archive')).toHaveCount(0);
+                await expect(page.getByTestId('asset-detail-restore')).toHaveCount(0);
+            } finally {
+                await context.close();
+            }
+        }
+    });
+
+    test('Finance Owning Department head can read and edit the cross-department Asset but cannot create or archive', async ({ browser }) => {
+        const asset = await getAssetByName(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
+        expect(asset).not.toBeNull();
+
+        const context = await browser.newContext();
+        const page = await context.newPage();
+        await loginAsDemoUser(page, DEMO_ACCOUNTS.DEPT_HEAD_FINANCE);
+        const assetsPage = new AssetsPage(page);
+        await assetsPage.navigate();
+        await assetsPage.search(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
+        await expect(assetsPage.rowByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name)).toBeVisible();
+        await expect(assetsPage.createButton).toHaveCount(0);
+
+        await assetsPage.openRowByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
+        await expect(page.getByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.business_owner_name, { exact: true })).toBeVisible();
+        await expect(page.getByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.ict_owner_name, { exact: true })).toBeVisible();
+        await expect(page.getByTestId('asset-detail-edit')).toBeVisible();
+        await expect(page.getByTestId('asset-detail-archive')).toHaveCount(0);
+
+        await page.getByTestId('asset-detail-edit').click();
+        await expect(page).toHaveURL(new RegExp(`/assets/${asset!.id}/edit$`));
+        await expect(page.getByTestId('asset-form-submit')).toBeVisible();
+        await context.close();
+    });
+
+    test('unrelated Operations head cannot enumerate, read, or edit the Finance-owned Asset', async ({ deptHeadPage }) => {
+        const asset = await getAssetByName(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
+        expect(asset).not.toBeNull();
+
+        const assetsPage = new AssetsPage(deptHeadPage);
+        await assetsPage.navigate();
+        await assetsPage.search(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
+        await expect(assetsPage.tableRows.filter({ hasText: E2E_ASSETS.OWNER_SCOPED_ACTIVE.name })).toHaveCount(0);
+
+        await deptHeadPage.goto(`/assets/${asset!.id}`);
+        await waitForDataLoad(deptHeadPage);
+        await expect(deptHeadPage.getByText(/Asset not found\.|Aktivum nenalezeno\./)).toBeVisible();
+        await expect(deptHeadPage.locator('main h1')).toHaveCount(0);
+        await expect(deptHeadPage.getByTestId('asset-detail-edit')).toHaveCount(0);
+        await expect(deptHeadPage.getByTestId('asset-detail-archive')).toHaveCount(0);
+
+        await deptHeadPage.goto(`/assets/${asset!.id}/edit`);
+        await waitForDataLoad(deptHeadPage);
+        await expect(deptHeadPage.getByTestId('asset-form-submit')).toHaveCount(0);
+    });
+
     test('Platform admin does not see Assets navigation', async ({ adminPage }) => {
         // Anchor on the admin-only console link before asserting the absence.
         await expect(adminPage.locator('a[href="/admin"]').first()).toBeVisible();
@@ -89,9 +207,9 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
 
         await expect(assetsPage.rowByText(E2E_ASSETS.CORE_CLAIMS_SYSTEM.name)).toBeVisible();
         await expect(assetsPage.rowByText(E2E_ASSETS.CLAIMS_DATABASE.name)).toBeVisible();
-        // The seeded asset type renders verbatim in the register column.
+        // Canonical `database` renders through the current locale.
         await expect(
-            assetsPage.rowByText(E2E_ASSETS.CLAIMS_DATABASE.name).getByText('Databáze', { exact: true }),
+            assetsPage.rowByText(E2E_ASSETS.CLAIMS_DATABASE.name).getByText('Database', { exact: true }),
         ).toBeVisible();
 
         await assetsPage.search(E2E_ASSETS.CLAIMS_DATABASE.name);
@@ -112,7 +230,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId(`asset-restore-${archivedId}`)).toBeVisible();
     });
 
-    test('Create flow offers verbatim workbook closed lists and lands on the new detail', async ({ riskManagerPage }) => {
+    test('Create flow uses canonical localized values and permits same-user, cross-department ownership', async ({ riskManagerPage }) => {
         const uniqueName = `E2E-ASSET-UI Created ${Date.now()}`;
 
         const assetsPage = new AssetsPage(riskManagerPage);
@@ -120,13 +238,23 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await assetsPage.createButton.click();
         await riskManagerPage.waitForURL(/.*assets\/new$/);
 
-        // Asset type dropdown carries the TypAktiva workbook list verbatim.
+        // Runtime choices are localized labels backed by stable canonical codes.
         await riskManagerPage.getByTestId('asset-form-asset-type').click();
-        await expect(riskManagerPage.getByRole('option')).toHaveCount(TYP_AKTIVA.length + 1); // + "Not set"
-        for (const value of TYP_AKTIVA) {
+        await expect(riskManagerPage.getByRole('option')).toHaveCount(ASSET_TYPE_LABELS.length + 1); // + "Not set"
+        for (const value of ASSET_TYPE_LABELS) {
             await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
         }
-        await riskManagerPage.getByRole('option', { name: 'Aplikace', exact: true }).click();
+        await riskManagerPage.getByRole('option', { name: 'Application', exact: true }).click();
+
+        for (const field of ['business-owner', 'ict-owner'] as const) {
+            await riskManagerPage.getByTestId(`asset-form-${field}-search`).fill('ops.analyst@riskhub.local');
+            await riskManagerPage.getByTestId(`asset-form-${field}`).click();
+            await riskManagerPage.getByRole('option', { name: /ops\.analyst@riskhub\.local/i }).click();
+        }
+        // Department is independent from both people and may be cross-department.
+        await riskManagerPage.getByTestId('asset-form-owner-department-search').fill('Finance');
+        await riskManagerPage.getByTestId('asset-form-owner-department').click();
+        await riskManagerPage.getByRole('option', { name: /Finance \(FIN\)/ }).click();
 
         // CIAA rating dropdown carries Skala15 verbatim (1–5 only).
         await riskManagerPage.getByTestId('asset-form-confidentiality-rating').click();
@@ -139,7 +267,9 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.waitForURL(/.*assets\/\d+$/);
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.locator('main h1').first()).toContainText(uniqueName);
-        await expect(riskManagerPage.getByText('Aplikace', { exact: true }).first()).toBeVisible();
+        await expect(riskManagerPage.getByText('Application', { exact: true }).first()).toBeVisible();
+        await expect(riskManagerPage.getByText('Jana Horáková', { exact: true }).first()).toBeVisible();
+        await expect(riskManagerPage.getByText('Finance (FIN)', { exact: true })).toBeVisible();
     });
 
     test('Whitespace-only asset name surfaces the required-field validation error', async ({ riskManagerPage }) => {
@@ -182,6 +312,13 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 impact_client: '3',
             }),
         ).toBe(422);
+        // Czech workbook labels are import-only; runtime writes fail closed.
+        expect(
+            await postAssetExpectingStatus({
+                name: `E2E-ASSET-INVALID ${Date.now()}`,
+                asset_type: 'Aplikace',
+            }),
+        ).toBe(422);
     });
 
     test('Edit round-trip persists entered field changes', async ({ riskManagerPage }) => {
@@ -192,18 +329,19 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.goto(`/assets/${created.id}/edit`);
         await waitForDataLoad(riskManagerPage);
 
-        await riskManagerPage.getByTestId('asset-form-ict-owner').fill('E2E Edited ICT Owner');
+        await riskManagerPage.getByTestId('asset-form-ict-owner-search').fill('it.analyst@riskhub.local');
+        await riskManagerPage.getByTestId('asset-form-ict-owner').click();
+        await riskManagerPage.getByRole('option', { name: /it\.analyst@riskhub\.local/i }).click();
         await riskManagerPage.getByTestId('asset-form-lifecycle-state').click();
-        await riskManagerPage.getByRole('option', { name: 'V provozu', exact: true }).click();
+        await riskManagerPage.getByRole('option', { name: 'Operational', exact: true }).click();
         await riskManagerPage.getByTestId('asset-form-submit').click();
 
         await riskManagerPage.waitForURL(new RegExp(`/assets/${created.id}$`));
-        // Hard reload: the SPA detail cache holds the pre-edit copy for up to
-        // 30s (DETAIL_QUERY_STALE_TIME_MS); a fresh document proves persistence.
+        // A fresh document independently proves persistence as well as the edit cache update.
         await riskManagerPage.goto(`/assets/${created.id}`);
         await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.getByText('E2E Edited ICT Owner', { exact: true })).toBeVisible();
-        await expect(riskManagerPage.getByText('V provozu', { exact: true }).first()).toBeVisible();
+        await expect(riskManagerPage.getByText('Barbora Němcová', { exact: true }).first()).toBeVisible();
+        await expect(riskManagerPage.getByText('Operational', { exact: true }).first()).toBeVisible();
     });
 
     test('Archive and restore round-trip through the register UI', async ({ riskManagerPage }) => {
@@ -263,13 +401,13 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
 
         // Ticket #48: the engine-derived block reflects the seeded graph
         // read-only. E2E-ASSET-001's primary Process (E2E-PROC-001, score 17)
-        // is Kritická and its own weighted score 4.05 bands Kritická too, so
-        // the MAX cascade lands on Kritická; CIF is Ano by any-true across the
+        // is critical and its own weighted score 4.05 bands critical too, so
+        // the MAX cascade lands on critical; CIF is yes by any-true across the
         // linked Processes (E2E-PROC-001 carries the seeded CIF override).
         const derivedSection = riskManagerPage.getByTestId('asset-derived-section');
         await expect(derivedSection).toBeVisible();
-        await expect(derivedSection.getByTestId('asset-derived-resulting-criticality')).toContainText('Kritická');
-        await expect(derivedSection.getByTestId('asset-derived-cif')).toHaveText('Ano');
+        await expect(derivedSection.getByTestId('asset-derived-resulting-criticality')).toContainText('Critical');
+        await expect(derivedSection.getByTestId('asset-derived-cif')).toHaveText('Yes');
     });
 
     test('Process link management: add, set primary, swap primary, remove', async ({ riskManagerPage }) => {

@@ -128,17 +128,26 @@ def _risk_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def _process_payload(**overrides: object) -> dict[str, object]:
+def _process_payload(owner: User, **overrides: object) -> dict[str, object]:
+    assert owner.department_id is not None
     payload: dict[str, object] = {
         "l0_area": "Provoz a služby klientům",
         "l1_process": "Správa pojistných smluv",
+        "process_owner_user_id": owner.id,
+        "owning_department_id": owner.department_id,
     }
     payload.update(overrides)
     return payload
 
 
-def _asset_payload(**overrides: object) -> dict[str, object]:
-    payload: dict[str, object] = {"name": "Veris"}
+def _asset_payload(owner: User, **overrides: object) -> dict[str, object]:
+    assert owner.department_id is not None
+    payload: dict[str, object] = {
+        "name": "Veris",
+        "business_owner_user_id": owner.id,
+        "ict_owner_user_id": owner.id,
+        "owning_department_id": owner.department_id,
+    }
     payload.update(overrides)
     return payload
 
@@ -153,7 +162,11 @@ async def test_risk_listing_filters_ict_linked_rows_before_pagination(
         linked = linked_response.json()
         unlinked_response = await client.post("/api/v1/risks", json=_risk_payload(name="Unlinked"))
         assert unlinked_response.status_code == 201, unlinked_response.text
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        process = (
+            await client.post(
+                "/api/v1/processes", json=_process_payload(test_user_cro)
+            )
+        ).json()
         created = await client.post(
             f"/api/v1/risks/{linked['id']}/process-links",
             json={"process_id": process["id"]},
@@ -381,7 +394,15 @@ async def test_update_threat_round_trips_entered_fields(client_factory, test_use
 async def test_category_is_enforced_against_workbook_closed_list(client_factory, test_user_cro: User):
     """Spec section 1.6: Kategorie comes from the closed list KategorieHrozeb, verbatim."""
     async with client_factory(user=test_user_cro) as client:
-        for valid in ("availability", "integrity", "confidentiality", "authenticity", "physical", "personnel", "third_party"):
+        for valid in (
+            "availability",
+            "integrity",
+            "confidentiality",
+            "authenticity",
+            "physical",
+            "personnel",
+            "third_party",
+        ):
             ok = await client.post("/api/v1/threats", json=_minimal_payload(category=valid))
             assert ok.status_code == 201, f"category={valid!r} rejected: {ok.text}"
             assert ok.json()["category"] == valid
@@ -717,7 +738,11 @@ async def test_risk_process_link_round_trip_readable_from_the_process_end(
 ):
     async with client_factory(user=test_user_cro) as client:
         risk = (await client.post("/api/v1/risks", json=_risk_payload())).json()
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
+        process = (
+            await client.post(
+                "/api/v1/processes", json=_process_payload(test_user_cro)
+            )
+        ).json()
 
         created = await client.post(
             f"/api/v1/risks/{risk['id']}/process-links", json={"process_id": process["id"]}
@@ -767,7 +792,9 @@ async def test_risk_asset_link_round_trip_readable_from_the_asset_end(
 ):
     async with client_factory(user=test_user_cro) as client:
         risk = (await client.post("/api/v1/risks", json=_risk_payload())).json()
-        asset = (await client.post("/api/v1/assets", json=_asset_payload())).json()
+        asset = (
+            await client.post("/api/v1/assets", json=_asset_payload(test_user_cro))
+        ).json()
 
         created = await client.post(
             f"/api/v1/risks/{risk['id']}/asset-links", json={"asset_id": asset["id"]}
@@ -809,8 +836,14 @@ async def test_risk_register_links_archived_ends_conflict_strictly(
     """Strict archived-end 409 for the Risk<->Process and Risk<->Asset ends."""
     async with client_factory(user=test_user_cro) as client:
         risk = (await client.post("/api/v1/risks", json=_risk_payload())).json()
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
-        asset = (await client.post("/api/v1/assets", json=_asset_payload())).json()
+        process = (
+            await client.post(
+                "/api/v1/processes", json=_process_payload(test_user_cro)
+            )
+        ).json()
+        asset = (
+            await client.post("/api/v1/assets", json=_asset_payload(test_user_cro))
+        ).json()
 
         # Archived targets conflict on create.
         assert (await client.delete(f"/api/v1/processes/{process['id']}")).status_code == 204
@@ -1228,8 +1261,14 @@ async def test_register_far_end_lists_filter_risks_by_visibility(
     same canonical Risk visibility predicate as the Risk register."""
     employee_department_id = test_user_employee.department_id
     async with client_factory(user=test_user_cro) as client:
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
-        asset = (await client.post("/api/v1/assets", json=_asset_payload())).json()
+        process = (
+            await client.post(
+                "/api/v1/processes", json=_process_payload(test_user_cro)
+            )
+        ).json()
+        asset = (
+            await client.post("/api/v1/assets", json=_asset_payload(test_user_cro))
+        ).json()
         in_scope = (
             await client.post(
                 "/api/v1/risks", json=_risk_payload(department_id=employee_department_id)
@@ -1276,10 +1315,13 @@ async def test_link_lists_embed_display_names_for_both_ends(
         risk = (await client.post("/api/v1/risks", json=_risk_payload())).json()
         process = (
             await client.post(
-                "/api/v1/processes", json=_process_payload(l2_subprocess="Upisování")
+                "/api/v1/processes",
+                json=_process_payload(test_user_cro, l2_subprocess="Upisování"),
             )
         ).json()
-        asset = (await client.post("/api/v1/assets", json=_asset_payload())).json()
+        asset = (
+            await client.post("/api/v1/assets", json=_asset_payload(test_user_cro))
+        ).json()
 
         assert (
             await client.post(f"/api/v1/threats/{threat['id']}/risk-links", json={"risk_id": risk["id"]})
@@ -1388,8 +1430,14 @@ async def test_link_mutations_land_on_the_audit_trail(client_factory, test_user_
     async with client_factory(user=test_user_cro) as client:
         threat = (await client.post("/api/v1/threats", json=_minimal_payload())).json()
         risk = (await client.post("/api/v1/risks", json=_risk_payload())).json()
-        process = (await client.post("/api/v1/processes", json=_process_payload())).json()
-        asset = (await client.post("/api/v1/assets", json=_asset_payload())).json()
+        process = (
+            await client.post(
+                "/api/v1/processes", json=_process_payload(test_user_cro)
+            )
+        ).json()
+        asset = (
+            await client.post("/api/v1/assets", json=_asset_payload(test_user_cro))
+        ).json()
 
         # Threat-end mutations audit as threat_link rows.
         link = (

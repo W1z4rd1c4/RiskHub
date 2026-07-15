@@ -4,9 +4,10 @@ The remaining manual link sheets of the register graph: sheet 10_VAD types
 each Asset->Vendor dependency by an ICT service S-code (the identity tuple is
 asset + vendor + S-code), sheet 11 §1 holds the manual Process->Vendor pairs
 (the §2 transitive expansion stays derived-only, engine-side). Links are
-managed from the register end — mutations require the register end's write
-permission (assets:write / processes:write) — and readable from all three
-ends under both ends' read permissions (#43 dual-permission precedent).
+managed from the register end — mutations require canonical row update
+authority for that active, non-orphan Asset or Process — and readable from all
+three ends under canonical register-row policy plus independent Vendor
+visibility (#43 dual-permission precedent).
 Archived-end stance is STRICT per #43: mutating from an archived register
 end, or linking TO an archived target, conflicts (409); unlinking an
 archived TARGET from an active register end stays possible.
@@ -31,7 +32,14 @@ from app.services._authorization_capabilities import (
 )
 from app.services.transaction_boundary import commit_service_boundary
 
-from .asset_policy import load_asset
+from .asset_policy import (
+    assert_asset_ordinary_mutation_allowed,
+    assert_asset_readable,
+    can_read_asset_record,
+    can_update_asset_record,
+    load_asset,
+)
+from .asset_projection import pending_asset_responsibility_roles
 from .derivation import process_display_name
 from .policy import (
     assert_process_ordinary_mutation_allowed,
@@ -51,18 +59,22 @@ def _serialize_asset_vendor_link(
     link: AssetVendorLink,
     current_user: User,
     *,
-    asset_name: str | None = None,
+    asset: Asset,
+    ownership_pending: bool = False,
+    vendor_visible: bool,
     vendor_name: str | None = None,
-    register_end_active: bool = True,
 ) -> AssetVendorLinkRead:
     base = AssetVendorLinkRead.model_validate(link)
     return base.model_copy(
         update={
             "capabilities": asset_vendor_link_capabilities(
                 current_user,
-                register_end_active=register_end_active,
+                can_update_asset=can_update_asset_record(current_user, asset),
+                ownership_pending=ownership_pending,
+                register_end_active=not asset.is_archived,
+                vendor_visible=vendor_visible,
             ),
-            "asset_name": asset_name,
+            "asset_name": asset.name,
             "vendor_name": vendor_name,
         }
     )
@@ -91,19 +103,6 @@ def _serialize_process_vendor_link(
     )
 
 
-async def _vendor_info_by_id(db: AsyncSession, vendor_ids: set[int]) -> dict[int, tuple[str, bool]]:
-    """Display names and archive state for the Vendor ends of link rows."""
-    if not vendor_ids:
-        return {}
-    rows = await db.execute(
-        select(Vendor.id, Vendor.name, Vendor.is_archived).where(Vendor.id.in_(vendor_ids))
-    )
-    return {
-        vendor_id: (name, is_archived)
-        for vendor_id, name, is_archived in rows.all()
-    }
-
-
 async def _visible_vendors_by_id(
     db: AsyncSession,
     *,
@@ -120,13 +119,6 @@ async def _visible_vendors_by_id(
     return {vendor.id: vendor for vendor in vendors}
 
 
-async def _asset_info_by_id(db: AsyncSession, asset_ids: set[int]) -> dict[int, tuple[str, bool]]:
-    if not asset_ids:
-        return {}
-    rows = await db.execute(select(Asset.id, Asset.name, Asset.is_archived).where(Asset.id.in_(asset_ids)))
-    return {asset_id: (name, is_archived) for asset_id, name, is_archived in rows.all()}
-
-
 async def _require_asset_vendor_link_access(
     db: AsyncSession,
     *,
@@ -134,22 +126,20 @@ async def _require_asset_vendor_link_access(
     current_user: User,
     require_write: bool,
 ) -> Asset:
-    """Check both ends' read permissions, then Asset write access for mutations."""
-    if not check_permission(current_user, "assets", "read"):
-        raise AuthorizationError("Permission denied: assets:read")
+    """Compose canonical Asset row authority with independent Vendor access."""
     if not check_permission(current_user, "vendors", "read"):
         raise AuthorizationError("Permission denied: vendors:read")
-
-    asset = await load_asset(db, asset_id)
-    if not asset:
-        raise NotFoundError("Asset not found")
-
-    if require_write and not check_permission(current_user, "assets", "write"):
-        raise AuthorizationError("Permission denied: assets:write")
-    if require_write and asset.is_archived:
-        raise ConflictError("Cannot mutate links for archived asset")
-
-    return asset
+    if require_write:
+        return await assert_asset_ordinary_mutation_allowed(
+            db,
+            asset_id=asset_id,
+            current_user=current_user,
+        )
+    return await assert_asset_readable(
+        db,
+        asset_id=asset_id,
+        current_user=current_user,
+    )
 
 
 async def list_asset_vendor_links(
@@ -165,16 +155,26 @@ async def list_asset_vendor_links(
         select(AssetVendorLink).where(AssetVendorLink.asset_id == asset_id).order_by(AssetVendorLink.id)
     )
     links = list(result.scalars().all())
-    vendor_info = await _vendor_info_by_id(db, {link.vendor_id for link in links})
+    vendors = await _visible_vendors_by_id(
+        db,
+        current_user=current_user,
+        vendor_ids={link.vendor_id for link in links},
+    )
+    pending_roles = await pending_asset_responsibility_roles(
+        db,
+        asset_ids=[asset.id] if links else [],
+    )
     return [
         _serialize_asset_vendor_link(
             link,
             current_user,
-            asset_name=asset.name,
-            vendor_name=vendor_info.get(link.vendor_id, (None, True))[0],
-            register_end_active=not asset.is_archived,
+            asset=asset,
+            ownership_pending=asset.id in pending_roles,
+            vendor_name=vendors[link.vendor_id].name,
+            vendor_visible=True,
         )
         for link in links
+        if link.vendor_id in vendors
     ]
 
 
@@ -187,8 +187,6 @@ async def list_vendor_asset_links(
     """The Vendor-end read of the same Link relation (visibility follows the Vendor row)."""
     if not check_permission(current_user, "vendors", "read"):
         raise AuthorizationError("Permission denied: vendors:read")
-    if not check_permission(current_user, "assets", "read"):
-        raise AuthorizationError("Permission denied: assets:read")
     vendor = await _load_vendor(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise NotFoundError("Vendor not found")
@@ -197,16 +195,29 @@ async def list_vendor_asset_links(
         select(AssetVendorLink).where(AssetVendorLink.vendor_id == vendor_id).order_by(AssetVendorLink.id)
     )
     links = list(result.scalars().all())
-    asset_info = await _asset_info_by_id(db, {link.asset_id for link in links})
+    readable_assets = [
+        asset
+        for link in links
+        if (asset := await load_asset(db, link.asset_id)) is not None
+        and can_read_asset_record(current_user, asset)
+    ]
+    readable_asset_ids = {asset.id for asset in readable_assets}
+    assets_by_id = {asset.id: asset for asset in readable_assets}
+    pending_roles = await pending_asset_responsibility_roles(
+        db,
+        asset_ids=list(readable_asset_ids),
+    )
     return [
         _serialize_asset_vendor_link(
             link,
             current_user,
-            asset_name=asset_info.get(link.asset_id, (None, True))[0],
+            asset=assets_by_id[link.asset_id],
+            ownership_pending=link.asset_id in pending_roles,
             vendor_name=vendor.name,
-            register_end_active=not asset_info.get(link.asset_id, (None, True))[1],
+            vendor_visible=True,
         )
         for link in links
+        if link.asset_id in readable_asset_ids
     ]
 
 
@@ -222,7 +233,7 @@ async def add_asset_vendor_link(
     )
 
     vendor = await _load_vendor(db, payload.vendor_id)
-    if not vendor:
+    if vendor is None or not can_read_vendor(vendor, current_user):
         raise NotFoundError("Vendor not found")
     if vendor.is_archived:
         raise ConflictError("Cannot link archived vendor")
@@ -257,9 +268,9 @@ async def add_asset_vendor_link(
     return _serialize_asset_vendor_link(
         link,
         current_user,
-        asset_name=asset.name,
+        asset=asset,
         vendor_name=vendor.name,
-        register_end_active=not asset.is_archived,
+        vendor_visible=True,
     )
 
 
@@ -277,6 +288,10 @@ async def remove_asset_vendor_link(
     result = await db.execute(select(AssetVendorLink).where(AssetVendorLink.id == link_id))
     link = result.scalar_one_or_none()
     if not link or link.asset_id != asset_id:
+        raise NotFoundError("Link not found")
+
+    vendor = await _load_vendor(db, link.vendor_id)
+    if vendor is None or not can_read_vendor(vendor, current_user):
         raise NotFoundError("Link not found")
 
     vendor_id = link.vendor_id

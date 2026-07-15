@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import require_permission
+from app.api import deps
 from app.db.session import get_db
 from app.models import User
 from app.schemas.asset import AssetCreate, AssetListResponse, AssetRead, AssetUpdate
@@ -23,7 +23,7 @@ router = APIRouter()
 @router.get("", response_model=AssetListResponse)
 async def list_assets(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "read")),
+    current_user: User = Depends(deps.get_current_user),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     search: Optional[str] = None,
@@ -51,7 +51,7 @@ async def list_assets(
 async def create_asset(
     payload: AssetCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await create_asset_detail(db=db, payload=payload, current_user=current_user)
 
@@ -60,7 +60,7 @@ async def create_asset(
 async def get_asset(
     asset_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "read")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await read_asset_detail(db=db, asset_id=asset_id, current_user=current_user)
 
@@ -70,6 +70,6 @@ async def update_asset(
     asset_id: int,
     payload: AssetUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("assets", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await update_asset_detail(db=db, asset_id=asset_id, payload=payload, current_user=current_user)

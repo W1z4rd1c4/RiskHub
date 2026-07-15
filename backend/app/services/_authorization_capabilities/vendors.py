@@ -27,6 +27,7 @@ def vendor_capabilities(
     current_user: User,
     vendor: Vendor,
     *,
+    can_manage_asset_links: bool = False,
     can_manage_process_links: bool = False,
 ) -> VendorCapabilities:
     can_write = has_permission(current_user, "vendors", "write")
@@ -68,12 +69,18 @@ def vendor_capabilities(
         can_manage_sub_outsourcing=bool(
             is_visible and is_active and has_permission(current_user, "vendor_contracts", "write")
         ),
+        # The Vendor-end Asset-link collection is independently authorized by
+        # Vendor visibility and filters every row through canonical Asset read
+        # policy. Keep it available for archived-Vendor cleanup and pending
+        # Asset governance; add/delete authority is projected separately.
+        can_view_asset_links=bool(
+            is_visible and has_permission(current_user, "vendors", "read")
+        ),
         can_manage_asset_links=bool(
             is_visible
             and is_active
             and has_permission(current_user, "vendors", "read")
-            and has_permission(current_user, "assets", "read")
-            and has_permission(current_user, "assets", "write")
+            and can_manage_asset_links
         ),
         can_manage_process_links=bool(
             is_visible

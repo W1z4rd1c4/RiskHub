@@ -75,12 +75,15 @@ export function useResolveOrphanWorkflow({
     }, [orphan?.item_id, orphan?.item_type]);
 
     const loadDepartments = useCallback(async (query?: string, generation = modalGenerationRef.current) => {
-        if (orphan?.item_type === 'process') {
+        if (orphan?.item_type === 'process' || orphan?.item_type === 'asset') {
             const requestId = ++departmentRequestRef.current;
-            const departments = await lookupApi.getProcessDepartments({
+            const params = {
                 limit: 50,
                 q: query?.trim() || undefined,
-            });
+            };
+            const departments = orphan.item_type === 'asset'
+                ? await lookupApi.getAssetDepartments(params)
+                : await lookupApi.getProcessDepartments(params);
             if (generation === modalGenerationRef.current && requestId === departmentRequestRef.current) {
                 setAllDepartments(departments);
             }
@@ -96,9 +99,12 @@ export function useResolveOrphanWorkflow({
     }, []);
 
     const loadUsers = useCallback(async (query?: string, generation = modalGenerationRef.current) => {
-        if (orphan?.item_type === 'process') {
+        if (orphan?.item_type === 'process' || orphan?.item_type === 'asset') {
             const requestId = ++ownerRequestRef.current;
-            const owners = await lookupApi.getProcessOwners({ limit: 50, q: query?.trim() || undefined });
+            const params = { limit: 50, q: query?.trim() || undefined };
+            const owners = orphan.item_type === 'asset'
+                ? await lookupApi.getAssetOwners(params)
+                : await lookupApi.getProcessOwners(params);
             if (generation === modalGenerationRef.current && requestId === ownerRequestRef.current) {
                 setUsers(owners.map((user) => ({
                     id: user.id,
@@ -119,7 +125,7 @@ export function useResolveOrphanWorkflow({
     }, [orphan?.item_type]);
 
     useEffect(() => {
-        if (!isOpen || !isInitialized || orphan?.item_type !== 'process') return;
+        if (!isOpen || !isInitialized || (orphan?.item_type !== 'process' && orphan?.item_type !== 'asset')) return;
         const generation = modalGenerationRef.current;
         if (ownerSearchTimerRef.current) clearTimeout(ownerSearchTimerRef.current);
         ownerSearchTimerRef.current = setTimeout(() => {
@@ -135,7 +141,7 @@ export function useResolveOrphanWorkflow({
     }, [isInitialized, isOpen, loadUsers, orphan?.item_type, searchQuery]);
 
     useEffect(() => {
-        if (!isOpen || !isInitialized || orphan?.item_type !== 'process') return;
+        if (!isOpen || !isInitialized || (orphan?.item_type !== 'process' && orphan?.item_type !== 'asset')) return;
         const generation = modalGenerationRef.current;
         if (departmentSearchTimerRef.current) clearTimeout(departmentSearchTimerRef.current);
         departmentSearchTimerRef.current = setTimeout(() => {
@@ -240,7 +246,7 @@ export function useResolveOrphanWorkflow({
     function handleSelectUser(user: OrphanUserOption) {
         setSelectedUserId(user.id);
         setSelectedDepartmentId((current) => (
-            orphan?.item_type === 'process' ? current ?? user.department_id : user.department_id
+            orphan?.item_type === 'process' || orphan?.item_type === 'asset' ? current ?? user.department_id : user.department_id
         ));
     }
 

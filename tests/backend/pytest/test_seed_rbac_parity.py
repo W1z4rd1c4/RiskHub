@@ -12,7 +12,8 @@ from app.db.rbac_seed_contract import (
     RBAC_ROLES,
     expand_permission_keys,
 )
-from app.models import Department, Role as RoleModel, RolePermission, User
+from app.models import Department, RolePermission, User
+from app.models import Role as RoleModel
 from app.models.user import AccessScope
 from scripts import e2e_mappings, seed_demo
 from scripts.add_granular_permissions import TARGET_PERMISSIONS
