@@ -11,9 +11,13 @@
 
 const CRITICALITY_PILLS: Record<string, string> = {
     ['Nízká']: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+    low: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
     ['Střední']: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
+    medium: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
     ['Vysoká']: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
+    high: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
     ['Kritická']: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
+    critical: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
 };
 
 // TierDod, verbatim workbook labels (never translated).
@@ -24,10 +28,12 @@ const VENDOR_TIER_PILLS: Record<string, string> = {
 };
 
 function Pill({
+    displayValue,
     value,
     palette,
     testId,
 }: {
+    displayValue?: string | null;
     value: string | null | undefined;
     palette: Record<string, string>;
     testId?: string;
@@ -42,17 +48,19 @@ function Pill({
                 palette[value] ?? 'text-slate-300 bg-slate-400/10 border-slate-400/20'
             }`}
         >
-            {value}
+            {displayValue ?? value}
         </span>
     );
 }
 
 export function CriticalityClassPill({
     criticalityClass,
+    displayValue,
 }: {
     criticalityClass: string | null | undefined;
+    displayValue?: string | null;
 }) {
-    return <Pill value={criticalityClass} palette={CRITICALITY_PILLS} />;
+    return <Pill value={criticalityClass} displayValue={displayValue} palette={CRITICALITY_PILLS} />;
 }
 
 /** The derived Vendor tier (07!tier), workbook TierDod labels verbatim. */

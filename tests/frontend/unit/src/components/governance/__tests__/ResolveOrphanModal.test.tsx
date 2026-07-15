@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as axe from 'axe-core';
 
 import { ResolveOrphanModal } from '@/components/governance/ResolveOrphanModal';
 import type { OrphanedItem } from '@/types/orphanedItem';
@@ -9,6 +10,18 @@ const mockGetDepartments = vi.fn();
 const mockResolveOrphan = vi.fn();
 const mockGetRisks = vi.fn();
 const mockListUsers = vi.fn();
+const mockGetProcessOwners = vi.fn();
+const mockGetProcessDepartments = vi.fn();
+
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+    });
+    return { promise, reject, resolve };
+}
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
@@ -37,6 +50,13 @@ vi.mock('@/services/riskApi', () => ({
 vi.mock('@/services/userApi', () => ({
     userApi: {
         listUsers: (...args: unknown[]) => mockListUsers(...args),
+    },
+}));
+
+vi.mock('@/services/lookupApi', () => ({
+    lookupApi: {
+        getProcessOwners: (...args: unknown[]) => mockGetProcessOwners(...args),
+        getProcessDepartments: (...args: unknown[]) => mockGetProcessDepartments(...args),
     },
 }));
 
@@ -72,9 +92,9 @@ async function openModal(item: OrphanedItem, overrides: Partial<Parameters<typeo
         orphan: item,
         ...overrides,
     };
-    render(<ResolveOrphanModal {...props} />);
+    const { container } = render(<ResolveOrphanModal {...props} />);
     await screen.findByText(item.item_name);
-    return props;
+    return { ...props, container };
 }
 
 describe('ResolveOrphanModal', () => {
@@ -112,7 +132,34 @@ describe('ResolveOrphanModal', () => {
                 breaching_kri_count: 0,
                 total_net_score: 0,
             },
+            {
+                id: 4,
+                name: 'Finance',
+                code: 'FIN',
+                user_count: 1,
+                risk_count: 0,
+                control_count: 0,
+                kri_count: 0,
+                high_risk_count: 0,
+                breaching_kri_count: 0,
+                total_net_score: 0,
+            },
         ]);
+        mockGetProcessOwners.mockResolvedValue([
+            {
+                id: 7,
+                name: 'Ops Owner',
+                email: 'ops@example.com',
+                department_id: 3,
+                department_name: 'Operations',
+                role_name: 'Risk owner',
+            },
+        ]);
+        mockGetProcessDepartments.mockImplementation(({ q }: { q?: string } = {}) => Promise.resolve(
+            q === 'fin'
+                ? [{ id: 4, name: 'Finance', code: 'FIN' }]
+                : [{ id: 3, name: 'Operations', code: 'OPS' }],
+        ));
         mockGetRisks.mockResolvedValue({
             items: [
                 {
@@ -222,5 +269,159 @@ describe('ResolveOrphanModal', () => {
 
         await screen.findByText(/Something went wrong/i);
         expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('requires and submits an independently editable Process owner and Owning Department', async () => {
+        await openModal(orphan({
+            item_type: 'process',
+            item_name: 'Claims handling',
+            item_identifier: 'F74',
+            capabilities: {
+                can_resolve: true,
+                can_view_detail: true,
+                requires_department: true,
+                requires_owner: true,
+                requires_risk: false,
+            },
+        }));
+
+        expect(screen.getByText(/Owner Selection Required/i)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /FIN Finance/i })).not.toBeInTheDocument();
+        fireEvent.change(screen.getByTestId('process-department-search'), { target: { value: 'fin' } });
+        const finance = await screen.findByRole('button', { name: /FIN Finance/i });
+        expect(finance).toHaveAttribute('type', 'button');
+        fireEvent.click(finance);
+        const owner = screen.getByRole('button', { name: /Ops Owner.*ops@example.com.*Operations/i });
+        expect(owner).toHaveAttribute('type', 'button');
+        fireEvent.click(owner);
+        fireEvent.click(screen.getByRole('button', { name: /Resolve Item/i }));
+
+        await waitFor(() => {
+            expect(mockResolveOrphan).toHaveBeenCalledWith(901, {
+                department_id: 4,
+                new_owner_id: 7,
+                target_risk_id: undefined,
+            });
+        });
+
+        expect(mockGetProcessOwners).toHaveBeenCalledWith({ limit: 50, q: undefined });
+        expect(mockGetProcessDepartments).toHaveBeenCalledWith({ limit: 50, q: undefined });
+        expect(mockGetProcessDepartments).toHaveBeenCalledWith({ limit: 50, q: 'fin' });
+        expect(mockListUsers).not.toHaveBeenCalled();
+        expect(mockGetDepartments).not.toHaveBeenCalled();
+
+        const results = await axe.run(document.body, {
+            rules: { 'color-contrast': { enabled: false } },
+        });
+        expect(results.violations.map((violation) => violation.id)).toEqual([]);
+    });
+
+    it('searches Process owners through the purpose-scoped lookup', async () => {
+        await openModal(orphan({
+            item_type: 'process',
+            item_name: 'Claims handling',
+            capabilities: {
+                can_resolve: true,
+                can_view_detail: true,
+                requires_department: true,
+                requires_owner: true,
+                requires_risk: false,
+            },
+        }));
+
+        fireEvent.change(screen.getByTestId('orphan-owner-search'), { target: { value: 'ops' } });
+
+        await waitFor(() => {
+            expect(mockGetProcessOwners).toHaveBeenCalledWith({ limit: 50, q: 'ops' });
+        });
+    });
+
+    it('ignores late Process owner and Department results after switching to a Risk orphan', async () => {
+        const owners = deferred<Array<{
+            id: number;
+            name: string;
+            email: string;
+            department_id: number;
+            department_name: string;
+        }>>();
+        const departments = deferred<Array<{ id: number; name: string; code: string }>>();
+        mockGetProcessOwners.mockImplementationOnce(() => owners.promise);
+        mockGetProcessDepartments.mockImplementationOnce(() => departments.promise);
+
+        const { rerender } = render(
+            <ResolveOrphanModal
+                isOpen
+                onClose={vi.fn()}
+                onResolved={vi.fn()}
+                orphan={orphan({ item_type: 'process', item_name: 'Slow Process' })}
+            />,
+        );
+        await waitFor(() => {
+            expect(mockGetProcessOwners).toHaveBeenCalledTimes(1);
+            expect(mockGetProcessDepartments).toHaveBeenCalledTimes(1);
+        });
+
+        rerender(
+            <ResolveOrphanModal
+                isOpen
+                onClose={vi.fn()}
+                onResolved={vi.fn()}
+                orphan={orphan({ item_name: 'Next Risk' })}
+            />,
+        );
+        expect(await screen.findByText('Next Risk')).toBeInTheDocument();
+        expect(await screen.findByText('Ops Owner')).toBeInTheDocument();
+
+        await act(async () => {
+            owners.resolve([{
+                id: 99,
+                name: 'Late Process Admin',
+                email: 'admin@example.com',
+                department_id: 4,
+                department_name: 'Finance',
+            }]);
+            departments.resolve([{ id: 4, name: 'Late Finance', code: 'FIN' }]);
+            await Promise.all([owners.promise, departments.promise]);
+        });
+
+        expect(screen.queryByText('Late Process Admin')).not.toBeInTheDocument();
+        expect(screen.queryByText('Late Finance')).not.toBeInTheDocument();
+        expect(screen.getByText('Ops Owner')).toBeInTheDocument();
+        expect(screen.queryByText(/Something went wrong/i)).not.toBeInTheDocument();
+    });
+
+    it('suppresses late Process lookup errors after switching orphan type', async () => {
+        const owners = deferred<never[]>();
+        const departments = deferred<never[]>();
+        mockGetProcessOwners.mockImplementationOnce(() => owners.promise);
+        mockGetProcessDepartments.mockImplementationOnce(() => departments.promise);
+
+        const { rerender } = render(
+            <ResolveOrphanModal
+                isOpen
+                onClose={vi.fn()}
+                onResolved={vi.fn()}
+                orphan={orphan({ item_type: 'process', item_name: 'Failing Process' })}
+            />,
+        );
+        await waitFor(() => expect(mockGetProcessDepartments).toHaveBeenCalledTimes(1));
+        rerender(
+            <ResolveOrphanModal
+                isOpen
+                onClose={vi.fn()}
+                onResolved={vi.fn()}
+                orphan={orphan({ item_type: 'control', item_name: 'Next Control' })}
+            />,
+        );
+        expect(await screen.findByText('Next Control')).toBeInTheDocument();
+
+        await act(async () => {
+            owners.reject(new Error('late owner failure'));
+            departments.reject(new Error('late department failure'));
+            await Promise.allSettled([owners.promise, departments.promise]);
+        });
+
+        expect(screen.queryByText(/Something went wrong/i)).not.toBeInTheDocument();
+        expect(screen.getByText('Ops Owner')).toBeInTheDocument();
     });
 });

@@ -328,8 +328,8 @@ Rules:
 | `vendors:delete` | Archive vendors | Privileged users only |
 | `vendor_contracts:read` | View ICT Register Contracts and Sub-outsourcing chains inside a Vendor's detail (one governed surface: the fourth-party contract chain, issue #45) | Every vendors:read holder (CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Dept Head, Employee, Viewer) |
 | `vendor_contracts:write` | Create/edit/archive/restore ICT Register Contracts and Sub-outsourcing entries | CRO, Risk Manager |
-| `processes:read` | View ICT Register processes | Business users (global, unscoped) |
-| `processes:write` | Create/edit ICT Register processes | CRO, Risk Manager |
+| `processes:read` | View ICT Register processes | Business users within canonical Department scope; assigned Process Owners receive record-specific access |
+| `processes:write` | Create/edit ICT Register processes | CRO, Risk Manager; assigned Process Owner and Owning Department Head for that active record |
 | `processes:delete` | Archive/restore ICT Register processes | CRO, Risk Manager |
 | `issues:read` | View issues/findings | CRO, Risk Manager, Compliance, Internal Audit, Dept Head (scoped) |
 | `issues:write` | Create/edit issues and remediation | CRO, Risk Manager, Dept Head (scoped) |
@@ -337,6 +337,9 @@ Rules:
 
 > [!NOTE]
 > Platform admins are console-only and are explicitly blocked from business Activity Log and Governance surfaces, including direct route/API access.
+
+> [!NOTE]
+> Every new active Process requires an active canonical Process Owner and Owning Department. The owner may belong to another Department; owner selection fills only an empty Department and never overwrites a prior choice. Process Owner and Owning Department Head access is record-specific: it grants read/update of that active Process, not archive/restore, general register administration, or access to linked records. User deactivation preserves the prior relationship and creates a pending Governance reassignment instead of silently clearing or replacing it. Controlled Process meaning is stored as locale-independent codes, localized in English/Czech presentation, mapped explicitly at workbook import, and mapped separately to mandated B_06.01 terminology for formal regulatory output.
 
 Orphaned item governance uses backend workflow helpers:
 - Orphan list/detail payloads are scoped from the current target entity department, not only orphan metadata.
@@ -357,7 +360,7 @@ Orphaned item governance uses backend workflow helpers:
 > Vendor visibility and vendor-linked risk visibility are related but not identical. A user can have enough access to view a vendor while still lacking permission or scope to read linked risks. In that case the vendor remains visible, but risk-linked summaries and the frontend `By Risk` grouping must only expose readable risks; otherwise the UI must fall back to an unlinked/no-readable-risk bucket rather than leaking risk names.
 
 > [!NOTE]
-> Vendor governance uses a shared backend policy. Unfiltered scoped vendor lists, vendor reports, and dashboard vendor metrics include vendors in the user's department scope plus directly owned vendors, but unassigned vendors remain global-only. When a caller supplies an explicit `department_id`, the filter is strict: owner exceptions do not include vendors from another department. Vendor responses may include additive `capabilities` metadata for update, archive/restore, and link actions; the frontend should prefer those flags over local permission guesses.
+> Vendor governance uses a shared backend policy. Unfiltered scoped vendor lists, vendor reports, and dashboard vendor metrics include vendors in the user's department scope plus directly owned vendors, but unassigned vendors remain global-only. When a caller supplies an explicit `department_id`, the filter is strict: owner exceptions do not include vendors from another department. Vendor responses include additive `capabilities` metadata for update, archive/restore, and link actions. Asset-Vendor links retain their register permissions. Process-Vendor links compose two independent row policies: the Process end is readable by its assigned Process Owner, its Owning Department Head within canonical Department scope, or globally permitted Process readers; the Vendor end still requires `vendors:read` and canonical Vendor visibility. Process-end lists omit unreadable Vendor counterparts without leaking names, and Vendor-end lists omit unreadable Processes. Creating or removing a Process-Vendor link requires canonical update authority for that active Process (`processes:write`, assigned Process Owner, or Owning Department Head) plus a visible Vendor; a pending Process ownership orphan locks these ordinary mutations until Governance reassignment completes. The frontend prefers `can_manage_asset_links`, `can_manage_process_links`, and per-row removal capabilities, using local checks only as a compatibility fallback when metadata is absent.
 
 > [!NOTE]
 > Vendor detail now mirrors the individual risk page interaction model for linked entities. `Link Existing` remains governed by vendor edit access (`vendors:write` or vendor ownership rules), while `Add Risk` and `Add Control` require that same vendor edit access plus the corresponding domain write permission (`risks:write` or `controls:write`). Create-from-vendor uses routed forms and auto-links the new entity back to the originating vendor after save.

@@ -928,6 +928,8 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
                 "l0_area": "Prodej a distribuce",
                 "l1_process": "Sjednání pojištění",
                 "l2_subprocess": "Online",
+                "process_owner_user_id": test_user_cro.id,
+                "owning_department_id": test_department.id,
                 "impact_client": 4,
                 "impact_market_operations": 4,
                 "impact_regulatory": 4,
@@ -1077,6 +1079,8 @@ async def test_vendor_derived_block_recomputes_on_read(
             {
                 "l0_area": "Finance",
                 "l1_process": "Regulatorní reporting",
+                "process_owner_user_id": test_user_cro.id,
+                "owning_department_id": test_department.id,
                 "impact_client": 4,
                 "impact_market_operations": 4,
                 "impact_regulatory": 4,

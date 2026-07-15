@@ -10,9 +10,18 @@ def vendor_to_read(
     *,
     current_user: User | None = None,
     linked_risks: list[VendorLinkedRiskSummary] | None = None,
+    can_manage_process_links: bool = False,
 ) -> VendorRead:
     base = VendorRead.model_validate(vendor)
-    capabilities = vendor_capabilities(current_user, vendor) if current_user is not None else None
+    capabilities = (
+        vendor_capabilities(
+            current_user,
+            vendor,
+            can_manage_process_links=can_manage_process_links,
+        )
+        if current_user is not None
+        else None
+    )
     return base.model_copy(
         update={
             "department_name": vendor.department.name if vendor.department else None,
@@ -32,6 +41,7 @@ def vendor_list_response(
     current_user: User | None = None,
     linked_risks_by_vendor_id: dict[int, list[VendorLinkedRiskSummary]] | None = None,
     capabilities: dict[str, bool] | None = None,
+    can_manage_process_links: bool = False,
 ) -> VendorListResponse:
     return VendorListResponse(
         items=[
@@ -39,6 +49,7 @@ def vendor_list_response(
                 v,
                 current_user=current_user,
                 linked_risks=(linked_risks_by_vendor_id or {}).get(v.id, []),
+                can_manage_process_links=can_manage_process_links,
             )
             for v in vendors
         ],

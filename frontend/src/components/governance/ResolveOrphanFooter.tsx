@@ -10,9 +10,11 @@ interface ResolveOrphanFooterProps {
     onClose: () => void;
     onSubmit: () => void;
     selectedRiskId: number | null;
+    selectedDepartmentId: number | null;
     selectedUserId: number | null;
     shouldShowOwner: boolean;
     shouldShowRisk: boolean;
+    shouldShowDepartment: boolean;
 }
 
 export function ResolveOrphanFooter({
@@ -23,9 +25,11 @@ export function ResolveOrphanFooter({
     onClose,
     onSubmit,
     selectedRiskId,
+    selectedDepartmentId,
     selectedUserId,
     shouldShowOwner,
     shouldShowRisk,
+    shouldShowDepartment,
 }: ResolveOrphanFooterProps) {
     const { t } = useTranslation('common');
     const { t: tAdmin } = useTranslation('admin');
@@ -51,6 +55,11 @@ export function ResolveOrphanFooter({
                             <>
                                 <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                                 {tAdmin('governance.resolve_modal.owner_selection_required')}
+                            </>
+                        ) : (shouldShowDepartment && !selectedDepartmentId) ? (
+                            <>
+                                <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                {tAdmin('governance.resolve_modal.department_selection_required')}
                             </>
                         ) : (
                             <>

@@ -38,6 +38,8 @@ const vendorCapabilitiesSchema = passthroughObject({
     can_manage_contracts: z.boolean(),
     can_view_sub_outsourcing: z.boolean(),
     can_manage_sub_outsourcing: z.boolean(),
+    can_manage_asset_links: z.boolean(),
+    can_manage_process_links: z.boolean(),
 });
 
 export const vendorContractCapabilitiesSchema = passthroughObject({

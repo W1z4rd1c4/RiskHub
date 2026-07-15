@@ -7,16 +7,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.datetime_utils import utc_now
-from app.core.exceptions import ValidationError
+from app.core.exceptions import ConflictError, ValidationError
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.control import Control
+from app.models.department import Department
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.orphaned_item import OrphanedItem
+from app.models.process import Process
 from app.models.risk import Risk
 from app.models.role import Role, RoleType
 from app.models.threat import Threat
 from app.models.user import User
+from app.services._ict_register_lifecycle.policy import (
+    assert_active_owning_department,
+    assert_active_process_owner,
+)
 from app.services._ict_register_lifecycle.threat_policy import assert_active_ciso_steward
+from app.services._process_owner_lock import lock_process_for_owner_mutation
 from app.services._threat_stewardship_lock import acquire_threat_steward_identity_locks
 from app.services.transaction_boundary import commit_service_boundary
 
@@ -136,6 +143,35 @@ async def validate_resolution_context(
             raise ValueError("Threat reassignment does not accept department_id or target_risk_id")
         return OrphanResolutionContext(orphan, new_owner, None, None)
 
+    if orphan.item_type == "process":
+        if new_owner is None:
+            raise ValueError("new_owner_id is required to resolve orphaned processes")
+        if target_risk is not None:
+            raise ValueError("target_risk_id is not supported for orphaned processes")
+        process = (
+            await db.execute(select(Process).where(Process.id == orphan.item_id))
+        ).scalar_one_or_none()
+        if process is None:
+            raise ValueError(f"Process {orphan.item_id} no longer exists")
+        target_department_id = (
+            department_id
+            if department_id is not None
+            else process.owning_department_id
+        )
+        if target_department_id is None:
+            raise ValueError("department_id is required for orphaned processes")
+        department_is_active = await db.scalar(
+            select(Department.is_active).where(Department.id == target_department_id)
+        )
+        if department_is_active is not True:
+            raise ValueError("Owning department must be active")
+        return OrphanResolutionContext(
+            orphan,
+            new_owner,
+            None,
+            target_department_id,
+        )
+
     raise ValueError(f"Unsupported orphaned item type: {requirements.item_type}")
 
 
@@ -164,6 +200,19 @@ async def resolve_orphan(
     Raises:
         ValueError: If orphan not found or already resolved
     """
+    orphan_type = await db.scalar(
+        select(OrphanedItem.item_type).where(OrphanedItem.id == orphan_id)
+    )
+    if orphan_type == "process":
+        return await _resolve_process_orphan(
+            db,
+            orphan_id=orphan_id,
+            resolved_by_id=resolved_by_id,
+            new_owner_id=new_owner_id,
+            department_id=department_id,
+            target_risk_id=target_risk_id,
+        )
+
     context = await validate_resolution_context(
         db,
         orphan_id=orphan_id,
@@ -330,4 +379,119 @@ async def resolve_orphan(
 
     await commit_service_boundary(db, boundary="orphaned_items.resolve")
 
+    return orphan
+
+
+async def _resolve_process_orphan(
+    db: AsyncSession,
+    *,
+    orphan_id: int,
+    resolved_by_id: int,
+    new_owner_id: int | None,
+    department_id: int | None,
+    target_risk_id: int | None,
+) -> OrphanedItem:
+    """Resolve Process ownership using identity -> Process -> orphan locks."""
+    if new_owner_id is None:
+        raise ValueError("new_owner_id is required to resolve orphaned processes")
+    if target_risk_id is not None:
+        raise ValueError("target_risk_id is not supported for orphaned processes")
+
+    preview = (
+        await db.execute(
+            select(
+                OrphanedItem.item_id,
+                OrphanedItem.status,
+                OrphanedItem.previous_owner_id,
+            ).where(OrphanedItem.id == orphan_id)
+        )
+    ).one_or_none()
+    if preview is None:
+        raise ValueError(f"Orphaned item {orphan_id} not found")
+    if preview.status != "pending":
+        raise OrphanResolutionConflict(f"Orphaned item {orphan_id} is already resolved")
+
+    process_snapshot = (
+        await db.execute(
+            select(Process.process_owner_user_id, Process.owning_department_id).where(
+                Process.id == preview.item_id
+            )
+        )
+    ).one_or_none()
+    if process_snapshot is None:
+        raise ValueError(f"Process {preview.item_id} no longer exists")
+    expected_owner_id = process_snapshot.process_owner_user_id
+
+    process = await lock_process_for_owner_mutation(
+        db,
+        process_id=preview.item_id,
+        user_ids=(expected_owner_id, new_owner_id),
+        expected_owner_user_id=expected_owner_id,
+    )
+    if process is None:
+        raise ValueError(f"Process {preview.item_id} no longer exists")
+
+    orphan = (
+        await db.execute(
+            select(OrphanedItem)
+            .where(OrphanedItem.id == orphan_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if orphan is None:
+        raise ValueError(f"Orphaned item {orphan_id} not found")
+    if orphan.item_type != "process" or orphan.item_id != process.id:
+        raise ConflictError("Orphaned Process target changed concurrently; retry")
+    if orphan.status != "pending":
+        raise OrphanResolutionConflict(f"Orphaned item {orphan_id} is already resolved")
+
+    new_process_owner = await assert_active_process_owner(
+        db,
+        user_id=int(new_owner_id),
+        acquire_identity_lock=False,
+    )
+    target_dept_id = department_id or process.owning_department_id
+    if target_dept_id is None:
+        raise ValueError("department_id is required for orphaned processes")
+    owning_department = await assert_active_owning_department(
+        db,
+        department_id=int(target_dept_id),
+    )
+    await assert_orphan_still_matches_target_state(
+        db,
+        orphan=orphan,
+        target_entity=process,
+    )
+
+    process_changes = build_change_set(
+        process,
+        {
+            "process_owner_user_id": new_owner_id,
+            "owning_department_id": target_dept_id,
+        },
+    )
+    process.process_owner = new_process_owner
+    process.process_owner_user_id = new_owner_id
+    process.owning_department = owning_department
+    process.owning_department_id = target_dept_id
+    resolving_user = await db.get(User, resolved_by_id)
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.PROCESS,
+        entity_id=process.id,
+        entity_name=f"{process.f_code} {process.l1_process}",
+        safe_entity_label=process.f_code,
+        action=ActivityAction.UPDATE,
+        actor=resolving_user,
+        department_id=target_dept_id,
+        changes=process_changes,
+        description=f"Resolved orphaned process via governance workflow #{orphan.id}",
+    )
+
+    orphan.status = "resolved"
+    orphan.resolved_at = utc_now()
+    orphan.resolved_by_id = resolved_by_id
+    orphan.new_owner_id = new_owner_id
+    await commit_service_boundary(db, boundary="orphaned_items.resolve")
     return orphan

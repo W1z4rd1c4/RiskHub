@@ -12,6 +12,8 @@ import * as axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetClosedLists = vi.fn();
+const mockGetProcessOwners = vi.fn();
+const mockGetProcessDepartments = vi.fn();
 const mockCreateProcess = vi.fn();
 const mockUpdateProcess = vi.fn();
 
@@ -20,6 +22,12 @@ vi.mock('@/services/processApi', () => ({
         getClosedLists: (...args: unknown[]) => mockGetClosedLists(...args),
         createProcess: (...args: unknown[]) => mockCreateProcess(...args),
         updateProcess: (...args: unknown[]) => mockUpdateProcess(...args),
+    },
+}));
+vi.mock('@/services/lookupApi', () => ({
+    lookupApi: {
+        getProcessOwners: (...args: unknown[]) => mockGetProcessOwners(...args),
+        getProcessDepartments: (...args: unknown[]) => mockGetProcessDepartments(...args),
     },
 }));
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
@@ -59,6 +67,18 @@ const l1Label = () => i18n.t('processes:form.l1_process');
 beforeEach(() => {
     vi.clearAllMocks();
     mockGetClosedLists.mockResolvedValue({});
+    mockGetProcessOwners.mockResolvedValue([{
+        id: 17,
+        name: 'Clara Owner',
+        email: 'clara@example.test',
+        role_name: 'user',
+        department_id: 5,
+        department_name: 'Operations',
+    }]);
+    mockGetProcessDepartments.mockResolvedValue([
+        { id: 5, name: 'Operations', code: 'OPS' },
+        { id: 9, name: 'Finance', code: 'FIN' },
+    ]);
 });
 
 afterEach(async () => {
@@ -108,10 +128,35 @@ describe('ProcessForm — Field migration + per-field validation (#59)', () => {
 
         await user.type(screen.getByRole('textbox', { name: l0Label() }), 'Payments');
         await user.type(screen.getByRole('textbox', { name: l1Label() }), 'Settlement');
+        await user.click(screen.getByTestId('process-form-owner'));
+        await user.click(await screen.findByRole('option', { name: /Clara Owner/ }));
         await user.click(screen.getByTestId('process-form-submit'));
 
         await waitFor(() => expect(mockCreateProcess).toHaveBeenCalledTimes(1));
+        expect(mockCreateProcess).toHaveBeenCalledWith(expect.objectContaining({
+            process_owner_user_id: 17,
+            owning_department_id: 5,
+        }));
         expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+
+    it('never overwrites an independently selected Department when the owner changes', async () => {
+        const user = userEvent.setup();
+        mockCreateProcess.mockResolvedValue({ id: 3 });
+        renderForm();
+
+        await user.type(screen.getByRole('textbox', { name: l0Label() }), 'Payments');
+        await user.type(screen.getByRole('textbox', { name: l1Label() }), 'Settlement');
+        await user.click(screen.getByTestId('process-form-owner-department'));
+        await user.click(await screen.findByRole('option', { name: /Finance/ }));
+        await user.click(screen.getByTestId('process-form-owner'));
+        await user.click(await screen.findByRole('option', { name: /Clara Owner/ }));
+        await user.click(screen.getByTestId('process-form-submit'));
+
+        await waitFor(() => expect(mockCreateProcess).toHaveBeenCalledWith(expect.objectContaining({
+            process_owner_user_id: 17,
+            owning_department_id: 9,
+        })));
     });
 
     it('surfaces the save-failed banner when the request rejects', async () => {
@@ -121,6 +166,8 @@ describe('ProcessForm — Field migration + per-field validation (#59)', () => {
 
         await user.type(screen.getByRole('textbox', { name: l0Label() }), 'Payments');
         await user.type(screen.getByRole('textbox', { name: l1Label() }), 'Settlement');
+        await user.click(screen.getByTestId('process-form-owner'));
+        await user.click(await screen.findByRole('option', { name: /Clara Owner/ }));
         await user.click(screen.getByTestId('process-form-submit'));
 
         expect(await screen.findByText(i18n.t('processes:form.errors.save_failed'))).toBeInTheDocument();

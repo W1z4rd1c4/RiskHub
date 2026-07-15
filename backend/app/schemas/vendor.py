@@ -313,6 +313,8 @@ class VendorCapabilities(BaseModel):
     can_manage_contracts: bool
     can_view_sub_outsourcing: bool
     can_manage_sub_outsourcing: bool
+    can_manage_asset_links: bool
+    can_manage_process_links: bool
 
 
 class VendorRead(VendorBase):

@@ -52,27 +52,29 @@ from app.models import (
 )
 from app.services._ict_register_reference import (
     ICT_SERVICE_TAXONOMY,
+    PROCESS_CONTROLLED_CODES_BY_FIELD,
     is_closed_list_value,
     is_provider_identifier_type_write_value,
     threat_category_code,
 )
 from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
 
-# Closed-list membership guards per coded column (workbook reference registry).
+# Closed-list membership guards for numeric Process inputs and legacy-domain
+# fixtures. Process business meaning is stored as locale-independent codes.
 _PROCESS_CLOSED_LIST_FIELDS = {
-    "owner_department": "VlastnickyUtvar",
-    "preliminary_criticality": "TridyKrit",
-    "cif_override": "AnoNe",
-    "licensed_activity": "LicCinnost",
-    "bcm_link": "BcmVazba",
-    "dr_test_result": "VysledekDR",
-    "interruption_impact": "DopadPreruseni",
     "impact_client": "Skala15",
     "impact_market_operations": "Skala15",
     "impact_regulatory": "Skala15",
     "impact_financial": "Skala15",
     "impact_reputational": "Skala15",
 }
+
+
+def _assert_process_controlled_codes(entry: dict[str, object]) -> None:
+    for field, codes in PROCESS_CONTROLLED_CODES_BY_FIELD.items():
+        value = entry.get(field)
+        if value is not None and value not in codes:
+            raise RuntimeError(f"Process fixture value {field}={value!r} is not a canonical code")
 
 _ASSET_CLOSED_LIST_FIELDS = {
     "asset_type": "TypAktiva",
@@ -102,23 +104,23 @@ E2E_PROCESSES = [
         "l0_area": "E2E Claims",
         "l1_process": "E2E-PROC-001 Claims Intake",
         "l2_subprocess": "FNOL triage",
-        "owner": "Jana Horáková",
-        "owner_department": "Provoz",
+        "owner_email": "ops.analyst@riskhub.local",
+        "owning_department": "Operations",
         "impact_client": 4,
         "impact_market_operations": 3,
         "impact_regulatory": 4,
         "impact_financial": 3,
         "impact_reputational": 2,
         "mtpd_hours": 24,
-        "preliminary_criticality": "Vysoká",
-        "cif_override": "Ano",
-        "licensed_activity": "Neživotní pojištění",
+        "preliminary_criticality": "high",
+        "cif_override": "yes",
+        "licensed_activity": "non_life_insurance",
         "rto_hours": 8,
         "rpo_hours": 4,
-        "bcm_link": "Ano",
+        "bcm_link": "yes",
         "last_dr_test_date": date(2026, 3, 15),
-        "dr_test_result": "Úspěšný",
-        "interruption_impact": "Vysoký",
+        "dr_test_result": "successful",
+        "interruption_impact": "high",
         "assessment_date": date(2026, 5, 2),
         "notes": "Deterministic E2E fixture — primary Process of E2E-ASSET-001.",
         "is_archived": False,
@@ -127,23 +129,23 @@ E2E_PROCESSES = [
         "l0_area": "E2E Policy Admin",
         "l1_process": "E2E-PROC-002 Policy Administration",
         "l2_subprocess": None,
-        "owner": "Lukáš Dvořák",
-        "owner_department": "Provoz",
+        "owner_email": "fin.analyst@riskhub.local",
+        "owning_department": "Operations",
         "impact_client": 3,
         "impact_market_operations": 3,
         "impact_regulatory": 2,
         "impact_financial": 3,
         "impact_reputational": 1,
         "mtpd_hours": 48,
-        "preliminary_criticality": "Střední",
-        "cif_override": "Ne",
-        "licensed_activity": "Podpůrné funkce",
+        "preliminary_criticality": "medium",
+        "cif_override": "no",
+        "licensed_activity": "support_functions",
         "rto_hours": 24,
         "rpo_hours": 12,
-        "bcm_link": "Neposouzeno",
+        "bcm_link": "not_assessed",
         "last_dr_test_date": None,
-        "dr_test_result": "Netestováno",
-        "interruption_impact": "Střední",
+        "dr_test_result": "not_tested",
+        "interruption_impact": "medium",
         "assessment_date": date(2026, 4, 20),
         "notes": None,
         "is_archived": False,
@@ -152,34 +154,34 @@ E2E_PROCESSES = [
         "l0_area": "E2E Finance",
         "l1_process": "E2E-PROC-003 Regulatory Reporting",
         "l2_subprocess": "Solvency II bordereaux",
-        "owner": "Martin Procházka",
-        "owner_department": "Finance",
+        "owner_email": "fin.head@riskhub.local",
+        "owning_department": "Finance",
         "impact_client": 2,
         "impact_market_operations": 2,
         "impact_regulatory": 5,
         "impact_financial": 4,
         "impact_reputational": 3,
         "mtpd_hours": 72,
-        "preliminary_criticality": "Kritická",
-        "cif_override": "Ano",
-        "licensed_activity": "Podpůrné funkce",
+        "preliminary_criticality": "critical",
+        "cif_override": "yes",
+        "licensed_activity": "support_functions",
         "rto_hours": 48,
         "rpo_hours": 24,
-        "bcm_link": "Ano",
+        "bcm_link": "yes",
         "last_dr_test_date": date(2026, 1, 20),
-        "dr_test_result": "S výhradami",
-        "interruption_impact": "Vysoký",
+        "dr_test_result": "qualified",
+        "interruption_impact": "high",
         "assessment_date": date(2026, 2, 10),
         "notes": None,
         "is_archived": False,
     },
     {
-        # Deliberately minimal: exercises empty-field rendering in the UI.
+        # Cross-Department case: IT analyst owns an Operations Process.
         "l0_area": "E2E Customer Service",
         "l1_process": "E2E-PROC-004 Customer Portal Support",
         "l2_subprocess": None,
-        "owner": None,
-        "owner_department": None,
+        "owner_email": "it.analyst@riskhub.local",
+        "owning_department": "Operations",
         "impact_client": None,
         "impact_market_operations": None,
         "impact_regulatory": None,
@@ -203,23 +205,23 @@ E2E_PROCESSES = [
         "l0_area": "E2E Legacy",
         "l1_process": "E2E-PROC-ARCH Batch Print Distribution",
         "l2_subprocess": None,
-        "owner": "Eva Králová",
-        "owner_department": "Provoz",
+        "owner_email": "ops.head@riskhub.local",
+        "owning_department": "Operations",
         "impact_client": 1,
         "impact_market_operations": 1,
         "impact_regulatory": 1,
         "impact_financial": 1,
         "impact_reputational": 1,
         "mtpd_hours": 168,
-        "preliminary_criticality": "Nízká",
-        "cif_override": "Ne",
-        "licensed_activity": "Podpůrné funkce",
+        "preliminary_criticality": "low",
+        "cif_override": "no",
+        "licensed_activity": "support_functions",
         "rto_hours": None,
         "rpo_hours": None,
-        "bcm_link": "Nerelevantní",
+        "bcm_link": "not_applicable",
         "last_dr_test_date": None,
-        "dr_test_result": "Netestováno",
-        "interruption_impact": "Nízký",
+        "dr_test_result": "not_tested",
+        "interruption_impact": "low",
         "assessment_date": date(2025, 11, 5),
         "notes": "Archived deterministic fixture for the archived-filter flow.",
         "is_archived": True,
@@ -748,10 +750,19 @@ async def seed_ict_register():
         process_ids: dict[str, int] = {}
         for entry in E2E_PROCESSES:
             _assert_closed_list_values(entry, _PROCESS_CLOSED_LIST_FIELDS, "Process")
+            _assert_process_controlled_codes(entry)
             is_archived = bool(entry["is_archived"])
-            payload = {key: value for key, value in entry.items() if key != "is_archived"}
+            payload = {
+                key: value
+                for key, value in entry.items()
+                if key not in {"is_archived", "owner_email", "owning_department"}
+            }
             payload.update(
                 {
+                    "process_owner_user_id": require_user_id(users, entry["owner_email"]),
+                    "owning_department_id": require_department_id(
+                        departments, entry["owning_department"]
+                    ),
                     "is_archived": is_archived,
                     "archived_at": now if is_archived else None,
                     "archived_by_id": archiver_id if is_archived else None,

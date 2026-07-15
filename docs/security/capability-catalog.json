@@ -212,9 +212,11 @@
     "can_create_issue",
     "can_view_contracts",
     "can_manage_contracts",
-    "can_view_sub_outsourcing",
-    "can_manage_sub_outsourcing"
-   ]
+        "can_view_sub_outsourcing",
+        "can_manage_sub_outsourcing",
+        "can_manage_asset_links",
+        "can_manage_process_links"
+      ]
   },
   {
    "id": "vendor_contract",

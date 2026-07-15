@@ -8,7 +8,7 @@ export interface OrphanedItemCapabilities {
 
 export interface OrphanedItem {
     id: number;
-    item_type: "risk" | "control" | "kri" | "threat";
+    item_type: "risk" | "control" | "kri" | "threat" | "process";
     item_id: number;
     item_name: string;
     item_description: string | null;
@@ -26,6 +26,7 @@ export interface OrphanStats {
     control_count: number;
     kri_count: number;
     threat_count: number;
+    process_count: number;
     total_count: number;
 }
 

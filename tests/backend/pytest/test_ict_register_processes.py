@@ -24,12 +24,26 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_keys
-from app.models import Permission, Role, RolePermission, User
+from app.models import Department, Permission, Role, RolePermission, User
 from app.models.user import AccessScope
+
+
+_ACCOUNTABILITY: dict[str, int] = {}
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def process_accountability(test_user_cro: User, test_department: Department):
+    """Give every Process write a real active owner and Department."""
+    _ACCOUNTABILITY.update(
+        process_owner_user_id=test_user_cro.id,
+        owning_department_id=test_department.id,
+    )
+    yield
+    _ACCOUNTABILITY.clear()
 
 
 @pytest_asyncio.fixture
@@ -74,6 +88,7 @@ def _minimal_payload(**overrides: object) -> dict[str, object]:
     payload: dict[str, object] = {
         "l0_area": "Provoz a služby klientům",
         "l1_process": "Správa pojistných smluv",
+        **_ACCOUNTABILITY,
     }
     payload.update(overrides)
     return payload
@@ -85,23 +100,22 @@ def _full_payload(**overrides: object) -> dict[str, object]:
         "l0_area": "Provoz a služby klientům",
         "l1_process": "Správa pojistných smluv",
         "l2_subprocess": "Změny smluv",
-        "owner": "Provozní úsek",
-        "owner_department": "Provoz",
+        **_ACCOUNTABILITY,
         "impact_client": 4,
         "impact_market_operations": 3,
         "impact_regulatory": 2,
         "impact_financial": 5,
         "impact_reputational": 1,
         "mtpd_hours": 24,
-        "preliminary_criticality": "Vysoká",
-        "cif_override": "Ano",
-        "licensed_activity": "Neživotní pojištění",
+        "preliminary_criticality": "high",
+        "cif_override": "yes",
+        "licensed_activity": "non_life_insurance",
         "rto_hours": 8,
         "rpo_hours": 4,
-        "bcm_link": "Ano",
+        "bcm_link": "yes",
         "last_dr_test_date": "2026-05-15",
-        "dr_test_result": "Úspěšný",
-        "interruption_impact": "Vysoký",
+        "dr_test_result": "successful",
+        "interruption_impact": "high",
         "assessment_date": "2026-06-01",
         "notes": "Poznámka k procesu.",
     }
@@ -133,23 +147,30 @@ async def test_create_and_read_process_with_all_entered_fields(client_factory, t
         assert body["l0_area"] == "Provoz a služby klientům"
         assert body["l1_process"] == "Správa pojistných smluv"
         assert body["l2_subprocess"] == "Změny smluv"
-        assert body["owner"] == "Provozní úsek"
-        assert body["owner_department"] == "Provoz"
+        assert body["process_owner_user_id"] == test_user_cro.id
+        assert body["owning_department_id"] == test_user_cro.department_id
+        assert body["process_owner"] == {
+            "name": "Test CRO",
+            "email": "cro@test.com",
+            "role_name": "cro",
+            "department_name": "Test Department",
+        }
+        assert body["owning_department"] == {"name": "Test Department", "code": "TEST"}
         assert body["impact_client"] == 4
         assert body["impact_market_operations"] == 3
         assert body["impact_regulatory"] == 2
         assert body["impact_financial"] == 5
         assert body["impact_reputational"] == 1
         assert body["mtpd_hours"] == 24
-        assert body["preliminary_criticality"] == "Vysoká"
-        assert body["cif_override"] == "Ano"
-        assert body["licensed_activity"] == "Neživotní pojištění"
+        assert body["preliminary_criticality"] == "high"
+        assert body["cif_override"] == "yes"
+        assert body["licensed_activity"] == "non_life_insurance"
         assert body["rto_hours"] == 8
         assert body["rpo_hours"] == 4
-        assert body["bcm_link"] == "Ano"
+        assert body["bcm_link"] == "yes"
         assert body["last_dr_test_date"] == "2026-05-15"
-        assert body["dr_test_result"] == "Úspěšný"
-        assert body["interruption_impact"] == "Vysoký"
+        assert body["dr_test_result"] == "successful"
+        assert body["interruption_impact"] == "high"
         assert body["assessment_date"] == "2026-06-01"
         assert body["notes"] == "Poznámka k procesu."
         assert body["is_archived"] is False
@@ -256,13 +277,12 @@ async def test_impact_dimensions_are_skala15_integers(client_factory, test_user_
 async def test_coded_fields_are_enforced_against_workbook_closed_lists(client_factory, test_user_cro: User):
     """Closed-list fields accept verbatim workbook values only (spec section 3.1)."""
     cases = {
-        "owner_department": ("Provoz", "Neexistující útvar"),
-        "preliminary_criticality": ("Kritická", "Extrémní"),
-        "cif_override": ("Ne", "Možná"),
-        "licensed_activity": ("Podpůrné funkce", "Životní pojištění"),
-        "bcm_link": ("Neposouzeno", "Ano i ne"),
-        "dr_test_result": ("S výhradami", "OK"),
-        "interruption_impact": ("Neposouzeno", "Fatální"),
+        "preliminary_criticality": ("critical", "Kritická"),
+        "cif_override": ("no", "Ne"),
+        "licensed_activity": ("support_functions", "Podpůrné funkce"),
+        "bcm_link": ("not_assessed", "Neposouzeno"),
+        "dr_test_result": ("qualified", "S výhradami"),
+        "interruption_impact": ("not_assessed", "Neposouzeno"),
     }
     async with client_factory(user=test_user_cro) as client:
         for field, (valid, invalid) in cases.items():
@@ -286,10 +306,10 @@ async def test_coded_fields_are_enforced_against_workbook_closed_lists(client_fa
         )
         assert patched_bad.status_code == 422
         patched_ok = await client.patch(
-            f"/api/v1/processes/{created['id']}", json={"preliminary_criticality": "Nízká"}
+            f"/api/v1/processes/{created['id']}", json={"preliminary_criticality": "low"}
         )
         assert patched_ok.status_code == 200
-        assert patched_ok.json()["preliminary_criticality"] == "Nízká"
+        assert patched_ok.json()["preliminary_criticality"] == "low"
 
 
 @pytest.mark.asyncio
@@ -316,7 +336,7 @@ async def test_archive_restore_lifecycle_and_register_listing(client_factory, te
 
         # Archived rows cannot be edited (409) or re-archived (400).
         assert (
-            await client.patch(f"/api/v1/processes/{likvidace['id']}", json={"owner": "Nový vlastník"})
+            await client.patch(f"/api/v1/processes/{likvidace['id']}", json={"notes": "Nová poznámka"})
         ).status_code == 409
         assert (await client.delete(f"/api/v1/processes/{likvidace['id']}")).status_code == 400
 
@@ -332,6 +352,58 @@ async def test_archive_restore_lifecycle_and_register_listing(client_factory, te
         # Missing rows 404 on the lifecycle routes too.
         assert (await client.delete("/api/v1/processes/999999")).status_code == 404
         assert (await client.post("/api/v1/processes/999999/restore")).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_restore_projects_ownership_with_a_fresh_request_session(
+    async_engine,
+    client_factory,
+    test_user_cro: User,
+    test_department: Department,
+):
+    """Restore must not rely on relationships cached by an earlier request."""
+    session_maker = async_sessionmaker(
+        async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    async def isolated_get_db():
+        async with session_maker() as session:
+            try:
+                yield session
+            except Exception:
+                await session.rollback()
+                raise
+
+    async with client_factory(
+        current_user=test_user_cro,
+        db_override=isolated_get_db,
+    ) as client:
+        created = await client.post(
+            "/api/v1/processes",
+            json=_minimal_payload(l1_process="Fresh-session restore"),
+        )
+        assert created.status_code == 201, created.text
+        process_id = created.json()["id"]
+        assert (await client.delete(f"/api/v1/processes/{process_id}")).status_code == 204
+
+        restored = await client.post(f"/api/v1/processes/{process_id}/restore")
+
+    assert restored.status_code == 200, restored.text
+    body = restored.json()
+    assert body["process_owner"] == {
+        "name": test_user_cro.name,
+        "email": test_user_cro.email,
+        "role_name": test_user_cro.role.name,
+        "department_name": (
+            test_user_cro.department.name if test_user_cro.department is not None else None
+        ),
+    }
+    assert body["owning_department"] == {
+        "name": test_department.name,
+        "code": test_department.code,
+    }
 
 
 @pytest.mark.asyncio
@@ -406,12 +478,12 @@ async def test_register_listing_filters_cif_processes_before_count_and_paginatio
         cif = (
             await client.post(
                 "/api/v1/processes",
-                json=_minimal_payload(l1_process="CIF process", cif_override="Ano"),
+                json=_minimal_payload(l1_process="CIF process", cif_override="yes"),
             )
         ).json()
         await client.post(
             "/api/v1/processes",
-            json=_minimal_payload(l1_process="Ordinary process", cif_override="Ne"),
+            json=_minimal_payload(l1_process="Ordinary process", cif_override="no"),
         )
 
         response = await client.get(
@@ -440,7 +512,7 @@ async def test_risk_manager_seed_grants_full_process_maintenance(
         }
 
         assert (
-            await client.patch(f"/api/v1/processes/{process_id}", json={"owner": "Úsek UW"})
+            await client.patch(f"/api/v1/processes/{process_id}", json={"notes": "Úsek UW"})
         ).status_code == 200
 
         listing = (await client.get("/api/v1/processes")).json()
@@ -475,7 +547,7 @@ async def test_employee_reads_processes_but_cannot_maintain_them(
         # Every maintenance verb is denied.
         assert (await client.post("/api/v1/processes", json=_minimal_payload())).status_code == 403
         assert (
-            await client.patch(f"/api/v1/processes/{seeded['id']}", json={"owner": "X"})
+            await client.patch(f"/api/v1/processes/{seeded['id']}", json={"notes": "X"})
         ).status_code == 403
         assert (await client.delete(f"/api/v1/processes/{seeded['id']}")).status_code == 403
         assert (await client.post(f"/api/v1/processes/{seeded['id']}/restore")).status_code == 403
@@ -492,7 +564,7 @@ async def test_platform_admin_is_excluded_and_unauthenticated_is_rejected(
         ("get", "/api/v1/processes", None),
         ("get", f"/api/v1/processes/{seeded['id']}", None),
         ("post", "/api/v1/processes", _minimal_payload()),
-        ("patch", f"/api/v1/processes/{seeded['id']}", {"owner": "X"}),
+        ("patch", f"/api/v1/processes/{seeded['id']}", {"notes": "X"}),
         ("delete", f"/api/v1/processes/{seeded['id']}", None),
         ("post", f"/api/v1/processes/{seeded['id']}/restore", None),
     ]
@@ -502,11 +574,17 @@ async def test_platform_admin_is_excluded_and_unauthenticated_is_rejected(
             return await getattr(client, method)(path, json=body)
         return await getattr(client, method)(path)
 
-    # Platform admin holds no business permissions: 403 everywhere, reads included.
+    # Platform admin holds no business permissions. The scoped list is safe and
+    # empty; record reads are concealed and every mutation is denied.
+    platform_admin_statuses = (200, 404, 403, 404, 403, 403)
     async with client_factory(user=test_user_platform_admin) as client:
-        for method, path, body in paths_and_calls:
+        for (method, path, body), expected_status in zip(
+            paths_and_calls, platform_admin_statuses, strict=True
+        ):
             resp = await call(client, method, path, body)
-            assert resp.status_code == 403, f"{method.upper()} {path} -> {resp.status_code}"
+            assert resp.status_code == expected_status, (
+                f"{method.upper()} {path} -> {resp.status_code}"
+            )
 
     # Unauthenticated requests are rejected outright.
     async with client_factory() as client:
@@ -520,7 +598,7 @@ async def test_process_mutations_land_on_the_audit_trail(client_factory, test_us
     """Register mutations are attributable via the activity log (spec story 39)."""
     async with client_factory(user=test_user_cro) as client:
         created = (await client.post("/api/v1/processes", json=_minimal_payload())).json()
-        await client.patch(f"/api/v1/processes/{created['id']}", json={"owner": "Provozní úsek"})
+        await client.patch(f"/api/v1/processes/{created['id']}", json={"notes": "Provozní úsek"})
         await client.delete(f"/api/v1/processes/{created['id']}")
         await client.post(f"/api/v1/processes/{created['id']}/restore")
 
@@ -540,9 +618,9 @@ async def test_process_mutations_land_on_the_audit_trail(client_factory, test_us
     # Changed field names are attributable; free-text values follow the
     # existing redaction policy ([REDACTED] unless allowlisted as safe).
     update_entry = next(
-        entry for entry in entries if entry["action"] == "update" and "owner" in (entry["changes"] or {})
+        entry for entry in entries if entry["action"] == "update" and "notes" in (entry["changes"] or {})
     )
-    assert update_entry["changes"]["owner"]["new"] == "[REDACTED]"
+    assert update_entry["changes"]["notes"]["new"] == "[REDACTED]"
 
     archive_entry = next(entry for entry in entries if entry["action"] == "archive")
     assert archive_entry["changes"]["is_archived"]["new"] is True
@@ -591,6 +669,9 @@ def test_process_permission_sync_migration_matches_seed_contract_and_is_forward_
         if role_name != "cro"  # CRO holds the wildcard; the migration re-ensures it explicitly
     }
     seed_process_grants = {role: keys for role, keys in seed_process_grants.items() if keys}
+    # CISO was introduced later and receives processes:read in its own
+    # forward-only migration (e6f7a8b9c0d1), not this historical migration.
+    seed_process_grants.pop("ciso")
     migration_grants = {role: set(keys) for role, keys in migration.ROLE_PROCESS_GRANTS.items()}
     assert migration_grants == seed_process_grants
 
@@ -606,7 +687,8 @@ async def test_create_with_minimal_fields_leaves_optional_fields_null(client_fac
     assert created.status_code == 201, created.text
     body = created.json()
     assert body["l2_subprocess"] is None
-    assert body["owner"] is None
+    assert body["process_owner_user_id"] == test_user_cro.id
+    assert body["owning_department_id"] == test_user_cro.department_id
     assert body["impact_client"] is None
     assert body["mtpd_hours"] is None
     assert body["cif_override"] is None

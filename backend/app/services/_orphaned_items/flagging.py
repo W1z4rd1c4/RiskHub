@@ -9,6 +9,10 @@ from app.models.department import Department
 from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
 from app.models.threat import Threat
+from app.services._process_owner_lock import (
+    acquire_process_owner_identity_lock,
+    lock_processes_for_owner_deactivation,
+)
 from app.services.transaction_boundary import commit_service_boundary
 
 from .core import _already_flagged, _create_orphan
@@ -29,6 +33,9 @@ async def flag_orphaned_items(db: AsyncSession, user_id: int) -> list[OrphanedIt
     Returns:
         List of created OrphanedItem records
     """
+    # Every full deactivation path enters the Process ownership protocol here,
+    # even if its caller already acquired the transaction advisory lock.
+    await acquire_process_owner_identity_lock(db, user_id=user_id)
     created_records = []
 
     # Find risks owned by this user
@@ -54,14 +61,32 @@ async def flag_orphaned_items(db: AsyncSession, user_id: int) -> list[OrphanedIt
     threat_records, threat_count = await _flag_orphaned_threats(db, user_id=user_id)
     created_records.extend(threat_records)
 
+    process_records, process_count = await _flag_orphaned_processes(db, user_id=user_id)
+    created_records.extend(process_records)
+
     await db.flush()
 
     logger.info(
         f"Flagged {len(created_records)} orphaned items for user {user_id}: "
-        f"{len(risks)} risks, {len(controls)} controls, {threat_count} threats"
+        f"{len(risks)} risks, {len(controls)} controls, {threat_count} threats, "
+        f"{process_count} processes"
     )
 
     return created_records
+
+
+async def _flag_orphaned_processes(
+    db: AsyncSession,
+    *,
+    user_id: int,
+) -> tuple[list[OrphanedItem], int]:
+    processes = await lock_processes_for_owner_deactivation(db, user_id=user_id)
+    created_records = []
+    for process in processes:
+        if await _already_flagged(db, "process", process.id):
+            continue
+        created_records.append(await _create_orphan(db, "process", process.id, user_id))
+    return created_records, len(processes)
 
 
 async def _flag_orphaned_threats(

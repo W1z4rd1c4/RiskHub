@@ -6,32 +6,25 @@ its member names) and the server-assigned F-code are rejected at the API
 boundary. Derived values ride the Read payloads as a typed ``derived`` block
 computed on read by ``app.services._ict_register_lifecycle.derivation`` —
 never persisted, never writable — with an ``inputs`` explain object exposing
-what produced them. Coded fields are validated against the workbook closed
-lists in ``app.services._ict_register_reference`` instead of redefining them.
+what produced them. Controlled Process fields are locale-independent codes;
+workbook labels are mapped only at the import boundary.
 """
 
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, computed_field, field_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
-from app.services._ict_register_reference import is_closed_list_value
+from app.services._ict_register_reference import (
+    PROCESS_CONTROLLED_CODES_BY_FIELD,
+    is_closed_list_value,
+)
 
 # Impact dimensions are Skala15 integers (1-5); strict, so "5" is rejected.
 ImpactDimension = Annotated[int, Field(strict=True)]
-
-_CLOSED_LIST_FIELDS: dict[str, str] = {
-    "owner_department": "VlastnickyUtvar",
-    "preliminary_criticality": "TridyKrit",
-    "cif_override": "AnoNe",
-    "licensed_activity": "LicCinnost",
-    "bcm_link": "BcmVazba",
-    "dr_test_result": "VysledekDR",
-    "interruption_impact": "DopadPreruseni",
-}
 
 _IMPACT_FIELDS = (
     "impact_client",
@@ -47,14 +40,13 @@ class ProcessWriteValidators(BaseModel):
 
     model_config = {"extra": "forbid"}
 
-    @field_validator(*_CLOSED_LIST_FIELDS, check_fields=False)
+    @field_validator(*PROCESS_CONTROLLED_CODES_BY_FIELD, check_fields=False)
     @classmethod
-    def _validate_closed_list_fields(cls, value: str | None, info) -> str | None:
+    def _validate_controlled_fields(cls, value: str | None, info) -> str | None:
         if value is None:
             return value
-        list_name = _CLOSED_LIST_FIELDS[info.field_name]
-        if not is_closed_list_value(list_name, value):
-            raise ValueError(f"Value must come from the workbook closed list {list_name}")
+        if value not in PROCESS_CONTROLLED_CODES_BY_FIELD[info.field_name]:
+            raise ValueError(f"Value must be a canonical Process {info.field_name} code")
         return value
 
     @field_validator(*_IMPACT_FIELDS, check_fields=False)
@@ -74,8 +66,8 @@ class ProcessBase(ProcessWriteValidators):
     l2_subprocess: str | None = Field(None, max_length=255)
 
     # B·VLASTNICTVÍ
-    owner: str | None = Field(None, max_length=255)
-    owner_department: str | None = Field(None, max_length=100)
+    process_owner_user_id: int = Field(..., ge=1)
+    owning_department_id: int = Field(..., ge=1)
 
     # C·DOPADY (1-5)
     impact_client: ImpactDimension | None = None
@@ -114,8 +106,8 @@ class ProcessUpdate(ProcessWriteValidators):
     l1_process: str | None = Field(None, min_length=1, max_length=255)
     l2_subprocess: str | None = Field(None, max_length=255)
 
-    owner: str | None = Field(None, max_length=255)
-    owner_department: str | None = Field(None, max_length=100)
+    process_owner_user_id: int | None = Field(None, ge=1)
+    owning_department_id: int | None = Field(None, ge=1)
 
     impact_client: ImpactDimension | None = None
     impact_market_operations: ImpactDimension | None = None
@@ -145,6 +137,30 @@ class ProcessCapabilities(BaseModel):
     can_update: bool
     can_archive: bool
     can_restore: bool
+
+
+class ProcessOwnerRead(BaseModel):
+    """Safe Process Owner display projection; never falls back to a raw id."""
+
+    name: str
+    email: str
+    role_name: str
+    department_name: str | None = None
+
+
+class ProcessDepartmentRead(BaseModel):
+    """Safe canonical Owning Department display projection."""
+
+    name: str
+    code: str
+
+
+class ProcessDepartmentLookup(ProcessDepartmentRead):
+    """Active Department option for the Process ownership picker."""
+
+    id: int
+
+    model_config = {"from_attributes": True}
 
 
 class ProcessDerivedInputs(BaseModel):
@@ -225,8 +241,17 @@ class ProcessRead(BaseModel):
     l1_process: str
     l2_subprocess: str | None = None
 
-    owner: str | None = None
-    owner_department: str | None = None
+    process_owner_user_id: int | None = None
+    process_owner: ProcessOwnerRead | None = None
+    owning_department_id: int | None = None
+    owning_department: ProcessDepartmentRead | None = None
+    owner_orphaned: bool = False
+    ownership_status: Literal[
+        "assigned",
+        "legacy_unassigned",
+        "pending_governance",
+        "invalid_assignment",
+    ] = "assigned"
 
     impact_client: int | None = None
     impact_market_operations: int | None = None

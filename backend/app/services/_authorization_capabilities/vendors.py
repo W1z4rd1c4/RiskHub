@@ -23,7 +23,12 @@ def can_view_loaded_vendor(*, current_user: User, vendor) -> bool:
     )
 
 
-def vendor_capabilities(current_user: User, vendor: Vendor) -> VendorCapabilities:
+def vendor_capabilities(
+    current_user: User,
+    vendor: Vendor,
+    *,
+    can_manage_process_links: bool = False,
+) -> VendorCapabilities:
     can_write = has_permission(current_user, "vendors", "write")
     can_delete = has_permission(current_user, "vendors", "delete")
     can_update = can_write or is_vendor_owner(vendor, current_user)
@@ -62,5 +67,18 @@ def vendor_capabilities(current_user: User, vendor: Vendor) -> VendorCapabilitie
         ),
         can_manage_sub_outsourcing=bool(
             is_visible and is_active and has_permission(current_user, "vendor_contracts", "write")
+        ),
+        can_manage_asset_links=bool(
+            is_visible
+            and is_active
+            and has_permission(current_user, "vendors", "read")
+            and has_permission(current_user, "assets", "read")
+            and has_permission(current_user, "assets", "write")
+        ),
+        can_manage_process_links=bool(
+            is_visible
+            and is_active
+            and has_permission(current_user, "vendors", "read")
+            and can_manage_process_links
         ),
     )

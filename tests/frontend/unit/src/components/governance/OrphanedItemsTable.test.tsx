@@ -30,6 +30,30 @@ const baseItem: OrphanedItem = {
 };
 
 describe('OrphanedItemsTable capabilities', () => {
+    it('renders a Process orphan through the shared type label and actions', () => {
+        const processItem: OrphanedItem = {
+            ...baseItem,
+            id: 74,
+            item_type: 'process',
+            item_id: 74,
+            item_name: 'Claims handling',
+            item_identifier: 'F74',
+            capabilities: {
+                can_resolve: true,
+                can_view_detail: true,
+                requires_owner: true,
+                requires_risk: false,
+                requires_department: true,
+            },
+        };
+
+        render(<OrphanedItemsTable items={[processItem]} onResolve={() => {}} />);
+
+        expect(screen.getByText('governance.type_process')).toBeInTheDocument();
+        expect(screen.getByText('Claims handling')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'governance.resolve' })).toBeInTheDocument();
+    });
+
     it('hides resolve action when backend capabilities deny it', () => {
         const onResolve = vi.fn();
         render(

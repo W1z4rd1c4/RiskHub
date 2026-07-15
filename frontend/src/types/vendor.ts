@@ -39,6 +39,8 @@ export interface VendorCapabilities {
     can_manage_contracts: boolean;
     can_view_sub_outsourcing: boolean;
     can_manage_sub_outsourcing: boolean;
+    can_manage_asset_links: boolean;
+    can_manage_process_links: boolean;
 }
 
 /** One derived 11 §2 row: a (Process, Vendor) pair implied via an Asset (#49). */

@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import asset as audit_asset
 from app.core.audit import process as audit_process
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
-from app.core.permissions import can_read_vendor
+from app.core.permissions import can_read_vendor, visible_vendor_ids
 from app.core.security import check_permission
 from app.models import Asset, AssetVendorLink, Process, ProcessVendorLink, User, Vendor
 from app.schemas.asset import AssetVendorLinkCreate, AssetVendorLinkRead
@@ -33,7 +33,13 @@ from app.services.transaction_boundary import commit_service_boundary
 
 from .asset_policy import load_asset
 from .derivation import process_display_name
-from .policy import load_process
+from .policy import (
+    assert_process_ordinary_mutation_allowed,
+    assert_process_readable,
+    can_update_process_record,
+    process_visibility_clause,
+)
+from .projection import pending_process_ownership_orphan_ids
 
 
 async def _load_vendor(db: AsyncSession, vendor_id: int) -> Vendor | None:
@@ -47,11 +53,15 @@ def _serialize_asset_vendor_link(
     *,
     asset_name: str | None = None,
     vendor_name: str | None = None,
+    register_end_active: bool = True,
 ) -> AssetVendorLinkRead:
     base = AssetVendorLinkRead.model_validate(link)
     return base.model_copy(
         update={
-            "capabilities": asset_vendor_link_capabilities(current_user),
+            "capabilities": asset_vendor_link_capabilities(
+                current_user,
+                register_end_active=register_end_active,
+            ),
             "asset_name": asset_name,
             "vendor_name": vendor_name,
         }
@@ -62,42 +72,59 @@ def _serialize_process_vendor_link(
     link: ProcessVendorLink,
     current_user: User,
     *,
-    process_name: str | None = None,
-    vendor_name: str | None = None,
+    process: Process,
+    vendor: Vendor,
+    ownership_pending: bool = False,
 ) -> ProcessVendorLinkRead:
     base = ProcessVendorLinkRead.model_validate(link)
     return base.model_copy(
         update={
-            "capabilities": process_vendor_link_capabilities(current_user),
-            "process_name": process_name,
-            "vendor_name": vendor_name,
+            "capabilities": process_vendor_link_capabilities(
+                current_user,
+                can_update_process=can_update_process_record(current_user, process),
+                ownership_pending=ownership_pending,
+                register_end_active=not process.is_archived,
+            ),
+            "process_name": process_display_name(process.l1_process, process.l2_subprocess),
+            "vendor_name": vendor.name,
         }
     )
 
 
-async def _vendor_names_by_id(db: AsyncSession, vendor_ids: set[int]) -> dict[int, str]:
-    """Display names for the Vendor ends of link rows (guardrail: names, not ids)."""
+async def _vendor_info_by_id(db: AsyncSession, vendor_ids: set[int]) -> dict[int, tuple[str, bool]]:
+    """Display names and archive state for the Vendor ends of link rows."""
     if not vendor_ids:
         return {}
-    rows = await db.execute(select(Vendor.id, Vendor.name).where(Vendor.id.in_(vendor_ids)))
-    return {vendor_id: name for vendor_id, name in rows.all()}
+    rows = await db.execute(
+        select(Vendor.id, Vendor.name, Vendor.is_archived).where(Vendor.id.in_(vendor_ids))
+    )
+    return {
+        vendor_id: (name, is_archived)
+        for vendor_id, name, is_archived in rows.all()
+    }
 
 
-async def _asset_names_by_id(db: AsyncSession, asset_ids: set[int]) -> dict[int, str]:
+async def _visible_vendors_by_id(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    vendor_ids: set[int],
+) -> dict[int, Vendor]:
+    """Load only Vendor rows independently readable by the caller."""
+    readable_ids = await visible_vendor_ids(db, current_user, vendor_ids)
+    if not readable_ids:
+        return {}
+    vendors = (
+        await db.execute(select(Vendor).where(Vendor.id.in_(readable_ids)))
+    ).scalars().all()
+    return {vendor.id: vendor for vendor in vendors}
+
+
+async def _asset_info_by_id(db: AsyncSession, asset_ids: set[int]) -> dict[int, tuple[str, bool]]:
     if not asset_ids:
         return {}
-    rows = await db.execute(select(Asset.id, Asset.name).where(Asset.id.in_(asset_ids)))
-    return {asset_id: name for asset_id, name in rows.all()}
-
-
-async def _process_names_by_id(db: AsyncSession, process_ids: set[int]) -> dict[int, str]:
-    """Workbook display names (l1 [– l2]) for the Process ends of link rows."""
-    if not process_ids:
-        return {}
-    rows = await db.execute(
-        select(Process.id, Process.l1_process, Process.l2_subprocess).where(Process.id.in_(process_ids))
-    )
-    return {process_id: process_display_name(l1, l2) for process_id, l1, l2 in rows.all()}
+    rows = await db.execute(select(Asset.id, Asset.name, Asset.is_archived).where(Asset.id.in_(asset_ids)))
+    return {asset_id: (name, is_archived) for asset_id, name, is_archived in rows.all()}
 
 
 async def _require_asset_vendor_link_access(
@@ -138,10 +165,14 @@ async def list_asset_vendor_links(
         select(AssetVendorLink).where(AssetVendorLink.asset_id == asset_id).order_by(AssetVendorLink.id)
     )
     links = list(result.scalars().all())
-    vendor_names = await _vendor_names_by_id(db, {link.vendor_id for link in links})
+    vendor_info = await _vendor_info_by_id(db, {link.vendor_id for link in links})
     return [
         _serialize_asset_vendor_link(
-            link, current_user, asset_name=asset.name, vendor_name=vendor_names.get(link.vendor_id)
+            link,
+            current_user,
+            asset_name=asset.name,
+            vendor_name=vendor_info.get(link.vendor_id, (None, True))[0],
+            register_end_active=not asset.is_archived,
         )
         for link in links
     ]
@@ -166,10 +197,14 @@ async def list_vendor_asset_links(
         select(AssetVendorLink).where(AssetVendorLink.vendor_id == vendor_id).order_by(AssetVendorLink.id)
     )
     links = list(result.scalars().all())
-    asset_names = await _asset_names_by_id(db, {link.asset_id for link in links})
+    asset_info = await _asset_info_by_id(db, {link.asset_id for link in links})
     return [
         _serialize_asset_vendor_link(
-            link, current_user, asset_name=asset_names.get(link.asset_id), vendor_name=vendor.name
+            link,
+            current_user,
+            asset_name=asset_info.get(link.asset_id, (None, True))[0],
+            vendor_name=vendor.name,
+            register_end_active=not asset_info.get(link.asset_id, (None, True))[1],
         )
         for link in links
     ]
@@ -220,7 +255,11 @@ async def add_asset_vendor_link(
     await commit_service_boundary(db, boundary="ict_register_asset_link_create")
     await db.refresh(link)
     return _serialize_asset_vendor_link(
-        link, current_user, asset_name=asset.name, vendor_name=vendor.name
+        link,
+        current_user,
+        asset_name=asset.name,
+        vendor_name=vendor.name,
+        register_end_active=not asset.is_archived,
     )
 
 
@@ -257,22 +296,20 @@ async def _require_process_vendor_link_access(
     current_user: User,
     require_write: bool,
 ) -> Process:
-    """Check both ends' read permissions, then Process write access for mutations."""
-    if not check_permission(current_user, "processes", "read"):
-        raise AuthorizationError("Permission denied: processes:read")
+    """Apply Process row policy while preserving independent Vendor authority."""
     if not check_permission(current_user, "vendors", "read"):
         raise AuthorizationError("Permission denied: vendors:read")
-
-    process = await load_process(db, process_id)
-    if not process:
-        raise NotFoundError("Process not found")
-
-    if require_write and not check_permission(current_user, "processes", "write"):
-        raise AuthorizationError("Permission denied: processes:write")
-    if require_write and process.is_archived:
-        raise ConflictError("Cannot mutate links for archived process")
-
-    return process
+    if require_write:
+        return await assert_process_ordinary_mutation_allowed(
+            db,
+            process_id=process_id,
+            current_user=current_user,
+        )
+    return await assert_process_readable(
+        db,
+        process_id=process_id,
+        current_user=current_user,
+    )
 
 
 async def list_process_vendor_links(
@@ -290,13 +327,25 @@ async def list_process_vendor_links(
         .order_by(ProcessVendorLink.id)
     )
     links = list(result.scalars().all())
-    vendor_names = await _vendor_names_by_id(db, {link.vendor_id for link in links})
-    process_name = process_display_name(process.l1_process, process.l2_subprocess)
+    vendors = await _visible_vendors_by_id(
+        db,
+        current_user=current_user,
+        vendor_ids={link.vendor_id for link in links},
+    )
+    pending_process_ids = await pending_process_ownership_orphan_ids(
+        db,
+        process_ids=[process.id] if links else [],
+    )
     return [
         _serialize_process_vendor_link(
-            link, current_user, process_name=process_name, vendor_name=vendor_names.get(link.vendor_id)
+            link,
+            current_user,
+            process=process,
+            vendor=vendors[link.vendor_id],
+            ownership_pending=process.id in pending_process_ids,
         )
         for link in links
+        if link.vendor_id in vendors
     ]
 
 
@@ -309,27 +358,33 @@ async def list_vendor_process_links(
     """The Vendor-end read of the same Link relation (visibility follows the Vendor row)."""
     if not check_permission(current_user, "vendors", "read"):
         raise AuthorizationError("Permission denied: vendors:read")
-    if not check_permission(current_user, "processes", "read"):
-        raise AuthorizationError("Permission denied: processes:read")
     vendor = await _load_vendor(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise NotFoundError("Vendor not found")
 
-    result = await db.execute(
-        select(ProcessVendorLink)
+    query = (
+        select(ProcessVendorLink, Process)
+        .join(Process, Process.id == ProcessVendorLink.process_id)
         .where(ProcessVendorLink.vendor_id == vendor_id)
         .order_by(ProcessVendorLink.id)
     )
-    links = list(result.scalars().all())
-    process_names = await _process_names_by_id(db, {link.process_id for link in links})
+    visibility_clause = process_visibility_clause(current_user)
+    if visibility_clause is not None:
+        query = query.where(visibility_clause)
+    rows = (await db.execute(query)).all()
+    pending_process_ids = await pending_process_ownership_orphan_ids(
+        db,
+        process_ids=list({process.id for _, process in rows}),
+    )
     return [
         _serialize_process_vendor_link(
             link,
             current_user,
-            process_name=process_names.get(link.process_id),
-            vendor_name=vendor.name,
+            process=process,
+            vendor=vendor,
+            ownership_pending=process.id in pending_process_ids,
         )
-        for link in links
+        for link, process in rows
     ]
 
 
@@ -345,7 +400,7 @@ async def add_process_vendor_link(
     )
 
     vendor = await _load_vendor(db, payload.vendor_id)
-    if not vendor:
+    if not vendor or not can_read_vendor(vendor, current_user):
         raise NotFoundError("Vendor not found")
     if vendor.is_archived:
         raise ConflictError("Cannot link archived vendor")
@@ -376,8 +431,8 @@ async def add_process_vendor_link(
     return _serialize_process_vendor_link(
         link,
         current_user,
-        process_name=process_display_name(process.l1_process, process.l2_subprocess),
-        vendor_name=vendor.name,
+        process=process,
+        vendor=vendor,
     )
 
 
@@ -395,6 +450,10 @@ async def remove_process_vendor_link(
     result = await db.execute(select(ProcessVendorLink).where(ProcessVendorLink.id == link_id))
     link = result.scalar_one_or_none()
     if not link or link.process_id != process_id:
+        raise NotFoundError("Link not found")
+
+    vendor = await _load_vendor(db, link.vendor_id)
+    if vendor is None or not can_read_vendor(vendor, current_user):
         raise NotFoundError("Link not found")
 
     vendor_id = link.vendor_id

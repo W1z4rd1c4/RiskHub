@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import require_permission
+from app.api import deps
 from app.db.session import get_db
 from app.models import User
 from app.schemas.collection import SortDirection
@@ -23,7 +23,7 @@ router = APIRouter()
 @router.get("", response_model=ProcessListResponse)
 async def list_processes(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("processes", "read")),
+    current_user: User = Depends(deps.get_current_user),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     search: Optional[str] = None,
@@ -49,7 +49,7 @@ async def list_processes(
 async def create_process(
     payload: ProcessCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("processes", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await create_process_detail(db=db, payload=payload, current_user=current_user)
 
@@ -58,7 +58,7 @@ async def create_process(
 async def get_process(
     process_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("processes", "read")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await read_process_detail(db=db, process_id=process_id, current_user=current_user)
 
@@ -68,6 +68,6 @@ async def update_process(
     process_id: int,
     payload: ProcessUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("processes", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await update_process_detail(db=db, process_id=process_id, payload=payload, current_user=current_user)

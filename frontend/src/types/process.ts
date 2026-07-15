@@ -5,6 +5,11 @@ export interface ProcessCapabilities {
     can_restore: boolean;
 }
 
+export type ProcessCriticalityCode = 'low' | 'medium' | 'high' | 'critical';
+export type ProcessCifCode = 'yes' | 'no';
+export type ProcessRtoMtpdCheckCode = 'ok' | 'rto_exceeds_mtpd';
+export type ProcessBcmCheckCode = 'ok' | 'cif_without_bcm';
+
 /** The inputs (and parameter values) that produced the derived block. */
 export interface ProcessDerivedInputs {
     impact_client?: number | null;
@@ -18,14 +23,14 @@ export interface ProcessDerivedInputs {
     threshold_medium_score: number;
     mtpd_critical_hours: number;
     mtpd_medium_hours: number;
-    preliminary_criticality?: string | null;
+    preliminary_criticality?: ProcessCriticalityCode | null;
     criticality_class_source: string;
-    cif_override?: string | null;
+    cif_override?: ProcessCifCode | null;
     cif_class_critical: boolean;
     cif_mtpd_within_critical: boolean;
     cif_any_impact_maximal: boolean;
     rto_hours?: number | null;
-    bcm_link?: string | null;
+    bcm_link?: 'yes' | 'no' | 'not_assessed' | 'not_applicable' | null;
     assessment_date?: string | null;
     missing_for_completeness: string[];
     /** dod_n breakdown (#49): manual §1 pairs + derived §2 triples. */
@@ -37,8 +42,8 @@ export interface ProcessDerivedInputs {
 export interface ProcessTransitiveVendorLink {
     process_id: number;
     process_name: string;
-    process_cif?: string | null;
-    process_criticality?: string | null;
+    process_cif?: ProcessCifCode | null;
+    process_criticality?: ProcessCriticalityCode | null;
     vendor_id: number;
     vendor_name: string;
     via_asset_id: number;
@@ -48,10 +53,10 @@ export interface ProcessTransitiveVendorLink {
 /** Engine-derived 03_Procesy values (ticket #48) — read-only, computed on read. */
 export interface ProcessDerived {
     criticality_score?: number | null;
-    criticality_class?: string | null;
-    cif: string;
-    rto_mtpd_check?: string | null;
-    bcm_check: string;
+    criticality_class?: ProcessCriticalityCode | null;
+    cif: ProcessCifCode;
+    rto_mtpd_check?: ProcessRtoMtpdCheckCode | null;
+    bcm_check: ProcessBcmCheckCode;
     next_review_date?: string | null;
     linked_asset_count: number;
     linked_vendor_count: number;
@@ -66,6 +71,24 @@ export interface ProcessListCapabilities {
     can_create?: boolean;
 }
 
+export interface ProcessOwnerRead {
+    name: string;
+    email: string;
+    role_name: string;
+    department_name?: string | null;
+}
+
+export interface ProcessDepartmentRead {
+    name: string;
+    code: string;
+}
+
+export type ProcessOwnershipStatus =
+    | 'assigned'
+    | 'legacy_unassigned'
+    | 'pending_governance'
+    | 'invalid_assignment';
+
 export interface Process {
     id: number;
     f_code: string;
@@ -74,8 +97,12 @@ export interface Process {
     l1_process: string;
     l2_subprocess?: string | null;
 
-    owner?: string | null;
-    owner_department?: string | null;
+    process_owner_user_id?: number | null;
+    process_owner?: ProcessOwnerRead | null;
+    owning_department_id?: number | null;
+    owning_department?: ProcessDepartmentRead | null;
+    owner_orphaned: boolean;
+    ownership_status: ProcessOwnershipStatus;
 
     impact_client?: number | null;
     impact_market_operations?: number | null;
@@ -113,8 +140,8 @@ export interface ProcessWritePayload {
     l0_area?: string;
     l1_process?: string;
     l2_subprocess?: string | null;
-    owner?: string | null;
-    owner_department?: string | null;
+    process_owner_user_id?: number | null;
+    owning_department_id?: number | null;
     impact_client?: number | null;
     impact_market_operations?: number | null;
     impact_regulatory?: number | null;

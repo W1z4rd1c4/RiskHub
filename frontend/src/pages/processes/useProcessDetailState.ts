@@ -24,6 +24,7 @@ export function useProcessDetailState({ mode, notFoundMessage }: UseProcessDetai
         refetch: fetchProcess,
         resource: process,
         resourceId: processId,
+        setResource: setProcess,
     } = useDetailQuery<Process>({
         enabled: mode !== 'new',
         entity: 'process',
@@ -56,5 +57,6 @@ export function useProcessDetailState({ mode, notFoundMessage }: UseProcessDetai
         process,
         processId,
         restoreProcess,
+        setProcess,
     };
 }

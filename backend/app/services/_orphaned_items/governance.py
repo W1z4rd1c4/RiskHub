@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.control import Control
 from app.models.key_risk_indicator import KeyRiskIndicator
+from app.models.process import Process
 from app.models.risk import Risk
 from app.models.threat import Threat
 
@@ -74,6 +75,13 @@ ORPHAN_ITEM_DEFINITIONS: dict[str, OrphanItemDefinition] = {
         requires_owner=True,
         requires_risk=False,
         requires_department=False,
+    ),
+    "process": OrphanItemDefinition(
+        item_type="process",
+        unknown_label="Unknown process",
+        requires_owner=True,
+        requires_risk=False,
+        requires_department=True,
     ),
 }
 
@@ -156,6 +164,27 @@ async def load_orphan_display_projection(
             item_description=threat.description,
             item_identifier=None,
             department_name=None,
+        )
+
+    if item_type == "process":
+        process = (
+            await db.execute(
+                select(Process)
+                .options(selectinload(Process.owning_department))
+                .where(Process.id == item_id)
+            )
+        ).scalar_one_or_none()
+        if process is None:
+            return _unknown_projection(definition)
+        return OrphanDisplayProjection(
+            item_name=process.l1_process or definition.unknown_label,
+            item_description=process.notes,
+            item_identifier=process.f_code,
+            department_name=(
+                process.owning_department.name
+                if process.owning_department is not None
+                else None
+            ),
         )
 
     kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == item_id))

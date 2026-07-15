@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2, Eye } from 'lucide-react';
+import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2, Eye, Workflow } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { formatRelativeDateValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -17,6 +17,7 @@ const typeIcons: Record<string, typeof ShieldAlert> = {
     control: ClipboardList,
     kri: AlertTriangle,
     threat: ShieldAlert,
+    process: Workflow,
 };
 
 export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTableProps) {
@@ -30,6 +31,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
         control: t('governance.type_control'),
         kri: t('governance.type_kri'),
         threat: t('governance.type_threat'),
+        process: t('governance.type_process'),
     };
 
     const filteredItems = filter === 'all'
@@ -76,6 +78,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                             { value: 'control', label: t('governance.controls_only') },
                             { value: 'kri', label: t('governance.kris_only') },
                             { value: 'threat', label: t('governance.threats_only') },
+                            { value: 'process', label: t('governance.processes_only') },
                         ]}
                     />
                 </div>

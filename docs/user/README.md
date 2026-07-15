@@ -50,6 +50,7 @@ Use your first week to build habits rather than speed. When you open a record, r
 - [KRIs](./kris.md): define indicators, submit values, and review warnings.
 - [Issues](./issues.md): track remediation, exceptions, and closure evidence.
 - [Vendors](./vendors.md): manage third-party context and linked work.
+- [Processes](./processes.md): govern Process Owners, Owning Departments, continuity inputs, and derived criticality.
 - [Threats](./threats.md): maintain the global CISO-stewarded Threat catalog and Risk links.
 - [Departments](./departments.md): review exposure by organizational area.
 - [Governance](./governance.md): resolve missing ownership or context.

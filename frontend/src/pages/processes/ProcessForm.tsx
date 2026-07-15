@@ -4,15 +4,17 @@ import { AlertCircle, Save, X } from 'lucide-react';
 
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
+import { lookupApi } from '@/services/lookupApi';
 import { processApi } from '@/services/processApi';
 import { logError } from '@/services/logger';
 import type { Process } from '@/types/process';
 
-import { buildProcessWritePayload } from './processesPagePresentation';
+import { buildProcessWritePayload, PROCESS_CONTROLLED_CODES } from './processesPagePresentation';
 
 // Token-driven textarea styling matching the `Input` primitive (no `<Textarea>`
 // primitive shipped in #58); the `aria-[invalid=true]` hook lets `Field` drive
@@ -31,8 +33,8 @@ type FormFields = {
     l0_area: string;
     l1_process: string;
     l2_subprocess: string;
-    owner: string;
-    owner_department: string;
+    process_owner_user_id: string;
+    owning_department_id: string;
     impact_client: string;
     impact_market_operations: string;
     impact_regulatory: string;
@@ -69,8 +71,8 @@ function initialFields(process?: Process): FormFields {
         l0_area: toFieldValue(process?.l0_area),
         l1_process: toFieldValue(process?.l1_process),
         l2_subprocess: toFieldValue(process?.l2_subprocess),
-        owner: toFieldValue(process?.owner),
-        owner_department: toFieldValue(process?.owner_department),
+        process_owner_user_id: toFieldValue(process?.process_owner_user_id),
+        owning_department_id: toFieldValue(process?.owning_department_id),
         impact_client: toFieldValue(process?.impact_client),
         impact_market_operations: toFieldValue(process?.impact_market_operations),
         impact_regulatory: toFieldValue(process?.impact_regulatory),
@@ -106,11 +108,18 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormFields, string>>>({});
+    const [ownerSearch, setOwnerSearch] = useState('');
+    const [departmentSearch, setDepartmentSearch] = useState('');
 
     // Required fields in DOM order — drives focus-first-invalid (N12).
-    const REQUIRED_FIELDS: Array<keyof FormFields> = ['l0_area', 'l1_process'];
-    const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLInputElement | null>>>({});
-    const registerFieldRef = (field: keyof FormFields) => (element: HTMLInputElement | null) => {
+    const REQUIRED_FIELDS: Array<keyof FormFields> = [
+        'l0_area',
+        'l1_process',
+        'process_owner_user_id',
+        'owning_department_id',
+    ];
+    const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLElement | null>>>({});
+    const registerFieldRef = (field: keyof FormFields) => (element: HTMLElement | null) => {
         fieldRefs.current[field] = element;
     };
 
@@ -120,24 +129,92 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
         staleTime: 5 * 60_000,
     });
 
+    const ownerQuery = useQuery({
+        queryKey: ictRegisterKeys.processOwnerLookup(ownerSearch),
+        queryFn: () => lookupApi.getProcessOwners({ q: ownerSearch || undefined, limit: 50 }),
+        staleTime: 5 * 60_000,
+    });
+
+    const departmentQuery = useQuery({
+        queryKey: ictRegisterKeys.processDepartmentLookup(departmentSearch),
+        queryFn: () => lookupApi.getProcessDepartments({ q: departmentSearch || undefined, limit: 50 }),
+        staleTime: 5 * 60_000,
+    });
+
     const listOptions = useMemo(() => {
         const lists = closedListsQuery.data ?? {};
         const toOptions = (name: string) =>
             (lists[name] ?? []).map((value) => ({ value: String(value), label: String(value) }));
         return {
-            departments: toOptions('VlastnickyUtvar'),
-            criticalityClasses: toOptions('TridyKrit'),
-            yesNo: toOptions('AnoNe'),
-            licensedActivities: toOptions('LicCinnost'),
-            bcmLinks: toOptions('BcmVazba'),
-            drResults: toOptions('VysledekDR'),
-            interruptionImpacts: toOptions('DopadPreruseni'),
             impactScale: toOptions('Skala15'),
         };
     }, [closedListsQuery.data]);
 
+    const controlledOptions = useMemo(() => {
+        const options = (field: keyof typeof PROCESS_CONTROLLED_CODES) =>
+            PROCESS_CONTROLLED_CODES[field].map((value) => ({
+                value,
+                label: t(`values.${field}.${value}`),
+            }));
+        return {
+            preliminaryCriticality: options('preliminary_criticality'),
+            cifOverride: options('cif_override'),
+            licensedActivity: options('licensed_activity'),
+            bcmLink: options('bcm_link'),
+            drTestResult: options('dr_test_result'),
+            interruptionImpact: options('interruption_impact'),
+        };
+    }, [t]);
+
+    const ownerOptions = useMemo(() => {
+        const options = (ownerQuery.data ?? []).map((user) => ({
+            value: String(user.id),
+            label: [
+                `${user.name} — ${user.email}`,
+                user.department_name ?? t('form.owner_no_department'),
+                user.role_name ?? t('form.owner_no_role'),
+            ].join(' · '),
+        }));
+        if (initialData?.process_owner_user_id && initialData.process_owner
+            && !options.some((option) => option.value === String(initialData.process_owner_user_id))) {
+            options.push({
+                value: String(initialData.process_owner_user_id),
+                label: [
+                    `${initialData.process_owner.name} — ${initialData.process_owner.email}`,
+                    initialData.process_owner.department_name ?? t('form.owner_no_department'),
+                    initialData.process_owner.role_name,
+                ].join(' · '),
+            });
+        }
+        return options;
+    }, [initialData, ownerQuery.data, t]);
+
+    const departmentOptions = useMemo(() => {
+        const options = (departmentQuery.data ?? []).map((department) => ({
+            value: String(department.id),
+            label: `${department.name} (${department.code})`,
+        }));
+        if (initialData?.owning_department_id && initialData.owning_department
+            && !options.some((option) => option.value === String(initialData.owning_department_id))) {
+            options.push({
+                value: String(initialData.owning_department_id),
+                label: `${initialData.owning_department.name} (${initialData.owning_department.code})`,
+            });
+        }
+        return options;
+    }, [departmentQuery.data, initialData]);
+
     const setField = (field: keyof FormFields, value: string) => {
         setFields((current) => ({ ...current, [field]: value }));
+    };
+
+    const setProcessOwner = (value: string) => {
+        const selectedOwner = (ownerQuery.data ?? []).find((user) => String(user.id) === value);
+        setFields((current) => ({
+            ...current,
+            process_owner_user_id: value,
+            owning_department_id: current.owning_department_id || selectedOwner?.department_id?.toString() || '',
+        }));
     };
 
     const validate = (): Partial<Record<keyof FormFields, string>> => {
@@ -147,6 +224,12 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
         }
         if (!fields.l1_process.trim()) {
             nextErrors.l1_process = t('form.errors.l1_process_required');
+        }
+        if (!fields.process_owner_user_id) {
+            nextErrors.process_owner_user_id = t('form.errors.process_owner_required');
+        }
+        if (!fields.owning_department_id) {
+            nextErrors.owning_department_id = t('form.errors.owning_department_required');
         }
         return nextErrors;
     };
@@ -165,8 +248,8 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
             l0_area: fields.l0_area,
             l1_process: fields.l1_process,
             l2_subprocess: fields.l2_subprocess,
-            owner: fields.owner,
-            owner_department: fields.owner_department,
+            process_owner_user_id: Number(fields.process_owner_user_id),
+            owning_department_id: Number(fields.owning_department_id),
             impact_client: toNullableInt(fields.impact_client),
             impact_market_operations: toNullableInt(fields.impact_market_operations),
             impact_regulatory: toNullableInt(fields.impact_regulatory),
@@ -261,7 +344,7 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
                 </div>
             ) : null}
 
-            {closedListsQuery.isError ? (
+            {closedListsQuery.isError || ownerQuery.isError || departmentQuery.isError ? (
                 <div
                     role="status"
                     className="glass-card flex items-center justify-between gap-3 border border-amber-400/30 text-amber-200"
@@ -272,7 +355,11 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
                     </div>
                     <button
                         type="button"
-                        onClick={() => void closedListsQuery.refetch()}
+                        onClick={() => {
+                            void closedListsQuery.refetch();
+                            void ownerQuery.refetch();
+                            void departmentQuery.refetch();
+                        }}
                         className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-100 transition-colors hover:bg-white/10"
                     >
                         {t('actions.retry')}
@@ -296,8 +383,48 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
                     {t('form.sections.ownership')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {textField('owner', t('form.owner'), 'process-form-owner')}
-                    {selectField('owner_department', t('form.owner_department'), listOptions.departments, 'process-form-owner-department')}
+                    <Field
+                        label={t('form.owner')}
+                        required
+                        error={fieldErrors.process_owner_user_id}
+                        labelClassName={labelClassName}
+                    >
+                        {(control) => (
+                            <SearchableEntitySelect
+                                {...control}
+                                value={fields.process_owner_user_id}
+                                onValueChange={setProcessOwner}
+                                options={ownerOptions}
+                                searchValue={ownerSearch}
+                                onSearchChange={setOwnerSearch}
+                                placeholder={t('form.owner_placeholder')}
+                                searchPlaceholder={t('form.owner_search')}
+                                triggerTestId="process-form-owner"
+                                triggerRef={registerFieldRef('process_owner_user_id')}
+                            />
+                        )}
+                    </Field>
+                    <Field
+                        label={t('form.owner_department')}
+                        required
+                        error={fieldErrors.owning_department_id}
+                        labelClassName={labelClassName}
+                    >
+                        {(control) => (
+                            <SearchableEntitySelect
+                                {...control}
+                                value={fields.owning_department_id}
+                                onValueChange={(value) => setField('owning_department_id', value)}
+                                options={departmentOptions}
+                                searchValue={departmentSearch}
+                                onSearchChange={setDepartmentSearch}
+                                placeholder={t('form.department_placeholder')}
+                                searchPlaceholder={t('form.department_search')}
+                                triggerTestId="process-form-owner-department"
+                                triggerRef={registerFieldRef('owning_department_id')}
+                            />
+                        )}
+                    </Field>
                 </div>
             </section>
 
@@ -321,9 +448,9 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
                     {t('form.sections.criticality')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    {selectField('preliminary_criticality', t('form.preliminary_criticality'), listOptions.criticalityClasses, 'process-form-preliminary-criticality')}
-                    {selectField('cif_override', t('form.cif_override'), listOptions.yesNo, 'process-form-cif-override')}
-                    {selectField('licensed_activity', t('form.licensed_activity'), listOptions.licensedActivities, 'process-form-licensed-activity')}
+                    {selectField('preliminary_criticality', t('form.preliminary_criticality'), controlledOptions.preliminaryCriticality, 'process-form-preliminary-criticality')}
+                    {selectField('cif_override', t('form.cif_override'), controlledOptions.cifOverride, 'process-form-cif-override')}
+                    {selectField('licensed_activity', t('form.licensed_activity'), controlledOptions.licensedActivity, 'process-form-licensed-activity')}
                 </div>
             </section>
 
@@ -334,9 +461,9 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     {textField('rto_hours', t('form.rto_hours'), 'process-form-rto-hours', { type: 'number', min: 0 })}
                     {textField('rpo_hours', t('form.rpo_hours'), 'process-form-rpo-hours', { type: 'number', min: 0 })}
-                    {selectField('bcm_link', t('form.bcm_link'), listOptions.bcmLinks, 'process-form-bcm-link')}
+                    {selectField('bcm_link', t('form.bcm_link'), controlledOptions.bcmLink, 'process-form-bcm-link')}
                     {textField('last_dr_test_date', t('form.last_dr_test_date'), 'process-form-last-dr-test-date', { type: 'date' })}
-                    {selectField('dr_test_result', t('form.dr_test_result'), listOptions.drResults, 'process-form-dr-test-result')}
+                    {selectField('dr_test_result', t('form.dr_test_result'), controlledOptions.drTestResult, 'process-form-dr-test-result')}
                 </div>
             </section>
 
@@ -345,7 +472,7 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
                     {t('form.sections.assessment')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {selectField('interruption_impact', t('form.interruption_impact'), listOptions.interruptionImpacts, 'process-form-interruption-impact')}
+                    {selectField('interruption_impact', t('form.interruption_impact'), controlledOptions.interruptionImpact, 'process-form-interruption-impact')}
                     {textField('assessment_date', t('form.assessment_date'), 'process-form-assessment-date', { type: 'date' })}
                 </div>
                 <Field label={t('form.notes')} labelClassName={labelClassName}>

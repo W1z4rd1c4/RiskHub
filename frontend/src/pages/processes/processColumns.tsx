@@ -5,7 +5,14 @@ import { CriticalityClassPill } from '@/components/ict-register/CriticalityClass
 import type { Column } from '@/components/tables/SortableTable';
 import type { Process } from '@/types/process';
 
-import { getProcessDisplayStatus, type ProcessDisplayStatus } from './processesPagePresentation';
+import {
+    getProcessDisplayStatus,
+    processDepartmentDisplayLabel,
+    processDerivedCifLabel,
+    processDerivedCriticalityLabel,
+    processOwnerDisplayLabel,
+    type ProcessDisplayStatus,
+} from './processesPagePresentation';
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
@@ -60,10 +67,10 @@ export function buildProcessColumns({
             sortable: true,
             render: (process) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-slate-300">{process.owner ?? '—'}</span>
-                    {process.owner_department ? (
-                        <span className="text-xs text-slate-500">{process.owner_department}</span>
-                    ) : null}
+                    <span className="text-sm text-slate-300">{processOwnerDisplayLabel(t, process)}</span>
+                    <span className="text-xs text-slate-500">
+                        {processDepartmentDisplayLabel(t, process)}
+                    </span>
                 </div>
             ),
         },
@@ -85,7 +92,10 @@ export function buildProcessColumns({
             key: 'derived_criticality_class',
             label: t('processes:columns.criticality_class'),
             render: (process) => (
-                <CriticalityClassPill criticalityClass={process.derived?.criticality_class} />
+                <CriticalityClassPill
+                    criticalityClass={process.derived?.criticality_class}
+                    displayValue={processDerivedCriticalityLabel(t, process.derived?.criticality_class)}
+                />
             ),
         },
         {
@@ -94,7 +104,9 @@ export function buildProcessColumns({
             label: t('processes:columns.cif'),
             className: 'w-[90px]',
             render: (process) => (
-                <span className="text-sm text-slate-300">{process.derived?.cif ?? '—'}</span>
+                <span className="text-sm text-slate-300">
+                    {processDerivedCifLabel(t, process.derived?.cif) ?? '—'}
+                </span>
             ),
         },
         {

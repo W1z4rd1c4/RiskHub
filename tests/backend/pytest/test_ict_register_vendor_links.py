@@ -236,7 +236,11 @@ async def test_process_vendor_link_round_trip_readable_from_both_ends(
     """AC: link Processes to Vendors directly (the manual sheet-11 §1 set),
     managed from the Process detail, readable from the Process and Vendor ends."""
     async with client_factory(user=test_user_cro) as client:
-        process = await _create_process(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
 
         created = await client.post(
@@ -292,7 +296,11 @@ async def test_vendor_listing_filters_direct_process_links_before_pagination(
     client_factory, test_user_cro: User, test_department: Department
 ):
     async with client_factory(user=test_user_cro) as client:
-        process = await _create_process(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
         linked = await _create_vendor(
             client,
             department_id=test_department.id,
@@ -326,7 +334,11 @@ async def test_process_vendor_link_enforces_unique_pair_and_write_shape(
 ):
     """Sheet 11 §1 has no service column: the (process, vendor) pair is unique."""
     async with client_factory(user=test_user_cro) as client:
-        process = await _create_process(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
 
         first = await client.post(
@@ -358,7 +370,11 @@ async def test_archived_ends_conflict_vendor_link_mutations(
     links while unlinking it from an active register end stays possible."""
     async with client_factory(user=test_user_cro) as client:
         asset = await _create_asset(client)
-        process = await _create_process(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
         other_vendor = await _create_vendor(
             client, department_id=test_department.id, owner_user_id=test_user_cro.id, name="Veris s.r.o."
@@ -438,7 +454,11 @@ async def test_risk_manager_seed_maintains_vendor_links_with_capabilities(
 
     async with client_factory(user=test_user_seeded_risk_manager) as client:
         asset = await _create_asset(client)
-        process = await _create_process(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
 
         asset_link = await client.post(
             f"/api/v1/assets/{asset['id']}/vendor-links", json=_vendor_link_payload(vendor["id"])
@@ -480,7 +500,11 @@ async def test_employee_reads_vendor_links_but_cannot_maintain_them(
     """Reads follow both ends' read permissions; register-end writes 403."""
     async with client_factory(user=test_user_cro) as client:
         asset = await _create_asset(client)
-        process = await _create_process(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
         asset_link = (
             await client.post(
@@ -527,12 +551,81 @@ async def test_employee_reads_vendor_links_but_cannot_maintain_them(
 
 
 @pytest.mark.asyncio
+async def test_archived_register_end_suppresses_vendor_link_delete_capability(
+    client_factory, test_user_cro: User, test_department: Department
+):
+    async with client_factory(user=test_user_cro) as client:
+        asset = await _create_asset(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
+        vendor = await _create_vendor(
+            client, department_id=test_department.id, owner_user_id=test_user_cro.id
+        )
+        await client.post(
+            f"/api/v1/assets/{asset['id']}/vendor-links",
+            json=_vendor_link_payload(vendor["id"]),
+        )
+        await client.post(
+            f"/api/v1/processes/{process['id']}/vendor-links",
+            json={"vendor_id": vendor["id"]},
+        )
+
+        assert (await client.delete(f"/api/v1/assets/{asset['id']}")).status_code == 204
+        assert (await client.delete(f"/api/v1/processes/{process['id']}")).status_code == 204
+
+        asset_rows = (await client.get(f"/api/v1/vendors/{vendor['id']}/asset-links")).json()
+        process_rows = (await client.get(f"/api/v1/vendors/{vendor['id']}/process-links")).json()
+
+    assert asset_rows[0]["capabilities"] == {"can_delete": False}
+    assert process_rows[0]["capabilities"] == {"can_delete": False}
+
+
+@pytest.mark.asyncio
+async def test_archived_vendor_end_preserves_vendor_link_cleanup_capability(
+    client_factory, test_user_cro: User, test_department: Department
+):
+    async with client_factory(user=test_user_cro) as client:
+        asset = await _create_asset(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
+        vendor = await _create_vendor(
+            client, department_id=test_department.id, owner_user_id=test_user_cro.id
+        )
+        await client.post(
+            f"/api/v1/assets/{asset['id']}/vendor-links",
+            json=_vendor_link_payload(vendor["id"]),
+        )
+        await client.post(
+            f"/api/v1/processes/{process['id']}/vendor-links",
+            json={"vendor_id": vendor["id"]},
+        )
+
+        assert (await client.delete(f"/api/v1/vendors/{vendor['id']}")).status_code in (200, 204)
+
+        asset_rows = (await client.get(f"/api/v1/assets/{asset['id']}/vendor-links")).json()
+        process_rows = (await client.get(f"/api/v1/processes/{process['id']}/vendor-links")).json()
+
+    assert asset_rows[0]["capabilities"] == {"can_delete": True}
+    assert process_rows[0]["capabilities"] == {"can_delete": True}
+
+
+@pytest.mark.asyncio
 async def test_platform_admin_is_excluded_and_unauthenticated_is_rejected(
     client_factory, test_user_cro: User, test_department: Department, test_user_platform_admin: User
 ):
     async with client_factory(user=test_user_cro) as client:
         asset = await _create_asset(client)
-        process = await _create_process(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
 
     paths_and_calls = [
@@ -574,7 +667,11 @@ async def test_vendor_link_mutations_land_on_the_audit_trail(
     "vendor"); Process<->Vendor gets the process_link surface."""
     async with client_factory(user=test_user_cro) as client:
         asset = await _create_asset(client)
-        process = await _create_process(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
 
         asset_link = (
@@ -671,7 +768,11 @@ async def test_process_vendor_link_counts_into_dod_n_on_read(
     """The engine's sheet-11 §1 input goes LIVE: a Process's ``dod_n``
     (linked_vendor_count) counts its manual pairs (spec 1.1)."""
     async with client_factory(user=test_user_cro) as client:
-        process = await _create_process(client)
+        process = await _create_process(
+            client,
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+        )
         vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
 
         before = (await client.get(f"/api/v1/processes/{process['id']}")).json()["derived"]

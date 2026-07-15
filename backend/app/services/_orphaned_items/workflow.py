@@ -7,6 +7,7 @@ from app.core.permissions import get_user_department_ids
 from app.models.control import Control
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.orphaned_item import OrphanedItem
+from app.models.process import Process
 from app.models.risk import ControlRiskLink, Risk
 from app.models.threat import Threat
 from app.models.user import User
@@ -42,6 +43,12 @@ async def get_orphan_item_department_id(db: AsyncSession, orphan: OrphanedItem) 
         ).scalar_one_or_none()
     if orphan.item_type == "threat":
         return None
+    if orphan.item_type == "process":
+        return (
+            await db.execute(
+                select(Process.owning_department_id).where(Process.id == orphan.item_id)
+            )
+        ).scalar_one_or_none()
     return None
 
 
@@ -62,7 +69,7 @@ async def assert_orphan_still_matches_target_state(
     db: AsyncSession,
     *,
     orphan: OrphanedItem,
-    target_entity: Risk | Control | KeyRiskIndicator | Threat,
+    target_entity: Risk | Control | KeyRiskIndicator | Threat | Process,
 ) -> None:
     uncat_dept_id = await _uncategorised_department_id(db)
 
@@ -101,3 +108,12 @@ async def assert_orphan_still_matches_target_state(
         if threat.threat_steward_user_id in {None, orphan.previous_owner_id}:
             return
         raise OrphanResolutionConflict(f"Orphaned item {orphan.id} no longer matches current threat state")
+
+    if orphan.item_type == "process":
+        process = target_entity
+        assert isinstance(process, Process)
+        if process.process_owner_user_id in {None, orphan.previous_owner_id}:
+            return
+        raise OrphanResolutionConflict(
+            f"Orphaned item {orphan.id} no longer matches current process state"
+        )

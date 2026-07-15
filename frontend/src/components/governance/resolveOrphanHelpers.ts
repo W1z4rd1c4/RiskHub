@@ -11,6 +11,13 @@ export interface OrphanUserOption {
     department_id: number | null;
     department_name?: string;
     employee_type?: string;
+    role_name?: string;
+}
+
+export interface OrphanDepartmentOption {
+    id: number;
+    name: string;
+    code: string;
 }
 
 export type OrphanUserRead = UserRead & {
@@ -22,8 +29,10 @@ export interface OrphanResolutionRequirements {
     isKri: boolean;
     requiresOwner: boolean;
     requiresRisk: boolean;
+    requiresDepartment: boolean;
     shouldShowOwner: boolean;
     shouldShowRisk: boolean;
+    shouldShowDepartment: boolean;
 }
 
 export function toActiveUserOptions(users: OrphanUserRead[]): OrphanUserOption[] {
@@ -36,6 +45,7 @@ export function toActiveUserOptions(users: OrphanUserRead[]): OrphanUserOption[]
             department_id: user.department_id,
             department_name: user.department_name,
             employee_type: user.employee_type,
+            role_name: user.role?.display_name || user.role?.name,
         }));
 }
 
@@ -108,6 +118,7 @@ export function getOrphanResolutionRequirements(
     const isKri = orphan.item_type === 'kri';
     const requiresOwner = resolveCapabilityFlag(orphan.capabilities, 'requires_owner');
     const requiresRisk = resolveCapabilityFlag(orphan.capabilities, 'requires_risk');
+    const requiresDepartment = resolveCapabilityFlag(orphan.capabilities, 'requires_department');
     const shouldShowRisk = requiresRisk || (
         orphan.item_type === 'control' && isInitialized && linkedRisks.length === 0
     );
@@ -115,8 +126,10 @@ export function getOrphanResolutionRequirements(
         isKri,
         requiresOwner,
         requiresRisk,
+        requiresDepartment,
         shouldShowOwner: requiresOwner,
         shouldShowRisk,
+        shouldShowDepartment: orphan.item_type === 'process' && requiresDepartment,
     };
 }
 
@@ -144,6 +157,9 @@ export function canSubmitOrphanResolution({
         return false;
     }
     if (requirements.shouldShowOwner && !selectedUserId) {
+        return false;
+    }
+    if (requirements.requiresDepartment && !selectedDepartmentId) {
         return false;
     }
     if (orphan.item_type === 'control' && !selectedUserId && !selectedDepartmentId) {

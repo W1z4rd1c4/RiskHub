@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models._archivable import ArchivableMixin
+
+if TYPE_CHECKING:
+    from app.models.department import Department
+    from app.models.user import User
 
 
 class Process(ArchivableMixin, Base):
@@ -31,9 +36,21 @@ class Process(ArchivableMixin, Base):
     l1_process: Mapped[str] = mapped_column(String(255), index=True)
     l2_subprocess: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    # B·VLASTNICTVÍ
-    owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    owner_department: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # B·VLASTNICTVÍ. Nullable at rest for migrated historical gaps; the
+    # application boundary requires both relationships for every new active
+    # Process. The former free-text values are intentionally not preserved.
+    process_owner_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    owning_department_id: Mapped[int | None] = mapped_column(
+        ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    process_owner: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[process_owner_user_id], back_populates="owned_processes"
+    )
+    owning_department: Mapped["Department | None"] = relationship(
+        "Department", foreign_keys=[owning_department_id], back_populates="processes"
+    )
 
     # C·DOPADY (1-5) — Skala15 integers; reputational is entered but
     # deliberately outside the score (spec section 2.1).

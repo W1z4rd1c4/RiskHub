@@ -9,6 +9,7 @@
         "cancel": "Cancel",
         "restore": "Restore",
         "retry": "Retry",
+        "resolve_in_governance": "Resolve in Governance",
         "back_to_register": "Back to Processes"
     },
     "filters": {
@@ -43,6 +44,13 @@
         "l2_subprocess": "L2 sub-process / variant",
         "owner": "Process owner",
         "owner_department": "Owning department",
+        "owner_context": "Owner department and role",
+        "owner_placeholder": "Select an active Process owner...",
+        "owner_search": "Search active users by name or email...",
+        "department_placeholder": "Select an active owning department...",
+        "department_search": "Search active departments...",
+        "owner_no_department": "No department",
+        "owner_no_role": "No role",
         "impact_client": "Client impact (1–5)",
         "impact_market_operations": "Market / operational impact (1–5)",
         "impact_regulatory": "Regulatory impact (1–5)",
@@ -64,6 +72,8 @@
         "errors": {
             "l0_area_required": "L0 area is required.",
             "l1_process_required": "L1 process is required.",
+            "process_owner_required": "Process owner is required.",
+            "owning_department_required": "Owning department is required.",
             "save_failed": "Failed to save the process.",
             "fix_fields": "Please correct the highlighted fields.",
             "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."
@@ -85,16 +95,21 @@
         "completeness": "Complete?",
         "complete": "Complete",
         "incomplete": "Incomplete",
+        "checks": {
+            "ok": "OK",
+            "rto_exceeds_mtpd": "Gap: RTO exceeds MTPD",
+            "cif_without_bcm": "Gap: CIF without BCM"
+        },
         "inputs": {
             "title": "Why — the inputs behind it",
             "impacts": "Impact axes (client / market / regulatory / financial)",
             "mtpd_bonus": "MTPD bonus applied",
-            "thresholds": "Class thresholds (Kritická / Vysoká / Střední)",
+            "thresholds": "Class thresholds (Critical / High / Medium)",
             "class_source": "Class source",
             "class_source_score": "Live score banding",
             "class_source_preliminary": "Entered preliminary class (fallback)",
             "cif_override": "CIF override",
-            "cif_class_critical": "CIF trigger: class Kritická",
+            "cif_class_critical": "CIF trigger: Critical class",
             "cif_mtpd_within_critical": "CIF trigger: MTPD within the critical bound",
             "cif_any_impact_maximal": "CIF trigger: an impact axis at 5",
             "missing": "Missing for completeness",
@@ -110,7 +125,57 @@
         }
     },
     "messages": {
-        "archive_confirm": "Archive process \"{{processName}}\"? It stays in the register history and can be restored."
+        "archive_confirm": "Archive process \"{{processName}}\"? It stays in the register history and can be restored.",
+        "owner_orphaned_governance": "This Process owner is no longer eligible. Business edits are locked until Governance explicitly reassigns ownership.",
+        "owner_orphaned_request": "This Process owner is no longer eligible. Ask a Governance user to reassign ownership before editing.",
+        "ownership_legacy_unassigned": "This pre-release legacy Process has no canonical owner or department yet. Assign both to repair the record.",
+        "ownership_invalid_assignment": "This Process has an invalid owner or department assignment. Select active replacements before saving."
+    },
+    "values": {
+        "unknown": "Unknown",
+        "preliminary_criticality": {
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "critical": "Critical"
+        },
+        "cif_override": {
+            "yes": "Yes",
+            "no": "No"
+        },
+        "licensed_activity": {
+            "non_life_insurance": "Non-life insurance",
+            "support_functions": "Support functions"
+        },
+        "bcm_link": {
+            "yes": "Yes",
+            "no": "No",
+            "not_assessed": "Not assessed",
+            "not_applicable": "Not applicable"
+        },
+        "dr_test_result": {
+            "successful": "Successful",
+            "qualified": "Qualified",
+            "unsuccessful": "Unsuccessful",
+            "not_tested": "Not tested"
+        },
+        "interruption_impact": {
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "not_assessed": "Not assessed"
+        }
+    },
+    "ownership_display": {
+        "unknown_user": "Unknown user",
+        "unknown_department": "Unknown department",
+        "owner_context_unknown": "Owner context unavailable",
+        "owner_legacy_unassigned": "Owner not assigned (legacy record)",
+        "department_legacy_unassigned": "Department not assigned (legacy record)",
+        "owner_pending_governance": "Owner pending Governance resolution",
+        "department_pending_governance": "Department pending Governance resolution",
+        "owner_invalid_assignment": "Unknown user (invalid assignment)",
+        "department_invalid_assignment": "Unknown department (invalid assignment)"
     },
     "empty": {
         "no_processes": "No processes in the register yet.",

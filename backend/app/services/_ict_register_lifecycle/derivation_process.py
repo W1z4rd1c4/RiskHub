@@ -18,6 +18,14 @@ from ._derivation_impl import (
     _EffectiveParameters,
 )
 
+_PROCESS_CRITICALITY_CLASS_BY_CODE = {
+    "low": CRITICALITY_CLASSES[0],
+    "medium": CRITICALITY_CLASSES[1],
+    "high": CRITICALITY_CLASSES[2],
+    "critical": CRITICALITY_CLASSES[3],
+}
+_PROCESS_CIF_BY_CODE = {"yes": ANO, "no": NE}
+
 # Process rules (spec 2.1 + the derived 1.1 fields).
 # ---------------------------------------------------------------------------
 
@@ -61,7 +69,11 @@ def _derive_process(
             criticality_class = CRITICALITY_CLASSES[0]
         criticality_class_source = "score"
     else:
-        criticality_class = row.preliminary_criticality
+        criticality_class = (
+            _PROCESS_CRITICALITY_CLASS_BY_CODE.get(row.preliminary_criticality)
+            if row.preliminary_criticality is not None
+            else None
+        )
         criticality_class_source = "preliminary"
 
     # CIF: override precedence, then OR of the three independent triggers.
@@ -71,7 +83,7 @@ def _derive_process(
     entered_axes = [axis for axis in impact_axes if axis is not None]
     cif_any_impact_maximal = max(entered_axes, default=0) == 5
     if row.cif_override is not None:
-        cif = row.cif_override
+        cif = _PROCESS_CIF_BY_CODE[row.cif_override]
     elif cif_class_critical or cif_mtpd_within_critical or cif_any_impact_maximal:
         cif = ANO
     else:
@@ -90,7 +102,7 @@ def _derive_process(
     # kontrola_bcm — builder sheets_core.py:190 (row-existence guard aside,
     # which database identity supersedes):
     #   =IF(AND(cif="Ano",bcm<>"Ano"),"GAP: CIF bez BCM","OK")
-    bcm_check = BCM_GAP if cif == ANO and row.bcm_link != ANO else CHECK_OK
+    bcm_check = BCM_GAP if cif == ANO and row.bcm_link != "yes" else CHECK_OK
 
     next_review_date = _add_one_year(row.assessment_date) if row.assessment_date is not None else None
 

@@ -13,6 +13,7 @@ from app.models import Role, User
 from app.models.role import RoleType
 from app.schemas import RoleRead
 from app.schemas.user import AssignableOwnerLookup, ThreatStewardLookup, UserLookup
+from app.services._ict_register_lifecycle.policy import assert_process_assignment_lookup_allowed
 
 from ._lifecycle import ensure_admin_user_lifecycle
 from ._visibility import build_visible_users_query
@@ -199,6 +200,46 @@ async def lookup_vendor_owners(
         department_id=department_id,
         limit=limit,
     )
+
+
+@router.get("/lookup/process-owners", response_model=list[AssignableOwnerLookup])
+async def lookup_process_owners(
+    q: str | None = None,
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return active Users eligible for cross-Department Process ownership."""
+    await assert_process_assignment_lookup_allowed(db, current_user=current_user)
+    query = (
+        select(User)
+        .options(selectinload(User.role), selectinload(User.department))
+        .where(
+            User.is_active.is_(True),
+            ~User.role.has(Role.name == RoleType.ADMIN),
+        )
+    )
+    if q:
+        search_term = f"%{q}%"
+        query = query.where(or_(User.name.ilike(search_term), User.email.ilike(search_term)))
+    users = (
+        await db.execute(
+            query.order_by(User.name.asc(), User.id.asc()).limit(
+                min(limit, MAX_LOOKUP_SIZE)
+            )
+        )
+    ).scalars().all()
+    return [
+        AssignableOwnerLookup(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role_name=user.role.name if user.role else None,
+            department_id=user.department_id,
+            department_name=user.department.name if user.department else None,
+        )
+        for user in users
+    ]
 
 
 @router.get("/lookup/threat-stewards", response_model=list[ThreatStewardLookup])

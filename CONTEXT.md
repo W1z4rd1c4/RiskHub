@@ -42,6 +42,12 @@ _Avoid_: hazard, hrozba, vulnerability
 An ICT risk — RiskHub's existing `Risk`, linked to the Processes, Assets, and Vendors it concerns.
 _Avoid_: issue, exposure
 
+### Responsibility
+
+**Process Owner**:
+The Accountable owner for a Process and its business-continuity assessment.
+_Avoid_: process responsible, free-text owner
+
 ### Criticality & derivation
 
 **Critical or Important Function (CIF)**:
@@ -103,6 +109,18 @@ _Avoid_: committee (unqualified — ambiguous between Risk and ICT)
 **Link relation**:
 A typed many-to-many connection between register entities (Process↔Asset, Asset↔Asset, Asset↔Vendor, Process↔Vendor).
 _Avoid_: mapping, association, join
+
+**Controlled register value**:
+A value from an authoritative ICT Register taxonomy whose meaning is independent of the language used to display it; its label follows the user's active locale, while source-format terminology is reserved for import and regulatory export.
+_Avoid_: verbatim workbook value, translated data
+
+**Accountable owner**:
+The single active RiskHub User assigned to a defined responsibility role for a register record; organizational ownership by a Department remains separate.
+_Avoid_: free-text owner, co-owner, participant, contributor, watcher
+
+**Owning Department**:
+The single organizational unit accountable for a Process, Asset, Risk, Control, or Vendor; it is distinct from the record's Accountable owner.
+_Avoid_: owner department text, team, business unit (unless it is the canonical Department)
 
 ---
 

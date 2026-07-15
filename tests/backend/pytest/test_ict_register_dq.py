@@ -31,7 +31,7 @@ from datetime import date
 
 import pytest
 
-from app.models import Risk, User
+from app.models import Process, Risk, User
 from app.models.global_config import clear_config_cache
 from app.services._ict_register_lifecycle.derivation import (
     AssetAssetLinkInput,
@@ -130,8 +130,8 @@ def process_row(pid: int = 1, **overrides: object) -> ProcessDerivationInput:
         "mtpd_hours": 48,
         "rto_hours": 24,
         "rpo_hours": 4,
-        "bcm_link": "Ano",
-        "interruption_impact": "Střední",
+        "bcm_link": "yes",
+        "interruption_impact": "medium",
         "assessment_date": date(2026, 1, 15),
     }
     defaults.update(overrides)
@@ -360,7 +360,7 @@ def test_dq05_cif_process_without_bcm():
             processes=(
                 cif_process_row(1, bcm_link=None),
                 cif_process_row(2, bcm_link="Částečně"),
-                cif_process_row(3, bcm_link="Ano"),
+                cif_process_row(3, bcm_link="yes"),
                 process_row(4, bcm_link=None),  # non-CIF: OK either way
             ),
             assets=(asset_row(9),),
@@ -1308,7 +1308,7 @@ def _risk_payload(**overrides: object) -> dict[str, object]:
 
 @pytest.mark.asyncio
 async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
-    client_factory, db_session, test_user_cro: User, seed_risk_types
+    client_factory, db_session, test_user_cro: User, test_department, seed_risk_types
 ):
     """The read-model endpoint computes the 52 checks on read over a register
     seeded THROUGH the write API — which simultaneously proves the
@@ -1351,6 +1351,8 @@ async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
             json={
                 "l0_area": "Provoz a služby klientům",
                 "l1_process": "Správa pojistných smluv",
+                "process_owner_user_id": test_user_cro.id,
+                "owning_department_id": test_department.id,
                 "impact_client": 5,
                 "impact_market_operations": 4,
                 "impact_regulatory": 4,
@@ -1358,12 +1360,20 @@ async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
                 "mtpd_hours": 2,
                 "rto_hours": 1,
                 "rpo_hours": 1,
-                "interruption_impact": "Vysoký",
+                "interruption_impact": "high",
                 "assessment_date": "2026-01-15",
             },
         )
         assert process_resp.status_code == 201, process_resp.text
         process = process_resp.json()
+
+        # DQ-01 remains a historical-data guard even though #74 prevents new
+        # ownerless Processes at the API boundary.
+        stored_process = await db_session.get(Process, process["id"])
+        assert stored_process is not None
+        stored_process.process_owner_user_id = None
+        stored_process.owning_department_id = None
+        await db_session.commit()
 
         # A vendor put on the Critical tier through the cascade, with every
         # top-tier obligation left blank — accepted by the API, flagged by DQ.
@@ -1714,9 +1724,19 @@ async def test_dq_endpoint_scopes_rows_per_viewer_but_reports_global_counts(
         process = (
             await client.post(
                 "/api/v1/processes",
-                json={"l0_area": "Provoz a služby klientům", "l1_process": "Správa pojistných smluv"},
+                json={
+                    "l0_area": "Provoz a služby klientům",
+                    "l1_process": "Správa pojistných smluv",
+                    "process_owner_user_id": test_user_cro.id,
+                    "owning_department_id": employee_department_id,
+                },
             )
         ).json()
+        stored_process = await db_session.get(Process, process["id"])
+        assert stored_process is not None
+        stored_process.process_owner_user_id = None
+        stored_process.owning_department_id = None
+        await db_session.commit()
         # An unassigned Vendor (department_id None): visible to privileged
         # users only, so its DQ rows must hide from the dept-scoped employee.
         vendor_resp = await client.post(

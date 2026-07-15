@@ -46,6 +46,34 @@ async function riskManagerHeaders(): Promise<Record<string, string>> {
     };
 }
 
+async function defaultProcessAccountability(): Promise<{
+    process_owner_user_id: number;
+    owning_department_id: number;
+}> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const [ownersResponse, departmentsResponse] = await Promise.all([
+        fetch(`${apiBase}/api/v1/users/lookup/process-owners?q=ops.analyst%40riskhub.local&limit=10`, { headers }),
+        fetch(`${apiBase}/api/v1/departments/lookup/process-owners?q=Operations&limit=10`, { headers }),
+    ]);
+    if (!ownersResponse.ok || !departmentsResponse.ok) {
+        throw new Error(
+            `Failed to resolve Process accountability fixtures: owners=${ownersResponse.status}, departments=${departmentsResponse.status}`,
+        );
+    }
+    const owners = await ownersResponse.json() as Array<{ id: number; email: string }>;
+    const departments = await departmentsResponse.json() as Array<{ id: number; name: string }>;
+    const owner = owners.find((candidate) => candidate.email === 'ops.analyst@riskhub.local');
+    const department = departments.find((candidate) => candidate.name === 'Operations');
+    if (!owner || !department) {
+        throw new Error('Required default Process Owner or Owning Department fixture is missing');
+    }
+    return {
+        process_owner_user_id: owner.id,
+        owning_department_id: department.id,
+    };
+}
+
 export async function getProcessByL1(l1Process: string): Promise<ProcessLookup | null> {
     const apiBase = getApiBaseUrl();
     const headers = await riskManagerHeaders();
@@ -129,10 +157,11 @@ export async function createProcessViaApi(
 ): Promise<ProcessLookup> {
     const apiBase = getApiBaseUrl();
     const headers = await riskManagerHeaders();
+    const accountability = await defaultProcessAccountability();
     const response = await fetch(`${apiBase}/api/v1/processes`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...accountability, ...payload }),
     });
     if (!response.ok) {
         throw new Error(`Failed to create process: ${response.status} - ${await response.text()}`);
@@ -162,10 +191,11 @@ export async function createAssetViaApi(
 export async function postProcessExpectingStatus(payload: Record<string, unknown>): Promise<number> {
     const apiBase = getApiBaseUrl();
     const headers = await riskManagerHeaders();
+    const accountability = await defaultProcessAccountability();
     const response = await fetch(`${apiBase}/api/v1/processes`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...accountability, ...payload }),
     });
     return response.status;
 }

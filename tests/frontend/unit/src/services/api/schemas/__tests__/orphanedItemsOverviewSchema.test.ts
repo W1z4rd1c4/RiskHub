@@ -10,6 +10,7 @@ function overviewPayload(items: OverviewItem[]) {
             control_count: items.filter((i) => i.item_type === 'control').length,
             kri_count: items.filter((i) => i.item_type === 'kri').length,
             threat_count: items.filter((i) => i.item_type === 'threat').length,
+            process_count: items.filter((i) => i.item_type === 'process').length,
             total_count: items.length,
         },
         items,
@@ -71,5 +72,20 @@ describe('orphanedItemsOverviewSchema', () => {
         const result = orphanedItemsOverviewSchema.safeParse(payload);
 
         expect(result.success).toBe(false);
+    });
+
+    it('decodes Process and Threat orphans returned by the backend overview', () => {
+        const payload = overviewPayload([
+            orphanItem({ item_type: 'process', item_id: 74, item_name: 'Claims handling', item_identifier: 'F74' }),
+            orphanItem({ item_type: 'threat', item_id: 73, item_name: 'Ransomware', item_identifier: null }),
+        ]);
+
+        const result = orphanedItemsOverviewSchema.safeParse(payload);
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data.stats.process_count).toBe(1);
+            expect(result.data.items.map((item) => item.item_type)).toEqual(['process', 'threat']);
+        }
     });
 });

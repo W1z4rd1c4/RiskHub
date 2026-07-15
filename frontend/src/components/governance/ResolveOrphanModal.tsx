@@ -34,6 +34,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
     const isKri = requirements.isKri;
     const shouldShowOwner = requirements.shouldShowOwner;
     const shouldShowRisk = requirements.shouldShowRisk;
+    const shouldShowDepartment = requirements.shouldShowDepartment;
 
     return (
         <DialogShell
@@ -112,10 +113,13 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                 />
                             )}
 
-                            {(orphan.item_type === 'control' && !workflow.selectedUserId) && (
+                            {(shouldShowDepartment || (orphan.item_type === 'control' && !workflow.selectedUserId)) && (
                                 <ResolveOrphanDepartmentSelection
                                     departments={workflow.allDepartments}
+                                    isSearchable={orphan.item_type === 'process'}
+                                    searchQuery={workflow.departmentSearchQuery}
                                     selectedDepartmentId={workflow.selectedDepartmentId}
+                                    setSearchQuery={workflow.setDepartmentSearchQuery}
                                     setSelectedDepartmentId={workflow.setSelectedDepartmentId}
                                 />
                             )}
@@ -132,9 +136,11 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                 onClose={onClose}
                 onSubmit={workflow.handleSubmit}
                 selectedRiskId={workflow.selectedRiskId}
+                selectedDepartmentId={workflow.selectedDepartmentId}
                 selectedUserId={workflow.selectedUserId}
                 shouldShowOwner={shouldShowOwner}
                 shouldShowRisk={shouldShowRisk}
+                shouldShowDepartment={shouldShowDepartment}
             />
         </DialogShell>
     );

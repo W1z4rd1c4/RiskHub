@@ -1,10 +1,11 @@
 import { useState, useEffect, useId } from 'react';
 import { motion } from 'framer-motion';
-import { X, ShieldAlert, ClipboardList, AlertTriangle, User, Loader2, Target, Activity, FileText, Calendar } from 'lucide-react';
+import { X, ShieldAlert, ClipboardList, AlertTriangle, User, Loader2, Target, Activity, FileText, Calendar, Workflow } from 'lucide-react';
 import { DialogShell } from '@/components/DialogShell';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
 import { threatApi } from '@/services/threatApi';
+import { processApi } from '@/services/processApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { useTranslation } from '@/i18n/hooks';
 import { formatRelativeDateValue } from '@/i18n/formatters';
@@ -69,6 +70,16 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                     const threat = await threatApi.getThreat(orphanItemId);
                     if (cancelled) return;
                     setItemDetails(threat as ItemDetails);
+                } else if (orphanItemType === 'process') {
+                    const process = await processApi.getProcess(orphanItemId);
+                    if (cancelled) return;
+                    setItemDetails({
+                        description: process.notes || [process.l0_area, process.l1_process, process.l2_subprocess]
+                            .filter(Boolean)
+                            .join(' · '),
+                        status: process.is_archived ? 'archived' : 'active',
+                        category: process.derived?.criticality_class ?? undefined,
+                    });
                 }
                 // Small delay for smooth entry
                 initTimeout = setTimeout(() => {
@@ -97,12 +108,14 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
         control: ClipboardList,
         kri: AlertTriangle,
         threat: ShieldAlert,
+        process: Workflow,
     };
     const typeLabels = {
         risk: t('governance.type_risk'),
         control: t('governance.type_control'),
         kri: t('governance.type_kri'),
         threat: t('governance.type_threat'),
+        process: t('governance.type_process'),
     };
     const Icon = typeIcons[orphan.item_type as keyof typeof typeIcons] || AlertTriangle;
 
@@ -111,6 +124,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
         control: 'text-accent bg-accent/10',
         kri: 'text-amber-400 bg-amber-500/10',
         threat: 'text-teal-400 bg-teal-500/10',
+        process: 'text-sky-400 bg-sky-500/10',
     };
     const colorClass = typeColors[orphan.item_type as keyof typeof typeColors] || 'text-slate-400 bg-slate-400/10';
 

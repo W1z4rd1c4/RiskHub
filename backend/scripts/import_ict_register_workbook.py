@@ -100,6 +100,7 @@ from app.services._ict_register_reference.parameters import (
     ICT_WORKBOOK_PARAMETERS_BY_NAME,
     load_ict_workbook_parameter_set,
 )
+from app.services._ict_register_reference.process_values import process_controlled_value_code
 from app.services._ict_register_reference.threat_categories import threat_category_code
 from app.services._vendor_governance.contract_lifecycle import (
     create_vendor_contract_detail,
@@ -513,26 +514,33 @@ async def import_contracts(
     print(f"   Contracts: {counters.line()} (09_Subdodávky ships empty — nothing to import)")
 
 
-def _process_payload(seed: ModuleType, row: dict[str, Any]) -> dict[str, Any]:
-    owner = row["owner"] or None
+def _process_payload(
+    row: dict[str, Any],
+    *,
+    process_owner_user_id: int,
+    owning_department_id: int,
+) -> dict[str, Any]:
+    def controlled(field: str, value: str | None) -> str | None:
+        return process_controlled_value_code(field, value) if value else None
+
     return {
         "l0_area": row["l0"],
         "l1_process": row["l1"],
         "l2_subprocess": normalize_l2(row["l2"]),
-        "owner": owner,
-        "owner_department": seed.OWNER_UTVAR_MAP.get(owner) if owner else None,
+        "process_owner_user_id": process_owner_user_id,
+        "owning_department_id": owning_department_id,
         "impact_client": None,
         "impact_market_operations": None,
         "impact_regulatory": None,
         "impact_financial": None,
         "impact_reputational": None,
         "mtpd_hours": None,
-        "preliminary_criticality": row["src_class"] or None,
-        "cif_override": row["kdf_override"] or None,
-        "licensed_activity": licensed_activity_for_l0(row["l0"]),
+        "preliminary_criticality": controlled("preliminary_criticality", row["src_class"]),
+        "cif_override": controlled("cif_override", row["kdf_override"]),
+        "licensed_activity": controlled("licensed_activity", licensed_activity_for_l0(row["l0"])),
         "rto_hours": None,
         "rpo_hours": None,
-        "bcm_link": row["bcm"] or None,
+        "bcm_link": controlled("bcm_link", row["bcm"]),
         "last_dr_test_date": None,
         "dr_test_result": None,
         "interruption_impact": None,
@@ -544,6 +552,38 @@ def _process_payload(seed: ModuleType, row: dict[str, Any]) -> dict[str, Any]:
 ProcessKey = tuple[str, str, str | None]
 
 
+def _process_accountability_ids(
+    row: dict[str, Any],
+    *,
+    key: ProcessKey,
+    report: ImportReport,
+) -> tuple[int, int] | None:
+    """Read explicit governed Process relationship IDs or fail closed.
+
+    Presentation strings such as the legacy ``owner`` workbook column are
+    deliberately ignored. Relationship validity is enforced by the Process
+    service layer when these canonical identifiers are used.
+    """
+
+    required_fields = ("process_owner_user_id", "owning_department_id")
+    invalid_fields = [
+        field
+        for field in required_fields
+        if isinstance(row.get(field), bool)
+        or not isinstance(row.get(field), int)
+        or row[field] <= 0
+    ]
+    if invalid_fields:
+        report.finding(
+            f"Process {key!r} has missing or invalid explicit canonical relationship "
+            f"identifiers ({', '.join(invalid_fields)}); legacy owner presentation text "
+            "is not reconciled and the row was not imported"
+        )
+        return None
+
+    return row["process_owner_user_id"], row["owning_department_id"]
+
+
 async def import_processes(
     db, seed: ModuleType, user: User, report: ImportReport
 ) -> dict[ProcessKey, int]:
@@ -552,7 +592,18 @@ async def import_processes(
     process_ids: dict[ProcessKey, int] = {}
     for row in seed.SRC["processes"]:
         key: ProcessKey = (row["l0"], row["l1"], normalize_l2(row["l2"]))
-        target = _process_payload(seed, row)
+        accountability = _process_accountability_ids(
+            row=row,
+            key=key,
+            report=report,
+        )
+        if accountability is None:
+            continue
+        target = _process_payload(
+            row,
+            process_owner_user_id=accountability[0],
+            owning_department_id=accountability[1],
+        )
         query = select(Process).where(Process.l0_area == key[0], Process.l1_process == key[1])
         query = (
             query.where(Process.l2_subprocess.is_(None))
@@ -1085,7 +1136,13 @@ async def import_risks(
                 risk.subject_key[1],
                 normalize_l2(risk.subject_key[2]),
             )
-            subject_id = process_ids[key]
+            subject_id = process_ids.get(key)
+            if subject_id is None:
+                report.finding(
+                    f"Risk {risk.code!r} Process subject {key!r} references a row that failed "
+                    "to import; risk not imported"
+                )
+                continue
             subject_display = risk.subject_key[1]
             derived_label = derivation.processes[subject_id].criticality_class
 

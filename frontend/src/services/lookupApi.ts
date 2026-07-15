@@ -1,9 +1,11 @@
 import { apiClient } from './apiClient';
 import {
     departmentSummaryArraySchema,
+    processDepartmentReadSchema,
     riskFiltersSchema,
     threatStewardLookupArraySchema,
     userLookupArraySchema,
+    z,
 } from '@/services/api/schemas';
 import type { QueryValue } from './api/apiTypes';
 import type { DepartmentSummary } from './departmentApi';
@@ -45,6 +47,17 @@ export interface ThreatStewardLookupParams extends Record<string, QueryValue> {
     q?: string;
 }
 
+export interface ProcessDepartmentLookupItem {
+    id: number;
+    name: string;
+    code: string;
+}
+
+export interface ProcessOwnershipLookupParams extends Record<string, QueryValue> {
+    limit?: number;
+    q?: string;
+}
+
 export const lookupApi = {
     async getUsers(params?: UserLookupParams): Promise<UserLookupItem[]> {
         // Generic user lookup is restricted to callers with users:read.
@@ -67,6 +80,20 @@ export const lookupApi = {
         return apiClient.get('/users/lookup/threat-stewards', {
             params,
             schema: threatStewardLookupArraySchema,
+        });
+    },
+
+    async getProcessOwners(params?: ProcessOwnershipLookupParams): Promise<UserLookupItem[]> {
+        return apiClient.get('/users/lookup/process-owners', {
+            params,
+            schema: userLookupArraySchema,
+        });
+    },
+
+    async getProcessDepartments(params?: ProcessOwnershipLookupParams): Promise<ProcessDepartmentLookupItem[]> {
+        return apiClient.get('/departments/lookup/process-owners', {
+            params,
+            schema: z.array(processDepartmentReadSchema.extend({ id: z.number() })),
         });
     },
 

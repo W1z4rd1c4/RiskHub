@@ -7,12 +7,14 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useAuthz } from '@/authz/useAuthz';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
 import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
 import { vendorApi } from '@/services/vendorApi';
 import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
+import type { VendorCapabilities } from '@/types/vendor';
 
 import {
     buildVendorAssetLinkRows,
@@ -21,6 +23,10 @@ import {
 
 interface VendorRegisterLinksSectionProps {
     vendorId: number;
+    capabilities?: Pick<
+        VendorCapabilities,
+        'can_manage_asset_links' | 'can_manage_process_links'
+    > | null;
 }
 
 /**
@@ -30,7 +36,7 @@ interface VendorRegisterLinksSectionProps {
  * permissions; mutations call the register-end routes and are gated on the
  * backend's per-row capabilities (assets:write / processes:write).
  */
-export function VendorRegisterLinksSection({ vendorId }: VendorRegisterLinksSectionProps) {
+export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorRegisterLinksSectionProps) {
     const { t } = useTranslation(['vendors', 'common']);
     const authz = useAuthz();
     const queryClient = useQueryClient();
@@ -44,10 +50,20 @@ export function VendorRegisterLinksSection({ vendorId }: VendorRegisterLinksSect
     const debouncedAssetSearch = useDebouncedValue(assetSearch);
     const debouncedProcessSearch = useDebouncedValue(processSearch);
 
-    const canReadAssetLinks = authz.can('read', 'assets');
-    const canReadProcessLinks = authz.can('read', 'processes');
-    const canManageAssetLinks = canReadAssetLinks && authz.can('write', 'assets');
-    const canManageProcessLinks = canReadProcessLinks && authz.can('write', 'processes');
+    const backendCanManageAssetLinks = capabilities == null
+        ? null
+        : resolveCapabilityFlag(capabilities, 'can_manage_asset_links');
+    const backendCanManageProcessLinks = capabilities == null
+        ? null
+        : resolveCapabilityFlag(capabilities, 'can_manage_process_links');
+    const localCanReadAssetLinks = authz.can('read', 'assets');
+    const localCanReadProcessLinks = authz.can('read', 'processes');
+    const canReadAssetLinks = localCanReadAssetLinks || backendCanManageAssetLinks === true;
+    const canReadProcessLinks = localCanReadProcessLinks || backendCanManageProcessLinks === true;
+    const canManageAssetLinks = backendCanManageAssetLinks
+        ?? (localCanReadAssetLinks && authz.can('write', 'assets'));
+    const canManageProcessLinks = backendCanManageProcessLinks
+        ?? (localCanReadProcessLinks && authz.can('write', 'processes'));
 
     const assetLinksQuery = useQuery({
         queryKey: ictRegisterKeys.vendorAssetLinks(vendorId),

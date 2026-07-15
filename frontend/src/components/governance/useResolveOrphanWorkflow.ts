@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { apiClient } from '@/services/apiClient';
 import { controlApi } from '@/services/controlApi';
-import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
+import { departmentApi } from '@/services/departmentApi';
+import { lookupApi } from '@/services/lookupApi';
 import { logError } from '@/services/logger';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import { riskApi } from '@/services/riskApi';
@@ -20,6 +21,7 @@ import {
     toActiveUserOptions,
     uniqueRiskDepartments,
     type OrphanUserOption,
+    type OrphanDepartmentOption,
     type OrphanUserRead,
 } from './resolveOrphanHelpers';
 
@@ -40,17 +42,23 @@ export function useResolveOrphanWorkflow({
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
     const [selectedRiskId, setSelectedRiskId] = useState<number | null>(null);
-    const [allDepartments, setAllDepartments] = useState<DepartmentSummary[]>([]);
+    const [allDepartments, setAllDepartments] = useState<OrphanDepartmentOption[]>([]);
     const [allRisks, setAllRisks] = useState<RiskSummary[]>([]);
     const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [departmentSearchQuery, setDepartmentSearchQuery] = useState('');
     const [riskSearchQuery, setRiskSearchQuery] = useState('');
     const [selectedDeptFilter, setSelectedDeptFilter] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [selectedRiskDept, setSelectedRiskDept] = useState('');
     const initTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const ownerSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const ownerRequestRef = useRef(0);
+    const departmentSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const departmentRequestRef = useRef(0);
+    const modalGenerationRef = useRef(0);
 
     const clearInitTimer = useCallback(() => {
         if (initTimerRef.current) {
@@ -66,27 +74,88 @@ export function useResolveOrphanWorkflow({
         }
     }, [orphan?.item_id, orphan?.item_type]);
 
-    const loadDepartments = useCallback(async () => {
+    const loadDepartments = useCallback(async (query?: string, generation = modalGenerationRef.current) => {
+        if (orphan?.item_type === 'process') {
+            const requestId = ++departmentRequestRef.current;
+            const departments = await lookupApi.getProcessDepartments({
+                limit: 50,
+                q: query?.trim() || undefined,
+            });
+            if (generation === modalGenerationRef.current && requestId === departmentRequestRef.current) {
+                setAllDepartments(departments);
+            }
+            return;
+        }
         const departments = await departmentApi.getDepartments();
-        setAllDepartments(departments);
-    }, []);
+        if (generation === modalGenerationRef.current) setAllDepartments(departments);
+    }, [orphan?.item_type]);
 
     const loadRisks = useCallback(async () => {
         const response = await riskApi.getRisks({ limit: 100 });
         setAllRisks(response.items);
     }, []);
 
-    const loadUsers = useCallback(async () => {
+    const loadUsers = useCallback(async (query?: string, generation = modalGenerationRef.current) => {
+        if (orphan?.item_type === 'process') {
+            const requestId = ++ownerRequestRef.current;
+            const owners = await lookupApi.getProcessOwners({ limit: 50, q: query?.trim() || undefined });
+            if (generation === modalGenerationRef.current && requestId === ownerRequestRef.current) {
+                setUsers(owners.map((user) => ({
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    department_id: user.department_id ?? null,
+                    department_name: user.department_name ?? undefined,
+                    role_name: user.role_name ?? undefined,
+                })));
+            }
+            return;
+        }
         const activeUsers = (await userApi.listUsers(0, 100)) as OrphanUserRead[];
         const eligibleUsers = orphan?.item_type === 'threat'
             ? activeUsers.filter((user) => user.role_name === 'ciso')
             : activeUsers;
-        setUsers(toActiveUserOptions(eligibleUsers));
+        if (generation === modalGenerationRef.current) setUsers(toActiveUserOptions(eligibleUsers));
     }, [orphan?.item_type]);
 
-    const initializeData = useCallback(async () => {
+    useEffect(() => {
+        if (!isOpen || !isInitialized || orphan?.item_type !== 'process') return;
+        const generation = modalGenerationRef.current;
+        if (ownerSearchTimerRef.current) clearTimeout(ownerSearchTimerRef.current);
+        ownerSearchTimerRef.current = setTimeout(() => {
+            void loadUsers(searchQuery, generation).catch((err) => {
+                if (generation !== modalGenerationRef.current) return;
+                logError('Failed to search Process owners:', err);
+                setErrorKey(apiClient.toUiMessageKey(err));
+            });
+        }, 200);
+        return () => {
+            if (ownerSearchTimerRef.current) clearTimeout(ownerSearchTimerRef.current);
+        };
+    }, [isInitialized, isOpen, loadUsers, orphan?.item_type, searchQuery]);
+
+    useEffect(() => {
+        if (!isOpen || !isInitialized || orphan?.item_type !== 'process') return;
+        const generation = modalGenerationRef.current;
+        if (departmentSearchTimerRef.current) clearTimeout(departmentSearchTimerRef.current);
+        departmentSearchTimerRef.current = setTimeout(() => {
+            void loadDepartments(departmentSearchQuery, generation).catch((err) => {
+                if (generation !== modalGenerationRef.current) return;
+                logError('Failed to search Process departments:', err);
+                setErrorKey(apiClient.toUiMessageKey(err));
+            });
+        }, 200);
+        return () => {
+            if (departmentSearchTimerRef.current) clearTimeout(departmentSearchTimerRef.current);
+        };
+    }, [departmentSearchQuery, isInitialized, isOpen, loadDepartments, orphan?.item_type]);
+
+    const initializeData = useCallback(async (generation: number) => {
         try {
-            const promises: Promise<unknown>[] = [loadUsers(), loadDepartments()];
+            const promises: Promise<unknown>[] = [
+                loadUsers(undefined, generation),
+                loadDepartments(undefined, generation),
+            ];
 
             if (orphan?.item_type === 'control' || orphan?.item_type === 'kri') {
                 promises.push(loadRisks());
@@ -97,18 +166,25 @@ export function useResolveOrphanWorkflow({
             }
 
             await Promise.all(promises);
+            if (generation !== modalGenerationRef.current) return;
             clearInitTimer();
-            initTimerRef.current = setTimeout(() => setIsInitialized(true), 150);
+            initTimerRef.current = setTimeout(() => {
+                if (generation === modalGenerationRef.current) setIsInitialized(true);
+            }, 150);
         } catch (err) {
+            if (generation !== modalGenerationRef.current) return;
             logError('Failed to initialize resolution data:', err);
             setErrorKey(apiClient.toUiMessageKey(err));
         }
     }, [clearInitTimer, fetchControlStatus, loadDepartments, loadRisks, loadUsers, orphan?.item_type]);
 
     useEffect(() => {
+        const generation = ++modalGenerationRef.current;
         if (!isOpen) {
             clearInitTimer();
-            return;
+            return () => {
+                if (modalGenerationRef.current === generation) modalGenerationRef.current += 1;
+            };
         }
 
         setIsInitialized(false);
@@ -118,15 +194,19 @@ export function useResolveOrphanWorkflow({
         setSelectedRiskId(null);
         setErrorKey(null);
         setSearchQuery('');
+        setDepartmentSearchQuery('');
         setRiskSearchQuery('');
         setSelectedDeptFilter(null);
         setSelectedRiskDept('');
 
         if (orphan) {
-            void initializeData();
+            void initializeData(generation);
         }
 
-        return clearInitTimer;
+        return () => {
+            if (modalGenerationRef.current === generation) modalGenerationRef.current += 1;
+            clearInitTimer();
+        };
     }, [clearInitTimer, initializeData, isOpen, orphan]);
 
     const requirements = useMemo(() => {
@@ -159,7 +239,9 @@ export function useResolveOrphanWorkflow({
 
     function handleSelectUser(user: OrphanUserOption) {
         setSelectedUserId(user.id);
-        setSelectedDepartmentId(user.department_id);
+        setSelectedDepartmentId((current) => (
+            orphan?.item_type === 'process' ? current ?? user.department_id : user.department_id
+        ));
     }
 
     async function handleSubmit() {
@@ -188,6 +270,7 @@ export function useResolveOrphanWorkflow({
     return {
         allDepartments,
         canSubmit,
+        departmentSearchQuery,
         errorKey,
         filteredRisks,
         handleSelectUser,
@@ -205,6 +288,7 @@ export function useResolveOrphanWorkflow({
         selectedUserId,
         setRiskSearchQuery,
         setSearchQuery,
+        setDepartmentSearchQuery,
         setSelectedDepartmentId,
         setSelectedDeptFilter,
         setSelectedRiskDept,

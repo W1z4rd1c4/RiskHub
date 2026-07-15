@@ -126,8 +126,8 @@ def process_row(pid: int = 1, **overrides: object) -> ProcessDerivationInput:
         "mtpd_hours": 48,
         "rto_hours": 24,
         "rpo_hours": 4,
-        "bcm_link": "Ano",
-        "interruption_impact": "Střední",
+        "bcm_link": "yes",
+        "interruption_impact": "medium",
         "assessment_date": None,
     }
     defaults.update(overrides)
@@ -612,7 +612,7 @@ def test_narrative_sentence_values_reproduce_the_five_live_formulas():
     graph = IctRegisterGraph(
         processes=(
             cif_process_row(1),                    # CIF, bcm Ano
-            cif_process_row(2, bcm_link="Ne"),     # CIF, no BCM evidence
+            cif_process_row(2, bcm_link="no"),     # CIF, no BCM evidence
             process_row(3),                        # non-CIF, bcm Ano
         ),
         vendors=(
@@ -735,7 +735,7 @@ def test_committee_carries_the_roi_readiness_element():
     result = run_committee(
         IctRegisterGraph(processes=(process_row(1, rto_hours=None),)),
         roi_supplement=RoiRegisterSupplement(
-            processes={1: RoiProcessSupplement(f_code="F1", licensed_activity="Pojišťovací činnost")}
+            processes={1: RoiProcessSupplement(f_code="F1", licensed_activity="non_life_insurance")}
         ),
     )
     roi = result.roi_readiness
@@ -1014,7 +1014,12 @@ def test_committee_permission_sync_migration_mirrors_the_rbac_seed():
 
 @pytest.mark.asyncio
 async def test_committee_endpoint_over_an_api_seeded_register(
-    client_factory, db_session: AsyncSession, test_user_cro: User, seed_risk_types, snapshot
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_department,
+    seed_risk_types,
+    snapshot,
 ):
     """The full committee read model over a register seeded THROUGH the write
     API, read by a seeded CEO (the new grant end-to-end), pinned by an
@@ -1078,6 +1083,8 @@ async def test_committee_endpoint_over_an_api_seeded_register(
                 json={
                     "l0_area": "Provoz a služby klientům",
                     "l1_process": "Správa pojistných smluv",
+                    "process_owner_user_id": test_user_cro.id,
+                    "owning_department_id": test_department.id,
                     "impact_client": 5,
                     "impact_market_operations": 4,
                     "impact_regulatory": 4,
@@ -1085,7 +1092,7 @@ async def test_committee_endpoint_over_an_api_seeded_register(
                     "mtpd_hours": 2,
                     "rto_hours": 1,
                     "rpo_hours": 1,
-                    "interruption_impact": "Vysoký",
+                    "interruption_impact": "high",
                     "assessment_date": "2026-01-15",
                 },
             )

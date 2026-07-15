@@ -9,6 +9,7 @@ from app.models import User, Vendor, VendorRiskLink
 from app.schemas.vendor import VendorDerived, VendorLinkedRiskSummary, VendorListResponse, VendorRead
 from app.services._ict_register_lifecycle.derivation import IctRegisterDerivation, derive_ict_register
 from app.services._ict_register_lifecycle.derivation_inputs import load_ict_register_graph
+from app.services._ict_register_lifecycle.policy import has_editable_process_record
 from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
 
 
@@ -72,11 +73,16 @@ async def serialize_vendor_reads(
         else set()
     )
     linked_risks_by_vendor_id = serialize_vendor_linked_risks(vendors, visible_risk_ids=visible_risk_ids)
+    can_manage_process_links = await has_editable_process_record(
+        db,
+        current_user=current_user,
+    )
     return [
         vendor_to_read(
             vendor,
             current_user=current_user,
             linked_risks=linked_risks_by_vendor_id.get(vendor.id, []),
+            can_manage_process_links=can_manage_process_links,
         )
         for vendor in vendors
     ]
@@ -100,6 +106,10 @@ async def serialize_vendor_list_items(
         else set()
     )
     linked_risks_by_vendor_id = serialize_vendor_linked_risks(vendors, visible_risk_ids=visible_risk_ids)
+    can_manage_process_links = await has_editable_process_record(
+        db,
+        current_user=current_user,
+    )
     return vendor_list_response(
         vendors=vendors,
         total=total,
@@ -108,6 +118,7 @@ async def serialize_vendor_list_items(
         current_user=current_user,
         linked_risks_by_vendor_id=linked_risks_by_vendor_id,
         capabilities=capabilities,
+        can_manage_process_links=can_manage_process_links,
     )
 
 
@@ -138,9 +149,17 @@ async def load_vendor_derived_blocks(
 
 
 def serialize_vendor_detail(
-    vendor: Vendor, *, current_user: User, derived: VendorDerived | None = None
+    vendor: Vendor,
+    *,
+    current_user: User,
+    derived: VendorDerived | None = None,
+    can_manage_process_links: bool = False,
 ) -> VendorRead:
-    read = vendor_to_read(vendor, current_user=current_user)
+    read = vendor_to_read(
+        vendor,
+        current_user=current_user,
+        can_manage_process_links=can_manage_process_links,
+    )
     if derived is None:
         return read
     return read.model_copy(update={"derived": derived})
@@ -150,4 +169,13 @@ async def serialize_vendor_detail_with_derived(
     db: AsyncSession, vendor: Vendor, *, current_user: User
 ) -> VendorRead:
     blocks = await load_vendor_derived_blocks(db, [vendor])
-    return serialize_vendor_detail(vendor, current_user=current_user, derived=blocks.get(vendor.id))
+    can_manage_process_links = await has_editable_process_record(
+        db,
+        current_user=current_user,
+    )
+    return serialize_vendor_detail(
+        vendor,
+        current_user=current_user,
+        derived=blocks.get(vendor.id),
+        can_manage_process_links=can_manage_process_links,
+    )

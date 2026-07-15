@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.vendors import crud as vendor_crud
 from app.core.user_query_options import user_selectinload_options
-from app.models import Department, Permission, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
+from app.models import Department, Permission, Process, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
 from app.models.user import AccessScope
 from app.schemas.vendor import VendorCreate, VendorUpdate
 from app.services._register_listings import vendors as vendor_listing
@@ -180,6 +180,10 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
     await _grant(db_session, test_role_employee, "controls", "read")
     await _grant(db_session, test_role_employee, "controls", "write")
     await _grant(db_session, test_role_employee, "issues", "write")
+    await _grant(db_session, test_role_employee, "assets", "read")
+    await _grant(db_session, test_role_employee, "assets", "write")
+    await _grant(db_session, test_role_employee, "processes", "read")
+    await _grant(db_session, test_role_employee, "processes", "write")
 
     vendor = Vendor(
         name="Inactive Mutation Vendor",
@@ -196,7 +200,14 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
         status="active",
         is_archived=True,
     )
-    db_session.add(vendor)
+    process = Process(
+        f_code="F-VENDOR-CAPABILITY",
+        l0_area="Operations",
+        l1_process="Editable Process for Vendor capability",
+        process_owner_user_id=test_user_employee.id,
+        owning_department_id=test_department.id,
+    )
+    db_session.add_all([vendor, process])
     await db_session.commit()
     await db_session.refresh(vendor)
 
@@ -214,6 +225,8 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
     assert capabilities["can_link_control"] is False
     assert capabilities["can_link_kri"] is False
     assert capabilities["can_create_issue"] is False
+    assert capabilities["can_manage_asset_links"] is False
+    assert capabilities["can_manage_process_links"] is False
     assert capabilities["can_restore"] is True
 
     restore_resp = await client_employee.post(f"/api/v1/vendors/{vendor.id}/restore")
@@ -221,6 +234,8 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
     restored_capabilities = restore_resp.json()["capabilities"]
     assert restored_capabilities["can_update"] is True
     assert restored_capabilities["can_create_issue"] is True
+    assert restored_capabilities["can_manage_asset_links"] is True
+    assert restored_capabilities["can_manage_process_links"] is True
 
 
 @pytest.mark.asyncio

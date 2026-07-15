@@ -178,7 +178,7 @@ export const notificationPreferencesSchema: z.ZodType<NotificationPreferences> =
 
 export const orphanedItemSchema: z.ZodType<OrphanedItem> = passthroughObject({
     id: z.number(),
-    item_type: z.enum(['risk', 'control', 'kri']),
+    item_type: z.enum(['risk', 'control', 'kri', 'threat', 'process']),
     item_id: z.number(),
     item_name: z.string(),
     item_description: z.string().nullable(),
@@ -202,6 +202,7 @@ export const orphanStatsSchema: z.ZodType<OrphanStats> = passthroughObject({
     control_count: z.number(),
     kri_count: z.number(),
     threat_count: z.number(),
+    process_count: z.number(),
     total_count: z.number(),
 });
 export const orphanedItemsOverviewSchema: z.ZodType<OrphanedItemsOverview> =

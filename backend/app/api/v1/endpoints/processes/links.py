@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api import deps
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
@@ -44,7 +45,7 @@ async def list_process_risk_links_route(
 async def list_process_vendor_links_route(
     process_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("processes", "read")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await list_process_vendor_links(db, process_id=process_id, current_user=current_user)
 
@@ -58,7 +59,7 @@ async def create_process_vendor_link(
     process_id: int,
     payload: ProcessVendorLinkCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("processes", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await add_process_vendor_link(
         db, process_id=process_id, payload=payload, current_user=current_user
@@ -70,7 +71,7 @@ async def delete_process_vendor_link(
     process_id: int,
     link_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("processes", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     await remove_process_vendor_link(db, process_id=process_id, link_id=link_id, current_user=current_user)
     return None

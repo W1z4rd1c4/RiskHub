@@ -61,6 +61,7 @@ from decimal import Decimal
 from app.services._ict_register_reference import (
     CANONICAL_PROVIDER_IDENTIFIER_TYPES,
     COUNTRY_CATEGORIES,
+    process_regulatory_value,
 )
 from app.services._ict_register_reference.parameters import (
     ICT_WORKBOOK_PARAMETERS_BY_NAME,
@@ -72,6 +73,8 @@ from .derivation import (
     UNKNOWN_LOOKUP,
     IctRegisterDerivation,
     IctRegisterGraph,
+    ProcessDerivation,
+    ProcessDerivationInput,
     process_display_name,
 )
 
@@ -398,6 +401,38 @@ class RoiProcessSupplement:
     licensed_activity: str | None = None
 
 
+def build_b0601_process_export_row(
+    process: ProcessDerivationInput,
+    supplement: RoiProcessSupplement,
+    derived: ProcessDerivation,
+    *,
+    entity_lei: str | None,
+) -> dict[str, object | None]:
+    """Build the production B_06.01 row using mandated regulatory values."""
+    licensed_activity = (
+        process_regulatory_value("licensed_activity", supplement.licensed_activity)
+        if supplement.licensed_activity is not None
+        else None
+    )
+    discontinuation_impact = (
+        process_regulatory_value("interruption_impact", process.interruption_impact)
+        if process.interruption_impact is not None
+        else None
+    )
+    return {
+        "function_identifier": supplement.f_code,
+        "licensed_activity": licensed_activity,
+        "function_name": process.l1_process,
+        "entity_lei": entity_lei,
+        "criticality_assessment": "Yes" if derived.cif == ANO else "No",
+        "criticality_reasons": None,
+        "last_assessment_date": process.assessment_date or date.max,
+        "rto_hours": process.rto_hours,
+        "rpo_hours": process.rpo_hours,
+        "discontinuation_impact": discontinuation_impact,
+    }
+
+
 @dataclass(frozen=True)
 class RoiVendorSupplement:
     latin_name: str | None = None
@@ -588,6 +623,7 @@ def derive_roi_readiness(
 ) -> RoiReadiness:
     """Compute per-template readiness over the gated row sets, on read."""
     lei_filled = _lei_is_filled(parameters)
+    entity_lei = parameters.value("P_LEI") if lei_filled else None
 
     processes_by_id = {row.id: row for row in graph.processes}
     vendors_by_id = {row.id: row for row in graph.vendors}
@@ -639,21 +675,31 @@ def derive_roi_readiness(
         rows: list[_TemplateRow] = []
         for row in graph.processes:
             extra = process_supplement(row.id)
+            derived = derivation.processes[row.id]
+            export_row = build_b0601_process_export_row(
+                row,
+                extra,
+                derived,
+                entity_lei=entity_lei if isinstance(entity_lei, str) else None,
+            )
             rows.append(
                 (
                     _RowAnchor("process", row.id, process_label(row.id), "process", row.id),
                     {
-                        "function_identifier": _filled(extra.f_code),
-                        "licensed_activity": _filled(extra.licensed_activity),
-                        "function_name": _filled(row.l1_process),
-                        "entity_lei": lei_filled,
-                        # Engine CIF is always Ano/Ne -> the flag always emits.
-                        "criticality_assessment": row.id in derivation.processes,
+                        "function_identifier": _filled(export_row["function_identifier"]),
+                        "licensed_activity": _filled(export_row["licensed_activity"]),
+                        "function_name": _filled(export_row["function_name"]),
+                        "entity_lei": _filled(export_row["entity_lei"]),
+                        "criticality_assessment": _filled(
+                            export_row["criticality_assessment"]
+                        ),
                         # Sentinel-backed '9999-12-31' when blank.
-                        "last_assessment_date": True,
-                        "rto_hours": row.rto_hours is not None,
-                        "rpo_hours": row.rpo_hours is not None,
-                        "discontinuation_impact": _filled(row.interruption_impact),
+                        "last_assessment_date": _filled(export_row["last_assessment_date"]),
+                        "rto_hours": export_row["rto_hours"] is not None,
+                        "rpo_hours": export_row["rpo_hours"] is not None,
+                        "discontinuation_impact": _filled(
+                            export_row["discontinuation_impact"]
+                        ),
                     },
                 )
             )

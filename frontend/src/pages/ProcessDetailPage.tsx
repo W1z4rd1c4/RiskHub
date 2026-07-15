@@ -4,6 +4,7 @@ import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-r
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
+import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
@@ -14,7 +15,16 @@ import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ProcessForm } from './processes/ProcessForm';
 import { ProcessVendorLinksSection } from './processes/ProcessVendorLinksSection';
-import { getProcessDisplayStatus } from './processes/processesPagePresentation';
+import {
+    getProcessDisplayStatus,
+    processDepartmentDisplayLabel,
+    processControlledValueLabel,
+    processDerivedCheckLabel,
+    processDerivedCifLabel,
+    processDerivedCriticalityLabel,
+    processOwnerContextDisplayLabel,
+    processOwnerDisplayLabel,
+} from './processes/processesPagePresentation';
 import { getProcessStatusColor } from './processes/processColumns';
 import { useProcessDetailState, type ProcessDetailMode } from './processes/useProcessDetailState';
 
@@ -41,7 +51,15 @@ function DetailField({
     );
 }
 
-function DerivedCheckField({ label, value }: { label: string; value: string | null | undefined }) {
+function DerivedCheckField({
+    code,
+    label,
+    value,
+}: {
+    code: string | null | undefined;
+    label: string;
+    value: string | null | undefined;
+}) {
     // Blank check (workbook: OR(rto="",mtpd="") guard) renders a neutral dash.
     if (value === null || value === undefined) {
         return (
@@ -51,7 +69,7 @@ function DerivedCheckField({ label, value }: { label: string; value: string | nu
             </div>
         );
     }
-    const isOk = value === 'OK';
+    const isOk = code === 'ok';
     return (
         <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
@@ -60,8 +78,44 @@ function DerivedCheckField({ label, value }: { label: string; value: string | nu
     );
 }
 
+function ProcessOwnershipAlert({
+    actionLabel,
+    message,
+    onResolve,
+    testId,
+}: {
+    actionLabel?: string;
+    message: string;
+    onResolve?: () => void;
+    testId?: string;
+}) {
+    return (
+        <div
+            role="alert"
+            data-testid={testId}
+            className="glass-card flex flex-col items-start gap-4 border border-amber-400/30 text-amber-200 sm:flex-row sm:justify-between"
+        >
+            <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                <p className="text-sm font-medium">{message}</p>
+            </div>
+            {onResolve ? (
+                <button
+                    type="button"
+                    onClick={onResolve}
+                    data-testid="process-orphan-governance"
+                    className="shrink-0 rounded-xl border border-amber-300/30 px-4 py-2 text-sm font-bold text-amber-100 transition-colors hover:bg-amber-300/10"
+                >
+                    {actionLabel}
+                </button>
+            ) : null}
+        </div>
+    );
+}
+
 export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     const navigate = useNavigate();
+    const authz = useAuthz();
     const { t } = useTranslation('processes');
     const { t: tCommon } = useTranslation('common');
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
@@ -78,6 +132,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         isLoading,
         process,
         restoreProcess,
+        setProcess,
     } = useProcessDetailState({ mode, notFoundMessage: t('errors.not_found') });
 
     const createGateState = useCreateCapabilityGate({
@@ -160,6 +215,36 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     }
 
     if (mode === 'edit') {
+        if (process.ownership_status === 'pending_governance') {
+            return (
+                <div className="space-y-8">
+                    <div className="flex items-start gap-3">
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/processes/${process.id}`)}
+                            aria-label={t('actions.back_to_register')}
+                            className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                        >
+                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                        <div>
+                            <h1 className="text-3xl font-bold text-white">{t('actions.edit')}</h1>
+                            <p className="text-slate-500 font-medium mt-1">{process.l1_process}</p>
+                        </div>
+                    </div>
+                    <ProcessOwnershipAlert
+                        actionLabel={t('actions.resolve_in_governance')}
+                        message={t(authz.canViewGovernance
+                            ? 'messages.owner_orphaned_governance'
+                            : 'messages.owner_orphaned_request')}
+                        onResolve={authz.canViewGovernance
+                            ? () => navigate('/governance?type=process')
+                            : undefined}
+                        testId="process-orphan-edit-blocked"
+                    />
+                </div>
+            );
+        }
         if (canEdit !== true) {
             return <FormCapabilityGateState state="denied" />;
         }
@@ -179,10 +264,25 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         <p className="text-slate-500 font-medium mt-1">{process.l1_process}</p>
                     </div>
                 </div>
+                {process.ownership_status === 'legacy_unassigned' ? (
+                    <ProcessOwnershipAlert message={t('messages.ownership_legacy_unassigned')} />
+                ) : null}
+                {process.ownership_status === 'invalid_assignment' ? (
+                    <ProcessOwnershipAlert message={t('messages.ownership_invalid_assignment')} />
+                ) : null}
                 <ProcessForm
-                    initialData={process}
+                    initialData={process.ownership_status === 'invalid_assignment'
+                        ? {
+                            ...process,
+                            process_owner_user_id: null,
+                            owning_department_id: null,
+                        }
+                        : process}
                     isEdit
-                    onSaved={(saved: Process) => navigate(`/processes/${saved.id}`)}
+                    onSaved={(saved: Process) => {
+                        setProcess(saved);
+                        void navigate(`/processes/${saved.id}`);
+                    }}
                     onCancel={() => navigate(`/processes/${process.id}`)}
                 />
             </div>
@@ -198,6 +298,23 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{actionError}</p>
                 </div>
+            ) : null}
+            {process.ownership_status === 'pending_governance' ? (
+                <ProcessOwnershipAlert
+                    actionLabel={t('actions.resolve_in_governance')}
+                    message={t(authz.canViewGovernance
+                        ? 'messages.owner_orphaned_governance'
+                        : 'messages.owner_orphaned_request')}
+                    onResolve={authz.canViewGovernance
+                        ? () => navigate('/governance?type=process')
+                        : undefined}
+                />
+            ) : null}
+            {process.ownership_status === 'legacy_unassigned' ? (
+                <ProcessOwnershipAlert message={t('messages.ownership_legacy_unassigned')} />
+            ) : null}
+            {process.ownership_status === 'invalid_assignment' ? (
+                <ProcessOwnershipAlert message={t('messages.ownership_invalid_assignment')} />
             ) : null}
 
             <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
@@ -239,7 +356,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             {t('actions.restore')}
                         </button>
                     )}
-                    {canEdit && (
+                    {canEdit && process.ownership_status !== 'pending_governance' && (
                         <button
                             type="button"
                             onClick={() => navigate(`/processes/${process.id}/edit`)}
@@ -269,9 +386,22 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     {t('form.sections.ownership')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <DetailField label={t('form.owner')} value={process.owner} />
-                    <DetailField label={t('form.owner_department')} value={process.owner_department} />
-                    <DetailField label={t('form.licensed_activity')} value={process.licensed_activity} />
+                    <DetailField
+                        label={t('form.owner')}
+                        value={processOwnerDisplayLabel(t, process)}
+                    />
+                    <DetailField
+                        label={t('form.owner_context')}
+                        value={processOwnerContextDisplayLabel(t, process)}
+                    />
+                    <DetailField
+                        label={t('form.owner_department')}
+                        value={processDepartmentDisplayLabel(t, process)}
+                    />
+                    <DetailField
+                        label={t('form.licensed_activity')}
+                        value={processControlledValueLabel(t, 'licensed_activity', process.licensed_activity)}
+                    />
                 </div>
             </div>
 
@@ -294,8 +424,14 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     {t('form.sections.criticality')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-                    <DetailField label={t('form.preliminary_criticality')} value={process.preliminary_criticality} />
-                    <DetailField label={t('form.cif_override')} value={process.cif_override} />
+                    <DetailField
+                        label={t('form.preliminary_criticality')}
+                        value={processControlledValueLabel(t, 'preliminary_criticality', process.preliminary_criticality)}
+                    />
+                    <DetailField
+                        label={t('form.cif_override')}
+                        value={processControlledValueLabel(t, 'cif_override', process.cif_override)}
+                    />
                 </div>
             </div>
 
@@ -314,11 +450,14 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
                                 {t('derived.criticality_class')}
                             </p>
-                            <CriticalityClassPill criticalityClass={process.derived.criticality_class} />
+                            <CriticalityClassPill
+                                criticalityClass={process.derived.criticality_class}
+                                displayValue={processDerivedCriticalityLabel(t, process.derived.criticality_class)}
+                            />
                         </div>
                         <DetailField
                             label={t('derived.cif')}
-                            value={process.derived.cif}
+                            value={processDerivedCifLabel(t, process.derived.cif)}
                             testId="process-derived-cif"
                         />
                         <DetailField
@@ -330,10 +469,15 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             }
                         />
                         <DerivedCheckField
+                            code={process.derived.rto_mtpd_check}
                             label={t('derived.rto_mtpd_check')}
-                            value={process.derived.rto_mtpd_check}
+                            value={processDerivedCheckLabel(t, process.derived.rto_mtpd_check)}
                         />
-                        <DerivedCheckField label={t('derived.bcm_check')} value={process.derived.bcm_check} />
+                        <DerivedCheckField
+                            code={process.derived.bcm_check}
+                            label={t('derived.bcm_check')}
+                            value={processDerivedCheckLabel(t, process.derived.bcm_check)}
+                        />
                         <DetailField label={t('derived.next_review_date')} value={process.derived.next_review_date} />
                         <DetailField label={t('derived.linked_asset_count')} value={process.derived.linked_asset_count} />
                         <DetailField
@@ -418,7 +562,11 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             />
                             <DetailField
                                 label={t('derived.inputs.cif_override')}
-                                value={process.derived.inputs.cif_override}
+                                value={processControlledValueLabel(
+                                    t,
+                                    'cif_override',
+                                    process.derived.inputs.cif_override,
+                                )}
                             />
                             <DetailField
                                 label={t('derived.inputs.missing')}
@@ -461,9 +609,15 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
                     <DetailField label={t('form.rto_hours')} value={process.rto_hours} />
                     <DetailField label={t('form.rpo_hours')} value={process.rpo_hours} />
-                    <DetailField label={t('form.bcm_link')} value={process.bcm_link} />
+                    <DetailField
+                        label={t('form.bcm_link')}
+                        value={processControlledValueLabel(t, 'bcm_link', process.bcm_link)}
+                    />
                     <DetailField label={t('form.last_dr_test_date')} value={process.last_dr_test_date} />
-                    <DetailField label={t('form.dr_test_result')} value={process.dr_test_result} />
+                    <DetailField
+                        label={t('form.dr_test_result')}
+                        value={processControlledValueLabel(t, 'dr_test_result', process.dr_test_result)}
+                    />
                 </div>
             </div>
 
@@ -472,7 +626,10 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     {t('form.sections.assessment')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-                    <DetailField label={t('form.interruption_impact')} value={process.interruption_impact} />
+                    <DetailField
+                        label={t('form.interruption_impact')}
+                        value={processControlledValueLabel(t, 'interruption_impact', process.interruption_impact)}
+                    />
                     <DetailField label={t('form.assessment_date')} value={process.assessment_date} />
                 </div>
                 {process.notes ? (

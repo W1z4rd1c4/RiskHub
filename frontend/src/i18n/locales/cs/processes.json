@@ -9,6 +9,7 @@
         "cancel": "Zrušit",
         "restore": "Obnovit",
         "retry": "Zkusit znovu",
+        "resolve_in_governance": "Vyřešit ve správě",
         "back_to_register": "Zpět na procesy"
     },
     "filters": {
@@ -43,6 +44,13 @@
         "l2_subprocess": "L2 podproces / varianta",
         "owner": "Vlastník procesu",
         "owner_department": "Vlastnický útvar",
+        "owner_context": "Útvar a role vlastníka",
+        "owner_placeholder": "Vyberte aktivního vlastníka procesu...",
+        "owner_search": "Hledat aktivní uživatele podle jména nebo e-mailu...",
+        "department_placeholder": "Vyberte aktivní vlastnický útvar...",
+        "department_search": "Hledat aktivní útvary...",
+        "owner_no_department": "Bez útvaru",
+        "owner_no_role": "Bez role",
         "impact_client": "Dopad na klienta (1–5)",
         "impact_market_operations": "Tržní / provozní dopad (1–5)",
         "impact_regulatory": "Regulatorní dopad (1–5)",
@@ -64,6 +72,8 @@
         "errors": {
             "l0_area_required": "L0 oblast je povinná.",
             "l1_process_required": "L1 proces je povinný.",
+            "process_owner_required": "Vlastník procesu je povinný.",
+            "owning_department_required": "Vlastnický útvar je povinný.",
             "save_failed": "Uložení procesu se nezdařilo.",
             "fix_fields": "Opravte prosím zvýrazněná pole.",
             "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."
@@ -85,6 +95,11 @@
         "completeness": "Hotovo?",
         "complete": "Hotovo",
         "incomplete": "Neúplné",
+        "checks": {
+            "ok": "V pořádku",
+            "rto_exceeds_mtpd": "Nedostatek: RTO překračuje MTPD",
+            "cif_without_bcm": "Nedostatek: CIF bez BCM"
+        },
         "inputs": {
             "title": "Proč — vstupy výpočtu",
             "impacts": "Dopadové osy (klient / trh / regulace / finance)",
@@ -110,7 +125,57 @@
         }
     },
     "messages": {
-        "archive_confirm": "Archivovat proces „{{processName}}“? Zůstane v historii registru a lze jej obnovit."
+        "archive_confirm": "Archivovat proces „{{processName}}“? Zůstane v historii registru a lze jej obnovit.",
+        "owner_orphaned_governance": "Vlastník tohoto procesu již není způsobilý. Obchodní úpravy jsou uzamčeny, dokud správa výslovně nepřiřadí nové vlastnictví.",
+        "owner_orphaned_request": "Vlastník tohoto procesu již není způsobilý. Před úpravou požádejte správce o nové přiřazení.",
+        "ownership_legacy_unassigned": "Tento starší předprodukční proces zatím nemá kanonického vlastníka ani útvar. Pro opravu přiřaďte obojí.",
+        "ownership_invalid_assignment": "Proces má neplatného vlastníka nebo útvar. Před uložením vyberte aktivní náhrady."
+    },
+    "values": {
+        "unknown": "Neznámá hodnota",
+        "preliminary_criticality": {
+            "low": "Nízká",
+            "medium": "Střední",
+            "high": "Vysoká",
+            "critical": "Kritická"
+        },
+        "cif_override": {
+            "yes": "Ano",
+            "no": "Ne"
+        },
+        "licensed_activity": {
+            "non_life_insurance": "Neživotní pojištění",
+            "support_functions": "Podpůrné funkce"
+        },
+        "bcm_link": {
+            "yes": "Ano",
+            "no": "Ne",
+            "not_assessed": "Neposouzeno",
+            "not_applicable": "Nerelevantní"
+        },
+        "dr_test_result": {
+            "successful": "Úspěšný",
+            "qualified": "S výhradami",
+            "unsuccessful": "Neúspěšný",
+            "not_tested": "Netestováno"
+        },
+        "interruption_impact": {
+            "low": "Nízký",
+            "medium": "Střední",
+            "high": "Vysoký",
+            "not_assessed": "Neposouzeno"
+        }
+    },
+    "ownership_display": {
+        "unknown_user": "Neznámý uživatel",
+        "unknown_department": "Neznámý útvar",
+        "owner_context_unknown": "Kontext vlastníka není dostupný",
+        "owner_legacy_unassigned": "Vlastník není přiřazen (starší záznam)",
+        "department_legacy_unassigned": "Útvar není přiřazen (starší záznam)",
+        "owner_pending_governance": "Vlastník čeká na vyřešení správou",
+        "department_pending_governance": "Útvar čeká na vyřešení správou",
+        "owner_invalid_assignment": "Neznámý uživatel (neplatné přiřazení)",
+        "department_invalid_assignment": "Neznámý útvar (neplatné přiřazení)"
     },
     "empty": {
         "no_processes": "V registru zatím nejsou žádné procesy.",

@@ -1,8 +1,8 @@
 /**
  * ICT Register — Process register E2E (issues #42 + #48, deterministic fixtures).
  *
- * Asserts CURRENT behavior: entered 03_Procesy fields round-trip through
- * the UI, closed lists come verbatim from the workbook reference registry,
+ * Asserts CURRENT behavior: canonical Process relationships and controlled
+ * values round-trip through the UI with localized presentation,
  * and the ENGINE-DERIVED values (score, criticality class, CIF — ticket #48)
  * render read-only on the register and the detail, never as inputs.
  */
@@ -17,8 +17,15 @@ import {
 import { waitForDataLoad } from './helpers/wait';
 import { ProcessesPage } from './pages/ProcessesPage';
 
-// TridyKrit — verbatim workbook closed list (docs/dora-ict-register spec section 3.1).
-const TRIDY_KRIT = ['Nízká', 'Střední', 'Vysoká', 'Kritická'];
+// Canonical stored codes are presented through the active UI locale, never as
+// raw `low` / `medium` / `high` / `critical` values.
+const CRITICALITY_LABELS = {
+    low: /^(Low|Nízká)$/,
+    medium: /^(Medium|Střední)$/,
+    high: /^(High|Vysoká)$/,
+    critical: /^(Critical|Kritická)$/,
+} as const;
+const CIF_YES_LABEL = /^(Yes|Ano)$/;
 // Skala15 — verbatim workbook closed list.
 const SKALA_15 = ['1', '2', '3', '4', '5'];
 
@@ -37,7 +44,7 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId('processes-create-button')).toBeVisible();
     });
 
-    test('Employee sees the register read-only: no create, edit, or archive actions', async ({ employeePage }) => {
+    test('Process owner can edit their record but cannot create or archive Processes', async ({ employeePage }) => {
         await employeePage.goto('/');
         await expect(employeePage.locator('nav a[href="/processes"]')).toBeVisible();
 
@@ -49,7 +56,10 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
 
         await processesPage.openRowByText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
         await expect(employeePage.getByTestId('process-detail-back')).toBeVisible();
-        await expect(employeePage.getByTestId('process-detail-edit')).toHaveCount(0);
+        // Jana is the seeded Process owner: record-specific edit is granted by
+        // backend capabilities even though the base Employee role has no
+        // register-wide Process write permission.
+        await expect(employeePage.getByTestId('process-detail-edit')).toBeVisible();
         await expect(employeePage.getByTestId('process-detail-archive')).toHaveCount(0);
     });
 
@@ -67,19 +77,19 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await expect(processesPage.rowByText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process)).toBeVisible();
         await expect(processesPage.rowByText(E2E_PROCESSES.REGULATORY_REPORTING.l1_process)).toBeVisible();
         await expect(processesPage.rowByText(E2E_PROCESSES.PORTAL_SUPPORT.l1_process)).toBeVisible();
-        // Ticket #48: the register shows the ENGINE-derived class, verbatim
-        // Czech. E2E-PROC-003 is seeded with impacts 2/2/5/4 + MTPD 72h:
-        // score 13 + default bonus 1 = 14 -> Vysoká — the live score WINS over
-        // its entered preliminary class "Kritická".
+        // Ticket #48: the register localizes the ENGINE-derived canonical
+        // class. E2E-PROC-003 is seeded with impacts 2/2/5/4 + MTPD 72h:
+        // score 13 + default bonus 1 = 14 -> high; the live score WINS over
+        // its entered preliminary class `critical`.
         const reportingRow = processesPage.rowByText(E2E_PROCESSES.REGULATORY_REPORTING.l1_process);
-        await expect(reportingRow.getByText('Vysoká', { exact: true })).toBeVisible();
-        // Its derived CIF is Ano: the seeded override "Ano" takes precedence
+        await expect(reportingRow.getByText(CRITICALITY_LABELS.high)).toBeVisible();
+        // Its derived CIF is yes: the seeded override takes precedence
         // (and the regulatory axis at 5 would trigger it anyway).
-        await expect(reportingRow.getByText('Ano', { exact: true })).toBeVisible();
+        await expect(reportingRow.getByText(CIF_YES_LABEL)).toBeVisible();
         // E2E-PROC-001 (impacts 4/3/4/3 + MTPD 24h -> 14 + bonus 3 = 17) bands
-        // Kritická from the live score.
+        // to the canonical `critical` class and localizes it.
         const claimsRow = processesPage.rowByText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
-        await expect(claimsRow.getByText('Kritická', { exact: true })).toBeVisible();
+        await expect(claimsRow.getByText(CRITICALITY_LABELS.critical)).toBeVisible();
     });
 
     test('Search narrows the register to the matching seeded row', async ({ riskManagerPage }) => {
@@ -113,14 +123,14 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await processesPage.createButton.click();
         await riskManagerPage.waitForURL(/.*processes\/new$/);
 
-        // Criticality class dropdown carries the TridyKrit workbook list verbatim.
+        // The dropdown presents all four canonical codes through the active locale.
         await riskManagerPage.getByTestId('process-form-preliminary-criticality').click();
         const criticalityOptions = riskManagerPage.getByRole('option');
-        await expect(criticalityOptions).toHaveCount(TRIDY_KRIT.length + 1); // + "Not set"
-        for (const value of TRIDY_KRIT) {
-            await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
+        await expect(criticalityOptions).toHaveCount(Object.keys(CRITICALITY_LABELS).length + 1); // + "Not set"
+        for (const label of Object.values(CRITICALITY_LABELS)) {
+            await expect(riskManagerPage.getByRole('option', { name: label })).toBeVisible();
         }
-        await riskManagerPage.getByRole('option', { name: 'Vysoká', exact: true }).click();
+        await riskManagerPage.getByRole('option', { name: CRITICALITY_LABELS.high }).click();
 
         // Impact dimension dropdown carries Skala15 verbatim (1–5 only).
         await riskManagerPage.getByTestId('process-form-impact-client').click();
@@ -130,6 +140,9 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await riskManagerPage.getByTestId('process-form-l0-area').fill('E2E Claims');
         await riskManagerPage.getByTestId('process-form-l1-process').fill(uniqueName);
         await riskManagerPage.getByTestId('process-form-l2-subprocess').fill('UI create flow');
+        await riskManagerPage.getByTestId('process-form-owner').click();
+        await riskManagerPage.getByRole('option', { name: /Jana Horáková.*ops\.analyst@riskhub\.local/ }).click();
+        await expect(riskManagerPage.getByTestId('process-form-owner-department')).toContainText('Operations');
         await riskManagerPage.getByTestId('process-form-submit').click();
 
         await riskManagerPage.waitForURL(/.*processes\/\d+$/);
@@ -137,11 +150,34 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await expect(riskManagerPage.locator('main h1').first()).toContainText(uniqueName);
         // Server-assigned stable F-code (F{id}), never entered by hand.
         await expect(riskManagerPage.getByText(/^F\d+$/).first()).toBeVisible();
-        await expect(riskManagerPage.getByText('Vysoká', { exact: true }).first()).toBeVisible();
+        await expect(riskManagerPage.getByText(CRITICALITY_LABELS.high).first()).toBeVisible();
 
         const created = await getProcessByL1(uniqueName);
         expect(created).not.toBeNull();
         expect(created!.f_code).toMatch(/^F\d+$/);
+    });
+
+    test('Process Owner auto-fills only an empty Department and permits a cross-Department assignment', async ({ riskManagerPage }) => {
+        const uniqueName = `E2E-PROC-XDEPT ${Date.now()}`;
+        await riskManagerPage.goto('/processes/new');
+        await waitForDataLoad(riskManagerPage);
+
+        await riskManagerPage.getByTestId('process-form-l0-area').fill('E2E Cross Department');
+        await riskManagerPage.getByTestId('process-form-l1-process').fill(uniqueName);
+        await riskManagerPage.getByTestId('process-form-owner').click();
+        await riskManagerPage.getByRole('option', { name: /Barbora Němcová.*it\.analyst@riskhub\.local/ }).click();
+        await expect(riskManagerPage.getByTestId('process-form-owner-department')).toContainText('IT');
+
+        await riskManagerPage.getByTestId('process-form-owner-department').click();
+        await riskManagerPage.getByRole('option', { name: /Operations.*OPS/ }).click();
+        await riskManagerPage.getByTestId('process-form-submit').click();
+
+        await riskManagerPage.waitForURL(/.*processes\/\d+$/);
+        await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage.getByText('Barbora Němcová', { exact: true })).toBeVisible();
+        await expect(riskManagerPage.getByText(/IT · employee/i)).toBeVisible();
+        await expect(riskManagerPage.getByText('it.analyst@riskhub.local', { exact: true })).toHaveCount(0);
+        await expect(riskManagerPage.getByText('Operations (OPS)')).toBeVisible();
     });
 
     test('Whitespace-only identity fields surface the required-field validation error', async ({ riskManagerPage }) => {
@@ -203,7 +239,11 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await expect(riskManagerPage.locator('main h1').first()).toContainText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
         await expect(riskManagerPage.getByText(seeded!.f_code, { exact: true })).toBeVisible();
         await expect(riskManagerPage.getByText(E2E_PROCESSES.CLAIMS_INTAKE.l0_area).first()).toBeVisible();
-        await expect(riskManagerPage.getByText('Vysoká', { exact: true }).first()).toBeVisible();
+        await expect(riskManagerPage.getByText('Jana Horáková', { exact: true })).toBeVisible();
+        await expect(riskManagerPage.getByText(/Operations · employee/i)).toBeVisible();
+        await expect(riskManagerPage.getByText('ops.analyst@riskhub.local', { exact: true })).toHaveCount(0);
+        await expect(riskManagerPage.getByText('Operations (OPS)')).toBeVisible();
+        await expect(riskManagerPage.getByText(CRITICALITY_LABELS.high).first()).toBeVisible();
         // Ticket #48: the engine-derived block renders read-only on the detail.
         // E2E-PROC-001 is seeded with impacts 4/3/4/3 and MTPD 24h: score
         // 14 + MTPD bonus 3 (24h <= P_MTPDStr) = 17 -> Kritická (>= 16); the
@@ -211,25 +251,25 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         const derivedSection = riskManagerPage.getByTestId('process-derived-section');
         await expect(derivedSection).toBeVisible();
         await expect(derivedSection.getByTestId('process-derived-score')).toHaveText('17');
-        await expect(derivedSection.getByText('Kritická', { exact: true })).toBeVisible();
+        await expect(derivedSection.getByText(CRITICALITY_LABELS.critical)).toBeVisible();
         // CIF Ano: the seeded override "Ano" takes precedence (the Kritická
         // class would trigger it anyway).
-        await expect(derivedSection.getByTestId('process-derived-cif')).toHaveText('Ano');
+        await expect(derivedSection.getByTestId('process-derived-cif')).toHaveText(CIF_YES_LABEL);
     });
 
     test('Edit round-trip persists entered field changes', async ({ riskManagerPage }) => {
         const created = await createProcessViaApi({
             l0_area: 'E2E Claims',
             l1_process: `E2E-PROC-EDIT ${Date.now()}`,
-            owner: 'Original Owner',
         });
 
         await riskManagerPage.goto(`/processes/${created.id}/edit`);
         await waitForDataLoad(riskManagerPage);
 
-        await riskManagerPage.getByTestId('process-form-owner').fill('E2E Edited Owner');
+        await riskManagerPage.getByTestId('process-form-owner').click();
+        await riskManagerPage.getByRole('option', { name: /Lukáš Dvořák.*fin\.analyst@riskhub\.local/ }).click();
         await riskManagerPage.getByTestId('process-form-preliminary-criticality').click();
-        await riskManagerPage.getByRole('option', { name: 'Střední', exact: true }).click();
+        await riskManagerPage.getByRole('option', { name: CRITICALITY_LABELS.medium }).click();
         await riskManagerPage.getByTestId('process-form-submit').click();
 
         await riskManagerPage.waitForURL(new RegExp(`/processes/${created.id}$`));
@@ -237,8 +277,12 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         // 30s (DETAIL_QUERY_STALE_TIME_MS); a fresh document proves persistence.
         await riskManagerPage.goto(`/processes/${created.id}`);
         await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.getByText('E2E Edited Owner', { exact: true })).toBeVisible();
-        await expect(riskManagerPage.getByText('Střední', { exact: true }).first()).toBeVisible();
+        await expect(riskManagerPage.getByText('Lukáš Dvořák', { exact: true })).toBeVisible();
+        await expect(riskManagerPage.getByText(/Finance · employee/i)).toBeVisible();
+        await expect(riskManagerPage.getByText('fin.analyst@riskhub.local', { exact: true })).toHaveCount(0);
+        // Changing the owner does not overwrite an already-selected Department.
+        await expect(riskManagerPage.getByText('Operations (OPS)')).toBeVisible();
+        await expect(riskManagerPage.getByText(CRITICALITY_LABELS.medium).first()).toBeVisible();
         // The stable F-code survives the edit untouched.
         await expect(riskManagerPage.getByText(created.f_code, { exact: true })).toBeVisible();
     });

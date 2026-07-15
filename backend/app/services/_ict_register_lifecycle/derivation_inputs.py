@@ -108,8 +108,10 @@ def process_derivation_input(process: Process) -> ProcessDerivationInput:
         id=process.id,
         l1_process=process.l1_process,
         l2_subprocess=process.l2_subprocess,
-        owner=process.owner,
-        owner_department=process.owner_department,
+        owner="assigned" if process.process_owner_user_id is not None else None,
+        owner_department=(
+            "assigned" if process.owning_department_id is not None else None
+        ),
         impact_client=process.impact_client,
         impact_market_operations=process.impact_market_operations,
         impact_regulatory=process.impact_regulatory,

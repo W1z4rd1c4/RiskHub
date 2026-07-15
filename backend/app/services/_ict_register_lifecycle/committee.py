@@ -526,7 +526,7 @@ def derive_ict_register_committee(
         cif_with_bcm_count=sum(
             1
             for pid, d in derivation.processes.items()
-            if d.cif == ANO and d.inputs.bcm_link == ANO
+            if d.cif == ANO and d.inputs.bcm_link == "yes"
         ),
         # A35 — the exit set here is Schválen/Testován ONLY (sheets_out.py:917-925).
         critical_vendor_count=len(critical_vendor_ids),

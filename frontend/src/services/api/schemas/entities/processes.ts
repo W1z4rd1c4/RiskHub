@@ -13,6 +13,21 @@ export const processListCapabilitiesSchema = passthroughObject({
     can_create: z.boolean().optional(),
 });
 
+export const processOwnerReadSchema = passthroughObject({
+    name: z.string(),
+    email: z.string(),
+    role_name: z.string(),
+    department_name: z.string().nullable().optional(),
+});
+
+export const processDepartmentReadSchema = passthroughObject({
+    name: z.string(),
+    code: z.string(),
+});
+
+const processCriticalityCodeSchema = z.enum(['low', 'medium', 'high', 'critical']);
+const processCifCodeSchema = z.enum(['yes', 'no']);
+
 // Engine-derived block (ticket #48): read-only values computed on read, with
 // the explain inputs that produced them.
 export const processDerivedInputsSchema = passthroughObject({
@@ -27,14 +42,14 @@ export const processDerivedInputsSchema = passthroughObject({
     threshold_medium_score: z.number(),
     mtpd_critical_hours: z.number(),
     mtpd_medium_hours: z.number(),
-    preliminary_criticality: z.string().nullable().optional(),
+    preliminary_criticality: processCriticalityCodeSchema.nullable().optional(),
     criticality_class_source: z.string(),
-    cif_override: z.string().nullable().optional(),
+    cif_override: processCifCodeSchema.nullable().optional(),
     cif_class_critical: z.boolean(),
     cif_mtpd_within_critical: z.boolean(),
     cif_any_impact_maximal: z.boolean(),
     rto_hours: z.number().nullable().optional(),
-    bcm_link: z.string().nullable().optional(),
+    bcm_link: z.enum(['yes', 'no', 'not_assessed', 'not_applicable']).nullable().optional(),
     assessment_date: z.string().nullable().optional(),
     missing_for_completeness: z.array(z.string()),
     manual_vendor_link_count: z.number(),
@@ -45,8 +60,8 @@ export const processDerivedInputsSchema = passthroughObject({
 export const processTransitiveVendorLinkSchema = passthroughObject({
     process_id: z.number(),
     process_name: z.string(),
-    process_cif: z.string().nullable().optional(),
-    process_criticality: z.string().nullable().optional(),
+    process_cif: processCifCodeSchema.nullable().optional(),
+    process_criticality: processCriticalityCodeSchema.nullable().optional(),
     vendor_id: z.number(),
     vendor_name: z.string(),
     via_asset_id: z.number(),
@@ -55,10 +70,10 @@ export const processTransitiveVendorLinkSchema = passthroughObject({
 
 export const processDerivedSchema = passthroughObject({
     criticality_score: z.number().nullable().optional(),
-    criticality_class: z.string().nullable().optional(),
-    cif: z.string(),
-    rto_mtpd_check: z.string().nullable().optional(),
-    bcm_check: z.string(),
+    criticality_class: processCriticalityCodeSchema.nullable().optional(),
+    cif: processCifCodeSchema,
+    rto_mtpd_check: z.enum(['ok', 'rto_exceeds_mtpd']).nullable().optional(),
+    bcm_check: z.enum(['ok', 'cif_without_bcm']),
     next_review_date: z.string().nullable().optional(),
     linked_asset_count: z.number(),
     linked_vendor_count: z.number(),
@@ -76,8 +91,17 @@ export const processSchema: z.ZodType<Process> = passthroughObject({
     l1_process: z.string(),
     l2_subprocess: z.string().nullable().optional(),
 
-    owner: z.string().nullable().optional(),
-    owner_department: z.string().nullable().optional(),
+    process_owner_user_id: z.number().nullable().optional(),
+    process_owner: processOwnerReadSchema.nullable().optional(),
+    owning_department_id: z.number().nullable().optional(),
+    owning_department: processDepartmentReadSchema.nullable().optional(),
+    owner_orphaned: z.boolean(),
+    ownership_status: z.enum([
+        'assigned',
+        'legacy_unassigned',
+        'pending_governance',
+        'invalid_assignment',
+    ]),
 
     impact_client: z.number().nullable().optional(),
     impact_market_operations: z.number().nullable().optional(),

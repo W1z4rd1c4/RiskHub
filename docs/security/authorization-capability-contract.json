@@ -1,6 +1,6 @@
 {
  "version": "1.0",
- "last_reviewed": "2026-07-14",
+ "last_reviewed": "2026-07-15",
  "last_architecture_refactor_reviewed": "2026-05-17",
  "architecture_refactor_notes": [
   "2026-05-03: Collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
@@ -28,7 +28,8 @@
   "2026-05-26: Issue assignment now suppresses duplicate no-op assignment outbox events and derives assignment event idempotency from persisted activity identity. issues:write, issue scope, assignable-owner checks, REST shape, and capability semantics are unchanged.",
   "2026-07-02: Policy tightening from the business-logic audit. Issue exceptions: requesters can no longer approve their own exception requests (403), exception requests and approvals are denied on closed issues (409), expired exceptions can no longer be revoked (409), and can_approve_exception excludes the requester and closed issues. Vendor links: link creation rejects archived risk/control/KRI targets (409) while unlink remains available for cleanup. KRI history corrections now emit their value-change activity record inside apply_history_correction so the privileged direct path is audited like the approval path. Live register listings, snapshot metrics, and summary exports exclude archived rows (including KRIs of archived parent risks per ADR-005 amendment). Risks/vendors listings reject unknown sort_by values (400). Capability field shapes are unchanged.",
   "2026-07-02: Architecture-batch remediation. The _issue_register/_issue_workflow pair migrated raise HTTPException to the ADR-003 domain taxonomy (ValidationError/AuthorizationError/NotFoundError/ConflictError) with detail strings and status codes preserved verbatim, locked by a new per-pair AST ban (test_w4_bc_h_issue_pair_boundaries_red.py). Frontend strict-capability mode gained a deny-all fail-safe: strict mode with missing me_capabilities now denies capability-gated surfaces instead of reverting to the permissive legacy adapter, and a legacy-vs-strict parity test (authzParity.test.ts) pins rule equivalence ahead of the rollout flip. Password hashing moved from unmaintained passlib[bcrypt] to pwdlib with bcrypt hashes verifying unchanged. Architecture-only: the scheduler compat facade and four service re-export shims were collapsed into their runtime/package homes with registry-driven tombstones; authorization policy and capability field shapes are otherwise unchanged.",
-  "2026-07-14: DORA remediation added semantic committee drill-down filters, shared ICT-register lifecycle and list-state adapters, RoI readiness normalization, and serialized sub-outsourcing validation. Filtered register queries retain canonical row visibility; route guards, mutation authority, and capability field shapes are unchanged."
+  "2026-07-14: DORA remediation added semantic committee drill-down filters, shared ICT-register lifecycle and list-state adapters, RoI readiness normalization, and serialized sub-outsourcing validation. Filtered register queries retain canonical row visibility; route guards, mutation authority, and capability field shapes are unchanged.",
+  "2026-07-15: Vendor detail responses added can_manage_asset_links and can_manage_process_links. Both flags require an active visible Vendor; Process-link management additionally requires existence of at least one Process editable under the caller's canonical row policy without exposing Process rows. Link-row delete capabilities require the managing register end to remain active while preserving cleanup of an archived visible Vendor target. Frontend controls prefer these backend flags and retain local permission checks only when capability metadata is absent."
  ],
  "owner": "RiskHub Maintainer",
  "capability_catalog": "docs/security/capability-catalog.json",
@@ -555,13 +556,14 @@
    "actor_scope": "Requires vendors:write/delete or vendor-owner exception; edit and link mutations require an active visible vendor and visible target entity; link creation additionally rejects archived risk/control/KRI targets (unlink stays available for cleanup); inactive vendors can only be restored when authorized",
    "backend_authority": "backend/app/api/v1/endpoints/vendors/ and backend/app/api/v1/endpoints/vendor_links.py",
    "service_policy": "backend/app/services/_vendor_workflow/policy.py and backend/app/services/_vendor_links/ own shared link/unlink workflow; backend/app/services/_vendor_governance/links.py owns vendor link authorization and mutation helpers; backend/app/services/_vendor_governance/lifecycle.py and policy.py own create/update/archive/restore authorization outcomes while preserving vendor owner exceptions and inactive-vendor rejection",
-   "response_capability": "backend/app/schemas/vendor.py VendorCapabilities.can_update, can_archive, can_restore, can_link_risk, can_link_control, can_link_kri, can_create_linked_risk, can_create_linked_control, can_create_linked_kri, and can_create_issue",
-   "frontend_gate": "frontend/src/pages/vendors/, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/VendorDetailPage.tsx, frontend/src/pages/shared/useCreateCapabilityGate.ts, and vendor detail tabs use backend capabilities; direct create/edit routes load collection/detail capability metadata before rendering forms",
+   "response_capability": "backend/app/schemas/vendor.py VendorCapabilities.can_update, can_archive, can_restore, can_link_risk, can_link_control, can_link_kri, can_create_linked_risk, can_create_linked_control, can_create_linked_kri, can_create_issue, can_manage_asset_links, and can_manage_process_links",
+   "frontend_gate": "frontend/src/pages/vendors/, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/VendorDetailPage.tsx, frontend/src/pages/shared/useCreateCapabilityGate.ts, and vendor detail tabs use backend capabilities; VendorRegisterLinksSection prefers the two backend register-link flags and uses local permission checks only when capability metadata is absent",
    "tests": [
     "tests/backend/pytest/test_vendor_links.py",
     "tests/backend/pytest/test_vendors.py",
     "tests/frontend/unit/src/pages/__tests__/DirectFormCapabilityGates.test.tsx",
     "tests/frontend/unit/src/pages/__tests__/VendorDetailPage.presentation.test.ts",
+    "tests/frontend/unit/src/pages/__tests__/VendorRegisterLinks.capabilities.test.tsx",
     "tests/backend/pytest/test_vendor_link_workflow_module.py"
    ],
    "status": "authoritative",
@@ -571,12 +573,13 @@
    "id": "AUTHZ-PROCESSES-READ",
    "surface": "ICT Register",
    "action": "Read Process register listings and details",
-   "actor_scope": "Requires processes:read — the standard business-entity read granted to business roles alongside vendors:read; Processes carry no per-row ownership or department scope; platform admins hold no business permissions and are denied",
+   "actor_scope": "Process Owner receives record-specific read even without general Process access; processes:read holders are restricted by canonical Department scope unless globally scoped; Owning Department Heads read their Department's Processes; platform admins hold no business permissions and are denied",
    "backend_authority": "backend/app/api/v1/endpoints/processes/ GET routes under /api/v1/processes",
-   "service_policy": "backend/app/services/_ict_register_lifecycle/policy.py asserts read authorization; backend/app/services/_ict_register_lifecycle/lifecycle.py owns register listing; backend/app/services/_ict_register_lifecycle/projection.py with backend/app/services/_authorization_capabilities/processes.py owns capability projection",
-   "response_capability": "backend/app/schemas/process.py ProcessCapabilities on ProcessRead and ProcessListCapabilities on ProcessListResponse",
-   "frontend_gate": "frontend/src/routing/business.tsx uses a processes:read navigation projection; frontend/src/pages/ProcessesPage.tsx and frontend/src/pages/ProcessDetailPage.tsx render backend read authority and deny on backend 403",
+   "service_policy": "backend/app/services/_ict_register_lifecycle/policy.py owns the owner/Department visibility clause and anti-enumerating detail read; backend/app/services/_ict_register_lifecycle/lifecycle.py owns register listing; backend/app/services/_ict_register_lifecycle/projection.py with backend/app/services/_authorization_capabilities/processes.py owns capability projection",
+   "response_capability": "backend/app/schemas/process.py ProcessCapabilities on ProcessRead and ProcessListCapabilities on ProcessListResponse; safe owner/Department projections never use raw IDs as labels",
+   "frontend_gate": "frontend/src/routing/business.tsx uses a processes:read navigation projection; frontend/src/pages/ProcessesPage.tsx and frontend/src/pages/ProcessDetailPage.tsx render backend row capabilities and deny/clear on backend 403",
    "tests": [
+    "tests/backend/pytest/test_ict_register_process_ownership.py",
     "tests/backend/pytest/test_ict_register_processes.py",
     "tests/frontend/unit/src/authz/useAuthz.invariant.test.ts",
     "tests/frontend/unit/src/pages/__tests__/ProcessesPage.presentation.test.ts"
@@ -588,14 +591,17 @@
    "id": "AUTHZ-PROCESSES-WRITE",
    "surface": "ICT Register",
    "action": "Create, update, archive, and restore Processes",
-   "actor_scope": "Requires processes:write for create/update and processes:delete for archive/restore; the RBAC seed grants maintenance to risk_manager with the CRO wildcard applying; the server-assigned F-code and derived fields are rejected on write; archived Processes reject edits until restored",
-   "backend_authority": "backend/app/api/v1/endpoints/processes/ POST, PATCH, DELETE, and restore routes under /api/v1/processes",
-   "service_policy": "backend/app/services/_ict_register_lifecycle/lifecycle.py owns service transaction boundaries and audit facts; backend/app/services/_ict_register_lifecycle/policy.py asserts write and archive authorization; the docstring-only package marker backend/app/services/_ict_register_lifecycle/__init__.py holds no policy of its own; closed-list enforcement comes from backend/app/services/_ict_register_reference/ through backend/app/schemas/process.py",
+   "actor_scope": "Create requires processes:write plus an active Process Owner and active Owning Department; an active row may be updated by processes:write, its Process Owner, or its Owning Department Head; archive/restore still require processes:delete and are never granted by ownership; ownership is record-specific and does not expose linked records; pending orphan governance locks ordinary edits",
+   "backend_authority": "backend/app/api/v1/endpoints/processes/ POST, PATCH, DELETE, restore, and purpose-scoped Process owner/Department lookup routes",
+   "service_policy": "backend/app/services/_ict_register_lifecycle/lifecycle.py owns service transactions, active assignment validation, audit, and orphan-edit conflicts; backend/app/services/_ict_register_lifecycle/policy.py owns row authorization; backend/app/services/_ict_register_lifecycle/__init__.py is the package marker; identity lifecycle and orphan services preserve former ownership and require explicit reassignment; canonical codes come from backend/app/services/_ict_register_reference/process_values.py",
    "response_capability": "backend/app/schemas/process.py ProcessCapabilities.can_update, can_archive, can_restore and ProcessListCapabilities.can_create",
-   "frontend_gate": "frontend/src/pages/ProcessesPage.tsx, frontend/src/pages/ProcessDetailPage.tsx, and frontend/src/pages/processes/ gate create, edit, archive, and restore actions on backend capabilities",
+   "frontend_gate": "frontend/src/pages/ProcessesPage.tsx, frontend/src/pages/ProcessDetailPage.tsx, and frontend/src/pages/processes/ use backend capabilities; ProcessForm uses active remote owner/Department lookup, empty-only Department auto-fill, and localized canonical values",
    "tests": [
-    "tests/backend/pytest/test_ict_register_processes.py",
-    "tests/frontend/unit/src/pages/__tests__/ProcessesPage.presentation.test.ts"
+    "tests/backend/pytest/test_ict_register_process_ownership.py",
+    "tests/backend/pytest/test_process_schema_contract.py",
+    "tests/backend/pytest/test_ict_register_process_import_and_seed.py",
+    "tests/frontend/unit/src/pages/processes/__tests__/ProcessForm.a11y-validation.test.tsx",
+    "tests/frontend/e2e/processes.spec.ts"
    ],
    "status": "authoritative",
    "findings": []
@@ -701,16 +707,18 @@
    "id": "AUTHZ-REGISTER-VENDOR-LINKS-READ",
    "surface": "ICT Register",
    "action": "Read the Asset-Vendor and Process-Vendor Link relations from all three ends (Asset, Process, and Vendor detail)",
-   "actor_scope": "Requires BOTH ends' read permissions per link type — assets:read plus vendors:read for Asset-Vendor rows and processes:read plus vendors:read for Process-Vendor rows; the Vendor-end reads additionally follow the parent Vendor's row visibility (department scope or outsourcing ownership); link rows carry no per-row ownership of their own; register-end link rows embed the counterpart Vendor's display name server-side — the contextual name-only exposure documented in the ICT Register read-model visibility notes below this matrix; platform admins hold no business permissions and are denied",
+   "actor_scope": "Asset-Vendor reads require assets:read plus vendors:read. Process-Vendor reads apply the canonical Process row policy instead of requiring processes:read categorically: the assigned Process Owner has record-specific access; processes:read holders see Processes in canonical Owning Department scope, including Owning Department Heads, while globally scoped holders see all Process rows. Vendor authority remains independent: the caller also needs vendors:read and each Vendor counterpart must pass canonical Vendor row visibility (Department scope or outsourcing ownership). Process-end collections filter unreadable Vendors without leaking names; Vendor-end collections first require a visible parent Vendor and then filter Process rows through canonical Process visibility. Link rows carry no ownership of their own; platform admins hold no business permissions and are denied",
    "backend_authority": "backend/app/api/v1/endpoints/assets/links.py GET /api/v1/assets/{asset_id}/vendor-links, backend/app/api/v1/endpoints/processes/links.py GET /api/v1/processes/{process_id}/vendor-links, and backend/app/api/v1/endpoints/vendors/links.py GET /api/v1/vendors/{vendor_id}/asset-links and process-links",
-   "service_policy": "backend/app/services/_ict_register_lifecycle/vendor_links.py asserts the dual-permission reads and parent-Vendor visibility and owns the collection reads; backend/app/services/_authorization_capabilities/register_vendor_links.py owns per-row capability projection",
-   "response_capability": "backend/app/schemas/asset.py AssetVendorLinkCapabilities.can_delete and backend/app/schemas/process.py ProcessVendorLinkCapabilities.can_delete ride every link row",
-   "frontend_gate": "frontend/src/pages/assets/AssetLinkSections.tsx, frontend/src/pages/processes/ProcessVendorLinksSection.tsx, and frontend/src/pages/vendors/VendorRegisterLinksSection.tsx render the link sections behind the read permissions and deny on backend 403",
+   "service_policy": "backend/app/services/_ict_register_lifecycle/vendor_links.py composes canonical Process row policy from backend/app/services/_ict_register_lifecycle/policy.py with independent Vendor visibility from backend/app/core/permissions.py and owns the collection reads; backend/app/services/_authorization_capabilities/register_vendor_links.py owns per-row capability projection",
+   "response_capability": "backend/app/schemas/asset.py AssetVendorLinkCapabilities.can_delete and backend/app/schemas/process.py ProcessVendorLinkCapabilities.can_delete ride every link row; VendorCapabilities.can_manage_asset_links and can_manage_process_links govern Vendor-end add controls",
+   "frontend_gate": "frontend/src/pages/assets/AssetLinkSections.tsx, frontend/src/pages/processes/ProcessVendorLinksSection.tsx, and frontend/src/pages/vendors/VendorRegisterLinksSection.tsx render the link sections behind backend read authority",
    "tests": [
     "tests/backend/pytest/test_ict_register_vendor_links.py",
+    "tests/backend/pytest/test_ict_register_process_ownership.py",
     "tests/frontend/unit/src/pages/__tests__/AssetVendorLinks.presentation.test.ts",
     "tests/frontend/unit/src/pages/__tests__/ProcessVendorLinks.presentation.test.ts",
-    "tests/frontend/unit/src/pages/__tests__/VendorRegisterLinks.presentation.test.ts"
+    "tests/frontend/unit/src/pages/__tests__/VendorRegisterLinks.presentation.test.ts",
+    "tests/frontend/unit/src/pages/__tests__/VendorRegisterLinks.capabilities.test.tsx"
    ],
    "status": "authoritative",
    "findings": []
@@ -719,16 +727,18 @@
    "id": "AUTHZ-REGISTER-VENDOR-LINKS-WRITE",
    "surface": "ICT Register",
    "action": "Create and remove Asset-Vendor links (each typed by an S01-S19 ICT service S-code) and the manual Process-Vendor links",
-   "actor_scope": "Mutations require the REGISTER end's write permission — assets:write for Asset-Vendor and processes:write for Process-Vendor — on top of both ends' read permissions; the RBAC seed grants maintenance to risk_manager with the CRO wildcard applying; the (asset, vendor, S-code) tuple and the (process, vendor) pair are unique; coded link columns are enforced against the workbook closed lists (RoleDodavatele, Reliance) and the S01-S19 taxonomy; creating a link whose Asset, Process, or Vendor end is archived conflicts until restored, while unlinking an archived Vendor target from an active register end stays possible",
+   "actor_scope": "Asset-Vendor mutations retain assets:write plus both-end read authority. Process-Vendor mutations require a readable active Process and canonical row update authority: processes:write, the assigned Process Owner, or the Owning Department Head for that Process; globally scoped permitted actors retain their permission-based authority. Vendor authority remains independent: vendors:read and canonical Vendor row visibility are required for the counterpart, and link creation requires an active Vendor. A pending Process ownership orphan locks ordinary Process-Vendor create and remove until Governance reassignment resolves it. Per-row unlink capability requires the managing register end to remain active and authorized; an archived visible Vendor remains removable as a cleanup target. Each identity tuple remains unique and archived register ends reject mutations",
    "backend_authority": "backend/app/api/v1/endpoints/assets/links.py POST and DELETE /api/v1/assets/{asset_id}/vendor-links routes and backend/app/api/v1/endpoints/processes/links.py POST and DELETE /api/v1/processes/{process_id}/vendor-links routes",
-   "service_policy": "backend/app/services/_ict_register_lifecycle/vendor_links.py owns service transaction boundaries, audit facts, tuple uniqueness, and the archived-end conflicts; closed-list and S-code enforcement comes from backend/app/services/_ict_register_reference/ through backend/app/schemas/asset.py and backend/app/schemas/process.py",
-   "response_capability": "backend/app/schemas/asset.py AssetVendorLinkCapabilities.can_delete and backend/app/schemas/process.py ProcessVendorLinkCapabilities.can_delete",
-   "frontend_gate": "frontend/src/pages/assets/AssetLinkSections.tsx, frontend/src/pages/processes/ProcessVendorLinksSection.tsx, and frontend/src/pages/vendors/VendorRegisterLinksSection.tsx gate add and remove actions on backend per-row capabilities",
+   "service_policy": "backend/app/services/_ict_register_lifecycle/vendor_links.py composes backend/app/services/_ict_register_lifecycle/policy.py Process row update and ordinary-mutation/orphan checks with independent Vendor visibility, and owns service transactions, audit facts, tuple uniqueness, and archived-end conflicts; backend/app/services/_authorization_capabilities/register_vendor_links.py projects row-policy-aware delete flags; closed-list and S-code enforcement comes from backend/app/services/_ict_register_reference/ through backend/app/schemas/asset.py and backend/app/schemas/process.py",
+   "response_capability": "backend/app/schemas/asset.py AssetVendorLinkCapabilities.can_delete, backend/app/schemas/process.py ProcessVendorLinkCapabilities.can_delete, and backend/app/schemas/vendor.py VendorCapabilities.can_manage_asset_links and can_manage_process_links",
+   "frontend_gate": "frontend/src/pages/assets/AssetLinkSections.tsx, frontend/src/pages/processes/ProcessVendorLinksSection.tsx, and frontend/src/pages/vendors/VendorRegisterLinksSection.tsx gate add and remove actions on backend capabilities; VendorRegisterLinksSection uses resolveCapabilityFlag with local authorization only as a compatibility fallback when metadata is absent",
    "tests": [
     "tests/backend/pytest/test_ict_register_vendor_links.py",
+    "tests/backend/pytest/test_ict_register_process_ownership.py",
     "tests/frontend/unit/src/pages/__tests__/AssetVendorLinks.presentation.test.ts",
     "tests/frontend/unit/src/pages/__tests__/ProcessVendorLinks.presentation.test.ts",
-    "tests/frontend/unit/src/pages/__tests__/VendorRegisterLinks.presentation.test.ts"
+    "tests/frontend/unit/src/pages/__tests__/VendorRegisterLinks.presentation.test.ts",
+    "tests/frontend/unit/src/pages/__tests__/VendorRegisterLinks.capabilities.test.tsx"
    ],
    "status": "authoritative",
    "findings": []

@@ -358,7 +358,10 @@ export function VendorOverviewTab({
             ) : null}
 
             <div id="vendor-register-links">
-                <VendorRegisterLinksSection vendorId={vendor.id} />
+                <VendorRegisterLinksSection
+                    vendorId={vendor.id}
+                    capabilities={vendor.capabilities}
+                />
             </div>
 
             <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">

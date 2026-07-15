@@ -55,6 +55,7 @@ from app.services._ict_register_lifecycle.roi_readiness import (
     RoiRegisterSupplement,
     RoiSubOutsourcingSupplement,
     RoiVendorSupplement,
+    build_b0601_process_export_row,
     derive_roi_readiness,
 )
 from app.services._ict_register_reference.parameters import (
@@ -72,9 +73,12 @@ REAL_LEI = "315700FFGL2JGHVWJC12"
 
 def parameter_set(**overrides: IctParameterValue) -> IctWorkbookParameterSet:
     """The verbatim workbook parameter set (spec section 6), with overrides."""
-    values: dict[str, IctParameterValue] = {p.name: p.default for p in ICT_WORKBOOK_PARAMETERS}
+    values: dict[str, IctParameterValue] = {
+        p.name: p.default for p in ICT_WORKBOOK_PARAMETERS
+    }
     values.update(overrides)
     return IctWorkbookParameterSet(version=str(values["P_Verze"]), values=values)
+
 
 # ---------------------------------------------------------------------------
 # 1. Template registry integrity — the addendum is the source of truth.
@@ -103,7 +107,10 @@ TEMPLATES_BY_CODE = {template.code: template for template in ROI_TEMPLATE_REGIST
 
 
 def test_registry_carries_the_fifteen_annex_templates_in_annex_order():
-    assert tuple(template.code for template in ROI_TEMPLATE_REGISTRY) == ANNEX_TEMPLATE_CODES
+    assert (
+        tuple(template.code for template in ROI_TEMPLATE_REGISTRY)
+        == ANNEX_TEMPLATE_CODES
+    )
 
 
 def test_registry_names_are_bilingual_and_official():
@@ -115,7 +122,9 @@ def test_registry_names_are_bilingual_and_official():
     b0502 = TEMPLATES_BY_CODE["B_05.02"]
     assert b0502.name_en == "ICT service supply chains"
     assert b0502.name_cs == "Dodavatelský řetězec"
-    assert all(template.name_en and template.name_cs for template in ROI_TEMPLATE_REGISTRY)
+    assert all(
+        template.name_en and template.name_cs for template in ROI_TEMPLATE_REGISTRY
+    )
 
 
 def test_b_06_01_field_codes_are_the_post_corrigendum_contiguous_table():
@@ -170,7 +179,14 @@ def test_documentary_templates_match_the_workbook_disposition():
         for template in ROI_TEMPLATE_REGISTRY
         if template.coverage == ROI_COVERAGE_DOCUMENTARY
     }
-    assert documentary == {"B_01.01", "B_01.02", "B_01.03", "B_02.03", "B_03.03", "B_99.01"}
+    assert documentary == {
+        "B_01.01",
+        "B_01.02",
+        "B_01.03",
+        "B_02.03",
+        "B_03.03",
+        "B_99.01",
+    }
     for code in documentary:
         assert TEMPLATES_BY_CODE[code].fields == ()
         assert TEMPLATES_BY_CODE[code].gate == ROI_GATE_DOCUMENTARY
@@ -215,7 +231,9 @@ def test_coverage_flags_are_honest_per_template():
         "B_07.01": ROI_COVERAGE_PARTIAL,
         "B_99.01": ROI_COVERAGE_DOCUMENTARY,
     }
-    assert {template.code: template.coverage for template in ROI_TEMPLATE_REGISTRY} == expected
+    assert {
+        template.code: template.coverage for template in ROI_TEMPLATE_REGISTRY
+    } == expected
 
 
 def test_field_keys_are_unique_within_each_template():
@@ -281,7 +299,7 @@ def _process(pid: int, **overrides: object) -> ProcessDerivationInput:
         "mtpd_hours": 48,
         "rto_hours": 24,
         "rpo_hours": 4,
-        "interruption_impact": "Střední",
+        "interruption_impact": "medium",
         "assessment_date": date(2026, 1, 15),
     }
     defaults.update(overrides)
@@ -321,8 +339,27 @@ def _filled_vendor(vid: int, **overrides: object) -> VendorDerivationInput:
 
 
 PROCESS_SUPPLEMENT = RoiProcessSupplement(
-    f_code="F1", licensed_activity="Pojišťovací činnost"
+    f_code="F1", licensed_activity="non_life_insurance"
 )
+
+
+def test_b0601_export_row_maps_canonical_codes_to_regulatory_english():
+    process = _process(1, interruption_impact="not_assessed", cif_override="yes")
+    derivation = derive_ict_register(
+        IctRegisterGraph(processes=(process,)),
+        parameter_set(),
+    )
+
+    row = build_b0601_process_export_row(
+        process,
+        RoiProcessSupplement(f_code="F1", licensed_activity="support_functions"),
+        derivation.processes[1],
+        entity_lei=REAL_LEI,
+    )
+
+    assert row["licensed_activity"] == "support functions"
+    assert row["discontinuation_impact"] == "Assessment not performed"
+    assert row["criticality_assessment"] == "Yes"
 
 
 def test_b_06_01_percentage_and_gaps_hand_worked():
@@ -418,7 +455,10 @@ def test_roi_scope_gate_feeds_only_ano_contracts_to_the_arrangement_templates():
         vendors=(_filled_vendor(1),),
         asset_vendor_links=(
             AssetVendorLinkInput(
-                asset_id=1, vendor_id=1, ict_service_code="S02", contract_reference="SML-2"
+                asset_id=1,
+                vendor_id=1,
+                ict_service_code="S02",
+                contract_reference="SML-2",
             ),
         ),
         contracts=(
@@ -430,8 +470,12 @@ def test_roi_scope_gate_feeds_only_ano_contracts_to_the_arrangement_templates():
                 roi_scope="Ano",
                 start_date=date(2020, 1, 1),
             ),
-            VendorContractInput(id=2, vendor_id=1, contract_reference="SML-2", roi_scope="Ne"),
-            VendorContractInput(id=3, vendor_id=1, contract_reference="SML-3", roi_scope=None),
+            VendorContractInput(
+                id=2, vendor_id=1, contract_reference="SML-2", roi_scope="Ne"
+            ),
+            VendorContractInput(
+                id=3, vendor_id=1, contract_reference="SML-3", roi_scope=None
+            ),
         ),
     )
     by_code = readiness_by_code(run_readiness(graph))
@@ -475,7 +519,11 @@ def test_b_02_01_gaps_name_the_missing_monetary_fields():
     supplied = run_readiness(
         graph,
         supplement=RoiRegisterSupplement(
-            contracts={1: RoiContractSupplement(annual_cost=Decimal("120000.00"), currency="CZK")}
+            contracts={
+                1: RoiContractSupplement(
+                    annual_cost=Decimal("120000.00"), currency="CZK"
+                )
+            }
         ),
     )
     assert readiness_by_code(supplied)["B_02.01"].readiness_pct == 100.0
@@ -498,10 +546,16 @@ def test_b_02_02_cif_gated_fields_required_only_for_cif_links():
         vendors=(_filled_vendor(1),),
         asset_vendor_links=(
             AssetVendorLinkInput(
-                asset_id=1, vendor_id=1, ict_service_code="S02", contract_reference="SML-1"
+                asset_id=1,
+                vendor_id=1,
+                ict_service_code="S02",
+                contract_reference="SML-1",
             ),
             AssetVendorLinkInput(
-                asset_id=2, vendor_id=1, ict_service_code="S02", contract_reference="SML-1"
+                asset_id=2,
+                vendor_id=1,
+                ict_service_code="S02",
+                contract_reference="SML-1",
             ),
         ),
         contracts=(
@@ -571,7 +625,10 @@ def test_b_02_02_function_identifier_requires_a_designated_primary_process():
         vendors=(_filled_vendor(1),),
         asset_vendor_links=(
             AssetVendorLinkInput(
-                asset_id=1, vendor_id=1, ict_service_code="S02", contract_reference="SML-1"
+                asset_id=1,
+                vendor_id=1,
+                ict_service_code="S02",
+                contract_reference="SML-1",
             ),
         ),
         contracts=(
@@ -602,18 +659,31 @@ def test_b_05_02_supply_chain_rows_rank_one_links_plus_sub_outsourcing_chain():
         vendors=(_filled_vendor(1),),
         asset_vendor_links=(
             AssetVendorLinkInput(
-                asset_id=1, vendor_id=1, ict_service_code="S19", contract_reference="SML-1"
+                asset_id=1,
+                vendor_id=1,
+                ict_service_code="S19",
+                contract_reference="SML-1",
             ),
         ),
         contracts=(
             VendorContractInput(
-                id=1, vendor_id=1, contract_reference="SML-1", main_contract="Ano", roi_scope="Ano"
+                id=1,
+                vendor_id=1,
+                contract_reference="SML-1",
+                main_contract="Ano",
+                roi_scope="Ano",
             ),
         ),
         sub_outsourcing=(
-            SubOutsourcingInput(id=1, vendor_id=1, contract_id=1, sub_provider_name="Sub A"),
             SubOutsourcingInput(
-                id=2, vendor_id=1, contract_id=1, predecessor_id=99, sub_provider_name="Sub B"
+                id=1, vendor_id=1, contract_id=1, sub_provider_name="Sub A"
+            ),
+            SubOutsourcingInput(
+                id=2,
+                vendor_id=1,
+                contract_id=1,
+                predecessor_id=99,
+                sub_provider_name="Sub B",
             ),
         ),
     )
@@ -668,15 +738,19 @@ def test_provider_identifier_legality_applies_to_b_02_02_and_b_05_02():
 
     result = run_readiness(graph)
 
-    assert [missing.key for missing in readiness_by_code(result)["B_02.02"].gap_rows[0].missing] == [
+    assert [
+        missing.key
+        for missing in readiness_by_code(result)["B_02.02"].gap_rows[0].missing
+    ] == [
         "provider_identification_code",
         "provider_identification_type",
         "function_identifier",
         "start_date",
     ]
-    assert [missing.key for missing in readiness_by_code(result)["B_05.02"].gap_rows[0].missing] == [
-        "provider_identification_code"
-    ]
+    assert [
+        missing.key
+        for missing in readiness_by_code(result)["B_05.02"].gap_rows[0].missing
+    ] == ["provider_identification_code"]
 
 
 def test_b_05_02_sub_provider_identifier_requires_legal_type_and_country():
@@ -684,7 +758,9 @@ def test_b_05_02_sub_provider_identifier_requires_legal_type_and_country():
         vendors=(_filled_vendor(1),),
         contracts=(VendorContractInput(id=1, vendor_id=1, contract_reference="SML-1"),),
         sub_outsourcing=(
-            SubOutsourcingInput(id=1, vendor_id=1, contract_id=1, sub_provider_name="Sub A"),
+            SubOutsourcingInput(
+                id=1, vendor_id=1, contract_id=1, sub_provider_name="Sub A"
+            ),
         ),
     )
     result = run_readiness(
@@ -711,7 +787,9 @@ def test_b_05_02_accepts_business_individual_sub_provider_identifier():
         vendors=(_filled_vendor(1),),
         contracts=(VendorContractInput(id=1, vendor_id=1, contract_reference="SML-1"),),
         sub_outsourcing=(
-            SubOutsourcingInput(id=1, vendor_id=1, contract_id=1, sub_provider_name="Jan Novák"),
+            SubOutsourcingInput(
+                id=1, vendor_id=1, contract_id=1, sub_provider_name="Jan Novák"
+            ),
         ),
     )
 
@@ -739,7 +817,10 @@ def test_b_07_01_reads_the_vendor_assessment_block_per_link():
         vendors=(_filled_vendor(1, exit_plan_state=None),),
         asset_vendor_links=(
             AssetVendorLinkInput(
-                asset_id=1, vendor_id=1, ict_service_code="S02", contract_reference="SML-1"
+                asset_id=1,
+                vendor_id=1,
+                ict_service_code="S02",
+                contract_reference="SML-1",
             ),
         ),
     )
@@ -778,7 +859,9 @@ def test_b_05_01_vendor_master_data_gaps():
     graph = IctRegisterGraph(vendors=(_filled_vendor(1), _vendor(2)))
     result = run_readiness(
         graph,
-        supplement=RoiRegisterSupplement(vendors={1: RoiVendorSupplement(latin_name="Dodavatel 1")}),
+        supplement=RoiRegisterSupplement(
+            vendors={1: RoiVendorSupplement(latin_name="Dodavatel 1")}
+        ),
     )
     b0501 = readiness_by_code(result)["B_05.01"]
 
@@ -848,9 +931,12 @@ def test_b_05_01_identifier_pair_obeys_person_and_country_rules(
     b0501 = readiness_by_code(result)["B_05.01"]
 
     assert b0501.readiness_pct == (100.0 if ready else 66.7)
-    assert b0501.gap_rows == () if ready else [
-        missing.key for missing in b0501.gap_rows[0].missing
-    ] == ["provider_identification_code", "provider_identification_type"]
+    assert (
+        b0501.gap_rows == ()
+        if ready
+        else [missing.key for missing in b0501.gap_rows[0].missing]
+        == ["provider_identification_code", "provider_identification_type"]
+    )
 
 
 def test_fully_populated_register_reaches_one_hundred_percent_overall():
@@ -874,7 +960,9 @@ def test_fully_populated_register_reaches_one_hundred_percent_overall():
         supplement=RoiRegisterSupplement(
             processes={1: PROCESS_SUPPLEMENT},
             vendors={1: RoiVendorSupplement(latin_name="Dodavatel 1")},
-            contracts={1: RoiContractSupplement(annual_cost=Decimal("1"), currency="CZK")},
+            contracts={
+                1: RoiContractSupplement(annual_cost=Decimal("1"), currency="CZK")
+            },
         ),
     )
 
@@ -939,7 +1027,10 @@ def _lei_probe_graph() -> IctRegisterGraph:
         vendors=(_filled_vendor(1),),
         asset_vendor_links=(
             AssetVendorLinkInput(
-                asset_id=1, vendor_id=1, ict_service_code="S02", contract_reference="SML-1"
+                asset_id=1,
+                vendor_id=1,
+                ict_service_code="S02",
+                contract_reference="SML-1",
             ),
         ),
         contracts=(
@@ -990,7 +1081,9 @@ def test_replacing_the_placeholder_lei_fills_the_field_and_lifts_readiness():
     graph = _lei_probe_graph()
     supplement = RoiRegisterSupplement(processes={1: PROCESS_SUPPLEMENT})
 
-    placeholder = run_readiness(graph, supplement=supplement, parameters=parameter_set())
+    placeholder = run_readiness(
+        graph, supplement=supplement, parameters=parameter_set()
+    )
     filled = run_readiness(
         graph, supplement=supplement, parameters=parameter_set(P_LEI=REAL_LEI)
     )
@@ -1033,11 +1126,15 @@ def test_roi_gap_labels_never_synthesize_raw_ids_for_absent_business_labels():
         vendors=(_vendor(1, name="Dodavatel 1"), _vendor(2, name=None)),
         contracts=(
             # B_02.01/B_03.01/B_03.02/B_04.01 — RoI-scope contract, no reference.
-            VendorContractInput(id=1, vendor_id=1, contract_reference=None, roi_scope="Ano"),
+            VendorContractInput(
+                id=1, vendor_id=1, contract_reference=None, roi_scope="Ano"
+            ),
         ),
         sub_outsourcing=(
             # B_05.02 — sub-outsourcing entry with no provider name.
-            SubOutsourcingInput(id=1, vendor_id=1, contract_id=1, sub_provider_name=None),
+            SubOutsourcingInput(
+                id=1, vendor_id=1, contract_id=1, sub_provider_name=None
+            ),
         ),
     )
     labels = [

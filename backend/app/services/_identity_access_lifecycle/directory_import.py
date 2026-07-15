@@ -20,6 +20,7 @@ from app.services._directory_identity import (
 from app.services._directory_identity import (
     resolve_safe_default_role as resolve_directory_safe_default_role,
 )
+from app.services._process_owner_lock import acquire_process_owner_identity_lock
 from app.services._threat_stewardship_lock import acquire_threat_steward_identity_lock
 from app.services.ad_deprovision_service import ADDeprovisionService
 
@@ -101,6 +102,8 @@ async def import_directory_identity(
     )
     if changes_existing_steward_identity:
         await acquire_threat_steward_identity_lock(db, user_id=user.id)
+        if not directory_user.account_enabled:
+            await acquire_process_owner_identity_lock(db, user_id=user.id)
         user = (
             await db.execute(
                 select(User)

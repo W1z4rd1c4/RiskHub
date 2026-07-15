@@ -11,7 +11,7 @@ class OrphanedItemRead(BaseModel):
     """Schema for reading orphaned item records."""
 
     id: int
-    item_type: str  # "risk" | "control" | "kri" | "threat"
+    item_type: str  # "risk" | "control" | "kri" | "threat" | "process"
     item_id: int
     previous_owner_id: int
     previous_owner_name: Optional[str] = None
@@ -53,12 +53,13 @@ class OrphanedItemResolve(BaseModel):
 
 
 class OrphanedItemStats(BaseModel):
-    """Statistics about orphaned items for the 4-bar layout."""
+    """Statistics about orphaned items for the governance overview."""
 
     risk_count: int
     control_count: int
     kri_count: int
     threat_count: int
+    process_count: int
     total_count: int
 
 
@@ -80,6 +81,6 @@ class OrphanedItemsOverview(BaseModel):
 class OrphanedItemCreateInternal(BaseModel):
     """Internal schema for creating orphaned item records."""
 
-    item_type: Literal["risk", "control", "kri", "threat"]
+    item_type: Literal["risk", "control", "kri", "threat", "process"]
     item_id: int
     previous_owner_id: int
