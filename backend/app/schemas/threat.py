@@ -15,10 +15,12 @@ link row's ``can_delete`` capability is computed per serialization surface.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, computed_field, field_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
-from app.services._ict_register_reference import is_closed_list_value
+from app.services._ict_register_reference import THREAT_CATEGORY_CODES
 
 
 class ThreatWriteValidators(BaseModel):
@@ -29,13 +31,14 @@ class ThreatWriteValidators(BaseModel):
     @field_validator("category", check_fields=False)
     @classmethod
     def _validate_category(cls, value: str | None) -> str | None:
-        if value is not None and not is_closed_list_value("KategorieHrozeb", value):
-            raise ValueError("Value must come from the workbook closed list KategorieHrozeb")
+        if value is not None and value not in THREAT_CATEGORY_CODES:
+            raise ValueError("Value must be a canonical Threat category code")
         return value
 
 
 class ThreatBase(ThreatWriteValidators):
     name: str = Field(..., min_length=1, max_length=255)
+    threat_steward_user_id: int = Field(..., ge=1)
     category: str | None = Field(None, max_length=50)
     description: str | None = None
     typical_weaknesses: str | None = None
@@ -49,6 +52,7 @@ class ThreatCreate(ThreatBase):
 
 class ThreatUpdate(ThreatWriteValidators):
     name: str | None = Field(None, min_length=1, max_length=255)
+    threat_steward_user_id: int | None = Field(None, ge=1)
     category: str | None = Field(None, max_length=50)
     description: str | None = None
     typical_weaknesses: str | None = None
@@ -63,8 +67,26 @@ class ThreatCapabilities(BaseModel):
     can_restore: bool
 
 
+class ThreatStewardRead(BaseModel):
+    """Safe display projection; intentionally excludes the database user id."""
+
+    name: str
+    email: str
+    role_name: str
+    department_name: str | None = None
+
+
 class ThreatRead(BaseModel):
     id: int
+    threat_steward_user_id: int | None = None
+    threat_steward: ThreatStewardRead | None = None
+    steward_orphaned: bool = False
+    stewardship_status: Literal[
+        "assigned",
+        "legacy_unassigned",
+        "pending_governance",
+        "invalid_assignment",
+    ] = "assigned"
 
     name: str
     category: str | None = None

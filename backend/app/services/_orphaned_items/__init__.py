@@ -3,7 +3,7 @@
 Public callable surface is exposed via this package's module-level imports.
 """
 
-from .flagging import flag_orphaned_items, scan_uncategorised_items
+from .flagging import flag_orphaned_items, flag_orphaned_threats, scan_uncategorised_items
 from .reads import (
     get_orphan_detail,
     get_pending_orphans,
@@ -14,6 +14,7 @@ from .stats import get_orphan_stats
 
 __all__ = [
     "flag_orphaned_items",
+    "flag_orphaned_threats",
     "get_orphan_detail",
     "get_orphan_stats",
     "get_pending_orphans",

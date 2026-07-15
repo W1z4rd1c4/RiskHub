@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VendorForm } from '@/components/VendorForm';
 
-const getUsersMock = vi.fn();
+const getVendorOwnersMock = vi.fn();
 const getDepartmentsMock = vi.fn();
 const getVendorsMock = vi.fn();
 const createVendorMock = vi.fn();
@@ -30,7 +30,7 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getUsers: (...args: unknown[]) => getUsersMock(...args),
+        getVendorOwners: (...args: unknown[]) => getVendorOwnersMock(...args),
         getDepartments: (...args: unknown[]) => getDepartmentsMock(...args),
     },
 }));
@@ -84,7 +84,7 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 describe('VendorForm', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        getUsersMock.mockResolvedValue([
+        getVendorOwnersMock.mockResolvedValue([
             {
                 id: 7,
                 name: 'Owner User',
@@ -141,7 +141,7 @@ describe('VendorForm', () => {
         const onSaved = vi.fn();
         renderWithQueryClient(<VendorForm onSaved={onSaved} onCancel={vi.fn()} />);
 
-        await waitFor(() => expect(getUsersMock).toHaveBeenCalled());
+        await waitFor(() => expect(getVendorOwnersMock).toHaveBeenCalledWith({ limit: 200 }));
 
         fireEvent.change(screen.getByPlaceholderText('form.name_placeholder'), {
             target: { value: 'New Vendor' },

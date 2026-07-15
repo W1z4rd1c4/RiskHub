@@ -13,6 +13,7 @@ from app.services._directory_identity import has_auto_deprovision_reason
 ADMIN_PRIVILEGED_ROLES: set[RoleType] = {RoleType.ADMIN, RoleType.CRO}
 PLATFORM_ADMIN_FIELDS = {"name", "email"}
 BUSINESS_ACCESS_FIELDS = {"department_id", "manager_id", "access_scope"}
+LIFECYCLE_FIELDS = {"is_active"}
 
 
 def is_platform_admin(user: User) -> bool:
@@ -52,7 +53,12 @@ def access_user_capabilities(current_user: User, target_user: User) -> AccessUse
 
 
 async def _get_role_or_400(db: AsyncSession, role_id: int) -> Role:
-    role_result = await db.execute(select(Role).where(Role.id == role_id))
+    role_result = await db.execute(
+        select(Role).where(
+            Role.id == role_id,
+            Role.is_active.is_(True),
+        )
+    )
     role = role_result.scalar_one_or_none()
     if not role:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role_id")
@@ -71,6 +77,7 @@ async def authorize_access_update_fields(
 
     platform_update = {field: value for field, value in update_data.items() if field in PLATFORM_ADMIN_FIELDS}
     business_update = {field: value for field, value in update_data.items() if field in BUSINESS_ACCESS_FIELDS}
+    lifecycle_update = {field: value for field, value in update_data.items() if field in LIFECYCLE_FIELDS}
     new_role: Role | None = None
 
     if platform_update and not is_platform_admin(current_user):
@@ -83,6 +90,12 @@ async def authorize_access_update_fields(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only CRO can update user business access fields",
+        )
+
+    if lifecycle_update and not is_platform_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Admin can change user active status",
         )
 
     if "role_id" not in update_data or update_data["role_id"] == target_user.role_id:

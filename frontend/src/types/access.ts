@@ -65,6 +65,7 @@ export interface AccessUserUpdate {
     department_id?: number | null;
     manager_id?: number | null;
     access_scope?: AccessScopeEnum;
+    is_active?: boolean;
 }
 
 export interface AccessUserFilters {

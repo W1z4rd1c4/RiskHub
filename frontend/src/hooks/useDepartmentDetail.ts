@@ -1,9 +1,9 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 
 import { isForbiddenApiError } from '@/services/apiClient';
+import { accessApi } from '@/services/accessApi';
 import { departmentApi, type DepartmentDetail } from '@/services/departmentApi';
 import { logError } from '@/services/logger';
-import { userApi } from '@/services/userApi';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator, KRIMonitoringStatus } from '@/types/kri';
@@ -119,6 +119,7 @@ function statusForOwner<T>(state: ScopedTabState<T>, departmentId: number | unde
 interface UseDepartmentDetailParams {
     departmentId: number | undefined;
     activeTab: TabView;
+    canViewUsers: boolean;
     riskFilter: 'all' | 'high';
     kriFilter: 'all' | KRIMonitoringStatus;
     riskPage: number;
@@ -151,6 +152,7 @@ interface UseDepartmentDetailResult {
 export function useDepartmentDetail({
     departmentId,
     activeTab,
+    canViewUsers,
     riskFilter,
     kriFilter,
     riskPage,
@@ -303,17 +305,23 @@ export function useDepartmentDetail({
     }, [departmentId, activeTab, kriFilter, kriPage, refreshNonce]);
 
     useEffect(() => {
-        if (!departmentId || activeTab !== 'users') return;
+        if (!departmentId || activeTab !== 'users' || !canViewUsers) return;
         const requestId = nextRequestId();
         let cancelled = false;
         dispatchUsers({ type: 'start', ownerId: departmentId, requestId });
-        userApi.listVisibleUsers({
-            department_id: departmentId,
-            skip: (userPage - 1) * DEPARTMENT_PAGE_SIZE,
-            limit: DEPARTMENT_PAGE_SIZE,
-        })
+        accessApi.listDepartmentAccessUsers(departmentId)
             .then((data) => {
-                if (!cancelled) dispatchUsers({ type: 'success', ownerId: departmentId, requestId, data });
+                if (!cancelled) {
+                    const offset = (userPage - 1) * DEPARTMENT_PAGE_SIZE;
+                    const users = data.slice(offset, offset + DEPARTMENT_PAGE_SIZE).map((user) => ({
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        role_name: user.role.name,
+                        department_id: user.department_id,
+                    }));
+                    dispatchUsers({ type: 'success', ownerId: departmentId, requestId, data: users });
+                }
             })
             .catch((error: unknown) => {
                 if (!cancelled) {
@@ -324,7 +332,7 @@ export function useDepartmentDetail({
         return () => {
             cancelled = true;
         };
-    }, [departmentId, activeTab, userPage, refreshNonce]);
+    }, [departmentId, activeTab, canViewUsers, userPage, refreshNonce]);
 
     const departmentOutcome = dataForOwner(departmentResource, departmentId, EMPTY_DEPARTMENT);
     const risks = dataForOwner(risksResource, departmentId, []);

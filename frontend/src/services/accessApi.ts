@@ -39,8 +39,11 @@ export const accessApi = {
      * List users in current user's department with access info.
      * Available to department heads and privileged users.
      */
-    async listDepartmentAccessUsers(): Promise<AccessUserRead[]> {
-        return apiClient.get('/access/users/my-department', { schema: accessUserReadArraySchema });
+    async listDepartmentAccessUsers(departmentId?: number): Promise<AccessUserRead[]> {
+        return apiClient.get('/access/users/my-department', {
+            params: departmentId === undefined ? undefined : { department_id: departmentId },
+            schema: accessUserReadArraySchema,
+        });
     },
 
     /**

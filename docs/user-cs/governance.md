@@ -1,10 +1,10 @@
 ---
 title: Governance: orphaned položky a hygiena ownership
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-15"
 audience: user
 source_of_truth: "frontend/src/pages/GovernancePage.tsx + frontend/src/components/governance/*"
-summary: "Jak používat Governance pro detekci a řešení orphaned Rizik/Kontrol/KRI tak, aby byl správný ownership, scope a reporting."
+summary: "Jak používat Governance pro detekci a řešení orphaned Rizik/Kontrol/KRI a správy hrozeb tak, aby byl správný ownership, scope a reporting."
 tags:
   - governance
   - workflow
@@ -57,10 +57,10 @@ Většinou se sem dostanete z levého menu. Governance je fronta se souhrnnými 
 Běžný postup navigace:
 
 1. Otevřete Governance.
-2. Vyberte frontu rizik, kontrol nebo KRI.
+2. Vyberte frontu rizik, kontrol, KRI nebo hrozeb.
 3. Zkontrolujte souhrnné počty a pending řádky.
 4. Otevřete quick view, pokud potřebujete více kontextu.
-5. Resolve použijte až po ověření chybějícího vlastníka, oddělení nebo vazby na riziko.
+5. Resolve použijte až po ověření chybějícího vlastníka, oddělení, vazby na riziko nebo aktivního CISO jako správce hrozby.
 
 ## Co můžete vidět a měnit
 
@@ -85,10 +85,10 @@ Pokud váš tým nemá přísnější postup, použijte tento základní workflo
 1. Zkontrolovat governance frontu.
 2. Otevřít quick view nebo Resolve pro orphaned položku.
 3. Vybrat správného vlastníka nebo oddělení.
-4. Navázat KRI nebo kontrolu na riziko.
+4. Navázat KRI nebo kontrolu na riziko, případně pro osiřelou hrozbu vybrat aktivního CISO.
 5. Odeslat řešení a ověřit zmizení z fronty.
 
-Po odeslání ověřte, že položka zmizela z aktuální fronty a souhrnné počty se aktualizovaly. Pokud stránka hlásí, že položku mezitím změnil někdo jiný, obnovte frontu a znovu posuďte aktuální řádek.
+Po odeslání ověřte, že položka zmizela z aktuální fronty a souhrnné počty se aktualizovaly. U hrozby navíc otevřete detail a ověřte nového způsobilého správce; dokud je orphan položka otevřená, běžná úprava hrozby zůstává uzamčená. Pokud stránka hlásí, že položku mezitím změnil někdo jiný, obnovte frontu a znovu posuďte aktuální řádek.
 
 Při propojování KRI nebo kontroly k riziku vybírejte jen vazby, které dávají smysl dalšímu reviewerovi a odpovídají skutečnému business vztahu.
 

@@ -4,7 +4,7 @@ import { ArchiveRestore } from 'lucide-react';
 import type { Column } from '@/components/tables/SortableTable';
 import type { Threat } from '@/types/threat';
 
-import { getThreatDisplayStatus, type ThreatDisplayStatus } from './threatsPagePresentation';
+import { getThreatDisplayStatus, threatCategoryLabel, type ThreatDisplayStatus } from './threatsPagePresentation';
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
@@ -49,7 +49,7 @@ export function buildThreatColumns({
             key: 'category',
             label: t('threats:columns.category'),
             sortable: true,
-            render: (threat) => <span className="text-sm text-slate-300">{threat.category ?? '—'}</span>,
+            render: (threat) => <span className="text-sm text-slate-300">{threatCategoryLabel(t, threat.category)}</span>,
         },
         {
             key: 'typical_weaknesses',

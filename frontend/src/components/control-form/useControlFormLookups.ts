@@ -28,7 +28,7 @@ export function useControlFormLookups() {
         try {
             setIsLoadingLookups(true);
             const [usersData, departmentData] = await Promise.all([
-                lookupApi.getUsers(),
+                lookupApi.getControlOwners({ limit: 200 }),
                 lookupApi.getDepartments(),
             ]);
             setUsers(usersData);

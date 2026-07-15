@@ -1,8 +1,8 @@
 """
-Demo Seed Script - Seeds exactly 9 demo users matching the LoginPage configuration.
+Demo Seed Script - Seeds exactly 10 demo users matching the LoginPage configuration.
 
 Creates:
-- 9 users (IDs 1-9) with @riskhub.local emails
+- 10 users with @riskhub.local emails
 - 5 departments (Operations, Finance, IT, Compliance, Risk Management)
 - Roles and permissions
 - Sample risks, controls, and KRIs
@@ -96,6 +96,14 @@ DEMO_USERS = [
         "access": "department",
         "dept": "IT",
     },
+    {
+        "id": 10,
+        "name": "Klára Černá",
+        "email": "ciso@riskhub.local",
+        "role": "ciso",
+        "access": "global",
+        "dept": "IT",
+    },
 ]
 
 DEPARTMENTS = [
@@ -110,6 +118,7 @@ DEMO_ROLE_ORDER = (
     "admin",
     "cro",
     "risk_manager",
+    "ciso",
     "department_head",
     "employee",
 )
@@ -128,12 +137,12 @@ PERMISSIONS = [dict(PERMISSION_BY_KEY[key]) for key in DEMO_PERMISSION_KEYS]
 async def seed_all():
     async with session_context(get_settings()) as db:
         print("=" * 60)
-        print("🌱 DEMO SEED: Creating 9-user demo environment")
+        print("🌱 DEMO SEED: Creating 10-user demo environment")
         print("=" * 60)
 
         # Align sequences with existing rows so demo inserts start at MAX(id)+1.
         # On an EMPTY table this yields id 1 (the original intent: demo users
-        # land on IDs 1-9 to match LoginPage), but a blanket `RESTART WITH 1`
+        # land on IDs 1-10 to match LoginPage), but a blanket `RESTART WITH 1`
         # collides on a freshly alembic-migrated database where the
         # permission-sync migrations already inserted RBAC rows (roles /
         # permissions / role_permissions) and consumed sequence values.

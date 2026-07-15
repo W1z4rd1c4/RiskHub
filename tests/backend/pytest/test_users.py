@@ -249,6 +249,34 @@ async def test_update_user_fields(auth_client: AsyncClient, test_user: User):
 
 
 @pytest.mark.asyncio
+async def test_update_user_rejects_inactive_role_assignment(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee: User,
+):
+    inactive_role = Role(
+        name="inactive_profile_role",
+        display_name="Inactive Profile Role",
+        description="Inactive role must not be assignable through user lifecycle",
+        is_active=False,
+    )
+    db_session.add(inactive_role)
+    await db_session.commit()
+    await db_session.refresh(inactive_role)
+
+    original_role_id = test_user_employee.role_id
+    response = await auth_client.patch(
+        f"/api/v1/users/{test_user_employee.id}",
+        json={"role_id": inactive_role.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid role_id"
+    await db_session.refresh(test_user_employee)
+    assert test_user_employee.role_id == original_role_id
+
+
+@pytest.mark.asyncio
 async def test_update_user_ignores_entra_business_role_payload(
     auth_client: AsyncClient,
     db_session: AsyncSession,

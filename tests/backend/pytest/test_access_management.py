@@ -4,7 +4,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from app.core.config import Settings
-from app.models import Department, User
+from app.models import Department, Role, User
 from app.models.user import AccessScope
 from app.services.ad_deprovision_service import ADDeprovisionService
 
@@ -54,6 +54,40 @@ async def test_department_access_users_list_hides_admins_from_non_admin(
     data = response.json()
     assert test_user_platform_admin.id not in {item["id"] for item in data}
     assert all(item["role"]["name"] != "admin" for item in data)
+
+
+@pytest.mark.asyncio
+async def test_department_access_roster_target_scope(
+    db_session,
+    client_cro: AsyncClient,
+    client_department_head: AsyncClient,
+    test_role_department_head: Role,
+):
+    other_department = Department(name="Roster Target", code="RST", description="Roster target")
+    db_session.add(other_department)
+    await db_session.flush()
+    other_user = User(
+        name="Roster User",
+        email="roster.user@example.com",
+        hashed_password="x",
+        role_id=test_role_department_head.id,
+        department_id=other_department.id,
+        access_scope=AccessScope.DEPARTMENT,
+        is_active=True,
+    )
+    db_session.add(other_user)
+    await db_session.commit()
+
+    privileged = await client_cro.get(
+        f"/api/v1/access/users/my-department?department_id={other_department.id}"
+    )
+    assert privileged.status_code == 200
+    assert {row["id"] for row in privileged.json()} == {other_user.id}
+
+    denied = await client_department_head.get(
+        f"/api/v1/access/users/my-department?department_id={other_department.id}"
+    )
+    assert denied.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -495,6 +529,34 @@ async def test_access_update_allows_cro_business_role_assignment(
 
     assert response.status_code == 200
     assert response.json()["role"]["name"] == "department_head"
+
+
+@pytest.mark.asyncio
+async def test_access_update_rejects_inactive_role_assignment(
+    client_cro: AsyncClient,
+    db_session,
+    test_user_employee: User,
+):
+    inactive_role = Role(
+        name="inactive_access_role",
+        display_name="Inactive Access Role",
+        description="Inactive role must not be assignable through access management",
+        is_active=False,
+    )
+    db_session.add(inactive_role)
+    await db_session.commit()
+    await db_session.refresh(inactive_role)
+
+    original_role_id = test_user_employee.role_id
+    response = await client_cro.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"role_id": inactive_role.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid role_id"
+    await db_session.refresh(test_user_employee)
+    assert test_user_employee.role_id == original_role_id
 
 
 @pytest.mark.asyncio

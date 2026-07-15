@@ -19,10 +19,26 @@ export const threatListCapabilitiesSchema = passthroughObject({
     can_create: z.boolean().optional(),
 });
 
+export const threatStewardSchema = passthroughObject({
+    name: z.string(),
+    email: z.string(),
+    role_name: z.string(),
+    department_name: z.string().nullable().optional(),
+});
+
 export const threatSchema: z.ZodType<Threat> = passthroughObject({
     id: z.number(),
 
     name: z.string(),
+    threat_steward_user_id: z.number().nullable().optional(),
+    threat_steward: threatStewardSchema.nullable().optional(),
+    steward_orphaned: z.boolean().optional(),
+    stewardship_status: z.enum([
+        'assigned',
+        'legacy_unassigned',
+        'pending_governance',
+        'invalid_assignment',
+    ]).default('assigned'),
     category: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
     typical_weaknesses: z.string().nullable().optional(),

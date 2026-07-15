@@ -24,6 +24,7 @@ export function useThreatDetailState({ mode, notFoundMessage }: UseThreatDetailS
         refetch: fetchThreat,
         resource: threat,
         resourceId: threatId,
+        setResource: setThreat,
     } = useDetailQuery<Threat>({
         enabled: mode !== 'new',
         entity: 'threat',
@@ -55,6 +56,7 @@ export function useThreatDetailState({ mode, notFoundMessage }: UseThreatDetailS
         isLoading,
         threat,
         threatId,
+        setThreat,
         restoreThreat,
     };
 }

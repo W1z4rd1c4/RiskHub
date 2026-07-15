@@ -674,9 +674,9 @@ def test_business_nav_validator_rejects_approvals_permission_gate() -> None:
     validator = _load_validator()
     source = (REPO_ROOT / "frontend/src/routing/business.tsx").read_text(encoding="utf-8")
     source = source.replace(
-        "isVisible: ({ authz }) => !authz.isPlatformAdmin,\n      order: 20,",
+        "isVisible: ({ authz }) => authz.canViewApprovals,\n      order: 20,",
         (
-            "isVisible: ({ authz, hasPermission }) => !authz.isPlatformAdmin "
+            "isVisible: ({ authz, hasPermission }) => authz.canViewApprovals "
             "&& hasPermission('controls', 'read'),\n      order: 20,"
         ),
         1,
@@ -686,7 +686,7 @@ def test_business_nav_validator_rejects_approvals_permission_gate() -> None:
 
     assert [finding.reason for finding in findings] == ["frontend_business_nav_gate_mismatch"]
     assert "approvals" in findings[0].detail
-    assert "!authz.isPlatformAdmin" in findings[0].detail
+    assert "authz.canViewApprovals" in findings[0].detail
 
 
 def test_business_nav_validator_ignores_non_nav_route_objects() -> None:

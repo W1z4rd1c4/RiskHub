@@ -63,6 +63,7 @@ from app.models import (
     Risk,
     RiskAssetLink,
     RiskProcessLink,
+    Role,
     Threat,
     ThreatRiskLink,
     User,
@@ -99,6 +100,7 @@ from app.services._ict_register_reference.parameters import (
     ICT_WORKBOOK_PARAMETERS_BY_NAME,
     load_ict_workbook_parameter_set,
 )
+from app.services._ict_register_reference.threat_categories import threat_category_code
 from app.services._vendor_governance.contract_lifecycle import (
     create_vendor_contract_detail,
     update_vendor_contract_detail,
@@ -855,10 +857,23 @@ async def import_threats(db, seed: ModuleType, user: User, report: ImportReport)
     """12_Hrozby — 16 curated catalog entries; returns 1-based HR index -> id."""
     counters = report.counters("threats (12)")
     threat_ids: dict[int, int] = {}
+    ciso_id = (
+        await db.execute(
+            select(User.id)
+            .join(User.role)
+            .where(User.is_active.is_(True), Role.name == "ciso")
+            .order_by(User.id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if ciso_id is None:
+        report.finding("Threat import requires an active CISO steward")
+        return threat_ids
     for index, (name, category, description, weaknesses, subject) in enumerate(seed.THREATS, start=1):
         target = {
             "name": name,
-            "category": category,
+            "category": threat_category_code(category),
+            "threat_steward_user_id": ciso_id,
             "description": description,
             "typical_weaknesses": weaknesses,
             "relevant_subject": subject,

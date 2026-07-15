@@ -78,6 +78,7 @@ describe('useDepartmentDetail thresholds', () => {
             () => useDepartmentDetail({
                 departmentId: 3,
                 activeTab: 'risks',
+                canViewUsers: true,
                 riskFilter: 'high',
                 kriFilter: 'all',
                 riskPage: 1,
@@ -114,6 +115,7 @@ describe('useDepartmentDetail thresholds', () => {
             () => useDepartmentDetail({
                 departmentId: 3,
                 activeTab: 'risks',
+                canViewUsers: true,
                 riskFilter: 'high',
                 kriFilter: 'all',
                 riskPage: 1,

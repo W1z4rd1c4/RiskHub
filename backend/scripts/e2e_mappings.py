@@ -21,6 +21,7 @@ USERS = {
     "ops.analyst@riskhub.local": None,
     "fin.analyst@riskhub.local": None,
     "it.analyst@riskhub.local": None,
+    "ciso@riskhub.local": None,
 }
 
 # Department name -> ID mappings (populated at runtime)

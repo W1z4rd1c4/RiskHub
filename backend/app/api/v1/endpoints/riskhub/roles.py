@@ -4,11 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.activity_logger import log_activity
-from app.core.policy import PROTECTED_SYSTEM_ROLES
+from app.core.policy import IMMUTABLE_SYSTEM_ROLES, PROTECTED_SYSTEM_ROLES
 from app.db.session import get_db
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.models.role import RoleType
 from app.schemas.riskhub import RoleHubCreate, RoleHubRead, RoleHubUpdate
 from app.services._riskhub_config import (
     build_config_audit_plan,
@@ -125,7 +124,7 @@ async def update_role(
         raise HTTPException(status_code=400, detail="Cannot update inactive role")
 
     # Core system roles are immutable
-    if role.name in {RoleType.CRO, RoleType.ADMIN, RoleType.VIEWER}:
+    if role.name in IMMUTABLE_SYSTEM_ROLES:
         raise HTTPException(
             status_code=400,
             detail=f"The {role.display_name} role is a core system role and cannot be modified.",

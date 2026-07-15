@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateTimeValue } from '@/i18n/formatters';
 import {
     Scale,
     ClipboardList,
     AlertTriangle,
+    ShieldAlert,
     RefreshCw,
     TrendingUp,
     Building2
@@ -36,10 +37,13 @@ const item = {
 
 function GovernancePageInner() {
     const { t, i18n } = useTranslation('admin');
+    const [searchParams] = useSearchParams();
     const [selectedOrphan, setSelectedOrphan] = useState<OrphanedItem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewingOrphan, setViewingOrphan] = useState<OrphanedItem | null>(null);
-    const [activeTab, setActiveTab] = useState<'risk' | 'control' | 'kri'>('risk');
+    const [activeTab, setActiveTab] = useState<'risk' | 'control' | 'kri' | 'threat'>(() => (
+        searchParams.get('type') === 'threat' ? 'threat' : 'risk'
+    ));
 
     const overviewQuery = useAdaptivePollingQuery({
         queryKey: governanceKeys.overview(),
@@ -109,6 +113,17 @@ function GovernancePageInner() {
             clickable: true,
         },
         {
+            id: 'threat' as const,
+            title: t('governance.orphaned_threats'),
+            subtitle: t('governance.threats'),
+            value: stats?.threat_count ?? 0,
+            icon: ShieldAlert,
+            color: 'text-teal-400',
+            bg: 'bg-teal-400/10',
+            trend: t('governance.action_required'),
+            clickable: true,
+        },
+        {
             id: 'total' as const,
             title: t('governance.uncategorised'),
             subtitle: t('governance.total'),
@@ -154,7 +169,7 @@ function GovernancePageInner() {
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
+                className="grid gap-6 md:grid-cols-2 lg:grid-cols-5"
             >
                 {statBars.map((bar) => {
                     const isActive = activeTab === bar.id;
@@ -162,7 +177,7 @@ function GovernancePageInner() {
                         <motion.div
                             key={bar.id}
                             variants={item}
-                            onClick={() => bar.clickable && setActiveTab(bar.id as 'risk' | 'control' | 'kri')}
+                            onClick={() => bar.clickable && setActiveTab(bar.id as 'risk' | 'control' | 'kri' | 'threat')}
                             className={`glass-card group flex flex-col justify-between transition-all cursor-pointer relative overflow-hidden ${isActive
                                 ? 'ring-2 ring-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
                                 : 'hover:bg-white/5 grayscale-[0.5] opacity-70 hover:opacity-100 hover:grayscale-0'
@@ -202,7 +217,13 @@ function GovernancePageInner() {
                 <div className="flex items-center gap-3 mb-6">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
-                        {activeTab === 'risk' ? t('governance.orphaned_risks_section') : activeTab === 'control' ? t('governance.orphaned_controls_section') : t('governance.orphaned_kris_section')}
+                        {activeTab === 'risk'
+                            ? t('governance.orphaned_risks_section')
+                            : activeTab === 'control'
+                                ? t('governance.orphaned_controls_section')
+                                : activeTab === 'kri'
+                                    ? t('governance.orphaned_kris_section')
+                                    : t('governance.orphaned_threats_section')}
                     </span>
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </div>

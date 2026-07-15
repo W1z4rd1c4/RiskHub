@@ -15,6 +15,11 @@ const RESOURCE_PERMISSION_PAIRS: Array<[string, string]> = [
     ['controls', 'read'],
     ['issues', 'read'],
     ['vendors', 'read'],
+    ['vendor_contracts', 'read'],
+    ['processes', 'read'],
+    ['assets', 'read'],
+    ['threats', 'read'],
+    ['ict_committee', 'read'],
     ['departments', 'read'],
     ['users', 'read'],
     ['users', 'write'],
@@ -37,7 +42,7 @@ function backendMeCapabilities(user: MatrixUser, granted: ReadonlySet<string>): 
     );
 
     const can_view_user_directory = resource_permissions['users:read'];
-    const can_view_access_users = hasGlobalScope;
+    const can_view_access_users = hasGlobalScope && resource_permissions['users:read'];
     const can_view_department_access_users = isDepartmentHead;
     const can_view_users_route =
         can_view_access_users || can_view_department_access_users || can_view_user_directory;
@@ -48,7 +53,7 @@ function backendMeCapabilities(user: MatrixUser, granted: ReadonlySet<string>): 
         can_view_access_users,
         can_view_department_access_users,
         can_view_users_route,
-        can_manage_access: can_view_access_users,
+        can_manage_access: can_view_access_users && (roleName === 'admin' || roleName === 'cro'),
         can_view_department_access,
         can_view_admin_console: isPlatformAdmin,
         can_view_riskhub: roleName === 'cro',
@@ -69,6 +74,7 @@ const BOOLEAN_FIELDS = [
     'isAuthenticated',
     'isPlatformAdmin',
     'isCRO',
+    'isCISO',
     'isRiskManager',
     'isCompliance',
     'isDepartmentHead',
@@ -77,6 +83,7 @@ const BOOLEAN_FIELDS = [
     'canViewAccessUsers',
     'canViewDepartmentAccessUsers',
     'canViewUsersRoute',
+    'canViewApprovals',
     'canManageAccess',
     'canViewDepartmentAccess',
     'canViewAdminConsole',
@@ -117,6 +124,33 @@ const MATRIX: Array<{ name: string; user: MatrixUser; granted: string[] }> = [
         name: 'compliance, global',
         user: { role: 'compliance', access_scope: 'global' },
         granted: ['risks:read', 'activity_log:read'],
+    },
+    {
+        name: 'ciso, global, no User administration',
+        user: { role: 'ciso', access_scope: 'global' },
+        granted: [
+            'risks:read',
+            'controls:read',
+            'issues:read',
+            'vendors:read',
+            'vendor_contracts:read',
+            'processes:read',
+            'assets:read',
+            'threats:read',
+            'ict_committee:read',
+            'departments:read',
+            'activity_log:read',
+        ],
+    },
+    {
+        name: 'cro, global, missing User-directory authority',
+        user: { role: 'cro', access_scope: 'global' },
+        granted: ['risks:read'],
+    },
+    {
+        name: 'cro, department-scoped, with User-directory authority',
+        user: { role: 'cro', access_scope: 'department' },
+        granted: ['risks:read', 'users:read', 'users:write'],
     },
     {
         name: 'department head',

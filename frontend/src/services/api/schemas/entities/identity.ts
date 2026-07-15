@@ -4,7 +4,7 @@ import type {
     RoleWithPermissions,
 } from '@/types/access';
 import type { DirectoryImportResponse, DirectoryUser } from '@/types/directory';
-import type { UserDirectoryEntry, UserDirectoryListResponse, UserDirectoryRoleFacet, UserLookup, UserRead, UserShellSummary, Role } from '@/types/user';
+import type { ThreatStewardLookup, UserDirectoryEntry, UserDirectoryListResponse, UserDirectoryRoleFacet, UserLookup, UserRead, UserShellSummary, Role } from '@/types/user';
 
 import {
     passthroughObject,
@@ -44,6 +44,13 @@ export const userLookupSchema: z.ZodType<UserLookup> = passthroughObject({
     manager_id: z.number().nullable().optional(),
 });
 export const userLookupArraySchema = z.array(userLookupSchema);
+
+export const threatStewardLookupSchema: z.ZodType<ThreatStewardLookup> = passthroughObject({
+    id: z.number(),
+    name: z.string(),
+    email: z.string(),
+});
+export const threatStewardLookupArraySchema = z.array(threatStewardLookupSchema);
 
 export const userDirectoryEntrySchema: z.ZodType<UserDirectoryEntry> = passthroughObject({
     id: z.number(),

@@ -1,4 +1,4 @@
-import { Building2, Loader2, Shield, User } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { AccountButton } from './AccountButton';
 import type { DemoAccountGroups } from './loginPageTypes';
 
@@ -31,9 +31,14 @@ export function DemoLoginView({
     onSsoLogin,
     translate,
 }: DemoLoginViewProps) {
+    const accounts = [
+        ...demoAccounts.privileged,
+        ...demoAccounts.department_heads,
+        ...demoAccounts.employees,
+    ];
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 p-4">
-            <div className="w-full max-w-2xl">
+            <div className="w-full max-w-7xl">
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-black text-white tracking-tight mb-2">
                         RiskHub <span className="text-purple-400">{translate('login_demo.title_badge')}</span>
@@ -80,66 +85,17 @@ export function DemoLoginView({
                     </div>
                 ) : null}
 
-                <div className="grid gap-6 md:grid-cols-3">
-                    <div className="glass-card">
-                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
-                            <Shield className="h-4 w-4 text-purple-400" />
-                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">{translate('login_demo.sections.privileged.title')}</h2>
-                        </div>
-                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">{translate('login_demo.sections.privileged.description')}</p>
-                        <div className="space-y-2">
-                            {demoAccounts.privileged.map((account) => (
-                                <AccountButton
-                                    key={account.email}
-                                    account={account}
-                                    disabled={isAnyDemoLoginLoading}
-                                    isLoading={loadingEmail === account.email}
-                                    onSelect={onDemoLogin}
-                                    translate={translate}
-                                />
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="glass-card">
-                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
-                            <Building2 className="h-4 w-4 text-amber-400" />
-                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">{translate('login_demo.sections.department_heads.title')}</h2>
-                        </div>
-                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">{translate('login_demo.sections.department_heads.description')}</p>
-                        <div className="space-y-2">
-                            {demoAccounts.department_heads.map((account) => (
-                                <AccountButton
-                                    key={account.email}
-                                    account={account}
-                                    disabled={isAnyDemoLoginLoading}
-                                    isLoading={loadingEmail === account.email}
-                                    onSelect={onDemoLogin}
-                                    translate={translate}
-                                />
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="glass-card">
-                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
-                            <User className="h-4 w-4 text-sky-400" />
-                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">{translate('login_demo.sections.employees.title')}</h2>
-                        </div>
-                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">{translate('login_demo.sections.employees.description')}</p>
-                        <div className="space-y-2">
-                            {demoAccounts.employees.map((account) => (
-                                <AccountButton
-                                    key={account.email}
-                                    account={account}
-                                    disabled={isAnyDemoLoginLoading}
-                                    isLoading={loadingEmail === account.email}
-                                    onSelect={onDemoLogin}
-                                    translate={translate}
-                                />
-                            ))}
-                        </div>
-                    </div>
+                <div data-testid="demo-persona-grid" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    {accounts.map((account) => (
+                        <AccountButton
+                            key={account.email}
+                            account={account}
+                            disabled={isAnyDemoLoginLoading}
+                            isLoading={loadingEmail === account.email}
+                            onSelect={onDemoLogin}
+                            translate={translate}
+                        />
+                    ))}
                 </div>
 
                 <p className="text-center text-[10px] text-slate-600 mt-8 font-medium">

@@ -527,14 +527,22 @@ export async function getThreatByName(name: string): Promise<ThreatLookup | null
 }
 
 export async function createThreatViaApi(
-    payload: Record<string, string | null>,
+    payload: Record<string, string | number | null>,
 ): Promise<ThreatLookup> {
     const apiBase = getApiBaseUrl();
     const headers = await riskManagerHeaders();
+    const stewardResponse = await fetch(`${apiBase}/api/v1/users/lookup/threat-stewards?limit=1`, { headers });
+    if (!stewardResponse.ok) {
+        throw new Error(`Failed to resolve the CISO Threat Steward: ${stewardResponse.status}`);
+    }
+    const stewards = await stewardResponse.json() as Array<{ id: number }>;
+    if (!stewards[0]) {
+        throw new Error('No active CISO Threat Steward is available in the E2E seed.');
+    }
     const response = await fetch(`${apiBase}/api/v1/threats`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, threat_steward_user_id: stewards[0].id }),
     });
     if (!response.ok) {
         throw new Error(`Failed to create threat: ${response.status} - ${await response.text()}`);

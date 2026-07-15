@@ -5,7 +5,7 @@ import type { KRIVendorOption } from '@/components/kri/KRIVendorSelector';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { ApiClientError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
-import { userApi } from '@/services/userApi';
+import { lookupApi } from '@/services/lookupApi';
 import { vendorApi } from '@/services/vendorApi';
 import type { KRICreate, KRIUpdate } from '@/types/kri';
 
@@ -103,7 +103,7 @@ export function useKriModalState({
     useEffect(() => {
         async function loadUsers() {
             try {
-                const userList = await userApi.listVisibleUsers();
+                const userList = await lookupApi.getRiskOwners({ limit: 200 });
                 setUsers(userList);
             } catch (err) {
                 logError('Error loading users:', err);

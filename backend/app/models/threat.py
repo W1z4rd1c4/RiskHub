@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models._archivable import ArchivableMixin
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class Threat(ArchivableMixin, Base):
@@ -22,6 +26,12 @@ class Threat(ArchivableMixin, Base):
     __tablename__ = "threats"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    threat_steward_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    threat_steward: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[threat_steward_user_id], back_populates="stewarded_threats"
+    )
 
     # "Hrozba" — the threat name.
     name: Mapped[str] = mapped_column(String(255), index=True)

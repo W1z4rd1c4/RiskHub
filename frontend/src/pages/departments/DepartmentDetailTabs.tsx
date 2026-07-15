@@ -6,6 +6,7 @@ interface DepartmentDetailTabsProps {
     activeTab: TabView;
     department: DepartmentDetail;
     riskCount: number;
+    showUsers: boolean;
     onSelectTab: (tab: TabView) => void;
 }
 
@@ -18,13 +19,16 @@ export function DepartmentDetailTabs({
     activeTab,
     department,
     riskCount,
+    showUsers,
     onSelectTab,
 }: DepartmentDetailTabsProps) {
     const { t } = useTranslation(['common']);
 
     const tabs: Array<{ key: TabView; label: string }> = [
         { key: 'risks', label: t('department_detail.tabs.risks', { count: riskCount }) },
-        { key: 'users', label: t('department_detail.tabs.users', { count: department.user_count }) },
+        ...(showUsers
+            ? [{ key: 'users' as const, label: t('department_detail.tabs.users', { count: department.user_count }) }]
+            : []),
         { key: 'controls', label: t('department_detail.tabs.controls', { count: department.control_count }) },
         { key: 'kris', label: t('department_detail.tabs.kris', { count: department.kri_count }) },
         {

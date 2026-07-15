@@ -3,6 +3,7 @@ import { AlertCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useTranslation } from '@/i18n/hooks';
+import { useAuthz } from '@/authz/useAuthz';
 import {
     useDepartmentDetail,
     type TabView,
@@ -19,6 +20,8 @@ export function DepartmentDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { t } = useTranslation(['common']);
+    const authz = useAuthz();
+    const canViewUsers = authz.canViewDepartmentAccess;
 
     const [activeTab, setActiveTab] = useState<TabView>('risks');
     const [riskFilter, setRiskFilter] = useState<'all' | 'high'>('all');
@@ -43,6 +46,12 @@ export function DepartmentDetailPage() {
         setKriPage(1);
     }, [kriFilter]);
 
+    useEffect(() => {
+        if (!canViewUsers && activeTab === 'users') {
+            setActiveTab('risks');
+        }
+    }, [activeTab, canViewUsers]);
+
     const departmentId = id ? Number(id) : undefined;
     const {
         department,
@@ -66,6 +75,7 @@ export function DepartmentDetailPage() {
     } = useDepartmentDetail({
         departmentId,
         activeTab,
+        canViewUsers,
         riskFilter,
         kriFilter,
         riskPage,
@@ -135,6 +145,7 @@ export function DepartmentDetailPage() {
                 department={department}
                 kriFilter={kriFilter}
                 riskFilter={riskFilter}
+                showUsers={canViewUsers}
                 onSelectControls={() => setActiveTab('controls')}
                 onSelectHighRisks={() => {
                     setActiveTab('risks');
@@ -158,6 +169,7 @@ export function DepartmentDetailPage() {
                 activeTab={activeTab}
                 department={department}
                 riskCount={getRiskCount()}
+                showUsers={canViewUsers}
                 onSelectTab={setActiveTab}
             />
             <DepartmentTabContent

@@ -52,6 +52,7 @@ describe('DepartmentStatsGrid', () => {
                 department={department}
                 kriFilter="all"
                 riskFilter="high"
+                showUsers
                 onSelectControls={vi.fn()}
                 onSelectHighRisks={vi.fn()}
                 onSelectKriBreach={vi.fn()}

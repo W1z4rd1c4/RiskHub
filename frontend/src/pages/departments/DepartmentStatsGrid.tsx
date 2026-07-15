@@ -11,6 +11,7 @@ interface DepartmentStatsGridProps {
     department: DepartmentDetail;
     kriFilter: 'all' | KRIMonitoringStatus;
     riskFilter: 'all' | 'high';
+    showUsers: boolean;
     onSelectControls: () => void;
     onSelectHighRisks: () => void;
     onSelectKriBreach: () => void;
@@ -24,6 +25,7 @@ export function DepartmentStatsGrid({
     department,
     kriFilter,
     riskFilter,
+    showUsers,
     onSelectControls,
     onSelectHighRisks,
     onSelectKriBreach,
@@ -37,7 +39,7 @@ export function DepartmentStatsGrid({
     const highRiskCount = department.high_risk_count;
 
     return (
-        <div className="grid grid-cols-6 gap-4">
+        <div className={`grid gap-4 ${showUsers ? 'grid-cols-6' : 'grid-cols-5'}`}>
             <button
                 type="button"
                 onClick={onSelectRisks}
@@ -91,19 +93,21 @@ export function DepartmentStatsGrid({
                 </div>
                 <p className="text-3xl font-black text-rose-400">{breachCount}</p>
             </button>
-            <button
-                type="button"
-                onClick={onSelectUsers}
-                className={`glass-card cursor-pointer text-left hover:bg-white/5 transition-all group ${
-                    activeTab === 'users' ? 'border-accent/50 bg-accent/5' : ''
-                }`}
-            >
-                <div className="flex items-center gap-3 mb-2">
-                    <Users className="h-5 w-5 text-blue-400 group-hover:scale-110 transition-transform" />
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:active_users')}</p>
-                </div>
-                <p className="text-3xl font-black text-white">{department.user_count}</p>
-            </button>
+            {showUsers ? (
+                <button
+                    type="button"
+                    onClick={onSelectUsers}
+                    className={`glass-card cursor-pointer text-left hover:bg-white/5 transition-all group ${
+                        activeTab === 'users' ? 'border-accent/50 bg-accent/5' : ''
+                    }`}
+                >
+                    <div className="flex items-center gap-3 mb-2">
+                        <Users className="h-5 w-5 text-blue-400 group-hover:scale-110 transition-transform" />
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:active_users')}</p>
+                    </div>
+                    <p className="text-3xl font-black text-white">{department.user_count}</p>
+                </button>
+            ) : null}
             <button
                 type="button"
                 onClick={onSelectHighRisks}

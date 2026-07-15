@@ -9,10 +9,10 @@ const departmentApiMock = vi.hoisted(() => ({
   getDepartmentControls: vi.fn(),
   getDepartmentKRIs: vi.fn(),
 }));
-const userApiMock = vi.hoisted(() => ({ listVisibleUsers: vi.fn() }));
+const accessApiMock = vi.hoisted(() => ({ listDepartmentAccessUsers: vi.fn() }));
 
 vi.mock('@/services/departmentApi', () => ({ departmentApi: departmentApiMock }));
-vi.mock('@/services/userApi', () => ({ userApi: userApiMock }));
+vi.mock('@/services/accessApi', () => ({ accessApi: accessApiMock }));
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
 vi.mock('@/hooks/useRiskHubConfig', () => ({
   useRiskThresholds: () => ({ thresholds: { critical: 16, high: 10, medium: 5 } }),
@@ -71,6 +71,7 @@ function params(departmentId: number) {
   return {
     departmentId,
     activeTab: 'risks' as const,
+    canViewUsers: true,
     riskFilter: 'all' as const,
     kriFilter: 'all' as const,
     riskPage: 1,
@@ -85,7 +86,7 @@ describe('useDepartmentDetail department ownership', () => {
     vi.clearAllMocks();
     departmentApiMock.getDepartmentControls.mockResolvedValue([]);
     departmentApiMock.getDepartmentKRIs.mockResolvedValue({ items: [], total: 0 });
-    userApiMock.listVisibleUsers.mockResolvedValue([]);
+    accessApiMock.listDepartmentAccessUsers.mockResolvedValue([]);
   });
 
   it('exposes no A metadata, rows, or totals synchronously after navigating to B', async () => {
@@ -170,5 +171,33 @@ describe('useDepartmentDetail department ownership', () => {
     await waitFor(() => expect(result.current.risks[0]?.name).toBe('Beta Risk'));
     expect(result.current.risksState.errorKey).toBeNull();
     expect(result.current.riskTotalPages).toBe(2);
+  });
+
+  it('does not fetch a department roster without department-access capability', async () => {
+    departmentApiMock.getDepartment.mockResolvedValue(department(7, 'Alpha', 0));
+
+    const { result } = renderHook(() => useDepartmentDetail({
+      ...params(7),
+      activeTab: 'users',
+      canViewUsers: false,
+    }));
+
+    await waitFor(() => expect(result.current.department?.name).toBe('Alpha'));
+
+    expect(accessApiMock.listDepartmentAccessUsers).not.toHaveBeenCalled();
+    expect(result.current.users).toEqual([]);
+  });
+
+  it('fetches the scoped roster when department-access capability is present', async () => {
+    departmentApiMock.getDepartment.mockResolvedValue(department(7, 'Alpha', 0));
+    accessApiMock.listDepartmentAccessUsers.mockResolvedValue([]);
+
+    renderHook(() => useDepartmentDetail({
+      ...params(7),
+      activeTab: 'users',
+      canViewUsers: true,
+    }));
+
+    await waitFor(() => expect(accessApiMock.listDepartmentAccessUsers).toHaveBeenCalledWith(7));
   });
 });

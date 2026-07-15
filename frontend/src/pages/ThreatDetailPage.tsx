@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
 import { threatApi } from '@/services/threatApi';
@@ -13,7 +14,7 @@ import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ThreatForm } from './threats/ThreatForm';
 import { ThreatRiskLinksSection } from './threats/ThreatRiskLinksSection';
-import { getThreatDisplayStatus } from './threats/threatsPagePresentation';
+import { getThreatDisplayStatus, threatCategoryLabel } from './threats/threatsPagePresentation';
 import { getThreatStatusColor } from './threats/threatColumns';
 import { useThreatDetailState, type ThreatDetailMode } from './threats/useThreatDetailState';
 
@@ -40,8 +41,44 @@ function DetailField({
     );
 }
 
+function StewardshipAlert({
+    actionLabel,
+    message,
+    onResolve,
+    testId,
+}: {
+    actionLabel?: string;
+    message: string;
+    onResolve?: () => void;
+    testId?: string;
+}) {
+    return (
+        <div
+            role="alert"
+            data-testid={testId}
+            className="glass-card flex flex-col items-start gap-4 border border-amber-400/30 text-amber-200 sm:flex-row sm:justify-between"
+        >
+            <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                <p className="text-sm font-medium">{message}</p>
+            </div>
+            {onResolve ? (
+                <button
+                    type="button"
+                    onClick={onResolve}
+                    data-testid="threat-orphan-governance"
+                    className="shrink-0 rounded-xl border border-amber-300/30 px-4 py-2 text-sm font-bold text-amber-100 transition-colors hover:bg-amber-300/10"
+                >
+                    {actionLabel}
+                </button>
+            ) : null}
+        </div>
+    );
+}
+
 export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     const navigate = useNavigate();
+    const authz = useAuthz();
     const { t } = useTranslation('threats');
     const { t: tCommon } = useTranslation('common');
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
@@ -56,6 +93,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         fetchThreat,
         isAccessDenied,
         isLoading,
+        setThreat,
         threat,
         restoreThreat,
     } = useThreatDetailState({ mode, notFoundMessage: t('errors.not_found') });
@@ -140,6 +178,36 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     }
 
     if (mode === 'edit') {
+        if (threat.stewardship_status === 'pending_governance') {
+            return (
+                <div className="space-y-8">
+                    <div className="flex items-start gap-3">
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/threats/${threat.id}`)}
+                            aria-label={t('actions.back_to_register')}
+                            className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                        >
+                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                        <div>
+                            <h1 className="text-3xl font-bold text-white">{t('actions.edit')}</h1>
+                            <p className="text-slate-500 font-medium mt-1">{threat.name}</p>
+                        </div>
+                    </div>
+                    <StewardshipAlert
+                        actionLabel={t('actions.resolve_in_governance')}
+                        message={t(authz.canViewGovernance
+                            ? 'messages.steward_orphaned_governance'
+                            : 'messages.steward_orphaned_request')}
+                        onResolve={authz.canViewGovernance
+                            ? () => navigate('/governance?type=threat')
+                            : undefined}
+                        testId="threat-orphan-edit-blocked"
+                    />
+                </div>
+            );
+        }
         if (canEdit !== true) {
             return <FormCapabilityGateState state="denied" />;
         }
@@ -159,10 +227,25 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                         <p className="text-slate-500 font-medium mt-1">{threat.name}</p>
                     </div>
                 </div>
+                {threat.stewardship_status === 'legacy_unassigned' ? (
+                    <StewardshipAlert message={t('messages.stewardship_legacy_unassigned')} />
+                ) : null}
+                {threat.stewardship_status === 'invalid_assignment' ? (
+                    <StewardshipAlert message={t('messages.stewardship_invalid_assignment')} />
+                ) : null}
                 <ThreatForm
-                    initialData={threat}
+                    initialData={threat.stewardship_status === 'invalid_assignment'
+                        ? { ...threat, threat_steward_user_id: null }
+                        : threat}
                     isEdit
-                    onSaved={(saved: Threat) => navigate(`/threats/${saved.id}`)}
+                    onSaved={(saved: Threat) => {
+                        // The edit and view routes share the same detail-query
+                        // key. Replace its cached pre-edit snapshot before
+                        // navigating so the saved controlled values render
+                        // immediately instead of waiting for stale-time expiry.
+                        setThreat(saved);
+                        void navigate(`/threats/${saved.id}`);
+                    }}
                     onCancel={() => navigate(`/threats/${threat.id}`)}
                 />
             </div>
@@ -179,6 +262,23 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     <p className="text-sm font-medium">{actionError}</p>
                 </div>
             ) : null}
+            {threat.stewardship_status === 'pending_governance' ? (
+                <StewardshipAlert
+                    actionLabel={t('actions.resolve_in_governance')}
+                    message={t(authz.canViewGovernance
+                        ? 'messages.steward_orphaned_governance'
+                        : 'messages.steward_orphaned_request')}
+                    onResolve={authz.canViewGovernance
+                        ? () => navigate('/governance?type=threat')
+                        : undefined}
+                />
+            ) : null}
+            {threat.stewardship_status === 'legacy_unassigned' ? (
+                <StewardshipAlert message={t('messages.stewardship_legacy_unassigned')} />
+            ) : null}
+            {threat.stewardship_status === 'invalid_assignment' ? (
+                <StewardshipAlert message={t('messages.stewardship_invalid_assignment')} />
+            ) : null}
 
             <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
                 <div className="flex items-start gap-3">
@@ -194,7 +294,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     <div>
                         <div className="flex items-center gap-3">
                             {threat.category ? (
-                                <span className="text-xs font-bold text-accent">{threat.category}</span>
+                                <span className="text-xs font-bold text-accent">{threatCategoryLabel(t, threat.category)}</span>
                             ) : null}
                             <span
                                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getThreatStatusColor(status)}`}
@@ -220,7 +320,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                             {t('actions.restore')}
                         </button>
                     )}
-                    {canEdit && (
+                    {canEdit && threat.stewardship_status !== 'pending_governance' && (
                         <button
                             type="button"
                             onClick={() => navigate(`/threats/${threat.id}/edit`)}
@@ -250,7 +350,14 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     {t('form.sections.details')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <DetailField label={t('form.category')} value={threat.category} testId="threat-detail-category" />
+                    <DetailField label={t('form.category')} value={threatCategoryLabel(t, threat.category)} testId="threat-detail-category" />
+                    <DetailField
+                        label={t('form.steward')}
+                        value={threat.threat_steward
+                            ? `${threat.threat_steward.name} — ${threat.threat_steward.email}`
+                            : undefined}
+                        testId="threat-detail-steward"
+                    />
                     <DetailField label={t('form.relevant_subject')} value={threat.relevant_subject} />
                     <DetailField label={t('form.description')} value={threat.description} />
                     <DetailField label={t('form.typical_weaknesses')} value={threat.typical_weaknesses} />

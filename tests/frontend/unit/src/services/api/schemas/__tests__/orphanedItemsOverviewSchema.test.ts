@@ -9,6 +9,7 @@ function overviewPayload(items: OverviewItem[]) {
             risk_count: items.filter((i) => i.item_type === 'risk').length,
             control_count: items.filter((i) => i.item_type === 'control').length,
             kri_count: items.filter((i) => i.item_type === 'kri').length,
+            threat_count: items.filter((i) => i.item_type === 'threat').length,
             total_count: items.length,
         },
         items,

@@ -8,6 +8,7 @@ from app.models.control import Control
 from app.models.department import Department
 from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
+from app.models.threat import Threat
 from app.services.transaction_boundary import commit_service_boundary
 
 from .core import _already_flagged, _create_orphan
@@ -50,13 +51,49 @@ async def flag_orphaned_items(db: AsyncSession, user_id: int) -> list[OrphanedIt
         orphan = await _create_orphan(db, "control", control.id, user_id)
         created_records.append(orphan)
 
+    threat_records, threat_count = await _flag_orphaned_threats(db, user_id=user_id)
+    created_records.extend(threat_records)
+
     await db.flush()
 
     logger.info(
         f"Flagged {len(created_records)} orphaned items for user {user_id}: "
-        f"{len(risks)} risks, {len(controls)} controls"
+        f"{len(risks)} risks, {len(controls)} controls, {threat_count} threats"
     )
 
+    return created_records
+
+
+async def _flag_orphaned_threats(
+    db: AsyncSession,
+    *,
+    user_id: int,
+) -> tuple[list[OrphanedItem], int]:
+    threats_result = await db.execute(
+        select(Threat).where(Threat.threat_steward_user_id == user_id)
+    )
+    threats = threats_result.scalars().all()
+    created_records = []
+    for threat in threats:
+        if await _already_flagged(db, "threat", threat.id):
+            continue
+        created_records.append(await _create_orphan(db, "threat", threat.id, user_id))
+    return created_records, len(threats)
+
+
+async def flag_orphaned_threats(
+    db: AsyncSession,
+    user_id: int,
+) -> list[OrphanedItem]:
+    """Flag only Threat stewardship lost by an active CISO role transition."""
+    created_records, threat_count = await _flag_orphaned_threats(db, user_id=user_id)
+    await db.flush()
+    logger.info(
+        "Flagged %s orphaned threats for former CISO user %s from %s stewarded threats",
+        len(created_records),
+        user_id,
+        threat_count,
+    )
     return created_records
 
 

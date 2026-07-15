@@ -34,6 +34,11 @@ from app.services._ict_register_reference.roi_maps import (
     roi_en_value,
     roi_map_entries,
 )
+from app.services._ict_register_reference.threat_categories import (
+    THREAT_CATEGORY_CODES,
+    WORKBOOK_THREAT_CATEGORY_TO_CODE,
+    threat_category_code,
+)
 
 __all__ = [
     "CLOSED_LISTS",
@@ -47,6 +52,8 @@ __all__ = [
     "ICT_WORKBOOK_PARAMETERS",
     "ICT_WORKBOOK_PARAMETERS_BY_NAME",
     "ROI_CZ_EN_MAPS",
+    "THREAT_CATEGORY_CODES",
+    "WORKBOOK_THREAT_CATEGORY_TO_CODE",
     "ClosedListValue",
     "IctParameterValue",
     "IctWorkbookParameter",
@@ -57,4 +64,5 @@ __all__ = [
     "load_ict_workbook_parameter_set",
     "roi_en_value",
     "roi_map_entries",
+    "threat_category_code",
 ]

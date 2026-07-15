@@ -4,6 +4,7 @@ import { X, ShieldAlert, ClipboardList, AlertTriangle, User, Loader2, Target, Ac
 import { DialogShell } from '@/components/DialogShell';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
+import { threatApi } from '@/services/threatApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { useTranslation } from '@/i18n/hooks';
 import { formatRelativeDateValue } from '@/i18n/formatters';
@@ -64,6 +65,10 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                     const risk = await riskApi.getRisk(orphanItemId);
                     if (cancelled) return;
                     setItemDetails(risk as ItemDetails);
+                } else if (orphanItemType === 'threat') {
+                    const threat = await threatApi.getThreat(orphanItemId);
+                    if (cancelled) return;
+                    setItemDetails(threat as ItemDetails);
                 }
                 // Small delay for smooth entry
                 initTimeout = setTimeout(() => {
@@ -91,11 +96,13 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
         risk: ShieldAlert,
         control: ClipboardList,
         kri: AlertTriangle,
+        threat: ShieldAlert,
     };
     const typeLabels = {
         risk: t('governance.type_risk'),
         control: t('governance.type_control'),
         kri: t('governance.type_kri'),
+        threat: t('governance.type_threat'),
     };
     const Icon = typeIcons[orphan.item_type as keyof typeof typeIcons] || AlertTriangle;
 
@@ -103,6 +110,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
         risk: 'text-rose-400 bg-rose-500/10',
         control: 'text-accent bg-accent/10',
         kri: 'text-amber-400 bg-amber-500/10',
+        threat: 'text-teal-400 bg-teal-500/10',
     };
     const colorClass = typeColors[orphan.item_type as keyof typeof typeColors] || 'text-slate-400 bg-slate-400/10';
 

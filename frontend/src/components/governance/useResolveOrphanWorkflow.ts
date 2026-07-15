@@ -78,8 +78,11 @@ export function useResolveOrphanWorkflow({
 
     const loadUsers = useCallback(async () => {
         const activeUsers = (await userApi.listUsers(0, 100)) as OrphanUserRead[];
-        setUsers(toActiveUserOptions(activeUsers));
-    }, []);
+        const eligibleUsers = orphan?.item_type === 'threat'
+            ? activeUsers.filter((user) => user.role_name === 'ciso')
+            : activeUsers;
+        setUsers(toActiveUserOptions(eligibleUsers));
+    }, [orphan?.item_type]);
 
     const initializeData = useCallback(async () => {
         try {
@@ -169,7 +172,7 @@ export function useResolveOrphanWorkflow({
         try {
             await orphanedItemsApi.resolveOrphan(orphan.id, {
                 new_owner_id: selectedUserId || undefined,
-                department_id: selectedDepartmentId || undefined,
+                department_id: orphan.item_type === 'threat' ? undefined : selectedDepartmentId || undefined,
                 target_risk_id: selectedRiskId || undefined,
             });
             onResolved();

@@ -29,6 +29,8 @@ export interface ThemedSelectProps {
     triggerTestId?: string
     contentTestId?: string
     optionTestIdPrefix?: string
+    /** Ref to the focusable select trigger (used by focus-first-invalid forms). */
+    triggerRef?: React.Ref<HTMLButtonElement>
     /** Control id (owned by `Field` when wrapped). */
     id?: string
     /**
@@ -66,6 +68,7 @@ export function ThemedSelect({
     triggerTestId,
     contentTestId,
     optionTestIdPrefix,
+    triggerRef,
     id,
     "aria-labelledby": ariaLabelledby,
     "aria-describedby": ariaDescribedby,
@@ -112,6 +115,7 @@ export function ThemedSelect({
     return (
         <Select value={internalValue} onValueChange={handleValueChange} disabled={disabled}>
             <SelectTrigger
+                ref={triggerRef}
                 id={id}
                 className={cn("min-w-[130px]", className)}
                 data-testid={triggerTestId}

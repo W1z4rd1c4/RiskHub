@@ -1,10 +1,11 @@
 import { apiClient as api } from './apiClient';
 import {
     activityLogListResponseSchema,
+    activityLogActorLookupArraySchema,
     stringArraySchema,
 } from '@/services/api/schemas';
 import type { RequestOptions } from '@/services/apiClient';
-import type { ActivityLogListResponse } from '@/types/activityLog';
+import type { ActivityLogActorLookup, ActivityLogListResponse } from '@/types/activityLog';
 
 export interface ActivityLogFilters {
     entity_type?: string | string[];
@@ -39,5 +40,9 @@ export const activityLogApi = {
 
     async getActions(): Promise<string[]> {
         return api.get('/activity-log/actions', { schema: stringArraySchema });
+    },
+
+    async getActors(): Promise<ActivityLogActorLookup[]> {
+        return api.get('/activity-log/actors', { schema: activityLogActorLookupArraySchema });
     },
 };

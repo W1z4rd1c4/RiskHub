@@ -3,6 +3,23 @@ import type { Threat, ThreatListParams, ThreatSortField, ThreatWritePayload } fr
 export type ThreatArchiveFilter = 'active' | 'archived' | '';
 export type ThreatDisplayStatus = 'active' | 'archived';
 
+export const THREAT_CATEGORY_CODES = [
+    'availability',
+    'integrity',
+    'confidentiality',
+    'authenticity',
+    'physical',
+    'personnel',
+    'third_party',
+] as const;
+
+export function threatCategoryLabel(
+    translate: (key: string) => string,
+    category: string | null | undefined,
+): string {
+    return category ? translate(`threats:categories.${category}`) : '—';
+}
+
 export function getThreatDisplayStatus(threat: Pick<Threat, 'is_archived'>): ThreatDisplayStatus {
     return threat.is_archived ? 'archived' : 'active';
 }

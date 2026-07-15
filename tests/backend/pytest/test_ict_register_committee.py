@@ -992,12 +992,14 @@ def test_committee_permission_sync_migration_mirrors_the_rbac_seed():
     for role in sync.EXECUTIVE_ROLES:
         assert role == ROLE_BY_NAME[role["name"]], role["name"]
 
-    # Role grants mirror the seed exactly (CRO holds the wildcard).
+    # Role grants mirror the seed as of this migration (CRO holds the
+    # wildcard). CISO stewardship was introduced later and its committee grant
+    # is owned by e6f7a8b9c0d1, so an applied historical migration stays frozen.
     seed_committee_grants = {
         role_name
         for role_name, permission_keys in RBAC_ROLE_PERMISSIONS.items()
         if "ict_committee:read" in expand_permission_keys(permission_keys)
-        if role_name != "cro"
+        if role_name not in {"cro", "ciso"}
     }
     assert set(sync.COMMITTEE_GRANT_ROLES) == seed_committee_grants
     assert seed_committee_grants == {
@@ -1021,6 +1023,19 @@ async def test_committee_endpoint_over_an_api_seeded_register(
     DQ-count consistency with the #50 surface."""
     from app.models import GlobalConfig
     from app.models.global_config import clear_config_cache
+
+    ciso_role = Role(name="ciso", display_name="Chief Information Security Officer")
+    db_session.add(ciso_role)
+    await db_session.flush()
+    ciso = User(
+        name="Committee Test CISO",
+        email="committee.ciso@test.com",
+        role_id=ciso_role.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    db_session.add(ciso)
+    await db_session.commit()
 
     # Tune banding/tolerance to the app's 1-25 scale (seeded ADR-008 rows).
     db_session.add_all(
@@ -1102,7 +1117,10 @@ async def test_committee_endpoint_over_an_api_seeded_register(
             )
             assert av_link.status_code == 201, av_link.text
 
-            threat_resp = await client.post("/api/v1/threats", json={"name": "Ransomware"})
+            threat_resp = await client.post(
+                "/api/v1/threats",
+                json={"name": "Ransomware", "threat_steward_user_id": ciso.id},
+            )
             assert threat_resp.status_code == 201, threat_resp.text
             threat = threat_resp.json()
 

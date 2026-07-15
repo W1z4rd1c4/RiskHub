@@ -35,6 +35,29 @@ from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_k
 from app.models import Permission, Role, RolePermission, User
 from app.models.user import AccessScope
 
+_CISO_STEWARD_ID: int | None = None
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def seeded_ciso_steward(db_session: AsyncSession):
+    """Supply the required Threat steward to legacy register test payloads."""
+    global _CISO_STEWARD_ID
+    role = Role(name="ciso", display_name="Chief Information Security Officer")
+    db_session.add(role)
+    await db_session.flush()
+    steward = User(
+        name="Test CISO",
+        email="ciso.threats@test.com",
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    db_session.add(steward)
+    await db_session.commit()
+    _CISO_STEWARD_ID = steward.id
+    yield steward
+    _CISO_STEWARD_ID = None
+
 
 @pytest_asyncio.fixture
 async def test_user_seeded_risk_manager(db_session: AsyncSession) -> User:
@@ -71,7 +94,11 @@ async def test_user_seeded_risk_manager(db_session: AsyncSession) -> User:
 
 
 def _minimal_payload(**overrides: object) -> dict[str, object]:
-    payload: dict[str, object] = {"name": "Ransomware"}
+    assert _CISO_STEWARD_ID is not None
+    payload: dict[str, object] = {
+        "name": "Ransomware",
+        "threat_steward_user_id": _CISO_STEWARD_ID,
+    }
     payload.update(overrides)
     return payload
 
@@ -80,7 +107,8 @@ def _full_payload(**overrides: object) -> dict[str, object]:
     """Every entered 12_Hrozby column (spec section 1.6)."""
     payload: dict[str, object] = {
         "name": "Ransomware",
-        "category": "Dostupnost",
+        "threat_steward_user_id": _CISO_STEWARD_ID,
+        "category": "availability",
         "description": "Zašifrování dat a vydírání.",
         "typical_weaknesses": "Neaktualizované systémy, phishing",
         "relevant_subject": "Aktivum",
@@ -294,7 +322,7 @@ async def test_create_and_read_threat_with_all_entered_fields(client_factory, te
         body = created.json()
         assert body["id"] > 0
         assert body["name"] == "Ransomware"
-        assert body["category"] == "Dostupnost"
+        assert body["category"] == "availability"
         assert body["description"] == "Zašifrování dat a vydírání."
         assert body["typical_weaknesses"] == "Neaktualizované systémy, phishing"
         assert body["relevant_subject"] == "Aktivum"
@@ -330,10 +358,10 @@ async def test_update_threat_round_trips_entered_fields(client_factory, test_use
 
         updated = await client.patch(
             f"/api/v1/threats/{created['id']}",
-            json={"category": "Integrita", "description": "Cílený útok.", "notes": "Po revizi."},
+            json={"category": "integrity", "description": "Cílený útok.", "notes": "Po revizi."},
         )
         assert updated.status_code == 200, updated.text
-        assert updated.json()["category"] == "Integrita"
+        assert updated.json()["category"] == "integrity"
         assert updated.json()["description"] == "Cílený útok."
         assert updated.json()["notes"] == "Po revizi."
         # Untouched fields stay untouched.
@@ -353,12 +381,12 @@ async def test_update_threat_round_trips_entered_fields(client_factory, test_use
 async def test_category_is_enforced_against_workbook_closed_list(client_factory, test_user_cro: User):
     """Spec section 1.6: Kategorie comes from the closed list KategorieHrozeb, verbatim."""
     async with client_factory(user=test_user_cro) as client:
-        for valid in ("Dostupnost", "Integrita", "Důvěrnost", "Hodnověrnost", "Fyzická", "Personální", "Třetí strany"):
+        for valid in ("availability", "integrity", "confidentiality", "authenticity", "physical", "personnel", "third_party"):
             ok = await client.post("/api/v1/threats", json=_minimal_payload(category=valid))
             assert ok.status_code == 201, f"category={valid!r} rejected: {ok.text}"
             assert ok.json()["category"] == valid
 
-        for invalid in ("Kybernetická", "dostupnost", "Availability", 5):
+        for invalid in ("Kybernetická", "Dostupnost", "Availability", 5):
             rejected = await client.post("/api/v1/threats", json=_minimal_payload(category=invalid))
             assert rejected.status_code == 422, f"category={invalid!r} accepted"
 
@@ -419,9 +447,9 @@ async def test_archive_restore_lifecycle_and_register_listing(client_factory, te
 async def test_register_listing_supports_search_pagination_and_sorting(client_factory, test_user_cro: User):
     async with client_factory(user=test_user_cro) as client:
         for name, category in (
-            ("Ransomware", "Dostupnost"),
-            ("Phishing", "Personální"),
-            ("Výpadek datového centra", "Fyzická"),
+            ("Ransomware", "availability"),
+            ("Phishing", "personnel"),
+            ("Výpadek datového centra", "physical"),
         ):
             resp = await client.post("/api/v1/threats", json=_minimal_payload(name=name, category=category))
             assert resp.status_code == 201
@@ -430,7 +458,7 @@ async def test_register_listing_supports_search_pagination_and_sorting(client_fa
         assert searched["total"] == 1
         assert searched["items"][0]["name"] == "Ransomware"
 
-        by_category = (await client.get("/api/v1/threats", params={"search": "Personální"})).json()
+        by_category = (await client.get("/api/v1/threats", params={"search": "personnel"})).json()
         assert by_category["total"] == 1
         assert by_category["items"][0]["name"] == "Phishing"
 
@@ -911,7 +939,7 @@ async def test_risk_manager_seed_grants_full_threat_maintenance(
         }
 
         assert (
-            await client.patch(f"/api/v1/threats/{threat_id}", json={"category": "Integrita"})
+            await client.patch(f"/api/v1/threats/{threat_id}", json={"category": "integrity"})
         ).status_code == 200
 
         listing = (await client.get("/api/v1/threats")).json()
@@ -1334,7 +1362,7 @@ async def test_threat_mutations_land_on_the_audit_trail(client_factory, test_use
     """Register mutations are attributable via the activity log (spec story 39)."""
     async with client_factory(user=test_user_cro) as client:
         created = (await client.post("/api/v1/threats", json=_minimal_payload())).json()
-        await client.patch(f"/api/v1/threats/{created['id']}", json={"category": "Dostupnost"})
+        await client.patch(f"/api/v1/threats/{created['id']}", json={"category": "availability"})
         await client.delete(f"/api/v1/threats/{created['id']}")
         await client.post(f"/api/v1/threats/{created['id']}/restore")
 
@@ -1455,11 +1483,24 @@ def test_threat_migrations_follow_repo_convention_and_are_forward_only():
     seed_threat_grants = {
         role_name: {key for key in expand_permission_keys(permission_keys) if key.startswith("threats:")}
         for role_name, permission_keys in RBAC_ROLE_PERMISSIONS.items()
-        if role_name != "cro"  # CRO holds the wildcard; the migration re-ensures it explicitly
+        if role_name not in {"cro", "ciso"}  # handled by wildcard and stewardship migrations
     }
     seed_threat_grants = {role: keys for role, keys in seed_threat_grants.items() if keys}
     migration_grants = {role: set(keys) for role, keys in sync.ROLE_THREAT_GRANTS.items()}
     assert migration_grants == seed_threat_grants
+
+    stewardship = load_migration(
+        "e6f7a8b9c0d1_add_ciso_threat_stewardship.py", "ciso_threat_stewardship_migration"
+    )
+    assert stewardship.down_revision == "d5e6f7a8b9c0"
+    assert set(stewardship.CISO_PERMISSION_KEYS) == set(
+        expand_permission_keys(RBAC_ROLE_PERMISSIONS["ciso"])
+    )
+    assert stewardship.PERMISSION_DESCRIPTIONS == {
+        key: PERMISSION_BY_KEY[key]["description"] for key in stewardship.CISO_PERMISSION_KEYS
+    }
+    with pytest.raises(NotImplementedError):
+        stewardship.downgrade()
 
     with pytest.raises(NotImplementedError):
         sync.downgrade()

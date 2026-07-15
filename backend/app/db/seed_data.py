@@ -13,6 +13,7 @@ DEPARTMENTS = [
 # ID 1-3: Privileged accounts (full access)
 # ID 4-6: Department heads (department-scoped write access)
 # ID 7-9: Employees (limited access under department heads)
+# ID 10: CISO (global Threat stewardship)
 TEST_USERS = [
     # Privileged accounts
     {
@@ -79,6 +80,13 @@ TEST_USERS = [
         "role": "employee",
         "department": "IT",
         "access_scope": "department",
+    },
+    {
+        "email": "ciso@riskhub.local",
+        "name": "Klára Černá",
+        "role": "ciso",
+        "department": "IT",
+        "access_scope": "global",
     },
 ]
 

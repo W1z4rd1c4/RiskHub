@@ -18,10 +18,17 @@ from app.services._access_workflow import (
 )
 from app.services._org_chart import (
     acquire_org_chart_lock,
+    clear_manager_references_for_inactive_user,
     validate_dept_manager_dept_change,
     validate_no_manager_cycle,
 )
+from app.services._threat_stewardship_lock import acquire_threat_steward_identity_lock
 
+from .ciso_stewardship import (
+    flag_orphaned_items_for_deactivation,
+    flag_orphaned_threats_for_ciso_role_loss,
+    role_change_removes_ciso_stewardship,
+)
 from .execution import log_user_update_and_commit
 from .policy import (
     ensure_directory_reenable_allowed,
@@ -63,6 +70,32 @@ async def update_access_profile(
         update_data=update_data,
     )
 
+    changes_steward_identity = (
+        update_data.get("is_active") is False
+        or (new_role is not None and new_role.id != user.role_id)
+    )
+    if changes_steward_identity:
+        await acquire_threat_steward_identity_lock(db, user_id=user.id)
+        user = (
+            await db.execute(
+                select(User)
+                .options(*user_selectinload_options(include_permissions=True))
+                .where(User.id == user.id)
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one()
+
+    is_deactivating = user.is_active is True and update_data.get("is_active") is False
+    if is_deactivating and current_user.id == user.id and is_global_privileged_user(user):
+        raise ValidationError("Cannot deactivate your own privileged access")
+    if is_deactivating and is_global_privileged_user(user):
+        await ensure_remaining_global_privileged_user(
+            db,
+            user=user,
+            detail="Cannot deactivate the last admin/CRO user",
+            require_active=False,
+        )
+
     ensure_sso_local_field_update_allowed(
         settings=settings,
         user=user,
@@ -79,6 +112,11 @@ async def update_access_profile(
             raise ValidationError("Email already registered")
 
     if new_role is not None:
+        removes_ciso_stewardship = await role_change_removes_ciso_stewardship(
+            db,
+            user=user,
+            new_role=new_role,
+        )
         await ensure_role_change_keeps_privileged_access(
             db,
             current_user=current_user,
@@ -86,6 +124,8 @@ async def update_access_profile(
             new_role=new_role,
             require_active=False,
         )
+    else:
+        removes_ciso_stewardship = False
 
     if "access_scope" in update_data:
         normalize_access_scope_update(update_data)
@@ -106,7 +146,17 @@ async def update_access_profile(
         await acquire_org_chart_lock(db)
         await validate_dept_manager_dept_change(db, user=user, new_department_id=update_data["department_id"])
 
-    changes = build_change_set(user, update_data)
+    extra_changes: dict[str, dict[str, object]] = {}
+    if is_deactivating:
+        orphan_count = await flag_orphaned_items_for_deactivation(db, user=user)
+        await acquire_org_chart_lock(db)
+        await clear_manager_references_for_inactive_user(db, user_id=user.id)
+        extra_changes["orphaned_items_flagged"] = {"old": None, "new": orphan_count}
+    elif removes_ciso_stewardship:
+        orphan_count = await flag_orphaned_threats_for_ciso_role_loss(db, user=user)
+        extra_changes["orphaned_items_flagged"] = {"old": None, "new": orphan_count}
+
+    changes = build_change_set(user, update_data, extra_changes=extra_changes)
     for field, value in update_data.items():
         setattr(user, field, value)
 

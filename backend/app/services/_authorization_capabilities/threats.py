@@ -8,7 +8,12 @@ from app.schemas.risk import RiskAssetLinkCapabilities, RiskProcessLinkCapabilit
 from app.schemas.threat import ThreatCapabilities, ThreatRiskLinkCapabilities
 
 
-def threat_capabilities(current_user: User, threat: Threat) -> ThreatCapabilities:
+def threat_capabilities(
+    current_user: User,
+    threat: Threat,
+    *,
+    stewardship_pending: bool = False,
+) -> ThreatCapabilities:
     """Per-row Threat action capabilities (ADR-001 capability SSOT).
 
     Threats carry no per-row ownership or department scope: visibility is the
@@ -22,7 +27,7 @@ def threat_capabilities(current_user: User, threat: Threat) -> ThreatCapabilitie
     is_active = not threat.is_archived
     return ThreatCapabilities(
         can_read=bool(can_read),
-        can_update=bool(can_read and can_write and is_active),
+        can_update=bool(can_read and can_write and is_active and not stewardship_pending),
         can_archive=bool(can_read and can_delete and is_active),
         can_restore=bool(can_read and can_delete and threat.is_archived),
     )

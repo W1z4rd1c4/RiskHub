@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.models.refresh_token import RefreshToken
     from app.models.risk import Risk
     from app.models.role import Role
+    from app.models.threat import Threat
     from app.models.vendor import Vendor
 
 
@@ -109,6 +110,9 @@ class User(Base):
 
     # Risk relationships
     owned_risks: Mapped[list["Risk"]] = relationship("Risk", foreign_keys="Risk.owner_id", back_populates="owner")
+    stewarded_threats: Mapped[list["Threat"]] = relationship(
+        "Threat", foreign_keys="Threat.threat_steward_user_id", back_populates="threat_steward"
+    )
 
     # Vendor relationships (Phase 18)
     owned_vendors: Mapped[list["Vendor"]] = relationship(

@@ -1,10 +1,10 @@
 ---
 title: Governance: Orphaned Items and Ownership Hygiene
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-15"
 audience: user
 source_of_truth: "frontend/src/pages/GovernancePage.tsx + frontend/src/components/governance/*"
-summary: "How to use Governance to detect and resolve orphaned Risks, Controls, and KRIs so ownership, scope, and reporting stay correct."
+summary: "How to use Governance to detect and resolve orphaned Risks, Controls, KRIs, and Threat stewardship so ownership, scope, and reporting stay correct."
 tags:
   - governance
   - workflow
@@ -57,10 +57,10 @@ You can usually reach this area from the left sidebar. The Governance page is a 
 Common navigation pattern:
 
 1. Open Governance.
-2. Choose the risk, control, or KRI queue.
+2. Choose the risk, control, KRI, or Threat queue.
 3. Review the summary counts and pending rows.
 4. Open quick view when you need more context.
-5. Use Resolve only after confirming the missing owner, department, or risk link.
+5. Use Resolve only after confirming the missing owner, department, risk link, or active CISO Threat Steward.
 
 ## What You Can See and Change
 
@@ -85,10 +85,10 @@ Follow this basic workflow unless your team has a stricter local procedure:
 1. Review the current governance queue.
 2. Open quick view or Resolve for an orphaned item.
 3. Select the right owner or department.
-4. Link a kri or control to a risk when required.
+4. Link a KRI or control to a risk when required, or choose an active CISO for an orphaned Threat.
 5. Submit the resolution and verify it disappears from the queue.
 
-After submitting, verify that the item disappears from the current queue and the summary counts update. If the page reports that the item changed while you were working, refresh and review the current row before trying again.
+After submitting, verify that the item disappears from the current queue and the summary counts update. For a Threat, also open its detail and verify the new eligible steward; ordinary Threat editing remains locked while the orphan is pending. If the page reports that the item changed while you were working, refresh and review the current row before trying again.
 
 When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 

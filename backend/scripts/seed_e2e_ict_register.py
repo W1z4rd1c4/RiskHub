@@ -54,6 +54,7 @@ from app.services._ict_register_reference import (
     ICT_SERVICE_TAXONOMY,
     is_closed_list_value,
     is_provider_identifier_type_write_value,
+    threat_category_code,
 )
 from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
 
@@ -681,7 +682,7 @@ E2E_PROCESS_VENDOR_LINKS = [
 E2E_THREATS = [
     {
         "name": "E2E-THREAT-001 Ransomware Encryption",
-        "category": "Dostupnost",
+        "category": "availability",
         "description": "Ransomware encrypts production data stores and halts claims processing.",
         "typical_weaknesses": "Missing offline backups; unpatched endpoints; weak segmentation.",
         "relevant_subject": "Aktivum",
@@ -690,7 +691,7 @@ E2E_THREATS = [
     },
     {
         "name": "E2E-THREAT-002 Third-Party Data Leak",
-        "category": "Třetí strany",
+        "category": "third_party",
         "description": "A sub-outsourcer exfiltrates or mishandles regulated client data.",
         "typical_weaknesses": "No DLP at the provider; over-broad data shares; stale contracts.",
         "relevant_subject": "Dodavatel",
@@ -737,6 +738,7 @@ async def seed_ict_register():
     async with session_context(get_settings()) as db:
         users, departments = await load_mappings(db)
         archiver_id = require_user_id(users, "risk.manager@riskhub.local")
+        ciso_id = require_user_id(users, "ciso@riskhub.local")
         now = utc_now()
 
         created = 0
@@ -1037,11 +1039,12 @@ async def seed_ict_register():
         # 8) Threats (12_Hrozby, issue #47): upsert by name.
         threat_ids: dict[str, int] = {}
         for entry in E2E_THREATS:
-            _assert_closed_list_values(entry, _THREAT_CLOSED_LIST_FIELDS, "Threat")
             is_archived = bool(entry["is_archived"])
             payload = {key: value for key, value in entry.items() if key != "is_archived"}
+            payload["category"] = threat_category_code(str(payload["category"]))
             payload.update(
                 {
+                    "threat_steward_user_id": ciso_id,
                     "is_archived": is_archived,
                     "archived_at": now if is_archived else None,
                     "archived_by_id": archiver_id if is_archived else None,

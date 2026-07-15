@@ -1,6 +1,7 @@
 """Seed script to populate database with initial data."""
 
 import asyncio
+from collections.abc import Iterable
 from datetime import date, timedelta
 from typing import Any, cast
 
@@ -188,9 +189,63 @@ async def seed_ict_workbook_parameter_config(db: AsyncSession) -> int:
     return created
 
 
+async def seed_missing_demo_users(
+    db: AsyncSession,
+    user_rows: Iterable[SeedPayload] = TEST_USERS,
+) -> int:
+    """Add missing canonical demo personas without changing existing Users.
+
+    This reconciliation is only invoked when mock authentication is enabled.
+    It lets an upgraded demo database gain newly introduced personas (such as
+    the CISO Threat Steward) while production seed runs remain untouched.
+    """
+    roles = {role.name: role for role in (await db.execute(select(Role))).scalars().all()}
+    departments = {
+        department.code: department for department in (await db.execute(select(Department))).scalars().all()
+    }
+    existing_emails = {
+        user.email.casefold() for user in (await db.execute(select(User))).scalars().all()
+    }
+    created = 0
+
+    for user_data in user_rows:
+        email = cast(str, user_data["email"])
+        if email.casefold() in existing_emails:
+            continue
+        role_name = cast(str, user_data["role"])
+        role = roles.get(role_name)
+        if role is None:
+            raise RuntimeError(f"Cannot seed demo User {email}: role {role_name!r} is missing")
+        department_code = cast(str | None, user_data["department"])
+        department = departments.get(department_code) if department_code else None
+        if department_code and department is None:
+            raise RuntimeError(
+                f"Cannot seed demo User {email}: department {department_code!r} is missing"
+            )
+        db.add(
+            User(
+                email=email,
+                name=cast(str, user_data["name"]),
+                role_id=role.id,
+                department_id=department.id if department else None,
+                is_active=True,
+                access_scope=AccessScope(
+                    cast(str, user_data.get("access_scope", AccessScope.DEPARTMENT))
+                ),
+            )
+        )
+        existing_emails.add(email.casefold())
+        created += 1
+
+    if created:
+        await db.flush()
+    return created
+
+
 async def seed_database():
     """Seed the database with initial data."""
-    async with session_context(get_settings()) as db:
+    settings = get_settings()
+    async with session_context(settings) as db:
         # Check if already seeded. Users are created ONLY by this seed, so
         # they are the sentinel: on a freshly alembic-migrated database the
         # permission-sync data migrations already inserted RBAC rows (and
@@ -199,6 +254,11 @@ async def seed_database():
         user_result = await db.execute(select(User))
         if user_result.scalars().first():
             print("Database already seeded. Skipping roles/permissions/users.")
+            demo_users_created = 0
+            if settings.mock_auth_enabled:
+                demo_users_created = await seed_missing_demo_users(db)
+                if demo_users_created:
+                    print(f"Seeded {demo_users_created} missing demo users")
             risk_type_summary = await seed_default_risk_types(db)
             if risk_type_summary["created"] or risk_type_summary["repaired"]:
                 print(f"Reconciled default risk types ({_format_risk_type_seed_summary(risk_type_summary)})")
@@ -209,7 +269,12 @@ async def seed_database():
             control_result = await db.execute(select(Control))
             if not control_result.scalars().first():
                 await seed_controls_and_risks(db)
-            elif risk_type_summary["created"] or risk_type_summary["repaired"] or ict_parameters_created:
+            elif (
+                demo_users_created
+                or risk_type_summary["created"]
+                or risk_type_summary["repaired"]
+                or ict_parameters_created
+            ):
                 await db.commit()
             return
 

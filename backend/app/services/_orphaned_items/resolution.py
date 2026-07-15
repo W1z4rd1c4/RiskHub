@@ -7,12 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.datetime_utils import utc_now
+from app.core.exceptions import ValidationError
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.control import Control
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
+from app.models.role import Role, RoleType
+from app.models.threat import Threat
 from app.models.user import User
+from app.services._ict_register_lifecycle.threat_policy import assert_active_ciso_steward
+from app.services._threat_stewardship_lock import acquire_threat_steward_identity_locks
 from app.services.transaction_boundary import commit_service_boundary
 
 from .governance import orphan_item_definition, orphan_resolution_requirements_projection
@@ -106,6 +111,30 @@ async def validate_resolution_context(
         if target_department_id != target_risk.department_id:
             raise ValueError("KRI reassignment must stay within the target risk department")
         return OrphanResolutionContext(orphan, new_owner, target_risk, target_department_id)
+
+    if orphan.item_type == "threat":
+        if new_owner is None:
+            raise ValueError("new_owner_id is required to resolve orphaned threats")
+        steward_state = (
+            await db.execute(
+                select(
+                    User.is_active.label("user_is_active"),
+                    Role.is_active.label("role_is_active"),
+                    Role.name,
+                )
+                .join(Role, Role.id == User.role_id)
+                .where(User.id == new_owner.id)
+            )
+        ).one()
+        if (
+            not steward_state.user_is_active
+            or not steward_state.role_is_active
+            or steward_state.name != RoleType.CISO
+        ):
+            raise ValueError("Threat steward must be an active CISO")
+        if department_id is not None or target_risk is not None:
+            raise ValueError("Threat reassignment does not accept department_id or target_risk_id")
+        return OrphanResolutionContext(orphan, new_owner, None, None)
 
     raise ValueError(f"Unsupported orphaned item type: {requirements.item_type}")
 
@@ -251,6 +280,47 @@ async def resolve_orphan(
             description=f"Resolved orphaned KRI via governance workflow #{orphan.id}",
         )
         logger.info("Resolved KRI %s by linking to risk %s", kri.id, target_risk.id)
+
+    elif orphan.item_type == "threat":
+        threat = (
+            await db.execute(select(Threat).where(Threat.id == orphan.item_id).with_for_update())
+        ).scalar_one_or_none()
+        if not threat:
+            raise ValueError(f"Threat {orphan.item_id} no longer exists")
+        # Match ordinary Threat reassignment lock order: establish the exact
+        # current steward under the Threat row lock, then acquire the current
+        # and proposed identities once in deterministic order. Revalidate the
+        # proposed CISO after waiting for those locks.
+        await acquire_threat_steward_identity_locks(
+            db,
+            user_ids=(threat.threat_steward_user_id, new_owner_id),
+        )
+        try:
+            new_steward = await assert_active_ciso_steward(
+                db,
+                user_id=int(new_owner_id),
+                acquire_identity_lock=False,
+            )
+        except ValidationError as exc:
+            raise ValueError("Threat steward must be an active CISO") from exc
+        await assert_orphan_still_matches_target_state(db, orphan=orphan, target_entity=threat)
+        threat_changes = build_change_set(
+            threat,
+            {"threat_steward_user_id": new_owner_id},
+        )
+        threat.threat_steward = new_steward
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.THREAT,
+            entity_id=threat.id,
+            entity_name=threat.name,
+            action=ActivityAction.UPDATE,
+            actor=resolving_user,
+            department_id=None,
+            changes=threat_changes,
+            description=f"Resolved orphaned threat via governance workflow #{orphan.id}",
+        )
+        logger.info("Reassigned threat %s to CISO user %s", threat.id, new_owner_id)
 
     # Mark orphan as resolved
     orphan.status = "resolved"

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.models import Department, User
+from app.models import Department, OrphanedItem, Role, Threat, User
 from app.schemas.directory import DirectoryUserRead
 from app.services.ad_deprovision_service import ADDeprovisionService
 
@@ -124,6 +124,63 @@ async def test_directory_reimport_updates_existing_user_without_duplication(
     assert users[0].job_title == "Updated Title"
     assert users[0].entra_business_role == "Claims Manager"
     assert users[0].department_id == original_department_id
+
+
+@pytest.mark.asyncio
+async def test_directory_role_override_flags_ciso_stewarded_threats(
+    directory_import_client: AsyncClient,
+    db_session: AsyncSession,
+    test_role_employee: Role,
+    monkeypatch,
+):
+    ciso_role = Role(name="ciso", display_name="Chief Information Security Officer")
+    db_session.add(ciso_role)
+    await db_session.flush()
+    ciso = User(
+        name="Directory CISO",
+        email="directory.ciso@example.com",
+        external_id="oid-directory-ciso",
+        role_id=ciso_role.id,
+        is_active=True,
+    )
+    db_session.add(ciso)
+    await db_session.flush()
+    threat = Threat(name="Directory role-loss orphan", threat_steward_user_id=ciso.id)
+    db_session.add(threat)
+    await db_session.commit()
+
+    async def stub_get_user(self, external_id: str):
+        assert external_id == ciso.external_id
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name=ciso.name,
+            email=ciso.email,
+            user_principal_name=ciso.email,
+            account_enabled=True,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    response = await directory_import_client.post(
+        f"/api/v1/directory/users/{ciso.external_id}/import",
+        json={"role_id": test_role_employee.id},
+    )
+
+    assert response.status_code == 200, response.text
+    orphan = (
+        await db_session.execute(
+            select(OrphanedItem).where(
+                OrphanedItem.item_type == "threat",
+                OrphanedItem.item_id == threat.id,
+                OrphanedItem.previous_owner_id == ciso.id,
+                OrphanedItem.status == "pending",
+            )
+        )
+    ).scalar_one()
+    await db_session.refresh(threat)
+    assert orphan.item_id == threat.id
+    assert threat.threat_steward_user_id == ciso.id
 
 
 @pytest.mark.asyncio

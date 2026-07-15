@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from app.core.policy import PROTECTED_SYSTEM_ROLES
+from app.core.policy import IMMUTABLE_SYSTEM_ROLES, PROTECTED_SYSTEM_ROLES
 from app.models import RiskTypeConfig
 from app.models.department import Department
-from app.models.role import Role, RoleType
+from app.models.role import Role
 from app.schemas.riskhub import (
     ApprovalScenarioCapabilities,
     DepartmentHubCapabilities,
@@ -17,9 +17,6 @@ if TYPE_CHECKING:
     from app.services._riskhub_config.departments import DepartmentDependencyCounts
 
 
-IMMUTABLE_ROLE_NAMES = {RoleType.CRO, RoleType.ADMIN, RoleType.VIEWER}
-
-
 def role_capabilities(role: Role, *, active_user_count: int | None = None) -> RoleHubCapabilities:
     active_users = (
         active_user_count
@@ -27,7 +24,7 @@ def role_capabilities(role: Role, *, active_user_count: int | None = None) -> Ro
         else len([user for user in role.users if user.is_active])
     )
     protected = role.is_system or role.name in PROTECTED_SYSTEM_ROLES
-    mutable = role.name not in IMMUTABLE_ROLE_NAMES
+    mutable = role.name not in IMMUTABLE_SYSTEM_ROLES
     return RoleHubCapabilities(
         can_update=bool(role.is_active and mutable),
         can_delete=bool(role.is_active and not protected and active_users == 0),

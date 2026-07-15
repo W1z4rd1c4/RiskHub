@@ -240,12 +240,12 @@ export const E2E_PROCESS_VENDOR_LINKS = {
 export const E2E_THREATS = {
     RANSOMWARE: {
         name: 'E2E-THREAT-001 Ransomware Encryption',
-        category: 'Dostupnost',
+        category: 'Availability',
         status: 'active',
     },
     THIRD_PARTY_LEAK: {
         name: 'E2E-THREAT-002 Third-Party Data Leak',
-        category: 'Třetí strany',
+        category: 'Third party',
         status: 'active',
     },
 } as const;

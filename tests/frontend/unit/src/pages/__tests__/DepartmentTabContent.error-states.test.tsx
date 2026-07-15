@@ -17,13 +17,16 @@ const departmentApiMock = vi.hoisted(() => ({
     getDepartmentKRIs: vi.fn(),
 }));
 
-const userApiMock = vi.hoisted(() => ({
-    listVisibleUsers: vi.fn(),
+const accessApiMock = vi.hoisted(() => ({
+    listDepartmentAccessUsers: vi.fn(),
 }));
 
 vi.mock('@/services/departmentApi', () => ({ departmentApi: departmentApiMock }));
-vi.mock('@/services/userApi', () => ({ userApi: userApiMock }));
+vi.mock('@/services/accessApi', () => ({ accessApi: accessApiMock }));
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
+vi.mock('@/authz/useAuthz', () => ({
+    useAuthz: () => ({ canViewDepartmentAccess: true }),
+}));
 
 vi.mock('@/hooks/useRiskHubConfig', () => ({
     useRiskThresholds: () => ({
@@ -84,7 +87,7 @@ describe('Department tab fetch failures render an error + retry surface (C4)', (
         departmentApiMock.getDepartmentRisks.mockResolvedValue([]);
         departmentApiMock.getDepartmentControls.mockResolvedValue([]);
         departmentApiMock.getDepartmentKRIs.mockResolvedValue({ items: [], total: 0 });
-        userApiMock.listVisibleUsers.mockResolvedValue([]);
+        accessApiMock.listDepartmentAccessUsers.mockResolvedValue([]);
     });
 
     it('risks tab: a failed fetch shows the table error, not the empty message', async () => {
@@ -119,7 +122,7 @@ describe('Department tab fetch failures render an error + retry surface (C4)', (
     });
 
     it('users tab: a failed fetch shows the table error, not the empty message', async () => {
-        userApiMock.listVisibleUsers.mockRejectedValue(new Error('boom'));
+        accessApiMock.listDepartmentAccessUsers.mockRejectedValue(new Error('boom'));
         const user = userEvent.setup();
         renderPage();
 
@@ -127,6 +130,24 @@ describe('Department tab fetch failures render an error + retry surface (C4)', (
 
         expect(await screen.findByText('tables.error.message')).toBeInTheDocument();
         expect(screen.queryByText('common:empty.no_users_department')).not.toBeInTheDocument();
+    });
+
+    it('users tab uses the scoped access roster and projects minimal display fields', async () => {
+        accessApiMock.listDepartmentAccessUsers.mockResolvedValue([{
+            id: 14,
+            name: 'Department Owner',
+            email: 'owner@example.com',
+            department_id: 7,
+            role: { name: 'department_head' },
+        }]);
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.click(await screen.findByRole('button', { name: 'department_detail.tabs.users:4' }));
+
+        expect(await screen.findByText('Department Owner')).toBeInTheDocument();
+        expect(screen.getByText('owner@example.com')).toBeInTheDocument();
+        expect(accessApiMock.listDepartmentAccessUsers).toHaveBeenCalledWith(7);
     });
 
     it('retry re-runs the failed tab fetch and recovers to data', async () => {
@@ -214,7 +235,7 @@ describe('Department tab data is scoped to departmentId across an A->B route cha
         );
         departmentApiMock.getDepartmentControls.mockResolvedValue([]);
         departmentApiMock.getDepartmentKRIs.mockResolvedValue({ items: [], total: 0 });
-        userApiMock.listVisibleUsers.mockResolvedValue([]);
+        accessApiMock.listDepartmentAccessUsers.mockResolvedValue([]);
     });
 
     it('does not show department A rows under department B while B risks are still pending', async () => {

@@ -99,7 +99,7 @@ export function ActivityLogPage() {
                 onDepartmentChange={(id) => { state.setSelectedDepartmentId(id); state.setPage(0); }}
                 selectedRiskId={state.selectedRiskId}
                 onRiskChange={(id) => { state.setSelectedRiskId(id); state.setPage(0); }}
-                users={state.users}
+                actors={state.actors}
                 departments={state.departments}
                 risks={state.risks}
                 canFilterByDepartment={resolveCapabilityFlag(state.capabilities, 'can_filter_by_department')}

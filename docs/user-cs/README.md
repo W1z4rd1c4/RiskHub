@@ -50,6 +50,7 @@ První týden používejte hlavně k vytvoření správných návyků. Při otev
 - [KRI](./kris.md): indikátory, hodnoty a warning signály.
 - [Nálezy](./issues.md): remediation, výjimky a uzavření.
 - [Dodavatelé](./vendors.md): třetí strany a navázaná práce.
+- [Hrozby](./threats.md): globální katalog hrozeb spravovaný rolí CISO a vazby na rizika.
 - [Oddělení](./departments.md): expozice podle organizační oblasti.
 - [Governance](./governance.md): chybějící ownership nebo kontext.
 - [Správa přístupů](./access-management.md): uživatelé, adresář a lifecycle účtů.

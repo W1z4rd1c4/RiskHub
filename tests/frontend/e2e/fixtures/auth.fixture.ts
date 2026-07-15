@@ -11,6 +11,7 @@ export const test = base.extend<{
     // Privileged role fixtures (GLOBAL scope)
     croPage: Page;
     riskManagerPage: Page;
+    cisoPage: Page;
     compliancePage: Page;
 
     // Department role fixtures (DEPARTMENT scope)
@@ -37,6 +38,15 @@ export const test = base.extend<{
         const context = await browser.newContext();
         const page = await context.newPage();
         await loginAsDemoUser(page, DEMO_ACCOUNTS.RISK_MANAGER);
+        await use(page);
+        await context.close();
+    },
+
+    // CISO (GLOBAL scope, least-privilege Threat stewardship)
+    cisoPage: async ({ browser }, use) => {
+        const context = await browser.newContext();
+        const page = await context.newPage();
+        await loginAsDemoUser(page, DEMO_ACCOUNTS.CISO);
         await use(page);
         await context.close();
     },

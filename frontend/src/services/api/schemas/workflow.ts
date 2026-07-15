@@ -201,6 +201,7 @@ export const orphanStatsSchema: z.ZodType<OrphanStats> = passthroughObject({
     risk_count: z.number(),
     control_count: z.number(),
     kri_count: z.number(),
+    threat_count: z.number(),
     total_count: z.number(),
 });
 export const orphanedItemsOverviewSchema: z.ZodType<OrphanedItemsOverview> =

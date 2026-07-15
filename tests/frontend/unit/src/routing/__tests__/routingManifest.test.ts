@@ -171,6 +171,7 @@ describe('routing manifest parity', () => {
         'issues:read',
         'vendors:read',
         'departments:read',
+        'users:read',
         'ict_committee:read',
       ],
     );
@@ -189,6 +190,29 @@ describe('routing manifest parity', () => {
       '/settings',
       '/users',
     ]);
+  });
+
+  it('keeps CISO Threat stewardship out of approval and User administration navigation', () => {
+    const hrefs = visibleSidebarHrefs(
+      { role: 'ciso', access_scope: 'global' },
+      [
+        'activity_log:read',
+        'controls:read',
+        'risks:read',
+        'issues:read',
+        'vendors:read',
+        'departments:read',
+        'processes:read',
+        'assets:read',
+        'threats:read',
+        'ict_committee:read',
+      ],
+    );
+
+    expect(hrefs).toContain('/threats');
+    expect(hrefs).not.toContain('/approvals');
+    expect(hrefs).not.toContain('/users');
+    expect(hrefs).not.toContain('/admin');
   });
 
   it('hides the ICT Risk Committee entry without ict_committee:read (employee manifest)', () => {

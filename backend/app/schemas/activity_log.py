@@ -34,6 +34,13 @@ class ActivityLogCapabilities(BaseModel):
     can_export_csv: bool = False
 
 
+class ActivityLogActorLookup(BaseModel):
+    """Minimal actor identity exposed only within the readable audit context."""
+
+    id: int
+    name: str
+
+
 class ActivityLogListResponse(BaseModel):
     """Paginated activity log response."""
 

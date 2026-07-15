@@ -19,6 +19,11 @@ export interface ActivityLogCapabilities {
     can_export_csv: boolean;
 }
 
+export interface ActivityLogActorLookup {
+    id: number;
+    name: string;
+}
+
 export interface ActivityLogListResponse {
     items: ActivityLogEntry[];
     total: number;

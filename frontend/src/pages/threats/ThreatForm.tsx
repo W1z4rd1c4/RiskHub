@@ -4,16 +4,16 @@ import { AlertCircle, Save, X } from 'lucide-react';
 
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
-import { ictRegisterKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
-import { processApi } from '@/services/processApi';
+import { lookupApi } from '@/services/lookupApi';
 import { threatApi } from '@/services/threatApi';
 import { logError } from '@/services/logger';
 import type { Threat } from '@/types/threat';
 
-import { buildThreatWritePayload } from './threatsPagePresentation';
+import { buildThreatWritePayload, THREAT_CATEGORY_CODES } from './threatsPagePresentation';
 
 // Token-driven textarea styling matching the `Input` primitive (no `<Textarea>`
 // primitive shipped in #58); the `aria-[invalid=true]` hook lets `Field` drive
@@ -30,6 +30,7 @@ interface ThreatFormProps {
 
 type FormFields = {
     name: string;
+    threat_steward_user_id: string;
     category: string;
     description: string;
     typical_weaknesses: string;
@@ -44,6 +45,7 @@ function toFieldValue(value: string | null | undefined): string {
 function initialFields(threat?: Threat): FormFields {
     return {
         name: toFieldValue(threat?.name),
+        threat_steward_user_id: threat?.threat_steward_user_id?.toString() ?? '',
         category: toFieldValue(threat?.category),
         description: toFieldValue(threat?.description),
         typical_weaknesses: toFieldValue(threat?.typical_weaknesses),
@@ -58,27 +60,32 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormFields, string>>>({});
+    const [stewardSearch, setStewardSearch] = useState('');
 
     // Required fields in DOM order — drives focus-first-invalid (N12).
-    const REQUIRED_FIELDS: Array<keyof FormFields> = ['name'];
-    const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLInputElement | null>>>({});
-    const registerFieldRef = (field: keyof FormFields) => (element: HTMLInputElement | null) => {
+    const REQUIRED_FIELDS: Array<keyof FormFields> = ['name', 'threat_steward_user_id'];
+    const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLElement | null>>>({});
+    const registerFieldRef = (field: keyof FormFields) => (element: HTMLElement | null) => {
         fieldRefs.current[field] = element;
     };
 
-    const closedListsQuery = useQuery({
-        queryKey: ictRegisterKeys.closedLists(),
-        queryFn: () => processApi.getClosedLists(),
+    const cisoQuery = useQuery({
+        queryKey: ['threat-steward-lookup', stewardSearch],
+        queryFn: () => lookupApi.getThreatStewards({ q: stewardSearch || undefined, limit: 50 }),
         staleTime: 5 * 60_000,
     });
 
     const categoryOptions = useMemo(() => {
-        const lists = closedListsQuery.data ?? {};
-        return (lists.KategorieHrozeb ?? []).map((value) => ({
-            value: String(value),
-            label: String(value),
+        return THREAT_CATEGORY_CODES.map((value) => ({
+            value,
+            label: t(`categories.${value}`),
         }));
-    }, [closedListsQuery.data]);
+    }, [t]);
+
+    const stewardOptions = useMemo(() => (cisoQuery.data ?? []).map((user) => ({
+        value: String(user.id),
+        label: `${user.name} — ${user.email}`,
+    })), [cisoQuery.data]);
 
     const setField = (field: keyof FormFields, value: string) => {
         setFields((current) => ({ ...current, [field]: value }));
@@ -88,6 +95,9 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
         const nextErrors: Partial<Record<keyof FormFields, string>> = {};
         if (!fields.name.trim()) {
             nextErrors.name = t('form.errors.name_required');
+        }
+        if (!fields.threat_steward_user_id) {
+            nextErrors.threat_steward_user_id = t('form.errors.steward_required');
         }
         return nextErrors;
     };
@@ -102,14 +112,17 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
             return;
         }
 
-        const payload = buildThreatWritePayload({
+        const payload = {
+            ...buildThreatWritePayload({
             name: fields.name,
             category: fields.category,
             description: fields.description,
             typical_weaknesses: fields.typical_weaknesses,
             relevant_subject: fields.relevant_subject,
             notes: fields.notes,
-        });
+            }),
+            threat_steward_user_id: Number(fields.threat_steward_user_id),
+        };
 
         try {
             setIsSubmitting(true);
@@ -158,7 +171,7 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
                 </div>
             ) : null}
 
-            {closedListsQuery.isError ? (
+            {cisoQuery.isError ? (
                 <div
                     role="status"
                     className="glass-card flex items-center justify-between gap-3 border border-amber-400/30 text-amber-200"
@@ -169,7 +182,7 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
                     </div>
                     <button
                         type="button"
-                        onClick={() => void closedListsQuery.refetch()}
+                        onClick={() => void cisoQuery.refetch()}
                         className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-100 transition-colors hover:bg-white/10"
                     >
                         {t('actions.retry')}
@@ -205,6 +218,27 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
                                 emptyLabel={t('form.not_set')}
                                 placeholder={t('form.not_set')}
                                 triggerTestId="threat-form-category"
+                            />
+                        )}
+                    </Field>
+                    <Field
+                        label={t('form.steward')}
+                        required
+                        error={fieldErrors.threat_steward_user_id}
+                        labelClassName={labelClassName}
+                    >
+                        {(control) => (
+                            <SearchableEntitySelect
+                                {...control}
+                                value={fields.threat_steward_user_id}
+                                onValueChange={(value) => setField('threat_steward_user_id', value)}
+                                options={stewardOptions}
+                                searchValue={stewardSearch}
+                                onSearchChange={setStewardSearch}
+                                placeholder={t('form.steward_placeholder')}
+                                searchPlaceholder={t('form.steward_search')}
+                                triggerTestId="threat-form-steward"
+                                triggerRef={registerFieldRef('threat_steward_user_id')}
                             />
                         )}
                     </Field>

@@ -3,7 +3,7 @@
  * RiskHub uses demo account picker (not traditional login form)
  */
 import { test, expect } from '@playwright/test';
-import { loginAsDemoUser } from './helpers/login';
+import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 import { waitForPreferencesHydration } from './helpers/waitForPreferencesHydration';
 
 test.describe('Authentication', () => {
@@ -14,10 +14,25 @@ test.describe('Authentication', () => {
             // Should show RiskHub Demo header
             await expect(page.locator('text=RiskHub Demo')).toBeVisible();
 
-            // Should show account tier sections
-            await expect(page.locator('text=Privileged')).toBeVisible();
-            await expect(page.locator('text=Department Heads')).toBeVisible();
-            await expect(page.locator('text=Employees')).toBeVisible();
+            // Ten distinct personas share one responsive, five-column desktop grid.
+            const grid = page.getByTestId('demo-persona-grid');
+            await expect(grid).toBeVisible();
+            await expect(grid).toHaveClass(/lg:grid-cols-5/);
+            await expect(grid.locator('button')).toHaveCount(10);
+
+            // The dedicated CISO card carries both role and department context.
+            const cisoCard = page.getByTestId('demo-persona-ciso@riskhub.local');
+            await expect(cisoCard).toContainText(DEMO_ACCOUNTS.CISO);
+            await expect(cisoCard).toContainText('Chief Information Security Officer');
+            await expect(cisoCard).toContainText('IT');
+        });
+
+        test('should login as CISO via demo picker', async ({ page }) => {
+            await loginAsDemoUser(page, DEMO_ACCOUNTS.CISO);
+
+            await expect(page).not.toHaveURL(/.*login/);
+            await expect(page.getByTestId('logout-button')).toBeVisible();
+            await expect(page.locator('aside')).toContainText(DEMO_ACCOUNTS.CISO);
         });
 
         test('should login as admin via demo picker', async ({ page }) => {

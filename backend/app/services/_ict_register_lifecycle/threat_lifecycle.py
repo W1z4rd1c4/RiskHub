@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.audit import threat as audit_threat
-from app.models import Threat, User
+from app.core.exceptions import ConflictError
+from app.models import OrphanedItem, Threat, User
 from app.models._archivable import archived_clause
 from app.schemas.threat import ThreatCreate, ThreatListResponse, ThreatRead, ThreatUpdate
+from app.services._threat_stewardship_lock import acquire_threat_steward_identity_locks
 from app.services.transaction_boundary import commit_service_boundary
 
 from .lifecycle_adapters import (
@@ -16,6 +19,7 @@ from .lifecycle_adapters import (
     load_register_page,
 )
 from .threat_policy import (
+    assert_active_ciso_steward,
     assert_threat_archive_allowed,
     assert_threat_create_allowed,
     assert_threat_readable,
@@ -32,6 +36,39 @@ _SORT_COLUMNS = {
 }
 
 
+async def _pending_stewardship_orphan_ids(
+    db: AsyncSession,
+    *,
+    threat_ids: list[int],
+) -> set[int]:
+    if not threat_ids:
+        return set()
+    return set(
+        (
+            await db.execute(
+                select(OrphanedItem.item_id).where(
+                    OrphanedItem.item_type == "threat",
+                    OrphanedItem.item_id.in_(threat_ids),
+                    OrphanedItem.status == "pending",
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+
+async def _assert_no_pending_stewardship_orphan(
+    db: AsyncSession,
+    *,
+    threat: Threat,
+) -> None:
+    if await _pending_stewardship_orphan_ids(db, threat_ids=[threat.id]):
+        raise ConflictError(
+            "Orphaned Threat stewardship must be reassigned through the governance workflow"
+        )
+
+
 async def create_threat_detail(
     *,
     db: AsyncSession,
@@ -39,8 +76,10 @@ async def create_threat_detail(
     current_user: User,
 ) -> ThreatRead:
     await assert_threat_create_allowed(current_user=current_user)
+    steward = await assert_active_ciso_steward(db, user_id=payload.threat_steward_user_id)
 
     threat = Threat(**payload.model_dump())
+    threat.threat_steward = steward
     db.add(threat)
     await db.flush()
 
@@ -57,7 +96,12 @@ async def read_threat_detail(
     current_user: User,
 ) -> ThreatRead:
     threat = await assert_threat_readable(db, threat_id=threat_id, current_user=current_user)
-    return serialize_threat_detail(threat, current_user=current_user)
+    pending_ids = await _pending_stewardship_orphan_ids(db, threat_ids=[threat.id])
+    return serialize_threat_detail(
+        threat,
+        current_user=current_user,
+        stewardship_pending=threat.id in pending_ids,
+    )
 
 
 async def update_threat_detail(
@@ -67,8 +111,51 @@ async def update_threat_detail(
     payload: ThreatUpdate,
     current_user: User,
 ) -> ThreatRead:
-    threat = await assert_threat_update_allowed(db, threat_id=threat_id, current_user=current_user)
-    updates = extract_updates(payload, non_nullable_fields=("name",))
+    # Use a savepoint for lock/authority preflight. A handled domain error does
+    # not always reach a dependency override's rollback branch, while rolling
+    # back the whole shared session would expire unrelated identity objects.
+    # The savepoint releases locks and restores only this request's state.
+    threat: Threat | None = None
+    try:
+        async with db.begin_nested():
+            # Establish the current steward under a row lock before selecting
+            # any identity advisory locks. Overlapping A->B / A->C
+            # reassignments therefore cannot acquire incompatible subsets in
+            # opposite order.
+            threat = await assert_threat_update_allowed(
+                db,
+                threat_id=threat_id,
+                current_user=current_user,
+                for_update=True,
+            )
+            updates = extract_updates(
+                payload,
+                non_nullable_fields=("name", "threat_steward_user_id"),
+            )
+            if "threat_steward_user_id" in updates:
+                new_steward_id = int(updates["threat_steward_user_id"])
+                await acquire_threat_steward_identity_locks(
+                    db,
+                    user_ids=(threat.threat_steward_user_id, new_steward_id),
+                )
+
+            # Pending Governance is authoritative even if the former steward
+            # later becomes eligible again. Every ordinary PATCH remains
+            # blocked until the explicit resolution workflow closes the
+            # orphan record.
+            await _assert_no_pending_stewardship_orphan(db, threat=threat)
+            if "threat_steward_user_id" in updates:
+                threat.threat_steward = await assert_active_ciso_steward(
+                    db,
+                    user_id=new_steward_id,
+                    acquire_identity_lock=False,
+                )
+    except Exception:
+        if threat is not None:
+            await db.refresh(threat)
+        raise
+
+    assert threat is not None
     if not updates:
         return serialize_threat_detail(threat, current_user=current_user)
 
@@ -137,7 +224,10 @@ async def list_threat_register(
     sort_by: str | None,
     sort_order: str | None,
 ) -> ThreatListResponse:
-    query = select(Threat)
+    query = select(Threat).options(
+        selectinload(Threat.threat_steward).selectinload(User.role),
+        selectinload(Threat.threat_steward).selectinload(User.department),
+    )
     if not include_archived:
         query = query.where(archived_clause(Threat, archived=False))
     if search:
@@ -160,10 +250,16 @@ async def list_threat_register(
         sort_order=sort_order,
         sort_columns=_SORT_COLUMNS,
     )
+    threats = list(rows)
+    pending_ids = await _pending_stewardship_orphan_ids(
+        db,
+        threat_ids=[threat.id for threat in threats],
+    )
     return serialize_threat_list(
-        list(rows),
+        threats,
         current_user=current_user,
         total=total,
         offset=offset,
         limit=limit,
+        pending_stewardship_orphan_ids=pending_ids,
     )

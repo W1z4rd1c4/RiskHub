@@ -16,6 +16,7 @@ const typeIcons: Record<string, typeof ShieldAlert> = {
     risk: ShieldAlert,
     control: ClipboardList,
     kri: AlertTriangle,
+    threat: ShieldAlert,
 };
 
 export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTableProps) {
@@ -28,6 +29,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
         risk: t('governance.type_risk'),
         control: t('governance.type_control'),
         kri: t('governance.type_kri'),
+        threat: t('governance.type_threat'),
     };
 
     const filteredItems = filter === 'all'
@@ -73,6 +75,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                             { value: 'risk', label: t('governance.risks_only') },
                             { value: 'control', label: t('governance.controls_only') },
                             { value: 'kri', label: t('governance.kris_only') },
+                            { value: 'threat', label: t('governance.threats_only') },
                         ]}
                     />
                 </div>

@@ -147,6 +147,29 @@ class UserLookup(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AssignableOwnerLookup(BaseModel):
+    """Minimal scoped identity returned to business-assignment writers."""
+
+    id: int
+    name: str
+    email: str
+    role_name: str | None = None
+    department_id: int | None = None
+    department_name: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ThreatStewardLookup(BaseModel):
+    """Minimal active-CISO identity returned to Threat writers."""
+
+    id: int
+    name: str
+    email: str
+
+    model_config = {"from_attributes": True}
+
+
 class UserDirectoryEntry(BaseModel):
     """Directory entry for the `/users` page in directory mode."""
 

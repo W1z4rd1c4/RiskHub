@@ -9,6 +9,7 @@
         "cancel": "Zrušit",
         "restore": "Obnovit",
         "retry": "Zkusit znovu",
+        "resolve_in_governance": "Vyřešit v Governance",
         "back_to_register": "Zpět na hrozby"
     },
     "filters": {
@@ -18,6 +19,15 @@
     "status": {
         "active": "Aktivní",
         "archived": "Archivováno"
+    },
+    "categories": {
+        "availability": "Dostupnost",
+        "integrity": "Integrita",
+        "confidentiality": "Důvěrnost",
+        "authenticity": "Hodnověrnost",
+        "physical": "Fyzická",
+        "personnel": "Personální",
+        "third_party": "Třetí strany"
     },
     "columns": {
         "name": "Hrozba",
@@ -33,6 +43,9 @@
         },
         "name": "Hrozba",
         "category": "Kategorie",
+        "steward": "Správce hrozby",
+        "steward_placeholder": "Vyberte aktivního CISO",
+        "steward_search": "Hledat CISO podle jména nebo e-mailu...",
         "description": "Popis",
         "typical_weaknesses": "Typické zranitelnosti",
         "relevant_subject": "Relevantní subjekt",
@@ -40,6 +53,7 @@
         "not_set": "Nevyplněno",
         "errors": {
             "name_required": "Název hrozby je povinný.",
+            "steward_required": "Je vyžadován aktivní CISO jako správce hrozby.",
             "save_failed": "Uložení hrozby se nezdařilo. Zkuste to prosím znovu.",
             "fix_fields": "Opravte prosím zvýrazněná pole.",
             "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."
@@ -67,6 +81,11 @@
         "archive_failed": "Archivace hrozby se nezdařila. Zkuste to prosím znovu."
     },
     "messages": {
-        "archive_confirm": "Archivovat hrozbu „{{threatName}}“? Zůstane dostupná v archivovaném zobrazení."
+        "archive_confirm": "Archivovat hrozbu „{{threatName}}“? Zůstane dostupná v archivovaném zobrazení.",
+        "steward_orphaned": "Přiřazený správce hrozby je neaktivní nebo již nemá roli CISO. Hrozbu explicitně přeřaďte.",
+        "steward_orphaned_governance": "Zachovaný správce hrozby je neaktivní nebo již nemá roli CISO. Úpravy jsou po dobu otevřené mezery uzamčené. Přiřaďte aktivního CISO přes Governance.",
+        "steward_orphaned_request": "Zachovaný správce hrozby je neaktivní nebo již nemá roli CISO. Úpravy jsou po dobu otevřené mezery uzamčené. Požádejte CRO o přiřazení aktivního CISO přes Governance.",
+        "stewardship_legacy_unassigned": "Tato migrovaná hrozba nemá správce. Pomocí Upravit hrozbu přiřaďte aktivního CISO.",
+        "stewardship_invalid_assignment": "Současné přiřazení není aktivní CISO. V Upravit hrozbu před uložením vyberte způsobilého správce; původní vazba zůstane zachovaná, dokud se změna úspěšně neuloží."
     }
 }

@@ -12,13 +12,13 @@ import { MemoryRouter } from 'react-router-dom';
 import * as axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockGetClosedLists = vi.fn();
+const mockGetThreatStewards = vi.fn();
 const mockCreateThreat = vi.fn();
 const mockUpdateThreat = vi.fn();
 
-vi.mock('@/services/processApi', () => ({
-    processApi: {
-        getClosedLists: (...args: unknown[]) => mockGetClosedLists(...args),
+vi.mock('@/services/lookupApi', () => ({
+    lookupApi: {
+        getThreatStewards: (...args: unknown[]) => mockGetThreatStewards(...args),
     },
 }));
 vi.mock('@/services/threatApi', () => ({
@@ -62,7 +62,7 @@ const nameLabel = () => i18n.t('threats:form.name');
 
 beforeEach(() => {
     vi.clearAllMocks();
-    mockGetClosedLists.mockResolvedValue({});
+    mockGetThreatStewards.mockResolvedValue([{ id: 17, name: 'Clara Security', email: 'ciso@test.local' }]);
 });
 
 afterEach(async () => {
@@ -70,6 +70,14 @@ afterEach(async () => {
 });
 
 describe('ThreatForm — Field migration + validation + submit feedback (#59)', () => {
+    it('loads active CISOs through the purpose-scoped Threat Steward lookup', async () => {
+        renderForm();
+
+        await waitFor(() => {
+            expect(mockGetThreatStewards).toHaveBeenCalledWith({ q: undefined, limit: 50 });
+        });
+    });
+
     it('associates the required name control with its label and exposes aria-required', () => {
         renderForm();
         const name = screen.getByRole('textbox', { name: nameLabel() });
@@ -90,12 +98,29 @@ describe('ThreatForm — Field migration + validation + submit feedback (#59)', 
         expect(mockCreateThreat).not.toHaveBeenCalled();
     });
 
+    it('labels and focuses the required CISO steward selector when it is the first invalid field', async () => {
+        const user = userEvent.setup();
+        renderForm();
+
+        await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Phishing');
+        await user.click(screen.getByTestId('threat-form-submit'));
+
+        const steward = screen.getByRole('combobox', { name: i18n.t('threats:form.steward') });
+        expect(steward).toHaveAttribute('aria-required', 'true');
+        expect(steward).toHaveAttribute('aria-invalid', 'true');
+        expect(steward).toHaveFocus();
+        expect(screen.getByText(i18n.t('threats:form.errors.steward_required'))).toBeInTheDocument();
+        expect(mockCreateThreat).not.toHaveBeenCalled();
+    });
+
     it('submits successfully and reports back through onSaved', async () => {
         const user = userEvent.setup();
         mockCreateThreat.mockResolvedValue({ id: 9, name: 'Phishing' });
         const { onSaved } = renderForm();
 
         await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Phishing');
+        await user.click(screen.getByTestId('threat-form-steward'));
+        await user.click(await screen.findByRole('option', { name: /Clara Security/ }));
         await user.click(screen.getByTestId('threat-form-submit'));
 
         await waitFor(() => expect(mockCreateThreat).toHaveBeenCalledTimes(1));
@@ -113,6 +138,8 @@ describe('ThreatForm — Field migration + validation + submit feedback (#59)', 
         renderForm();
 
         await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Phishing');
+        await user.click(screen.getByTestId('threat-form-steward'));
+        await user.click(await screen.findByRole('option', { name: /Clara Security/ }));
         const submit = screen.getByTestId('threat-form-submit');
         await user.click(submit);
 
@@ -123,8 +150,8 @@ describe('ThreatForm — Field migration + validation + submit feedback (#59)', 
         expect(await screen.findByText(i18n.t('threats:form.errors.save_failed'))).toBeInTheDocument();
     });
 
-    it('reads .isError on the closed-lists fetch with a retry affordance', async () => {
-        mockGetClosedLists.mockRejectedValue(new Error('down'));
+    it('reads .isError on the CISO lookup with a retry affordance', async () => {
+        mockGetThreatStewards.mockRejectedValue(new Error('down'));
         renderForm();
 
         expect(await screen.findByText(i18n.t('threats:form.errors.lists_failed'))).toBeInTheDocument();

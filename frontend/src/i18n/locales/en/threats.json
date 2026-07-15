@@ -9,6 +9,7 @@
         "cancel": "Cancel",
         "restore": "Restore",
         "retry": "Retry",
+        "resolve_in_governance": "Resolve in Governance",
         "back_to_register": "Back to Threats"
     },
     "filters": {
@@ -18,6 +19,15 @@
     "status": {
         "active": "Active",
         "archived": "Archived"
+    },
+    "categories": {
+        "availability": "Availability",
+        "integrity": "Integrity",
+        "confidentiality": "Confidentiality",
+        "authenticity": "Authenticity",
+        "physical": "Physical",
+        "personnel": "Personnel",
+        "third_party": "Third party"
     },
     "columns": {
         "name": "Threat",
@@ -33,6 +43,9 @@
         },
         "name": "Threat",
         "category": "Category",
+        "steward": "Threat Steward",
+        "steward_placeholder": "Select an active CISO",
+        "steward_search": "Search CISOs by name or email...",
         "description": "Description",
         "typical_weaknesses": "Typical weaknesses",
         "relevant_subject": "Relevant subject",
@@ -40,6 +53,7 @@
         "not_set": "Not set",
         "errors": {
             "name_required": "The threat name is required.",
+            "steward_required": "An active CISO Threat Steward is required.",
             "save_failed": "Saving the threat failed. Please try again.",
             "fix_fields": "Please correct the highlighted fields.",
             "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."
@@ -67,6 +81,11 @@
         "archive_failed": "Archiving the threat failed. Please try again."
     },
     "messages": {
-        "archive_confirm": "Archive threat \"{{threatName}}\"? It stays available in the archived view."
+        "archive_confirm": "Archive threat \"{{threatName}}\"? It stays available in the archived view.",
+        "steward_orphaned": "The assigned Threat Steward is inactive or no longer a CISO. Reassign this threat explicitly.",
+        "steward_orphaned_governance": "The preserved Threat Steward is inactive or no longer a CISO. Editing is locked while this gap is pending. Assign an active CISO through Governance.",
+        "steward_orphaned_request": "The preserved Threat Steward is inactive or no longer a CISO. Editing is locked while this gap is pending. Ask a CRO to assign an active CISO through Governance.",
+        "stewardship_legacy_unassigned": "This migrated Threat has no Threat Steward. Use Edit Threat to assign an active CISO.",
+        "stewardship_invalid_assignment": "The current assignment is not an active CISO. Use Edit Threat and select an eligible steward before saving; the previous relationship remains preserved until the update succeeds."
     }
 }

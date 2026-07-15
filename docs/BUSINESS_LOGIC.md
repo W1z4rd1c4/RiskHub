@@ -49,6 +49,7 @@ Use this document as policy truth. Use the guides below for operational workflow
 | `ceo` | CEO | C-Suite | ✅ Privileged | ❌ | ❌ |
 | `cfo` | CFO | C-Suite | ✅ Privileged | ❌ | ❌ |
 | `cro` | CRO | C-Suite | ✅ Privileged | ❌ | ✅ **Only CRO** |
+| `ciso` | Chief Information Security Officer | C-Suite | ✅ Threat stewardship and contextual read | ❌ | ❌ |
 | `coo` | COO | C-Suite | ❌ | ❌ | ❌ |
 | `risk_manager` | Risk Manager | Governance | ✅ Privileged | ❌ | ❌ |
 | `compliance` | Compliance | Governance | ✅ Privileged | ❌ | ❌ |
@@ -63,6 +64,8 @@ Use this document as policy truth. Use the guides below for operational workflow
 
 > [!NOTE]
 > Some deployments do not use a separate `legal` role. `CONTROL_OWNER` is reserved for a future granular control ownership workflow and is not seeded as an active role today. Vendor contract governance permissions are reserved for a future DORA contract-governance workflow.
+
+The CISO role is deliberately narrow: it owns the full Threat lifecycle and Threat-to-Risk links, with read-only context across related ICT registers, reports, the committee view, Departments, and activity history. It has no User/platform administration, approval authority, or write access to non-Threat registers. Because Threat Steward eligibility depends on this canonical role, its permission contract is protected from runtime role editing or deletion. Every new Threat names one active CISO as Threat Steward. CISO deactivation or role loss preserves the former assignment, raises an orphan-governance record, and requires explicit reassignment to another active CISO.
 
 ### 1.2 Access Scopes
 
@@ -342,7 +345,7 @@ Orphaned item governance uses backend workflow helpers:
 - Admin batch orphan fixes use the same validation and resolution helper as the business Governance endpoint.
 
 > [!NOTE]
-> User discovery and user administration are separate contracts. `/api/v1/users/lookup` is the authenticated picker/search primitive used by forms and filters. `/api/v1/users/directory` is the explicit paginated collection for `/users` directory mode and requires `users:read`. Its response also carries `available_roles` facet metadata derived from the caller's visible directory universe so the frontend role filter stays backend-driven. `/api/v1/access/users*` remains the access-management contract for privileged and department-head access views.
+> User discovery and user administration are separate contracts. `/api/v1/users/lookup` is the scoped generic picker/search primitive for callers with `users:read`; optional filters never grant access to callers that lack that permission. Narrow business assignments use purpose-scoped lookups instead. `/api/v1/users/lookup/risk-owners`, `/control-owners`, and `/vendor-owners` require the matching Risk, Control, or Vendor write permission, retain the caller's user visibility scope, exclude inactive and platform-admin identities, and return only assignment fields; the Risk surface also serves KRI reporting-owner assignment. `/api/v1/users/lookup/threat-stewards` requires `threats:write`, returns only active canonical CISO identities, and intentionally searches across Departments. `/api/v1/users/directory` is the explicit paginated collection for `/users` directory mode and requires `users:read`. Its response also carries `available_roles` facet metadata derived from the caller's visible directory universe so the frontend role filter stays backend-driven. `/api/v1/access/users*` remains the access-management contract for privileged and department-head access views.
 
 > [!NOTE]
 > Manual user lifecycle actions are least-privilege operations. Direct user creation (`POST /api/v1/users`) and directory import (`POST /api/v1/directory/users/{oid}/import`) are Admin-only lifecycle actions even when broader read or access-review surfaces are available to other privileged roles.

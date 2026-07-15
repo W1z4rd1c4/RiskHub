@@ -1293,7 +1293,7 @@ async def test_activity_log_department_scoping(db_session, client_factory):
         entity_id=100,
         entity_name="Dept A Entry",
         action=ActivityAction.CREATE,
-        actor=None,
+        actor=scoped_user,
         department_id=dept_a.id,
         changes=None,
         description="Dept A",
@@ -1318,6 +1318,10 @@ async def test_activity_log_department_scoping(db_session, client_factory):
         assert any(item["entity_id"] == 100 for item in items)
         assert all(item["entity_id"] != 101 for item in items)
 
+        actors_response = await scoped_client.get("/api/v1/activity-log/actors")
+        assert actors_response.status_code == 200
+        assert actors_response.json() == [{"id": scoped_user.id, "name": scoped_user.name}]
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
@@ -1326,6 +1330,7 @@ async def test_activity_log_department_scoping(db_session, client_factory):
         "/api/v1/activity-log",
         "/api/v1/activity-log/entity-types",
         "/api/v1/activity-log/actions",
+        "/api/v1/activity-log/actors",
     ],
 )
 async def test_platform_admin_is_denied_business_activity_log(

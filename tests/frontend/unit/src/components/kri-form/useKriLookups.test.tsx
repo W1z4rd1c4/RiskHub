@@ -2,8 +2,8 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useKriLookups } from '@/components/kri-form/useKriLookups';
+import { lookupApi } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
-import { userApi } from '@/services/userApi';
 import { vendorApi } from '@/services/vendorApi';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 
@@ -55,7 +55,7 @@ describe('useKriLookups', () => {
             offset: 0,
             limit: 50,
         });
-        vi.spyOn(userApi, 'listVisibleUsers').mockResolvedValue([]);
+        vi.spyOn(lookupApi, 'getRiskOwners').mockResolvedValue([]);
         vi.spyOn(vendorApi, 'getVendors').mockResolvedValue({
             items: [],
             total: 0,
@@ -84,7 +84,7 @@ describe('useKriLookups', () => {
             offset: 0,
             limit: 50,
         });
-        vi.spyOn(userApi, 'listVisibleUsers').mockResolvedValue([]);
+        vi.spyOn(lookupApi, 'getRiskOwners').mockResolvedValue([]);
         vi.spyOn(vendorApi, 'getVendors').mockResolvedValue({
             items: [],
             total: 0,

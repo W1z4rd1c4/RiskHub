@@ -67,7 +67,10 @@ export const businessRoutes: AppRouteDef[] = [
       labelKey: 'approvals',
       icon: ClipboardCheck,
       group: 'overview',
-      isVisible: ({ authz }) => !authz.isPlatformAdmin,
+      // Approval queue reads are identity-scoped (requester/primary/scenario),
+      // while approvals:write represents resolver authority. CISO Threat
+      // stewardship participates in neither approval workflow.
+      isVisible: ({ authz }) => authz.canViewApprovals,
       order: 20,
       badgeKey: 'workflow',
     },

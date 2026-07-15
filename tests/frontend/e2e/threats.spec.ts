@@ -23,15 +23,15 @@ import {
 } from './helpers/ict-register';
 import { waitForDataLoad } from './helpers/wait';
 
-// KategorieHrozeb, verbatim workbook closed list (spec section 3.1).
-const KATEGORIE_HROZEB = [
-    'Dostupnost',
-    'Integrita',
-    'Důvěrnost',
-    'Hodnověrnost',
-    'Fyzická',
-    'Personální',
-    'Třetí strany',
+// Canonical storage codes are rendered as localized English labels.
+const THREAT_CATEGORY_LABELS = [
+    'Availability',
+    'Integrity',
+    'Confidentiality',
+    'Authenticity',
+    'Physical',
+    'Personnel',
+    'Third party',
 ];
 
 const ARCHIVE_CONFIRM_BUTTON = /^(Archive|Archivovat)$/;
@@ -55,6 +55,68 @@ async function requireIctRisk(): Promise<{ id: number; name: string }> {
 }
 
 test.describe('ICT Register — Threats (Deterministic)', () => {
+    test('CISO can steward Threats without User or approval administration', async ({ cisoPage }) => {
+        const risk = await requireIctRisk();
+        const riskOptionLabel = `${E2E_ICT_REGISTER_RISK.code}: ${risk.name}`;
+
+        await cisoPage.goto('/threats/new');
+        await waitForDataLoad(cisoPage);
+        await expect(cisoPage.getByTestId('threat-form-name')).toBeVisible();
+        await expect(cisoPage.locator('nav a[href="/users"]')).toHaveCount(0);
+        await expect(cisoPage.locator('nav a[href="/approvals"]')).toHaveCount(0);
+
+        const uniqueName = `E2E-CISO-THREAT ${Date.now()}`;
+        await cisoPage.getByTestId('threat-form-name').fill(uniqueName);
+        await cisoPage.getByTestId('threat-form-steward-search').fill('Klára');
+        await cisoPage.getByTestId('threat-form-steward').click();
+        await cisoPage.getByRole('option', { name: /Klára Černá/ }).click();
+        await cisoPage.getByTestId('threat-form-submit').click();
+
+        await cisoPage.waitForURL(/\/threats\/\d+$/);
+        await expect(cisoPage.getByTestId('threat-detail-steward')).toContainText('Klára Černá');
+
+        const createdId = Number(cisoPage.url().match(/\/threats\/(\d+)$/)?.[1]);
+        expect(createdId).toBeGreaterThan(0);
+
+        // CISO owns the full Threat lifecycle, not creation alone.
+        await cisoPage.getByTestId('threat-detail-edit').click();
+        await cisoPage.waitForURL(new RegExp(`/threats/${createdId}/edit$`));
+        await cisoPage.getByTestId('threat-form-relevant-subject').fill('CISO-owned ICT service');
+        await cisoPage.getByTestId('threat-form-category').click();
+        await cisoPage.getByRole('option', { name: 'Integrity', exact: true }).click();
+        await cisoPage.getByTestId('threat-form-submit').click();
+        await cisoPage.waitForURL(new RegExp(`/threats/${createdId}$`));
+        await expect(cisoPage.getByTestId('threat-detail-category')).toHaveText('Integrity');
+        await expect(cisoPage.getByText('CISO-owned ICT service').first()).toBeVisible();
+
+        // CISO can maintain the Threat-Risk relation.
+        await cisoPage.getByTestId('threat-risk-link-select-search').fill(E2E_ICT_REGISTER_RISK.code);
+        await cisoPage.getByTestId('threat-risk-link-select').click();
+        await cisoPage.getByRole('option', { name: riskOptionLabel, exact: true }).click();
+        await cisoPage.getByTestId('threat-risk-link-add').click();
+        await expect(
+            cisoPage.getByTestId('threat-risk-links').getByText(riskOptionLabel, { exact: true }),
+        ).toBeVisible();
+
+        const link = (await listThreatRiskLinks(createdId)).find((row) => row.risk_id === risk.id);
+        expect(link).toBeDefined();
+        await cisoPage.getByTestId(`threat-risk-link-remove-${link!.id}`).click();
+        await expect(cisoPage.getByTestId(`threat-risk-link-remove-${link!.id}`)).toHaveCount(0);
+
+        // Archive/restore proves the delete permission is scoped to Threats.
+        await cisoPage.getByTestId('threat-detail-archive').click();
+        await cisoPage
+            .locator('.confirm-dialog-actions')
+            .getByRole('button', { name: ARCHIVE_CONFIRM_BUTTON })
+            .click();
+        await cisoPage.waitForURL(/.*threats$/);
+        await cisoPage.goto(`/threats/${createdId}`);
+        await waitForDataLoad(cisoPage);
+        await cisoPage.getByTestId('threat-detail-restore').click();
+        await expect(cisoPage.getByTestId('threat-detail-archive')).toBeVisible();
+        await expect(cisoPage.getByTestId('threat-detail-edit')).toBeVisible();
+    });
+
     test('Risk manager sees Threats in the sidebar and navigates to the register', async ({ riskManagerPage }) => {
         await riskManagerPage.goto('/');
         const navLink = riskManagerPage.locator('nav a[href="/threats"]');
@@ -65,6 +127,39 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.getByTestId('threats-search-input')).toBeVisible();
         await expect(riskManagerPage.getByTestId('threats-create-button')).toBeVisible();
+    });
+
+    test('orphaned stewardship cannot be reassigned through the ordinary CISO edit form', async ({ cisoPage }) => {
+        const seeded = await requireThreat(E2E_THREATS.RANSOMWARE.name);
+
+        await cisoPage.route(`**/api/v1/threats/${seeded.id}`, async (route) => {
+            if (route.request().method() !== 'GET') {
+                await route.continue();
+                return;
+            }
+            const response = await route.fetch();
+            const payload = await response.json();
+            await route.fulfill({
+                response,
+                json: {
+                    ...payload,
+                    steward_orphaned: true,
+                    stewardship_status: 'pending_governance',
+                    capabilities: { ...payload.capabilities, can_update: false },
+                },
+            });
+        });
+
+        await cisoPage.goto(`/threats/${seeded.id}`);
+        await waitForDataLoad(cisoPage);
+        await expect(cisoPage.getByRole('alert')).toContainText('Ask a CRO');
+        await expect(cisoPage.getByTestId('threat-detail-edit')).toHaveCount(0);
+        await expect(cisoPage.getByTestId('threat-orphan-governance')).toHaveCount(0);
+
+        await cisoPage.goto(`/threats/${seeded.id}/edit`);
+        await waitForDataLoad(cisoPage);
+        await expect(cisoPage.getByTestId('threat-orphan-edit-blocked')).toContainText('Ask a CRO');
+        await expect(cisoPage.getByTestId('threat-form-steward')).toHaveCount(0);
     });
 
     test('Platform admin does not see Threats navigation', async ({ adminPage }) => {
@@ -107,13 +202,17 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
 
         await riskManagerPage.getByTestId('threat-form-name').fill(uniqueName);
 
-        // The category dropdown carries the KategorieHrozeb closed list
-        // verbatim, in order, plus the leading "Not set" empty entry.
+        await riskManagerPage.getByTestId('threat-form-steward-search').fill('Klára');
+        await riskManagerPage.getByTestId('threat-form-steward').click();
+        await riskManagerPage.getByRole('option', { name: /Klára Černá/ }).click();
+
+        // The dropdown localizes canonical category codes and keeps the
+        // leading "Not set" empty entry.
         await riskManagerPage.getByTestId('threat-form-category').click();
-        await expect(riskManagerPage.getByRole('option')).toHaveCount(KATEGORIE_HROZEB.length + 1);
+        await expect(riskManagerPage.getByRole('option')).toHaveCount(THREAT_CATEGORY_LABELS.length + 1);
         const optionTexts = await riskManagerPage.getByRole('option').allTextContents();
-        expect(optionTexts.slice(1)).toEqual(KATEGORIE_HROZEB);
-        await riskManagerPage.getByRole('option', { name: 'Fyzická', exact: true }).click();
+        expect(optionTexts.slice(1)).toEqual(THREAT_CATEGORY_LABELS);
+        await riskManagerPage.getByRole('option', { name: 'Physical', exact: true }).click();
 
         await riskManagerPage
             .getByTestId('threat-form-description')
@@ -123,13 +222,13 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         await riskManagerPage.waitForURL(/\/threats\/\d+$/);
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.locator('main h1').first()).toContainText(uniqueName);
-        await expect(riskManagerPage.getByTestId('threat-detail-category')).toHaveText('Fyzická');
+        await expect(riskManagerPage.getByTestId('threat-detail-category')).toHaveText('Physical');
     });
 
     test('Edit round-trip persists entered field changes', async ({ riskManagerPage }) => {
         const created = await createThreatViaApi({
             name: `E2E-THREAT-EDIT ${Date.now()}`,
-            category: 'Integrita',
+            category: 'integrity',
         });
 
         await riskManagerPage.goto(`/threats/${created.id}/edit`);
@@ -137,21 +236,21 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
 
         await riskManagerPage.getByTestId('threat-form-relevant-subject').fill('E2E Edited Subject');
         await riskManagerPage.getByTestId('threat-form-category').click();
-        await riskManagerPage.getByRole('option', { name: 'Personální', exact: true }).click();
+        await riskManagerPage.getByRole('option', { name: 'Personnel', exact: true }).click();
         await riskManagerPage.getByTestId('threat-form-submit').click();
 
         await riskManagerPage.waitForURL(new RegExp(`/threats/${created.id}$`));
         // Fresh document proves persistence beyond any client-side state.
         await riskManagerPage.goto(`/threats/${created.id}`);
         await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.getByTestId('threat-detail-category')).toHaveText('Personální');
+        await expect(riskManagerPage.getByTestId('threat-detail-category')).toHaveText('Personnel');
         await expect(riskManagerPage.getByText('E2E Edited Subject').first()).toBeVisible();
     });
 
     test('Archive and restore round-trip through the detail actions', async ({ riskManagerPage }) => {
         const created = await createThreatViaApi({
             name: `E2E-THREAT-LC ${Date.now()}`,
-            category: 'Důvěrnost',
+            category: 'confidentiality',
         });
 
         await riskManagerPage.goto(`/threats/${created.id}`);
@@ -185,7 +284,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         // A dedicated threat keeps the seeded E2E-THREAT-001 link untouched.
         const created = await createThreatViaApi({
             name: `E2E-THREAT-LINK ${Date.now()}`,
-            category: 'Hodnověrnost',
+            category: 'authenticity',
         });
         const riskOptionLabel = `${E2E_ICT_REGISTER_RISK.code}: ${risk.name}`;
 

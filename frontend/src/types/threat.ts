@@ -9,11 +9,28 @@ export interface ThreatListCapabilities {
     can_create?: boolean;
 }
 
+export interface ThreatSteward {
+    name: string;
+    email: string;
+    role_name: string;
+    department_name?: string | null;
+}
+
+export type ThreatStewardshipStatus =
+    | 'assigned'
+    | 'legacy_unassigned'
+    | 'pending_governance'
+    | 'invalid_assignment';
+
 /** ICT Register Threat — the entered 12_Hrozby columns (issue #47). */
 export interface Threat {
     id: number;
 
     name: string;
+    threat_steward_user_id?: number | null;
+    threat_steward?: ThreatSteward | null;
+    steward_orphaned?: boolean;
+    stewardship_status: ThreatStewardshipStatus;
     category?: string | null;
     description?: string | null;
     typical_weaknesses?: string | null;
@@ -30,6 +47,7 @@ export interface Threat {
 
 export interface ThreatWritePayload {
     name?: string;
+    threat_steward_user_id?: number | null;
     category?: string | null;
     description?: string | null;
     typical_weaknesses?: string | null;

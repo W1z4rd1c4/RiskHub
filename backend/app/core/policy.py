@@ -5,8 +5,16 @@ from app.models.role import RoleType
 PROTECTED_SYSTEM_ROLES: set[RoleType] = {
     RoleType.ADMIN,
     RoleType.CRO,
+    RoleType.CISO,
     RoleType.VIEWER,
     RoleType.INTERNAL_AUDIT,
+}
+
+IMMUTABLE_SYSTEM_ROLES: set[RoleType] = {
+    RoleType.ADMIN,
+    RoleType.CRO,
+    RoleType.CISO,
+    RoleType.VIEWER,
 }
 
 PUBLIC_CONFIG_ALLOWLIST: set[str] = {

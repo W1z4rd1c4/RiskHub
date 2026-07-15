@@ -1,3 +1,4 @@
+import type { AriaAttributes, Ref } from 'react';
 import { Search } from 'lucide-react';
 
 import { ThemedSelect, type SelectOption } from '@/components/ui/ThemedSelect';
@@ -13,6 +14,12 @@ export interface SearchableEntitySelectProps {
     onSearchChange: (value: string) => void;
     searchPlaceholder?: string;
     triggerTestId?: string;
+    triggerRef?: Ref<HTMLButtonElement>;
+    id?: string;
+    'aria-labelledby'?: string;
+    'aria-describedby'?: string;
+    'aria-invalid'?: AriaAttributes['aria-invalid'];
+    'aria-required'?: AriaAttributes['aria-required'];
 }
 
 /**
@@ -30,6 +37,12 @@ export function SearchableEntitySelect({
     onSearchChange,
     searchPlaceholder,
     triggerTestId,
+    triggerRef,
+    id,
+    'aria-labelledby': ariaLabelledby,
+    'aria-describedby': ariaDescribedby,
+    'aria-invalid': ariaInvalid,
+    'aria-required': ariaRequired,
 }: SearchableEntitySelectProps) {
     const { t } = useTranslation('common');
     return (
@@ -47,11 +60,17 @@ export function SearchableEntitySelect({
                 />
             </div>
             <ThemedSelect
+                id={id}
                 value={value}
                 onValueChange={onValueChange}
                 options={options}
                 placeholder={placeholder}
                 triggerTestId={triggerTestId}
+                triggerRef={triggerRef}
+                aria-labelledby={ariaLabelledby}
+                aria-describedby={ariaDescribedby}
+                aria-invalid={ariaInvalid}
+                aria-required={ariaRequired}
             />
         </div>
     );

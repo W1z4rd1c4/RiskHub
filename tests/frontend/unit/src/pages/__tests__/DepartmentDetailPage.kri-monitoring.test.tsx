@@ -5,6 +5,11 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const useDepartmentDetailMock = vi.fn();
+const useAuthzMock = vi.fn();
+
+vi.mock('@/authz/useAuthz', () => ({
+    useAuthz: () => useAuthzMock(),
+}));
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
@@ -53,6 +58,7 @@ function renderDepartmentDetail({ includeLocationProbe = false }: { includeLocat
 describe('DepartmentDetailPage KRI monitoring integration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        useAuthzMock.mockReturnValue({ canViewDepartmentAccess: true });
         useDepartmentDetailMock.mockImplementation((params: Record<string, unknown>) => ({
             department: {
                 id: 7,
@@ -153,6 +159,16 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
 
         expect(screen.getByRole('button', { name: 'department_detail.tabs.kris:5' })).toBeInTheDocument();
         expect(screen.queryByText('Department Archived Warning KRI')).not.toBeInTheDocument();
+    });
+
+    it('hides the Users tile and tab when department-access capability is denied', () => {
+        useAuthzMock.mockReturnValue({ canViewDepartmentAccess: false });
+
+        renderDepartmentDetail();
+
+        expect(screen.queryByRole('button', { name: 'department_detail.tabs.users:4' })).not.toBeInTheDocument();
+        expect(screen.queryByText('dashboard:active_users')).not.toBeInTheDocument();
+        expect(useDepartmentDetailMock).toHaveBeenLastCalledWith(expect.objectContaining({ canViewUsers: false }));
     });
 
     it('keeps department user rows informational instead of navigating away from the department page', async () => {

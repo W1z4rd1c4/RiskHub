@@ -51,6 +51,7 @@ describe('GovernancePage overview aggregation', () => {
                 risk_count: 1,
                 control_count: 0,
                 kri_count: 0,
+                threat_count: 0,
                 total_count: 1,
             },
             items: [
@@ -85,5 +86,57 @@ describe('GovernancePage overview aggregation', () => {
         await waitFor(() => expect(screen.queryByText('governance.loading')).not.toBeInTheDocument());
         expect(scanOrphansMock).not.toHaveBeenCalled();
         expect(screen.getByText('Orphaned Risk')).toBeInTheDocument();
+    });
+
+    it('opens the Threat queue when linked from an orphaned Threat detail', async () => {
+        getOverviewMock.mockResolvedValue({
+            stats: {
+                risk_count: 1,
+                control_count: 0,
+                kri_count: 0,
+                threat_count: 1,
+                total_count: 2,
+            },
+            items: [
+                {
+                    id: 1,
+                    item_type: 'risk',
+                    item_id: 10,
+                    item_name: 'Orphaned Risk',
+                    item_description: null,
+                    item_identifier: 'R-001',
+                    department_name: 'Ops',
+                    previous_owner_name: 'Former Owner',
+                    previous_owner_email: 'former@example.com',
+                    orphaned_at: '2026-03-07T10:00:00Z',
+                    status: 'pending',
+                },
+                {
+                    id: 2,
+                    item_type: 'threat',
+                    item_id: 11,
+                    item_name: 'Orphaned Threat',
+                    item_description: null,
+                    item_identifier: null,
+                    department_name: null,
+                    previous_owner_name: 'Former CISO',
+                    previous_owner_email: 'former-ciso@example.com',
+                    orphaned_at: '2026-03-07T10:00:00Z',
+                    status: 'pending',
+                },
+            ],
+            last_scan_at: '2026-03-07T10:00:00Z',
+            scan_status: 'succeeded',
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/governance?type=threat']}>
+                <GovernancePage />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        expect(await screen.findByText('Orphaned Threat')).toBeInTheDocument();
+        expect(screen.queryByText('Orphaned Risk')).not.toBeInTheDocument();
     });
 });

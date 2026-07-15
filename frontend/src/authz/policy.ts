@@ -15,6 +15,7 @@ export type Authz = {
     isAuthenticated: boolean;
     isPlatformAdmin: boolean;
     isCRO: boolean;
+    isCISO: boolean;
     isRiskManager: boolean;
     isCompliance: boolean;
     isDepartmentHead: boolean;
@@ -23,6 +24,7 @@ export type Authz = {
     canViewAccessUsers: boolean;
     canViewDepartmentAccessUsers: boolean;
     canViewUsersRoute: boolean;
+    canViewApprovals: boolean;
     canManageAccess: boolean;
     canViewDepartmentAccess: boolean;
     canViewAdminConsole: boolean;
@@ -47,6 +49,7 @@ function buildDenyAllAuthz(isAuthenticated: boolean): Authz {
         isAuthenticated,
         isPlatformAdmin: false,
         isCRO: false,
+        isCISO: false,
         isRiskManager: false,
         isCompliance: false,
         isDepartmentHead: false,
@@ -55,6 +58,7 @@ function buildDenyAllAuthz(isAuthenticated: boolean): Authz {
         canViewAccessUsers: false,
         canViewDepartmentAccessUsers: false,
         canViewUsersRoute: false,
+        canViewApprovals: false,
         canManageAccess: false,
         canViewDepartmentAccess: false,
         canViewAdminConsole: false,
@@ -76,22 +80,25 @@ function buildLegacyAuthz(user: AuthUser, hasPermission: PermissionChecker): Aut
     const isAuthenticated = !!user;
     const isPlatformAdmin = user?.role === 'admin';
     const isCRO = user?.role === 'cro';
+    const isCISO = user?.role === 'ciso';
     const isRiskManager = user?.role === 'risk_manager';
     const isCompliance = user?.role === 'compliance';
     const isDepartmentHead = user?.role === 'department_head';
     const hasGlobalScope = user?.access_scope === 'global';
     const can = (action: string, resource: string): boolean => hasPermission(resource, action);
     const canViewUserDirectory = hasPermission('users', 'read');
-    const canViewAccessUsers = hasGlobalScope;
+    const canViewAccessUsers = hasGlobalScope && hasPermission('users', 'read');
     const canViewDepartmentAccessUsers = isDepartmentHead;
     const canViewUsersRoute = canViewAccessUsers || canViewDepartmentAccessUsers || canViewUserDirectory;
-    const canManageAccess = canViewAccessUsers;
+    const canViewApprovals = !isPlatformAdmin && !isCISO;
+    const canManageAccess = canViewAccessUsers && (isPlatformAdmin || isCRO);
     const canViewDepartmentAccess = canViewDepartmentAccessUsers || canViewAccessUsers;
 
     return {
         isAuthenticated,
         isPlatformAdmin,
         isCRO,
+        isCISO,
         isRiskManager,
         isCompliance,
         isDepartmentHead,
@@ -100,6 +107,7 @@ function buildLegacyAuthz(user: AuthUser, hasPermission: PermissionChecker): Aut
         canViewAccessUsers,
         canViewDepartmentAccessUsers,
         canViewUsersRoute,
+        canViewApprovals,
         canManageAccess,
         canViewDepartmentAccess,
         canViewAdminConsole: isPlatformAdmin,
@@ -126,6 +134,7 @@ export function buildAuthz(
     const isAuthenticated = !!user;
     const isPlatformAdmin = user?.role === 'admin';
     const isCRO = user?.role === 'cro';
+    const isCISO = user?.role === 'ciso';
     const isRiskManager = user?.role === 'risk_manager';
     const isCompliance = user?.role === 'compliance';
     const isDepartmentHead = user?.role === 'department_head';
@@ -147,6 +156,7 @@ export function buildAuthz(
     const canViewAccessUsers = resolveCapabilityFlag(meCapabilities, 'can_view_access_users');
     const canViewDepartmentAccessUsers = resolveCapabilityFlag(meCapabilities, 'can_view_department_access_users');
     const canViewUsersRoute = canViewAccessUsers || canViewDepartmentAccessUsers || canViewUserDirectory;
+    const canViewApprovals = !isPlatformAdmin && !isCISO;
     const canManageAccess = resolveCapabilityFlag(meCapabilities, 'can_manage_access');
     const canViewDepartmentAccess = resolveCapabilityFlag(meCapabilities, 'can_view_department_access');
     const canViewAdminConsole = resolveCapabilityFlag(meCapabilities, 'can_view_admin_console');
@@ -166,6 +176,7 @@ export function buildAuthz(
         isAuthenticated,
         isPlatformAdmin,
         isCRO,
+        isCISO,
         isRiskManager,
         isCompliance,
         isDepartmentHead,
@@ -174,6 +185,7 @@ export function buildAuthz(
         canViewAccessUsers,
         canViewDepartmentAccessUsers,
         canViewUsersRoute,
+        canViewApprovals,
         canManageAccess,
         canViewDepartmentAccess,
         canViewAdminConsole,
