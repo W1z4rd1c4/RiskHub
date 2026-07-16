@@ -3,14 +3,19 @@ import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 import type { VendorCreate } from '@/types/vendor';
 
-import { buildVendorPayload, validateVendorForm } from './vendorForm.mappers';
-import type { VendorFormData } from './vendorForm.types';
+import {
+    buildVendorPayload,
+    buildVendorUpdatePayload,
+    validateVendorFormFields,
+} from './vendorForm.mappers';
+import type { VendorFormData, VendorFormField } from './vendorForm.types';
 
 interface UseVendorSubmitOptions {
     formData: VendorFormData;
     initialData?: Vendor;
     isEdit: boolean;
     onSaved: (vendor: Vendor) => void;
+    onValidationError?: (field: VendorFormField) => void;
     setError: (value: string | null) => void;
     setIsSubmitting: (value: boolean) => void;
     t: SafeTFunction;
@@ -21,6 +26,7 @@ export function useVendorSubmit({
     initialData,
     isEdit,
     onSaved,
+    onValidationError,
     setError,
     setIsSubmitting,
     t,
@@ -29,19 +35,22 @@ export function useVendorSubmit({
         event.preventDefault();
         setError(null);
 
-        const validationError = validateVendorForm(formData, t);
-        if (validationError) {
-            setError(validationError);
+        const validation = validateVendorFormFields(formData, t);
+        if (validation.message && validation.field) {
+            setError(validation.message);
+            onValidationError?.(validation.field);
             return;
         }
 
         try {
             setIsSubmitting(true);
-            const payload = buildVendorPayload(formData, isEdit ? initialData : undefined);
             const saved =
                 isEdit && initialData
-                    ? await vendorApi.updateVendor(initialData.id, payload)
-                    : await vendorApi.createVendor(payload as VendorCreate);
+                    ? await vendorApi.updateVendor(
+                        initialData.id,
+                        buildVendorUpdatePayload(formData, initialData),
+                    )
+                    : await vendorApi.createVendor(buildVendorPayload(formData) as VendorCreate);
             onSaved(saved);
         } catch {
             setError(t('errors.save_failed'));

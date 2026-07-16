@@ -68,6 +68,20 @@ from app.services._ict_register_reference.threat_categories import (
     WORKBOOK_THREAT_CATEGORY_TO_CODE,
     threat_category_code,
 )
+from app.services._ict_register_reference.vendor_values import (
+    VENDOR_CONTROLLED_CODES_BY_FIELD,
+    VENDOR_DERIVED_CODE_TO_WORKBOOK_BY_FIELD,
+    VENDOR_DERIVED_WORKBOOK_TO_CODE_BY_FIELD,
+    VENDOR_VALUE_LABELS_BY_LOCALE,
+    VENDOR_WORKBOOK_VALUE_BY_FIELD,
+    WORKBOOK_VENDOR_VALUE_TO_CODE_BY_FIELD,
+    canonicalize_vendor_derived,
+    vendor_controlled_value_code,
+    vendor_derived_workbook_value,
+    vendor_regulatory_value,
+    vendor_value_label,
+    vendor_workbook_value,
+)
 
 __all__ = [
     "ASSET_CONTROLLED_CODES_BY_FIELD",
@@ -103,7 +117,13 @@ __all__ = [
     "THREAT_CATEGORY_CODES",
     "WORKBOOK_THREAT_CATEGORY_TO_CODE",
     "WORKBOOK_PROCESS_VALUE_TO_CODE_BY_FIELD",
+    "WORKBOOK_VENDOR_VALUE_TO_CODE_BY_FIELD",
     "WORKBOOK_ASSET_VALUE_TO_CODE_BY_FIELD",
+    "VENDOR_CONTROLLED_CODES_BY_FIELD",
+    "VENDOR_DERIVED_CODE_TO_WORKBOOK_BY_FIELD",
+    "VENDOR_DERIVED_WORKBOOK_TO_CODE_BY_FIELD",
+    "VENDOR_VALUE_LABELS_BY_LOCALE",
+    "VENDOR_WORKBOOK_VALUE_BY_FIELD",
     "ClosedListValue",
     "IctParameterValue",
     "IctWorkbookParameter",
@@ -119,4 +139,10 @@ __all__ = [
     "roi_en_value",
     "roi_map_entries",
     "threat_category_code",
+    "canonicalize_vendor_derived",
+    "vendor_controlled_value_code",
+    "vendor_derived_workbook_value",
+    "vendor_regulatory_value",
+    "vendor_value_label",
+    "vendor_workbook_value",
 ]

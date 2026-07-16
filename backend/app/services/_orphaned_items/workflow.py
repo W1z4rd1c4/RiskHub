@@ -12,6 +12,7 @@ from app.models.process import Process
 from app.models.risk import ControlRiskLink, Risk
 from app.models.threat import Threat
 from app.models.user import User
+from app.models.vendor import Vendor
 
 from .governance import orphan_capability_flags
 
@@ -56,6 +57,12 @@ async def get_orphan_item_department_id(db: AsyncSession, orphan: OrphanedItem) 
                 select(Asset.owning_department_id).where(Asset.id == orphan.item_id)
             )
         ).scalar_one_or_none()
+    if orphan.item_type == "vendor":
+        return (
+            await db.execute(
+                select(Vendor.department_id).where(Vendor.id == orphan.item_id)
+            )
+        ).scalar_one_or_none()
     return None
 
 
@@ -76,7 +83,7 @@ async def assert_orphan_still_matches_target_state(
     db: AsyncSession,
     *,
     orphan: OrphanedItem,
-    target_entity: Risk | Control | KeyRiskIndicator | Threat | Process | Asset,
+    target_entity: Risk | Control | KeyRiskIndicator | Threat | Process | Asset | Vendor,
 ) -> None:
     uncat_dept_id = await _uncategorised_department_id(db)
 
@@ -140,4 +147,13 @@ async def assert_orphan_still_matches_target_state(
             return
         raise OrphanResolutionConflict(
             f"Orphaned item {orphan.id} no longer matches current asset state"
+        )
+
+    if orphan.item_type == "vendor":
+        vendor = target_entity
+        assert isinstance(vendor, Vendor)
+        if vendor.outsourcing_owner_user_id in {None, orphan.previous_owner_id}:
+            return
+        raise OrphanResolutionConflict(
+            f"Orphaned item {orphan.id} no longer matches current vendor state"
         )

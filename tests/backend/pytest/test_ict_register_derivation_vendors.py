@@ -960,7 +960,7 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
             department_id=test_department.id,
             owner_user_id=test_user_cro.id,
             country="CZ",
-            replaceability="Nenahraditelný",
+            replaceability="not_substitutable",
         )
         # Two VAD roles (the workbook seed shape: Dodává S02 / Spravuje S14).
         for code in ("S02", "S14"):
@@ -984,7 +984,9 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
         )
         chain_url = f"/api/v1/vendors/{vendor['id']}/sub-outsourcing"
         direct = await _create_via_api(
-            client, chain_url, {"contract_id": contract["id"], "sub_provider_name": "CLOUD OPS s.r.o."}
+            client,
+            chain_url,
+            {"contract_id": contract["id"], "sub_provider_name": "CLOUD OPS s.r.o."},
         )
         deeper = await _create_via_api(
             client,
@@ -1001,23 +1003,25 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
         assert detail.status_code == 200, detail.text
         derived = detail.json()["derived"]
         assert derived is not None
-        assert derived["cif"] == "Ano"  # via the asset cascade
-        assert derived["cif_chain"] == "Ano"
-        assert derived["tier"] == "Kritický dodavatel"  # the cif_ret gate wins
-        assert derived["country_category"] == "ČR"
+        assert derived["cif"] == "yes"  # via the asset cascade
+        assert derived["cif_chain"] == "yes"
+        assert derived["tier"] == "critical"  # the cif_ret gate wins
+        assert derived["country_category"] == "domestic"
         assert derived["linked_asset_count"] == 2
         assert derived["h_rank"] == 4  # Veris is Kritická (CIF floor + primary)
-        assert derived["max_criticality"] == "Kritická"
+        assert derived["max_criticality"] == "critical"
         assert derived["chain_level"] == "A"
         assert derived["main_contract_reference"] == "SML-2020-001"
         assert derived["contract_count"] == 1
         assert derived["main_contract_count"] == 1
         assert derived["direct_sub_provider_names"] == ["CLOUD OPS s.r.o."]
-        assert derived["significance_outcome"] == "Ne"
+        assert derived["significance_outcome"] == "no"
         # Kritický without an ex-ante date: incomplete, and the explain block
         # names the identity gaps too.
         assert derived["is_complete"] is False
-        assert "ex_ante_assessment_date" in derived["inputs"]["missing_for_completeness"]
+        assert (
+            "ex_ante_assessment_date" in derived["inputs"]["missing_for_completeness"]
+        )
         # proc_n = §1 (0) + §2 (2 roles × 1 process) = 2.
         assert derived["linked_process_count"] == 2
         assert derived["cif_process_count"] == 2
@@ -1026,7 +1030,7 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
         assert len(transitive) == 2
         assert {row["process_id"] for row in transitive} == {process["id"]}
         assert transitive[0]["process_name"] == "Sjednání pojištění – Online"
-        assert transitive[0]["process_cif"] == "Ano"
+        assert transitive[0]["process_cif"] == "yes"
         assert transitive[0]["via_asset_name"] == "Veris"
 
         # --- Contract collection: F/S/U/W ride each row.
@@ -1110,15 +1114,17 @@ async def test_vendor_derived_block_recomputes_on_read(
         link_id = created.json()["id"]
 
         before = await client.get(f"/api/v1/vendors/{vendor['id']}")
-        assert before.json()["derived"]["tier"] == "Kritický dodavatel"
-        assert before.json()["derived"]["cif"] == "Ano"
+        assert before.json()["derived"]["tier"] == "critical"
+        assert before.json()["derived"]["cif"] == "yes"
 
-        removed = await client.delete(f"/api/v1/processes/{process['id']}/vendor-links/{link_id}")
+        removed = await client.delete(
+            f"/api/v1/processes/{process['id']}/vendor-links/{link_id}"
+        )
         assert removed.status_code == 204, removed.text
 
         after = await client.get(f"/api/v1/vendors/{vendor['id']}")
-        assert after.json()["derived"]["tier"] == "Standardní dodavatel"
-        assert after.json()["derived"]["cif"] == "Ne"
+        assert after.json()["derived"]["tier"] == "standard"
+        assert after.json()["derived"]["cif"] == "no"
         assert after.json()["derived"]["chain_level"] is None
 
 

@@ -1,4 +1,5 @@
-import type { Vendor } from '@/types/vendor';
+import type { SafeTFunction } from '@/i18n/hooks';
+import type { Vendor, VendorOwnerRead, VendorOwnershipStatus } from '@/types/vendor';
 
 export type VendorDetailMode = 'view' | 'edit' | 'new';
 export type VendorDetailFlashTone = 'danger' | 'success' | 'warn';
@@ -87,4 +88,19 @@ export function canEditVendorByOwnership(
     currentUserId: number | null | undefined,
 ): boolean {
     return Boolean(vendor && currentUserId === vendor.outsourcing_owner_user_id);
+}
+
+export function vendorOwnerDisplayName(
+    owner: VendorOwnerRead | null | undefined,
+    status: VendorOwnershipStatus,
+    t: SafeTFunction,
+): string {
+    if (owner?.name.trim()) return owner.name.trim();
+    return t(`vendors:ownership.status.${status}`);
+}
+
+export function vendorOwnerMetadata(owner: VendorOwnerRead | null | undefined, t: SafeTFunction): string {
+    if (!owner) return t('vendors:ownership.context_unknown');
+    return [owner.email, owner.department_name, owner.role_name].filter(Boolean).join(' · ')
+        || t('vendors:ownership.context_unknown');
 }

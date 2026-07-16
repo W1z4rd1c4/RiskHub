@@ -296,7 +296,7 @@ describe('ICT Risk Committee presentation helpers', () => {
             '/ict-register/data-quality?check=DQ-04',
         );
         expect(metricDrilldownPath('critical_asset_count')).toBe('/assets?criticality=Kritick%C3%A1');
-        expect(metricDrilldownPath('critical_vendor_count')).toBe('/vendors?tier=Kritick%C3%BD+dodavatel');
+        expect(metricDrilldownPath('critical_vendor_count')).toBe('/vendors?tier=critical');
         expect(metricDrilldownPath('risks_above_tolerance_count')).toBe('/risks?above_tolerance=true');
         expect(metricDrilldownPath('open_dq_finding_count')).toBe('/ict-register/data-quality?status=findings');
     });

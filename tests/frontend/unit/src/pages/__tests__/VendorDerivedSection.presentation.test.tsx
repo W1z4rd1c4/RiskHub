@@ -6,28 +6,37 @@ import type { VendorDerived } from '@/types/vendor';
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string) => key,
+        t: (key: string, options?: { defaultValue?: string }) => ({
+            'vendors:values.tier.critical': 'Critical provider',
+            'vendors:values.tier.standard': 'Standard provider',
+            'vendors:values.max_criticality.critical': 'Critical',
+            'vendors:values.cif.yes': 'Yes',
+            'vendors:values.cif_chain.yes': 'Yes',
+            'vendors:values.country_category.domestic': 'Domestic',
+            'vendors:values.chain_level.A': 'Own links',
+            'vendors:values.replaceability.not_substitutable': 'Not substitutable',
+        })[key] ?? options?.defaultValue ?? key,
         i18n: { language: 'en' },
     }),
 }));
 
 function sampleDerived(overrides: Partial<VendorDerived> = {}): VendorDerived {
     return {
-        country_category: 'ČR',
-        cif: 'Ano',
+        country_category: 'domestic',
+        cif: 'yes',
         linked_asset_count: 2,
         linked_process_count: 3,
         cif_process_count: 2,
         h_rank: 4,
-        max_criticality: 'Kritická',
-        tier: 'Kritický dodavatel',
-        cif_chain: 'Ano',
+        max_criticality: 'critical',
+        tier: 'critical',
+        cif_chain: 'yes',
         chain_level: 'A',
         direct_sub_provider_names: ['CLOUD OPS s.r.o.'],
         direct_sub_provider_count: 1,
-        significance_outcome: 'Ne',
+        significance_outcome: 'no',
         main_contract_reference: 'SML-2020-001',
-        main_contract_arrangement_type: 'Rámcové (master)',
+        main_contract_arrangement_type: 'overarching_master',
         main_contract_start_date: '2020-01-01',
         main_contract_end_date: '9999-12-31',
         contract_count: 1,
@@ -35,8 +44,8 @@ function sampleDerived(overrides: Partial<VendorDerived> = {}): VendorDerived {
         is_complete: false,
         inputs: {
             country: 'CZ',
-            substitutability: 'Nenahraditelný',
-            exit_plan_state: 'K revizi',
+            substitutability: 'not_substitutable',
+            exit_plan_state: 'review_required',
             ex_ante_assessment_date: null,
             cif_asset_link_count: 2,
             cif_process_link_count: 0,
@@ -52,8 +61,8 @@ function sampleDerived(overrides: Partial<VendorDerived> = {}): VendorDerived {
             {
                 process_id: 7,
                 process_name: 'Sjednání pojištění – Online',
-                process_cif: 'Ano',
-                process_criticality: 'Kritická',
+                process_cif: 'yes',
+                process_criticality: 'critical',
                 vendor_id: 4,
                 vendor_name: 'BIZ DATA',
                 via_asset_id: 11,
@@ -65,13 +74,13 @@ function sampleDerived(overrides: Partial<VendorDerived> = {}): VendorDerived {
 }
 
 describe('Vendor derived section (engine block, #49)', () => {
-    it('renders the tier pill with the verbatim TierDod label', () => {
+    it('renders canonical derived codes as localized labels', () => {
         render(<VendorDerivedSection derived={sampleDerived()} />);
-        expect(screen.getByTestId('vendor-derived-tier')).toHaveTextContent('Kritický dodavatel');
-        expect(screen.getByTestId('vendor-derived-cif')).toHaveTextContent('Ano');
-        expect(screen.getByTestId('vendor-derived-cif-chain')).toHaveTextContent('Ano');
+        expect(screen.getByTestId('vendor-derived-tier')).toHaveTextContent('Critical provider');
+        expect(screen.getByTestId('vendor-derived-cif')).toHaveTextContent('Yes');
+        expect(screen.getByTestId('vendor-derived-cif-chain')).toHaveTextContent('Yes');
         // max_krit + the transitive row's process class use the shared TridyKrit pill.
-        expect(screen.getAllByText('Kritická')).toHaveLength(2);
+        expect(screen.getAllByText('Critical')).toHaveLength(2);
     });
 
     it('renders the completeness state and the missing-field explain list', () => {
@@ -101,14 +110,14 @@ describe('Vendor derived section (engine block, #49)', () => {
                     transitive_process_links: [],
                     max_criticality: null,
                     h_rank: 0,
-                    tier: 'Standardní dodavatel',
+                    tier: 'standard',
                 })}
             />,
         );
         expect(screen.getByText('derived.transitive.empty')).toBeInTheDocument();
-        expect(screen.getByTestId('vendor-derived-tier')).toHaveTextContent('Standardní dodavatel');
+        expect(screen.getByTestId('vendor-derived-tier')).toHaveTextContent('Standard provider');
         // MAXIFS-empty -> 0 -> the workbook's blank class renders as a dash.
         expect(screen.getAllByText('—').length).toBeGreaterThan(0);
-        expect(screen.queryByText('Kritická')).not.toBeInTheDocument();
+        expect(screen.queryByText('Critical')).not.toBeInTheDocument();
     });
 });

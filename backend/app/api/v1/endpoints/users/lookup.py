@@ -18,6 +18,9 @@ from app.services._ict_register_lifecycle.asset_policy import (
     assert_asset_assignment_lookup_allowed,
 )
 from app.services._ict_register_lifecycle.policy import assert_process_assignment_lookup_allowed
+from app.services._vendor_governance.policy import (
+    assert_vendor_assignment_lookup_allowed,
+)
 
 from ._lifecycle import ensure_admin_user_lifecycle
 from ._visibility import build_visible_users_query
@@ -191,19 +194,42 @@ async def lookup_control_owners(
 @router.get("/lookup/vendor-owners", response_model=list[AssignableOwnerLookup])
 async def lookup_vendor_owners(
     q: str | None = None,
-    department_id: int | None = None,
     limit: int = Query(50, ge=1, le=200),
-    current_user: User = Depends(require_permission("vendors", "write")),
+    current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return active, visible identities assignable as Vendor owners."""
-    return await _lookup_assignable_owners(
-        current_user=current_user,
-        db=db,
-        q=q,
-        department_id=department_id,
-        limit=limit,
+    """Return active Users eligible for cross-Department Vendor ownership."""
+    await assert_vendor_assignment_lookup_allowed(db, current_user=current_user)
+    query = (
+        select(User)
+        .options(selectinload(User.role), selectinload(User.department))
+        .where(User.is_active.is_(True))
     )
+    if q:
+        search_term = f"%{q}%"
+        query = query.where(
+            or_(User.name.ilike(search_term), User.email.ilike(search_term))
+        )
+    users = (
+        await db.execute(
+            query.order_by(User.name.asc(), User.id.asc()).limit(
+                min(limit, MAX_LOOKUP_SIZE)
+            )
+        )
+    ).scalars().all()
+    return [
+        AssignableOwnerLookup(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            role_name=user.role.name,
+            department_id=user.department_id,
+            department_name=(
+                user.department.name if user.department is not None else None
+            ),
+        )
+        for user in users
+    ]
 
 
 @router.get("/lookup/process-owners", response_model=list[AssignableOwnerLookup])

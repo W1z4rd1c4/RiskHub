@@ -1,4 +1,5 @@
 import type { CollectionListResponse } from '@/types/collection';
+import type { VendorControlledCode } from '@/lib/vendorValues';
 
 export type VendorType =
     | 'ict'
@@ -7,12 +8,12 @@ export type VendorType =
     | 'partner'
     | 'other';
 
-/**
- * The register's Substitutability input: writes are constrained to the
- * workbook's closed four-value Substituce list; rows stored before the ICT
- * Register extension may still carry the legacy easy/medium/hard values.
- */
-export type VendorReplaceability = string;
+/** Locale-independent Vendor substitutability codes accepted by the API. */
+export type VendorReplaceability =
+    | 'not_substitutable'
+    | 'highly_complex'
+    | 'medium_complexity'
+    | 'easily_substitutable';
 
 export interface VendorLinkedRiskSummary {
     risk_id: number;
@@ -23,6 +24,7 @@ export interface VendorLinkedRiskSummary {
 export interface VendorCapabilities {
     can_read: boolean;
     can_update: boolean;
+    can_manage_accountability: boolean;
     can_archive: boolean;
     can_restore: boolean;
     can_create_linked_risk: boolean;
@@ -44,6 +46,19 @@ export interface VendorCapabilities {
     can_manage_process_links: boolean;
 }
 
+export interface VendorOwnerRead {
+    name: string;
+    email: string;
+    role_name: string;
+    department_name?: string | null;
+}
+
+export type VendorOwnershipStatus =
+    | 'assigned'
+    | 'legacy_unassigned'
+    | 'pending_governance'
+    | 'invalid_assignment';
+
 /** One derived 11 §2 row: a (Process, Vendor) pair implied via an Asset (#49). */
 export interface VendorTransitiveProcessLink {
     process_id: number;
@@ -58,16 +73,16 @@ export interface VendorTransitiveProcessLink {
 
 /** The inputs, link tallies, and triggers behind the derived block. */
 export interface VendorDerivedInputs {
-    country?: string | null;
-    substitutability?: string | null;
-    exit_plan_state?: string | null;
+    country?: VendorControlledCode<'country'> | null;
+    substitutability?: VendorControlledCode<'replaceability'> | null;
+    exit_plan_state?: VendorControlledCode<'exit_plan_state'> | null;
     ex_ante_assessment_date?: string | null;
-    significance_authorization_conditions?: string | null;
-    significance_regulatory_requirements?: string | null;
-    significance_service_quality?: string | null;
-    significance_financial_impact?: string | null;
-    significance_reputation_continuity?: string | null;
-    significance_cumulative_impact?: string | null;
+    significance_authorization_conditions?: VendorControlledCode<'significance_authorization_conditions'> | null;
+    significance_regulatory_requirements?: VendorControlledCode<'significance_regulatory_requirements'> | null;
+    significance_service_quality?: VendorControlledCode<'significance_service_quality'> | null;
+    significance_financial_impact?: VendorControlledCode<'significance_financial_impact'> | null;
+    significance_reputation_continuity?: VendorControlledCode<'significance_reputation_continuity'> | null;
+    significance_cumulative_impact?: VendorControlledCode<'significance_cumulative_impact'> | null;
     cif_asset_link_count: number;
     cif_process_link_count: number;
     tier_cif_chain: boolean;
@@ -122,6 +137,9 @@ export interface Vendor {
 
     outsourcing_owner_user_id: number;
     outsourcing_owner_name?: string | null;
+    outsourcing_owner?: VendorOwnerRead | null;
+    owner_orphaned: boolean;
+    ownership_status: VendorOwnershipStatus;
     linked_risks: VendorLinkedRiskSummary[];
     capabilities?: VendorCapabilities | null;
 
@@ -198,6 +216,9 @@ export type VendorCreate = Omit<
     | 'department_name'
     | 'linked_risks'
     | 'outsourcing_owner_name'
+    | 'outsourcing_owner'
+    | 'owner_orphaned'
+    | 'ownership_status'
     | 'derived'
     | 'is_archived'
     | 'archived_at'

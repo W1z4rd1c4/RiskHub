@@ -106,6 +106,10 @@ from app.services._ict_register_reference.parameters import (
 )
 from app.services._ict_register_reference.process_values import process_controlled_value_code
 from app.services._ict_register_reference.threat_categories import threat_category_code
+from app.services._ict_register_reference.vendor_values import (
+    VENDOR_CONTROLLED_CODES_BY_FIELD,
+    vendor_controlled_value_code,
+)
 from app.services._vendor_governance.contract_lifecycle import (
     create_vendor_contract_detail,
     update_vendor_contract_detail,
@@ -412,7 +416,9 @@ def _vendor_rows(seed: ModuleType) -> list[tuple[str, dict[str, Any]]]:
         "due_diligence_state": biz["dd"],
         "last_monitoring_date": _iso(biz["monitoring"]),
     }
+    _canonicalize_vendor_payload(biz_payload)
     rows = [(biz["nazev"], biz_payload)]
+
     for provider in seed.SRC["providers"]:
         rows.append(
             (
@@ -425,6 +431,15 @@ def _vendor_rows(seed: ModuleType) -> list[tuple[str, dict[str, Any]]]:
             )
         )
     return rows
+
+
+def _canonicalize_vendor_payload(payload: dict[str, Any]) -> None:
+    """Translate controlled source values in place; never infer owner names."""
+
+    for field in VENDOR_CONTROLLED_CODES_BY_FIELD.keys() & payload.keys():
+        value = payload[field]
+        if value is not None:
+            payload[field] = vendor_controlled_value_code(field, value)
 
 
 async def import_vendors(db, seed: ModuleType, user: User, report: ImportReport) -> dict[str, int]:

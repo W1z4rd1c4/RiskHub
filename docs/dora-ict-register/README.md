@@ -8,6 +8,8 @@ Design, specification, and remediation records for the **ICT Register** build (t
 ICT operational-resilience register). Domain vocabulary for this effort lives in the root
 [`CONTEXT.md`](../../CONTEXT.md); these are the working captures, specs, and audit records
 behind it.
+- [`vendor-canonical-values.md`](./vendor-canonical-values.md): Canonical Vendor stored/API
+  codes, workbook-boundary translation, localized UI labels, and regulatory export mapping.
 
 ## Contents
 

@@ -5,7 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.permissions import can_read_vendor
+from app.core.security import check_permission
 from app.models import User, Vendor, VendorContract
+from app.services._vendor_governance.policy import lock_vendor_ordinary_mutation
 
 
 async def load_contract_vendor(db: AsyncSession, vendor_id: int) -> Vendor | None:
@@ -18,7 +20,11 @@ async def assert_contract_vendor_readable(
 ) -> Vendor:
     """Contracts live inside the Vendor domain: visibility follows the Vendor row."""
     vendor = await load_contract_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
+    if not (
+        vendor
+        and check_permission(current_user, "vendors", "read")
+        and can_read_vendor(vendor, current_user)
+    ):
         raise NotFoundError("Vendor not found")
     return vendor
 
@@ -28,6 +34,7 @@ async def assert_contract_mutation_vendor(
 ) -> Vendor:
     """Mutations require an ACTIVE parent Vendor (strict archived-end stance)."""
     vendor = await assert_contract_vendor_readable(db, vendor_id=vendor_id, current_user=current_user)
+    vendor = await lock_vendor_ordinary_mutation(db, vendor_id=vendor.id)
     if vendor.is_archived:
         raise ConflictError("Cannot modify contracts of an archived vendor")
     return vendor

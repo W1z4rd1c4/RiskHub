@@ -6,10 +6,11 @@
  * below is HAND-DERIVED from the seeded graph and cross-checked by driving
  * the pure engine (derive_ict_register) with the same rows:
  *
- * - Vendor CIF two-path any-true: A1/A2 (both derived CIF Ano via
+ * - Vendor CIF two-path any-true: A1/A2 (both derived CIF yes via
  *   E2E-PROC-001's override) hit the asset path (2), the §1 pair to
- *   E2E-PROC-003 (CIF Ano) hits the process path (1) -> cif = Ano;
- *   cif_ret = own CIF -> Ano -> tier = "Kritický dodavatel" (verbatim).
+ *   E2E-PROC-003 (CIF yes) hits the process path (1) -> cif = yes;
+ *   cif_ret = own CIF -> yes -> tier = critical. The UI localizes those
+ *   canonical API codes in the active language.
  * - Transitive §2 expansion (never persisted): AVL(A1) x PAL(P1,P2) +
  *   AVL(A2) x PAL(P1) = 3 rows, VAD-major order.
  * - Process dod_n = §1 + §2: E2E-PROC-001 flips to 2 (both transitive),
@@ -31,27 +32,27 @@ import {
 } from './helpers/ict-register';
 import { waitForDataLoad } from './helpers/wait';
 
-const VENDOR_TIER_CRITICAL = 'Kritický dodavatel';
+const VENDOR_TIER_CRITICAL = 'Critical provider';
 const CHAIN_ERROR_LABEL = /^(Broken supply chain|Chyba řetězce)$/;
 
 // Engine-confirmed §2 rows for the seeded vendor, in VAD-major order.
 const EXPECTED_TRANSITIVE_ROWS = [
     {
         process: 'E2E-PROC-001 Claims Intake – FNOL triage',
-        cif: 'Ano',
-        criticality: 'Kritická',
+        cif: 'Yes',
+        criticality: 'Critical',
         viaAsset: 'E2E-ASSET-001 Core Claims System',
     },
     {
         process: 'E2E-PROC-002 Policy Administration',
-        cif: 'Ne',
-        criticality: 'Vysoká',
+        cif: 'No',
+        criticality: 'High',
         viaAsset: 'E2E-ASSET-001 Core Claims System',
     },
     {
         process: 'E2E-PROC-001 Claims Intake – FNOL triage',
-        cif: 'Ano',
-        criticality: 'Kritická',
+        cif: 'Yes',
+        criticality: 'Critical',
         viaAsset: 'E2E-ASSET-002 Claims Database',
     },
 ];
@@ -71,22 +72,33 @@ test.describe('ICT Register — Vendor-cascade derivations (Deterministic)', () 
         // leaves the vendor's Substituce value mutated.
         await ensureVendorReplaceability(vendorId, E2E_ICT_VENDOR.replaceability);
 
+        const detailResponse = riskManagerPage.waitForResponse((response) =>
+            response.url().endsWith(`/api/v1/vendors/${vendorId}`) && response.request().method() === 'GET',
+        );
         await riskManagerPage.goto(`/vendors/${vendorId}`);
         await waitForDataLoad(riskManagerPage);
+
+        const detail = await (await detailResponse).json() as {
+            derived: { tier: string; cif: string; cif_chain: string };
+            replaceability: string;
+        };
+        expect(detail.derived.tier).toBe('critical');
+        expect(detail.derived.cif).toBe('yes');
+        expect(detail.derived.cif_chain).toBe('yes');
+        expect(detail.replaceability).toBe('highly_complex');
 
         const section = riskManagerPage.getByTestId('vendor-derived-section');
         await expect(section).toBeVisible();
 
-        // The tier pill carries the TierDod label verbatim: cif -> cif_ret
-        // -> the tier formula's first branch.
+        // Canonical API codes are rendered as localized English labels.
         await expect(riskManagerPage.getByTestId('vendor-derived-tier')).toHaveText(VENDOR_TIER_CRITICAL);
-        await expect(riskManagerPage.getByTestId('vendor-derived-cif')).toHaveText('Ano');
-        await expect(riskManagerPage.getByTestId('vendor-derived-cif-chain')).toHaveText('Ano');
+        await expect(riskManagerPage.getByTestId('vendor-derived-cif')).toHaveText('Yes');
+        await expect(riskManagerPage.getByTestId('vendor-derived-cif-chain')).toHaveText('Yes');
 
-        // Explain inputs render: the Substituce input behind the tier match
-        // and the completeness gaps by verbatim field name (07!hotovo misses
+        // Explain inputs localize the stored substitutability code and retain
+        // the completeness gaps by stable field name (07!hotovo misses
         // the exit plan and — Kritický tier — the ex-ante assessment date).
-        await expect(section.getByText(E2E_ICT_VENDOR.replaceability).first()).toBeVisible();
+        await expect(section.getByText('Highly complex substitutability').first()).toBeVisible();
         await expect(riskManagerPage.getByTestId('vendor-derived-missing')).toHaveText(
             'exit_plan_state, ex_ante_assessment_date',
         );
@@ -149,7 +161,7 @@ test.describe('ICT Register — Vendor-cascade derivations (Deterministic)', () 
             riskManagerPage.getByTestId(`vendor-sub-outsourcing-chain-error-${directPrimary!.id}`),
         ).toHaveCount(0);
 
-        // 08!W propagation: the prime vendor's CIF (Ano) marks every row of
+        // 08!W propagation: the prime vendor's CIF (yes) marks every row of
         // the chain as a critical service, uniformly — the broken row too.
         await expect(
             riskManagerPage.getByTestId(`vendor-sub-outsourcing-critical-${directPrimary!.id}`),

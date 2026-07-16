@@ -883,23 +883,21 @@ async def test_committee_endpoint_allows_cro_via_wildcard(client_factory, test_u
 @pytest.mark.parametrize(
     ("person_type", "country", "identifier_type", "identifier_value", "ready"),
     [
-        ("Právnická osoba", "CZ", "LEI", "LEI-1", True),
-        ("Právnická osoba", "DE", "EUID", "EUID-1", True),
-        ("Právnická osoba", "CZ", "VAT", "VAT-1", False),
-        ("Právnická osoba", "US", "LEI", "LEI-2", True),
-        ("Právnická osoba", "US", "EUID", "EUID-2", False),
-        ("Fyzická osoba podnikající", "CZ", "LEI", "LEI-3", True),
-        ("Fyzická osoba podnikající", "CZ", "EUID", "EUID-3", True),
-        ("Fyzická osoba podnikající", "CZ", "CRN", "CRN-1", True),
-        ("Fyzická osoba podnikající", "CZ", "VAT", "VAT-2", True),
-        ("Fyzická osoba podnikající", "CZ", "PNR", "PNR-1", True),
-        ("Fyzická osoba podnikající", "CZ", "NIN", "NIN-1", True),
-        ("Fyzická osoba podnikající", "US", "IČO (CRN)", "12345678", True),
-        ("Právnická osoba", "CZ", "IČO (CRN)", "12345678", False),
-        ("Fyzická osoba podnikající", "CZ", "Jiný", "legacy", False),
-        ("Právnická osoba", "ZZ", "LEI", "LEI-4", False),
-        ("Právnická osoba", "CZ", None, "LEI-5", False),
-        ("Právnická osoba", "CZ", "LEI", None, False),
+        ("legal_person", "CZ", "LEI", "LEI-1", True),
+        ("legal_person", "DE", "EUID", "EUID-1", True),
+        ("legal_person", "CZ", "VAT", "VAT-1", False),
+        ("legal_person", "US", "LEI", "LEI-2", True),
+        ("legal_person", "US", "EUID", "EUID-2", False),
+        ("individual_acting_in_business_capacity", "CZ", "LEI", "LEI-3", True),
+        ("individual_acting_in_business_capacity", "CZ", "EUID", "EUID-3", True),
+        ("individual_acting_in_business_capacity", "CZ", "CRN", "CRN-1", True),
+        ("individual_acting_in_business_capacity", "CZ", "VAT", "VAT-2", True),
+        ("individual_acting_in_business_capacity", "CZ", "PNR", "PNR-1", True),
+        ("individual_acting_in_business_capacity", "CZ", "NIN", "NIN-1", True),
+        ("individual_acting_in_business_capacity", "US", "CRN", "12345678", True),
+        ("legal_person", "CZ", "CRN", "12345678", False),
+        ("legal_person", "CZ", None, "LEI-5", False),
+        ("legal_person", "CZ", "LEI", None, False),
     ],
 )
 async def test_vendor_api_identifier_rules_flow_into_committee_roi_readiness(
@@ -942,7 +940,9 @@ async def test_vendor_api_identifier_rules_flow_into_committee_roi_readiness(
         if missing["key"].startswith("provider_identification_")
     }
     assert identifier_gaps == (
-        set() if ready else {"provider_identification_code", "provider_identification_type"}
+        set()
+        if ready
+        else {"provider_identification_code", "provider_identification_type"}
     )
 
 

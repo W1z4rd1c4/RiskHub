@@ -210,6 +210,7 @@ async function installApiContract(page: Page, unexpected: string[]) {
       case '/api/v1/access/users':
       case '/api/v1/users':
       case '/api/v1/users/lookup':
+      case '/api/v1/users/lookup/vendor-owners':
         await json(route, []); return;
       case '/api/v1/departments':
         await json(route, [department]); return;

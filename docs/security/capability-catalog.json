@@ -198,6 +198,7 @@
    "fields": [
     "can_read",
     "can_update",
+    "can_manage_accountability",
     "can_archive",
     "can_restore",
     "can_create_linked_risk",

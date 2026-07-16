@@ -38,13 +38,6 @@ export const vendorTypeOptions: { value: VendorType; labelKey: string }[] = [
     { value: 'other', labelKey: 'form.vendor_type.other' },
 ];
 
-/** Legacy stored replaceability values keep their translated labels. */
-export const LEGACY_REPLACEABILITY_LABEL_KEYS: Record<string, string> = {
-    easy: 'form.replaceability.easy',
-    medium: 'form.replaceability.medium',
-    hard: 'form.replaceability.hard',
-};
-
 /** ICT Register extension: entered text/coded columns handled uniformly (trim or null). */
 export const VENDOR_REGISTER_TEXT_FIELDS = [
     'latin_name',

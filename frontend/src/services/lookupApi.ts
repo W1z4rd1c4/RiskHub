@@ -36,6 +36,8 @@ export interface AssignmentOwnerLookupParams extends Record<string, QueryValue> 
     q?: string;
 }
 
+export type VendorOwnerLookupParams = Pick<AssignmentOwnerLookupParams, 'limit' | 'q'>;
+
 export interface ThreatStewardLookupItem {
     id: number;
     name: string;
@@ -60,6 +62,8 @@ export interface ProcessOwnershipLookupParams extends Record<string, QueryValue>
 
 export type AssetOwnershipLookupParams = ProcessOwnershipLookupParams;
 export type AssetDepartmentLookupItem = ProcessDepartmentLookupItem;
+export type VendorDepartmentLookupItem = ProcessDepartmentLookupItem;
+export type VendorDepartmentLookupParams = ProcessOwnershipLookupParams;
 
 export const lookupApi = {
     async getUsers(params?: UserLookupParams): Promise<UserLookupItem[]> {
@@ -75,8 +79,15 @@ export const lookupApi = {
         return apiClient.get('/users/lookup/control-owners', { params, schema: userLookupArraySchema });
     },
 
-    async getVendorOwners(params?: AssignmentOwnerLookupParams): Promise<UserLookupItem[]> {
+    async getVendorOwners(params?: VendorOwnerLookupParams): Promise<UserLookupItem[]> {
         return apiClient.get('/users/lookup/vendor-owners', { params, schema: userLookupArraySchema });
+    },
+
+    async getVendorDepartments(params?: VendorDepartmentLookupParams): Promise<VendorDepartmentLookupItem[]> {
+        return apiClient.get('/departments/lookup/vendor-owners', {
+            params,
+            schema: z.array(processDepartmentReadSchema.extend({ id: z.number() })),
+        });
     },
 
     async getThreatStewards(params?: ThreatStewardLookupParams): Promise<ThreatStewardLookupItem[]> {

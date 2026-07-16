@@ -2,6 +2,7 @@ import { ArrowLeft, Edit, FileText, RotateCcw, Trash2 } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
 import type { Vendor } from '@/types/vendor';
+import { vendorOwnerDisplayName } from './vendorDetailPresentation';
 
 import { getVendorDisplayStatus, type VendorDisplayStatus } from './vendorsPagePresentation';
 
@@ -80,7 +81,7 @@ export function VendorDetailHeader({
                     <span>{t(`type.${vendor.vendor_type}`, vendor.vendor_type)}</span>
                     <span>{vendor.process}{vendor.subprocess ? ` / ${vendor.subprocess}` : ''}</span>
                     {vendor.department_name ? <span>{vendor.department_name}</span> : null}
-                    {vendor.outsourcing_owner_name ? <span>{vendor.outsourcing_owner_name}</span> : null}
+                    <span>{vendorOwnerDisplayName(vendor.outsourcing_owner, vendor.ownership_status, t)}</span>
                 </div>
 
                 {vendor.description ? (

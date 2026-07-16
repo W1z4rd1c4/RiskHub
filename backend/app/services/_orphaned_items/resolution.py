@@ -19,6 +19,7 @@ from app.models.risk import Risk
 from app.models.role import Role, RoleType
 from app.models.threat import Threat
 from app.models.user import User
+from app.models.vendor import Vendor
 from app.services._asset_owner_lock import lock_asset_for_owner_mutation
 from app.services._ict_register_lifecycle.asset_policy import (
     assert_active_asset_department,
@@ -31,6 +32,7 @@ from app.services._ict_register_lifecycle.policy import (
 from app.services._ict_register_lifecycle.threat_policy import assert_active_ciso_steward
 from app.services._process_owner_lock import lock_process_for_owner_mutation
 from app.services._threat_stewardship_lock import acquire_threat_steward_identity_locks
+from app.services._vendor_owner_lock import lock_vendor_for_owner_mutation
 from app.services.transaction_boundary import commit_service_boundary
 
 from .governance import orphan_item_definition, orphan_resolution_requirements_projection
@@ -211,6 +213,20 @@ async def validate_resolution_context(
             target_department_id,
         )
 
+    if orphan.item_type == "vendor":
+        if new_owner is None:
+            raise ValueError("new_owner_id is required to resolve orphaned Vendors")
+        if orphan.responsibility_role != "outsourcing_owner":
+            raise ValueError("Vendor orphan responsibility_role is invalid")
+        if department_id is not None or target_risk is not None:
+            raise ValueError(
+                "Vendor reassignment does not accept department_id or target_risk_id"
+            )
+        vendor = await db.get(Vendor, orphan.item_id)
+        if vendor is None:
+            raise ValueError(f"Vendor {orphan.item_id} no longer exists")
+        return OrphanResolutionContext(orphan, new_owner, None, None)
+
     raise ValueError(f"Unsupported orphaned item type: {requirements.item_type}")
 
 
@@ -253,6 +269,15 @@ async def resolve_orphan(
         )
     if orphan_type == "asset":
         return await _resolve_asset_orphan(
+            db,
+            orphan_id=orphan_id,
+            resolved_by_id=resolved_by_id,
+            new_owner_id=new_owner_id,
+            department_id=department_id,
+            target_risk_id=target_risk_id,
+        )
+    if orphan_type == "vendor":
+        return await _resolve_vendor_orphan(
             db,
             orphan_id=orphan_id,
             resolved_by_id=resolved_by_id,
@@ -535,6 +560,117 @@ async def _resolve_process_orphan(
         department_id=target_dept_id,
         changes=process_changes,
         description=f"Resolved orphaned process via governance workflow #{orphan.id}",
+    )
+
+    orphan.status = "resolved"
+    orphan.resolved_at = utc_now()
+    orphan.resolved_by_id = resolved_by_id
+    orphan.new_owner_id = new_owner_id
+    await commit_service_boundary(db, boundary="orphaned_items.resolve")
+    return orphan
+
+
+async def _resolve_vendor_orphan(
+    db: AsyncSession,
+    *,
+    orphan_id: int,
+    resolved_by_id: int,
+    new_owner_id: int | None,
+    department_id: int | None,
+    target_risk_id: int | None,
+) -> OrphanedItem:
+    """Resolve Vendor ownership using identity -> Vendor -> orphan locks."""
+    if new_owner_id is None:
+        raise ValueError("new_owner_id is required to resolve orphaned Vendors")
+    if department_id is not None or target_risk_id is not None:
+        raise ValueError(
+            "Vendor reassignment does not accept department_id or target_risk_id"
+        )
+
+    preview = (
+        await db.execute(
+            select(
+                OrphanedItem.item_type,
+                OrphanedItem.item_id,
+                OrphanedItem.status,
+                OrphanedItem.previous_owner_id,
+                OrphanedItem.responsibility_role,
+            ).where(OrphanedItem.id == orphan_id)
+        )
+    ).one_or_none()
+    if preview is None:
+        raise ValueError(f"Orphaned item {orphan_id} not found")
+    if preview.status != "pending":
+        raise OrphanResolutionConflict(f"Orphaned item {orphan_id} is already resolved")
+    if preview.item_type != "vendor":
+        raise ValueError(f"Orphaned item {orphan_id} is not a Vendor")
+    if preview.responsibility_role != "outsourcing_owner":
+        raise ValueError("Vendor orphan responsibility_role is invalid")
+
+    expected_owner_id = await db.scalar(
+        select(Vendor.outsourcing_owner_user_id).where(Vendor.id == preview.item_id)
+    )
+    if expected_owner_id is None:
+        raise ValueError(f"Vendor {preview.item_id} no longer exists")
+    vendor = await lock_vendor_for_owner_mutation(
+        db,
+        vendor_id=preview.item_id,
+        user_ids=(expected_owner_id, new_owner_id),
+        expected_owner_user_id=expected_owner_id,
+    )
+    if vendor is None:
+        raise ValueError(f"Vendor {preview.item_id} no longer exists")
+
+    orphan = (
+        await db.execute(
+            select(OrphanedItem)
+            .where(OrphanedItem.id == orphan_id)
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if orphan is None:
+        raise ValueError(f"Orphaned item {orphan_id} not found")
+    if orphan.item_type != "vendor" or orphan.item_id != vendor.id:
+        raise ConflictError("Orphaned Vendor target changed concurrently; retry")
+    if orphan.status != "pending":
+        raise OrphanResolutionConflict(f"Orphaned item {orphan_id} is already resolved")
+    if orphan.previous_owner_id != preview.previous_owner_id:
+        raise ConflictError("Orphaned Vendor owner evidence changed concurrently; retry")
+    if orphan.responsibility_role != preview.responsibility_role:
+        raise ConflictError("Orphaned Vendor responsibility changed concurrently; retry")
+
+    new_owner = (
+        await db.execute(
+            select(User).where(User.id == new_owner_id, User.is_active.is_(True))
+        )
+    ).scalar_one_or_none()
+    if new_owner is None:
+        raise ValueError("Vendor owner must be an active user")
+    await assert_orphan_still_matches_target_state(
+        db,
+        orphan=orphan,
+        target_entity=vendor,
+    )
+
+    changes = build_change_set(
+        vendor,
+        {"outsourcing_owner_user_id": new_owner_id},
+    )
+    vendor.outsourcing_owner = new_owner
+    vendor.outsourcing_owner_user_id = new_owner_id
+
+    resolving_user = await db.get(User, resolved_by_id)
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.VENDOR,
+        entity_id=vendor.id,
+        entity_name=vendor.name,
+        safe_entity_label=f"VEND-{vendor.id}",
+        action=ActivityAction.UPDATE,
+        actor=resolving_user,
+        department_id=vendor.department_id,
+        changes=changes,
+        description=f"Resolved orphaned Vendor via governance workflow #{orphan.id}",
     )
 
     orphan.status = "resolved"

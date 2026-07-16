@@ -58,18 +58,25 @@ async def test_assignment_owner_lookups_use_exact_write_permission_and_departmen
     await _grant(db_session, test_role_department_head, "controls", "write")
     await _grant(db_session, test_role_department_head, "vendors", "write")
 
-    for path in ("control-owners", "vendor-owners"):
-        response = await client_department_head.get(f"/api/v1/users/lookup/{path}?limit=200")
-        assert response.status_code == 200
-        owners = response.json()
-        owner_ids = {owner["id"] for owner in owners}
-        assert test_user_employee.id in owner_ids
-        assert other_owner.id not in owner_ids
-        assert all(
-            set(owner)
-            == {"id", "name", "email", "role_name", "department_id", "department_name"}
-            for owner in owners
-        )
+    control_response = await client_department_head.get("/api/v1/users/lookup/control-owners?limit=200")
+    assert control_response.status_code == 200
+    control_owners = control_response.json()
+    control_owner_ids = {owner["id"] for owner in control_owners}
+    assert test_user_employee.id in control_owner_ids
+    assert other_owner.id not in control_owner_ids
+
+    vendor_response = await client_department_head.get("/api/v1/users/lookup/vendor-owners?limit=200")
+    assert vendor_response.status_code == 200
+    vendor_owners = vendor_response.json()
+    vendor_owner_ids = {owner["id"] for owner in vendor_owners}
+    assert test_user_employee.id in vendor_owner_ids
+    assert other_owner.id in vendor_owner_ids
+
+    assert all(
+        set(owner)
+        == {"id", "name", "email", "role_name", "department_id", "department_name"}
+        for owner in [*control_owners, *vendor_owners]
+    )
 
     risk_denied = await client_department_head.get("/api/v1/users/lookup/risk-owners")
     assert risk_denied.status_code == 403

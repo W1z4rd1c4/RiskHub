@@ -429,7 +429,7 @@
   },
   "governance": {
     "title": "Dohled nad správou",
-    "subtitle": "Správa osiřelých rizik, kontrol, KRI, hrozeb, procesů a aktiv, které vyžadují řízené přeřazení.",
+    "subtitle": "Správa osiřelých rizik, kontrol, KRI, hrozeb, procesů, aktiv a dodavatelů, které vyžadují řízené přeřazení.",
     "loading": "Načítání dat správy...",
     "refresh": "Obnovit data",
     "live_status": "Živý stav systému",
@@ -439,6 +439,7 @@
     "orphaned_threats": "Osiřelé hrozby",
     "orphaned_processes": "Osiřelé procesy",
     "orphaned_assets": "Osiřelá aktiva",
+    "orphaned_vendors": "Osiřelí dodavatelé",
     "uncategorised": "Bez kategorie",
     "risks": "Rizika",
     "controls": "Kontroly",
@@ -446,6 +447,7 @@
     "threats": "Hrozby",
     "processes": "Procesy",
     "assets": "Aktiva",
+    "vendors": "Dodavatelé",
     "total": "Celkem",
     "action_required": "Vyžaduje akci",
     "critical": "Kritické",
@@ -457,6 +459,7 @@
     "orphaned_threats_section": "Osiřelé hrozby",
     "orphaned_processes_section": "Osiřelé procesy",
     "orphaned_assets_section": "Osiřelá aktiva",
+    "orphaned_vendors_section": "Osiřelí dodavatelé",
     "resolve": "Vyřešit",
     "all_types": "Všechny typy",
     "risks_only": "Pouze rizika",
@@ -465,6 +468,7 @@
     "threats_only": "Pouze hrozby",
     "processes_only": "Pouze procesy",
     "assets_only": "Pouze aktiva",
+    "vendors_only": "Pouze dodavatelé",
     "orphaned_items": "Osiřelé položky",
     "all_clear": "Vše v pořádku",
     "no_orphans": "Nebyly nalezeny žádné osiřelé položky. Spravované záznamy mají platná přiřazení.",
@@ -481,9 +485,11 @@
     "type_threat": "Hrozba",
     "type_process": "Proces",
     "type_asset": "Aktivum",
+    "type_vendor": "Dodavatel",
     "responsibility_role": {
       "business_owner": "Odpovědnost Business vlastníka",
-      "ict_owner": "Odpovědnost ICT vlastníka"
+      "ict_owner": "Odpovědnost ICT vlastníka",
+      "outsourcing_owner": "Odpovědnost vlastníka outsourcingu"
     },
     "quick_view": {
       "title": "Náhled položky",
@@ -508,6 +514,7 @@
       "configure_ownership": "Nastavte vlastnictví a přiřazení",
       "asset_business_owner": "Přeřaďte současně Business vlastníka a vlastnický útvar",
       "asset_ict_owner": "Přeřaďte současně ICT vlastníka a vlastnický útvar",
+      "vendor_outsourcing_owner": "Nahraďte neaktivního vlastníka outsourcingu se zachováním důkazů o bývalém vlastníkovi",
       "initializing": "Inicializace konfigurace...",
       "select_risk_to_link": "Vyberte riziko k propojení",
       "assign_new_owner": "Přiřadit nového vlastníka",

@@ -64,6 +64,7 @@ from app.models import (
     VendorSubOutsourcing,
 )
 from app.models._archivable import archived_clause
+from app.services._ict_register_reference.vendor_values import vendor_workbook_value
 
 from .committee import IctCommitteeGraph
 from .derivation import (
@@ -164,6 +165,10 @@ def asset_derivation_input(asset: Asset) -> AssetDerivationInput:
     )
 
 
+def _vendor_workbook_optional(field: str, value: str | None) -> str | None:
+    return vendor_workbook_value(field, value) if value is not None else None
+
+
 def vendor_derivation_input(vendor: Vendor) -> VendorDerivationInput:
     """Map a Vendor row to the engine's plain input (entered fields only).
 
@@ -173,19 +178,34 @@ def vendor_derivation_input(vendor: Vendor) -> VendorDerivationInput:
         id=vendor.id,
         name=vendor.name,
         country=vendor.country,
-        person_type=vendor.person_type,
-        identifier_type=vendor.identifier_type,
+        person_type=_vendor_workbook_optional("person_type", vendor.person_type),
+        identifier_type=_vendor_workbook_optional("identifier_type", vendor.identifier_type),
         identifier_value=vendor.identifier_value,
-        substitutability=vendor.replaceability,
-        exit_plan_state=vendor.exit_plan_state,
+        substitutability=_vendor_workbook_optional("replaceability", vendor.replaceability),
+        exit_plan_state=_vendor_workbook_optional("exit_plan_state", vendor.exit_plan_state),
         ex_ante_assessment_date=vendor.ex_ante_assessment_date,
-        due_diligence_state=vendor.due_diligence_state,
-        significance_authorization_conditions=vendor.significance_authorization_conditions,
-        significance_regulatory_requirements=vendor.significance_regulatory_requirements,
-        significance_service_quality=vendor.significance_service_quality,
-        significance_financial_impact=vendor.significance_financial_impact,
-        significance_reputation_continuity=vendor.significance_reputation_continuity,
-        significance_cumulative_impact=vendor.significance_cumulative_impact,
+        due_diligence_state=_vendor_workbook_optional("due_diligence_state", vendor.due_diligence_state),
+        significance_authorization_conditions=_vendor_workbook_optional(
+            "significance_authorization_conditions",
+            vendor.significance_authorization_conditions,
+        ),
+        significance_regulatory_requirements=_vendor_workbook_optional(
+            "significance_regulatory_requirements",
+            vendor.significance_regulatory_requirements,
+        ),
+        significance_service_quality=_vendor_workbook_optional(
+            "significance_service_quality", vendor.significance_service_quality
+        ),
+        significance_financial_impact=_vendor_workbook_optional(
+            "significance_financial_impact", vendor.significance_financial_impact
+        ),
+        significance_reputation_continuity=_vendor_workbook_optional(
+            "significance_reputation_continuity",
+            vendor.significance_reputation_continuity,
+        ),
+        significance_cumulative_impact=_vendor_workbook_optional(
+            "significance_cumulative_impact", vendor.significance_cumulative_impact
+        ),
     )
 
 

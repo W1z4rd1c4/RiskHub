@@ -54,6 +54,7 @@ from app.services._ict_register_reference import (
     ASSET_CONTROLLED_CODES_BY_FIELD,
     ICT_SERVICE_TAXONOMY,
     PROCESS_CONTROLLED_CODES_BY_FIELD,
+    VENDOR_CONTROLLED_CODES_BY_FIELD,
     is_closed_list_value,
     is_provider_identifier_type_write_value,
     threat_category_code,
@@ -95,6 +96,13 @@ def _assert_asset_controlled_codes(entry: dict[str, object]) -> None:
         value = entry.get(field)
         if value is not None and value not in codes:
             raise RuntimeError(f"Asset fixture value {field}={value!r} is not a canonical code")
+
+
+def _assert_vendor_controlled_codes(entry: dict[str, object]) -> None:
+    for field, codes in VENDOR_CONTROLLED_CODES_BY_FIELD.items():
+        value = entry.get(field)
+        if value is not None and value not in codes:
+            raise RuntimeError(f"Vendor fixture value {field}={value!r} is not a canonical code")
 
 
 # Deterministic Process matrix (l1_process is the stable natural key).
@@ -524,13 +532,6 @@ _LINK_CLOSED_LIST_FIELDS = {
     "dependency_type": "TypZavislostiAktiv",
 }
 
-_VENDOR_CLOSED_LIST_FIELDS = {
-    "person_type": "TypOsoby",
-    "identifier_type": "TypKodu",
-    "replaceability": "Substituce",
-    "data_sensitivity": "CitlivostDat",
-}
-
 _CONTRACT_CLOSED_LIST_FIELDS = {
     "records_system": "SystemEvidence",
     "arrangement_type": "TypUjednani",
@@ -569,11 +570,11 @@ E2E_ICT_VENDOR = {
     "has_alternative_providers": False,
     # ICT Register extension (issue #44) — entered fields only.
     "latin_name": "E2E Core Hosting Provider",
-    "person_type": "Právnická osoba",
+    "person_type": "legal_person",
     "identifier_type": "LEI",
     "identifier_value": "E2E00LEI00000000ICT1",
-    "replaceability": "Velmi obtížně nahraditelný",
-    "data_sensitivity": "Vysoká",
+    "replaceability": "highly_complex",
+    "data_sensitivity": "high",
     "is_archived": False,
 }
 
@@ -963,7 +964,7 @@ async def seed_ict_register():
         # 5) Vendor-domain register (issues #44/#45): one dedicated Vendor
         # with the entered register-extension fields, its Contract matrix,
         # and the Sub-outsourcing chain on the main contract.
-        _assert_closed_list_values(E2E_ICT_VENDOR, _VENDOR_CLOSED_LIST_FIELDS, "Vendor")
+        _assert_vendor_controlled_codes(E2E_ICT_VENDOR)
         vendor_payload = {
             key: value
             for key, value in E2E_ICT_VENDOR.items()

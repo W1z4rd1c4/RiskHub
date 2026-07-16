@@ -10,6 +10,7 @@ from app.models.orphaned_item import OrphanedItem
 from app.models.process import Process
 from app.models.risk import Risk
 from app.models.user import User
+from app.models.vendor import Vendor
 
 
 async def get_orphan_stats(db: AsyncSession, current_user: User) -> dict:
@@ -28,6 +29,7 @@ async def get_orphan_stats(db: AsyncSession, current_user: User) -> dict:
             "threat_count": 0,
             "process_count": 0,
             "asset_count": 0,
+            "vendor_count": 0,
             "total_count": 0,
         }
 
@@ -80,12 +82,22 @@ async def get_orphan_stats(db: AsyncSession, current_user: User) -> dict:
             OrphanedItem.item_type == "asset",
         )
     )
+    vendor_stmt = (
+        select(func.count(OrphanedItem.id))
+        .select_from(OrphanedItem)
+        .join(Vendor, Vendor.id == OrphanedItem.item_id)
+        .where(
+            OrphanedItem.status == "pending",
+            OrphanedItem.item_type == "vendor",
+        )
+    )
 
     if dept_ids is not None:
         risk_stmt = risk_stmt.where(Risk.department_id.in_(dept_ids))
         control_stmt = control_stmt.where(Control.department_id.in_(dept_ids))
         process_stmt = process_stmt.where(Process.owning_department_id.in_(dept_ids))
         asset_stmt = asset_stmt.where(Asset.owning_department_id.in_(dept_ids))
+        vendor_stmt = vendor_stmt.where(Vendor.department_id.in_(dept_ids))
 
         from app.models.key_risk_indicator import KeyRiskIndicator
 
@@ -107,6 +119,7 @@ async def get_orphan_stats(db: AsyncSession, current_user: User) -> dict:
     threat_count = (await db.execute(threat_stmt)).scalar() or 0
     process_count = (await db.execute(process_stmt)).scalar() or 0
     asset_count = (await db.execute(asset_stmt)).scalar() or 0
+    vendor_count = (await db.execute(vendor_stmt)).scalar() or 0
     total = (
         int(risk_count)
         + int(control_count)
@@ -114,6 +127,7 @@ async def get_orphan_stats(db: AsyncSession, current_user: User) -> dict:
         + int(threat_count)
         + int(process_count)
         + int(asset_count)
+        + int(vendor_count)
     )
 
     return {
@@ -123,5 +137,6 @@ async def get_orphan_stats(db: AsyncSession, current_user: User) -> dict:
         "threat_count": int(threat_count),
         "process_count": int(process_count),
         "asset_count": int(asset_count),
+        "vendor_count": int(vendor_count),
         "total_count": total,
     }

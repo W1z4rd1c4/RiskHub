@@ -500,7 +500,12 @@ async def list_vendor_governance(
         sort_order=sort_order,
     )
 
-    can_read_risks = check_permission_fn(current_user, "risks", "read")
+    # The assigned-owner exception exposes only the Vendor record itself.
+    # Linked-register projection still requires canonical Vendor read authority.
+    can_read_risks = bool(
+        check_permission_fn(current_user, "vendors", "read")
+        and check_permission_fn(current_user, "risks", "read")
+    )
     collection_capabilities = build_vendor_collection_capabilities(
         current_user,
         check_permission_fn=check_permission_fn,

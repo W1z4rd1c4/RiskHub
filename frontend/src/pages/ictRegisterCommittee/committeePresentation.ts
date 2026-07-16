@@ -151,7 +151,7 @@ const METRIC_PATHS: Record<keyof IctCommitteeKeyMetrics, string> = {
     cif_process_count: filteredRegisterPath('/processes', { cif: true }),
     processes_without_impact_assessment_count: dqCheckPath('DQ-04'),
     critical_asset_count: filteredRegisterPath('/assets', { criticality: 'Kritická' }),
-    critical_vendor_count: filteredRegisterPath('/vendors', { tier: 'Kritický dodavatel' }),
+    critical_vendor_count: filteredRegisterPath('/vendors', { tier: 'critical' }),
     risks_above_tolerance_count: filteredRegisterPath('/risks', { above_tolerance: true }),
     open_dq_finding_count: DQ_FINDINGS_PATH,
 };

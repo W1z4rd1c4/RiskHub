@@ -17,6 +17,10 @@ from app.services._process_owner_lock import (
     acquire_process_owner_identity_lock,
     lock_processes_for_owner_deactivation,
 )
+from app.services._vendor_owner_lock import (
+    acquire_vendor_owner_identity_lock,
+    lock_vendors_for_owner_deactivation,
+)
 from app.services.transaction_boundary import commit_service_boundary
 
 from .core import _already_flagged, _create_orphan
@@ -41,6 +45,7 @@ async def flag_orphaned_items(db: AsyncSession, user_id: int) -> list[OrphanedIt
     # even if its caller already acquired the transaction advisory lock.
     await acquire_process_owner_identity_lock(db, user_id=user_id)
     await acquire_asset_owner_identity_lock(db, user_id=user_id)
+    await acquire_vendor_owner_identity_lock(db, user_id=user_id)
     created_records = []
 
     # Find risks owned by this user
@@ -72,15 +77,46 @@ async def flag_orphaned_items(db: AsyncSession, user_id: int) -> list[OrphanedIt
     asset_records, asset_count = await _flag_orphaned_assets(db, user_id=user_id)
     created_records.extend(asset_records)
 
+    vendor_records, vendor_count = await _flag_orphaned_vendors(db, user_id=user_id)
+    created_records.extend(vendor_records)
+
     await db.flush()
 
     logger.info(
         f"Flagged {len(created_records)} orphaned items for user {user_id}: "
         f"{len(risks)} risks, {len(controls)} controls, {threat_count} threats, "
-        f"{process_count} processes, {asset_count} asset responsibilities"
+        f"{process_count} processes, {asset_count} asset responsibilities, "
+        f"{vendor_count} vendors"
     )
 
     return created_records
+
+
+async def _flag_orphaned_vendors(
+    db: AsyncSession,
+    *,
+    user_id: int,
+) -> tuple[list[OrphanedItem], int]:
+    vendors = await lock_vendors_for_owner_deactivation(db, user_id=user_id)
+    created_records: list[OrphanedItem] = []
+    for vendor in vendors:
+        if await _already_flagged(
+            db,
+            "vendor",
+            vendor.id,
+            responsibility_role="outsourcing_owner",
+        ):
+            continue
+        created_records.append(
+            await _create_orphan(
+                db,
+                "vendor",
+                vendor.id,
+                user_id,
+                responsibility_role="outsourcing_owner",
+            )
+        )
+    return created_records, len(vendors)
 
 
 async def _flag_orphaned_assets(

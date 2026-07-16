@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import type { SortDirection, ViewMode } from '@/components/tables';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
 import { reportApi } from '@/services/reportApi';
 import { vendorApi } from '@/services/vendorApi';
@@ -28,6 +29,7 @@ type VendorRegisterFilters = {
 };
 
 export function useVendorsPageState(semanticFilters: VendorSemanticFilters = {}) {
+    const { i18n } = useTranslation('vendors');
     const loadVendorPage = useCallback(
         ({
             currentPage,
@@ -62,13 +64,14 @@ export function useVendorsPageState(semanticFilters: VendorSemanticFilters = {})
                 format,
                 asOfDate,
                 filters: buildVendorExportFilters({
+                    locale: i18n.language.startsWith('cs') ? 'cs' : 'en',
                     statusFilter: filters.statusFilter,
                     search,
                     typeFilter: filters.typeFilter,
                 }),
             });
         },
-        [],
+        [i18n.language],
     );
 
     const registerController = useRegisterPageController<Vendor, VendorRegisterFilters, ViewMode>({

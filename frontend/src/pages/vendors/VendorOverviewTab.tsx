@@ -12,6 +12,7 @@ import {
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { vendorValueLabel } from '@/lib/vendorValues';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedControl, LinkedKRI, LinkedRisk } from '@/types/vendorLink';
 import type { Vendor } from '@/types/vendor';
@@ -24,6 +25,7 @@ import { VendorDerivedSection } from './VendorDerivedSection';
 import { VendorRegisterLinksSection } from './VendorRegisterLinksSection';
 import { VendorSubOutsourcingSection } from './VendorSubOutsourcingSection';
 import { getVendorDisplayStatus } from './vendorsPagePresentation';
+import { vendorOwnerDisplayName, vendorOwnerMetadata } from './vendorDetailPresentation';
 
 interface VendorOverviewSummary {
     linkedRisks: LinkedRisk[];
@@ -89,19 +91,30 @@ export function VendorOverviewTab({
         linkedKRIs: [],
     });
     const displayStatus = getVendorDisplayStatus(vendor);
+    const ownerName = vendorOwnerDisplayName(vendor.outsourcing_owner, vendor.ownership_status, t);
+    const canViewLinkedRisks = resolveCapabilityFlag(vendor.capabilities, 'can_view_linked_risks');
+    const canViewLinkedControls = resolveCapabilityFlag(vendor.capabilities, 'can_view_linked_controls');
+    const canViewLinkedKris = resolveCapabilityFlag(vendor.capabilities, 'can_view_linked_kris');
+    const canViewAnyLinkedExposure = canViewLinkedRisks || canViewLinkedControls || canViewLinkedKris;
 
     const refreshSummary = useCallback(async () => {
-        const [linkedRisksResult, linkedControlsResult, linkedKRIsResult] = await Promise.all([
-            vendorLinkApi.getLinkedRisks(vendor.id),
-            vendorLinkApi.getLinkedControls(vendor.id),
-            vendorLinkApi.getLinkedKRIs(vendor.id),
+        const [linkedRisksResult, linkedControlsResult, linkedKRIsResult] = await Promise.allSettled([
+            canViewLinkedRisks
+                ? vendorLinkApi.getLinkedRisks(vendor.id)
+                : Promise.resolve([] as LinkedRisk[]),
+            canViewLinkedControls
+                ? vendorLinkApi.getLinkedControls(vendor.id)
+                : Promise.resolve([] as LinkedControl[]),
+            canViewLinkedKris
+                ? vendorLinkApi.getLinkedKRIs(vendor.id)
+                : Promise.resolve([] as LinkedKRI[]),
         ]);
         setSummary({
-            linkedRisks: linkedRisksResult,
-            linkedControls: linkedControlsResult,
-            linkedKRIs: linkedKRIsResult,
+            linkedRisks: linkedRisksResult.status === 'fulfilled' ? linkedRisksResult.value : [],
+            linkedControls: linkedControlsResult.status === 'fulfilled' ? linkedControlsResult.value : [],
+            linkedKRIs: linkedKRIsResult.status === 'fulfilled' ? linkedKRIsResult.value : [],
         });
-    }, [vendor.id]);
+    }, [canViewLinkedControls, canViewLinkedKris, canViewLinkedRisks, vendor.id]);
 
     useEffect(() => {
         void refreshSummary();
@@ -158,19 +171,21 @@ export function VendorOverviewTab({
                         </div>
                         <p className="mt-2 text-xs text-slate-500">{t('overview.summary.type_hint', { type: t(`type.${vendor.vendor_type}`, vendor.vendor_type) })}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                            {t('overview.summary.linked_exposure')}
-                        </p>
-                        <div className="mt-3 text-3xl font-black text-white">{linkedExposureCount}</div>
-                        <p className="mt-2 text-xs text-slate-500">
-                            {t('overview.summary.linked_exposure_hint', {
-                                controls: activeLinkedControls.length,
-                                kris: activeLinkedKRIs.length,
-                                risks: activeLinkedRisks.length,
-                            })}
-                        </p>
-                    </div>
+                    {canViewAnyLinkedExposure ? (
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                {t('overview.summary.linked_exposure')}
+                            </p>
+                            <div className="mt-3 text-3xl font-black text-white">{linkedExposureCount}</div>
+                            <p className="mt-2 text-xs text-slate-500">
+                                {t('overview.summary.linked_exposure_hint', {
+                                    controls: canViewLinkedControls ? activeLinkedControls.length : 0,
+                                    kris: canViewLinkedKris ? activeLinkedKRIs.length : 0,
+                                    risks: canViewLinkedRisks ? activeLinkedRisks.length : 0,
+                                })}
+                            </p>
+                        </div>
+                    ) : null}
                     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                             {t('overview.summary.flags')}
@@ -212,7 +227,7 @@ export function VendorOverviewTab({
                         </div>
                         <div className="flex justify-between items-center gap-4">
                             <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('form.country')}</span>
-                            <span className="text-sm text-white font-medium">{vendor.country || '—'}</span>
+                            <span className="text-sm text-white font-medium">{vendorValueLabel(t, 'country', vendor.country)}</span>
                         </div>
                         <div className="flex justify-between items-center gap-4">
                             <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('form.legal_name')}</span>
@@ -234,11 +249,12 @@ export function VendorOverviewTab({
                     <div className="space-y-5">
                         <div className="flex gap-3 items-start">
                             <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold">
-                                {(vendor.outsourcing_owner_name || 'U')[0]}
+                                {ownerName[0] || 'U'}
                             </div>
                             <div>
                                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('columns.owner')}</p>
-                                <p className="text-sm font-bold text-white leading-snug">{vendor.outsourcing_owner_name || t('labels.unassigned')}</p>
+                                <p className="text-sm font-bold text-white leading-snug">{ownerName}</p>
+                                <p className="text-xs text-slate-500">{vendorOwnerMetadata(vendor.outsourcing_owner, t)}</p>
                             </div>
                         </div>
                         <div className="flex gap-3 items-start">
@@ -272,28 +288,34 @@ export function VendorOverviewTab({
                     </div>
 
                     <div className="space-y-4">
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_risks')}</span>
-                            <span className="text-lg text-white font-black">{activeLinkedRisks.length}</span>
-                        </div>
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_controls')}</span>
-                            <span className="text-lg text-white font-black">{activeLinkedControls.length}</span>
-                        </div>
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_kris')}</span>
-                            <span className="text-lg text-white font-black">{activeLinkedKRIs.length}</span>
-                        </div>
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('overview.summary.linked_exposure')}</span>
-                            <span className="text-lg text-white font-black">{linkedExposureCount}</span>
-                        </div>
+                        {canViewLinkedRisks ? (
+                            <div className="flex justify-between items-center gap-4">
+                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_risks')}</span>
+                                <span className="text-lg text-white font-black">{activeLinkedRisks.length}</span>
+                            </div>
+                        ) : null}
+                        {canViewLinkedControls ? (
+                            <div className="flex justify-between items-center gap-4">
+                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_controls')}</span>
+                                <span className="text-lg text-white font-black">{activeLinkedControls.length}</span>
+                            </div>
+                        ) : null}
+                        {canViewLinkedKris ? (
+                            <div className="flex justify-between items-center gap-4">
+                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_kris')}</span>
+                                <span className="text-lg text-white font-black">{activeLinkedKRIs.length}</span>
+                            </div>
+                        ) : null}
+                        {canViewAnyLinkedExposure ? (
+                            <div className="flex justify-between items-center gap-4">
+                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('overview.summary.linked_exposure')}</span>
+                                <span className="text-lg text-white font-black">{linkedExposureCount}</span>
+                            </div>
+                        ) : null}
                         <div className="flex justify-between items-center gap-4">
                             <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('overview.summary.replaceability')}</span>
                             <span className="text-sm text-white font-medium">
-                                {vendor.replaceability
-                                    ? t(`form.replaceability.${vendor.replaceability}`, vendor.replaceability)
-                                    : '—'}
+                                {vendorValueLabel(t, 'replaceability', vendor.replaceability)}
                             </span>
                         </div>
                     </div>
@@ -306,35 +328,41 @@ export function VendorOverviewTab({
                 </div>
             ) : null}
 
-            <div id="vendor-linked-risks">
-                <VendorLinkedRisksTab
-                    vendorId={vendor.id}
-                    canCreateRisk={canCreateRisk}
-                    canEdit={canLinkRisk}
-                    onAddRisk={onAddRisk}
-                    onNavigateToRisk={onNavigateToRisk}
-                />
-            </div>
+            {canViewLinkedRisks ? (
+                <div id="vendor-linked-risks">
+                    <VendorLinkedRisksTab
+                        vendorId={vendor.id}
+                        canCreateRisk={canCreateRisk}
+                        canEdit={canLinkRisk}
+                        onAddRisk={onAddRisk}
+                        onNavigateToRisk={onNavigateToRisk}
+                    />
+                </div>
+            ) : null}
 
-            <div id="vendor-linked-controls">
-                <VendorLinkedControlsTab
-                    vendorId={vendor.id}
-                    canCreateControl={canCreateControl}
-                    canEdit={canLinkControl}
-                    onAddControl={onAddControl}
-                    onNavigateToControl={onNavigateToControl}
-                />
-            </div>
+            {canViewLinkedControls ? (
+                <div id="vendor-linked-controls">
+                    <VendorLinkedControlsTab
+                        vendorId={vendor.id}
+                        canCreateControl={canCreateControl}
+                        canEdit={canLinkControl}
+                        onAddControl={onAddControl}
+                        onNavigateToControl={onNavigateToControl}
+                    />
+                </div>
+            ) : null}
 
-            <div id="vendor-linked-kris">
-                <VendorLinkedKRIsTab
-                    vendorId={vendor.id}
-                    canCreateKri={canCreateKri}
-                    canEdit={canLinkKri}
-                    onAddKri={onAddKri}
-                    onNavigateToKri={onNavigateToKri}
-                />
-            </div>
+            {canViewLinkedKris ? (
+                <div id="vendor-linked-kris">
+                    <VendorLinkedKRIsTab
+                        vendorId={vendor.id}
+                        canCreateKri={canCreateKri}
+                        canEdit={canLinkKri}
+                        onAddKri={onAddKri}
+                        onNavigateToKri={onNavigateToKri}
+                    />
+                </div>
+            ) : null}
 
             {resolveCapabilityFlag(vendor.capabilities, 'can_view_contracts') ? (
                 <div id="vendor-contracts">

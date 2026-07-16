@@ -17,6 +17,7 @@ import { resolveRegisterTablePresentation } from '@/pages/shared/resolveRegister
 import type { CollectionGroup } from '@/types/collection';
 import type { Vendor, VendorListParams } from '@/types/vendor';
 
+import { vendorOwnerDisplayName, vendorOwnerMetadata } from './vendorDetailPresentation';
 import { formatVendorGroupLabel, getVendorDisplayStatus } from './vendorsPagePresentation';
 
 function scorePill(score: number) {
@@ -110,9 +111,14 @@ export function VendorsTableSection({
                 label: t('columns.owner'),
                 sortable: false,
                 render: (vendor) => (
-                    <div className="flex items-center gap-2 text-xs text-slate-300">
+                    <div className="flex items-start gap-2 text-xs text-slate-300">
                         <User className="h-3 w-3 text-accent" />
-                        <span>{vendor.outsourcing_owner_name || '—'}</span>
+                        <span className="flex flex-col">
+                            <span>{vendorOwnerDisplayName(vendor.outsourcing_owner, vendor.ownership_status, t)}</span>
+                            <span className="text-[10px] text-slate-500">
+                                {vendorOwnerMetadata(vendor.outsourcing_owner, t)}
+                            </span>
+                        </span>
                     </div>
                 ),
             },

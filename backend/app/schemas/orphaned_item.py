@@ -6,7 +6,11 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.datetime_utils import UtcAwareDatetime
 
-AssetResponsibilityRole = Literal["business_owner", "ict_owner"]
+OrphanResponsibilityRole = Literal[
+    "business_owner",
+    "ict_owner",
+    "outsourcing_owner",
+]
 
 
 class OrphanedItemRead(BaseModel):
@@ -15,7 +19,7 @@ class OrphanedItemRead(BaseModel):
     id: int
     item_type: str  # "risk" | "control" | "kri" | "threat" | "process"
     item_id: int
-    responsibility_role: AssetResponsibilityRole | None = None
+    responsibility_role: OrphanResponsibilityRole | None = None
     previous_owner_id: int
     previous_owner_name: Optional[str] = None
     previous_owner_email: Optional[str] = None
@@ -34,7 +38,7 @@ class OrphanedItemDetail(BaseModel):
     id: int
     item_type: str
     item_id: int
-    responsibility_role: AssetResponsibilityRole | None = None
+    responsibility_role: OrphanResponsibilityRole | None = None
     item_name: str  # Risk name, Control name, or KRI name
     item_description: Optional[str] = None  # Brief description of the item
     item_identifier: Optional[str] = None  # risk_id_code, control ID, or KRI ID
@@ -65,6 +69,7 @@ class OrphanedItemStats(BaseModel):
     threat_count: int
     process_count: int
     asset_count: int = 0
+    vendor_count: int = 0
     total_count: int
 
 
@@ -86,7 +91,15 @@ class OrphanedItemsOverview(BaseModel):
 class OrphanedItemCreateInternal(BaseModel):
     """Internal schema for creating orphaned item records."""
 
-    item_type: Literal["risk", "control", "kri", "threat", "process", "asset"]
+    item_type: Literal[
+        "risk",
+        "control",
+        "kri",
+        "threat",
+        "process",
+        "asset",
+        "vendor",
+    ]
     item_id: int
-    responsibility_role: AssetResponsibilityRole | None = None
+    responsibility_role: OrphanResponsibilityRole | None = None
     previous_owner_id: int

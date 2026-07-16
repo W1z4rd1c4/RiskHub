@@ -33,6 +33,10 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
+vi.mock('@/authz/useAuthz', () => ({
+    useAuthz: () => ({ canViewGovernance: false }),
+}));
+
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
         getControls: (...args: unknown[]) => mockGetControls(...args),

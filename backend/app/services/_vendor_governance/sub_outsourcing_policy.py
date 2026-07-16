@@ -5,7 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.permissions import can_read_vendor
+from app.core.security import check_permission
 from app.models import User, Vendor, VendorContract, VendorSubOutsourcing
+from app.services._vendor_governance.policy import lock_vendor_ordinary_mutation
 
 _SUB_OUTSOURCING_LOCK_NAMESPACE = 0x5248
 
@@ -36,7 +38,11 @@ async def assert_sub_outsourcing_vendor_readable(
 ) -> Vendor:
     """Sub-outsourcing lives inside the Vendor domain: visibility follows the Vendor row."""
     vendor = await load_sub_outsourcing_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
+    if not (
+        vendor
+        and check_permission(current_user, "vendors", "read")
+        and can_read_vendor(vendor, current_user)
+    ):
         raise NotFoundError("Vendor not found")
     return vendor
 
@@ -48,6 +54,7 @@ async def assert_sub_outsourcing_mutation_vendor(
     vendor = await assert_sub_outsourcing_vendor_readable(
         db, vendor_id=vendor_id, current_user=current_user
     )
+    vendor = await lock_vendor_ordinary_mutation(db, vendor_id=vendor.id)
     if vendor.is_archived:
         raise ConflictError("Cannot modify sub-outsourcing of an archived vendor")
     return vendor

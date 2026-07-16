@@ -172,6 +172,7 @@
   "frontend/src/components/notifications/",
   "frontend/src/components/riskhub/",
   "frontend/src/components/risks/",
+  "frontend/src/components/vendor-form/VendorFormContainer.tsx",
   "frontend/src/contexts/AuthContext.tsx",
   "frontend/src/contexts/AuthActionsContext.tsx",
   "frontend/src/contexts/PreferencesContext.tsx",
@@ -530,10 +531,10 @@
    "id": "AUTHZ-VENDORS-READ",
    "surface": "Vendors",
    "action": "Read vendor lists, details, grouped views, linked risks, controls, and KRIs",
-   "actor_scope": "Requires vendors:read and vendor ownership/department visibility; linked entities require their own read policy",
-   "backend_authority": "backend/app/api/v1/endpoints/vendors/ and backend/app/api/v1/endpoints/vendor_links.py",
-   "service_policy": "backend/app/services/_vendor_workflow/policy.py, backend/app/services/_register_listings/vendors.py, backend/app/services/_vendor_governance/links.py, and backend/app/core/_permissions/visible_ids.py for set-based linked-risk redaction; vendor grouped summaries/drilldowns use SQL-backed counts, bounded page serialization, and visible risk-link contexts; backend/app/services/_vendor_links/ owns shared read/list workflow; backend/app/services/_vendor_governance/projection.py, backend/app/services/_vendor_governance/lifecycle.py, and backend/app/services/_vendor_governance/policy.py own vendor read projection and capabilities behind HTTP adapters",
-   "response_capability": "backend/app/schemas/vendor.py VendorCapabilities on VendorRead and VendorListResponse collection capabilities",
+   "actor_scope": "Authenticated vendors:read holders use canonical ownership/department visibility. The assigned Outsourcing Owner may list and read only that Vendor without vendors:read and may ordinarily update it while active; this record-specific exception grants no create, archive/restore, export, accountability-directory, full derived graph, or linked-register authority. Linked entities and child registers require their own read policy; platform-admin identity alone grants no general Vendor access",
+   "backend_authority": "backend/app/api/v1/endpoints/vendors/, backend/app/api/v1/endpoints/vendor_links.py, backend/app/api/v1/endpoints/users/lookup.py GET /lookup/vendor-owners, and backend/app/api/v1/endpoints/departments/lookups.py GET /lookup/vendor-owners",
+   "service_policy": "backend/app/services/_vendor_workflow/policy.py restricts no-read collections to assigned Vendor rows; backend/app/services/_vendor_governance/policy.py owns authenticated list admission, assignment-specific detail/update, 404 anti-enumeration, and admits the purpose-scoped all-active User/Department assignment directories only for vendors:write accountability managers. backend/app/services/_register_listings/vendors.py preserves that SQL scope and suppresses linked-risk projection without vendors:read. backend/app/services/_vendor_governance/links.py and backend/app/core/_permissions/visible_ids.py independently authorize and redact linked entities. backend/app/services/_vendor_governance/projection.py suppresses the full derived graph and all linked/child-register capabilities for record-only owners",
+   "response_capability": "backend/app/schemas/vendor.py VendorCapabilities on VendorRead, including can_manage_accountability, and VendorListResponse collection capabilities",
    "frontend_gate": "frontend/src/routing/business.tsx uses a vendors:read navigation projection; frontend/src/pages/vendors/ and frontend/src/types/vendor.ts, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/VendorDetailPage.tsx, and frontend/src/pages/shared/collectionPageState.ts use backend read authority and render denied/clear stale rows and capabilities on backend 403",
    "tests": [
     "tests/backend/pytest/test_vendors.py",
@@ -544,7 +545,8 @@
     "tests/frontend/unit/src/pages/__tests__/VendorDetailPage.presentation.test.ts",
     "tests/frontend/unit/src/pages/__tests__/VendorsPage.grouped-views.test.tsx",
     "tests/frontend/unit/src/pages/__tests__/VendorDetailPage.issue-entry.test.tsx",
-    "tests/backend/pytest/test_vendor_link_workflow_module.py"
+    "tests/backend/pytest/test_vendor_link_workflow_module.py",
+    "tests/backend/pytest/test_ict_register_vendor_accountability.py"
    ],
    "status": "authoritative",
    "findings": []
@@ -553,18 +555,19 @@
    "id": "AUTHZ-VENDORS-WRITE",
    "surface": "Vendors",
    "action": "Create, update, archive, restore, and mutate vendor links",
-   "actor_scope": "Requires vendors:write/delete or vendor-owner exception; edit and link mutations require an active visible vendor and visible target entity; link creation additionally rejects archived risk/control/KRI targets (unlink stays available for cleanup); inactive vendors can only be restored when authorized",
+   "actor_scope": "Broad Vendor create/accountability updates require vendors:write plus canonical Vendor visibility; archive/restore require vendors:read plus vendors:delete. The assigned active Outsourcing Owner may ordinarily update only that Vendor without vendors:read, but cannot change accountability, archive/restore, export, or read/mutate linked and child registers",
    "backend_authority": "backend/app/api/v1/endpoints/vendors/ and backend/app/api/v1/endpoints/vendor_links.py",
-   "service_policy": "backend/app/services/_vendor_workflow/policy.py and backend/app/services/_vendor_links/ own shared link/unlink workflow; backend/app/services/_vendor_governance/links.py owns vendor link authorization and mutation helpers; backend/app/services/_vendor_governance/lifecycle.py and policy.py own create/update/archive/restore authorization outcomes while preserving vendor owner exceptions and inactive-vendor rejection",
-   "response_capability": "backend/app/schemas/vendor.py VendorCapabilities.can_update, can_archive, can_restore, can_link_risk, can_link_control, can_link_kri, can_create_linked_risk, can_create_linked_control, can_create_linked_kri, can_create_issue, can_view_asset_links, can_manage_asset_links, and can_manage_process_links",
-   "frontend_gate": "frontend/src/pages/vendors/, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/VendorDetailPage.tsx, frontend/src/pages/shared/useCreateCapabilityGate.ts, and vendor detail tabs use backend capabilities; VendorRegisterLinksSection prefers backend register-link view/manage flags and uses local permission checks only when capability metadata is absent",
+   "service_policy": "backend/app/services/_vendor_workflow/policy.py and backend/app/services/_vendor_links/ own shared link/unlink workflow; backend/app/services/_vendor_governance/links.py owns vendor link authorization and mutation helpers; backend/app/services/_vendor_governance/lifecycle.py and policy.py own create/update/archive/restore authorization outcomes while preserving the ordinary record-owner update exception and inactive-vendor rejection",
+   "response_capability": "backend/app/schemas/vendor.py VendorCapabilities.can_update, can_manage_accountability, can_archive, can_restore, can_link_risk, can_link_control, can_link_kri, can_create_linked_risk, can_create_linked_control, can_create_linked_kri, can_create_issue, can_view_asset_links, can_manage_asset_links, and can_manage_process_links",
+   "frontend_gate": "frontend/src/components/vendor-form/VendorFormContainer.tsx, frontend/src/pages/vendors/, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/VendorDetailPage.tsx, frontend/src/pages/shared/useCreateCapabilityGate.ts, and vendor detail tabs use backend capabilities; VendorRegisterLinksSection prefers backend register-link view/manage flags and uses local permission checks only when capability metadata is absent",
    "tests": [
     "tests/backend/pytest/test_vendor_links.py",
     "tests/backend/pytest/test_vendors.py",
     "tests/frontend/unit/src/pages/__tests__/DirectFormCapabilityGates.test.tsx",
     "tests/frontend/unit/src/pages/__tests__/VendorDetailPage.presentation.test.ts",
     "tests/frontend/unit/src/pages/__tests__/VendorRegisterLinks.capabilities.test.tsx",
-    "tests/backend/pytest/test_vendor_link_workflow_module.py"
+    "tests/backend/pytest/test_vendor_link_workflow_module.py",
+    "tests/backend/pytest/test_ict_register_vendor_accountability.py"
    ],
    "status": "authoritative",
    "findings": []
@@ -651,9 +654,9 @@
    "id": "AUTHZ-VENDOR-CONTRACTS-READ",
    "surface": "ICT Register",
    "action": "Read a Vendor's Contracts inside the Vendor detail",
-   "actor_scope": "Requires vendor_contracts:read — granted to every role holding vendors:read — plus visibility of the parent Vendor (department scope or outsourcing ownership); Contracts carry no per-row ownership of their own; platform admins hold no business permissions and are denied",
+   "actor_scope": "Requires both vendor_contracts:read and vendors:read, plus canonical visibility of the parent Vendor. Outsourcing ownership alone without vendors:read is insufficient; Contracts carry no per-row ownership of their own; platform admins hold no business permissions and are denied",
    "backend_authority": "backend/app/api/v1/endpoints/vendor_contracts.py GET /api/v1/vendors/{vendor_id}/contracts",
-   "service_policy": "backend/app/services/_vendor_governance/contract_policy.py asserts parent-Vendor visibility; backend/app/services/_vendor_governance/contract_lifecycle.py owns the collection read; backend/app/services/_vendor_governance/contract_projection.py with backend/app/services/_authorization_capabilities/vendor_contracts.py owns capability projection",
+   "service_policy": "backend/app/services/_vendor_governance/contract_policy.py asserts vendors:read and canonical parent-Vendor visibility; backend/app/services/_vendor_governance/contract_lifecycle.py owns the collection read; backend/app/services/_vendor_governance/contract_projection.py with backend/app/services/_authorization_capabilities/vendor_contracts.py owns capability projection",
    "response_capability": "backend/app/schemas/vendor_contract.py VendorContractCapabilities on VendorContractRead; backend/app/schemas/vendor.py VendorCapabilities.can_view_contracts gates the Vendor-detail section",
    "frontend_gate": "frontend/src/pages/vendors/VendorContractsSection.tsx renders inside frontend/src/pages/VendorDetailPage.tsx behind the vendor capability projection and denies on backend 403",
    "tests": [
@@ -683,9 +686,9 @@
    "id": "AUTHZ-VENDOR-SUB-OUTSOURCING-READ",
    "surface": "ICT Register",
    "action": "Read a Vendor's Sub-outsourcing chain inside the Vendor detail",
-   "actor_scope": "Requires vendor_contracts:read — Sub-outsourcing reuses the vendor_contracts resource because it is the same governed surface, the fourth-party contract chain — plus visibility of the parent Vendor (department scope or outsourcing ownership); entries carry no per-row ownership of their own; platform admins hold no business permissions and are denied",
+   "actor_scope": "Requires both vendor_contracts:read and vendors:read, plus canonical visibility of the parent Vendor. Outsourcing ownership alone without vendors:read is insufficient; Sub-outsourcing reuses the vendor_contracts resource because it is the same governed fourth-party contract-chain surface; entries carry no per-row ownership of their own; platform admins hold no business permissions and are denied",
    "backend_authority": "backend/app/api/v1/endpoints/vendor_sub_outsourcing.py GET /api/v1/vendors/{vendor_id}/sub-outsourcing",
-   "service_policy": "backend/app/services/_vendor_governance/sub_outsourcing_policy.py asserts parent-Vendor visibility; backend/app/services/_vendor_governance/sub_outsourcing_lifecycle.py owns the collection read; backend/app/services/_vendor_governance/sub_outsourcing_projection.py with backend/app/services/_authorization_capabilities/vendor_sub_outsourcing.py owns capability projection; the derived 09_Subdodávky block excludes archived chain rows, so an archived predecessor surfaces as a #49 CHYBA ŘETĚZCE chain break rather than a resolvable rank",
+   "service_policy": "backend/app/services/_vendor_governance/sub_outsourcing_policy.py asserts vendors:read and canonical parent-Vendor visibility; backend/app/services/_vendor_governance/sub_outsourcing_lifecycle.py owns the collection read; backend/app/services/_vendor_governance/sub_outsourcing_projection.py with backend/app/services/_authorization_capabilities/vendor_sub_outsourcing.py owns capability projection; the derived 09_Subdodávky block excludes archived chain rows, so an archived predecessor surfaces as a #49 CHYBA ŘETĚZCE chain break rather than a resolvable rank",
    "response_capability": "backend/app/schemas/vendor_sub_outsourcing.py VendorSubOutsourcingCapabilities on VendorSubOutsourcingRead; backend/app/schemas/vendor.py VendorCapabilities.can_view_sub_outsourcing gates the Vendor-detail section",
    "frontend_gate": "frontend/src/pages/vendors/VendorSubOutsourcingSection.tsx renders inside frontend/src/pages/vendors/VendorOverviewTab.tsx (the Vendor-detail core surface of frontend/src/pages/VendorDetailPage.tsx) behind the vendor capability projection and denies on backend 403",
    "tests": [

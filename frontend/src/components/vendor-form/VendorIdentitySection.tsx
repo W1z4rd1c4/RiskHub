@@ -1,4 +1,5 @@
 import { useTranslation } from '@/i18n/hooks';
+import { vendorValueOptions } from '@/lib/vendorValues';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import {
     VendorSectionHeader,
@@ -32,6 +33,7 @@ export function VendorIdentitySection({ formData, onChange }: VendorIdentitySect
                 <div className="vendor-field">
                     <label className="vendor-label">{t('form.name')}</label>
                     <input
+                        data-testid="vendor-form-name"
                         value={formData.name || ''}
                         onChange={(event) => onChange('name', event.target.value)}
                         className="vendor-input"
@@ -71,10 +73,13 @@ export function VendorIdentitySection({ formData, onChange }: VendorIdentitySect
 
                 <div className="vendor-field">
                     <label className="vendor-label">{t('form.country')}</label>
-                    <input
+                    <ThemedSelect
                         value={formData.country || ''}
-                        onChange={(event) => onChange('country', event.target.value)}
-                        className="vendor-input"
+                        onValueChange={(value) => onChange('country', value || null)}
+                        options={vendorValueOptions(t, 'country')}
+                        allowEmpty
+                        emptyLabel={t('form.register.not_set')}
+                        placeholder={t('form.register.not_set')}
                     />
                 </div>
 

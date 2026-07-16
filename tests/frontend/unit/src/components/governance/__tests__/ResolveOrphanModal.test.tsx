@@ -14,6 +14,8 @@ const mockGetProcessOwners = vi.fn();
 const mockGetProcessDepartments = vi.fn();
 const mockGetAssetOwners = vi.fn();
 const mockGetAssetDepartments = vi.fn();
+const mockGetVendorOwners = vi.fn();
+const mockLogError = vi.fn();
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -55,12 +57,17 @@ vi.mock('@/services/userApi', () => ({
     },
 }));
 
+vi.mock('@/services/logger', () => ({
+    logError: (...args: unknown[]) => mockLogError(...args),
+}));
+
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
         getProcessOwners: (...args: unknown[]) => mockGetProcessOwners(...args),
         getProcessDepartments: (...args: unknown[]) => mockGetProcessDepartments(...args),
         getAssetOwners: (...args: unknown[]) => mockGetAssetOwners(...args),
         getAssetDepartments: (...args: unknown[]) => mockGetAssetDepartments(...args),
+        getVendorOwners: (...args: unknown[]) => mockGetVendorOwners(...args),
     },
 }));
 
@@ -179,6 +186,16 @@ describe('ResolveOrphanModal', () => {
                 ? [{ id: 4, name: 'Finance', code: 'FIN' }]
                 : [{ id: 3, name: 'Operations', code: 'OPS' }],
         ));
+        mockGetVendorOwners.mockResolvedValue([
+            {
+                id: 27,
+                name: 'Cross Department Owner',
+                email: 'cross-owner@example.com',
+                department_id: 4,
+                department_name: 'Finance',
+                role_name: 'Employee',
+            },
+        ]);
         mockGetRisks.mockResolvedValue({
             items: [
                 {
@@ -410,6 +427,54 @@ describe('ResolveOrphanModal', () => {
 
         const results = await axe.run(container, { rules: { 'color-contrast': { enabled: false } } });
         expect(results.violations.map((violation) => violation.id)).toEqual([]);
+    });
+
+    it('resolves a Vendor through its purpose-scoped owner lookup without a Department write', async () => {
+        await openModal(orphan({
+            item_type: 'vendor',
+            item_name: 'Cloud Provider',
+            responsibility_role: 'outsourcing_owner',
+            capabilities: {
+                can_resolve: true,
+                can_view_detail: true,
+                requires_department: false,
+                requires_owner: true,
+                requires_risk: false,
+            },
+        }));
+
+        expect(screen.getByText('Outsourcing Owner responsibility')).toBeInTheDocument();
+        fireEvent.change(screen.getByTestId('orphan-owner-search'), { target: { value: 'cross' } });
+        await waitFor(() => expect(mockGetVendorOwners).toHaveBeenCalledWith({ limit: 50, q: 'cross' }));
+        fireEvent.click(screen.getByRole('button', { name: /Cross Department Owner.*cross-owner@example.com.*Finance/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Resolve Item/i }));
+
+        await waitFor(() => expect(mockResolveOrphan).toHaveBeenCalledWith(901, {
+            department_id: undefined,
+            new_owner_id: 27,
+            target_risk_id: undefined,
+        }));
+        expect(mockListUsers).not.toHaveBeenCalled();
+        expect(mockGetDepartments).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['process', mockGetProcessOwners, 'Process'],
+        ['asset', mockGetAssetOwners, 'Asset'],
+        ['vendor', mockGetVendorOwners, 'Vendor'],
+    ] as const)('logs %s owner-search failures with the matching entity name', async (itemType, lookupMock, entityName) => {
+        await openModal(orphan({ item_type: itemType, item_name: `${entityName} lookup failure` }));
+        await screen.findByTestId('resolve-orphan-ready');
+        await waitFor(() => expect(lookupMock).toHaveBeenCalledTimes(2));
+
+        const lookupError = new Error(`${itemType} lookup failed`);
+        lookupMock.mockRejectedValueOnce(lookupError);
+        fireEvent.change(screen.getByTestId('orphan-owner-search'), { target: { value: 'missing owner' } });
+
+        await waitFor(() => expect(mockLogError).toHaveBeenCalledWith(
+            `Failed to search ${entityName} owners:`,
+            lookupError,
+        ));
     });
 
     it('ignores late Asset owner and Department results after switching orphan type', async () => {

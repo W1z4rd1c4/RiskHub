@@ -9,16 +9,19 @@ from app.core.permissions import (
     check_department_access,
     get_user_department_ids,
 )
+from app.core.security import check_permission
 from app.models import Department, User, Vendor
-from app.models.user import AccessScope
-
-
-def _is_global_user(user: User) -> bool:
-    return getattr(user, "access_scope", None) == AccessScope.GLOBAL
+from app.services._vendor_owner_lock import acquire_vendor_owner_identity_lock
 
 
 def apply_vendor_visibility_scope(query, current_user: User, *, department_id: int | None = None):
     """Apply list/read prefiltering for vendor collections."""
+    if not check_permission(current_user, "vendors", "read"):
+        query = query.where(Vendor.outsourcing_owner_user_id == current_user.id)
+        if department_id is not None:
+            query = query.where(Vendor.department_id == department_id)
+        return query
+
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is None:
         if department_id is not None:
@@ -62,8 +65,12 @@ async def validate_vendor_governance_assignment(
     current_user: User,
     department_id: int | None,
     owner_user_id: int,
+    acquire_identity_lock: bool = True,
 ) -> None:
     check_department_access(department_id, current_user)
+
+    if acquire_identity_lock:
+        await acquire_vendor_owner_identity_lock(db, user_id=owner_user_id)
 
     owner = await db.get(User, owner_user_id)
     if owner is None or not owner.is_active:
@@ -73,9 +80,3 @@ async def validate_vendor_governance_assignment(
         department = await db.get(Department, department_id)
         if department is None or not department.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vendor department must be active")
-
-    if owner.department_id is not None and department_id != owner.department_id and not _is_global_user(current_user):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Vendor owner must belong to the selected department",
-        )

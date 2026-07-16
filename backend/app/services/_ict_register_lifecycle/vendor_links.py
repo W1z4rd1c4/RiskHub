@@ -30,6 +30,7 @@ from app.services._authorization_capabilities import (
     asset_vendor_link_capabilities,
     process_vendor_link_capabilities,
 )
+from app.services._vendor_governance.policy import lock_vendor_ordinary_mutation
 from app.services.transaction_boundary import commit_service_boundary
 
 from .asset_policy import (
@@ -235,6 +236,7 @@ async def add_asset_vendor_link(
     vendor = await _load_vendor(db, payload.vendor_id)
     if vendor is None or not can_read_vendor(vendor, current_user):
         raise NotFoundError("Vendor not found")
+    vendor = await lock_vendor_ordinary_mutation(db, vendor_id=vendor.id)
     if vendor.is_archived:
         raise ConflictError("Cannot link archived vendor")
 
@@ -293,6 +295,7 @@ async def remove_asset_vendor_link(
     vendor = await _load_vendor(db, link.vendor_id)
     if vendor is None or not can_read_vendor(vendor, current_user):
         raise NotFoundError("Link not found")
+    vendor = await lock_vendor_ordinary_mutation(db, vendor_id=vendor.id)
 
     vendor_id = link.vendor_id
     await db.delete(link)
@@ -417,6 +420,7 @@ async def add_process_vendor_link(
     vendor = await _load_vendor(db, payload.vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise NotFoundError("Vendor not found")
+    vendor = await lock_vendor_ordinary_mutation(db, vendor_id=vendor.id)
     if vendor.is_archived:
         raise ConflictError("Cannot link archived vendor")
 
@@ -470,6 +474,7 @@ async def remove_process_vendor_link(
     vendor = await _load_vendor(db, link.vendor_id)
     if vendor is None or not can_read_vendor(vendor, current_user):
         raise NotFoundError("Link not found")
+    vendor = await lock_vendor_ordinary_mutation(db, vendor_id=vendor.id)
 
     vendor_id = link.vendor_id
     await db.delete(link)

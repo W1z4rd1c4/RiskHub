@@ -138,7 +138,7 @@ export const E2E_ICT_VENDOR = {
     department: 'Operations',
     identifier_type: 'LEI',
     identifier_value: 'E2E00LEI00000000ICT1',
-    replaceability: 'Velmi obtížně nahraditelný',
+    replaceability: 'highly_complex',
     status: 'active',
 } as const;
 

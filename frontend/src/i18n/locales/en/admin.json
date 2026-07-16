@@ -429,7 +429,7 @@
   },
   "governance": {
     "title": "Governance Oversight",
-    "subtitle": "Manage orphaned risks, controls, KRIs, Threats, Processes, and Assets that require governed reassignment.",
+    "subtitle": "Manage orphaned risks, controls, KRIs, Threats, Processes, Assets, and Vendors that require governed reassignment.",
     "loading": "Loading Governance Data...",
     "refresh": "Refresh Data",
     "live_status": "Live System Status",
@@ -439,6 +439,7 @@
     "orphaned_threats": "Orphaned Threats",
     "orphaned_processes": "Orphaned Processes",
     "orphaned_assets": "Orphaned Assets",
+    "orphaned_vendors": "Orphaned Vendors",
     "uncategorised": "Uncategorised",
     "risks": "Risks",
     "controls": "Controls",
@@ -446,6 +447,7 @@
     "threats": "Threats",
     "processes": "Processes",
     "assets": "Assets",
+    "vendors": "Vendors",
     "total": "Total",
     "action_required": "Action Required",
     "critical": "Critical",
@@ -457,6 +459,7 @@
     "orphaned_threats_section": "Orphaned Threats",
     "orphaned_processes_section": "Orphaned Processes",
     "orphaned_assets_section": "Orphaned Assets",
+    "orphaned_vendors_section": "Orphaned Vendors",
     "resolve": "Resolve",
     "all_types": "All Types",
     "risks_only": "Risks Only",
@@ -465,6 +468,7 @@
     "threats_only": "Threats Only",
     "processes_only": "Processes Only",
     "assets_only": "Assets Only",
+    "vendors_only": "Vendors Only",
     "orphaned_items": "Orphaned Items",
     "all_clear": "All Clear",
     "no_orphans": "No orphaned items found. Governed records have valid assignments.",
@@ -481,9 +485,11 @@
     "type_threat": "Threat",
     "type_process": "Process",
     "type_asset": "Asset",
+    "type_vendor": "Vendor",
     "responsibility_role": {
       "business_owner": "Business Owner responsibility",
-      "ict_owner": "ICT Owner responsibility"
+      "ict_owner": "ICT Owner responsibility",
+      "outsourcing_owner": "Outsourcing Owner responsibility"
     },
     "quick_view": {
       "title": "Item Preview",
@@ -508,6 +514,7 @@
       "configure_ownership": "Configure ownership and alignment",
       "asset_business_owner": "Reassign the Business Owner and Owning Department atomically",
       "asset_ict_owner": "Reassign the ICT Owner and Owning Department atomically",
+      "vendor_outsourcing_owner": "Replace the inactive Outsourcing Owner while preserving former-owner evidence",
       "initializing": "Initialising Configuration...",
       "select_risk_to_link": "Select Risk to Link",
       "assign_new_owner": "Assign New Owner",

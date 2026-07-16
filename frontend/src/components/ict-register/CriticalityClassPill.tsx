@@ -22,9 +22,9 @@ const CRITICALITY_PILLS: Record<string, string> = {
 
 // TierDod, verbatim workbook labels (never translated).
 const VENDOR_TIER_PILLS: Record<string, string> = {
-    ['Kritický dodavatel']: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-    ['Významný dodavatel']: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
-    ['Standardní dodavatel']: 'text-slate-300 bg-slate-400/10 border-slate-400/20',
+    critical: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
+    significant: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
+    standard: 'text-slate-300 bg-slate-400/10 border-slate-400/20',
 };
 
 function Pill({
@@ -63,7 +63,7 @@ export function CriticalityClassPill({
     return <Pill value={criticalityClass} displayValue={displayValue} palette={CRITICALITY_PILLS} />;
 }
 
-/** The derived Vendor tier (07!tier), workbook TierDod labels verbatim. */
-export function VendorTierPill({ tier, testId }: { tier: string | null | undefined; testId?: string }) {
-    return <Pill value={tier} palette={VENDOR_TIER_PILLS} testId={testId} />;
+/** Canonical derived Vendor tier, rendered with a separately localized label. */
+export function VendorTierPill({ tier, displayValue, testId }: { tier: string | null | undefined; displayValue?: string | null; testId?: string }) {
+    return <Pill value={tier} displayValue={displayValue} palette={VENDOR_TIER_PILLS} testId={testId} />;
 }

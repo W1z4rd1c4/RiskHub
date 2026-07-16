@@ -53,8 +53,8 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                             : tAdmin('governance.resolve_modal.resolve_orphaned_item')}
                     </h3>
                     <p id={descriptionId} className="text-xs text-slate-500 font-medium">
-                        {orphan.item_type === 'asset' && orphan.responsibility_role
-                            ? tAdmin(`governance.resolve_modal.asset_${orphan.responsibility_role}`)
+                        {(orphan.item_type === 'asset' || orphan.item_type === 'vendor') && orphan.responsibility_role
+                            ? tAdmin(`governance.resolve_modal.${orphan.item_type}_${orphan.responsibility_role}`)
                             : tAdmin('governance.resolve_modal.configure_ownership')}
                     </p>
                 </div>

@@ -12,6 +12,7 @@ from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.process import Process
 from app.models.risk import Risk
 from app.models.threat import Threat
+from app.models.vendor import Vendor
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,13 @@ ORPHAN_ITEM_DEFINITIONS: dict[str, OrphanItemDefinition] = {
         requires_owner=True,
         requires_risk=False,
         requires_department=True,
+    ),
+    "vendor": OrphanItemDefinition(
+        item_type="vendor",
+        unknown_label="Unknown vendor",
+        requires_owner=True,
+        requires_risk=False,
+        requires_department=False,
     ),
 }
 
@@ -213,6 +221,25 @@ async def load_orphan_display_projection(
                 asset.owning_department.name
                 if asset.owning_department is not None
                 else None
+            ),
+        )
+
+    if item_type == "vendor":
+        vendor = (
+            await db.execute(
+                select(Vendor)
+                .options(selectinload(Vendor.department))
+                .where(Vendor.id == item_id)
+            )
+        ).scalar_one_or_none()
+        if vendor is None:
+            return _unknown_projection(definition)
+        return OrphanDisplayProjection(
+            item_name=vendor.name or definition.unknown_label,
+            item_description=vendor.description,
+            item_identifier=vendor.registration_id,
+            department_name=(
+                vendor.department.name if vendor.department is not None else None
             ),
         )
 

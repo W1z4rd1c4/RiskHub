@@ -21,6 +21,7 @@ from app.services._org_chart import (
 )
 from app.services._process_owner_lock import acquire_process_owner_identity_lock
 from app.services._threat_stewardship_lock import acquire_threat_steward_identity_lock
+from app.services._vendor_owner_lock import acquire_vendor_owner_identity_lock
 from app.services.transaction_boundary import commit_service_boundary
 
 from .ciso_stewardship import (
@@ -130,6 +131,7 @@ async def update_user_profile(
         if update_data.get("is_active") is False:
             await acquire_process_owner_identity_lock(db, user_id=user.id)
             await acquire_asset_owner_identity_lock(db, user_id=user.id)
+            await acquire_vendor_owner_identity_lock(db, user_id=user.id)
         user = (
             await db.execute(
                 select(User)

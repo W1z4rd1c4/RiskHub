@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2, Database, Eye, Workflow } from 'lucide-react';
+import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2, Database, Eye, Workflow, Truck } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { formatRelativeDateValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -19,6 +19,7 @@ const typeIcons: Record<string, typeof ShieldAlert> = {
     threat: ShieldAlert,
     process: Workflow,
     asset: Database,
+    vendor: Truck,
 };
 
 export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTableProps) {
@@ -34,6 +35,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
         threat: t('governance.type_threat'),
         process: t('governance.type_process'),
         asset: t('governance.type_asset'),
+        vendor: t('governance.type_vendor'),
     };
 
     const filteredItems = filter === 'all'
@@ -82,6 +84,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                             { value: 'threat', label: t('governance.threats_only') },
                             { value: 'process', label: t('governance.processes_only') },
                             { value: 'asset', label: t('governance.assets_only') },
+                            { value: 'vendor', label: t('governance.vendors_only') },
                         ]}
                     />
                 </div>
@@ -125,7 +128,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                     <td className="px-4 py-3">
                                         <div>
                                             <p className="text-sm font-bold text-white group-hover:text-accent transition-colors">{item.item_name}</p>
-                                            {item.item_type === 'asset' && item.responsibility_role ? <p className="text-[10px] font-bold uppercase text-amber-300">{t(`governance.responsibility_role.${item.responsibility_role}`)}</p> : null}
+                                            {(item.item_type === 'asset' || item.item_type === 'vendor') && item.responsibility_role ? <p className="text-[10px] font-bold uppercase text-amber-300">{t(`governance.responsibility_role.${item.responsibility_role}`)}</p> : null}
                                         </div>
                                     </td>
                                     <td className="px-4 py-3">

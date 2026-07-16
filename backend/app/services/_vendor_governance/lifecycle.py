@@ -12,6 +12,7 @@ from .policy import (
     assert_vendor_archive_allowed,
     assert_vendor_create_allowed,
     assert_vendor_governance_update_allowed,
+    assert_vendor_ordinary_mutation_allowed,
     assert_vendor_readable,
     assert_vendor_restore_allowed,
     assert_vendor_update_allowed,
@@ -74,6 +75,16 @@ async def update_vendor_detail(
     if not updates:
         return await serialize_vendor_detail_with_derived(db, vendor, current_user=current_user)
 
+    proposed_owner_id = updates.get(
+        "outsourcing_owner_user_id",
+        vendor.outsourcing_owner_user_id,
+    )
+    vendor = await assert_vendor_ordinary_mutation_allowed(
+        db,
+        vendor_id=vendor_id,
+        current_user=current_user,
+        additional_owner_user_ids=(proposed_owner_id,),
+    )
     await assert_vendor_governance_update_allowed(db, current_user=current_user, vendor=vendor, updates=updates)
     changes = audit_vendor.vendor_update_changes(vendor, updates)
     for field, value in updates.items():

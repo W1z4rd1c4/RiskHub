@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,12 +17,14 @@ from app.schemas.vendor import (
     VendorTypeEnum,
     VendorUpdate,
 )
+from app.services._ict_register_reference.vendor_values import vendor_derived_workbook_value
 from app.services._register_listings.vendors import list_vendor_governance
 from app.services._vendor_governance.lifecycle import (
     create_vendor_detail,
     read_vendor_detail,
     update_vendor_detail,
 )
+from app.services._vendor_governance.policy import assert_vendor_list_allowed
 from app.services._vendor_governance.projection import get_visible_vendor_risk_ids as _get_visible_risk_ids
 
 router = APIRouter()
@@ -31,7 +33,7 @@ router = APIRouter()
 @router.get("", response_model=VendorListResponse)
 async def list_vendors(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("vendors", "read")),
+    current_user: User = Depends(deps.get_current_user),
     offset: int = Query(0, ge=0),
     skip: int | None = Query(None, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -55,8 +57,11 @@ async def list_vendors(
     has_direct_process_link: bool | None = Query(None),
     has_roi_contract: bool | None = Query(None),
     has_sub_outsourcing: bool | None = Query(None),
-    tier: str | None = Query(None, description="Filter by derived ICT provider tier"),
+    tier: Literal["critical", "significant", "standard"] | None = Query(
+        None, description="Filter by canonical derived ICT provider tier code"
+    ),
 ):
+    await assert_vendor_list_allowed(db, current_user=current_user)
     collection_query = parse_collection_query(
         offset=skip if skip is not None else offset,
         limit=limit,
@@ -87,7 +92,7 @@ async def list_vendors(
         has_direct_process_link=has_direct_process_link,
         has_roi_contract=has_roi_contract,
         has_sub_outsourcing=has_sub_outsourcing,
-        tier=tier,
+        tier=vendor_derived_workbook_value("tier", tier) if tier is not None else None,
         check_permission_fn=check_permission,
         visible_risk_ids_loader=_get_visible_risk_ids,
     )
@@ -106,7 +111,7 @@ async def create_vendor(
 async def get_vendor(
     vendor_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("vendors", "read")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     return await read_vendor_detail(db=db, vendor_id=vendor_id, current_user=current_user)
 

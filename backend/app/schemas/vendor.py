@@ -3,15 +3,13 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
 from app.schemas.collection import CollectionGroupRead
-from app.services._ict_register_reference import (
-    is_closed_list_value,
-    is_provider_identifier_type_write_value,
-)
+from app.services._ict_register_reference import VENDOR_CONTROLLED_CODES_BY_FIELD
 
 
 class VendorTypeEnum(str, Enum):
@@ -22,11 +20,10 @@ class VendorTypeEnum(str, Enum):
     other = "other"
 
 
-# ICT Register closed-list bindings for the entered 07_Dodavatelé columns
-# (issue #44, functional spec sections 1.3 and 3.1). ``replaceability`` is the
-# register's Substitutability input: writes are constrained to the four-value
-# Substituce list while legacy stored values (easy/medium/hard) stay readable.
+# Workbook list names remain reference metadata, while runtime writes accept
+# only locale-independent codes from ``VENDOR_CONTROLLED_CODES_BY_FIELD``.
 _VENDOR_CLOSED_LIST_FIELDS: dict[str, str] = {
+    "country": "ZemeList",
     "person_type": "TypOsoby",
     "identifier_type": "TypKodu",
     "data_sensitivity": "CitlivostDat",
@@ -60,9 +57,8 @@ _VENDOR_CLOSED_LIST_FIELDS: dict[str, str] = {
 class VendorRegisterWriteValidators(BaseModel):
     """Closed-list and derived-field enforcement for Vendor WRITE payloads only.
 
-    Deliberately not on ``VendorBase``: ``VendorRead`` inherits the base and
-    must keep serializing legacy stored values (for example
-    ``replaceability="easy"``) untouched.
+    Deliberately not on ``VendorBase``: read models project rows after the
+    forward migration has normalized stored values.
 
     Vendor writes stay tolerant of unknown keys — a #44 decision locked by
     test (legacy clients still send the dropped ``status``) — so the #49
@@ -77,9 +73,7 @@ class VendorRegisterWriteValidators(BaseModel):
         if isinstance(data, dict):
             rejected = sorted(_VENDOR_DERIVED_WRITE_REJECTED.intersection(data))
             if rejected:
-                raise ValueError(
-                    f"Engine-derived fields are read-only: {', '.join(rejected)}"
-                )
+                raise ValueError(f"Engine-derived fields are read-only: {', '.join(rejected)}")
         return data
 
     @field_validator(*_VENDOR_CLOSED_LIST_FIELDS, check_fields=False)
@@ -87,14 +81,8 @@ class VendorRegisterWriteValidators(BaseModel):
     def _validate_register_closed_list_fields(cls, value: str | None, info) -> str | None:
         if value is None:
             return value
-        list_name = _VENDOR_CLOSED_LIST_FIELDS[info.field_name]
-        valid = (
-            is_provider_identifier_type_write_value(value)
-            if info.field_name == "identifier_type"
-            else is_closed_list_value(list_name, value)
-        )
-        if not valid:
-            raise ValueError(f"Value must come from the workbook closed list {list_name}")
+        if value not in VENDOR_CONTROLLED_CODES_BY_FIELD[info.field_name]:
+            raise ValueError(f"Value must be a canonical Vendor {info.field_name} code")
         return value
 
 
@@ -297,6 +285,7 @@ _VENDOR_DERIVED_WRITE_REJECTED: frozenset[str] = frozenset({"derived", *VendorDe
 class VendorCapabilities(BaseModel):
     can_read: bool
     can_update: bool
+    can_manage_accountability: bool
     can_archive: bool
     can_restore: bool
     can_create_linked_risk: bool
@@ -318,6 +307,25 @@ class VendorCapabilities(BaseModel):
     can_manage_process_links: bool
 
 
+class VendorOwnerRead(BaseModel):
+    """Safe Outsourcing Owner projection; raw ids are never display labels."""
+
+    name: str
+    email: str
+    role_name: str
+    department_name: str | None = None
+
+
+class VendorDepartmentLookup(BaseModel):
+    """Safe active Department option for Vendor accountability assignment."""
+
+    id: int
+    name: str
+    code: str
+
+    model_config = {"from_attributes": True}
+
+
 class VendorRead(VendorBase):
     id: int
     is_archived: bool = False
@@ -325,6 +333,14 @@ class VendorRead(VendorBase):
     archived_by_id: int | None = None
     department_name: str | None = None
     outsourcing_owner_name: str | None = None
+    outsourcing_owner: VendorOwnerRead | None = None
+    owner_orphaned: bool = False
+    ownership_status: Literal[
+        "assigned",
+        "legacy_unassigned",
+        "pending_governance",
+        "invalid_assignment",
+    ] = "legacy_unassigned"
     linked_risks: list[VendorLinkedRiskSummary] = Field(default_factory=list)
     capabilities: VendorCapabilities | None = None
     # Engine-derived block (ticket #49): populated by the vendor projection on

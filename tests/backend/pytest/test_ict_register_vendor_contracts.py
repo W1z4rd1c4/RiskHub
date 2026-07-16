@@ -456,8 +456,8 @@ def _vendor_register_extension_payload() -> dict[str, object]:
     return {
         # A·IDENTIFIKACE
         "latin_name": "BIZ DATA a.s.",
-        "person_type": "Právnická osoba",
-        "identifier_type": "IČO (CRN)",
+        "person_type": "legal_person",
+        "identifier_type": "CRN",
         "identifier_value": "12345678",
         "address": "Na Příkopě 1, Praha 1",
         "contact_person": "Jan Novák",
@@ -469,37 +469,37 @@ def _vendor_register_extension_payload() -> dict[str, object]:
         "service_country": "CZ",
         "data_location": "Praha",
         "processing_location": "Praha",
-        "data_sensitivity": "Vysoká",
+        "data_sensitivity": "high",
         # D·SUBSTITUCE A EXIT
-        "replaceability": "Nenahraditelný",
-        "substitutability_reason": "Obojí",
+        "replaceability": "not_substitutable",
+        "substitutability_reason": "both",
         "last_audit_date": "2025-11-30",
-        "exit_plan_state": "K revizi",
-        "reintegration": "Velmi složitá",
-        "service_disruption_impact": "Vysoký",
-        "alternative_providers": "Ne",
+        "exit_plan_state": "review_required",
+        "reintegration": "highly_complex",
+        "service_disruption_impact": "high",
+        "alternative_providers": "no",
         "alternative_providers_names": "—",
         # F·POSOUZENÍ RIZIKA A VÝZNAMNOSTI
-        "ctpp_designation": "Ne",
-        "ex_ante_operational": "OK",
-        "ex_ante_legal": "OK",
-        "ex_ante_ict": "Riziko",
-        "ex_ante_reputational": "OK",
-        "ex_ante_data_confidentiality": "OK",
-        "ex_ante_data_availability": "OK",
-        "ex_ante_data_location": "OK",
-        "ex_ante_provider_location": "OK",
-        "ex_ante_ict_concentration": "OK",
+        "ctpp_designation": "no",
+        "ex_ante_operational": "ok",
+        "ex_ante_legal": "ok",
+        "ex_ante_ict": "risk",
+        "ex_ante_reputational": "ok",
+        "ex_ante_data_confidentiality": "ok",
+        "ex_ante_data_availability": "ok",
+        "ex_ante_data_location": "ok",
+        "ex_ante_provider_location": "ok",
+        "ex_ante_ict_concentration": "ok",
         "ex_ante_assessment_date": "2025-10-15",
-        "assessment_phase": "Průběžná",
-        "due_diligence_state": "Dokončeno s výhradami",
+        "assessment_phase": "ongoing",
+        "due_diligence_state": "completed_with_reservations",
         "last_monitoring_date": "2026-05-01",
-        "significance_authorization_conditions": "Ne",
-        "significance_regulatory_requirements": "Ano",
-        "significance_service_quality": "Nerelevantní",
-        "significance_financial_impact": "Ne",
-        "significance_reputation_continuity": "Ne",
-        "significance_cumulative_impact": "Ne",
+        "significance_authorization_conditions": "no",
+        "significance_regulatory_requirements": "yes",
+        "significance_service_quality": "not_applicable",
+        "significance_financial_impact": "no",
+        "significance_reputation_continuity": "no",
+        "significance_cumulative_impact": "no",
         "significance_justification": "Regulatorní požadavky dle DORA.",
         # G·STAV A POZNÁMKY
         "note": "Poznámka k dodavateli.",
@@ -604,7 +604,7 @@ async def test_vendor_listing_filters_by_derived_tier(
             department_id=test_department.id,
             owner_user_id=test_user_cro.id,
             name="Significant provider",
-            replaceability="Nenahraditelný",
+            replaceability="not_substitutable",
         )
         await _create_vendor(
             client,
@@ -613,9 +613,7 @@ async def test_vendor_listing_filters_by_derived_tier(
             name="Standard provider",
         )
 
-        response = await client.get(
-            "/api/v1/vendors", params={"tier": "Významný dodavatel"}
-        )
+        response = await client.get("/api/v1/vendors", params={"tier": "significant"})
 
     assert response.status_code == 200, response.text
     assert response.json()["total"] == 1
@@ -627,27 +625,29 @@ async def test_vendor_register_coded_fields_enforce_workbook_closed_lists(
     client_factory, test_user_cro: User, test_department: Department
 ):
     cases = {
-        "person_type": ("Fyzická osoba podnikající", "Sdružení"),
+        "person_type": ("individual_acting_in_business_capacity", "Sdružení"),
         "identifier_type": ("EUID", "DIČ"),
-        "data_sensitivity": ("Nízká", "Extrémní"),
-        "substitutability_reason": ("Obtížná migrace", "Cena"),
-        "exit_plan_state": ("Schválen", "Neexistuje"),
-        "reintegration": ("Snadná", "Nemožná"),
-        "service_disruption_impact": ("Neposouzeno", "Kritický"),
-        "alternative_providers": ("Neposouzeno", "Možná"),
-        "ctpp_designation": ("Neurčeno", "Částečně"),
-        "ex_ante_operational": ("Nerelevantní", "Vysoké"),
-        "ex_ante_ict_concentration": ("Riziko", "Střední"),
-        "assessment_phase": ("Ex ante", "Roční"),
-        "due_diligence_state": ("Probíhá", "Odloženo"),
-        "significance_cumulative_impact": ("Nerelevantní", "Neposouzeno"),
+        "data_sensitivity": ("low", "Extrémní"),
+        "substitutability_reason": ("migration_difficulties", "Cena"),
+        "exit_plan_state": ("approved", "Neexistuje"),
+        "reintegration": ("easy", "Nemožná"),
+        "service_disruption_impact": ("not_assessed", "Kritický"),
+        "alternative_providers": ("not_assessed", "Možná"),
+        "ctpp_designation": ("undetermined", "Částečně"),
+        "ex_ante_operational": ("not_applicable", "Vysoké"),
+        "ex_ante_ict_concentration": ("risk", "Střední"),
+        "assessment_phase": ("ex_ante", "Roční"),
+        "due_diligence_state": ("in_progress", "Odloženo"),
+        "significance_cumulative_impact": ("not_applicable", "Neposouzeno"),
     }
     async with client_factory(user=test_user_cro) as client:
         for field, (valid, invalid) in cases.items():
             ok = await client.post(
                 "/api/v1/vendors",
                 json=_vendor_payload(
-                    department_id=test_department.id, owner_user_id=test_user_cro.id, **{field: valid}
+                    department_id=test_department.id,
+                    owner_user_id=test_user_cro.id,
+                    **{field: valid},
                 ),
             )
             assert ok.status_code == 201, f"{field}={valid!r} rejected: {ok.text}"
@@ -656,27 +656,36 @@ async def test_vendor_register_coded_fields_enforce_workbook_closed_lists(
             rejected = await client.post(
                 "/api/v1/vendors",
                 json=_vendor_payload(
-                    department_id=test_department.id, owner_user_id=test_user_cro.id, **{field: invalid}
+                    department_id=test_department.id,
+                    owner_user_id=test_user_cro.id,
+                    **{field: invalid},
                 ),
             )
             assert rejected.status_code == 422, f"{field}={invalid!r} accepted"
 
         # PATCH enforces the same lists, and counts are non-negative integers.
-        vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
+        vendor = await _create_vendor(
+            client, department_id=test_department.id, owner_user_id=test_user_cro.id
+        )
         assert (
-            await client.patch(f"/api/v1/vendors/{vendor['id']}", json={"identifier_type": "DIČ"})
+            await client.patch(
+                f"/api/v1/vendors/{vendor['id']}", json={"identifier_type": "DIČ"}
+            )
         ).status_code == 422
         assert (
-            await client.patch(f"/api/v1/vendors/{vendor['id']}", json={"reference_occurrence_count": -1})
+            await client.patch(
+                f"/api/v1/vendors/{vendor['id']}",
+                json={"reference_occurrence_count": -1},
+            )
         ).status_code == 422
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "identifier_type",
-    ["LEI", "EUID", "CRN", "VAT", "PNR", "NIN", "IČO (CRN)", "Jiný"],
+    ["LEI", "EUID", "CRN", "VAT", "PNR", "NIN"],
 )
-async def test_vendor_identifier_writes_accept_canonical_codes_and_transitional_aliases(
+async def test_vendor_identifier_writes_accept_canonical_codes(
     client_factory,
     test_user_cro: User,
     test_department: Department,
@@ -699,22 +708,19 @@ async def test_vendor_identifier_writes_accept_canonical_codes_and_transitional_
 
 @pytest.mark.asyncio
 async def test_substitutability_writes_use_the_closed_four_value_list(
-    client_factory, db_session: AsyncSession, test_user_cro: User, test_department: Department
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_department: Department,
 ):
-    """AC: substitutability uses the workbook's closed four-value Substituce list.
-
-    Writes accept exactly the four workbook values; the legacy easy/medium/hard
-    vocabulary is no longer writable, but vendors stored with it stay readable
-    untouched (no data migration).
-    """
-    from app.models import Vendor
+    """Runtime writes accept only the four locale-independent codes."""
 
     async with client_factory(user=test_user_cro) as client:
         for value in (
-            "Nenahraditelný",
-            "Velmi obtížně nahraditelný",
-            "Středně obtížně nahraditelný",
-            "Snadno nahraditelný",
+            "not_substitutable",
+            "highly_complex",
+            "medium_complexity",
+            "easily_substitutable",
         ):
             resp = await client.post(
                 "/api/v1/vendors",
@@ -727,8 +733,17 @@ async def test_substitutability_writes_use_the_closed_four_value_list(
             assert resp.status_code == 201, f"{value!r} rejected: {resp.text}"
             assert resp.json()["replaceability"] == value
 
-        vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
-        for legacy in ("easy", "medium", "hard", "Nahraditelný"):
+        vendor = await _create_vendor(
+            client, department_id=test_department.id, owner_user_id=test_user_cro.id
+        )
+        for legacy in (
+            "easy",
+            "medium",
+            "hard",
+            "Nenahraditelný",
+            "Velmi obtížně nahraditelný",
+            "Nahraditelný",
+        ):
             create_resp = await client.post(
                 "/api/v1/vendors",
                 json=_vendor_payload(
@@ -744,33 +759,11 @@ async def test_substitutability_writes_use_the_closed_four_value_list(
             assert patch_resp.status_code == 422, f"{legacy!r} accepted on update"
 
         # Clearing the input stays possible.
-        cleared = await client.patch(f"/api/v1/vendors/{vendor['id']}", json={"replaceability": None})
+        cleared = await client.patch(
+            f"/api/v1/vendors/{vendor['id']}", json={"replaceability": None}
+        )
         assert cleared.status_code == 200
         assert cleared.json()["replaceability"] is None
-
-    # A vendor stored before the register extension keeps its legacy value readable.
-    legacy_vendor = Vendor(
-        name="Legacy dodavatel",
-        process="IT",
-        department_id=test_department.id,
-        outsourcing_owner_user_id=test_user_cro.id,
-        replaceability="easy",
-    )
-    db_session.add(legacy_vendor)
-    await db_session.commit()
-    legacy_vendor_id = legacy_vendor.id
-
-    async with client_factory(user=test_user_cro) as client:
-        fetched = await client.get(f"/api/v1/vendors/{legacy_vendor_id}")
-        assert fetched.status_code == 200
-        assert fetched.json()["replaceability"] == "easy"
-
-        # Updating an unrelated field never touches the stored legacy value.
-        renamed = await client.patch(
-            f"/api/v1/vendors/{legacy_vendor_id}", json={"website": "https://legacy.example"}
-        )
-        assert renamed.status_code == 200
-        assert renamed.json()["replaceability"] == "easy"
 
 
 @pytest.mark.asyncio

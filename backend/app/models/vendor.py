@@ -28,17 +28,12 @@ class VendorType(str, PyEnum):
 
 
 class VendorReplaceability(str, PyEnum):
-    """Legacy replaceability vocabulary.
+    """Locale-independent Vendor substitutability codes."""
 
-    Rows stored before the ICT Register extension may still carry these
-    values and stay readable untouched; new writes are constrained to the
-    workbook's closed four-value ``Substituce`` list at the API boundary
-    (issue #44) — the column is the register's Substitutability input.
-    """
-
-    easy = "easy"
-    medium = "medium"
-    hard = "hard"
+    not_substitutable = "not_substitutable"
+    highly_complex = "highly_complex"
+    medium_complexity = "medium_complexity"
+    easily_substitutable = "easily_substitutable"
 
 
 class Vendor(ArchivableMixin, Base):
@@ -83,8 +78,8 @@ class Vendor(ArchivableMixin, Base):
         nullable=True,
         comment="Evidence input for materiality (percent of own funds, if assessed).",
     )
-    # The ICT Register Substitutability input (closed list Substituce on
-    # writes; legacy easy/medium/hard rows stay readable).
+    # Canonical ICT Register Substitutability input. Workbook labels and
+    # retired aliases are translated only at import/migration boundaries.
     replaceability: Mapped[str | None] = mapped_column(String(50), nullable=True)
     has_alternative_providers: Mapped[bool] = mapped_column(Boolean, default=False)
 

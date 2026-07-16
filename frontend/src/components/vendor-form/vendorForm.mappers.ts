@@ -4,21 +4,28 @@ import type {
     VendorCreate,
     VendorReplaceability,
     VendorType,
+    VendorUpdate,
 } from '@/types/vendor';
 
-import type { DepartmentLookup, VendorFormData } from './vendorForm.types';
+import type { DepartmentLookup, VendorFormData, VendorFormField } from './vendorForm.types';
 import { VENDOR_REGISTER_DATE_FIELDS, VENDOR_REGISTER_TEXT_FIELDS } from './vendorForm.types';
 
 export function buildOwnerOptions(
     users: Array<{
         id: number;
         name: string;
+        email?: string | null;
         department_name?: string | null;
+        role_name?: string | null;
     }>,
 ): Array<{ value: string; label: string }> {
     return users.map((user) => ({
         value: String(user.id),
-        label: user.department_name ? `${user.name} — ${user.department_name}` : user.name,
+        label: [
+            user.email ? `${user.name} — ${user.email}` : user.name,
+            user.department_name,
+            user.role_name,
+        ].filter(Boolean).join(' · '),
     }));
 }
 
@@ -37,22 +44,29 @@ export function filterSuggestions(items: string[], query: string | null | undefi
 }
 
 export function validateVendorForm(formData: VendorFormData, t: SafeTFunction): string | null {
+    return validateVendorFormFields(formData, t).message;
+}
+
+export function validateVendorFormFields(
+    formData: VendorFormData,
+    t: SafeTFunction,
+): { field: VendorFormField | null; message: string | null } {
     if (!formData.name?.trim()) {
-        return t('errors.name_required');
+        return { field: 'name', message: t('errors.name_required') };
     }
     if (!formData.process?.trim()) {
-        return t('errors.process_required');
+        return { field: 'process', message: t('errors.process_required') };
     }
     if (!formData.department_id) {
-        return t('errors.department_required');
+        return { field: 'department_id', message: t('errors.department_required') };
     }
     if (!formData.outsourcing_owner_user_id) {
-        return t('errors.owner_required');
+        return { field: 'outsourcing_owner_user_id', message: t('errors.owner_required') };
     }
     if (!formData.risk_score_1_5 || formData.risk_score_1_5 < 1 || formData.risk_score_1_5 > 5) {
-        return t('errors.score_required');
+        return { field: 'risk_score_1_5', message: t('errors.score_required') };
     }
-    return null;
+    return { field: null, message: null };
 }
 
 function trimOrNull(value: string | null | undefined): string | null {
@@ -60,7 +74,7 @@ function trimOrNull(value: string | null | undefined): string | null {
     return trimmed ? trimmed : null;
 }
 
-export function buildVendorPayload(formData: VendorFormData, initialData?: Vendor): VendorCreate {
+export function buildVendorPayload(formData: VendorFormData, _initialData?: Vendor): VendorCreate {
     const payload: VendorCreate = {
         name: formData.name?.trim() || '',
         legal_name: trimOrNull(formData.legal_name),
@@ -89,15 +103,24 @@ export function buildVendorPayload(formData: VendorFormData, initialData?: Vendo
         payload[field] = trimOrNull(formData[field] as string | null | undefined);
     }
 
-    // Substitutability writes are constrained to the closed Substituce list:
-    // an unchanged legacy stored value (easy/medium/hard) is left unsent so
-    // editing unrelated fields never trips the write constraint nor rewrites
-    // the stored value.
-    if (initialData && payload.replaceability === (initialData.replaceability ?? null)) {
-        delete payload.replaceability;
+    return payload;
+}
+
+export function buildVendorUpdatePayload(
+    formData: VendorFormData,
+    initialData: Vendor,
+): VendorUpdate {
+    const current = buildVendorPayload(formData);
+    const initial = buildVendorPayload(initialData);
+    const update: VendorUpdate = {};
+
+    for (const key of Object.keys(current) as Array<keyof VendorCreate>) {
+        if (current[key] !== initial[key]) {
+            update[key] = current[key] as never;
+        }
     }
 
-    return payload;
+    return update;
 }
 
 export function getOwnerAutoDepartmentId(

@@ -35,7 +35,7 @@ export function ResolveOrphanSummary({ language, orphan }: ResolveOrphanSummaryP
                 <h4 className="text-lg font-bold text-white mb-3 truncate">
                     {orphan.item_name}
                 </h4>
-                {orphan.item_type === 'asset' && orphan.responsibility_role ? (
+                {(orphan.item_type === 'asset' || orphan.item_type === 'vendor') && orphan.responsibility_role ? (
                     <p className="mb-3 text-xs font-bold text-amber-300">{t(`governance.responsibility_role.${orphan.responsibility_role}`)}</p>
                 ) : null}
                 <div className="flex items-center gap-6">

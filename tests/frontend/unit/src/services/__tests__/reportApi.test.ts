@@ -68,4 +68,19 @@ describe('reportApi exportKRIs', () => {
             { timeoutMs: null },
         );
     });
+
+    it('sends the selected locale for the standard Vendor export', async () => {
+        getBlobMock.mockResolvedValue({ blob: new Blob(['code,label\n']), headers: new Headers() });
+
+        await reportApi.exportVendors({
+            format: 'csv',
+            asOfDate: '2026-07-16',
+            filters: { locale: 'cs', vendorType: 'ict' },
+        });
+
+        expect(getBlobMock).toHaveBeenCalledWith(
+            '/reports/vendors/export?format=csv&as_of_date=2026-07-16&vendor_type=ict&locale=cs',
+            { timeoutMs: null },
+        );
+    });
 });

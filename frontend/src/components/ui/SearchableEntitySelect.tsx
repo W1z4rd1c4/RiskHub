@@ -14,6 +14,7 @@ export interface SearchableEntitySelectProps {
     onSearchChange: (value: string) => void;
     searchPlaceholder?: string;
     triggerTestId?: string;
+    disabled?: boolean;
     triggerRef?: Ref<HTMLButtonElement>;
     id?: string;
     'aria-labelledby'?: string;
@@ -37,6 +38,7 @@ export function SearchableEntitySelect({
     onSearchChange,
     searchPlaceholder,
     triggerTestId,
+    disabled = false,
     triggerRef,
     id,
     'aria-labelledby': ariaLabelledby,
@@ -51,6 +53,7 @@ export function SearchableEntitySelect({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
                 <input
                     type="text"
+                    disabled={disabled}
                     value={searchValue}
                     onChange={(event) => onSearchChange(event.target.value)}
                     placeholder={searchPlaceholder ?? t('filters.search_items')}
@@ -65,6 +68,7 @@ export function SearchableEntitySelect({
                 onValueChange={onValueChange}
                 options={options}
                 placeholder={placeholder}
+                disabled={disabled}
                 triggerTestId={triggerTestId}
                 triggerRef={triggerRef}
                 aria-labelledby={ariaLabelledby}

@@ -109,7 +109,7 @@ def _kri_to_row(kri: KeyRiskIndicator) -> dict[str, Any]:
 
 
 def _vendor_to_row(vendor: Vendor) -> dict[str, Any]:
-    return {
+    row = {
         "id": vendor.id,
         "name": vendor.name,
         "legal_name": vendor.legal_name,
@@ -130,6 +130,38 @@ def _vendor_to_row(vendor: Vendor) -> dict[str, Any]:
         "created_at": vendor.created_at,
         "updated_at": vendor.updated_at,
     }
+    for field in (
+        "country",
+        "person_type",
+        "identifier_type",
+        "data_sensitivity",
+        "replaceability",
+        "substitutability_reason",
+        "exit_plan_state",
+        "reintegration",
+        "service_disruption_impact",
+        "alternative_providers",
+        "ctpp_designation",
+        "ex_ante_operational",
+        "ex_ante_legal",
+        "ex_ante_ict",
+        "ex_ante_reputational",
+        "ex_ante_data_confidentiality",
+        "ex_ante_data_availability",
+        "ex_ante_data_location",
+        "ex_ante_provider_location",
+        "ex_ante_ict_concentration",
+        "assessment_phase",
+        "due_diligence_state",
+        "significance_authorization_conditions",
+        "significance_regulatory_requirements",
+        "significance_service_quality",
+        "significance_financial_impact",
+        "significance_reputation_continuity",
+        "significance_cumulative_impact",
+    ):
+        row[field] = getattr(vendor, field)
+    return row
 
 
 def _issue_to_row(issue: Issue, *, as_of_dt: datetime, current_user: User) -> dict[str, Any]:

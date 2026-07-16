@@ -32,6 +32,15 @@ interface UseResolveOrphanWorkflowOptions {
     orphan: OrphanedItem | null;
 }
 
+function ownerLookupFailureMessage(itemType: OrphanedItem['item_type'] | undefined): string {
+    const entityName = itemType === 'asset'
+        ? 'Asset'
+        : itemType === 'vendor'
+            ? 'Vendor'
+            : 'Process';
+    return `Failed to search ${entityName} owners:`;
+}
+
 export function useResolveOrphanWorkflow({
     isOpen,
     onClose,
@@ -75,6 +84,10 @@ export function useResolveOrphanWorkflow({
     }, [orphan?.item_id, orphan?.item_type]);
 
     const loadDepartments = useCallback(async (query?: string, generation = modalGenerationRef.current) => {
+        if (orphan?.item_type === 'vendor') {
+            if (generation === modalGenerationRef.current) setAllDepartments([]);
+            return;
+        }
         if (orphan?.item_type === 'process' || orphan?.item_type === 'asset') {
             const requestId = ++departmentRequestRef.current;
             const params = {
@@ -99,12 +112,14 @@ export function useResolveOrphanWorkflow({
     }, []);
 
     const loadUsers = useCallback(async (query?: string, generation = modalGenerationRef.current) => {
-        if (orphan?.item_type === 'process' || orphan?.item_type === 'asset') {
+        if (orphan?.item_type === 'process' || orphan?.item_type === 'asset' || orphan?.item_type === 'vendor') {
             const requestId = ++ownerRequestRef.current;
             const params = { limit: 50, q: query?.trim() || undefined };
             const owners = orphan.item_type === 'asset'
                 ? await lookupApi.getAssetOwners(params)
-                : await lookupApi.getProcessOwners(params);
+                : orphan.item_type === 'vendor'
+                    ? await lookupApi.getVendorOwners(params)
+                    : await lookupApi.getProcessOwners(params);
             if (generation === modalGenerationRef.current && requestId === ownerRequestRef.current) {
                 setUsers(owners.map((user) => ({
                     id: user.id,
@@ -125,13 +140,13 @@ export function useResolveOrphanWorkflow({
     }, [orphan?.item_type]);
 
     useEffect(() => {
-        if (!isOpen || !isInitialized || (orphan?.item_type !== 'process' && orphan?.item_type !== 'asset')) return;
+        if (!isOpen || !isInitialized || !['process', 'asset', 'vendor'].includes(orphan?.item_type ?? '')) return;
         const generation = modalGenerationRef.current;
         if (ownerSearchTimerRef.current) clearTimeout(ownerSearchTimerRef.current);
         ownerSearchTimerRef.current = setTimeout(() => {
             void loadUsers(searchQuery, generation).catch((err) => {
                 if (generation !== modalGenerationRef.current) return;
-                logError('Failed to search Process owners:', err);
+                logError(ownerLookupFailureMessage(orphan?.item_type), err);
                 setErrorKey(apiClient.toUiMessageKey(err));
             });
         }, 200);
@@ -245,9 +260,11 @@ export function useResolveOrphanWorkflow({
 
     function handleSelectUser(user: OrphanUserOption) {
         setSelectedUserId(user.id);
-        setSelectedDepartmentId((current) => (
-            orphan?.item_type === 'process' || orphan?.item_type === 'asset' ? current ?? user.department_id : user.department_id
-        ));
+        if (orphan?.item_type !== 'vendor') {
+            setSelectedDepartmentId((current) => (
+                orphan?.item_type === 'process' || orphan?.item_type === 'asset' ? current ?? user.department_id : user.department_id
+            ));
+        }
     }
 
     async function handleSubmit() {
@@ -260,7 +277,9 @@ export function useResolveOrphanWorkflow({
         try {
             await orphanedItemsApi.resolveOrphan(orphan.id, {
                 new_owner_id: selectedUserId || undefined,
-                department_id: orphan.item_type === 'threat' ? undefined : selectedDepartmentId || undefined,
+                department_id: orphan.item_type === 'threat' || orphan.item_type === 'vendor'
+                    ? undefined
+                    : selectedDepartmentId || undefined,
                 target_risk_id: selectedRiskId || undefined,
             });
             onResolved();

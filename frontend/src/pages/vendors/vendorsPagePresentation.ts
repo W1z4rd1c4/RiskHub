@@ -39,6 +39,7 @@ interface BuildVendorListParamsOptions {
 }
 
 interface BuildVendorExportFiltersOptions {
+    locale?: 'en' | 'cs';
     search: string;
     statusFilter: VendorArchiveFilter;
     typeFilter: VendorType | '';
@@ -82,15 +83,18 @@ export function buildVendorListParams({
 }
 
 export function buildVendorExportFilters({
+    locale,
     search,
     statusFilter,
     typeFilter,
 }: BuildVendorExportFiltersOptions): {
+    locale?: 'en' | 'cs';
     search: string | null;
     status: VendorArchiveFilter | null;
     vendorType: VendorType | null;
 } {
     return {
+        locale,
         status: statusFilter || null,
         search: search.trim() || null,
         vendorType: typeFilter || null,

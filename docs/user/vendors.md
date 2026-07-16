@@ -1,7 +1,7 @@
 ---
 title: Managing Vendors
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
 summary: "User guide for the core vendor register: ownership, classification, vendor flags, risk-detail-style linked sections, linked KRIs, routed create-from-vendor flows for risks/controls/KRIs, exports, and issue context."
@@ -94,6 +94,18 @@ Follow this basic workflow unless your team has a stricter local procedure:
 5. Create new linked records from vendor context.
 6. Export vendor evidence.
 
+### Assign an Outsourcing Owner
+
+The owner picker searches active users by name or email. It is purpose-scoped to Vendor ownership, so an eligible active user from another Department can be selected. Results show the safe business context—name, email, Department, and role. The application never uses a numeric user ID as a display fallback.
+
+The selected owner receives record-specific Vendor read/update access according to the capabilities returned for that row. This does not grant create, archive, Governance, or linked-record access. Linked risks, controls, KRIs, contracts, Assets, Processes, and sub-outsourcing remain independently protected.
+
+If an owner is deactivated, the Vendor becomes pending in Governance. The detail preserves the former-owner evidence, disables Vendor and link mutations, and directs an authorized Governance user to assign an active replacement. If you cannot open Governance, ask a CRO or Governance administrator to complete the reassignment.
+
+### Controlled values and language
+
+Vendor form choices are stored as stable codes and displayed in the active English or Czech language. Do not paste workbook labels into API payloads. An old or unknown value is shown as an unknown value, never as an untranslated database label.
+
 After saving or submitting, verify the result. The list should show the new state, the detail page should match your intent, and any expected notification or approval item should be visible. If the page reports that the record changed while you were working, refresh and review the current record before trying again.
 
 When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
@@ -108,7 +120,7 @@ If you receive a stale or rejected approval, do not immediately resubmit the sam
 
 ## Finding, Filtering, and Evidence
 
-Use By Flag, By Risk, and linked-record views to choose the right evidence. Vendor exports cover the vendor list fields: name, legal name, type, process, subprocess, department, owner, risk score, DORA relevance, significance, and status. Linked risks, linked controls, linked KRIs, and open issues must be reviewed in the vendor detail tabs or their own pages; they are not included in the vendor export.
+Use By Flag, By Risk, and linked-record views to choose the right evidence. The standard Vendor export follows the active UI language and includes stable code plus localized label columns for controlled values. The formal DORA Register of Information export is separate and keeps the required regulatory terminology. Vendor exports cover the vendor list fields: name, legal name, type, process, subprocess, department, owner, risk score, DORA relevance, significance, and status. Linked risks, linked controls, linked KRIs, and open issues must be reviewed in the vendor detail tabs or their own pages; they are not included in the vendor export.
 
 For reliable results, filter in this order:
 
@@ -132,6 +144,8 @@ Common mistakes are usually caused by stale filters, unclear ownership, duplicat
 If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
 If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
+
+If owner search fails, retry the protected owner lookup; do not substitute a numeric ID. If the Vendor says reassignment is pending, resolve it in Governance before editing or changing links. If export labels use the wrong language, switch the UI language and start a new standard export.
 
 ## Related Manuals
 

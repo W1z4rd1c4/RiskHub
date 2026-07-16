@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
+import { useAuthz } from '@/authz/useAuthz';
 import { AlertCircle, ArrowUpRight, TriangleAlert, XCircle } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
@@ -29,10 +30,40 @@ interface VendorDetailPageProps {
     mode?: VendorDetailMode;
 }
 
+interface VendorOwnershipPendingMessageProps {
+    canViewGovernance: boolean;
+}
+
+function VendorOwnershipPendingMessage({ canViewGovernance }: VendorOwnershipPendingMessageProps) {
+    const { t } = useTranslation('vendors');
+
+    return (
+        <VendorInlineMessage tone="warn">
+            <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />
+            <div className="space-y-3">
+                <p className="text-sm font-bold">{t('ownership.pending_title')}</p>
+                <p className="text-sm">{t('ownership.pending_help')}</p>
+                {canViewGovernance ? (
+                    <Link
+                        to="/governance?type=vendor"
+                        className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest"
+                    >
+                        {t('ownership.resolve_in_governance')}
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                ) : (
+                    <p className="text-xs font-semibold">{t('ownership.ask_governance')}</p>
+                )}
+            </div>
+        </VendorInlineMessage>
+    );
+}
+
 export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useTranslation('vendors');
+    const authz = useAuthz();
 
     const {
         canArchive,
@@ -117,6 +148,18 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     }
 
     if (mode === 'edit') {
+        if (vendor.owner_orphaned) {
+            return (
+                <div className="vendor-route">
+                    <div className="vendor-page space-y-6">
+                        <VendorOwnershipPendingMessage canViewGovernance={authz.canViewGovernance} />
+                        <button type="button" onClick={() => navigate(`/vendors/${vendor.id}`)} className="text-sm font-bold text-accent">
+                            {t('actions.back_to_register')}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
         if (canEdit !== true) {
             return <FormCapabilityGateState state="denied" />;
         }
@@ -165,6 +208,10 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     </div>
                 </VendorInlineMessage>
                 )}
+
+                {vendor.owner_orphaned ? (
+                    <VendorOwnershipPendingMessage canViewGovernance={authz.canViewGovernance} />
+                ) : null}
 
                 <VendorDetailHeader
                     vendor={vendor}

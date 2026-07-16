@@ -247,7 +247,7 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
 
 
 @pytest.mark.asyncio
-async def test_vendor_governance_owner_must_match_department_for_scoped_writer(
+async def test_vendor_governance_owner_can_be_cross_department_for_scoped_writer(
     db_session: AsyncSession,
     client_department_head: AsyncClient,
     test_department: Department,
@@ -290,8 +290,8 @@ async def test_vendor_governance_owner_must_match_department_for_scoped_writer(
             "status": "active",
         },
     )
-    assert resp.status_code == 400
-    assert "selected department" in resp.json()["detail"]
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["outsourcing_owner_user_id"] == other_owner.id
 
 
 @pytest.mark.asyncio

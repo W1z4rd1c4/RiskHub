@@ -2,6 +2,7 @@ import { Cpu } from 'lucide-react';
 
 import { CriticalityClassPill, VendorTierPill } from '@/components/ict-register/CriticalityClassPill';
 import { useTranslation } from '@/i18n/hooks';
+import { vendorValueLabel } from '@/lib/vendorValues';
 import type { VendorDerived } from '@/types/vendor';
 
 /**
@@ -63,24 +64,31 @@ export function VendorDerivedSection({ derived }: { derived: VendorDerived }) {
                         {t('derived.title')}
                     </h2>
                 </div>
-                <VendorTierPill tier={derived.tier} testId="vendor-derived-tier" />
+                <VendorTierPill
+                    tier={derived.tier}
+                    displayValue={vendorValueLabel(t, 'tier', derived.tier)}
+                    testId="vendor-derived-tier"
+                />
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                <Field label={t('derived.cif')} value={derived.cif} testId="vendor-derived-cif" />
+                <Field label={t('derived.cif')} value={vendorValueLabel(t, 'cif', derived.cif)} testId="vendor-derived-cif" />
                 <Field
                     label={t('derived.cif_chain')}
-                    value={derived.cif_chain}
+                    value={vendorValueLabel(t, 'cif_chain', derived.cif_chain)}
                     testId="vendor-derived-cif-chain"
                 />
                 <PillField label={t('derived.max_criticality')}>
-                    <CriticalityClassPill criticalityClass={derived.max_criticality} />
+                    <CriticalityClassPill
+                        criticalityClass={derived.max_criticality}
+                        displayValue={vendorValueLabel(t, 'max_criticality', derived.max_criticality)}
+                    />
                 </PillField>
-                <Field label={t('derived.country_category')} value={derived.country_category} />
-                <Field label={t('derived.chain_level')} value={derived.chain_level} />
+                <Field label={t('derived.country_category')} value={vendorValueLabel(t, 'country_category', derived.country_category)} />
+                <Field label={t('derived.chain_level')} value={vendorValueLabel(t, 'chain_level', derived.chain_level)} />
                 <Field
                     label={t('derived.significance_outcome')}
-                    value={derived.significance_outcome}
+                    value={vendorValueLabel(t, 'significance_outcome', derived.significance_outcome)}
                 />
                 <Field
                     label={t('derived.completeness')}
@@ -128,9 +136,12 @@ export function VendorDerivedSection({ derived }: { derived: VendorDerived }) {
                                         data-testid={`vendor-derived-transitive-row-${index}`}
                                     >
                                         <td className="py-2 pr-4 font-medium text-white">{link.process_name}</td>
-                                        <td className="py-2 pr-4 text-slate-300">{link.process_cif ?? '—'}</td>
+                                        <td className="py-2 pr-4 text-slate-300">{vendorValueLabel(t, 'cif', link.process_cif)}</td>
                                         <td className="py-2 pr-4">
-                                            <CriticalityClassPill criticalityClass={link.process_criticality} />
+                                            <CriticalityClassPill
+                                                criticalityClass={link.process_criticality}
+                                                displayValue={vendorValueLabel(t, 'max_criticality', link.process_criticality)}
+                                            />
                                         </td>
                                         <td className="py-2 text-slate-300">{link.via_asset_name}</td>
                                     </tr>
@@ -160,7 +171,7 @@ export function VendorDerivedSection({ derived }: { derived: VendorDerived }) {
                     />
                     <Field
                         label={t('derived.inputs.substitutability')}
-                        value={derived.inputs.substitutability}
+                        value={vendorValueLabel(t, 'replaceability', derived.inputs.substitutability)}
                     />
                     <Field
                         label={t('derived.inputs.tier_max_rank_at_least_high')}

@@ -1,7 +1,7 @@
 ---
 title: Správa dodavatelů
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
 summary: "Uživatelský manuál pro základní registr dodavatelů: ownership, klasifikace, vendor flagy, sekce navázaných rizik, kontrol a KRI ve stylu detailu rizika, routed create-from-vendor workflow pro rizika/kontroly/KRI, exporty a issue kontext."
@@ -94,6 +94,18 @@ Pokud váš tým nemá přísnější postup, použijte tento základní workflo
 5. Vytvořit nový navázaný záznam z detailu dodavatele.
 6. Exportovat evidenci.
 
+### Přiřazení vlastníka outsourcingu
+
+Výběr vlastníka vyhledává aktivní uživatele podle jména nebo e-mailu. Je účelově omezen na vlastnictví dodavatele, takže lze vybrat oprávněného aktivního uživatele z jiného oddělení. Výsledky zobrazují bezpečný business kontext: jméno, e-mail, oddělení a roli. Aplikace nikdy nepoužije číselné ID uživatele jako zobrazovanou náhradu.
+
+Vybraný vlastník získá přístup ke čtení a úpravě konkrétního dodavatele podle capabilities daného řádku. Tím nezískává právo vytvářet či archivovat dodavatele, otevírat Governance ani přístup k navázaným záznamům. Rizika, kontroly, KRI, smlouvy, aktiva, procesy a sub-outsourcing zůstávají chráněné samostatně.
+
+Při deaktivaci vlastníka přejde dodavatel do čekajícího stavu v Governance. Detail zachová důkazy o bývalém vlastníkovi, zakáže změny dodavatele i vazeb a oprávněného uživatele Governance navede k přiřazení aktivní náhrady. Pokud Governance nevidíte, požádejte CRO nebo správce Governance.
+
+### Řízené hodnoty a jazyk
+
+Volby ve formuláři dodavatele se ukládají jako stabilní kódy a zobrazují v aktivním českém nebo anglickém jazyce. Do API neposílejte popisky z workbooku. Stará nebo neznámá hodnota se zobrazí jako neznámá, nikdy jako nepřeložený databázový popisek.
+
 Po uložení nebo odeslání ověřte výsledek. Seznam má ukázat nový stav, detail má odpovídat záměru a očekávaná notifikace nebo schválení má být dohledatelné. Pokud stránka hlásí, že záznam mezitím změnil někdo jiný, obnovte data a znovu posuďte aktuální stav.
 
 Při propojování záznamů vybírejte jen vazby, které dávají smysl dalšímu reviewerovi. Vazba má popsat skutečný business vztah: kontrola snižuje riziko, KRI riziko monitoruje, dodavatel vytváří expozici nebo nález řeší konkrétní problém.
@@ -108,7 +120,7 @@ Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu zn
 
 ## Vyhledávání, filtrování a evidence
 
-Použijte By Flag, By Risk a sekce navázaných záznamů pro výběr správné evidence. Export dodavatelů obsahuje pole ze seznamu dodavatelů: název, právní název, typ, proces, subprocess, oddělení, owner, risk score, DORA relevanci, významnost a stav. Navázaná rizika, kontroly, KRI a otevřené nálezy kontrolujte v záložkách detailu dodavatele nebo na jejich vlastních stránkách; export dodavatelů je neobsahuje.
+Použijte By Flag, By Risk a sekce navázaných záznamů pro výběr správné evidence. Standardní export dodavatelů používá aktivní jazyk UI a pro řízené hodnoty obsahuje stabilní kód i lokalizovaný popisek. Formální export Registru informací DORA je samostatný a zachovává předepsanou regulatorní terminologii. Export dodavatelů obsahuje pole ze seznamu dodavatelů: název, právní název, typ, proces, subprocess, oddělení, owner, risk score, DORA relevanci, významnost a stav. Navázaná rizika, kontroly, KRI a otevřené nálezy kontrolujte v záložkách detailu dodavatele nebo na jejich vlastních stránkách; export dodavatelů je neobsahuje.
 
 Pro spolehlivý výsledek filtrujte v tomto pořadí:
 
@@ -132,6 +144,8 @@ Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílej
 Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
 Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
+
+Pokud vyhledání vlastníka selže, zopakujte chráněné vyhledání; nenahrazujte ho číselným ID. Pokud dodavatel čeká na přeřazení, vyřešte vlastnictví v Governance před úpravou nebo změnou vazeb. Pokud export používá nesprávný jazyk, přepněte jazyk UI a spusťte nový standardní export.
 
 ## Související manuály
 
