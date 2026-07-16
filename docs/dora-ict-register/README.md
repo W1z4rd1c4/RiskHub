@@ -23,6 +23,8 @@ behind it.
   Asset list, facet, grouping, lookup, and standard-export API contract.
 - [`THREAT-REGISTER-QUERY-CONTRACT.md`](./THREAT-REGISTER-QUERY-CONTRACT.md): Global Threat
   collection plus permission-scoped linked-Risk facets, groups, lookups, and standard export.
+- [`VENDOR-REGISTER-QUERY-CONTRACT.md`](./VENDOR-REGISTER-QUERY-CONTRACT.md): Permission-scoped
+  Vendor filters, multi-membership views, safe lookups, URL state, and standard export.
 - [`dashboard-cro-tile-inventory.md`](./dashboard-cro-tile-inventory.md): Inventory of the
   workbook's Dashboard / CRO-overview tiles reproduced by the ICT Committee read-model.
 - [`GRILLING-CAPTURE.md`](./GRILLING-CAPTURE.md): grill-with-docs capture of what the register

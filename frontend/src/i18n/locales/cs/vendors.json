@@ -29,6 +29,58 @@
     "all_statuses": "Všechny stavy",
     "all_types": "Všechny typy"
   },
+  "register": {
+    "views": {
+      "all": "Vše",
+      "department": "Podle oddělení",
+      "process": "Podle procesu",
+      "type": "Podle typu",
+      "risk": "Podle rizika",
+      "flag": "Podle příznaku"
+    },
+    "filters": {
+      "add": "Přidat filtr",
+      "active_count": "Aktivní filtry: {{count}}",
+      "clear_all": "Vymazat vše",
+      "remove": "Odebrat {{label}}",
+      "lifecycle": "Životní cyklus",
+      "department": "Odpovědné oddělení",
+      "outsourcing_owner": "Vlastník outsourcingu",
+      "vendor_type": "Typ dodavatele",
+      "risk_score": "Skóre rizika",
+      "tier": "Úroveň dodavatele",
+      "dora_relevant": "DORA relevantní",
+      "cif": "Podporuje CIF",
+      "is_significant_vendor": "Významný dodavatel",
+      "substitutability": "Nahraditelnost",
+      "country": "Země",
+      "country_category": "Kategorie země",
+      "has_roi_contract": "Má smlouvu RoI",
+      "has_sub_outsourcing": "Má sub-outsourcing",
+      "has_direct_process_link": "Má přímou vazbu na proces",
+      "linked_process": "Navázaný proces",
+      "linked_asset": "Navázané aktivum",
+      "linked_risk": "Navázané riziko",
+      "linked_control": "Navázaná kontrola",
+      "linked_kri": "Navázané KRI",
+      "search_options": "Hledat možnosti",
+      "search_options_for": "Hledat možnosti pro {{label}}",
+      "no_options": "Žádné odpovídající možnosti"
+    },
+    "lifecycle": {
+      "active": "Aktivní",
+      "archived": "Archivované",
+      "all": "Vše"
+    },
+    "boolean": {
+      "any": "Libovolně",
+      "yes": "Ano",
+      "no": "Ne"
+    },
+    "export": {
+      "title": "Export filtrovaných dodavatelů"
+    }
+  },
   "columns": {
     "name": "Dodavatel",
     "department": "Oddělení",

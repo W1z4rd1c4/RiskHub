@@ -360,6 +360,26 @@ class VendorListCapabilities(BaseModel):
     can_view_risk_contexts: bool
 
 
+class VendorFacetOption(BaseModel):
+    """One permission-scoped Vendor facet option."""
+
+    value: str
+    label: str
+    count: int
+    disabled: bool = False
+    selected: bool = False
+
+
+class VendorLookupOption(BaseModel):
+    """Safe remote Vendor-filter lookup; labels are never raw identifiers."""
+
+    id: int
+    label: str
+    secondary_label: str | None = None
+    disabled: bool = False
+    count: int | None = None
+
+
 class VendorListResponse(BaseModel):
     items: list[VendorRead]
     total: int
@@ -367,6 +387,7 @@ class VendorListResponse(BaseModel):
     limit: int
     groups: list[CollectionGroupRead] | None = None
     capabilities: VendorListCapabilities | None = None
+    facets: dict[str, list[VendorFacetOption]] = Field(default_factory=dict)
 
     @computed_field
     def skip(self) -> int:

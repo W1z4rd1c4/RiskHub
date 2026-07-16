@@ -100,7 +100,7 @@ export class VendorsPage {
         await Promise.all([
             this.page.waitForResponse((response) => {
                 if (response.request().method() !== 'GET') return false;
-                if (!response.url().includes('/api/v1/reports/vendors/export')) return false;
+                if (!response.url().includes('/api/v1/vendors/export')) return false;
                 try {
                     const url = new URL(response.url());
                     return (url.searchParams.get('format') || '').toLowerCase() === format;
@@ -116,7 +116,7 @@ export class VendorsPage {
         await this.statusSelectTrigger.click();
         await Promise.all([
             this.waitForVendorsResponse({ include_archived: true }),
-            this.page.getByTestId('vendors-status-filter-option-inactive').click(),
+            this.page.getByTestId('vendors-status-filter-option-archived').click(),
         ]);
         await waitForDataLoad(this.page);
     }

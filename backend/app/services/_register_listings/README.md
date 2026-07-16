@@ -20,7 +20,9 @@ Business/service-layer logic for `_register_listings`.
 - `threats.py` — global Threat filter, permission-scoped linked-Risk context,
   facet, multi-membership grouping, lookup, pagination, and standard-export
   query plan.
-- `vendors.py`
+- `vendors.py` — permission-scoped Vendor filter, facet, multi-membership
+  grouping, lookup, pagination, derived/linked-context, and standard-export
+  query plan.
 
 ## Notes
 
@@ -36,3 +38,11 @@ resolvable only while still assigned to a Threat; unrelated identities are not
 echoed.
 Hidden Risk identifiers, labels, memberships, and counts never enter the
 collection plan or its CSV export.
+
+Vendor dimensions use AND across fields and OR within repeated values. Views
+are `all`, `department`, `process`, `type`, `risk`, and `flag`.
+Process, Risk, and flag groupings are multi-membership. Derived, Contract,
+Sub-outsourcing, Process, Asset, Risk, Control, and KRI context enters filters,
+facets, groups, lookups, and export only when the caller may independently
+read it. Record-only Outsourcing Owners receive their assigned Vendor rows but
+no linked or derived context, register-wide actions, or standard export.

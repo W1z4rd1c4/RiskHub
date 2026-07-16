@@ -235,13 +235,92 @@ export interface VendorListCapabilities {
     can_view_risk_contexts?: boolean;
 }
 
-export type VendorListResponse = CollectionListResponse<Vendor, VendorListCapabilities>;
+export interface VendorFacetOption {
+    value: string;
+    label: string;
+    count: number;
+    disabled: boolean;
+    selected: boolean;
+}
+
+export type VendorFacetKey =
+    | 'lifecycle'
+    | 'department'
+    | 'outsourcing_owner'
+    | 'vendor_type'
+    | 'risk_score'
+    | 'tier'
+    | 'dora_relevant'
+    | 'cif'
+    | 'is_significant_vendor'
+    | 'substitutability'
+    | 'country'
+    | 'country_category'
+    | 'has_roi_contract'
+    | 'has_sub_outsourcing'
+    | 'has_direct_process_link';
+
+export type VendorFacets = Partial<Record<VendorFacetKey, VendorFacetOption[]>>;
+
+export interface VendorLookupOption {
+    id: number;
+    label: string;
+    secondary_label?: string | null;
+    disabled: boolean;
+    count?: number | null;
+}
+
+export type VendorListResponse = CollectionListResponse<Vendor, VendorListCapabilities> & {
+    facets?: VendorFacets | null;
+};
+
+export type VendorRegisterView = 'all' | 'department' | 'process' | 'type' | 'risk' | 'flag';
+export type VendorGroupBy = Exclude<VendorRegisterView, 'all'>;
+export type VendorSortField =
+    | 'name'
+    | 'legal_name'
+    | 'registration_id'
+    | 'department'
+    | 'outsourcing_owner'
+    | 'vendor_type'
+    | 'risk_score'
+    | 'tier'
+    | 'cif'
+    | 'process'
+    | 'country'
+    | 'created_at';
 
 export interface VendorListParams {
     offset?: number;
     limit?: number;
     search?: string;
     include_archived?: boolean;
+    lifecycle?: Array<'active' | 'archived'>;
+    sort?: { field: string; direction: 'asc' | 'desc' };
+    view?: VendorRegisterView;
+    group_by?: VendorGroupBy;
+    group_value?: string;
+    department_ids?: number[];
+    outsourcing_owner_ids?: number[];
+    vendor_types?: VendorType[];
+    risk_scores?: number[];
+    tiers?: string[];
+    cif?: boolean;
+    substitutability?: string[];
+    countries?: string[];
+    country_categories?: string[];
+    linked_process_ids?: number[];
+    linked_asset_ids?: number[];
+    linked_risk_ids?: number[];
+    linked_control_ids?: number[];
+    linked_kri_ids?: number[];
+    sort_by?: VendorSortField;
+    sort_order?: 'asc' | 'desc';
+    has_direct_process_link?: boolean;
+    has_roi_contract?: boolean;
+    has_sub_outsourcing?: boolean;
+
+    // Compatibility scalars retained by the API during the shared-register migration.
     vendor_type?: VendorType;
     dora_relevant?: boolean;
     supports_important_core_insurance_function?: boolean;
@@ -251,12 +330,5 @@ export interface VendorListParams {
     process?: string;
     subprocess?: string;
     risk_score_1_5?: number;
-    sort_by?: 'name' | 'vendor_type' | 'risk_score_1_5' | 'process' | 'created_at';
-    sort_order?: 'asc' | 'desc';
-    group_by?: string;
-    group_value?: string;
-    has_direct_process_link?: boolean;
-    has_roi_contract?: boolean;
-    has_sub_outsourcing?: boolean;
     tier?: string;
 }

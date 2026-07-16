@@ -1,10 +1,10 @@
 ---
 title: Správa dodavatelů
-version: "2.5"
+version: "2.6"
 last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
-summary: "Uživatelský manuál pro základní registr dodavatelů: ownership, klasifikace, vendor flagy, sekce navázaných rizik, kontrol a KRI ve stylu detailu rizika, routed create-from-vendor workflow pro rizika/kontroly/KRI, exporty a issue kontext."
+summary: "Uživatelský manuál pro sdílený registr dodavatelů: šest pohledů, serverové filtry, odpovědnost vlastníka outsourcingu, vazby na ostatní registry, smlouvy a sub-outsourcing, filtrovaný export, životní cyklus, čekající změny a evidence."
 tags:
   - vendors
   - workflow
@@ -29,23 +29,21 @@ tags:
 
 ## S čím vám tato stránka pomůže
 
-Tento manuál použijte, když potřebujete udržovat registr dodavatelů, chápat vendor flagy, propojovat dodavatele s riziky, kontrolami, KRI a nálezy a sledovat koncentraci. Je určen pro uživatele sledující třetí strany a dodavatelská rizika, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
+Tento manuál použijte, když potřebujete udržovat sdílený registr dodavatelů, chápat příznaky a odvozenou úroveň dodavatele, propojovat dodavatele s procesy, aktivy, riziky, kontrolami, KRI, smlouvami, sub-outsourcingem a nálezy nebo připravovat evidenci třetích stran. Je určen pro uživatele sledující dodavatelská rizika, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
 Text není technická reference. Vysvětluje běžný provozní postup: otevřít správnou stránku, ověřit správný záznam, provést nejmenší užitečnou změnu a zkontrolovat výsledek v seznamu, detailu, notifikacích nebo aktivitě.
 
 Tuto oblast budete používat hlavně pro:
 
-- seznam dodavatelů
-- detail dodavatele
-- navázaná rizika
-- navázané kontroly
-- navázaná KRI
-- nálezy
-- reporty dodavatelů
+- pohledy a filtry seznamu dodavatelů
+- detail dodavatele a odpovědnost vlastníka outsourcingu
+- navázané procesy, aktiva, rizika, kontroly a KRI
+- smlouvy a řetězce sub-outsourcingu
+- nálezy, standardní export dodavatelů a samostatný export RoI DORA
 
 ## Než začnete
 
-Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že očekávaná data neskrývají čipy aktivních filtrů; staré filtry případně odstraňte. Zatřetí, že u záznamu už nečeká změna ve Schvalování, Mých žádostech nebo Notifikacích.
 
 Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
 
@@ -61,7 +59,7 @@ Běžný postup navigace:
 
 1. Otevřete seznam.
 2. Vyčistěte filtry, pokud si nejste jistí viditelností.
-3. Hledejte podle názvu, vlastníka, dodavatele nebo oddělení.
+3. Hledejte podle obchodního či právního názvu, registračního identifikátoru, vlastníka, oddělení nebo procesu.
 4. Otevřete záznam.
 5. Před úpravou zkontrolujte vazby a poslední aktivitu.
 
@@ -71,28 +69,26 @@ Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se šir�
 
 Typické informace v této oblasti:
 
-- Název
-- Vlastník
-- Oddělení
-- Kritičnost
-- Popis služby
-- Navázaná rizika
-- Navázané kontroly
-- Navázaná KRI
-- Otevřené nálezy
+- obchodní a právní název, registrační identifikátor, země a popis služby
+- vlastník outsourcingu a vlastnící oddělení
+- typ dodavatele, rizikové skóre, odvozená úroveň a příznaky DORA/CIF/významnosti
+- nahraditelnost, geografický kontext, úplnost a další odvozené údaje
+- navázané procesy, aktiva, rizika, kontroly a KRI
+- smlouvy, řetězce sub-outsourcingu a otevřené nálezy
+- stav životního cyklu, stav čekající změny a akce povolené backendem
 
-Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
+Změny mají být praktické a snadno vysvětlitelné. Životní cyklus a stav schválení jsou oddělené: existující dodavatel může zůstat Aktivní, zatímco navržená změna čeká na rozhodnutí. Seznam i detail používají capabilities z backendu jako autoritu pro vytvoření, export, úpravu, archivaci, obnovení a změny vazeb. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
 ## Jak dokončit běžné úkoly
 
 Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-1. Vytvořit nebo upravit dodavatele.
-2. Nastavit vlastníka a klasifikaci.
-3. Zkontrolovat flagy a kritičnost.
-4. Navázat existující rizika, kontroly nebo KRI.
-5. Vytvořit nový navázaný záznam z detailu dodavatele.
-6. Exportovat evidenci.
+1. Najděte dodavatele v pohledu Vše a ověřte jeho životní cyklus a případnou čekající změnu.
+2. Vytvořte nebo upravte dodavatele a nastavte vlastníka outsourcingu a klasifikaci.
+3. Zkontrolujte rizikové skóre, odvozenou úroveň, příznaky, nahraditelnost, smlouvy a sub-outsourcing.
+4. Navažte jen procesy, aktiva, rizika, kontroly nebo KRI, které představují skutečný vztah.
+5. Pokud navázaný záznam neexistuje, vytvořte ho z kontextu dodavatele pouze dostupnou akcí.
+6. Vraťte se do seznamu, zopakujte požadovanou filtrovanou množinu a exportujte evidenci.
 
 ### Přiřazení vlastníka outsourcingu
 
@@ -112,7 +108,7 @@ Při propojování záznamů vybírejte jen vazby, které dávají smysl další
 
 ## Schvalování a notifikace
 
-Úpravy dodavatele mohou čekat na review, pokud mění ownership, klasifikaci, archivaci nebo navázanou governance práci. Akce pro vazby se zobrazí jen tam, kde je můžete použít.
+Úpravy dodavatele mohou čekat na kontrolu, pokud mění odpovědnost, chráněného kritického nebo významného dodavatele, archivaci či navázanou governance práci. Akce pro vazby se zobrazí jen tehdy, když je povolena jak akce nad dodavatelem, tak cílový kontext. Odznak Čekající změna není stav archivace: až do rozhodnutí zůstává provozním záznamem schválený dodavatel.
 
 Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; detail záznamu zůstává nejlepším místem pro celý kontext.
 
@@ -120,32 +116,46 @@ Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu zn
 
 ## Vyhledávání, filtrování a evidence
 
-Použijte By Flag, By Risk a sekce navázaných záznamů pro výběr správné evidence. Standardní export dodavatelů používá aktivní jazyk UI a pro řízené hodnoty obsahuje stabilní kód i lokalizovaný popisek. Formální export Registru informací DORA je samostatný a zachovává předepsanou regulatorní terminologii. Export dodavatelů obsahuje pole ze seznamu dodavatelů: název, právní název, typ, proces, subprocess, oddělení, owner, risk score, DORA relevanci, významnost a stav. Navázaná rizika, kontroly, KRI a otevřené nálezy kontrolujte v záložkách detailu dodavatele nebo na jejich vlastních stránkách; export dodavatelů je neobsahuje.
+Pokud URL neobsahuje explicitní stav, registr dodavatelů se otevře v pohledu **Vše**, pouze s aktivními záznamy a bez uživatelsky zvoleného řazení. Zachované pohledy jsou **Vše**, **Podle oddělení**, **Podle procesu**, **Podle typu**, **Podle rizika** a **Podle příznaku**. Seskupený pohled nejdřív zobrazí karty skupin; výběrem karty přejdete na řádky dodavatelů a návratovou akcí se vrátíte ke skupinám.
 
-Pro spolehlivý výsledek filtrujte v tomto pořadí:
+**Pohled Podle rizika respektuje oprávnění a vícenásobné členství.** Jeden dodavatel se objeví v každé skupině navázaného rizika, které smíte samostatně číst. Skryté riziko nesmí ovlivnit identifikátor, název, počet, volbu vyhledávače, skupinu ani obsah exportu. Pokud vaše role nemá přístup ke kontextu rizik, pohled Podle rizika se nenabízí.
 
-1. Začněte dost široce, abyste ověřili existenci záznamu.
-2. Zužte pohled podle oddělení, vlastníka, stavu, dodavatele nebo data.
-3. Otevřete vzorek záznamu a ověřte, že filtr odpovídá záměru.
-4. Exportujte jen filtrovaný pohled potřebný pro review.
+Vyhledávání pokrývá obchodní název, právní název, registrační identifikátor, vlastníka outsourcingu, vlastnící oddělení a proces. Pro kontrolu přidejte relevantní filtry:
 
-Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílejte zbytečné osobní nebo citlivé informace.
+- stav životního cyklu, vlastnící oddělení a vlastník outsourcingu;
+- typ dodavatele, rizikové skóre a odvozená úroveň;
+- DORA relevanci, podporu CIF a významnost dodavatele;
+- nahraditelnost, zemi a kategorii země;
+- existenci smlouvy v rozsahu RoI, sub-outsourcingu nebo přímé vazby na proces;
+- navázaný proces, aktivum, riziko, kontrolu nebo KRI.
+
+Různá pole filtrů používají **AND**. Více hodnot uvnitř jednoho pole používá **OR** a vyhledávání se s filtry dále spojuje pomocí AND. Booleovská pole nabízejí Libovolné, Ano a Ne. Volby a počty počítá backend pouze z množiny dodavatelů a navázaných záznamů, které smíte číst. Řízené hodnoty používají stabilní kódy a lokalizované popisky; navázané záznamy a vlastníci se vybírají z vyhledávatelných adresářů a zvolená oprávněná hodnota zůstává čitelná i mezi stránkami vyhledávače. Platné volby s nulovým výsledkem zůstávají viditelné, ale jsou vypnuté.
+
+Každý aktivní filtr má čip a započítává se do počtu aktivních filtrů. Jedním čipem odstraníte jedno pole; akcí **Vyčistit vše** odeberete přidané filtry, ale zachováte hledaný text. Změna hledání, pohledu, filtru, řazení nebo skupiny resetuje stránkování na první stránku. Hledání, pohled, řazení, filtry a skupinu obnoví Zpět/Vpřed v prohlížeči, obnovení stránky i zkopírovaná URL; číslo stránky se záměrně neukládá.
+
+Standardní export dodavatelů používá aktuální hledání, filtry, řazení a vybranou skupinu, zahrne všechny odpovídající řádky bez ohledu na aktuální stránku a respektuje aktivní jazyk UI. Řízená pole zachovávají stabilní kódy i lokalizované popisky. Formální export Registru informací DORA je samostatná regulatorní akce s předepsanou strukturou a terminologií. Evidenci, která není součástí standardního exportu seznamu, hledejte v detailu dodavatele nebo v příslušném registru.
+
+Pro spolehlivou evidenci začněte dost široce, abyste ověřili existenci dodavatele, zužte požadovanou populaci, otevřením vzorového řádku ověřte význam a teprve potom exportujte. Poznamenejte čas a účel snímku a nesdílejte zbytečné osobní nebo citlivé informace.
 
 ## Tipy a časté chyby
 
 - Nevytvářejte duplicitní dodavatele s podobným názvem.
-- Dodavatele propojujte s konkrétním rizikem nebo kontrolou.
+- Pohled Podle rizika nepovažujte za výlučnou kategorii; dodavatel může oprávněně patřit do několika viditelných skupin rizik.
+- Dodavatele propojujte s konkrétním procesem, aktivem, rizikem, kontrolou nebo KRI, ne jen s oddělením.
+- Nezaměňujte standardní filtrovaný export dodavatelů za formální export RoI DORA.
 - Při vytváření KRI z detailu dodavatele zachovejte vazbu na třetí stranu.
 
 Časté chyby vznikají ze starých filtrů, nejasného ownership, duplicitních záznamů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek v detailu.
 
 ## Troubleshooting
 
-Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
+Pokud je stránka prázdná, zkontrolujte stav životního cyklu, odstraňte čipy filtrů a hledejte podle známého obchodního názvu nebo registračního identifikátoru. Po dočasné chybě načtení použijte **Zkusit znovu**. Když backend přístup odmítne, RiskHub odstraní staré řádky a zobrazí Přístup odepřen; filtry nikdy nerozšiřují oprávnění. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
 Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-Pokud vyhledání vlastníka selže, zopakujte chráněné vyhledání; nenahrazujte ho číselným ID. Pokud dodavatel čeká na přeřazení, vyřešte vlastnictví v Governance před úpravou nebo změnou vazeb. Pokud export používá nesprávný jazyk, přepněte jazyk UI a spusťte nový standardní export.
+Pokud vyhledání vlastníka nebo navázaného záznamu selže, zopakujte chráněné vyhledání; nenahrazujte ho číselným ID. Pokud dodavatel čeká na přeřazení, vyřešte vlastnictví v Governance před úpravou nebo změnou vazeb. Pokud chybí pohled Podle rizika, ověřte oprávnění ke čtení rizik. Pokud export používá nesprávný jazyk, přepněte jazyk UI a spusťte nový standardní export.
+
+Všechna tlačítka pohledů, filtry, čipy, karty skupin, řaditelné hlavičky, stránkování, opakování načtení a ovládací prvky exportního dialogu lze ovládat klávesnicí a mají přístupný název. Pokud se ztratí fokus nebo ovládací prvek nemá čitelný název, při hlášení uveďte cestu, aktivní filtry, prohlížeč a jazyk.
 
 ## Související manuály
 

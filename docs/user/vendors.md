@@ -1,10 +1,10 @@
 ---
 title: Managing Vendors
-version: "2.5"
+version: "2.6"
 last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
-summary: "User guide for the core vendor register: ownership, classification, vendor flags, risk-detail-style linked sections, linked KRIs, routed create-from-vendor flows for risks/controls/KRIs, exports, and issue context."
+summary: "User guide for the shared Vendor register: six views, server-side filters, Outsourcing Owner accountability, linked-register context, contracts and sub-outsourcing, filtered export, lifecycle, pending state, and evidence."
 tags:
   - vendors
   - workflow
@@ -29,23 +29,21 @@ tags:
 
 ## What This Page Helps You Do
 
-Use this manual when you need to maintain the vendor register, understand vendor flags, connect vendors to risks, controls, KRIs, and issues, and review third-party concentration. It is written for users reviewing third-party risk and vendor-linked work, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
+Use this manual when you need to maintain the shared Vendor register, understand Vendor flags and derived tier, connect Vendors to Processes, Assets, Risks, Controls, KRIs, Contracts, Sub-outsourcing, and Issues, or prepare third-party evidence. It is written for users reviewing third-party risk and Vendor-linked work, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
 The page is not a technical reference. It explains the everyday operating pattern: start from the right screen, confirm the record is the one you intend to update, make the smallest useful change, and then verify the result in the list, detail page, notifications, or activity history.
 
 You will use this area most often for:
 
-- vendor list
-- vendor detail
-- linked risks
-- linked controls
-- linked KRIs
-- issues
-- vendor reports
+- Vendor list views and filters
+- Vendor detail and Outsourcing Owner accountability
+- linked Processes, Assets, Risks, Controls, and KRIs
+- Contracts and Sub-outsourcing chains
+- Issues, standard Vendor exports, and the separate DORA RoI export
 
 ## Before You Start
 
-Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, check the active-filter chips and clear old filters if the list looks incomplete. Third, check whether the record already has a pending change in the list, Approvals, My Requests, or Notifications.
 
 If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
 
@@ -61,7 +59,7 @@ Common navigation pattern:
 
 1. Open the list page.
 2. Clear filters if you are not sure what should be visible.
-3. Search by name, owner, vendor, or department.
+3. Search by trading or legal name, registration identifier, owner, Department, or Process.
 4. Open the record.
 5. Review linked records and recent activity before changing anything.
 
@@ -71,28 +69,26 @@ What you can see depends on your role, department scope, and record ownership. A
 
 Typical information in this area includes:
 
-- Vendor name
-- Owner
-- Department
-- Criticality
-- Service description
-- Linked risks
-- Linked controls
-- Linked kris
-- Open issues
+- trading and legal name, registration identifier, country, and service description
+- Outsourcing Owner and Owning Department
+- Vendor type, risk score, derived tier, and DORA/CIF/significant flags
+- substitutability, geography, completeness, and derived Vendor context
+- linked Processes, Assets, Risks, Controls, and KRIs
+- Contracts, Sub-outsourcing chains, and open Issues
+- lifecycle state, pending-change state, and backend-provided row actions
 
-Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
+Changes should be practical and easy to explain. Lifecycle and approval state are separate: an existing Vendor can remain Active while a proposed change is Pending. The list and detail use backend capabilities as the authority for Create, Export, Edit, Archive, Restore, and link actions. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
 ## How To Complete Common Tasks
 
 Follow this basic workflow unless your team has a stricter local procedure:
 
-1. Create or update a vendor.
-2. Set owner and classification.
-3. Review flags and criticality.
-4. Link existing risks, controls, or kris.
-5. Create new linked records from vendor context.
-6. Export vendor evidence.
+1. Find the Vendor in the All view and confirm its lifecycle and pending state.
+2. Create or update the Vendor and set the Outsourcing Owner and classification.
+3. Review the risk score, derived tier, flags, substitutability, Contracts, and Sub-outsourcing.
+4. Link only the Processes, Assets, Risks, Controls, or KRIs that represent a real relationship.
+5. Create a permitted linked record from Vendor context when one does not already exist.
+6. Return to the list, reproduce the intended filtered working set, and export evidence.
 
 ### Assign an Outsourcing Owner
 
@@ -112,7 +108,7 @@ When linking records, choose only relationships that are useful to another revie
 
 ## Approvals and Notifications
 
-Vendor edits may be reviewed when they affect ownership, classification, archive state, or linked governance work. Link actions appear only when your current access allows the target record.
+Vendor edits may be reviewed when they affect accountability, a protected Critical or Significant Vendor, archive state, or linked governance work. Link actions appear only when your current access allows both the Vendor action and the target context. A Pending change badge is not an archive state: the approved Vendor remains the operational record until the governed change is resolved.
 
 Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the record detail remains the best place to understand the full context.
 
@@ -120,32 +116,46 @@ If you receive a stale or rejected approval, do not immediately resubmit the sam
 
 ## Finding, Filtering, and Evidence
 
-Use By Flag, By Risk, and linked-record views to choose the right evidence. The standard Vendor export follows the active UI language and includes stable code plus localized label columns for controlled values. The formal DORA Register of Information export is separate and keeps the required regulatory terminology. Vendor exports cover the vendor list fields: name, legal name, type, process, subprocess, department, owner, risk score, DORA relevance, significance, and status. Linked risks, linked controls, linked KRIs, and open issues must be reviewed in the vendor detail tabs or their own pages; they are not included in the vendor export.
+The Vendor register opens in **All** with active records and no user-selected sort when the URL contains no explicit state. The retained views are **All**, **By Department**, **By Process**, **By Type**, **By Risk**, and **By Flag**. A grouped view first shows group cards; select a card to drill down to its Vendor rows, then use the back action to return to the groups.
 
-For reliable results, filter in this order:
+**By Risk is permission-scoped and multi-membership.** One Vendor appears in every linked-Risk group that you are independently allowed to read. A hidden Risk cannot contribute its identifier, name, count, lookup option, group, or export content. If Risk context is not available to your role, the By Risk view is not offered.
 
-1. Start broad enough to confirm the record exists.
-2. Narrow by department, owner, status, vendor, or date.
-3. Open a sample record to confirm the filter matches your intent.
-4. Export only the filtered view needed for the review.
+Search covers trading name, legal name, registration identifier, Outsourcing Owner, Owning Department, and Process. Add the filters relevant to the review:
 
-Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
+- lifecycle state, Owning Department, and Outsourcing Owner;
+- Vendor type, risk score, and derived tier;
+- DORA relevance, CIF support, and significant-Vendor flags;
+- substitutability, country, and country category;
+- presence of a RoI-scope Contract, Sub-outsourcing, or a direct Process link;
+- Linked Process, Asset, Risk, Control, or KRI.
+
+Different filter fields use **AND**. Selecting several values inside one field uses **OR**, and search is additionally ANDed with the filters. Boolean fields offer Any, Yes, and No. Options and counts are calculated by the backend from the Vendor and linked-record universe you may read. Controlled values use stable codes and localized labels; linked-record and owner choices use searchable directories, and a selected authorized value remains readable across lookup pages. Zero-result controlled choices stay visible but disabled.
+
+Every active filter has a chip and contributes to the active-filter count. Remove one chip to clear one dimension or use **Clear all** to remove the added filters while preserving the search term. Changing search, view, filter, sort, or selected group resets pagination to page 1. Search, view, sort, filters, and group are restored by browser Back/Forward, reload, and a copied URL; page numbers deliberately are not persisted.
+
+The standard Vendor export uses the current search, filters, sort, and selected group, includes all matching rows independently of the current page, and follows the active UI locale. Controlled fields retain stable codes and localized labels. The formal DORA Register of Information export is a separate regulatory action with mandated structure and terminology. Use the Vendor detail or the related register for evidence that is not part of the standard list export.
+
+For reliable evidence, start broad enough to confirm the Vendor exists, narrow to the intended population, open a sample row to verify the meaning, and then export. Record the time and purpose of the snapshot and avoid sharing unrelated personal or sensitive information.
 
 ## Tips and Common Mistakes
 
 - Avoid duplicate vendors with slightly different names.
-- Link a vendor to the specific risk or control, not only to the department.
-- Use vendor context when creating KRIs so the third-party relationship stays visible.
+- Do not treat By Risk as an exclusive category; a Vendor may legitimately appear in several readable Risk groups.
+- Link a Vendor to the specific Process, Asset, Risk, Control, or KRI, not only to the Department.
+- Do not confuse the standard filtered Vendor export with the formal DORA RoI export.
+- Use Vendor context when creating KRIs so the third-party relationship stays visible.
 
 Common mistakes are usually caused by stale filters, unclear ownership, duplicate records, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the detail view.
 
 ## Troubleshooting
 
-If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
+If the page is empty, inspect the lifecycle selection, remove filter chips, and search by a known trading name or registration identifier. Use **Retry** after a temporary load failure. If the backend denies access, RiskHub removes stale rows and shows Access denied; filters cannot broaden authority. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
 If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-If owner search fails, retry the protected owner lookup; do not substitute a numeric ID. If the Vendor says reassignment is pending, resolve it in Governance before editing or changing links. If export labels use the wrong language, switch the UI language and start a new standard export.
+If owner or linked-record search fails, retry the protected lookup; do not substitute a numeric ID. If the Vendor says reassignment is pending, resolve it in Governance before editing or changing links. If the By Risk view is absent, confirm that your role has Risk read access. If export labels use the wrong language, switch the UI language and start a new standard export.
+
+All view buttons, filter controls, chips, group cards, sortable headers, pagination, retry actions, and export-dialog controls are keyboard-operable and labelled. If focus disappears or a control has no accessible name, record the route, active filters, browser, and language when reporting the problem.
 
 ## Related Manuals
 

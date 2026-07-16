@@ -134,7 +134,7 @@ test.describe('Vendor Management (Deterministic)', () => {
         await expect(vendorsPage.exportDateInput).toHaveValue(todayLocalIso());
         // Export dialog is CSV-only; format chooser is intentionally absent.
         const exportRequest = riskManagerPage.waitForRequest((request) =>
-            request.url().includes('/reports/vendors/export'),
+            request.url().includes('/api/v1/vendors/export'),
         );
         await vendorsPage.submitExport('csv');
         const requestUrl = new URL((await exportRequest).url());

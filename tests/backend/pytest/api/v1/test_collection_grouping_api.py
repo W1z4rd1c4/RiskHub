@@ -7,6 +7,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
+    Asset,
+    AssetVendorLink,
     Control,
     ControlRiskLink,
     Department,
@@ -15,6 +17,9 @@ from app.models import (
     IssueLink,
     KeyRiskIndicator,
     Permission,
+    Process,
+    ProcessAssetLink,
+    ProcessVendorLink,
     Risk,
     Role,
     RolePermission,
@@ -1534,6 +1539,194 @@ async def test_vendors_grouped_contract_supports_flag_multi_membership(
 
 
 @pytest.mark.asyncio
+async def test_vendors_process_grouping_uses_direct_and_transitive_memberships(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_employee: User,
+):
+    vendor = _vendor(
+        name="Vendor Process Membership Contract",
+        department_id=test_department.id,
+        owner_user_id=test_user_employee.id,
+    )
+    unlinked = _vendor(
+        name="Vendor Process Membership Unlinked",
+        department_id=test_department.id,
+        owner_user_id=test_user_employee.id,
+    )
+    direct_process = Process(
+        f_code="F80DIRECT",
+        l0_area="Operations",
+        l1_process="Direct Process Group",
+        process_owner_user_id=test_user_employee.id,
+        owning_department_id=test_department.id,
+    )
+    transitive_process = Process(
+        f_code="F80TRANS",
+        l0_area="Operations",
+        l1_process="Transitive Process Group",
+        process_owner_user_id=test_user_employee.id,
+        owning_department_id=test_department.id,
+    )
+    asset = Asset(
+        name="Vendor Process Membership Asset",
+        business_owner_user_id=test_user_employee.id,
+        ict_owner_user_id=test_user_employee.id,
+        owning_department_id=test_department.id,
+    )
+    db_session.add_all([vendor, unlinked, direct_process, transitive_process, asset])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ProcessVendorLink(process_id=direct_process.id, vendor_id=vendor.id),
+            ProcessAssetLink(process_id=transitive_process.id, asset_id=asset.id),
+            AssetVendorLink(asset_id=asset.id, vendor_id=vendor.id, ict_service_code="S01"),
+        ]
+    )
+    await db_session.commit()
+
+    summary_response = await client_employee.get(
+        "/api/v1/vendors",
+        params={"group_by": "process", "search": "Vendor Process Membership"},
+    )
+    assert summary_response.status_code == 200, summary_response.text
+    summary = summary_response.json()
+    assert summary["total"] == 2
+    direct_group = _group_by_value(summary["groups"], f"process:{direct_process.id}")
+    transitive_group = _group_by_value(summary["groups"], f"process:{transitive_process.id}")
+    assert direct_group is not None, summary["groups"]
+    assert transitive_group is not None, summary["groups"]
+    assert direct_group["count"] == 1
+    assert transitive_group["count"] == 1
+    assert _group_by_value(summary["groups"], "__no_process__")["count"] == 1
+    assert _group_by_value(summary["groups"], "Vendor Process") is None
+
+    drilldown = await client_employee.get(
+        "/api/v1/vendors",
+        params={
+            "group_by": "process",
+            "group_value": f"process:{transitive_process.id}",
+            "search": "Vendor Process Membership",
+        },
+    )
+    assert drilldown.status_code == 200, drilldown.text
+    assert [item["id"] for item in drilldown.json()["items"]] == [vendor.id]
+
+
+@pytest.mark.asyncio
+async def test_vendors_process_grouping_hides_unreadable_process_membership(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    test_user_employee: User,
+):
+    hidden_department = await _hidden_department(db_session, code="VHP80")
+    hidden_process = Process(
+        f_code="F80HIDDEN",
+        l0_area="Restricted",
+        l1_process="Secret Vendor Process Group",
+        process_owner_user_id=test_user.id,
+        owning_department_id=hidden_department.id,
+    )
+    vendor = _vendor(
+        name="Vendor Hidden Process Membership",
+        department_id=test_department.id,
+        owner_user_id=test_user_employee.id,
+    )
+    db_session.add_all([hidden_process, vendor])
+    await db_session.flush()
+    db_session.add(ProcessVendorLink(process_id=hidden_process.id, vendor_id=vendor.id))
+    await db_session.commit()
+
+    summary_response = await client_employee.get(
+        "/api/v1/vendors",
+        params={"group_by": "process", "search": "Vendor Hidden Process Membership"},
+    )
+    assert summary_response.status_code == 200, summary_response.text
+    groups = summary_response.json()["groups"]
+    assert _group_by_value(groups, f"process:{hidden_process.id}") is None
+    assert _group_by_value(groups, "__no_process__")["count"] == 1
+
+    drilldown = await client_employee.get(
+        "/api/v1/vendors",
+        params={
+            "group_by": "process",
+            "group_value": "__no_process__",
+            "search": "Vendor Hidden Process Membership",
+        },
+    )
+    assert drilldown.status_code == 200, drilldown.text
+    assert [item["id"] for item in drilldown.json()["items"]] == [vendor.id]
+
+
+@pytest.mark.asyncio
+async def test_vendors_process_grouping_scales_beyond_sqlite_compound_select_limit(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_employee: User,
+):
+    vendor = _vendor(
+        name="Vendor 501 Process Memberships",
+        department_id=test_department.id,
+        owner_user_id=test_user_employee.id,
+    )
+    processes = [
+        Process(
+            f_code=f"F80SCALE{index:04d}",
+            l0_area="Operations",
+            l1_process=f"Scalable Vendor Process {index:04d}",
+            process_owner_user_id=test_user_employee.id,
+            owning_department_id=test_department.id,
+        )
+        for index in range(501)
+    ]
+    db_session.add_all([vendor, *processes])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ProcessVendorLink(process_id=process.id, vendor_id=vendor.id)
+            for process in processes
+        ]
+    )
+    await db_session.commit()
+    selected_process = processes[-1]
+
+    summary = await client_employee.get(
+        "/api/v1/vendors",
+        params={"group_by": "process", "search": vendor.name},
+    )
+    assert summary.status_code == 200, summary.text
+    assert len(summary.json()["groups"]) == 501
+    assert _group_by_value(
+        summary.json()["groups"],
+        f"process:{selected_process.id}",
+    ) == {
+        "value": f"process:{selected_process.id}",
+        "label": f"{selected_process.f_code}: {selected_process.l1_process}",
+        "count": 1,
+        "active_count": 1,
+        "highlighted_count": 0,
+        "meta": {},
+    }
+
+    group_params = {
+        "group_by": "process",
+        "group_value": f"process:{selected_process.id}",
+        "search": vendor.name,
+    }
+    drilldown = await client_employee.get("/api/v1/vendors", params=group_params)
+    export = await client_employee.get("/api/v1/vendors/export", params=group_params)
+
+    assert drilldown.status_code == 200, drilldown.text
+    assert [item["id"] for item in drilldown.json()["items"]] == [vendor.id]
+    assert export.status_code == 200, export.text
+    assert vendor.name in export.text
+
+
+@pytest.mark.asyncio
 async def test_vendors_risk_grouped_summary_total_counts_distinct_vendors(
     auth_client: AsyncClient,
     db_session: AsyncSession,
@@ -1603,29 +1796,28 @@ async def test_vendors_risk_grouped_summary_total_counts_distinct_vendors(
 
 @pytest.mark.asyncio
 async def test_vendors_grouped_requests_use_bounded_sql_path(
-    auth_client: AsyncClient,
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
     test_department: Department,
-    test_user: User,
+    test_user_employee: User,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    create_response = await auth_client.post(
-        "/api/v1/vendors",
-        json={
-            "name": "Bounded Grouped Vendor",
-            "process": "Bounded Vendor Process",
-            "department_id": test_department.id,
-            "outsourcing_owner_user_id": test_user.id,
-            "vendor_type": "ict",
-            "risk_score_1_5": 5,
-            "supports_important_core_insurance_function": False,
-            "dora_relevant": False,
-            "is_significant_vendor": False,
-            "has_alternative_providers": False,
-            "status": "active",
-        },
+    vendor = _vendor(
+        name="Bounded Grouped Vendor",
+        department_id=test_department.id,
+        owner_user_id=test_user_employee.id,
     )
-    assert create_response.status_code == 201
-    vendor_id = create_response.json()["id"]
+    process = Process(
+        f_code="F80BOUNDED",
+        l0_area="Operations",
+        l1_process="Bounded Vendor Process",
+        process_owner_user_id=test_user_employee.id,
+        owning_department_id=test_department.id,
+    )
+    db_session.add_all([vendor, process])
+    await db_session.flush()
+    db_session.add(ProcessVendorLink(process_id=process.id, vendor_id=vendor.id))
+    await db_session.commit()
 
     import app.api.v1.endpoints.vendors.crud as vendor_crud
 
@@ -1634,22 +1826,27 @@ async def test_vendors_grouped_requests_use_bounded_sql_path(
 
     monkeypatch.setattr(vendor_crud, "serialize_vendor_reads", fail_full_group_serialization, raising=False)
 
-    summary_response = await auth_client.get(
+    summary_response = await client_employee.get(
         "/api/v1/vendors",
         params={"offset": 0, "limit": 10, "group_by": "process"},
     )
     assert summary_response.status_code == 200, summary_response.text
     summary = summary_response.json()
     assert summary["items"] == []
-    assert _group_by_value(summary["groups"], "Bounded Vendor Process") is not None
+    assert _group_by_value(summary["groups"], f"process:{process.id}") is not None
 
-    drilldown_response = await auth_client.get(
+    drilldown_response = await client_employee.get(
         "/api/v1/vendors",
-        params={"offset": 0, "limit": 10, "group_by": "process", "group_value": "Bounded Vendor Process"},
+        params={
+            "offset": 0,
+            "limit": 10,
+            "group_by": "process",
+            "group_value": f"process:{process.id}",
+        },
     )
     assert drilldown_response.status_code == 200, drilldown_response.text
     drilldown = drilldown_response.json()
-    assert any(item["id"] == vendor_id for item in drilldown["items"])
+    assert any(item["id"] == vendor.id for item in drilldown["items"])
 
 
 @pytest.mark.asyncio

@@ -154,6 +154,40 @@ export const vendorListCapabilitiesSchema = passthroughObject({
     can_view_risk_contexts: z.boolean().optional(),
 });
 
+export const vendorFacetOptionSchema = passthroughObject({
+    value: z.string(),
+    label: z.string(),
+    count: z.number(),
+    disabled: z.boolean(),
+    selected: z.boolean(),
+});
+
+export const vendorFacetsSchema = passthroughObject({
+    lifecycle: z.array(vendorFacetOptionSchema).optional(),
+    department: z.array(vendorFacetOptionSchema).optional(),
+    outsourcing_owner: z.array(vendorFacetOptionSchema).optional(),
+    vendor_type: z.array(vendorFacetOptionSchema).optional(),
+    risk_score: z.array(vendorFacetOptionSchema).optional(),
+    tier: z.array(vendorFacetOptionSchema).optional(),
+    dora_relevant: z.array(vendorFacetOptionSchema).optional(),
+    cif: z.array(vendorFacetOptionSchema).optional(),
+    is_significant_vendor: z.array(vendorFacetOptionSchema).optional(),
+    substitutability: z.array(vendorFacetOptionSchema).optional(),
+    country: z.array(vendorFacetOptionSchema).optional(),
+    country_category: z.array(vendorFacetOptionSchema).optional(),
+    has_roi_contract: z.array(vendorFacetOptionSchema).optional(),
+    has_sub_outsourcing: z.array(vendorFacetOptionSchema).optional(),
+    has_direct_process_link: z.array(vendorFacetOptionSchema).optional(),
+});
+
+export const vendorLookupOptionSchema = passthroughObject({
+    id: z.number(),
+    label: z.string(),
+    secondary_label: z.string().nullable().optional(),
+    disabled: z.boolean(),
+    count: z.number().nullable().optional(),
+});
+
 export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
     id: z.number(),
     name: z.string(),
@@ -315,6 +349,7 @@ export const vendorArraySchema = z.array(vendorSchema);
 export const vendorListResponseSchema: z.ZodType<VendorListResponse> =
     collectionPaginationSchema(vendorSchema).extend({
         capabilities: vendorListCapabilitiesSchema.nullable().optional(),
+        facets: vendorFacetsSchema.nullable().optional(),
     });
 export const vendorReportCapabilitiesSchema = passthroughObject({
     can_read: z.boolean(),

@@ -66,6 +66,15 @@ async def assert_vendor_list_allowed(
         raise AuthorizationError("Permission denied: vendors:read")
 
 
+def assert_vendor_export_allowed(*, current_user: User) -> None:
+    """Require both register-read and report-read authority for standard export."""
+    if not (
+        check_permission(current_user, "vendors", "read")
+        and check_permission(current_user, "reports", "read")
+    ):
+        raise AuthorizationError("Permission denied: Vendor standard export")
+
+
 async def assert_vendor_update_allowed(
     db: AsyncSession,
     *,

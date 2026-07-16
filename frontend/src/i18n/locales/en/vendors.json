@@ -29,6 +29,58 @@
     "all_statuses": "All statuses",
     "all_types": "All types"
   },
+  "register": {
+    "views": {
+      "all": "All",
+      "department": "By Department",
+      "process": "By Process",
+      "type": "By Type",
+      "risk": "By Risk",
+      "flag": "By Flag"
+    },
+    "filters": {
+      "add": "Add filter",
+      "active_count": "{{count}} active filters",
+      "clear_all": "Clear all",
+      "remove": "Remove {{label}}",
+      "lifecycle": "Lifecycle",
+      "department": "Owning Department",
+      "outsourcing_owner": "Outsourcing Owner",
+      "vendor_type": "Vendor type",
+      "risk_score": "Risk score",
+      "tier": "Vendor tier",
+      "dora_relevant": "DORA relevant",
+      "cif": "Supports CIF",
+      "is_significant_vendor": "Significant vendor",
+      "substitutability": "Substitutability",
+      "country": "Country",
+      "country_category": "Country category",
+      "has_roi_contract": "Has RoI Contract",
+      "has_sub_outsourcing": "Has Sub-outsourcing",
+      "has_direct_process_link": "Has direct Process link",
+      "linked_process": "Linked Process",
+      "linked_asset": "Linked Asset",
+      "linked_risk": "Linked Risk",
+      "linked_control": "Linked Control",
+      "linked_kri": "Linked KRI",
+      "search_options": "Search options",
+      "search_options_for": "Search options for {{label}}",
+      "no_options": "No matching options"
+    },
+    "lifecycle": {
+      "active": "Active",
+      "archived": "Archived",
+      "all": "All"
+    },
+    "boolean": {
+      "any": "Any",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "export": {
+      "title": "Export filtered Vendors"
+    }
+  },
   "columns": {
     "name": "Vendor",
     "department": "Department",

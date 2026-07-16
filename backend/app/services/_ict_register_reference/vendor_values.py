@@ -13,6 +13,7 @@ from dataclasses import asdict, is_dataclass
 from types import MappingProxyType
 from typing import Any, Literal
 
+from app.services._ict_register_reference.country_categories import COUNTRY_CATEGORIES
 from app.services._ict_register_reference.roi_maps import roi_en_value
 
 VendorLocale = Literal["en", "cs"]
@@ -403,6 +404,15 @@ def vendor_derived_workbook_value(field: str, code: str) -> str:
         return VENDOR_DERIVED_CODE_TO_WORKBOOK_BY_FIELD[field][code]
     except KeyError as exc:
         raise ValueError(f"Unsupported derived Vendor {field} code: {code}") from exc
+
+
+def vendor_country_category_code(country: str | None) -> str:
+    """Classify one ISO country through the canonical workbook reference."""
+    workbook_value = COUNTRY_CATEGORIES.get(country or "", "?")
+    return VENDOR_DERIVED_WORKBOOK_TO_CODE_BY_FIELD["country_category"].get(
+        workbook_value,
+        "unknown",
+    )
 
 
 def vendor_value_label(field: str, code: str, *, locale: VendorLocale = "en") -> str:
