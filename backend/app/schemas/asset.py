@@ -21,6 +21,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
+from app.schemas.collection import CollectionGroupRead
 from app.services._ict_register_reference import (
     ASSET_CONTROLLED_CODES_BY_FIELD,
     ICT_SERVICE_TAXONOMY,
@@ -339,6 +340,27 @@ class AssetListCapabilities(BaseModel):
     """Collection-level Asset list action capabilities."""
 
     can_create: bool
+    can_export: bool = False
+
+
+class AssetFacetOption(BaseModel):
+    """One permission-scoped Asset facet option."""
+
+    value: str
+    label: str
+    count: int
+    disabled: bool = False
+    selected: bool = False
+
+
+class AssetLookupOption(BaseModel):
+    """Safe remote Asset-filter lookup; labels are never raw identifiers."""
+
+    id: int
+    label: str
+    secondary_label: str | None = None
+    disabled: bool = False
+    count: int | None = None
 
 
 class AssetListResponse(BaseModel):
@@ -347,6 +369,8 @@ class AssetListResponse(BaseModel):
     offset: int
     limit: int
     capabilities: AssetListCapabilities | None = None
+    groups: list[CollectionGroupRead] = Field(default_factory=list)
+    facets: dict[str, list[AssetFacetOption]] = Field(default_factory=dict)
 
     @computed_field
     def skip(self) -> int:

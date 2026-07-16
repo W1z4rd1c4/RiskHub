@@ -1,3 +1,5 @@
+import type { CollectionGroup } from './collection';
+
 export interface AssetCapabilities {
     can_read: boolean;
     can_update: boolean;
@@ -6,7 +8,46 @@ export interface AssetCapabilities {
 }
 
 export interface AssetListCapabilities {
-    can_create?: boolean;
+    can_create: boolean;
+    can_export: boolean;
+}
+
+export interface AssetFacetOption {
+    value: string;
+    label: string;
+    count: number;
+    disabled: boolean;
+    selected: boolean;
+}
+
+export type AssetFacetKey =
+    | 'lifecycle'
+    | 'department'
+    | 'business_owner'
+    | 'ict_owner'
+    | 'asset_type'
+    | 'asset_level'
+    | 'deployment_model'
+    | 'criticality'
+    | 'cif'
+    | 'legacy'
+    | 'spof'
+    | 'external_dependency'
+    | 'gdpr_relevance'
+    | 'ai_relevance'
+    | 'internet_exposed'
+    | 'data_classification'
+    | 'is_complete'
+    | 'lifecycle_state';
+
+export type AssetFacets = Partial<Record<AssetFacetKey, AssetFacetOption[]>>;
+
+export interface AssetLookupOption {
+    id: number;
+    label: string;
+    secondary_label?: string | null;
+    disabled: boolean;
+    count?: number | null;
 }
 
 export interface AssetOwnerRead {
@@ -185,10 +226,45 @@ export interface AssetListParams {
     sort_by?: AssetSortField;
     sort_order?: 'asc' | 'desc';
     has_process_link?: boolean;
-    criticality?: string;
+    criticality?: string[];
+    lifecycle?: Array<'active' | 'archived'>;
+    sort?: { field: string; direction: 'asc' | 'desc' };
+    view?: 'all' | 'department' | 'business_owner' | 'type' | 'criticality' | 'process' | 'vendor';
+    group_by?: 'department' | 'business_owner' | 'type' | 'criticality' | 'process' | 'vendor';
+    group_value?: string;
+    department_ids?: number[];
+    business_owner_ids?: number[];
+    ict_owner_ids?: number[];
+    asset_types?: string[];
+    asset_levels?: string[];
+    deployment_models?: string[];
+    cif?: boolean;
+    legacy?: boolean;
+    spof?: boolean;
+    external_dependency?: boolean;
+    gdpr_relevance?: string[];
+    ai_relevance?: string[];
+    internet_exposed?: boolean;
+    data_classification?: string[];
+    is_complete?: boolean;
+    lifecycle_states?: string[];
+    linked_process_ids?: number[];
+    linked_asset_ids?: number[];
+    linked_vendor_ids?: number[];
+    linked_risk_ids?: number[];
 }
 
-export type AssetSortField = 'name' | 'asset_type' | 'owning_department' | 'lifecycle_state' | 'created_at';
+export type AssetSortField =
+    | 'name'
+    | 'asset_type'
+    | 'asset_level'
+    | 'business_owner'
+    | 'ict_owner'
+    | 'department'
+    | 'criticality'
+    | 'cif'
+    | 'lifecycle_state'
+    | 'created_at';
 
 export interface AssetListResponse {
     items: Asset[];
@@ -196,6 +272,8 @@ export interface AssetListResponse {
     offset: number;
     limit: number;
     capabilities?: AssetListCapabilities | null;
+    groups?: CollectionGroup[] | null;
+    facets?: AssetFacets | null;
 }
 
 export interface ProcessAssetLink {

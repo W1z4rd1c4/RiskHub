@@ -1,10 +1,10 @@
 ---
 title: Správa aktiv
-version: "2.5"
-last_updated: "2026-07-15"
+version: "2.6"
+last_updated: "2026-07-16"
 audience: user
-source_of_truth: "frontend/src/pages/AssetsPage.tsx + frontend/src/pages/AssetDetailPage.tsx + backend/app/services/_ict_register_lifecycle/asset_lifecycle.py"
-summary: "Uživatelský manuál pro odpovědnosti za aktiva, kanonické hodnoty, odvozené výsledky, vazby a řízené přeřazení."
+source_of_truth: "frontend/src/pages/AssetsPage.tsx + frontend/src/pages/assets/ + backend/app/services/_register_listings/assets.py + backend/app/services/_ict_register_lifecycle/asset_lifecycle.py"
+summary: "Uživatelský manuál pro sdílený registr aktiv, odpovědnosti, kanonické hodnoty, odvozené výsledky, vazby, export a řízené přeřazení."
 tags:
   - workflow
   - governance
@@ -28,13 +28,17 @@ Připravte hodnocení důvěrnosti, integrity, dostupnosti a autenticity na šk�
 
 ## Kde to najdete
 
-V menu otevřete **Aktiva**. Hledejte podle názvu, typu, kteréhokoli vlastníka nebo útvaru. Akce se řídí capabilities z backendu.
+V menu otevřete **Aktiva**. Registr se otevře v pohledu **Vše** s aktivními aktivy. Hledejte podle názvu, alternativního názvu, typu, kteréhokoli vlastníka, vlastnického útvaru nebo fyzického umístění. Akce se řídí capabilities z backendu.
+
+Pohled **Vše** zobrazuje běžnou stránkovanou tabulku. Dalších šest pohledů seskupuje stejnou viditelnou množinu jako **Podle útvaru**, **Podle Business vlastníka**, **Podle typu**, **Podle kritičnosti**, **Podle procesu** nebo **Podle dodavatele**. Karta skupiny otevře její aktiva a umožní návrat na souhrn. Aktivum může být ve více skupinách procesů nebo dodavatelů, pokud má více viditelných vazeb. Nepřiřazené, neklasifikované a nepropojené záznamy používají bezpečné pojmenované skupiny, nikdy interní ID.
 
 ## Co můžete vidět a měnit
 
 Detail ukazuje jména obou vlastníků a bezpečný kontext role/útvaru, ale skrývá e-maily a interní číselná ID. Vlastnický útvar se zobrazuje samostatně názvem a kódem. Hodnota aktiva, výsledná kritičnost, CIF, SPOF, úplnost a grafové souhrny jsou odvozené a pouze pro čtení.
 
-Registr standardně začíná aktivními aktivy. Archivované záznamy se zobrazí po volbě archivované populace nebo v committee scope, který záměrně zahrnuje historii. Hledání zužuje pouze záznamy již viditelné vašemu účtu. Vazby na procesy, jiná aktiva, dodavatele a rizika respektují samostatná oprávnění protistrany; vlastnictví aktiva nezpřístupní omezeného dodavatele ani riziko.
+Registr standardně začíná aktivními aktivy. Historii zobrazíte volbou archivované lifecycle populace. Hledání a filtry zužují pouze záznamy již viditelné vašemu účtu a nikdy scope nerozšiřují. Vazby na procesy, jiná aktiva, dodavatele a rizika respektují samostatná oprávnění protistrany; vlastnictví aktiva nezpřístupní omezeného dodavatele ani riziko.
+
+Backend určuje dostupnost akcí **Nové aktivum**, **Export** i akcí jednotlivých řádků. Business vlastník, ICT vlastník nebo vedoucí vlastnického útvaru může získat přístup ke konkrétnímu záznamu bez obecné správy registru. Export vyžaduje reportovací capability. Archivace a obnovení zůstávají samostatné privilegované akce. Čekající ownership-governance stav se zobrazuje odděleně od aktivního/archivovaného lifecycle a může uzamknout běžné změny bez změny provozního záznamu.
 
 Řízené hodnoty jsou stabilní jazykově neutrální kódy lokalizované v EN/CS. České workbook popisky mapuje pouze import; běžné API zápisy je odmítnou.
 
@@ -66,9 +70,19 @@ V Activity Logu ověřujte autora vytvoření, změny, archivace, obnovení, vaz
 
 ## Vyhledávání, filtrování a evidence
 
-Pro evidenci zaznamenejte název, lokalizovaný typ/lifecycle, obě jména a bezpečný kontext, útvar, hodnocení, odvozený výsledek a vazby. E-mail je pouze metadata pickeru.
+Přidávat lze filtry pro lifecycle, vlastnický útvar, Business vlastníka, ICT vlastníka, typ a úroveň aktiva, model nasazení, výslednou kritičnost, podporu CIF, lifecycle stav, legacy stav, SPOF, externí závislost, relevanci GDPR a AI, vystavení internetu, klasifikaci dat, úplnost a vazby na proces, aktivum, dodavatele a riziko. Zachován zůstává i rychlý filtr přítomnosti vazby na proces.
 
-Při analýze odvozené kritičnosti zachyťte explanation inputs, primární proces, počet vazeb, score bands a referenční datum. Pro úplnost použijte zobrazený seznam chybějících vstupů místo odhadu ze screenshotu. Vždy uveďte, zda evidence pochází z aktivní populace nebo z committee/history scope.
+Různá pole se kombinují logikou **AND**, více voleb v jednom poli logikou **OR**. Pole Ano/Ne podporují také volbu **Libovolné**. Hledání se navíc kombinuje se zvolenými filtry. Facety a vzdálené lookupy vlastníků a entit respektují oprávnění. Platné řízené kódy bez výsledku zůstávají viditelné, ale disabled; skryté názvy entit ani jejich počty se neprozrazují.
+
+Hledání, pohled, řazení, filtry a vybraná skupina se ukládají do URL, takže sdílený odkaz i Zpět/Vpřed obnoví stejný stav registru. Změna filtru, hledání, pohledu, řazení nebo skupiny vrátí stránkování na první stránku; číslo stránky se do URL neukládá. Nesouvisející navigační parametry mohou v URL prohlížeče zůstat, ale nejsou filtry aktiv a neposílají se do Asset API ani exportu.
+
+**Vymazat vše** odstraní uživatelské filtry bez rozšíření oprávnění. Načítání, prázdný výsledek, opakovatelná chyba a odepřený přístup jsou odlišné stavy. Ovládání pohledů a filtrů má popisky a funguje z klávesnice. Po chybě nebo 403 nezůstávají viditelné staré řádky ani počty skupin.
+
+Je-li dostupný **Export**, používá stejné viditelné hledání, filtry, řazení, pohled a vybranou skupinu jako registr. Obsahuje všechny odpovídající viditelné záznamy bez ohledu na aktuální stránku a uvádí kanonické kódy i lokalizované popisky. Formální DORA Register of Information export je samostatný řízený report.
+
+Pro evidenci zaznamenejte název, lokalizovaný typ/lifecycle, obě jména a bezpečný kontext, vlastnický útvar, aktivní filtry nebo skupinu, hodnocení, odvozený výsledek a vazby. E-mail je pouze metadata pickeru. Uveďte, zda evidence pochází z aktivní nebo archivované populace.
+
+Při analýze odvozené kritičnosti zachyťte explanation inputs, primární proces, počet vazeb, score bands a referenční datum. Pro úplnost použijte zobrazený seznam chybějících vstupů místo odhadu ze screenshotu.
 
 ## Tipy a časté chyby
 

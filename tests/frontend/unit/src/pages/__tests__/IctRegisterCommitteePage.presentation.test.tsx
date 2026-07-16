@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProviderWithReady } from '@test/authBootstrap';
+import { parseAssetSemanticFilters } from '@/pages/shared/ictRegisterSemanticFilters';
 import {
     heatmapCellFill,
     heatmapDrilldownPath,
@@ -295,7 +296,7 @@ describe('ICT Risk Committee presentation helpers', () => {
         expect(metricDrilldownPath('processes_without_impact_assessment_count')).toBe(
             '/ict-register/data-quality?check=DQ-04',
         );
-        expect(metricDrilldownPath('critical_asset_count')).toBe('/assets?criticality=Kritick%C3%A1');
+        expect(metricDrilldownPath('critical_asset_count')).toBe('/assets?criticality=critical');
         expect(metricDrilldownPath('critical_vendor_count')).toBe('/vendors?tier=critical');
         expect(metricDrilldownPath('risks_above_tolerance_count')).toBe('/risks?above_tolerance=true');
         expect(metricDrilldownPath('open_dq_finding_count')).toBe('/ict-register/data-quality?status=findings');
@@ -319,9 +320,21 @@ describe('ICT Risk Committee presentation helpers', () => {
         expect(migrationDrilldownPath('Vysoké', 'Střední')).toBe(
             '/risks?gross_band=Vysok%C3%A9&net_band=St%C5%99edn%C3%AD',
         );
-        expect(assetCriticalityDrilldownPath('Kritická')).toBe('/assets?criticality=Kritick%C3%A1');
+        expect(assetCriticalityDrilldownPath('Kritická')).toBe('/assets?criticality=critical');
         expect(riskBandDrilldownPath('Kritické', 'gross')).toBe('/risks?gross_band=Kritick%C3%A9');
         expect(riskBandDrilldownPath('Nízké', 'net')).toBe('/risks?net_band=N%C3%ADzk%C3%A9');
+    });
+
+    it('feeds metric and chart Asset drilldowns into the canonical backend filter vocabulary', () => {
+        for (const path of [
+            metricDrilldownPath('critical_asset_count'),
+            assetCriticalityDrilldownPath('Kritická'),
+            assetCriticalityDrilldownPath('critical'),
+        ]) {
+            const url = new URL(path, 'http://riskhub.test');
+            expect(parseAssetSemanticFilters(url.searchParams).criticality).toBe('critical');
+            expect(url.searchParams.get('criticality')).toBe('critical');
+        }
     });
 
     it('anchors RoI gap rows on their register detail pages (the DQ route shape)', () => {

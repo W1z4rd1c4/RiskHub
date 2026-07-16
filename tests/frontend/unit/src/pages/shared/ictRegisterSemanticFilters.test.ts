@@ -15,7 +15,7 @@ describe('ICT register semantic query filters', () => {
             parseAssetSemanticFilters(new URLSearchParams('has_process_link=true&criticality=Kritick%C3%A1')),
         ).toEqual({
             has_process_link: true,
-            criticality: 'Kritická',
+            criticality: 'critical',
         });
         expect(
             parseVendorSemanticFilters(
@@ -44,6 +44,21 @@ describe('ICT register semantic query filters', () => {
             gross_band: 'Kritické',
             net_band: 'Vysoké',
         });
+    });
+
+    it('normalizes legacy localized Asset criticality links to canonical request codes', () => {
+        const cases = [
+            ['Nízká', 'low'],
+            ['Střední', 'medium'],
+            ['Vysoká', 'high'],
+            ['Kritická', 'critical'],
+            ['critical', 'critical'],
+        ];
+
+        for (const [queryValue, expected] of cases) {
+            const params = new URLSearchParams({ criticality: queryValue });
+            expect(parseAssetSemanticFilters(params).criticality).toBe(expected);
+        }
     });
 
     it('ignores invalid booleans, coordinates, and response values in API and summary state', () => {

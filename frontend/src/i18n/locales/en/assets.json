@@ -9,7 +9,8 @@
         "cancel": "Cancel",
         "restore": "Restore",
         "retry": "Retry",
-        "back_to_register": "Back to Assets"
+        "back_to_register": "Back to Assets",
+        "export": "Export"
     },
     "filters": {
         "search_placeholder": "Search by name, type, or owner...",
@@ -104,6 +105,34 @@
         "lifecycle_state": {"operational":"Operational","in_development":"In development","being_decommissioned":"Being decommissioned","legacy":"Legacy","retired":"Retired"},
         "review_state": {"review_required":"Review required","reviewed":"Reviewed"},
         "unknown": "Unknown value"
+    },
+    "register": {
+        "views": {
+            "all": "All",
+            "department": "By Department",
+            "business_owner": "By Business Owner",
+            "type": "By Type",
+            "criticality": "By Criticality",
+            "process": "By Process",
+            "vendor": "By Vendor"
+        },
+        "filters": {
+            "add": "Filters", "active_count": "{{count}} active filters", "clear_all": "Clear all",
+            "remove": "Remove {{label}} filter", "lifecycle": "Lifecycle", "department": "Owning Department",
+            "business_owner": "Business Owner", "ict_owner": "ICT Owner", "asset_type": "Asset type",
+            "asset_level": "Asset level", "deployment_model": "Deployment model", "criticality": "Resulting criticality",
+            "cif": "CIF support", "legacy": "Legacy system", "spof": "SPOF", "external_dependency": "External dependency",
+            "gdpr_relevance": "GDPR relevance", "ai_relevance": "AI relevance", "internet_exposed": "Internet exposure",
+            "data_classification": "Data classification", "completeness": "Completeness", "lifecycle_state": "Lifecycle state",
+            "linked_process": "Linked Process", "linked_asset": "Linked Asset", "linked_vendor": "Linked Vendor", "linked_risk": "Linked Risk",
+            "search_options": "Search visible options...", "search_options_for": "Search {{label}} options", "no_options": "No visible options"
+        },
+        "lifecycle": { "active": "Active", "archived": "Archived", "all": "All records" },
+        "boolean": { "any": "Any", "yes": "Yes", "no": "No" },
+        "groups": {
+            "unassigned": "Unassigned", "unclassified": "Unclassified", "no_linked_process": "No linked Process", "no_linked_vendor": "No linked Vendor"
+        },
+        "export": { "title": "Export matching Assets" }
     },
     "links": {
         "add": "Link",

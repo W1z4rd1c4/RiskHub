@@ -9,7 +9,8 @@
         "cancel": "Zrušit",
         "restore": "Obnovit",
         "retry": "Zkusit znovu",
-        "back_to_register": "Zpět na aktiva"
+        "back_to_register": "Zpět na aktiva",
+        "export": "Export"
     },
     "filters": {
         "search_placeholder": "Hledat podle názvu, typu nebo vlastníka...",
@@ -104,6 +105,34 @@
         "lifecycle_state": {"operational":"V provozu","in_development":"Ve vývoji","being_decommissioned":"Utlumováno","legacy":"Legacy","retired":"Vyřazeno"},
         "review_state": {"review_required":"K revizi","reviewed":"Zkontrolováno"},
         "unknown": "Neznámá hodnota"
+    },
+    "register": {
+        "views": {
+            "all": "Vše",
+            "department": "Podle útvaru",
+            "business_owner": "Podle Business vlastníka",
+            "type": "Podle typu",
+            "criticality": "Podle kritičnosti",
+            "process": "Podle procesu",
+            "vendor": "Podle dodavatele"
+        },
+        "filters": {
+            "add": "Filtry", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše",
+            "remove": "Odebrat filtr {{label}}", "lifecycle": "Životní cyklus", "department": "Vlastnický útvar",
+            "business_owner": "Business vlastník", "ict_owner": "ICT vlastník", "asset_type": "Typ aktiva",
+            "asset_level": "Úroveň aktiva", "deployment_model": "Model nasazení", "criticality": "Výsledná kritičnost",
+            "cif": "Podpora CIF", "legacy": "Legacy systém", "spof": "SPOF", "external_dependency": "Externí závislost",
+            "gdpr_relevance": "GDPR relevance", "ai_relevance": "AI relevance", "internet_exposed": "Vystavení internetu",
+            "data_classification": "Klasifikace dat", "completeness": "Úplnost", "lifecycle_state": "Stav životního cyklu",
+            "linked_process": "Propojený proces", "linked_asset": "Propojené aktivum", "linked_vendor": "Propojený dodavatel", "linked_risk": "Propojené riziko",
+            "search_options": "Hledat ve viditelných možnostech...", "search_options_for": "Hledat možnosti {{label}}", "no_options": "Žádné viditelné možnosti"
+        },
+        "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Všechny záznamy" },
+        "boolean": { "any": "Libovolné", "yes": "Ano", "no": "Ne" },
+        "groups": {
+            "unassigned": "Nepřiřazeno", "unclassified": "Bez klasifikace", "no_linked_process": "Bez propojeného procesu", "no_linked_vendor": "Bez propojeného dodavatele"
+        },
+        "export": { "title": "Export odpovídajících aktiv" }
     },
     "links": {
         "add": "Propojit",

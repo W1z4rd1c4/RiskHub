@@ -564,7 +564,7 @@ async def test_register_listing_filters_assets_by_derived_criticality(
         )
 
         response = await client.get(
-            "/api/v1/assets", params={"criticality": "Kritická"}
+            "/api/v1/assets", params={"criticality": "critical"}
         )
 
     assert response.status_code == 200, response.text
@@ -1158,7 +1158,7 @@ async def test_risk_manager_seed_grants_full_asset_maintenance(
         ).status_code == 200
 
         listing = (await client.get("/api/v1/assets")).json()
-        assert listing["capabilities"] == {"can_create": True}
+        assert listing["capabilities"] == {"can_create": True, "can_export": True}
 
         # Link maintenance is part of asset maintenance.
         process = (
@@ -1219,7 +1219,7 @@ async def test_employee_reads_assets_but_cannot_maintain_them(
     async with client_factory(user=test_user_employee) as client:
         listing = await client.get("/api/v1/assets")
         assert listing.status_code == 200
-        assert listing.json()["capabilities"] == {"can_create": False}
+        assert listing.json()["capabilities"] == {"can_create": False, "can_export": True}
 
         detail = await client.get(f"/api/v1/assets/{seeded['id']}")
         assert detail.status_code == 200

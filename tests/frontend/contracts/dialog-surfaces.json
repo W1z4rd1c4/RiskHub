@@ -41,6 +41,7 @@
     { "id": "approval-resolution.approvals-page", "component": "ApprovalResolutionDialog", "file": "frontend/src/pages/ApprovalsPage.tsx", "verificationCaseId": "owner.approval-resolution-dialog" },
     { "id": "confirm.approvals-page", "component": "ConfirmDialog", "file": "frontend/src/pages/ApprovalsPage.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "confirm.asset-detail", "component": "ConfirmDialog", "file": "frontend/src/pages/AssetDetailPage.tsx", "verificationCaseId": "owner.confirm-dialog" },
+    { "id": "export.assets-page", "component": "ExportDialog", "file": "frontend/src/pages/AssetsPage.tsx", "verificationCaseId": "owner.export-dialog" },
     { "id": "execution-log.control-detail", "component": "ExecutionLogModal", "file": "frontend/src/pages/ControlDetailPage.tsx", "verificationCaseId": "owner.execution-log-modal" },
     { "id": "archive.control-detail", "component": "ArchiveConfirmDialog", "file": "frontend/src/pages/ControlDetailPage.tsx", "verificationCaseId": "owner.archive-confirm-dialog" },
     { "id": "export.controls-page", "component": "ExportDialog", "file": "frontend/src/pages/ControlsPage.tsx", "verificationCaseId": "owner.export-dialog" },

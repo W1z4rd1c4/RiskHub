@@ -6,6 +6,7 @@ import type {
     IctCommitteeRiskBandCounts,
     IctRoiGapRow,
 } from '@/types/ictRegisterCommittee';
+import { canonicalAssetCriticality } from '@/pages/shared/ictRegisterSemanticFilters';
 
 // Presentation helpers for the ICT Risk Committee page (issue #51). The five
 // conditional-formatting blocks of 18_CRO_přehled (tile inventory §5(1)) are
@@ -150,7 +151,7 @@ const STATE_TILE_PATHS: Record<keyof IctCommitteeRegisterState, string> = {
 const METRIC_PATHS: Record<keyof IctCommitteeKeyMetrics, string> = {
     cif_process_count: filteredRegisterPath('/processes', { cif: true }),
     processes_without_impact_assessment_count: dqCheckPath('DQ-04'),
-    critical_asset_count: filteredRegisterPath('/assets', { criticality: 'Kritická' }),
+    critical_asset_count: filteredRegisterPath('/assets', { criticality: 'critical' }),
     critical_vendor_count: filteredRegisterPath('/vendors', { tier: 'critical' }),
     risks_above_tolerance_count: filteredRegisterPath('/risks', { above_tolerance: true }),
     open_dq_finding_count: DQ_FINDINGS_PATH,
@@ -204,7 +205,7 @@ export function migrationDrilldownPath(grossBand: string, netBand: string): stri
 }
 
 export function assetCriticalityDrilldownPath(band: string): string {
-    return filteredRegisterPath('/assets', { criticality: band });
+    return filteredRegisterPath('/assets', { criticality: canonicalAssetCriticality(band) ?? band });
 }
 
 export function riskBandDrilldownPath(band: string, score: 'gross' | 'net'): string {

@@ -10,7 +10,45 @@ export const assetCapabilitiesSchema = passthroughObject({
 });
 
 export const assetListCapabilitiesSchema = passthroughObject({
-    can_create: z.boolean().optional(),
+    can_create: z.boolean(),
+    can_export: z.boolean(),
+});
+
+export const assetFacetOptionSchema = passthroughObject({
+    value: z.string(),
+    label: z.string(),
+    count: z.number(),
+    disabled: z.boolean(),
+    selected: z.boolean(),
+});
+
+export const assetFacetsSchema = passthroughObject({
+    lifecycle: z.array(assetFacetOptionSchema).optional(),
+    department: z.array(assetFacetOptionSchema).optional(),
+    business_owner: z.array(assetFacetOptionSchema).optional(),
+    ict_owner: z.array(assetFacetOptionSchema).optional(),
+    asset_type: z.array(assetFacetOptionSchema).optional(),
+    asset_level: z.array(assetFacetOptionSchema).optional(),
+    deployment_model: z.array(assetFacetOptionSchema).optional(),
+    criticality: z.array(assetFacetOptionSchema).optional(),
+    cif: z.array(assetFacetOptionSchema).optional(),
+    legacy: z.array(assetFacetOptionSchema).optional(),
+    spof: z.array(assetFacetOptionSchema).optional(),
+    external_dependency: z.array(assetFacetOptionSchema).optional(),
+    gdpr_relevance: z.array(assetFacetOptionSchema).optional(),
+    ai_relevance: z.array(assetFacetOptionSchema).optional(),
+    internet_exposed: z.array(assetFacetOptionSchema).optional(),
+    data_classification: z.array(assetFacetOptionSchema).optional(),
+    is_complete: z.array(assetFacetOptionSchema).optional(),
+    lifecycle_state: z.array(assetFacetOptionSchema).optional(),
+});
+
+export const assetLookupOptionSchema = passthroughObject({
+    id: z.number(),
+    label: z.string(),
+    secondary_label: z.string().nullable().optional(),
+    disabled: z.boolean(),
+    count: z.number().nullable().optional(),
 });
 
 export const assetOwnerReadSchema = passthroughObject({
@@ -142,6 +180,7 @@ export const assetSchema: z.ZodType<Asset> = passthroughObject({
 export const assetListResponseSchema: z.ZodType<AssetListResponse> =
     collectionPaginationSchema(assetSchema).extend({
         capabilities: assetListCapabilitiesSchema.nullable().optional(),
+        facets: assetFacetsSchema.nullable().optional(),
     });
 
 export const processAssetLinkSchema: z.ZodType<ProcessAssetLink> = passthroughObject({

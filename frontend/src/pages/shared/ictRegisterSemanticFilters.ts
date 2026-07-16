@@ -27,6 +27,28 @@ function textValue(params: URLSearchParams, key: string): string | undefined {
     return params.get(key)?.trim() || undefined;
 }
 
+const ASSET_CRITICALITY_CODES: Readonly<Record<string, string>> = {
+    low: 'low',
+    Low: 'low',
+    'Nízká': 'low',
+    medium: 'medium',
+    Medium: 'medium',
+    'Střední': 'medium',
+    high: 'high',
+    High: 'high',
+    'Vysoká': 'high',
+    critical: 'critical',
+    Critical: 'critical',
+    'Kritická': 'critical',
+};
+
+/** Keep legacy committee links working while requests use canonical Asset codes. */
+export function canonicalAssetCriticality(value: string | undefined): string | undefined {
+    if (!value) return undefined;
+    const normalized = value.trim();
+    return ASSET_CRITICALITY_CODES[normalized] ?? normalized;
+}
+
 function scoreValue(params: URLSearchParams, key: string): number | undefined {
     const value = Number(params.get(key));
     return Number.isInteger(value) && value >= 1 && value <= 5 ? value : undefined;
@@ -39,7 +61,7 @@ export function parseProcessSemanticFilters(params: URLSearchParams): ProcessSem
 export function parseAssetSemanticFilters(params: URLSearchParams): AssetSemanticFilters {
     return {
         has_process_link: trueValue(params, 'has_process_link'),
-        criticality: textValue(params, 'criticality'),
+        criticality: canonicalAssetCriticality(textValue(params, 'criticality')),
     };
 }
 

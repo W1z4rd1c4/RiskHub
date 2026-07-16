@@ -1,10 +1,10 @@
 ---
 title: Managing Assets
-version: "2.5"
-last_updated: "2026-07-15"
+version: "2.6"
+last_updated: "2026-07-16"
 audience: user
-source_of_truth: "frontend/src/pages/AssetsPage.tsx + frontend/src/pages/AssetDetailPage.tsx + backend/app/services/_ict_register_lifecycle/asset_lifecycle.py"
-summary: "User guide for Asset responsibility, canonical values, derived results, links, and governed reassignment."
+source_of_truth: "frontend/src/pages/AssetsPage.tsx + frontend/src/pages/assets/ + backend/app/services/_register_listings/assets.py + backend/app/services/_ict_register_lifecycle/asset_lifecycle.py"
+summary: "User guide for the shared Asset register, responsibility, canonical values, derived results, links, export, and governed reassignment."
 tags:
   - workflow
   - governance
@@ -28,13 +28,17 @@ Collect confidentiality, integrity, availability, and authenticity ratings on th
 
 ## Where To Find It
 
-Open **Assets** in the sidebar. Search by name, type, either owner, or Owning Department. Select a row for details. Actions follow backend capabilities.
+Open **Assets** in the sidebar. The register opens in **All** with active Assets. Search by name, alternative name, type, either owner, Owning Department, or physical location. Select a row for details. Actions follow backend capabilities.
+
+Use **All** for the ordinary paginated table. The other six views group the same visible result set as **By Department**, **By Business Owner**, **By Type**, **By Criticality**, **By Process**, or **By Vendor**. Select a group card to drill into its Assets and return to the summary when finished. An Asset can appear in more than one Process or Vendor group when it has multiple visible relationships. Unassigned, unclassified, and unlinked records use safe named buckets instead of raw identifiers.
 
 ## What You Can See and Change
 
 The detail shows both owner names and safe role/Department context, but hides their email addresses and internal numeric IDs. The Owning Department appears independently by name and code. Asset value, resulting criticality, CIF, SPOF, completeness, and graph summaries are derived and read-only.
 
-The register normally starts with active Assets. Archived Assets appear only when the archived population is selected or a committee-scoped route intentionally includes history. Search narrows only the records already visible to your account; it never expands scope. Links to Processes, other Assets, Vendors, and Risks also apply the counterpart domain’s permissions. Owning or maintaining an Asset does not automatically reveal a restricted Vendor or Risk.
+The register starts with active Assets. Select the archived lifecycle population when history is needed. Search and filters narrow only records already visible to your account; they never expand scope. Links to Processes, other Assets, Vendors, and Risks also apply the counterpart domain’s permissions. Owning or maintaining an Asset does not automatically reveal a restricted Vendor or Risk.
+
+The backend declares whether **New Asset**, **Export**, and each row action are available. A Business Owner, ICT Owner, or manager of the Owning Department may receive record-specific access without gaining general Asset administration. Export requires the reporting capability. Archive and restore remain separate privileged actions. A pending ownership-governance state is shown independently from active/archived lifecycle and can lock ordinary changes without changing the operational record.
 
 Controlled values are stable language-neutral codes. English and Czech screens localize them. Czech workbook labels are accepted only by the import mapping and are rejected by normal API writes.
 
@@ -66,9 +70,19 @@ Use Activity Log when you need to establish who created, updated, archived, rest
 
 ## Finding, Filtering, and Evidence
 
-Record the Asset name, localized type/lifecycle, both owner names and safe context, Owning Department name/code, entered ratings, derived result, and relevant links. Email is picker metadata only, not detail evidence.
+Add filters for lifecycle, Owning Department, Business Owner, ICT Owner, Asset type, Asset level, deployment model, resulting criticality, CIF support, lifecycle state, legacy state, SPOF, external dependency, GDPR relevance, AI relevance, internet exposure, data classification, completeness, Linked Process, Linked Asset, Linked Vendor, and Linked Risk. The existing Process-link presence quick filter remains compatible.
 
-When investigating derived criticality, capture the engine’s explanation inputs, primary Process, linked Process count, score bands, and reference date. When investigating completeness, use the displayed list of missing inputs instead of inferring blanks from screenshots. Confirm whether the evidence represents the active-only register or a committee/history population.
+Different fields are combined with **AND**. Multiple choices inside one field are combined with **OR**. Yes/No fields also support **Any**. Search is additionally combined with the selected filters. Facets and remote owner/entity lookups are permission scoped; valid controlled codes with no current results remain visible but disabled, while hidden entity labels and counts are never disclosed.
+
+Search, view, sort, filters, and the selected group are stored in the URL, so a copied link or browser Back/Forward restores the same register state. Changing a filter, search, view, sort, or group returns pagination to page one; page number itself is not persisted. Unrelated navigation parameters may remain in the browser URL, but they are not Asset filters and are not forwarded to the Asset API or export.
+
+**Clear all** removes user-added filters without broadening authorization. Loading, empty, retryable-error, and access-denied states are distinct. View and filter controls are labelled and keyboard operable. A denied or failed request does not leave stale Asset rows or group counts visible.
+
+When **Export** is available, it uses the same visible search, filters, sort, view, and selected group as the register. It includes every matching visible Asset independently of the current page and contains canonical codes with localized labels. The formal DORA Register of Information export is a separate governed report.
+
+For evidence, record the Asset name, localized type/lifecycle, both owner names and safe context, Owning Department name/code, active filters or selected group, entered ratings, derived result, and relevant links. Email is picker metadata only, not detail evidence. State whether evidence came from the active or archived population.
+
+When investigating derived criticality, capture the engine’s explanation inputs, primary Process, linked Process count, score bands, and reference date. When investigating completeness, use the displayed list of missing inputs instead of inferring blanks from screenshots.
 
 ## Tips and Common Mistakes
 

@@ -8,6 +8,8 @@ Business/service-layer logic for `_register_listings`.
 
 - `__init__.py`
 - `__pycache__/`
+- `assets.py` — permission-scoped Asset filter, facet, grouping, lookup,
+  pagination, and standard-export query plan.
 - `controls.py`
 - `issues.py`
 - `kris.py`
