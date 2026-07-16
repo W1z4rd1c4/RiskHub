@@ -178,6 +178,12 @@
     "critical_only_clear": "Critical Only (click to clear)",
     "breached_only_clear": "Breached Only (click to clear)"
   },
+  "register": {
+    "views": { "all": "All", "category": "By Category", "department": "By Department", "process": "By Process", "risk_type": "By Risk Type", "vendor": "By Vendor" },
+    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "has_breach": "KRI breach", "critical": "Critical risk" },
+    "lifecycle": { "active": "Active", "archived": "Archived", "all": "All" },
+    "export": { "title": "Export filtered risks" }
+  },
   "grouping": {
     "unlinked_vendor": "Unlinked Vendor"
   },

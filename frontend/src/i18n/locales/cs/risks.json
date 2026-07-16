@@ -178,6 +178,12 @@
     "critical_only_clear": "Pouze kritické (kliknutím zrušíte)",
     "breached_only_clear": "Pouze překročené (kliknutím zrušíte)"
   },
+  "register": {
+    "views": { "all": "Vše", "category": "Podle kategorie", "department": "Podle oddělení", "process": "Podle procesu", "risk_type": "Podle typu rizika", "vendor": "Podle dodavatele" },
+    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "has_breach": "Překročení KRI", "critical": "Kritické riziko" },
+    "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Vše" },
+    "export": { "title": "Export filtrovaných rizik" }
+  },
   "grouping": {
     "unlinked_vendor": "Bez propojeného dodavatele"
   },

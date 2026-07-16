@@ -23,9 +23,8 @@ describe('Controls page presentation helpers', () => {
             offset: 20,
             limit: 20,
             search: 'evidence',
-            status: 'archived',
+            lifecycle: 'archived',
             monitoring_status: undefined,
-            include_archived: true,
             group_by: undefined,
             group_value: undefined,
         });
@@ -43,9 +42,8 @@ describe('Controls page presentation helpers', () => {
             offset: 0,
             limit: 20,
             search: 'passed',
-            status: undefined,
+            lifecycle: 'active',
             monitoring_status: 'passed',
-            include_archived: false,
             group_by: undefined,
             group_value: undefined,
         });

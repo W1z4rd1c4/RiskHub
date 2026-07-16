@@ -85,6 +85,7 @@ export function normalizeCollectionResponse<TItem, TCapabilities extends object 
     response: CollectionListResponse<TItem, TCapabilities> & LegacyPaginationFields
 ): CollectionListResponse<TItem, TCapabilities> {
     return {
+        ...response,
         items: response.items,
         total: response.total,
         offset: normalizeCollectionOffset(response),

@@ -12,6 +12,7 @@ from app.services._collection_contracts import (
     LoadSqlGroups,
     LoadTotal,
     QueryTransform,
+    execute_collection_export_with_definition,
     execute_collection_listing_with_definition,
 )
 
@@ -40,6 +41,7 @@ def build_register_listing_plan(
     build_sql_group_filter: BuildSqlGroupFilter | None = None,
     sql_group_query_transform: QueryTransform | None = None,
     build_in_memory_grouped_page: BuildInMemoryGroupedPage[TItem] | None = None,
+    facets: dict[str, Any] | None = None,
 ) -> RegisterListingPlan[TModel, TItem]:
     return RegisterListingPlan(
         ordered_query=ordered_query,
@@ -54,6 +56,7 @@ def build_register_listing_plan(
             build_sql_group_filter=build_sql_group_filter,
             sql_group_query_transform=sql_group_query_transform,
             build_in_memory_grouped_page=build_in_memory_grouped_page,
+            facets=facets,
         ),
     )
 
@@ -68,6 +71,20 @@ async def execute_register_listing_plan(
     return await execute_collection_listing_with_definition(
         db=db,
         response_model=response_model,
+        query=query,
+        ordered_query=plan.ordered_query,
+        definition=plan.listing_definition,
+    )
+
+
+async def execute_register_listing_export(
+    *,
+    db: Any,
+    query: CollectionQuery,
+    plan: RegisterListingPlan[TModel, TItem],
+) -> list[TItem]:
+    return await execute_collection_export_with_definition(
+        db=db,
         query=query,
         ordered_query=plan.ordered_query,
         definition=plan.listing_definition,

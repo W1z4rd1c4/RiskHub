@@ -4,7 +4,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field, computed_field, field_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
-from app.schemas.collection import CollectionGroupRead
+from app.schemas.collection import CollectionFacetOption, CollectionGroupRead
 from app.schemas.execution import ExecutionResultEnum
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import ControlMonitoringReason, ControlMonitoringStatus
@@ -258,6 +258,7 @@ class ControlListResponse(BaseModel):
     limit: int
     groups: list[CollectionGroupRead] | None = None
     capabilities: ControlListCapabilities | None = None
+    facets: dict[str, list[CollectionFacetOption]] = Field(default_factory=dict)
 
     @computed_field
     def skip(self) -> int:

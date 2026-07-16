@@ -16,3 +16,14 @@ class CollectionGroupRead(BaseModel):
     active_count: int | None = None
     highlighted_count: int | None = None
     meta: dict[str, Any] = Field(default_factory=dict)
+
+
+class CollectionFacetOption(BaseModel):
+    """Permission-scoped option exposed by a register collection."""
+
+    value: str
+    label: str
+    count: int = Field(ge=0)
+    selected: bool = False
+    disabled: bool = False
+    meta: dict[str, Any] = Field(default_factory=dict)

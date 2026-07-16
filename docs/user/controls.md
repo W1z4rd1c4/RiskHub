@@ -1,7 +1,7 @@
 ---
 title: Managing Controls
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.2, §4, §7 + frontend/src/pages/ControlsPage.tsx"
 summary: "Full manual for control lifecycle management: design, ownership, execution logging, linkage to risks, exports, and approval-aware governance."
@@ -102,16 +102,31 @@ If you receive a stale or rejected approval, do not immediately resubmit the sam
 
 ## Finding, Filtering, and Evidence
 
-Filter by owner, department, status, vendor, or linked risk before export. For audits, include both the control definition and the most recent execution evidence.
+The Control register now follows the shared register-list interaction used across the ICT Register. With no list state in the URL, it opens in **All** with active Controls and the backend's deterministic business-key order. Existing monitoring-status quick filters remain available. Use grouped views for Category, Department, Process, Risk type, Risk, or Vendor; a Control can appear in every applicable readable relationship group.
+
+Search, view, sort, filters, and the selected group are addressable in the URL. Browser Back and Forward restore the working view, and a copied URL can reopen it for another User who has access to the same records. Page number is intentionally temporary and is not restored; changing a filter returns the list to page 1. Unknown URL parameters are preserved for safe navigation but are not sent to the API or export.
+
+Filters combine predictably: different fields use **AND**, multiple values in one field use **OR** where a filter allows them, and search is additionally ANDed. Use an individual filter chip to remove one condition, or **Clear all** to return to the active-record baseline without clearing search. Filter choices, counts, and relationship groups come from the backend's permission-scoped visible universe, so a missing option can reflect access rather than missing data.
+
+Lifecycle describes whether a record is live or archived; Control status (`Draft`, `Active`, or `Inactive`) and monitoring status are separate operational fields. They combine with AND. For example, Lifecycle **All** plus Control status **Inactive** plus monitoring status **Failed** means failed inactive Controls across live and archived records. Lifecycle **Archived** applies the same status criteria only to archived records. Every visible chip is sent to the list and **Current register view** export.
+
+Filter by lifecycle, monitoring status, domain status, Process, or category before export; use the Department, Risk, or Vendor views for those relationship contexts. For audits, include both the Control definition and execution evidence. **Export** appears only when the backend grants the collection capability. The dialog makes two different evidence purposes explicit:
+
+- **Current register view** is the default. It exports every matching readable Control under the current search, filters, sort, view, and selected group. It never limits the result to the current page, and it does not ask for a date.
+- **Point-in-time audit snapshot** asks for an as-of date and uses the historical report contract. Choose it when audit evidence must show the Control register as of a specific day. Its mature CSV schema retains the Control definition plus Monitoring Status, Latest Execution Result, Latest Executed At, Days Since Last Execution, and linked-Risk evidence; it is not a grouped-view export.
+
+Use **Current register view** for operational evidence that must match what you have narrowed on screen. Use **Point-in-time audit snapshot** for date-stamped audit evidence with the mature execution columns. Do not treat the two files as interchangeable.
 
 For reliable results, filter in this order:
 
 1. Start broad enough to confirm the record exists.
 2. Narrow by department, owner, status, vendor, or date.
 3. Open a sample record to confirm the filter matches your intent.
-4. Export only the filtered view needed for the review.
+4. Choose Current register view or Point-in-time audit snapshot deliberately, then export only the evidence needed for the review.
 
 Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
+
+Archived Controls stay outside the default active list. Select the archived lifecycle filter to review them. Restore is shown only when the row capability permits it; archive and restore authority is not inferred from whether the row is visible.
 
 ## Tips and Common Mistakes
 

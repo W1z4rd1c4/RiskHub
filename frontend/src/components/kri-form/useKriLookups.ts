@@ -63,7 +63,7 @@ export function useKriLookups({
                     department_id: selectedDeptId ? parseInt(selectedDeptId, 10) : undefined,
                     process: selectedProcess || undefined,
                     category: selectedCategory || undefined,
-                    include_archived: false,
+                    lifecycle: 'active',
                 });
                 setGenericRisks(response?.items ?? []);
             } catch {

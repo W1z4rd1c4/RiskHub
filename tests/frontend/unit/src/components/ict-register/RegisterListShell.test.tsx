@@ -106,6 +106,25 @@ describe('RegisterListShell', () => {
         expect(onSelectGroup).toHaveBeenCalledWith('owner:7', 'Alice');
     });
 
+    it('renders domain group metadata without duplicating the group shell', () => {
+        renderShell({
+            view: 'owner',
+            items: [],
+            totalCount: 1,
+            totalPages: 1,
+            grouping: {
+                groups: [{ value: 'owner:7', label: 'Alice', count: 1, meta: { role: 'Risk owner' } }],
+                onBack: vi.fn(),
+                onSelectGroup: vi.fn(),
+                renderGroupBody: (group) => <span>{String(group.meta?.role)}</span>,
+                selectedGroupLabel: null,
+                selectedGroupValue: null,
+            },
+        });
+
+        expect(screen.getByText('Risk owner')).toBeInTheDocument();
+    });
+
     it('shows the table loading contract while a selected group replaces prior summary groups', () => {
         const grouping = {
             groups: [{ value: 'owner:7', label: 'Alice', count: 1 }],
@@ -198,5 +217,94 @@ describe('RegisterListShell', () => {
         );
         expect(screen.getByText('Access denied')).toBeInTheDocument();
         expect(screen.queryByTestId('processes-register-shell')).not.toBeInTheDocument();
+    });
+
+    it('keeps last-good rows visible behind the shared retry banner', () => {
+        renderShell({ isError: true, errorMessage: 'Refresh failed' });
+
+        expect(screen.getByText('Claims')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent('Refresh failed');
+    });
+
+    it('keeps last-good group cards visible behind one shared retry banner', () => {
+        const onRetry = vi.fn();
+        renderShell({
+            view: 'owner',
+            items: [],
+            isError: true,
+            errorMessage: 'Grouped refresh failed',
+            onRetry,
+            grouping: {
+                groups: [{ value: 'owner:7', label: 'Alice', count: 1 }],
+                onBack: vi.fn(),
+                onSelectGroup: vi.fn(),
+                selectedGroupLabel: null,
+                selectedGroupValue: null,
+            },
+        });
+
+        expect(screen.getByTestId('register-group-card')).toHaveTextContent('Alice');
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+        expect(screen.getByRole('alert')).toHaveTextContent('Grouped refresh failed');
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(onRetry).toHaveBeenCalledOnce();
+    });
+
+    it('keeps last-good selected-group rows visible behind one shared retry banner', () => {
+        renderShell({
+            view: 'owner',
+            isError: true,
+            errorMessage: 'Selected group refresh failed',
+            grouping: {
+                groups: [{ value: 'owner:7', label: 'Alice', count: 1 }],
+                onBack: vi.fn(),
+                onSelectGroup: vi.fn(),
+                selectedGroupLabel: 'Alice',
+                selectedGroupValue: 'owner:7',
+            },
+        });
+
+        expect(screen.getByText('Claims')).toBeInTheDocument();
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+        expect(screen.getByRole('alert')).toHaveTextContent('Selected group refresh failed');
+    });
+
+    it('distinguishes an initial grouped failure from a successful empty result', () => {
+        const grouping = {
+            groups: [],
+            onBack: vi.fn(),
+            onSelectGroup: vi.fn(),
+            selectedGroupLabel: null,
+            selectedGroupValue: null,
+        };
+        const { rerender } = renderShell({
+            view: 'owner',
+            items: [],
+            totalCount: 0,
+            totalPages: 1,
+            isError: true,
+            errorMessage: 'Initial grouped load failed',
+            grouping,
+        });
+
+        expect(screen.getByRole('alert')).toHaveTextContent('Initial grouped load failed');
+        expect(screen.queryByText('No processes')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('register-group-card')).not.toBeInTheDocument();
+
+        rerender(
+            <MemoryRouter>
+                <RegisterListShell<Row, View>
+                    {...baseProps()}
+                    view="owner"
+                    items={[]}
+                    totalCount={0}
+                    totalPages={1}
+                    grouping={grouping}
+                />
+            </MemoryRouter>,
+        );
+
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.getByText('No processes')).toBeInTheDocument();
     });
 });

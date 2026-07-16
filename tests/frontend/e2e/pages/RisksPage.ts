@@ -2,7 +2,7 @@
  * Risks Page Object Model
  * Handles Risk list and interaction operations
  */
-import { expect, Locator, Page } from '@playwright/test';
+import { expect, Locator, Page, type Response } from '@playwright/test';
 import { waitForDataLoad, waitForTableRows } from '../helpers/wait';
 import { matchesCollectionResponse } from './collectionResponse';
 
@@ -35,7 +35,7 @@ export class RisksPage {
     }
 
     get statusSelectTrigger(): Locator {
-        return this.page.getByTestId('risks-status-filter-trigger');
+        return this.page.getByTestId('risks-lifecycle-filter-trigger');
     }
 
     get exportButton(): Locator {
@@ -46,19 +46,23 @@ export class RisksPage {
         return this.page.getByTestId('risks-export-dialog');
     }
 
-    get exportFormatTrigger(): Locator {
-        return this.page.getByTestId('export-format-trigger');
-    }
-
     get exportDateInput(): Locator {
         return this.page.getByTestId('export-date-input');
+    }
+
+    get currentViewExportPurpose(): Locator {
+        return this.page.getByTestId('export-purpose-current-view');
+    }
+
+    get pointInTimeExportPurpose(): Locator {
+        return this.page.getByTestId('export-purpose-point-in-time');
     }
 
     get paginationControls(): Locator {
         return this.page.locator('[class*="pagination"], nav[aria-label*="pagination"]');
     }
 
-    private async waitForRisksResponse(expected: { search?: string; status?: string } = {}): Promise<void> {
+    private async waitForRisksResponse(expected: { lifecycle?: string; search?: string; status?: string } = {}): Promise<void> {
         await this.page.waitForResponse(
             (response) => matchesCollectionResponse(response, '/api/v1/risks', expected),
             { timeout: 15000 },
@@ -147,37 +151,57 @@ export class RisksPage {
         await expect(this.exportDialog).toBeVisible();
     }
 
-    async chooseExportFormat(format: 'csv'): Promise<void> {
-        if (format !== 'csv') {
-            throw new Error('Only CSV export is supported');
-        }
-    }
-
     async setExportDate(date: string): Promise<void> {
         await this.exportDateInput.fill(date);
     }
 
-    async submitExport(format: 'csv' = 'csv'): Promise<void> {
-        await Promise.all([
+    async selectCurrentViewExport(): Promise<void> {
+        await this.currentViewExportPurpose.check();
+        await expect(this.currentViewExportPurpose).toBeChecked();
+        await expect(this.exportDateInput).not.toBeVisible();
+    }
+
+    async selectPointInTimeExport(): Promise<void> {
+        await this.pointInTimeExportPurpose.check();
+        await expect(this.pointInTimeExportPurpose).toBeChecked();
+        await expect(this.exportDateInput).toBeVisible();
+    }
+
+    async submitCurrentViewExport(): Promise<Response> {
+        const [response] = await Promise.all([
+            this.page.waitForResponse((response) => (
+                response.request().method() === 'GET'
+                && new URL(response.url()).pathname === '/api/v1/risks/export'
+            ), { timeout: 20000 }),
+            this.page.getByTestId('export-submit-button').click(),
+        ]);
+        return response;
+    }
+
+    async submitPointInTimeExport(format: 'csv' = 'csv'): Promise<Response> {
+        const asOfDate = await this.exportDateInput.inputValue();
+        const [response] = await Promise.all([
             this.page.waitForResponse((response) => {
                 if (response.request().method() !== 'GET') return false;
-                if (!response.url().includes('/api/v1/reports/risks/export')) return false;
+                if (new URL(response.url()).pathname !== '/api/v1/reports/risks/export') return false;
                 try {
                     const url = new URL(response.url());
-                    return (url.searchParams.get('format') || '').toLowerCase() === format;
+                    return (url.searchParams.get('format') || '').toLowerCase() === format
+                        && url.searchParams.get('as_of_date') === asOfDate;
                 } catch {
                     return false;
                 }
             }, { timeout: 20000 }),
             this.page.getByTestId('export-submit-button').click(),
         ]);
+        return response;
     }
 
     async setStatusFilterArchived(): Promise<void> {
         await this.statusSelectTrigger.click();
         await Promise.all([
-            this.waitForRisksResponse({ status: 'archived' }),
-            this.page.getByTestId('risks-status-filter-option-archived').click(),
+            this.waitForRisksResponse({ lifecycle: 'archived' }),
+            this.page.getByTestId('risks-lifecycle-filter-option-archived').click(),
         ]);
         await waitForDataLoad(this.page);
     }

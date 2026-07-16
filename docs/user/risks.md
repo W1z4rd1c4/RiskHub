@@ -1,7 +1,7 @@
 ---
 title: Managing Risks
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.1, §6, §7 + frontend/src/pages/RisksPage.tsx"
 summary: "Full manual for building and operating a high-quality risk register: scoring, ownership, scope rules, control linkage, exports, and approval-aware edits."
@@ -105,16 +105,31 @@ If you receive a stale or rejected approval, do not immediately resubmit the sam
 
 ## Finding, Filtering, and Evidence
 
-Use list filters, grouped views, and the detail page to confirm the exact risks you need before exporting. Include links to controls, KRIs, and vendors when the evidence needs context.
+The Risk register now follows the shared register-list interaction used across the ICT Register. With no list state in the URL, it opens in **All** with active Risks and the backend's deterministic business-key order. The existing Risk quick filters remain available, including Risk type, Priority only, Critical only, and KRI breach context. Use the grouped views for Category, Department, Process, Risk type, or Vendor; a Risk can appear in every applicable readable relationship group.
+
+Search, view, sort, filters, and the selected group are addressable in the URL. This means browser Back and Forward restore the working view and a copied URL can reopen it for another User who has access to the same records. Page number is intentionally temporary and is not restored; changing a filter returns the list to page 1. Unknown URL parameters are preserved for safe navigation but are not sent to the API or export.
+
+Filters combine predictably: different fields use **AND**, multiple values in one field use **OR** where a filter allows them, and search is additionally ANDed. Use an individual filter chip to remove one condition, or **Clear all** to return to the active-record baseline without clearing search. Filter choices, counts, and relationship groups come from the backend's permission-scoped visible universe, so a missing option can reflect access rather than missing data.
+
+Lifecycle describes whether a record is live or archived; Risk status describes its domain state (`Active` or `Emerging`). They are independent and combine with AND. For example, Lifecycle **All** plus Risk status **Emerging** means emerging Risks across both live and archived records, while Lifecycle **Archived** plus **Emerging** means only archived emerging Risks. Both visible chips are sent to the list and **Current register view** export.
+
+Use lifecycle, Risk status, Risk type, Priority, KRI breach, and Critical filters with grouped views and the detail page to confirm the exact Risks you need before exporting. Include links to Controls, KRIs, and Vendors when the evidence needs context. **Export** appears only when the backend grants the collection capability. The dialog makes two different evidence purposes explicit:
+
+- **Current register view** is the default. It exports every matching readable Risk under the current search, filters, sort, view, and selected group. It never limits the result to the current page, and it does not ask for a date.
+- **Point-in-time audit snapshot** asks for an as-of date and uses the historical report contract. Choose it when audit evidence must show the Risk register as of a specific day. Its mature CSV schema retains Risk ID, scoring, ownership, Department, Control count, and KRI count columns; it is not a grouped-view export.
+
+Use **Current register view** for operational evidence that must match what you have narrowed on screen. Use **Point-in-time audit snapshot** for date-stamped historical evidence. Do not treat the two files as interchangeable.
 
 For reliable results, filter in this order:
 
 1. Start broad enough to confirm the record exists.
 2. Narrow by department, owner, status, vendor, or date.
 3. Open a sample record to confirm the filter matches your intent.
-4. Export only the filtered view needed for the review.
+4. Choose Current register view or Point-in-time audit snapshot deliberately, then export only the evidence needed for the review.
 
 Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
+
+Archived Risks stay outside the default active list. Select the archived lifecycle filter to review them. Restore is shown only when the row capability permits it; archive and restore authority is not inferred from whether the row is visible.
 
 ## Tips and Common Mistakes
 

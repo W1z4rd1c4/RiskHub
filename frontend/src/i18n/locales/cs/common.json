@@ -47,13 +47,29 @@
       "format": "Formát",
       "date": "Stav k datu"
     },
+    "purpose": {
+      "label": "Účel exportu",
+      "current_view": {
+        "title": "Aktuální zobrazení registru",
+        "description": "Exportuje všechny záznamy odpovídající aktuálním filtrům, řazení a vybrané skupině."
+      },
+      "point_in_time": {
+        "title": "Auditní snímek k datu",
+        "description": "Rekonstruuje auditovaný stav registru k vybranému datu."
+      }
+    },
     "formats": {
       "xlsx": "CSV (.csv)",
       "csv": "CSV (.csv)"
     },
     "actions": {
       "submit": "Exportovat",
+      "submit_current": "Exportovat aktuální zobrazení",
+      "submit_snapshot": "Exportovat snímek",
       "cancel": "Zrušit"
+    },
+    "errors": {
+      "failed": "Export se nezdařil. Zkuste to znovu."
     },
     "dora_register": {
       "link": "Stáhnout registr DORA"

@@ -11,15 +11,30 @@ function todayLocalIso(): string {
 }
 
 test.describe('Control Management (Deterministic)', () => {
-    test('Single export button opens modal and exports selected format', async ({ riskManagerPage }) => {
+    test('Export dialog explicitly produces a mature point-in-time snapshot with execution evidence', async ({ riskManagerPage }) => {
         const controlsPage = new ControlsPage(riskManagerPage);
         await controlsPage.navigate();
 
         await expect(riskManagerPage.getByTestId('controls-export-button')).toHaveCount(1);
         await controlsPage.openExportDialog();
-        await expect(controlsPage.exportDateInput).toHaveValue(todayLocalIso());
+        await expect(controlsPage.currentViewExportPurpose).toBeChecked();
+        await expect(controlsPage.exportDateInput).not.toBeVisible();
+        await controlsPage.selectPointInTimeExport();
+        const asOfDate = todayLocalIso();
+        await expect(controlsPage.exportDateInput).toHaveValue(asOfDate);
         // Export dialog is CSV-only; format chooser is intentionally absent.
-        await controlsPage.submitExport('csv');
+        const response = await controlsPage.submitPointInTimeExport('csv');
+        const exportUrl = new URL(response.url());
+        expect(exportUrl.pathname).toBe('/api/v1/reports/controls/export');
+        expect(exportUrl.searchParams.get('format')).toBe('csv');
+        expect(exportUrl.searchParams.get('as_of_date')).toBe(asOfDate);
+        expect(response.headers()['content-type']).toContain('text/csv');
+        const [header] = (await response.text()).split(/\r?\n/, 1);
+        expect(header).toBe([
+            'Name', 'Description', 'Department', 'Owner', 'Frequency', 'Form', 'Risk Level', 'Status',
+            'Monitoring Status', 'Latest Execution Result', 'Latest Executed At', 'Days Since Last Execution',
+            'Linked Risk', 'Linked Risk ID', 'Linked Risks',
+        ].join(','));
         await expect(controlsPage.exportDialog).not.toBeVisible();
     });
 
@@ -36,7 +51,7 @@ test.describe('Control Management (Deterministic)', () => {
         expect(rowVisible).toBe(true);
     });
 
-    test('Archived control visibility follows archived status filter', async ({ riskManagerPage }) => {
+    test('Archived control visibility follows archived lifecycle filter', async ({ riskManagerPage }) => {
         const controlsPage = new ControlsPage(riskManagerPage);
         await controlsPage.navigate();
         await controlsPage.setStatusFilterArchived();

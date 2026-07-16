@@ -66,7 +66,10 @@ describe('useKriLookups', () => {
         const { rerender } = renderLookup(' first ');
 
         await waitFor(() => {
-            expect(getRisks).toHaveBeenCalledWith(expect.objectContaining({ search: 'first' }));
+            expect(getRisks).toHaveBeenCalledWith(expect.objectContaining({
+                lifecycle: 'active',
+                search: 'first',
+            }));
         });
 
         rerender({ debouncedRiskSearch: ' second ' });

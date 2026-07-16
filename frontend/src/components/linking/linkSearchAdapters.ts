@@ -1,9 +1,9 @@
 import { controlApi } from '@/services/controlApi';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
-import type { ControlSummary } from '@/types/control';
+import type { ControlListParams, ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator } from '@/types/kri';
-import type { RiskSummary } from '@/types/risk';
+import type { RiskListParams, RiskSummary } from '@/types/risk';
 
 import type { DepartmentLookup, LinkMode, SearchResultItem } from './linkTypes';
 
@@ -18,17 +18,17 @@ interface SearchLinkTargetsArgs {
     linkedTargetIdSet: Set<number | undefined>;
 }
 
-function buildCollectionParams(args: SearchLinkTargetsArgs): Record<string, string | number | boolean> {
-    const params: Record<string, string | number | boolean> = {
+function buildCollectionParams(args: SearchLinkTargetsArgs): RiskListParams & ControlListParams {
+    const params: RiskListParams & ControlListParams = {
         offset: 0,
         limit: 20,
+        lifecycle: args.includeArchived ? 'all' : 'active',
     };
 
     if (args.searchQuery) params.search = args.searchQuery;
     if (args.selectedDeptId) params.department_id = args.selectedDeptId;
     if (args.selectedProcess) params.process = args.selectedProcess;
     if (args.selectedCategory) params.category = args.selectedCategory;
-    if (args.includeArchived) params.include_archived = true;
 
     return params;
 }

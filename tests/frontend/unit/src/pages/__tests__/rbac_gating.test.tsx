@@ -822,8 +822,8 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Archived Risk');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('risks-status-filter-trigger'));
-        await uiUser.click(screen.getByTestId('risks-status-filter-option-archived'));
+        await uiUser.click(screen.getByTestId('risks-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('risks-lifecycle-filter-option-archived'));
         expect(await screen.findByTestId('risk-unarchive-1')).toBeInTheDocument();
     });
 
@@ -867,8 +867,8 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Archived Risk');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('risks-status-filter-trigger'));
-        await uiUser.click(screen.getByTestId('risks-status-filter-option-archived'));
+        await uiUser.click(screen.getByTestId('risks-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('risks-lifecycle-filter-option-archived'));
         expect(screen.queryByTestId('risk-unarchive-1')).not.toBeInTheDocument();
     });
 
@@ -1049,8 +1049,8 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Archived Control');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('controls-status-filter-trigger'));
-        await uiUser.click(screen.getByTestId('controls-status-filter-option-archived'));
+        await uiUser.click(screen.getByTestId('controls-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('controls-lifecycle-filter-option-archived'));
         expect(await screen.findByTestId('control-unarchive-1')).toBeInTheDocument();
     });
 
@@ -1088,8 +1088,8 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Archived Control');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('controls-status-filter-trigger'));
-        await uiUser.click(screen.getByTestId('controls-status-filter-option-archived'));
+        await uiUser.click(screen.getByTestId('controls-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('controls-lifecycle-filter-option-archived'));
         expect(screen.queryByTestId('control-unarchive-1')).not.toBeInTheDocument();
     });
 

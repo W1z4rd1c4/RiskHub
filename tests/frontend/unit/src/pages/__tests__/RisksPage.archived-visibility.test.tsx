@@ -65,7 +65,7 @@ describe('RisksPage archived visibility', () => {
         clearBootstrapSession();
     });
 
-    it('hides archived risks by default and shows them when status filter is set to Archived', async () => {
+    it('hides archived risks by default and shows them when lifecycle is set to Archived', async () => {
         const user = makeUser();
 
         const activeRisk = {
@@ -98,9 +98,7 @@ describe('RisksPage archived visibility', () => {
             http.get('*/api/v1/risks', ({ request }) => {
                 const url = new URL(request.url);
                 const filters = JSON.parse(url.searchParams.get('filters') ?? '{}') as Record<string, unknown>;
-                const includeArchived = filters.include_archived === true;
-                const status = filters.status;
-                const items = includeArchived || status === 'archived' ? [archivedRisk] : [activeRisk];
+                const items = filters.lifecycle === 'archived' ? [archivedRisk] : [activeRisk];
                 return HttpResponse.json({
                     items,
                     total: items.length,
@@ -116,9 +114,10 @@ describe('RisksPage archived visibility', () => {
         expect(screen.queryByText('Archived Risk')).not.toBeInTheDocument();
 
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('risks-status-filter-trigger'));
-        await uiUser.click(screen.getByTestId('risks-status-filter-option-archived'));
+        await uiUser.click(screen.getByTestId('risks-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('risks-lifecycle-filter-option-archived'));
 
         await screen.findByText('Archived Risk');
     });
+
 });

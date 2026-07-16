@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import String, and_, asc, case, desc, false, func, literal, or_, select
+from sqlalchemy import String, and_, asc, case, desc, false, func, literal, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -45,7 +46,14 @@ from app.services._ict_register_reference.parameters import load_ict_workbook_pa
 from app.services.authorization_capabilities import risk_capabilities
 
 from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan
-from .shared import GROUP_UNCATEGORIZED, GROUP_UNLINKED_VENDOR, parse_prefixed_group_value, visible_vendor_link_context
+from .shared import (
+    GROUP_UNCATEGORIZED,
+    GROUP_UNLINKED_VENDOR,
+    build_facet_options,
+    parse_prefixed_group_value,
+    resolve_register_lifecycle,
+    visible_vendor_link_context,
+)
 
 RISK_BANDS = (RISK_BAND_LOW, RISK_BAND_MEDIUM, RISK_BAND_HIGH, RISK_BAND_CRITICAL)
 RISK_GROUP_UNLINKED_VENDOR = GROUP_UNLINKED_VENDOR
@@ -54,6 +62,14 @@ RISK_GROUP_UNKNOWN_DEPARTMENT = "__unknown_department__"
 RISK_GROUP_NO_PROCESS = "__no_process__"
 RISK_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
 RISK_SQL_GROUPS = {"category", "department", "process", "risk_type", "type", "vendor"}
+
+
+def apply_risk_lifecycle(query, lifecycle: str):
+    if lifecycle == "active":
+        return query.where(archived_clause(Risk, archived=False))
+    if lifecycle == "archived":
+        return query.where(archived_clause(Risk, archived=True))
+    return query
 
 
 @dataclass(frozen=True)
@@ -206,6 +222,190 @@ def risk_in_memory_grouped_page(all_items: list[Any], query, *, critical_risk_mi
     )
 
 
+def _selected_facet_value(value: Any) -> set[str]:
+    if value is None or value == "":
+        return set()
+    if isinstance(value, bool):
+        return {"yes" if value else "no"}
+    return {str(value)}
+
+
+async def _build_risk_facets(
+    db: AsyncSession,
+    *,
+    scoped_ids,
+    filters: dict[str, Any],
+    parameters,
+) -> dict[str, list[Any]]:
+    """Aggregate facets from the caller's readable Risk universe in bounded SQL."""
+
+    breach_ids = (
+        select(KeyRiskIndicator.risk_id.label("risk_id"))
+        .where(KeyRiskIndicator.is_archived.is_(False), kri_breach_condition())
+        .group_by(KeyRiskIndicator.risk_id)
+        .subquery()
+    )
+    linked_ids = (
+        select(RiskProcessLink.risk_id.label("risk_id"))
+        .union(
+            select(RiskAssetLink.risk_id.label("risk_id")),
+            select(VendorRiskLink.risk_id.label("risk_id")),
+        )
+        .subquery()
+    )
+
+    medium_from = cast(int, parameters.value("P_RizStr"))
+    high_from = cast(int, parameters.value("P_RizVys"))
+    critical_from = cast(int, parameters.value("P_RizKrit"))
+    tolerance = cast(int, parameters.value("P_Tolerance"))
+    counts: dict[str, Counter[str]] = {
+        key: Counter()
+        for key in (
+            "status",
+            "department",
+            "risk_type",
+            "category",
+            "process",
+            "is_priority",
+            "has_breach",
+            "ict_linked",
+            "above_tolerance",
+            "response",
+            "gross_probability",
+            "gross_impact",
+            "gross_band",
+            "net_band",
+        )
+    }
+    catalogs: dict[str, dict[str, tuple[str, dict[str, Any]]]] = {key: {} for key in counts}
+
+    status_value = Risk.status
+    response_value = literal("acceptance")
+
+    def yes_no(condition):
+        return case((condition, "yes"), else_="no")
+
+    def band_value(score_column):
+        return case(
+            (score_column >= critical_from, RISK_BAND_CRITICAL),
+            (score_column >= high_from, RISK_BAND_HIGH),
+            (score_column >= medium_from, RISK_BAND_MEDIUM),
+            else_=RISK_BAND_LOW,
+        )
+
+    direct_dimensions = {
+        "status": status_value,
+        "risk_type": Risk.risk_type,
+        "category": Risk.category,
+        "process": Risk.process,
+        "is_priority": yes_no(Risk.is_priority.is_(True)),
+        "above_tolerance": yes_no(Risk.net_score > tolerance),
+        "gross_probability": func.cast(Risk.gross_probability, String),
+        "gross_impact": func.cast(Risk.gross_impact, String),
+        "gross_band": band_value(Risk.gross_score),
+        "net_band": band_value(Risk.net_score),
+    }
+    aggregate_queries = []
+    for facet_key, value_expr in direct_dimensions.items():
+        aggregate_query = (
+            select(
+                literal(facet_key).label("facet_key"),
+                func.cast(value_expr, String).label("value"),
+                func.cast(value_expr, String).label("label"),
+                func.count(func.distinct(Risk.id)).label("count"),
+            )
+            .select_from(Risk)
+            .join(scoped_ids, scoped_ids.c.id == Risk.id)
+            .group_by(value_expr)
+        )
+        if facet_key in {"risk_type", "category", "process"}:
+            aggregate_query = aggregate_query.where(value_expr.is_not(None), value_expr != "")
+        aggregate_queries.append(aggregate_query)
+
+    aggregate_queries.append(
+        select(
+            literal("department").label("facet_key"),
+            func.cast(Risk.department_id, String).label("value"),
+            func.coalesce(Department.name, "Unknown department").label("label"),
+            func.count(func.distinct(Risk.id)).label("count"),
+        )
+        .select_from(Risk)
+        .join(scoped_ids, scoped_ids.c.id == Risk.id)
+        .outerjoin(Department, Department.id == Risk.department_id)
+        .where(Risk.department_id.is_not(None))
+        .group_by(Risk.department_id, Department.name)
+    )
+
+    for facet_key, context_ids in (("has_breach", breach_ids), ("ict_linked", linked_ids)):
+        value_expr = yes_no(context_ids.c.risk_id.is_not(None))
+        aggregate_queries.append(
+            select(
+                literal(facet_key).label("facet_key"),
+                func.cast(value_expr, String).label("value"),
+                func.cast(value_expr, String).label("label"),
+                func.count(func.distinct(Risk.id)).label("count"),
+            )
+            .select_from(Risk)
+            .join(scoped_ids, scoped_ids.c.id == Risk.id)
+            .outerjoin(context_ids, context_ids.c.risk_id == Risk.id)
+            .group_by(value_expr)
+        )
+
+    response_condition = or_(
+        Risk.acceptance_approver.is_not(None),
+        Risk.acceptance_justification.is_not(None),
+        Risk.acceptance_date.is_not(None),
+    )
+    aggregate_queries.append(
+        select(
+            literal("response").label("facet_key"),
+            response_value.label("value"),
+            response_value.label("label"),
+            func.count(func.distinct(Risk.id)).label("count"),
+        )
+        .select_from(Risk)
+        .join(scoped_ids, scoped_ids.c.id == Risk.id)
+        .where(response_condition)
+    )
+
+    for row in (await db.execute(union_all(*aggregate_queries))).all():
+        value = str(row.value)
+        counts[row.facet_key][value] = int(row._mapping["count"] or 0)
+        catalogs[row.facet_key][value] = (str(row.label), {})
+
+    for key, labels in {
+        "status": tuple(value.value for value in RiskStatusEnum),
+        "is_priority": ("yes", "no"),
+        "has_breach": ("yes", "no"),
+        "ict_linked": ("yes", "no"),
+        "above_tolerance": ("yes", "no"),
+        "response": ("acceptance",),
+        "gross_probability": ("1", "2", "3", "4", "5"),
+        "gross_impact": ("1", "2", "3", "4", "5"),
+        "gross_band": RISK_BANDS,
+        "net_band": RISK_BANDS,
+    }.items():
+        catalogs[key].update({label: (label, {}) for label in labels})
+
+    selected_by_key = {
+        "status": _selected_facet_value(filters.get("status")),
+        "department": _selected_facet_value(filters.get("department_id")),
+        "risk_type": _selected_facet_value(filters.get("risk_type")),
+        "category": _selected_facet_value(filters.get("category")),
+        "process": _selected_facet_value(filters.get("process")),
+        "is_priority": _selected_facet_value(filters.get("is_priority")),
+        "has_breach": _selected_facet_value(filters.get("has_breach")),
+        "ict_linked": _selected_facet_value(filters.get("ict_linked")),
+        "above_tolerance": _selected_facet_value(filters.get("above_tolerance")),
+        "response": _selected_facet_value(filters.get("response")),
+        "gross_probability": _selected_facet_value(filters.get("gross_probability")),
+        "gross_impact": _selected_facet_value(filters.get("gross_impact")),
+        "gross_band": _selected_facet_value(filters.get("gross_band")),
+        "net_band": _selected_facet_value(filters.get("net_band")),
+    }
+    return {key: build_facet_options(catalogs[key], counts[key], selected=selected_by_key[key]) for key in counts}
+
+
 def _plan_risk_listing(
     *,
     db: AsyncSession,
@@ -217,6 +417,7 @@ def _plan_risk_listing(
     serialize_items: SerializeItems[Risk, Any],
     total: int,
     critical_risk_min_net_score: int,
+    facets: dict[str, list[Any]],
 ) -> RegisterListingPlan[Risk, Any]:
     vendor_context = None
 
@@ -253,6 +454,7 @@ def _plan_risk_listing(
             query,
             critical_risk_min_net_score=critical_risk_min_net_score,
         ),
+        facets=facets,
     )
 
 
@@ -266,14 +468,21 @@ async def plan_risk_listing(
 
     collection_query = criteria.query
     filter_values = criteria.filters
+    if collection_query.group_by is not None and collection_query.group_by not in RISK_SQL_GROUPS:
+        raise ValidationError("Invalid Risk group_by value")
+    if collection_query.group_value is not None and collection_query.group_by is None:
+        raise ValidationError("Risk group_value requires group_by")
     department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
     status_value = filter_values.get("status")
-    archived_status_filter = str(status_value).lower() == "archived" if status_value is not None else False
-    status = None if archived_status_filter else coerce_optional_enum(RiskStatusEnum, status_value, "status")
+    lifecycle, consumed_legacy_archived_status = resolve_register_lifecycle(filter_values)
+    status = (
+        None
+        if consumed_legacy_archived_status
+        else coerce_optional_enum(RiskStatusEnum, status_value, "status")
+    )
     risk_type = coerce_optional_string("risk_type", filter_values.get("risk_type"))
     is_priority = coerce_optional_bool("is_priority", filter_values.get("is_priority"))
     search = coerce_optional_string("search", filter_values.get("search"))
-    include_archived = coerce_optional_bool("include_archived", filter_values.get("include_archived")) or False
     has_breach = coerce_optional_bool("has_breach", filter_values.get("has_breach"))
     min_net_score = coerce_optional_int("min_net_score", filter_values.get("min_net_score"), min_value=0, max_value=25)
     process = coerce_optional_string("process", filter_values.get("process"))
@@ -300,13 +509,9 @@ async def plan_risk_listing(
     if visibility_clause is not None:
         base_query = base_query.where(visibility_clause)
 
-    if archived_status_filter:
-        base_query = base_query.where(archived_clause(Risk, archived=True))
-    elif status:
+    base_query = apply_risk_lifecycle(base_query, lifecycle)
+    if status:
         base_query = base_query.where(Risk.status == status.value)
-        base_query = base_query.where(archived_clause(Risk, archived=False))
-    elif not include_archived:
-        base_query = base_query.where(archived_clause(Risk, archived=False))
 
     if risk_type:
         base_query = base_query.where(Risk.risk_type == risk_type)
@@ -359,8 +564,8 @@ async def plan_risk_listing(
             Risk.id.in_(linked_ids) if ict_linked else Risk.id.notin_(linked_ids)
         )
 
+    parameters = await load_ict_workbook_parameter_set(db)
     if above_tolerance is not None:
-        parameters = await load_ict_workbook_parameter_set(db)
         tolerance = int(parameters.value("P_Tolerance"))
         base_query = base_query.where(
             Risk.net_score > tolerance if above_tolerance else Risk.net_score <= tolerance
@@ -383,7 +588,6 @@ async def plan_risk_listing(
         base_query = base_query.where(Risk.gross_impact == gross_impact)
 
     if gross_band is not None or net_band is not None:
-        parameters = await load_ict_workbook_parameter_set(db)
         medium_from = int(parameters.value("P_RizStr"))
         high_from = int(parameters.value("P_RizVys"))
         critical_from = int(parameters.value("P_RizKrit"))
@@ -411,6 +615,20 @@ async def plan_risk_listing(
         db,
         "critical_risk_min_net_score",
         ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE,
+    )
+    facet_query = select(Risk.id)
+    if visibility_clause is not None:
+        facet_query = facet_query.where(visibility_clause)
+    facet_query = apply_risk_lifecycle(facet_query, lifecycle)
+    facets = await _build_risk_facets(
+        db,
+        scoped_ids=facet_query.subquery(),
+        filters=(
+            {**filter_values, "status": None}
+            if consumed_legacy_archived_status
+            else filter_values
+        ),
+        parameters=parameters,
     )
 
     kri_count_column = (
@@ -514,4 +732,5 @@ async def plan_risk_listing(
         serialize_items=serialize_risks,
         total=total,
         critical_risk_min_net_score=critical_risk_min_net_score,
+        facets=facets,
     )

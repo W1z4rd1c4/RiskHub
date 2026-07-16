@@ -54,9 +54,8 @@ export function buildControlListParams({
         offset: (currentPage - 1) * limit,
         limit,
         search: search.trim() || undefined,
-        status: statusFilter === ARCHIVED_CONTROL_FILTER ? ARCHIVED_CONTROL_FILTER : undefined,
+        lifecycle: statusFilter === ARCHIVED_CONTROL_FILTER ? 'archived' : 'active',
         monitoring_status: statusFilter && statusFilter !== ARCHIVED_CONTROL_FILTER ? statusFilter : undefined,
-        include_archived: statusFilter === ARCHIVED_CONTROL_FILTER,
         group_by: groupBy || undefined,
         group_value: groupValue || undefined,
     };

@@ -1,12 +1,18 @@
-import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+
+import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import { ViewSwitcher } from '@/components/tables';
+import type { SortDirection } from '@/components/tables';
+import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
+import { useRiskThresholds, useRiskTypes } from '@/hooks/useRiskHubConfig';
+import { useLanguage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { RisksFilterBar } from './risks/RisksFilterBar';
-import { RisksPageHeader } from './risks/RisksPageHeader';
-import { RisksTableSection } from './risks/RisksTableSection';
-import { parseRisksPageQueryParams } from './risks/risksPagePresentation';
+import type { RiskSummary } from '@/types/risk';
+
+import { buildRiskColumns } from './risks/riskColumns';
+import { RiskRegisterFilterBar } from './risks/RiskRegisterFilterBar';
+import { resolveRiskTypeDisplayName, RISK_REGISTER_CONFIG, type RiskRegisterView } from './risks/riskRegisterConfig';
+import { formatRiskGroupLabel, RISK_GROUP_UNKNOWN_RISK_TYPE } from './risks/risksPagePresentation';
 import { useRisksPageState } from './risks/useRisksPageState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
@@ -15,145 +21,53 @@ import { useIctRegisterSemanticPageState } from './shared/useIctRegisterPageStat
 
 export function RisksPage() {
     const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const [initialState] = useState(() => parseRisksPageQueryParams(searchParams));
-    const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } =
-        useIctRegisterSemanticPageState(parseRiskSemanticFilters);
-    const {
-        criticalFilter,
-        capabilities,
-        currentPage,
-        errorKey,
-        fetchRisks,
-        groups,
-        handleExport,
-        hasBreachFilter,
-        hasLoadedOnce,
-        isExportDialogOpen,
-        isExporting,
-        isAccessDenied,
-        isLoading,
-        items,
-        limit,
-        openExportDialog,
-        closeExportDialog,
-        priorityFilter,
-        restoreRisk,
-        search,
-        selectedGroupLabel,
-        selectedGroupValue,
-        setCurrentPage,
-        sortDirection,
-        sortField,
-        statusFilter,
-        totalCount,
-        totalPages,
-        typeFilter,
-        updateCriticalFilter,
-        updateHasBreachFilter,
-        updateSearch,
-        updateSort,
-        updateStatusFilter,
-        updateTypeFilter,
-        updateViewMode,
-        viewMode,
-        selectGroup,
-        clearSelectedGroup,
-        togglePriorityFilter,
-    } = useRisksPageState({
-        initialState,
-        semanticFilters,
+    const { language } = useLanguage();
+    const { t } = useTranslation('risks');
+    const pendingApprovalIds = usePendingApprovalIds('risk');
+    const { getColor, getDisplayName, getInitials } = useRiskTypes();
+    const { getScoreColor } = useRiskThresholds();
+    const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } = useIctRegisterSemanticPageState(parseRiskSemanticFilters);
+    const state = useRisksPageState(semanticFilters, language);
+    const columns = buildRiskColumns({
+        t, pendingApprovalIds, getColor, getDisplayName, getInitials, getScoreColor,
+        handleRestoreRisk: (riskId, event) => { event.stopPropagation(); void state.restoreRisk(riskId); },
     });
+    const views = RISK_REGISTER_CONFIG.views.filter((view) => view.value !== 'vendor' || resolveCapabilityFlag(state.capabilities, 'can_view_vendor_contexts'));
 
-    const clearCriticalFilter = () => {
-        updateCriticalFilter(false);
-        const nextSearchParams = new URLSearchParams(searchParams);
-        nextSearchParams.delete('critical');
-        setSearchParams(nextSearchParams);
-    };
-
-    const clearHasBreachFilter = () => {
-        updateHasBreachFilter(undefined);
-        updateCriticalFilter(false);
-        setSearchParams({});
-    };
-
-    if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
-    }
-
-    return (
-        <div className="space-y-8">
-            <RisksPageHeader
-                canCreateRisk={resolveCapabilityFlag(capabilities, 'can_create')}
-                canExport={resolveCapabilityFlag(capabilities, 'can_export')}
-                isExporting={isExporting}
-                onCreateRisk={() => navigate('/risks/new')}
-                onOpenExport={openExportDialog}
-            />
-
-            <SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} />
-
-            <ViewSwitcher
-                value={viewMode}
-                onChange={updateViewMode}
-                exclude={
-                    resolveCapabilityFlag(capabilities, 'can_view_vendor_contexts')
-                        ? ['risk', 'flag', 'type']
-                        : ['risk', 'flag', 'vendor', 'type']
-                }
-            />
-
-            <RisksFilterBar
-                criticalFilter={criticalFilter}
-                hasBreachFilter={hasBreachFilter}
-                isLoading={isLoading}
-                onClearCriticalFilter={clearCriticalFilter}
-                onClearHasBreachFilter={clearHasBreachFilter}
-                onRefresh={fetchRisks}
-                onSearchChange={updateSearch}
-                onStatusChange={updateStatusFilter}
-                onTogglePriorityFilter={togglePriorityFilter}
-                onTypeChange={updateTypeFilter}
-                priorityFilter={priorityFilter}
-                search={search}
-                statusFilter={statusFilter}
-                typeFilter={typeFilter}
-            />
-
-            <RisksTableSection
-                currentPage={currentPage}
-                errorKey={errorKey}
-                hasLoadedOnce={hasLoadedOnce}
-                isLoading={isLoading}
-                items={items}
-                itemsPerPage={limit}
-                groups={groups}
-                selectedGroupLabel={selectedGroupLabel}
-                selectedGroupValue={selectedGroupValue}
-                onBackFromGroup={clearSelectedGroup}
-                onPageChange={setCurrentPage}
-                onRestoreRisk={restoreRisk}
-                onRetry={fetchRisks}
-                onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
-                onSelectGroup={selectGroup}
-                onSortChange={updateSort}
-                sortDirection={sortDirection}
-                sortField={sortField}
-                totalCount={totalCount}
-                totalPages={totalPages}
-                viewMode={viewMode}
-            />
-
-            <ExportDialog
-                isOpen={isExportDialogOpen}
-                onClose={closeExportDialog}
-                onSubmit={handleExport}
-                isSubmitting={isExporting}
-                dataTestId="risks-export-dialog"
-            />
-        </div>
-    );
+    return <RegisterListShell<RiskSummary, RiskRegisterView>
+        accessDeniedState={<ReadAccessDeniedState />} allView="all" title={t('title')} subtitle={t('page_subtitle')}
+        views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
+        view={state.viewMode} onViewChange={state.updateViewMode}
+        canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')} canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
+        onCreate={() => void navigate('/risks/new')} createLabel={t('new_risk')} exportLabel={t('actions.export')}
+        exportDialog={({ isOpen, onClose }) => <ExportDialog isOpen={isOpen} onClose={onClose}
+            onCurrentViewSubmit={async () => { await state.exportCurrentRisks(); onClose(); }}
+            onSubmit={async (payload) => { await state.exportRiskSnapshot(payload); onClose(); }}
+            isSubmitting={state.isExporting} dataTestId="risks-export-dialog" title={t('register.export.title')} />}
+        isAccessDenied={state.isAccessDenied} isError={Boolean(state.errorKey)} errorMessage={state.errorKey ? t(state.errorKey) : undefined}
+        isExporting={state.isExporting} isLoading={state.isLoading} items={state.items} columns={columns}
+        table={{ keyExtractor: (risk) => risk.id, onRowClick: (risk) => void navigate(`/risks/${risk.id}`), rowHref: (risk) => `/risks/${risk.id}`, rowLabel: (risk) => risk.name, sortKey: state.sortField, sortDirection: state.sortDirection, onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection) }}
+        currentPage={state.currentPage} totalPages={state.totalPages} totalCount={state.totalCount} itemsPerPage={state.limit}
+        onPageChange={state.setCurrentPage} onRetry={() => void state.fetchRisks()}
+        emptyMessage={state.hasLoadedOnce ? t('empty_state.no_risks') : t('common:loading.data')}
+        grouping={{
+            groups: state.groups, onBack: state.clearSelectedGroup, onSelectGroup: state.selectGroup,
+            selectedGroupLabel: state.selectedGroupLabel, selectedGroupValue: state.selectedGroupValue,
+            groupLabel: (group) => state.viewMode === 'risk_type' && group.value !== RISK_GROUP_UNKNOWN_RISK_TYPE
+                ? resolveRiskTypeDisplayName(
+                    group.value,
+                    getDisplayName(group.value) || group.label,
+                    (key, fallback) => t(key, fallback),
+                )
+                : formatRiskGroupLabel(group, {
+                    unlinkedVendor: t('grouping.unlinked_vendor'), uncategorized: t('common:fallbacks.not_available'),
+                    unknownDepartment: t('common:fallbacks.unassigned'), noProcess: t('common:fallbacks.not_available'),
+                    unknownRiskType: t('common:fallbacks.unknown_type'),
+                }),
+        }}
+        testIdPrefix="risks"
+        toolbar={<div className="space-y-4"><SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} /><RiskRegisterFilterBar facets={state.facets} filters={state.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchRisks()} onSearchChange={state.updateSearch} search={state.search} /></div>}
+    />;
 }
 
 export default RisksPage;

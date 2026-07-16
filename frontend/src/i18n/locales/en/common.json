@@ -47,13 +47,29 @@
       "format": "Format",
       "date": "As of date"
     },
+    "purpose": {
+      "label": "Export purpose",
+      "current_view": {
+        "title": "Current register view",
+        "description": "Export every record matching the current filters, sorting, and selected group."
+      },
+      "point_in_time": {
+        "title": "Point-in-time audit snapshot",
+        "description": "Reconstruct the audited register state for a selected date."
+      }
+    },
     "formats": {
       "xlsx": "CSV (.csv)",
       "csv": "CSV (.csv)"
     },
     "actions": {
       "submit": "Export",
+      "submit_current": "Export current view",
+      "submit_snapshot": "Export snapshot",
       "cancel": "Cancel"
+    },
+    "errors": {
+      "failed": "Export failed. Try again."
     },
     "dora_register": {
       "link": "Download DORA register"

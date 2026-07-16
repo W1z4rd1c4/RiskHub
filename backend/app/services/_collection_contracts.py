@@ -60,6 +60,7 @@ class CollectionListingDefinition(Generic[TModel, TItem]):
     build_sql_group_filter: BuildSqlGroupFilter | None = None
     sql_group_query_transform: QueryTransform | None = None
     build_in_memory_grouped_page: BuildInMemoryGroupedPage[TItem] | None = None
+    facets: dict[str, Any] | None = None
 
 
 def is_group_summary_request(query: Any) -> bool:
@@ -73,6 +74,7 @@ def build_collection_page_kwargs(
     total: int,
     groups: list[CollectionGroupRead] | None = None,
     capabilities: dict[str, bool] | None = None,
+    facets: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "items": list(items),
@@ -84,6 +86,8 @@ def build_collection_page_kwargs(
         payload["groups"] = groups
     if capabilities is not None:
         payload["capabilities"] = capabilities
+    if facets is not None:
+        payload["facets"] = facets
     return payload
 
 
@@ -95,6 +99,7 @@ def build_collection_response(
     total: int,
     groups: list[CollectionGroupRead] | None = None,
     capabilities: dict[str, bool] | None = None,
+    facets: dict[str, Any] | None = None,
 ) -> TResponse:
     return response_model(
         **build_collection_page_kwargs(
@@ -103,6 +108,7 @@ def build_collection_response(
             total=total,
             groups=groups,
             capabilities=capabilities,
+            facets=facets,
         )
     )
 
@@ -236,6 +242,7 @@ async def execute_collection_listing_with_definition(
         build_sql_group_filter=definition.build_sql_group_filter,
         sql_group_query_transform=definition.sql_group_query_transform,
         build_in_memory_grouped_page=definition.build_in_memory_grouped_page,
+        facets=definition.facets,
     )
 
 
@@ -255,6 +262,7 @@ async def execute_collection_listing(
     build_sql_group_filter: BuildSqlGroupFilter | None = None,
     sql_group_query_transform: QueryTransform | None = None,
     build_in_memory_grouped_page: BuildInMemoryGroupedPage[TItem] | None = None,
+    facets: dict[str, Any] | None = None,
 ) -> TResponse:
     async def resolved_total() -> int:
         if total is not None:
@@ -275,6 +283,7 @@ async def execute_collection_listing(
                 total=await resolved_total(),
                 groups=groups,
                 capabilities=capabilities,
+                facets=facets,
             )
 
         group_filter = await _resolve_maybe_awaitable(build_sql_group_filter(query.group_by, query.group_value))
@@ -291,6 +300,7 @@ async def execute_collection_listing(
             total=grouped_total,
             groups=groups,
             capabilities=capabilities,
+            facets=facets,
         )
 
     if query.group_by:
@@ -307,6 +317,7 @@ async def execute_collection_listing(
             total=grouped_total,
             groups=groups,
             capabilities=capabilities,
+            facets=facets,
         )
 
     models = await load_collection_scalars_page(db, ordered_query, offset=query.offset, limit=query.limit)
@@ -317,4 +328,41 @@ async def execute_collection_listing(
         items=items,
         total=await resolved_total(),
         capabilities=capabilities,
+        facets=facets,
     )
+
+
+async def execute_collection_export_with_definition(
+    *,
+    db: AsyncSession,
+    query: CollectionQuery,
+    ordered_query: Any,
+    definition: CollectionListingDefinition[TModel, TItem],
+) -> list[TItem]:
+    """Serialize every row matched by the normalized list/group contract."""
+
+    export_query = ordered_query
+    serializer = definition.serialize_items
+
+    if query.group_by and query.group_value and query.group_by in definition.sql_group_keys:
+        if definition.build_sql_group_filter is None:
+            raise ValueError("SQL collection export requires a group filter builder")
+        group_filter = await _resolve_maybe_awaitable(
+            definition.build_sql_group_filter(query.group_by, query.group_value)
+        )
+        if definition.sql_group_query_transform is not None:
+            export_query = definition.sql_group_query_transform(export_query)
+        export_query = apply_collection_group_filter(export_query, group_filter)
+        serializer = definition.serialize_sql_items or definition.serialize_items
+
+    result = await db.execute(export_query)
+    models = list(result.scalars().all())
+    items = await serializer(models)
+
+    if query.group_by and query.group_value and query.group_by not in definition.sql_group_keys:
+        if definition.build_in_memory_grouped_page is None:
+            raise ValueError(f"No collection grouping executor registered for {query.group_by!r}")
+        export_page_query = query.model_copy(update={"offset": 0, "limit": max(len(items), 1)})
+        items, _, _ = definition.build_in_memory_grouped_page(items, export_page_query)
+
+    return items

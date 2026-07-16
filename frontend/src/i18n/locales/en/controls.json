@@ -80,6 +80,12 @@
     "overdue_only": "Overdue Only",
     "search_placeholder": "Search by name, description, risk or department..."
   },
+  "register": {
+    "views": { "all": "All", "category": "By Control Form", "department": "By Department", "process": "By Process", "risk_type": "By Risk Type", "risk": "By Risk", "vendor": "By Vendor" },
+    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "process": "Process", "category": "Control Form" },
+    "lifecycle": { "active": "Active", "archived": "Archived", "all": "All" },
+    "export": { "title": "Export filtered controls" }
+  },
   "grouping": {
     "unlinked_vendor": "Unlinked Vendor"
   },

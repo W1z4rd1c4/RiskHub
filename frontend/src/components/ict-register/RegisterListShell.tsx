@@ -8,6 +8,7 @@ import {
     type Column,
     type SortDirection,
 } from '@/components/tables';
+import { TableErrorState } from '@/components/tables/tableError';
 import { cn } from '@/lib/utils';
 import type { CollectionGroup } from '@/types/collection';
 
@@ -34,6 +35,7 @@ interface RegisterGroupingConfig {
     hideHighlighted?: boolean;
     onBack: () => void;
     onSelectGroup: (value: string, label: string) => void;
+    renderGroupBody?: (group: CollectionGroup) => ReactNode;
     selectedGroupLabel: string | null;
     selectedGroupValue: string | null;
 }
@@ -151,10 +153,19 @@ export function RegisterListShell<TItem extends object, TView extends string>({
                 />
             ) : null}
         </div>
-    ) : isError || isLoading ? (
-        renderTable([])
-    ) : (
-        <CollectionGroupDrillDown
+    ) : (() => {
+        const hasSelectedGroup = Boolean(grouping.selectedGroupValue);
+        const hasLastGoodGroupedData = hasSelectedGroup ? items.length > 0 : grouping.groups.length > 0;
+
+        // First-load failures/loading still use the table's full replacement state.
+        // Once grouped data exists, keep it mounted while a refetch is in flight or
+        // fails. A selected group delegates its single stale-data banner to the
+        // SortableTable; the group-card summary needs the same banner explicitly.
+        if ((isError || isLoading) && !hasLastGoodGroupedData) {
+            return renderTable([]);
+        }
+
+        const drillDown = <CollectionGroupDrillDown
             currentPage={currentPage}
             groups={grouping.groups}
             items={items}
@@ -171,8 +182,20 @@ export function RegisterListShell<TItem extends object, TView extends string>({
             hideActive={grouping.hideActive}
             hideHighlighted={grouping.hideHighlighted}
             groupLabel={grouping.groupLabel}
-        />
-    );
+            renderGroupBody={grouping.renderGroupBody}
+        />;
+
+        if (isError && !hasSelectedGroup) {
+            return (
+                <div className="space-y-3">
+                    <TableErrorState variant="banner" onRetry={onRetry} message={errorMessage} />
+                    {drillDown}
+                </div>
+            );
+        }
+
+        return drillDown;
+    })();
 
     return (
         <>

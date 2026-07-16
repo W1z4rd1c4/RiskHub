@@ -11,15 +11,26 @@ function todayLocalIso(): string {
 }
 
 test.describe('Risk Management (Deterministic)', () => {
-    test('Single export button opens modal and exports selected format', async ({ riskManagerPage }) => {
+    test('Export dialog explicitly produces a mature point-in-time snapshot', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
 
         await expect(riskManagerPage.getByTestId('risks-export-button')).toHaveCount(1);
         await risksPage.openExportDialog();
-        await expect(risksPage.exportDateInput).toHaveValue(todayLocalIso());
+        await expect(risksPage.currentViewExportPurpose).toBeChecked();
+        await expect(risksPage.exportDateInput).not.toBeVisible();
+        await risksPage.selectPointInTimeExport();
+        const asOfDate = todayLocalIso();
+        await expect(risksPage.exportDateInput).toHaveValue(asOfDate);
         // Export dialog is CSV-only; format chooser is intentionally absent.
-        await risksPage.submitExport('csv');
+        const response = await risksPage.submitPointInTimeExport('csv');
+        const exportUrl = new URL(response.url());
+        expect(exportUrl.pathname).toBe('/api/v1/reports/risks/export');
+        expect(exportUrl.searchParams.get('format')).toBe('csv');
+        expect(exportUrl.searchParams.get('as_of_date')).toBe(asOfDate);
+        expect(response.headers()['content-type']).toContain('text/csv');
+        const [header] = (await response.text()).split(/\r?\n/, 1);
+        expect(header).toBe('Risk ID,Name,Process,Category,Type,Gross Score,Net Score,Status,Priority,Owner,Department,Controls,KRIs');
         await expect(risksPage.exportDialog).not.toBeVisible();
     });
 
@@ -36,7 +47,7 @@ test.describe('Risk Management (Deterministic)', () => {
         expect(rowVisible).toBe(true);
     });
 
-    test('Archived risk visibility follows archived status filter', async ({ riskManagerPage }) => {
+    test('Archived risk visibility follows archived lifecycle filter', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
         await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
