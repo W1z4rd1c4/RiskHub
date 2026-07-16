@@ -24,7 +24,6 @@ vi.mock('react-router-dom', async () => {
     return {
         ...actual,
         useNavigate: () => mockNavigate,
-        useSearchParams: () => [new URLSearchParams(''), vi.fn()] as const,
     };
 });
 
@@ -76,9 +75,9 @@ describe('IssuesPage table navigation', () => {
         await screen.findByText('Patch Vulnerability');
         mockList.mockClear();
 
-        fireEvent.click(screen.getByText('Department'));
-        fireEvent.click(screen.getByText('Owner'));
-        fireEvent.click(screen.getByText('Source'));
+        expect(screen.queryByRole('button', { name: 'Department' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Owner' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Source' })).not.toBeInTheDocument();
 
         expect(mockList).not.toHaveBeenCalled();
     });

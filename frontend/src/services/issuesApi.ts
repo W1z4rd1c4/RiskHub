@@ -30,6 +30,59 @@ import type {
     IssueUpdatePayload,
 } from '@/types/issue';
 
+function compactIssueFilters(filters: IssueListFilters): Record<string, string | number | boolean | undefined> {
+    return {
+        status: filters.status,
+        severity: filters.severity,
+        severity_group: filters.severity_group,
+        owner_user_id: filters.owner_user_id,
+        department_id: filters.department_id,
+        overdue: filters.overdue,
+        exclude_active_exceptions: filters.exclude_active_exceptions,
+        has_active_exception: filters.has_active_exception,
+        remediation_status: filters.remediation_status,
+        linked_risk_id: filters.linked_risk_id,
+        linked_control_id: filters.linked_control_id,
+        linked_vendor_id: filters.linked_vendor_id,
+        search: filters.search,
+        include_closed: filters.include_closed,
+    };
+}
+
+export function buildIssueCollectionQuery(filters: IssueListFilters = {}): URLSearchParams {
+    const built = buildCollectionParams({
+        offset: filters.offset,
+        limit: filters.limit,
+        filters: compactIssueFilters(filters),
+        sort: filters.sort ?? (filters.sort_by
+            ? { field: filters.sort_by, direction: filters.sort_order ?? 'asc' }
+            : null),
+        groupBy: filters.group_by,
+        groupValue: filters.group_value,
+    });
+    const query = new URLSearchParams();
+    Object.entries(built).forEach(([key, value]) => query.set(key, String(value)));
+    return query;
+}
+
+async function downloadIssueExport(filters: IssueListFilters, locale: 'en' | 'cs'): Promise<void> {
+    const query = buildIssueCollectionQuery(filters);
+    query.delete('offset');
+    query.delete('limit');
+    query.set('format', 'csv');
+    query.set('locale', locale);
+    const { blob, headers } = await apiClient.getBlob(`/issues/export?${query.toString()}`, { timeoutMs: null });
+    const match = headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = match?.[1] ?? 'issues.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+}
+
 export const issuesApi = {
     async listDepartments(): Promise<IssueDepartmentLookup[]> {
         return apiClient.get('/issues/lookups/departments', {
@@ -46,31 +99,13 @@ export const issuesApi = {
 
     async list(filters: IssueListFilters = {}): Promise<IssueListResponse> {
         const response = await apiClient.get('/issues', {
-            params: buildCollectionParams({
-                offset: filters.offset,
-                limit: filters.limit,
-                filters: {
-                    status: filters.status,
-                    severity: filters.severity,
-                    severity_group: filters.severity_group,
-                    owner_user_id: filters.owner_user_id,
-                    department_id: filters.department_id,
-                    overdue: filters.overdue,
-                    exclude_active_exceptions: filters.exclude_active_exceptions,
-                    linked_risk_id: filters.linked_risk_id,
-                    linked_control_id: filters.linked_control_id,
-                    linked_vendor_id: filters.linked_vendor_id,
-                    search: filters.search,
-                    include_closed: filters.include_closed,
-                },
-                sort: filters.sort_by ? { field: filters.sort_by, direction: filters.sort_order ?? 'asc' } : null,
-                groupBy: filters.group_by,
-                groupValue: filters.group_value,
-            }),
+            params: buildIssueCollectionQuery(filters),
             schema: issueListResponseSchema,
         });
         return normalizeCollectionResponse(response);
     },
+
+    downloadExport: downloadIssueExport,
 
     async get(issueId: number, options?: RequestOptions): Promise<Issue> {
         return apiClient.get(`/issues/${issueId}`, {

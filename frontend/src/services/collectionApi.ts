@@ -91,6 +91,7 @@ export function normalizeCollectionResponse<TItem, TCapabilities extends object 
         offset: normalizeCollectionOffset(response),
         limit: normalizeCollectionLimit(response),
         groups: response.groups ?? null,
+        facets: response.facets ?? null,
         capabilities: response.capabilities ?? null,
     };
 }

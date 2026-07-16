@@ -2,6 +2,9 @@
 
 KRI-specific page helpers and subcomponents used by `KRIDetailPage` and related route-level KRI views.
 
+`KRIsPage.tsx` uses `RegisterListShell`; `kriRegisterConfig.ts`,
+`KriRegisterFilterBar.tsx`, and `kriColumns.tsx` keep KRI-specific list behavior.
+
 Keep KRI workflow decisions aligned with backend response metadata:
 
 - history correction visibility should prefer `capabilities.can_request_correction`

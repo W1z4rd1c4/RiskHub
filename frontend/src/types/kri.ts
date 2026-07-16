@@ -1,4 +1,4 @@
-import type { CollectionListResponse } from '@/types/collection';
+import type { CollectionFacetOption, CollectionListResponse, CollectionSort } from '@/types/collection';
 import type { LinkedVendorSummary } from '@/types/vendorLink';
 
 export type KRIBreachStatus = 'above' | 'below' | 'within';
@@ -117,7 +117,44 @@ export interface KRIListCapabilities {
     can_view_vendor_contexts?: boolean;
 }
 
-export type KRIListResponse = CollectionListResponse<KeyRiskIndicator, KRIListCapabilities>;
+export type KRILifecycle = 'active' | 'archived' | 'all';
+
+export interface KRIListParams {
+    risk_id?: number;
+    breach_only?: boolean;
+    offset?: number;
+    limit?: number;
+    page?: number;
+    size?: number;
+    include_archived?: boolean;
+    is_archived?: boolean;
+    lifecycle?: KRILifecycle;
+    search?: string;
+    monitoring_status?: KRIMonitoringStatus;
+    timeliness_status?: KRITimelinessStatus;
+    frequency?: KRIFrequency;
+    department_id?: number;
+    reporting_owner_id?: number;
+    sort?: CollectionSort | null;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+    group_by?: string;
+    group_value?: string;
+}
+
+export interface KRIFacets {
+    lifecycle?: CollectionFacetOption[];
+    monitoring_status?: CollectionFacetOption[];
+    timeliness_status?: CollectionFacetOption[];
+    frequency?: CollectionFacetOption[];
+    department?: CollectionFacetOption[];
+    reporting_owner?: CollectionFacetOption[];
+    breach?: CollectionFacetOption[];
+}
+
+export type KRIListResponse = CollectionListResponse<KeyRiskIndicator, KRIListCapabilities> & {
+    facets?: KRIFacets | null;
+};
 
 // History types
 export interface KRIHistoryEntry {

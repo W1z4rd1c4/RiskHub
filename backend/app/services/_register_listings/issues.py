@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import and_, false, func, or_, select
+from sqlalchemy import String, and_, case, exists, false, func, literal, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,11 +23,19 @@ from app.models import (
     ControlRiskLink,
     Department,
     Issue,
+    IssueException,
     IssueLink,
+    IssueRemediationPlan,
     KeyRiskIndicator,
     User,
 )
-from app.models.issue import IssueSeverity, IssueStatus
+from app.models.issue import (
+    IssueExceptionStatus,
+    IssueRemediationStatus,
+    IssueSeverity,
+    IssueStatus,
+)
+from app.schemas.collection import CollectionFacetOption
 from app.schemas.issue import IssueSummary
 from app.services._collection_contracts import CollectionQuery, build_grouped_collection_page
 from app.services._collection_filters import (
@@ -49,6 +58,7 @@ from app.services.authorization_capabilities import preload_issue_capabilities
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 
 from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan
+from .shared import build_facet_options
 
 
 @dataclass(frozen=True)
@@ -61,6 +71,177 @@ class IssueListingCriteria:
     capability_preloader: Any = preload_issue_capabilities
 
 
+def _selected_issue_facet_value(value: Any) -> set[str]:
+    if value is None or value == "":
+        return set()
+    if isinstance(value, bool):
+        return {"yes" if value else "no"}
+    return {str(getattr(value, "value", value))}
+
+
+def active_issue_exception_clause(now):
+    return exists(
+        select(IssueException.id).where(
+            IssueException.issue_id == Issue.id,
+            IssueException.status == IssueExceptionStatus.approved.value,
+            IssueException.expires_at.is_not(None),
+            IssueException.expires_at > now,
+        )
+    )
+
+
+async def _build_issue_facets(
+    db: AsyncSession,
+    *,
+    status_scope_ids,
+    scoped_ids,
+    filters: dict[str, Any],
+    now,
+) -> dict[str, list[CollectionFacetOption]]:
+    """Aggregate Issue facets inside the actor's readable collection scope."""
+
+    keys = (
+        "status",
+        "severity",
+        "department",
+        "owner",
+        "overdue",
+        "exception",
+        "remediation_status",
+    )
+    counts = {key: Counter() for key in keys}
+    catalogs: dict[str, dict[str, tuple[str, dict[str, Any]]]] = {key: {} for key in keys}
+
+    direct_queries = [
+        select(
+            literal("status").label("facet_key"),
+            func.cast(Issue.status, String).label("value"),
+            func.cast(Issue.status, String).label("label"),
+            func.count(func.distinct(Issue.id)).label("count"),
+        )
+        .select_from(Issue)
+        .join(status_scope_ids, status_scope_ids.c.id == Issue.id)
+        .group_by(Issue.status),
+        select(
+            literal("severity").label("facet_key"),
+            func.cast(Issue.severity, String).label("value"),
+            func.cast(Issue.severity, String).label("label"),
+            func.count(func.distinct(Issue.id)).label("count"),
+        )
+        .select_from(Issue)
+        .join(scoped_ids, scoped_ids.c.id == Issue.id)
+        .group_by(Issue.severity),
+    ]
+    direct_queries.extend(
+        [
+            select(
+                literal("department").label("facet_key"),
+                func.cast(Issue.department_id, String).label("value"),
+                func.coalesce(Department.name, "Unknown department").label("label"),
+                func.count(func.distinct(Issue.id)).label("count"),
+            )
+            .select_from(Issue)
+            .join(scoped_ids, scoped_ids.c.id == Issue.id)
+            .outerjoin(Department, Department.id == Issue.department_id)
+            .group_by(Issue.department_id, Department.name),
+            select(
+                literal("owner").label("facet_key"),
+                func.cast(Issue.owner_user_id, String).label("value"),
+                func.coalesce(User.name, "Unassigned").label("label"),
+                func.count(func.distinct(Issue.id)).label("count"),
+            )
+            .select_from(Issue)
+            .join(scoped_ids, scoped_ids.c.id == Issue.id)
+            .outerjoin(User, User.id == Issue.owner_user_id)
+            .where(Issue.owner_user_id.is_not(None))
+            .group_by(Issue.owner_user_id, User.name),
+        ]
+    )
+
+    overdue_expr = case(
+        (
+            and_(
+                Issue.due_at.is_not(None),
+                Issue.due_at < now,
+                Issue.status != IssueStatus.closed.value,
+            ),
+            "yes",
+        ),
+        else_="no",
+    )
+    exception_expr = case((active_issue_exception_clause(now), "active"), else_="none")
+    for key, value_expr in (("overdue", overdue_expr), ("exception", exception_expr)):
+        direct_queries.append(
+            select(
+                literal(key).label("facet_key"),
+                value_expr.label("value"),
+                value_expr.label("label"),
+                func.count(func.distinct(Issue.id)).label("count"),
+            )
+            .select_from(Issue)
+            .join(scoped_ids, scoped_ids.c.id == Issue.id)
+            .group_by(value_expr)
+        )
+
+    direct_queries.append(
+        select(
+            literal("remediation_status").label("facet_key"),
+            func.cast(IssueRemediationPlan.status, String).label("value"),
+            func.cast(IssueRemediationPlan.status, String).label("label"),
+            func.count(func.distinct(Issue.id)).label("count"),
+        )
+        .select_from(Issue)
+        .join(scoped_ids, scoped_ids.c.id == Issue.id)
+        .join(IssueRemediationPlan, IssueRemediationPlan.issue_id == Issue.id)
+        .group_by(IssueRemediationPlan.status)
+    )
+
+    for row in (await db.execute(union_all(*direct_queries))).all():
+        if row.value is None:
+            continue
+        value = str(row.value)
+        counts[row.facet_key][value] = int(row._mapping["count"] or 0)
+        catalogs[row.facet_key][value] = (str(row.label), {})
+
+    catalogs["status"].update({status.value: (status.value, {}) for status in IssueStatus})
+    catalogs["severity"].update({severity.value: (severity.value, {}) for severity in IssueSeverity})
+    catalogs["severity"]["high_critical"] = ("high_critical", {})
+    counts["severity"]["high_critical"] = (
+        counts["severity"][IssueSeverity.high.value]
+        + counts["severity"][IssueSeverity.critical.value]
+    )
+    catalogs["overdue"].update({value: (value, {}) for value in ("yes", "no")})
+    catalogs["exception"].update({value: (value, {}) for value in ("active", "none")})
+    catalogs["remediation_status"].update(
+        {status.value: (status.value, {}) for status in IssueRemediationStatus}
+    )
+
+    exception_selected: set[str] = set()
+    has_active_exception = filters.get("has_active_exception")
+    if has_active_exception is not None:
+        exception_selected = {"active" if bool(has_active_exception) else "none"}
+    elif bool(filters.get("exclude_active_exceptions")):
+        exception_selected = {"none"}
+
+    selected = {
+        "status": _selected_issue_facet_value(filters.get("status")),
+        "severity": (
+            {"high_critical"}
+            if filters.get("severity_group") == "high_critical"
+            else _selected_issue_facet_value(filters.get("severity"))
+        ),
+        "department": _selected_issue_facet_value(filters.get("department_id")),
+        "owner": _selected_issue_facet_value(filters.get("owner_user_id")),
+        "overdue": _selected_issue_facet_value(filters.get("overdue")),
+        "exception": exception_selected,
+        "remediation_status": _selected_issue_facet_value(filters.get("remediation_status")),
+    }
+    return {
+        key: build_facet_options(catalogs[key], counts[key], selected=selected[key])
+        for key in keys
+    }
+
+
 async def plan_issue_listing(
     *,
     db: AsyncSession,
@@ -69,6 +250,10 @@ async def plan_issue_listing(
 ) -> RegisterListingPlan[Issue, IssueSummary]:
     collection_query = criteria.query
     filter_values = criteria.filters
+    if collection_query.group_by is not None and collection_query.group_by not in ISSUE_SQL_GROUPS:
+        raise ValidationError("Invalid Issue group_by value")
+    if collection_query.group_value is not None and collection_query.group_by is None:
+        raise ValidationError("Issue group_value requires group_by")
     status = coerce_optional_enum(IssueStatus, filter_values.get("status"), "status")
     severity = coerce_optional_enum(IssueSeverity, filter_values.get("severity"), "severity")
     severity_group_filter = coerce_optional_literal(
@@ -79,6 +264,15 @@ async def plan_issue_listing(
     overdue = coerce_optional_bool("overdue", filter_values.get("overdue"))
     exclude_active_exceptions_filter = (
         coerce_optional_bool("exclude_active_exceptions", filter_values.get("exclude_active_exceptions")) or False
+    )
+    has_active_exception = coerce_optional_bool(
+        "has_active_exception",
+        filter_values.get("has_active_exception"),
+    )
+    remediation_status = coerce_optional_enum(
+        IssueRemediationStatus,
+        filter_values.get("remediation_status"),
+        "remediation_status",
     )
     linked_risk_id = coerce_optional_int("linked_risk_id", filter_values.get("linked_risk_id"))
     linked_control_id = coerce_optional_int("linked_control_id", filter_values.get("linked_control_id"))
@@ -101,6 +295,8 @@ async def plan_issue_listing(
     if scope_clause is not None:
         query = query.where(scope_clause)
 
+    readable_query = query
+
     if department_id is not None:
         query = query.where(Issue.department_id == department_id)
     if status is not None:
@@ -113,6 +309,18 @@ async def plan_issue_listing(
         query = query.where(Issue.owner_user_id == owner_user_id)
     if exclude_active_exceptions_filter:
         query = query.where(unsuppressed_issue_clause(now))
+    if has_active_exception is True:
+        query = query.where(active_issue_exception_clause(now))
+    elif has_active_exception is False:
+        query = query.where(unsuppressed_issue_clause(now))
+    if remediation_status is not None:
+        query = query.where(
+            Issue.id.in_(
+                select(IssueRemediationPlan.issue_id).where(
+                    IssueRemediationPlan.status == remediation_status.value
+                )
+            )
+        )
     if not include_closed:
         query = query.where(Issue.status != IssueStatus.closed.value)
     if search and search.strip():
@@ -171,6 +379,24 @@ async def plan_issue_listing(
         else:
             query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.vendor_id == linked_vendor_id)))
 
+    facet_scope_query = readable_query
+    if department_id is not None:
+        facet_scope_query = facet_scope_query.where(Issue.department_id == department_id)
+    status_scope_ids = facet_scope_query.with_only_columns(Issue.id).order_by(None).subquery()
+    if not include_closed:
+        facet_scope_query = facet_scope_query.where(Issue.status != IssueStatus.closed.value)
+    facets = await _build_issue_facets(
+        db,
+        status_scope_ids=status_scope_ids,
+        scoped_ids=facet_scope_query.with_only_columns(Issue.id).order_by(None).subquery(),
+        filters={
+            **filter_values,
+            "has_active_exception": has_active_exception,
+            "exclude_active_exceptions": exclude_active_exceptions_filter,
+        },
+        now=now,
+    )
+
     sortable_fields = {
         "title": Issue.title,
         "severity": Issue.severity,
@@ -209,6 +435,8 @@ async def plan_issue_listing(
         .selectinload(ControlRiskLink.risk),
         selectinload(Issue.links).selectinload(IssueLink.kri).selectinload(KeyRiskIndicator.risk),
         selectinload(Issue.links).selectinload(IssueLink.vendor),
+        selectinload(Issue.remediation_plan).selectinload(IssueRemediationPlan.owner),
+        selectinload(Issue.exceptions),
     )
     ordered_query = query.options(*query_options)
     filtered_ids = query.with_only_columns(Issue.id).order_by(None).subquery()
@@ -249,6 +477,13 @@ async def plan_issue_listing(
             is_highlighted=lambda issue: issue.severity in {IssueSeverity.high.value, IssueSeverity.critical.value},
         )
 
+    def sql_group_query_transform(query):
+        if collection_query.group_by == "department":
+            return query.outerjoin(Department, Department.id == Issue.department_id)
+        if collection_query.group_by == "owner":
+            return query.outerjoin(User, User.id == Issue.owner_user_id)
+        return query
+
     return build_register_listing_plan(
         ordered_query=ordered_query,
         capabilities=collection_capabilities,
@@ -257,6 +492,7 @@ async def plan_issue_listing(
         sql_group_keys=ISSUE_SQL_GROUPS,
         load_sql_groups=load_sql_groups,
         build_sql_group_filter=build_sql_group_filter,
-        sql_group_query_transform=lambda query: query.outerjoin(Department, Department.id == Issue.department_id),
+        sql_group_query_transform=sql_group_query_transform,
         build_in_memory_grouped_page=build_in_memory_grouped_page,
+        facets=facets,
     )

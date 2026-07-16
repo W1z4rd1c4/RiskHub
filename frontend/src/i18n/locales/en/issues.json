@@ -192,6 +192,22 @@
     "revoked": "Revoked",
     "expired": "Expired"
   },
+  "register": {
+    "views": {
+      "owner": "By Owner",
+      "severity": "By Severity",
+      "status": "By Status"
+    },
+    "filters": {
+      "add": "Add filter",
+      "active_count": "{{count}} active filters",
+      "clear_all": "Clear all",
+      "remove": "Remove {{label}}"
+    },
+    "export": {
+      "title": "Export filtered issues"
+    }
+  },
   "fallbacks": {
     "not_set": "Not set",
     "n_a": "N/A",

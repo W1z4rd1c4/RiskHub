@@ -366,3 +366,34 @@ async def execute_collection_export_with_definition(
         items, _, _ = definition.build_in_memory_grouped_page(items, export_page_query)
 
     return items
+
+
+async def load_collection_export_models_with_definition(
+    *,
+    db: AsyncSession,
+    query: CollectionQuery,
+    ordered_query: Any,
+    definition: CollectionListingDefinition[TModel, TItem],
+) -> list[TModel]:
+    """Load exact list/group rows for domain-preserving current-view exports.
+
+    This intentionally supports SQL-backed register groups only. Unsupported
+    group keys fail closed as an empty export, matching collection drilldowns;
+    legitimate in-memory groups must continue through the serialized exporter.
+    """
+
+    export_query = ordered_query
+    if query.group_by and query.group_value:
+        if query.group_by not in definition.sql_group_keys:
+            return []
+        if definition.build_sql_group_filter is None:
+            raise ValueError("SQL collection export requires a group filter builder")
+        group_filter = await _resolve_maybe_awaitable(
+            definition.build_sql_group_filter(query.group_by, query.group_value)
+        )
+        if definition.sql_group_query_transform is not None:
+            export_query = definition.sql_group_query_transform(export_query)
+        export_query = apply_collection_group_filter(export_query, group_filter)
+
+    result = await db.execute(export_query)
+    return list(result.scalars().unique().all())

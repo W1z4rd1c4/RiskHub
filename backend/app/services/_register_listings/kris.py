@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import String, case, false, func, literal, select
+from sqlalchemy import String, and_, case, false, func, literal, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -18,8 +19,8 @@ from app.core.security import check_permission
 from app.models import ApprovalResourceType, Department, KeyRiskIndicator, Risk, User, VendorKRILink
 from app.models._archivable import archived_clause
 from app.models.global_config import ConfigDefaults, get_config_int
-from app.models.key_risk_indicator import kri_breach_condition
-from app.schemas.collection import CollectionGroupRead
+from app.models.key_risk_indicator import KRIFrequency, kri_breach_condition
+from app.schemas.collection import CollectionFacetOption, CollectionGroupRead
 from app.services._authorization_capabilities.common import pending_approvals_for_resources
 from app.services._collection_contracts import CollectionGroupEntry, build_grouped_collection_page
 from app.services._collection_filters import (
@@ -35,11 +36,18 @@ from app.services._monitoring_status import (
     KRITimelinessStatus,
     apply_kri_monitoring_status_filter,
     apply_kri_timeliness_status_filter,
+    kri_monitoring_status_expression,
 )
 from app.services.authorization_capabilities import kri_capabilities
 
 from .lifecycle import CollectionQuery, RegisterListingPlan, SerializeItems, build_register_listing_plan
-from .shared import GROUP_UNCATEGORIZED, GROUP_UNLINKED_VENDOR, parse_prefixed_group_value, visible_vendor_link_context
+from .shared import (
+    GROUP_UNCATEGORIZED,
+    GROUP_UNLINKED_VENDOR,
+    build_facet_options,
+    parse_prefixed_group_value,
+    visible_vendor_link_context,
+)
 
 KRI_GROUP_UNLINKED_VENDOR = GROUP_UNLINKED_VENDOR
 KRI_GROUP_UNCATEGORIZED = GROUP_UNCATEGORIZED
@@ -48,12 +56,245 @@ KRI_GROUP_NO_PROCESS = "__no_process__"
 KRI_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
 KRI_GROUP_UNKNOWN_RISK = "__unknown_risk__"
 KRI_SQL_GROUPS = {"category", "department", "process", "risk", "risk_type", "type", "vendor"}
+KRI_LIFECYCLES = {"active", "archived", "all"}
 
 
 @dataclass(frozen=True)
 class KRIListingCriteria:
     query: CollectionQuery
     filters: dict[str, Any]
+
+
+def _selected_facet_value(value: Any) -> set[str]:
+    if value is None or value == "":
+        return set()
+    if isinstance(value, bool):
+        return {"yes" if value else "no"}
+    return {str(getattr(value, "value", value))}
+
+
+def resolve_kri_lifecycle(filters: dict[str, Any]) -> str:
+    """Resolve lifecycle without overloading the KRI monitoring status."""
+
+    lifecycle = coerce_optional_string("lifecycle", filters.get("lifecycle"))
+    if lifecycle is not None:
+        if lifecycle not in KRI_LIFECYCLES:
+            raise ValidationError("Invalid lifecycle value")
+        return lifecycle
+
+    is_archived = coerce_optional_bool("is_archived", filters.get("is_archived"))
+    if is_archived is not None:
+        return "archived" if is_archived else "active"
+    if coerce_optional_bool("include_archived", filters.get("include_archived")):
+        return "all"
+    return "active"
+
+
+def kri_effective_active_clause():
+    """Canonical live KRI predicate, including the parent Risk lifecycle."""
+
+    return and_(archived_clause(KeyRiskIndicator, archived=False), Risk.live())
+
+
+def kri_effective_archived_clause():
+    """Canonical archived KRI predicate, including non-live parent Risks."""
+
+    return or_(archived_clause(KeyRiskIndicator, archived=True), Risk.archived())
+
+
+def kri_effective_breach_clause():
+    """Canonical live-breach predicate, including the parent Risk lifecycle."""
+
+    return and_(kri_effective_active_clause(), kri_breach_condition())
+
+
+def effective_kri_lifecycle(kri: KeyRiskIndicator) -> str:
+    """Resolve effective lifecycle for already-loaded current-view export rows."""
+
+    risk = getattr(kri, "risk", None)
+    risk_status = getattr(getattr(risk, "status", None), "value", getattr(risk, "status", None))
+    parent_is_archived = risk is None or bool(getattr(risk, "is_archived", False)) or risk_status == "archived"
+    return "archived" if bool(kri.is_archived) or parent_is_archived else "active"
+
+
+def apply_kri_lifecycle(query, lifecycle: str):
+    if lifecycle == "active":
+        # Risk archive does not cascade to child KRIs. Active collection views hide
+        # children of archived parent Risks, matching the mature list contract.
+        return query.where(kri_effective_active_clause())
+    if lifecycle == "archived":
+        return query.where(kri_effective_archived_clause())
+    return query
+
+
+async def _build_kri_facets(
+    db: AsyncSession,
+    *,
+    readable_ids,
+    scoped_ids,
+    filters: dict[str, Any],
+    today,
+    warning_upper_margin_ratio: float,
+) -> dict[str, list[CollectionFacetOption]]:
+    """Build bounded, permission-scoped facets without hydrating KRI entities."""
+
+    counts: dict[str, Counter[str]] = {
+        key: Counter()
+        for key in (
+            "lifecycle",
+            "monitoring_status",
+            "timeliness_status",
+            "frequency",
+            "department",
+            "reporting_owner",
+            "breach",
+        )
+    }
+    catalogs: dict[str, dict[str, tuple[str, dict[str, Any]]]] = {key: {} for key in counts}
+
+    direct_queries = [
+        select(
+            literal("lifecycle").label("facet_key"),
+            literal("active").label("value"),
+            literal("active").label("label"),
+            func.count(func.distinct(KeyRiskIndicator.id)).label("count"),
+        )
+        .select_from(KeyRiskIndicator)
+        .join(readable_ids, readable_ids.c.id == KeyRiskIndicator.id)
+        .join(Risk, Risk.id == KeyRiskIndicator.risk_id)
+        .where(kri_effective_active_clause()),
+        select(
+            literal("lifecycle").label("facet_key"),
+            literal("archived").label("value"),
+            literal("archived").label("label"),
+            func.count(func.distinct(KeyRiskIndicator.id)).label("count"),
+        )
+        .select_from(KeyRiskIndicator)
+        .join(readable_ids, readable_ids.c.id == KeyRiskIndicator.id)
+        .join(Risk, Risk.id == KeyRiskIndicator.risk_id)
+        .where(kri_effective_archived_clause()),
+        select(
+            literal("lifecycle").label("facet_key"),
+            literal("all").label("value"),
+            literal("all").label("label"),
+            func.count(func.distinct(KeyRiskIndicator.id)).label("count"),
+        )
+        .select_from(KeyRiskIndicator)
+        .join(readable_ids, readable_ids.c.id == KeyRiskIndicator.id),
+        select(
+            literal("frequency").label("facet_key"),
+            KeyRiskIndicator.frequency.label("value"),
+            KeyRiskIndicator.frequency.label("label"),
+            func.count(func.distinct(KeyRiskIndicator.id)).label("count"),
+        )
+        .select_from(KeyRiskIndicator)
+        .join(scoped_ids, scoped_ids.c.id == KeyRiskIndicator.id)
+        .group_by(KeyRiskIndicator.frequency),
+        select(
+            literal("department").label("facet_key"),
+            func.cast(Risk.department_id, String).label("value"),
+            func.coalesce(Department.name, "Unknown department").label("label"),
+            func.count(func.distinct(KeyRiskIndicator.id)).label("count"),
+        )
+        .select_from(KeyRiskIndicator)
+        .join(scoped_ids, scoped_ids.c.id == KeyRiskIndicator.id)
+        .join(Risk, Risk.id == KeyRiskIndicator.risk_id)
+        .outerjoin(Department, Department.id == Risk.department_id)
+        .where(Risk.department_id.is_not(None))
+        .group_by(Risk.department_id, Department.name),
+        select(
+            literal("reporting_owner").label("facet_key"),
+            func.cast(KeyRiskIndicator.reporting_owner_id, String).label("value"),
+            func.coalesce(User.name, "Unassigned").label("label"),
+            func.count(func.distinct(KeyRiskIndicator.id)).label("count"),
+        )
+        .select_from(KeyRiskIndicator)
+        .join(scoped_ids, scoped_ids.c.id == KeyRiskIndicator.id)
+        .outerjoin(User, User.id == KeyRiskIndicator.reporting_owner_id)
+        .where(KeyRiskIndicator.reporting_owner_id.is_not(None))
+        .group_by(KeyRiskIndicator.reporting_owner_id, User.name),
+    ]
+    breach_value = case((kri_effective_breach_clause(), "yes"), else_="no")
+    direct_queries.append(
+        select(
+            literal("breach").label("facet_key"),
+            breach_value.label("value"),
+            breach_value.label("label"),
+            func.count(func.distinct(KeyRiskIndicator.id)).label("count"),
+        )
+        .select_from(KeyRiskIndicator)
+        .join(scoped_ids, scoped_ids.c.id == KeyRiskIndicator.id)
+        .join(Risk, Risk.id == KeyRiskIndicator.risk_id)
+        .group_by(breach_value)
+    )
+
+    for row in (await db.execute(union_all(*direct_queries))).all():
+        if row.value is None:
+            continue
+        value = str(row.value)
+        counts[row.facet_key][value] = int(row._mapping["count"] or 0)
+        catalogs[row.facet_key][value] = (str(row.label), {})
+
+    status_queries = []
+    for status in KRIMonitoringStatus:
+        status_query = apply_kri_monitoring_status_filter(
+            select(KeyRiskIndicator.id)
+            .select_from(KeyRiskIndicator)
+            .join(scoped_ids, scoped_ids.c.id == KeyRiskIndicator.id),
+            monitoring_status=status,
+            today=today,
+            warning_upper_margin_ratio=warning_upper_margin_ratio,
+        )
+        status_queries.append(
+            select(
+                literal("monitoring_status").label("facet_key"),
+                literal(status.value).label("value"),
+                literal(status.value).label("label"),
+                func.count().label("count"),
+            ).select_from(status_query.subquery())
+        )
+    due_soon_query = apply_kri_timeliness_status_filter(
+        select(KeyRiskIndicator.id)
+        .select_from(KeyRiskIndicator)
+        .join(scoped_ids, scoped_ids.c.id == KeyRiskIndicator.id),
+        timeliness_status=KRITimelinessStatus.due_soon,
+        today=today,
+    )
+    status_queries.append(
+        select(
+            literal("timeliness_status").label("facet_key"),
+            literal(KRITimelinessStatus.due_soon.value).label("value"),
+            literal(KRITimelinessStatus.due_soon.value).label("label"),
+            func.count().label("count"),
+        ).select_from(due_soon_query.subquery())
+    )
+    for row in (await db.execute(union_all(*status_queries))).all():
+        value = str(row.value)
+        counts[row.facet_key][value] = int(row._mapping["count"] or 0)
+        catalogs[row.facet_key][value] = (str(row.label), {})
+
+    catalogs["lifecycle"].update({value: (value, {}) for value in ("active", "archived", "all")})
+    catalogs["monitoring_status"].update({status.value: (status.value, {}) for status in KRIMonitoringStatus})
+    catalogs["timeliness_status"][KRITimelinessStatus.due_soon.value] = (
+        KRITimelinessStatus.due_soon.value,
+        {},
+    )
+    catalogs["frequency"].update({frequency.value: (frequency.value, {}) for frequency in KRIFrequency})
+    catalogs["breach"].update({value: (value, {}) for value in ("yes", "no")})
+
+    selected = {
+        "lifecycle": _selected_facet_value(resolve_kri_lifecycle(filters)),
+        "monitoring_status": _selected_facet_value(filters.get("monitoring_status")),
+        "timeliness_status": _selected_facet_value(filters.get("timeliness_status")),
+        "frequency": _selected_facet_value(filters.get("frequency")),
+        "department": _selected_facet_value(filters.get("department_id")),
+        "reporting_owner": _selected_facet_value(filters.get("reporting_owner_id")),
+        "breach": {"yes"} if filters.get("breach_only") is True else set(),
+    }
+    return {
+        key: build_facet_options(catalogs[key], counts[key], selected=selected[key])
+        for key in counts
+    }
 
 
 async def can_create_kri_for_any_parent_risk(db: AsyncSession, current_user: User) -> bool:
@@ -128,8 +369,8 @@ async def load_kri_sql_groups(
     current_user: User,
     can_read_vendors: bool,
 ) -> list[CollectionGroupRead]:
-    breach_expr = kri_breach_condition()
-    active_expr = KeyRiskIndicator.is_archived.is_(False)
+    breach_expr = kri_effective_breach_clause()
+    active_expr = kri_effective_active_clause()
 
     if group_by == "category":
         value_expr = func.coalesce(Risk.category, KRI_GROUP_UNCATEGORIZED)
@@ -249,6 +490,7 @@ def plan_kri_listing(
     capabilities: dict[str, bool] | None,
     serialize_items: SerializeItems[KeyRiskIndicator, Any],
     total: int,
+    facets: dict[str, list[CollectionFacetOption]],
 ) -> RegisterListingPlan[KeyRiskIndicator, Any]:
     async def load_sql_groups(group_by: str):
         return await load_kri_sql_groups(
@@ -277,6 +519,7 @@ def plan_kri_listing(
         build_sql_group_filter=build_sql_group_filter,
         sql_group_query_transform=lambda query: query.outerjoin(Department, Department.id == Risk.department_id),
         build_in_memory_grouped_page=kri_in_memory_grouped_page,
+        facets=facets,
     )
 
 
@@ -287,11 +530,20 @@ async def build_kri_listing_plan(
     criteria: KRIListingCriteria,
 ) -> RegisterListingPlan[KeyRiskIndicator, Any]:
     filter_values = criteria.filters
+    if criteria.query.group_by is not None and criteria.query.group_by not in KRI_SQL_GROUPS:
+        raise ValidationError("Invalid KRI group_by value")
+    if criteria.query.group_value is not None and criteria.query.group_by is None:
+        raise ValidationError("KRI group_value requires group_by")
     risk_id = coerce_optional_int("risk_id", filter_values.get("risk_id"))
+    department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
+    reporting_owner_id = coerce_optional_int(
+        "reporting_owner_id",
+        filter_values.get("reporting_owner_id"),
+    )
+    frequency = coerce_optional_enum(KRIFrequency, filter_values.get("frequency"), "frequency")
     search = coerce_optional_string("search", filter_values.get("search"))
     breach_only = coerce_optional_bool("breach_only", filter_values.get("breach_only")) or False
-    include_archived = coerce_optional_bool("include_archived", filter_values.get("include_archived")) or False
-    is_archived = coerce_optional_bool("is_archived", filter_values.get("is_archived"))
+    lifecycle = resolve_kri_lifecycle(filter_values)
     monitoring_status = coerce_optional_enum(
         KRIMonitoringStatus,
         filter_values.get("monitoring_status"),
@@ -306,30 +558,32 @@ async def build_kri_listing_plan(
     if monitoring_status is not None and timeliness_status is not None:
         raise ValidationError("monitoring_status and timeliness_status cannot be used together", status_code=422)
 
-    query = select(KeyRiskIndicator).join(Risk)
-
-    # Live views require a live parent Risk too: risk archiving does not cascade
-    # to child KRIs (ADR-005), so the join filter is what keeps them out.
-    if is_archived is not None:
-        query = query.where(archived_clause(KeyRiskIndicator, archived=is_archived))
-        if not is_archived:
-            query = query.where(Risk.live())
-    elif not include_archived:
-        query = query.where(archived_clause(KeyRiskIndicator, archived=False), Risk.live())
+    readable_query = select(KeyRiskIndicator).join(Risk)
 
     visibility_clause = await kri_visibility_clause(db, current_user)
     if visibility_clause is not None:
-        query = query.where(visibility_clause)
+        readable_query = readable_query.where(visibility_clause)
+
+    query = apply_kri_lifecycle(readable_query, lifecycle)
 
     if risk_id:
         query = query.where(KeyRiskIndicator.risk_id == risk_id)
+
+    if department_id is not None:
+        query = query.where(Risk.department_id == department_id)
+
+    if reporting_owner_id is not None:
+        query = query.where(KeyRiskIndicator.reporting_owner_id == reporting_owner_id)
+
+    if frequency is not None:
+        query = query.where(KeyRiskIndicator.frequency == frequency.value)
 
     if search:
         search_term = f"%{search.strip().lower()}%"
         query = query.where(func.lower(KeyRiskIndicator.metric_name).like(search_term))
 
     if breach_only:
-        query = query.where(kri_breach_condition())
+        query = query.where(kri_effective_breach_clause())
 
     query = query.options(
         selectinload(KeyRiskIndicator.reporting_owner),
@@ -338,6 +592,20 @@ async def build_kri_listing_plan(
     )
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+
+    readable_ids = readable_query.with_only_columns(KeyRiskIndicator.id).order_by(None).subquery()
+    facet_scope_query = apply_kri_lifecycle(readable_query, lifecycle)
+    if department_id is not None:
+        facet_scope_query = facet_scope_query.where(Risk.department_id == department_id)
+    scoped_ids = facet_scope_query.with_only_columns(KeyRiskIndicator.id).order_by(None).subquery()
+    facets = await _build_kri_facets(
+        db,
+        readable_ids=readable_ids,
+        scoped_ids=scoped_ids,
+        filters={**filter_values, "breach_only": breach_only},
+        today=now.date(),
+        warning_upper_margin_ratio=monitoring_context.kri_config.warning_upper_margin_ratio,
+    )
 
     filtered_query = query
     if monitoring_status is not None:
@@ -360,7 +628,28 @@ async def build_kri_listing_plan(
         "can_export": check_permission(current_user, "reports", "read"),
         "can_view_vendor_contexts": can_read_vendors,
     }
-    ordered_query = filtered_query.order_by(KeyRiskIndicator.metric_name)
+    sortable_fields = {
+        "metric_name": KeyRiskIndicator.metric_name,
+        "current_value": KeyRiskIndicator.current_value,
+        "monitoring_status": kri_monitoring_status_expression(
+            today=now.date(),
+            warning_upper_margin_ratio=monitoring_context.kri_config.warning_upper_margin_ratio,
+        ),
+        "risk_process": Risk.process,
+        "risk_description": Risk.description,
+    }
+    requested_sort = criteria.query.sort
+    if requested_sort is not None and requested_sort.field not in sortable_fields:
+        raise ValidationError("Invalid sort_by value")
+
+    if requested_sort is None:
+        ordered_query = filtered_query.order_by(KeyRiskIndicator.metric_name, KeyRiskIndicator.id)
+    else:
+        sort_expression = sortable_fields[requested_sort.field]
+        ordered_expression = (
+            sort_expression.asc() if requested_sort.direction == "asc" else sort_expression.desc()
+        ).nullslast()
+        ordered_query = filtered_query.order_by(ordered_expression, KeyRiskIndicator.id)
 
     async def serialize_kris(kris: list[KeyRiskIndicator]):
         kri_ids = {kri.id for kri in kris}
@@ -408,4 +697,5 @@ async def build_kri_listing_plan(
         capabilities=collection_capabilities,
         serialize_items=serialize_kris,
         total=total,
+        facets=facets,
     )

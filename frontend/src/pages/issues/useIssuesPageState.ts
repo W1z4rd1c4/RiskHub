@@ -1,206 +1,145 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
-import type { SortDirection, ViewMode } from '@/components/tables';
+import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
+import type { SortDirection } from '@/components/tables';
+import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import type { SupportedLanguage } from '@/i18n';
 import { apiClient } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
-import type {
-    IssueListFilters,
-    IssueSeverityFilter,
-    IssueStatus,
-    IssueSummary,
-} from '@/types/issue';
+import type { IssueFacets, IssueListCapabilities, IssueSummary } from '@/types/issue';
 
+import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
+import { buildRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import { buildIssueExportFilters, parseIssuesPageQueryParams } from './issuesPagePresentation';
 import {
-    buildIssueExportFilters,
-    buildIssueListFilters,
-    getIssueGroupBy,
-    type IssuesPageInitialState,
-} from './issuesPagePresentation';
-import {
-    type RegisterFilterPatchResolver,
-    type RegisterPageExportRequest,
-    type RegisterPageLoadRequest,
-    useRegisterPageController,
-} from '../shared/useRegisterPageController';
+    buildIssueRegisterListParams,
+    EMPTY_ISSUE_REGISTER_FILTERS,
+    ISSUE_REGISTER_CONFIG,
+    parseIssueRegisterFilters,
+    serializeIssueRegisterFilters,
+    type IssueRegisterFilters,
+    type IssueRegisterView,
+} from './issueRegisterConfig';
 
-interface UseIssuesPageStateOptions {
-    initialState: IssuesPageInitialState;
+const ISSUE_VIEWS = ISSUE_REGISTER_CONFIG.views.map(({ value }) => value);
+const ISSUE_SORT_FIELDS = ['title', 'severity', 'status', 'opened_at', 'due_at', 'updated_at', 'created_at'] as const;
+const validSort = (sort: RegisterSortState | null) => sort && ISSUE_SORT_FIELDS.includes(sort.field as typeof ISSUE_SORT_FIELDS[number]) ? sort : null;
+const groupLabel = (groups: Array<{ value: string; label: string }>, value: string | null) => value ? groups.find((group) => group.value === value)?.label ?? null : null;
+
+function legacyFilters(params: URLSearchParams): IssueRegisterFilters {
+    const parsed = parseIssuesPageQueryParams(params);
+    return {
+        status: parsed.statusFilter,
+        severity: parsed.severityFilter,
+        overdue: parsed.overdueOnly,
+        exclude_active_exceptions: parsed.excludeActiveExceptions,
+        include_closed: parsed.includeClosed,
+        department_id: null,
+        owner_user_id: null,
+        remediation_status: '',
+    };
 }
 
-type IssueRegisterFilters = {
-    excludeActiveExceptions: boolean;
-    includeClosed: boolean;
-    overdueOnly: boolean;
-    severityFilter: IssueSeverityFilter | '';
-    sortDirection: SortDirection;
-    sortField: IssueListFilters['sort_by'] | null;
-    statusFilter: IssueStatus | '';
-};
-
-const resolveIssueFilterPatch: RegisterFilterPatchResolver<IssueRegisterFilters> = ({
-    currentFilters,
-    key,
-    value,
-}) => {
-    if (key === 'statusFilter' && value === 'closed') {
-        return { includeClosed: true };
-    }
-    if (key === 'includeClosed' && value === false && currentFilters.statusFilter === 'closed') {
-        return { statusFilter: '' };
-    }
-    return {};
-};
-
-export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) {
-    const loadIssuePage = useCallback(
-        ({
-            currentPage,
-            debouncedSearch,
-            filters,
-            groupBy,
-            groupValue,
-            limit,
-        }: RegisterPageLoadRequest<IssueRegisterFilters, ViewMode>) => issuesApi.list(
-            buildIssueListFilters({
-                currentPage,
-                debouncedSearch,
-                excludeActiveExceptions: filters.excludeActiveExceptions,
-                includeClosed: filters.includeClosed,
-                limit,
-                overdueOnly: filters.overdueOnly,
-                severityFilter: filters.severityFilter,
-                sortDirection: filters.sortDirection,
-                sortField: filters.sortField,
-                statusFilter: filters.statusFilter,
-                groupBy,
-                groupValue,
-            })
-        ),
-        []
-    );
-    const toUiErrorKey = useCallback((error: unknown) => apiClient.toUiMessageKey(error), []);
-
-    const submitExport = useCallback(
-        async ({
-            format,
-            asOfDate,
-            filters,
-        }: RegisterPageExportRequest<IssueRegisterFilters, ViewMode>) => {
-            await reportApi.exportIssues({
-                format,
-                asOfDate,
-                filters: buildIssueExportFilters({
-                    statusFilter: filters.statusFilter,
-                    severityFilter: filters.severityFilter,
-                    overdueOnly: filters.overdueOnly,
-                    excludeActiveExceptions: filters.excludeActiveExceptions,
-                }),
-            });
-        },
-        []
-    );
-
-    const registerController = useRegisterPageController<IssueSummary, IssueRegisterFilters, ViewMode>({
-        clearOnNonForbidden: true,
-        fallbackErrorKey: 'errors.load_failed',
-        getGroupBy: getIssueGroupBy,
-        initialFilters: {
-            excludeActiveExceptions: initialState.excludeActiveExceptions,
-            includeClosed: initialState.includeClosed,
-            overdueOnly: initialState.overdueOnly,
-            severityFilter: initialState.severityFilter,
-            sortDirection: initialState.sortDirection,
-            sortField: initialState.sortField,
-            statusFilter: initialState.statusFilter,
-        },
-        initialViewMode: 'all',
-        loadPage: loadIssuePage,
-        resolveFilterPatch: resolveIssueFilterPatch,
-        submitExport,
-        toExportErrorKey: toUiErrorKey,
-        toErrorKey: toUiErrorKey,
-    });
+export function useIssuesPageState(language: SupportedLanguage = 'en') {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const serializedParams = searchParams.toString();
+    const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
+        defaultView: 'all', allowedViews: ISSUE_VIEWS,
+    }), [serializedParams]);
+    const filters = useMemo(() => Object.keys(urlState.filters).length > 0
+        ? parseIssueRegisterFilters(urlState.filters)
+        : legacyFilters(new URLSearchParams(serializedParams)), [serializedParams, urlState.filters]);
+    const viewMode = urlState.view as IssueRegisterView;
+    const legacyState = useMemo(() => parseIssuesPageQueryParams(new URLSearchParams(serializedParams)), [serializedParams]);
+    const sort = useMemo(() => validSort(urlState.sort) ?? (
+        legacyState.sortField && legacyState.sortDirection
+            ? { field: legacyState.sortField, direction: legacyState.sortDirection }
+            : null
+    ), [legacyState.sortDirection, legacyState.sortField, urlState.sort]);
+    const selectedGroupValue = urlState.selectedGroupValue;
+    const debouncedSearch = useDebouncedValue(urlState.search, 300);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [facets, setFacets] = useState<IssueFacets>({});
+    const [isExporting, setIsExporting] = useState(false);
     const {
-        closeExportDialog,
-        fetchCollection: fetchIssues,
-        isExportDialogOpen,
-        isExporting,
-        openExportDialog,
-        clearSelectedGroup,
-        selectedGroupLabel,
-        selectedGroupValue,
-        selectGroup,
-        updateFilter,
-        updateFilters,
-    } = registerController;
+        applyFailure, applySuccess, capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied,
+        isLoading, items, setIsLoading, totalCount,
+    } = useCollectionDataState<IssueSummary, IssueListCapabilities>();
+    const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
-    const updateStatusFilter = useCallback((value: IssueStatus | '') => {
-        updateFilter('statusFilter', value);
-    }, [updateFilter]);
+    const listParams = useMemo(() => buildIssueRegisterListParams({
+        currentPage, filters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
+        search: debouncedSearch, sort, view: viewMode,
+    }), [currentPage, debouncedSearch, filters, selectedGroupValue, sort, viewMode]);
+    const fetchIssues = useCallback(async () => {
+        const request = beginRequest();
+        setIsLoading(true);
+        try {
+            const response = await issuesApi.list(listParams);
+            if (!isCurrentRequest(request)) return;
+            applySuccess({ items: response.items, groups: response.groups ?? [], capabilities: response.capabilities ?? null, total: response.total });
+            setFacets(response.facets ?? {});
+        } catch (error) {
+            if (!isCurrentRequest(request)) return;
+            const patch = applyFailure(error, { toErrorKey: apiClient.toUiMessageKey.bind(apiClient) });
+            if (patch.isAccessDenied) setFacets({});
+        } finally {
+            if (isCurrentRequest(request)) setIsLoading(false);
+        }
+    }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
 
-    const updateSeverityFilter = useCallback((value: IssueSeverityFilter | '') => {
-        updateFilter('severityFilter', value);
-    }, [updateFilter]);
+    useEffect(() => setCurrentPage(1), [serializedParams]);
+    useEffect(() => { void fetchIssues(); }, [fetchIssues]);
 
-    const updateOverdueOnly = useCallback((value: boolean) => {
-        updateFilter('overdueOnly', value);
-    }, [updateFilter]);
-
-    const updateExcludeActiveExceptions = useCallback((value: boolean) => {
-        updateFilter('excludeActiveExceptions', value);
-    }, [updateFilter]);
-
-    const updateIncludeClosed = useCallback((value: boolean) => {
-        updateFilter('includeClosed', value);
-    }, [updateFilter]);
-
-    const updateSort = useCallback(
-        (sortField: IssueListFilters['sort_by'] | null, sortDirection: SortDirection) => {
-            updateFilters({ sortDirection, sortField });
-        },
-        [updateFilters]
-    );
+    const writeUrl = useCallback((next: {
+        filters?: IssueRegisterFilters; group?: string | null; search?: string;
+        sort?: RegisterSortState | null; view?: IssueRegisterView;
+    }, replace = false) => {
+        const existing = new URLSearchParams(serializedParams);
+        ['status', 'severity', 'severity_group', 'overdue', 'exclude_active_exceptions', 'include_closed', 'sort_by', 'sort_order'].forEach((key) => existing.delete(key));
+        const params = buildRegisterUrlParams({
+            filters: serializeIssueRegisterFilters(next.filters ?? filters), search: next.search ?? urlState.search,
+            selectedGroupValue: next.group === undefined ? selectedGroupValue : next.group,
+            sort: next.sort === undefined ? sort : next.sort, view: next.view ?? viewMode,
+        }, existing);
+        setSearchParams(params, { replace });
+        setCurrentPage(1);
+    }, [filters, selectedGroupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+    const updateFilter = useCallback(<K extends keyof IssueRegisterFilters>(key: K, value: IssueRegisterFilters[K]) => {
+        const next = { ...filters, [key]: value };
+        if (key === 'status' && value === 'closed') next.include_closed = true;
+        if (key === 'include_closed' && value === false && next.status === 'closed') next.status = '';
+        writeUrl({ filters: next, group: null });
+    }, [filters, writeUrl]);
+    const clearFilters = useCallback(() => writeUrl({ filters: EMPTY_ISSUE_REGISTER_FILTERS, group: null }), [writeUrl]);
+    const exportCurrentIssues = useCallback(async () => {
+        setIsExporting(true);
+        try { await issuesApi.downloadExport({ ...listParams, offset: 0 }, language); }
+        finally { setIsExporting(false); }
+    }, [language, listParams]);
+    const exportIssueSnapshot = useCallback(async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
+        setIsExporting(true);
+        try {
+            await reportApi.exportIssues({ format, asOfDate, filters: buildIssueExportFilters({
+                statusFilter: filters.status, severityFilter: filters.severity,
+                overdueOnly: filters.overdue, excludeActiveExceptions: filters.exclude_active_exceptions,
+            }) });
+        } finally { setIsExporting(false); }
+    }, [filters]);
 
     return {
-        currentPage: registerController.currentPage,
-        capabilities: registerController.capabilities,
-        errorKey: registerController.errorKey,
-        excludeActiveExceptions: registerController.filters.excludeActiveExceptions,
-        fetchIssues,
-        groups: registerController.groups,
-        handleExport: registerController.handleExport,
-        hasLoadedOnce: registerController.hasLoadedOnce,
-        includeClosed: registerController.filters.includeClosed,
-        isExportDialogOpen,
-        isExporting,
-        isAccessDenied: registerController.isAccessDenied,
-        isLoading: registerController.isLoading,
-        items: registerController.items,
-        limit: registerController.limit,
-        openExportDialog,
-        closeExportDialog,
-        overdueOnly: registerController.filters.overdueOnly,
-        search: registerController.search,
-        selectedGroupLabel,
-        selectedGroupValue,
-        setCurrentPage: registerController.setCurrentPage,
-        severityFilter: registerController.filters.severityFilter,
-        sortDirection: registerController.filters.sortDirection,
-        sortField: registerController.filters.sortField,
-        statusFilter: registerController.filters.statusFilter,
-        totalCount: registerController.totalCount,
-        totalPages: registerController.totalPages,
-        updateExcludeActiveExceptions,
-        updateIncludeClosed,
-        updateOverdueOnly,
-        updateSearch: registerController.updateSearch,
-        updateSeverityFilter,
-        updateSort,
-        updateStatusFilter,
-        updateViewMode: registerController.updateViewMode,
-        viewMode: registerController.viewMode,
-        selectGroup,
-        clearSelectedGroup,
+        capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,
+        errorKey, exportCurrentIssues, exportIssueSnapshot, facets, fetchIssues, filters, groups,
+        hasLoadedOnce, isAccessDenied, isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
+        search: urlState.search, selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
+        selectedGroupLabel: groupLabel(groups, selectedGroupValue), selectedGroupValue, setCurrentPage,
+        sortDirection: sort?.direction ?? null, sortField: sort?.field ?? null,
+        totalCount, totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE), updateFilter,
+        updateSearch: (value: string) => writeUrl({ search: value, group: null }, true),
+        updateSort: (field: string | null, direction: SortDirection) => writeUrl({ sort: field && direction ? { field, direction } : null }),
+        updateViewMode: (view: IssueRegisterView) => writeUrl({ view, group: null }), viewMode,
     };
 }

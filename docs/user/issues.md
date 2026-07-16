@@ -1,7 +1,7 @@
 ---
 title: Managing Issues and Findings
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/IssuesPage.tsx + frontend/src/pages/issues/* + issue workflows in backend"
 summary: "How to log, triage, remediate, and close Issues (findings) with clear ownership, due dates, exceptions, and audit-ready exports."
@@ -107,14 +107,25 @@ If you receive a stale or rejected approval, do not immediately resubmit the sam
 
 ## Finding, Filtering, and Evidence
 
-Use grouped views for owner, severity, status, due date, or vendor. Export a filtered list for status meetings and the detail history for audit evidence.
+The register keeps search, filters, sorting, view, and the selected group in the URL. A copied link, browser Back/Forward, or reload restores that review context. Changing one of those controls resets the local result page to page 1.
+
+Use status and severity as the primary controls. Status covers Open, Triaged, In progress, Ready for validation, and Closed. Selecting Closed automatically includes closed records; clearing Include closed also clears a Closed-only selection. Severity supports Low, Medium, High, Critical, and the combined High/Critical review view. Add department, owner, or remediation status when you need a narrower operational queue. **Overdue only** excludes closed records and **Exclude active exceptions** removes currently approved exception cases from the action queue.
+
+Switch between All and grouped views by category, department, owner, process, risk type, severity, status, type, or vendor. Select a group card to inspect its exact rows. Vendor context is available only when your access permits it. Create and Export buttons likewise follow collection capabilities returned by the server.
+
+The Export dialog has two evidence modes:
+
+- **Current view** downloads every row matching the current normalized search, filters, sort, view, and selected group, without list pagination. The mature CSV preserves issue ID, title, status and severity codes/labels, source context, department, owner, due/overdue and age fields, readable linked risks/controls/executions/KRIs, remediation status/progress/owner/target date, and exception status/expiry.
+- **Historical snapshot** uses the selected as-of date and the reports service. Use this for point-in-time evidence rather than a live operational queue.
+
+Use the issue detail Overview, Workflow, and History tabs for record-level audit evidence.
 
 For reliable results, filter in this order:
 
 1. Start broad enough to confirm the record exists.
 2. Narrow by department, owner, status, vendor, or date.
 3. Open a sample record to confirm the filter matches your intent.
-4. Export only the filtered view needed for the review.
+4. Choose Current view for the live queue or Historical snapshot for an as-of-date report, then export only the evidence needed for the review.
 
 Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
 

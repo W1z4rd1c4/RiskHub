@@ -15,6 +15,7 @@ from .queries import (
     apply_control_monitoring_status_filter,
     apply_kri_monitoring_status_filter,
     apply_kri_timeliness_status_filter,
+    kri_monitoring_status_expression,
 )
 from .types import (
     ControlMonitoringConfig,
@@ -34,6 +35,7 @@ __all__ = [
     "apply_control_monitoring_status_filter",
     "apply_kri_monitoring_status_filter",
     "apply_kri_timeliness_status_filter",
+    "kri_monitoring_status_expression",
     "CONTROL_EXECUTION_STALE_DAYS_KEY",
     "export_rows",
     "KRI_WARNING_UPPER_MARGIN_RATIO_KEY",

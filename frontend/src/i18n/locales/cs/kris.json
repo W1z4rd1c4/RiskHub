@@ -254,6 +254,26 @@
     "compare_periods": "Porovnat období",
     "need_two_entries_compare": "Pro porovnání vyberte alespoň dva záznamy."
   },
+  "register": {
+    "filters": {
+      "lifecycle": "Životní cyklus",
+      "add": "Přidat filtr",
+      "active_count": "Aktivní filtry: {{count}}",
+      "clear_all": "Vymazat vše",
+      "remove": "Odebrat {{label}}",
+      "frequency": "Frekvence",
+      "department": "Oddělení",
+      "reporting_owner": "Vlastník reportování"
+    },
+    "lifecycle": {
+      "active": "Aktivní",
+      "archived": "Archivované",
+      "all": "Vše"
+    },
+    "export": {
+      "title": "Export filtrovaných KRI"
+    }
+  },
   "delete_dialog": {
     "title": "Smazat KRI",
     "message": "Uveďte důvod smazání tohoto KRI. Tato akce je auditována.",

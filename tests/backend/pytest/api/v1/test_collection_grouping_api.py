@@ -236,7 +236,6 @@ async def test_invalid_grouped_drilldowns_fail_closed(
         ("/api/v1/risks", {"group_by": "vendor", "group_value": "not-a-vendor-group"}),
         ("/api/v1/controls", {"group_by": "vendor", "group_value": "not-a-vendor-group"}),
         ("/api/v1/kris", {"group_by": "vendor", "group_value": "not-a-vendor-group"}),
-        ("/api/v1/issues", {"group_by": "not_supported", "group_value": "not-a-real-group"}),
     ]
     for path, params in cases:
         response = await auth_client.get(path, params={"offset": 0, "limit": 10, **params})
@@ -244,6 +243,18 @@ async def test_invalid_grouped_drilldowns_fail_closed(
         payload = response.json()
         assert payload["items"] == []
         assert payload["total"] == 0
+
+    invalid_issue_group = await auth_client.get(
+        "/api/v1/issues",
+        params={
+            "offset": 0,
+            "limit": 10,
+            "group_by": "not_supported",
+            "group_value": "not-a-real-group",
+        },
+    )
+    assert invalid_issue_group.status_code == 400, invalid_issue_group.text
+    assert invalid_issue_group.json() == {"detail": "Invalid Issue group_by value"}
 
 
 @pytest.mark.asyncio

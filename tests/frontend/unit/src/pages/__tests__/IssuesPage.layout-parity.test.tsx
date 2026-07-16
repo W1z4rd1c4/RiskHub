@@ -66,8 +66,8 @@ describe('IssuesPage layout parity', () => {
 
         const filterBar = searchInput.closest('.glass-card');
         expect(filterBar).not.toBeNull();
-        expect(filterBar).toHaveClass('md:flex-row');
-        expect(filterBar).toHaveClass('md:items-center');
+        expect(filterBar).toHaveClass('space-y-4');
+        expect(screen.getByTestId('issues-register-shell')).toBeInTheDocument();
 
         expect(container.textContent).not.toContain('Department ID');
         expect(container.textContent).not.toContain('Owner user ID');

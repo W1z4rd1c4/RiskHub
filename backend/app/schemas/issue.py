@@ -7,7 +7,7 @@ from enum import Enum
 from pydantic import BaseModel, Field, computed_field, model_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
-from app.schemas.collection import CollectionGroupRead
+from app.schemas.collection import CollectionFacetOption, CollectionGroupRead
 
 
 class IssueSeverityEnum(str, Enum):
@@ -255,6 +255,7 @@ class IssueListResponse(BaseModel):
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
+    facets: dict[str, list[CollectionFacetOption]] = Field(default_factory=dict)
     capabilities: IssueListCapabilities | None = None
 
     @computed_field

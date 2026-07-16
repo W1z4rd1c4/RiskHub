@@ -14,6 +14,7 @@ from app.services._collection_contracts import (
     QueryTransform,
     execute_collection_export_with_definition,
     execute_collection_listing_with_definition,
+    load_collection_export_models_with_definition,
 )
 
 TModel = TypeVar("TModel")
@@ -84,6 +85,20 @@ async def execute_register_listing_export(
     plan: RegisterListingPlan[TModel, TItem],
 ) -> list[TItem]:
     return await execute_collection_export_with_definition(
+        db=db,
+        query=query,
+        ordered_query=plan.ordered_query,
+        definition=plan.listing_definition,
+    )
+
+
+async def load_register_listing_export_models(
+    *,
+    db: Any,
+    query: CollectionQuery,
+    plan: RegisterListingPlan[TModel, TItem],
+) -> list[TModel]:
+    return await load_collection_export_models_with_definition(
         db=db,
         query=query,
         ordered_query=plan.ordered_query,

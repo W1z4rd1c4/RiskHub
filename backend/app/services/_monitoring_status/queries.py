@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from sqlalchemy import and_, exists, false, func, literal, or_, select
+from sqlalchemy import and_, case, exists, false, func, literal, or_, select
 from sqlalchemy.sql import Select
 
 from app.models.control import Control
@@ -160,6 +160,29 @@ def apply_kri_monitoring_status_filter(
     if not clauses:
         return query.where(false())
     return query.where(or_(*clauses))
+
+
+def kri_monitoring_status_expression(
+    *,
+    today: date,
+    warning_upper_margin_ratio: float,
+):
+    """Return the canonical SQL monitoring-status value for ordering.
+
+    Keep ordering on the same frequency-aware predicates used by the list
+    filters so a sorted register cannot disagree with its serialized status.
+    """
+
+    status_cases = []
+    for status in KRIMonitoringStatus:
+        clauses = _kri_frequency_status_clauses(
+            today=today,
+            monitoring_status=status,
+            warning_upper_margin_ratio=warning_upper_margin_ratio,
+        )
+        if clauses:
+            status_cases.append((or_(*clauses), status.value))
+    return case(*status_cases, else_=KRIMonitoringStatus.optimal.value)
 
 
 def apply_kri_timeliness_status_filter(

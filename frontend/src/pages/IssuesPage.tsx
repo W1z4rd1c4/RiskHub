@@ -1,139 +1,91 @@
-import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { useNavigate } from 'react-router-dom';
+
+import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import { ViewSwitcher } from '@/components/tables';
+import type { SortDirection } from '@/components/tables';
+import type { SupportedLanguage } from '@/i18n';
+import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import type { IssueListFilters, IssueSummary } from '@/types/issue';
+
+import { buildIssueColumns } from './issues/issueColumns';
+import { ISSUE_REGISTER_CONFIG, type IssueRegisterView } from './issues/issueRegisterConfig';
 import { IssuesFilterBar } from './issues/IssuesFilterBar';
-import { IssuesPageHeader } from './issues/IssuesPageHeader';
-import { IssuesTableSection } from './issues/IssuesTableSection';
-import { parseIssuesPageQueryParams } from './issues/issuesPagePresentation';
+import { formatIssueGroupLabel } from './issues/issuesPagePresentation';
 import { useIssuesPageState } from './issues/useIssuesPageState';
 
 export function IssuesPage() {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const { t } = useTranslation('issues');
+    const { t, i18n } = useTranslation(['issues', 'common']);
+    const language = i18n.language as SupportedLanguage;
+    const state = useIssuesPageState(language);
+    const columns = buildIssueColumns({ language, t });
+    const views = ISSUE_REGISTER_CONFIG.views.filter((view) => view.value !== 'vendor' || resolveCapabilityFlag(state.capabilities, 'can_view_vendor_contexts'));
 
-    const [initialState] = useState(() => parseIssuesPageQueryParams(searchParams));
-    const {
-        currentPage,
-        capabilities,
-        errorKey,
-        excludeActiveExceptions,
-        fetchIssues,
-        groups,
-        handleExport,
-        hasLoadedOnce,
-        includeClosed,
-        isExportDialogOpen,
-        isExporting,
-        isAccessDenied,
-        isLoading,
-        items,
-        limit,
-        openExportDialog,
-        closeExportDialog,
-        overdueOnly,
-        search,
-        selectedGroupLabel,
-        selectedGroupValue,
-        setCurrentPage,
-        severityFilter,
-        sortDirection,
-        sortField,
-        statusFilter,
-        totalCount,
-        totalPages,
-        updateExcludeActiveExceptions,
-        updateIncludeClosed,
-        updateOverdueOnly,
-        updateSearch,
-        updateSeverityFilter,
-        updateSort,
-        updateStatusFilter,
-        updateViewMode,
-        viewMode,
-        selectGroup,
-        clearSelectedGroup,
-    } = useIssuesPageState({
-        initialState,
-    });
-
-    if (isAccessDenied) {
-        return (
-            <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
-                <AlertTriangle className="h-5 w-5" />
-                <span>{t('permissions.view_denied')}</span>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-8">
-            <IssuesPageHeader
-                canCreateIssue={resolveCapabilityFlag(capabilities, 'can_create')}
-                canExport={resolveCapabilityFlag(capabilities, 'can_export')}
-                isExporting={isExporting}
-                onCreateIssue={() => navigate('/issues/new')}
-                onOpenExport={openExportDialog}
-            />
-
-            <ViewSwitcher
-                value={viewMode}
-                onChange={updateViewMode}
-                exclude={resolveCapabilityFlag(capabilities, 'can_view_vendor_contexts') ? ['risk', 'flag'] : ['risk', 'flag', 'vendor']}
-            />
-
-            <IssuesFilterBar
-                search={search}
-                statusFilter={statusFilter}
-                severityFilter={severityFilter}
-                overdueOnly={overdueOnly}
-                excludeActiveExceptions={excludeActiveExceptions}
-                includeClosed={includeClosed}
-                isLoading={isLoading}
-                onRefresh={fetchIssues}
-                onSearchChange={updateSearch}
-                onStatusChange={updateStatusFilter}
-                onSeverityChange={updateSeverityFilter}
-                onOverdueOnlyChange={updateOverdueOnly}
-                onExcludeActiveExceptionsChange={updateExcludeActiveExceptions}
-                onIncludeClosedChange={updateIncludeClosed}
-            />
-
-            <IssuesTableSection
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalCount={totalCount}
-                itemsPerPage={limit}
-                items={items}
-                groups={groups}
-                selectedGroupLabel={selectedGroupLabel}
-                selectedGroupValue={selectedGroupValue}
-                errorKey={errorKey}
-                hasLoadedOnce={hasLoadedOnce}
-                isLoading={isLoading}
-                onBackFromGroup={clearSelectedGroup}
-                sortField={sortField}
-                sortDirection={sortDirection}
-                onRetry={fetchIssues}
-                onRowClick={(issue) => navigate(`/issues/${issue.id}`)}
-                onSelectGroup={selectGroup}
-                onSortChange={updateSort}
-                onPageChange={setCurrentPage}
-                viewMode={viewMode}
-            />
-
-            <ExportDialog
-                isOpen={isExportDialogOpen}
-                onClose={closeExportDialog}
-                onSubmit={handleExport}
-                isSubmitting={isExporting}
-            />
-        </div>
-    );
+    return <RegisterListShell<IssueSummary, IssueRegisterView>
+        accessDeniedState={<div className="glass-card p-8 flex items-center gap-3 text-amber-200"><AlertTriangle className="h-5 w-5" aria-hidden="true" /><span>{t('permissions.view_denied')}</span></div>}
+        allView="all"
+        title={t('title')}
+        subtitle={t('page_subtitle')}
+        views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
+        view={state.viewMode}
+        onViewChange={state.updateViewMode}
+        canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
+        canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
+        onCreate={() => void navigate('/issues/new')}
+        createLabel={t('actions.new_issue')}
+        exportLabel={t('common:actions.export')}
+        exportDialog={({ isOpen, onClose }) => <ExportDialog
+            isOpen={isOpen}
+            onClose={onClose}
+            onCurrentViewSubmit={async () => { await state.exportCurrentIssues(); onClose(); }}
+            onSubmit={async (payload) => { await state.exportIssueSnapshot(payload); onClose(); }}
+            isSubmitting={state.isExporting}
+            dataTestId="issues-export-dialog"
+            title={t('register.export.title')}
+        />}
+        isAccessDenied={state.isAccessDenied}
+        isError={Boolean(state.errorKey)}
+        errorMessage={state.errorKey ? t(state.errorKey) : undefined}
+        isExporting={state.isExporting}
+        isLoading={state.isLoading}
+        items={state.items}
+        columns={columns}
+        table={{
+            keyExtractor: (issue) => issue.id,
+            onRowClick: (issue) => void navigate(`/issues/${issue.id}`),
+            rowHref: (issue) => `/issues/${issue.id}`,
+            rowLabel: (issue) => issue.title,
+            sortKey: state.sortField,
+            sortDirection: state.sortDirection,
+            onSort: (key, direction) => state.updateSort((direction ? key : null) as IssueListFilters['sort_by'] | null, direction as SortDirection),
+        }}
+        currentPage={state.currentPage}
+        totalPages={state.totalPages}
+        totalCount={state.totalCount}
+        itemsPerPage={state.limit}
+        onPageChange={state.setCurrentPage}
+        onRetry={() => void state.fetchIssues()}
+        emptyMessage={state.hasLoadedOnce ? t('list.empty') : t('common:loading.data')}
+        grouping={{
+            groups: state.groups,
+            onBack: state.clearSelectedGroup,
+            onSelectGroup: state.selectGroup,
+            selectedGroupLabel: state.selectedGroupLabel,
+            selectedGroupValue: state.selectedGroupValue,
+            hideActive: true,
+            groupLabel: (group) => formatIssueGroupLabel(group, {
+                unlinkedVendor: t('fallbacks.unlinked_vendor'),
+                uncategorized: t('fallbacks.uncategorized'),
+                unknownDepartment: t('fallbacks.unknown_department'),
+                noProcess: t('fallbacks.no_process'),
+                unknownRiskType: t('common:fallbacks.unknown_type'),
+            }),
+        }}
+        testIdPrefix="issues"
+        toolbar={<IssuesFilterBar facets={state.facets} filters={state.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchIssues()} onSearchChange={state.updateSearch} search={state.search} />}
+    />;
 }
 
 export default IssuesPage;

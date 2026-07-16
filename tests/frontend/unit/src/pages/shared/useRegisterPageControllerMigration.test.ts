@@ -11,21 +11,10 @@ function readFrontendSource(relativePath: string): string {
 
 describe('W8 register page-state migration', () => {
     it.each([
-        'src/pages/issues/useIssuesPageState.ts',
-        'src/pages/kris/useKrisPageState.ts',
-    ])('%s delegates collection state to useRegisterPageController', (relativePath) => {
-        const source = readFrontendSource(relativePath);
-
-        expect(source).toContain('useRegisterPageController');
-        expect(source).not.toContain('useCollectionPageWorkflow');
-        expect(source).not.toContain('useDebouncedValue');
-        expect(source).not.toContain('getTotalPages');
-        expect(source).not.toContain('resetCollectionGroupAndPage');
-    });
-
-    it.each([
         'src/pages/risks/useRisksPageState.ts',
         'src/pages/vendors/useVendorsPageState.ts',
+        'src/pages/issues/useIssuesPageState.ts',
+        'src/pages/kris/useKrisPageState.ts',
     ])('moves %s to the URL-backed shared register state', (relativePath) => {
         const source = readFrontendSource(relativePath);
 

@@ -32,6 +32,7 @@ export interface CollectionListResponse<
     offset: number;
     limit: number;
     groups?: CollectionGroup[] | null;
+    facets?: Record<string, CollectionFacetOption[]> | null;
     capabilities?: TCapabilities | null;
 }
 

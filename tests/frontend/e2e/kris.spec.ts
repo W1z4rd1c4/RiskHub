@@ -17,6 +17,9 @@ test.describe('KRI Management (Deterministic)', () => {
 
         await expect(riskManagerPage.getByTestId('kris-export-button')).toHaveCount(1);
         await krisPage.openExportDialog();
+        await expect(krisPage.currentViewExportPurpose).toBeChecked();
+        await expect(krisPage.exportDateInput).not.toBeVisible();
+        await krisPage.choosePointInTimeExport();
         await expect(krisPage.exportDateInput).toHaveValue(todayLocalIso());
         // Export dialog is CSV-only; format chooser is intentionally absent.
         await krisPage.submitExport('csv');

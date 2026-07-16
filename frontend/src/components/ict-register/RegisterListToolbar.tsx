@@ -100,6 +100,7 @@ export function RegisterListToolbar({
                         data-testid={`${testIdPrefix}-refresh-button`}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                         aria-label={refreshLabel}
+                        title={refreshLabel}
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
                     </button>

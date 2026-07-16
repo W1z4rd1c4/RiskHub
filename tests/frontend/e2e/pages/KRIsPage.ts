@@ -15,7 +15,11 @@ export class KRIsPage {
 
     // Locators
     get pageTitle(): Locator {
-        return this.page.locator('h2');
+        return this.page.locator('h1');
+    }
+
+    get registerShell(): Locator {
+        return this.page.getByTestId('kris-register-shell');
     }
 
     get table(): Locator {
@@ -50,6 +54,18 @@ export class KRIsPage {
         return this.page.getByTestId('export-date-input');
     }
 
+    get currentViewExportPurpose(): Locator {
+        return this.page.getByTestId('export-purpose-current-view');
+    }
+
+    get pointInTimeExportPurpose(): Locator {
+        return this.page.getByTestId('export-purpose-point-in-time');
+    }
+
+    get exportSubmitButton(): Locator {
+        return this.page.getByTestId('export-submit-button');
+    }
+
     get paginationControls(): Locator {
         return this.page.locator('[class*="pagination"], nav[aria-label*="pagination"]');
     }
@@ -71,8 +87,8 @@ export class KRIsPage {
     }
 
     // Actions
-    async navigate(): Promise<void> {
-        await this.page.goto('/kris');
+    async navigate(query = ''): Promise<void> {
+        await this.page.goto(`/kris${query}`);
         await this.waitForListReady();
     }
 
@@ -187,15 +203,40 @@ export class KRIsPage {
         }
     }
 
+    async chooseCurrentViewExport(): Promise<void> {
+        await this.currentViewExportPurpose.check();
+        await expect(this.exportDateInput).not.toBeVisible();
+    }
+
+    async choosePointInTimeExport(): Promise<void> {
+        await this.pointInTimeExportPurpose.check();
+        await expect(this.exportDateInput).toBeVisible();
+    }
+
     async setExportDate(date: string): Promise<void> {
         await this.exportDateInput.fill(date);
     }
 
     async submitExport(format: 'csv' = 'csv'): Promise<void> {
+        await this.submitPointInTimeExport(format);
+    }
+
+    async submitCurrentViewExport(): Promise<void> {
         await Promise.all([
             this.page.waitForResponse((response) => {
                 if (response.request().method() !== 'GET') return false;
-                if (!response.url().includes('/api/v1/reports/kris/export')) return false;
+                if (new URL(response.url()).pathname !== '/api/v1/kris/export') return false;
+                return true;
+            }, { timeout: 20000 }),
+            this.exportSubmitButton.click(),
+        ]);
+    }
+
+    async submitPointInTimeExport(format: 'csv' = 'csv'): Promise<void> {
+        await Promise.all([
+            this.page.waitForResponse((response) => {
+                if (response.request().method() !== 'GET') return false;
+                if (new URL(response.url()).pathname !== '/api/v1/reports/kris/export') return false;
                 try {
                     const url = new URL(response.url());
                     return (url.searchParams.get('format') || '').toLowerCase() === format;
@@ -203,8 +244,29 @@ export class KRIsPage {
                     return false;
                 }
             }, { timeout: 20000 }),
-            this.page.getByTestId('export-submit-button').click(),
+            this.exportSubmitButton.click(),
         ]);
+    }
+
+    viewButton(view: 'all' | 'category' | 'department' | 'process' | 'risk_type' | 'risk' | 'vendor'): Locator {
+        return this.page.getByTestId(`kris-view-${view}`);
+    }
+
+    async selectView(view: 'all' | 'category' | 'department' | 'process' | 'risk_type' | 'risk' | 'vendor'): Promise<void> {
+        await this.viewButton(view).click();
+        await this.waitForListReady();
+    }
+
+    async selectLifecycle(lifecycle: 'active' | 'archived' | 'all'): Promise<void> {
+        await this.page.getByTestId('kris-lifecycle-filter-trigger').click();
+        await this.page.getByTestId(`kris-lifecycle-filter-option-${lifecycle}`).click();
+        await this.waitForListReady();
+    }
+
+    async selectMonitoring(status: 'new' | 'not_submitted' | 'breach' | 'warning' | 'optimal'): Promise<void> {
+        await this.page.getByTestId('kris-monitoring-filter-trigger').click();
+        await this.page.getByTestId(`kris-monitoring-filter-option-${status}`).click();
+        await this.waitForListReady();
     }
 
     async setStatusFilterArchived(): Promise<void> {

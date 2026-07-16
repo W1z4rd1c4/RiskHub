@@ -192,6 +192,22 @@
     "revoked": "Zrušeno",
     "expired": "Expirovalo"
   },
+  "register": {
+    "views": {
+      "owner": "Podle vlastníka",
+      "severity": "Podle závažnosti",
+      "status": "Podle stavu"
+    },
+    "filters": {
+      "add": "Přidat filtr",
+      "active_count": "Aktivní filtry: {{count}}",
+      "clear_all": "Vymazat vše",
+      "remove": "Odebrat {{label}}"
+    },
+    "export": {
+      "title": "Export filtrovaných nálezů"
+    }
+  },
   "fallbacks": {
     "not_set": "Nenastaveno",
     "n_a": "N/A",

@@ -254,6 +254,26 @@
     "compare_periods": "Compare Periods",
     "need_two_entries_compare": "Select at least two entries to compare."
   },
+  "register": {
+    "filters": {
+      "lifecycle": "Lifecycle",
+      "add": "Add filter",
+      "active_count": "{{count}} active filters",
+      "clear_all": "Clear all",
+      "remove": "Remove {{label}}",
+      "frequency": "Frequency",
+      "department": "Department",
+      "reporting_owner": "Reporting owner"
+    },
+    "lifecycle": {
+      "active": "Active",
+      "archived": "Archived",
+      "all": "All"
+    },
+    "export": {
+      "title": "Export filtered KRIs"
+    }
+  },
   "delete_dialog": {
     "title": "Delete KRI",
     "message": "Provide a reason for deleting this KRI. This action is audited.",
