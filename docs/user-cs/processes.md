@@ -1,10 +1,10 @@
 ---
 title: Správa procesů
-version: "2.5"
-last_updated: "2026-07-15"
+version: "2.6"
+last_updated: "2026-07-16"
 audience: user
-source_of_truth: "frontend/src/pages/ProcessesPage.tsx + frontend/src/pages/ProcessDetailPage.tsx + backend/app/services/_ict_register_lifecycle/lifecycle.py"
-summary: "Uživatelský manuál pro vlastnictví procesů, vlastnické útvary, kanonické hodnoty, odvozenou kritičnost, lifecycle, vazby a governance přeřazení."
+source_of_truth: "frontend/src/pages/ProcessesPage.tsx + frontend/src/pages/processes/processRegisterConfig.ts + backend/app/services/_register_listings/processes.py + backend/app/services/_ict_register_lifecycle/lifecycle.py"
+summary: "Uživatelský manuál pro sdílený registr procesů, vlastnictví, kanonické hodnoty, odvozenou kritičnost, lifecycle, vazby, export a governance přeřazení."
 tags:
   - workflow
   - governance
@@ -30,7 +30,7 @@ Pokud jsou dostupné, připravte dopady, MTPD, RTO, RPO, BCM evidenci, výsledek
 
 ## Kde to najdete
 
-V levém menu otevřete **Procesy**. Registr standardně zobrazuje aktivní záznamy. Hledejte podle F-kódu, L0/L1/L2 názvu, vlastníka nebo vlastnického útvaru. Kliknutí na řádek otevře detail. Tlačítka **Nový proces**, **Upravit**, archivace a obnovení se zobrazí podle capabilities ze serveru.
+V levém menu otevřete **Procesy**. Pokud URL neobsahuje uložený stav, registr se otevře v pohledu **Vše** s aktivními záznamy a deterministickým pořadím podle F-kódu ze serveru. Hledejte podle F-kódu, L0/L1/L2 názvu, vlastníka nebo vlastnického útvaru. Kliknutí na řádek otevře detail. Tlačítka **Nový proces**, **Upravit**, archivace, obnovení a export se zobrazí podle capabilities ze serveru.
 
 ## Co můžete vidět a měnit
 
@@ -64,7 +64,17 @@ Tato verze vlastnictví procesů nepřidává samostatnou approval frontu ani no
 
 ## Vyhledávání, filtrování a evidence
 
-V registru hledejte podle F-kódu, názvu v hierarchii, jména vlastníka procesu nebo názvu vlastnického útvaru. Před závěrem, že proces chybí, ověřte zahrnutí archivovaných záznamů. Vyhledávání pomáhá záznam najít, ale nemění backendový scope, který určuje, které procesy smíte číst. Seskupené workspaces **Podle útvaru**/**Podle vlastníka** a sdílené filtry napříč registry jsou odložené.
+Pohled **Vše** používá běžnou stránkovanou tabulku. Dalších pět pohledů seskupuje stejnou viditelnou množinu jako **Podle útvaru**, **Podle vlastníka**, **Podle L0 oblasti**, **Podle kritičnosti** nebo **Podle dodavatele**. Výběrem karty skupiny zobrazíte její procesy a potom se můžete vrátit na souhrn skupin. Proces se může objevit ve více dodavatelských skupinách, pokud má více viditelných přímých nebo odvozených vazeb. Chybějící přiřazení, klasifikace nebo vazba na dodavatele mají bezpečně pojmenovanou skupinu, nikdy interní číselné ID.
+
+Vyhledávání pokrývá F-kód, L0/L1/L2 názvy, jméno vlastníka procesu a název vlastnického útvaru. Přidat lze filtry lifecycle, vlastnického útvaru, vlastníka procesu, L0 oblasti, třídy kritičnosti, CIF, úplnosti, licencované činnosti, BCM vazby, výsledku DR testu, inkluzivního rozsahu MTPD, navázaného aktiva, dodavatele nebo rizika. Různá pole se skládají pomocí **AND**, více hodnot v jednom poli pomocí **OR** a hledání se k filtrům přidává jako další podmínka. Boolean filtry nabízejí Ano, Ne nebo Libovolné. Aktivní chips ukazují každou podmínku; odeberte jeden chip nebo použijte **Vymazat vše** pro návrat k výchozí aktivní množině.
+
+Hledání a filtry nikdy nerozšiřují oprávnění. Počty facetů a vzdálené lookupy útvarů, vlastníků, aktiv, dodavatelů a rizik se počítají jen ze záznamů a vazeb, které smíte číst. Platné řízené kódy bez aktuálního výsledku zůstávají viditelné, ale zakázané. Vybrané lookup položky lze znovu načíst i po stránkování a rozhraní ukazuje bezpečná jména a kontext, ne číselná databázová ID.
+
+URL zachovává hledání, vybraný pohled, řazení, filtry, vybranou skupinu i nesouvisející navigační parametry. Obnovení URL a tlačítka Zpět/Vpřed tento stav obnoví. Aktuální stránka se záměrně neukládá; změna hledání, filtru, pohledu, řazení nebo skupiny vrátí stránkování na stranu 1. Nesouvisející parametry zůstávají pouze navigačním kontextem prohlížeče: neposílají se jako filtry procesů a nemohou změnit lifecycle ani rozšířit export.
+
+Pokud máte oprávnění k exportu, tlačítko **Export** stáhne standardní CSV se všemi odpovídajícími procesy, které smíte číst, ne pouze s aktuální stránkou. Použije současné hledání, filtry, řazení a vybranou skupinu; řádky obsahují kanonické kódy a popisky v aktivní češtině nebo angličtině. Formální DORA Register of Information zůstává samostatným regulatorním výstupem.
+
+Během načítání nechte prohlížeč otevřený a vyčkejte na dokončení progress stavu. Když je to bezpečné, chyba při obnovení ponechá už načtené výsledky viditelné a nabídne chybu s opakováním. Stav prázdného registru a stav bez shody vysvětlují, zda vytvořit záznam, odstranit podmínky nebo změnit hledání. Při zamítnutém právu číst procesy registr ukáže access stav a neodhalí řádky, názvy skupin, počty facetů ani lookup hodnoty. Pohledy, filtry, karty skupin, řazení tabulky, stránkování a opakování jsou ovladatelné klávesnicí a správně popsané pro asistivní technologie.
 
 Pro evidenci si poznamenejte F-kód, hierarchii, zobrazené jméno a kontext vlastníka, název a kód vlastnického útvaru, lifecycle, lokalizované zobrazené hodnoty a odvozený výsledek. Activity Log ukáže autora a čas změny. E-mail slouží jako metadata v pickeru pro rozlišení identity; není součástí zobrazení evidence na detailu procesu.
 
@@ -79,6 +89,8 @@ Neupravujte data kvůli chybnému překladu. Nezaměňujte předběžnou třídu
 Pokud vlastník v pickeru chybí, ověřte aktivitu uživatele, zkuste přesný e-mail a opakujte lookup. Pokud chybí útvar, ověřte jeho aktivitu a hledejte podle názvu nebo kódu. Neaktivní položky nelze nově přiřadit.
 
 Při chybě uložení nejprve zkontrolujte L0, L1, vlastníka a vlastnický útvar, potom řízené hodnoty a číselné rozsahy. Orphan upozornění řešte přes Governance. Když nelze otevřít vazbu, ověřte oprávnění k danému typu záznamu; vlastnictví procesu tento rozsah nerozšiřuje.
+
+Pokud seznam vypadá nečekaně úzký, zkontrolujte aktivní filter chips, vybranou skupinu a lifecycle před vymazáním stavu. Zakázaná volba s nulovým počtem je platná hodnota bez výsledku v aktuálním čitelném scope, nikoli rozbitý lookup. Pokud export obsahuje méně řádků, než čekáte, porovnejte jej s celkovým počtem shod místo aktuální stránky a ověřte stejné filtry i skupinu.
 
 ## Související manuály
 

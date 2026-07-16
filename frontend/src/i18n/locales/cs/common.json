@@ -346,6 +346,8 @@
     "maintainer_reference": "Reference správce:"
   },
   "tables": {
+    "items": "Položky",
+    "active": "Aktivní",
     "items_count": "{{count}} položek",
     "high_risk": "Vysoké riziko",
     "inherited_risk_heatmap": "Heatmapa zděděného rizika",

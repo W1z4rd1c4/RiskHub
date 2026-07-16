@@ -1,10 +1,10 @@
 ---
 title: Managing Processes
-version: "2.5"
-last_updated: "2026-07-15"
+version: "2.6"
+last_updated: "2026-07-16"
 audience: user
-source_of_truth: "frontend/src/pages/ProcessesPage.tsx + frontend/src/pages/ProcessDetailPage.tsx + backend/app/services/_ict_register_lifecycle/lifecycle.py"
-summary: "User guide for Process ownership, Owning Departments, canonical values, derived criticality, lifecycle, links, and governance reassignment."
+source_of_truth: "frontend/src/pages/ProcessesPage.tsx + frontend/src/pages/processes/processRegisterConfig.ts + backend/app/services/_register_listings/processes.py + backend/app/services/_ict_register_lifecycle/lifecycle.py"
+summary: "User guide for the shared Process register, ownership, canonical values, derived criticality, lifecycle, links, export, and governance reassignment."
 tags:
   - workflow
   - governance
@@ -32,7 +32,7 @@ Actions are controlled by backend capabilities. A missing action can mean that t
 
 ## Where To Find It
 
-Open **Processes** from the sidebar. The register starts with active records. Search by F-code, L0/L1/L2 name, Process Owner, or Owning Department. Select a row to open its detail. Authorized users see **New Process**, **Edit Process**, archive, or restore actions according to the capabilities returned with the record.
+Open **Processes** from the sidebar. With no saved state in the URL, the register opens in **All** view with active records and the server's deterministic F-code order. Search by F-code, L0/L1/L2 name, Process Owner, or Owning Department. Select a row to open its detail. Authorized users see **New Process**, **Edit Process**, archive, restore, or export actions according to the capabilities returned by the server.
 
 ## What You Can See and Change
 
@@ -68,7 +68,17 @@ This Process ownership release does not add a Process-specific approval queue or
 
 ## Finding, Filtering, and Evidence
 
-Use the register search for an F-code, hierarchy name, Process Owner name, or Owning Department name. Confirm whether archived records are included before concluding that a Process is missing. Search helps locate records; it does not change the backend scope that determines which Process rows you may read. Grouped **By Department**/**By Owner** workspaces and shared cross-register filters are deferred.
+Use **All** for the ordinary paginated table. The other five views group the same visible result set as **By Department**, **By Owner**, **By L0 Area**, **By Criticality**, or **By Vendor**. Select a group card to drill into its Processes and return to the group summary when finished. A Process can appear in more than one Vendor group when it has multiple visible direct or derived Vendor relationships. Unassigned, unclassified, and no-linked-Vendor groups are shown as safe named buckets rather than raw identifiers.
+
+Search covers F-code, L0/L1/L2 names, Process Owner name, and Owning Department name. Add filters for lifecycle, Owning Department, Process Owner, L0 Area, criticality class, CIF, completeness, licensed activity, BCM linkage, DR test result, inclusive MTPD range, Linked Asset, Linked Vendor, or Linked Risk. Multiple fields are combined with **AND**; multiple choices inside one field use **OR**; search is additionally combined with the filters. Boolean filters offer Yes, No, or Any. Active chips show every applied condition; remove one chip or use **Clear all** to return to the default active-only result.
+
+Filter and search choices never expand access. Facet counts and remote Department, owner, Asset, Vendor, and Risk lookups are calculated from records and relationships you may read. Valid controlled codes with no current matches remain visible but disabled. Selected lookup entries can still be resolved after paging, and the interface shows safe names and context rather than numeric database IDs.
+
+The URL preserves search, selected view, sort, filters, selected group, and unrelated navigation parameters. Reloading the URL or using browser Back/Forward restores that state. The current page is deliberately not stored; changing search, a filter, the view, sort, or group selection returns pagination to page 1. Unrelated parameters remain browser navigation context only: they are not sent as Process filters and cannot change lifecycle or broaden an export.
+
+When export is available, **Export** downloads a standard CSV for every matching Process you are allowed to read, not just the current page. It uses the current search, filters, sort, and selected group; its rows include canonical codes and labels in the active English or Czech locale. The formal DORA Register of Information export remains a separate regulatory output.
+
+While the register is loading, keep the browser open and wait for the progress state to finish. A failed refresh keeps already loaded results visible with an error and retry action when safe. Empty-register and no-match states explain whether to create a record, clear conditions, or change search. If Process read access is denied, the register shows an access state and does not reveal rows, group labels, facet counts, or lookup values. View controls, filters, group cards, table sorting, pagination, and retry actions are keyboard operable and labelled for assistive technology.
 
 For evidence, record the F-code, L0/L1/L2 name, displayed Process Owner name and owner context, Owning Department name/code, lifecycle state, localized displayed values, and derived result. Use Activity Log for who changed accountability or lifecycle state and when. Email is picker metadata for identity disambiguation, not part of the Process detail evidence display.
 
@@ -83,6 +93,8 @@ Do not edit stored values to compensate for a translation problem. Report the wr
 If an owner is missing from the picker, confirm that the User is active. Retry the lookup and search by exact email. If a Department is absent, confirm that it is active and use its name or code. Inactive directory entries cannot be selected for new accountability.
 
 If saving fails, check all required fields first: L0, L1, Process Owner, and Owning Department. Then check controlled values and numeric ranges. If an orphan warning is displayed, use Governance rather than repeated ordinary edits. If a linked record is unavailable, verify your permission for that record type; Process ownership does not expand linked-record scope.
+
+If the list looks unexpectedly narrow, inspect the active filter chips, selected group, and lifecycle before clearing state. A disabled zero-count option is a valid value with no result in the current readable universe, not a broken lookup. If an export contains fewer rows than expected, compare it with the total matching count rather than the current page and confirm that the same filters and group are active.
 
 If a localized label looks wrong, note the active language, field, and displayed value. If a derived value looks wrong, capture the entered impacts, MTPD, preliminary class, and the explanation inputs shown in the derived section.
 

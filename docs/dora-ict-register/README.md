@@ -17,6 +17,8 @@ behind it.
   extracted from the authoritative DORA *"registr aktiv a dodavatelů"* workbook.
 - [`dora-register-of-information-legal-spec.md`](./dora-register-of-information-legal-spec.md):
   Register of Information (RoI) legal/regulatory specification.
+- [`PROCESS-REGISTER-QUERY-CONTRACT.md`](./PROCESS-REGISTER-QUERY-CONTRACT.md): Permission-scoped
+  Process list, facet, grouping, lookup, and standard-export API contract.
 - [`dashboard-cro-tile-inventory.md`](./dashboard-cro-tile-inventory.md): Inventory of the
   workbook's Dashboard / CRO-overview tiles reproduced by the ICT Committee read-model.
 - [`GRILLING-CAPTURE.md`](./GRILLING-CAPTURE.md): grill-with-docs capture of what the register

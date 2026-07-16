@@ -346,6 +346,8 @@
     "maintainer_reference": "Maintainer reference:"
   },
   "tables": {
+    "items": "Items",
+    "active": "Active",
     "items_count": "{{count}} items",
     "high_risk": "High risk",
     "inherited_risk_heatmap": "Inherited risk heatmap",

@@ -56,6 +56,7 @@
     { "id": "confirm.process-detail", "component": "ConfirmDialog", "file": "frontend/src/pages/ProcessDetailPage.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "confirm.risk-detail", "component": "ConfirmDialog", "file": "frontend/src/pages/RiskDetailPage.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "export.risks-page", "component": "ExportDialog", "file": "frontend/src/pages/RisksPage.tsx", "verificationCaseId": "owner.export-dialog" },
+    { "id": "export.processes-page", "component": "ExportDialog", "file": "frontend/src/pages/ProcessesPage.tsx", "verificationCaseId": "owner.export-dialog" },
     { "id": "confirm.threat-detail", "component": "ConfirmDialog", "file": "frontend/src/pages/ThreatDetailPage.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "access-edit.users-page", "component": "AccessEditModal", "file": "frontend/src/pages/UsersPage.tsx", "verificationCaseId": "owner.access-edit-modal" },
     { "id": "confirm.users-page", "component": "ConfirmDialog", "file": "frontend/src/pages/UsersPage.tsx", "verificationCaseId": "owner.confirm-dialog" },

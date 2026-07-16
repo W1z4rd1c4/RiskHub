@@ -10,7 +10,37 @@ export const processCapabilitiesSchema = passthroughObject({
 });
 
 export const processListCapabilitiesSchema = passthroughObject({
-    can_create: z.boolean().optional(),
+    can_create: z.boolean(),
+    can_export: z.boolean(),
+});
+
+export const processFacetOptionSchema = passthroughObject({
+    value: z.string(),
+    label: z.string(),
+    count: z.number(),
+    disabled: z.boolean(),
+    selected: z.boolean(),
+});
+
+export const processFacetsSchema = passthroughObject({
+    lifecycle: z.array(processFacetOptionSchema).optional(),
+    department: z.array(processFacetOptionSchema).optional(),
+    owner: z.array(processFacetOptionSchema).optional(),
+    l0: z.array(processFacetOptionSchema).optional(),
+    criticality: z.array(processFacetOptionSchema).optional(),
+    cif: z.array(processFacetOptionSchema).optional(),
+    is_complete: z.array(processFacetOptionSchema).optional(),
+    licensed_activity: z.array(processFacetOptionSchema).optional(),
+    bcm_link: z.array(processFacetOptionSchema).optional(),
+    dr_test_result: z.array(processFacetOptionSchema).optional(),
+});
+
+export const processLookupOptionSchema = passthroughObject({
+    id: z.number(),
+    label: z.string(),
+    secondary_label: z.string().nullable().optional(),
+    disabled: z.boolean(),
+    count: z.number().nullable().optional(),
 });
 
 export const processOwnerReadSchema = passthroughObject({
@@ -138,6 +168,7 @@ export const processSchema: z.ZodType<Process> = passthroughObject({
 export const processListResponseSchema: z.ZodType<ProcessListResponse> =
     collectionPaginationSchema(processSchema).extend({
         capabilities: processListCapabilitiesSchema.nullable().optional(),
+        facets: processFacetsSchema.nullable().optional(),
     });
 
 export const ictClosedListSchema = passthroughObject({

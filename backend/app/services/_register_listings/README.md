@@ -12,6 +12,8 @@ Business/service-layer logic for `_register_listings`.
 - `issues.py`
 - `kris.py`
 - `lifecycle.py`
+- `processes.py` — permission-scoped Process filter, facet, grouping, lookup,
+  pagination, and standard-export query plan.
 - `risks.py`
 - `vendors.py`
 

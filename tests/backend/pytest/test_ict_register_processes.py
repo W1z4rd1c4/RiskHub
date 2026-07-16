@@ -515,7 +515,7 @@ async def test_risk_manager_seed_grants_full_process_maintenance(
         ).status_code == 200
 
         listing = (await client.get("/api/v1/processes")).json()
-        assert listing["capabilities"] == {"can_create": True}
+        assert listing["capabilities"] == {"can_create": True, "can_export": True}
 
         assert (await client.delete(f"/api/v1/processes/{process_id}")).status_code == 204
         assert (await client.post(f"/api/v1/processes/{process_id}/restore")).status_code == 200
@@ -532,7 +532,7 @@ async def test_employee_reads_processes_but_cannot_maintain_them(
     async with client_factory(user=test_user_employee) as client:
         listing = await client.get("/api/v1/processes")
         assert listing.status_code == 200
-        assert listing.json()["capabilities"] == {"can_create": False}
+        assert listing.json()["capabilities"] == {"can_create": False, "can_export": True}
 
         detail = await client.get(f"/api/v1/processes/{seeded['id']}")
         assert detail.status_code == 200

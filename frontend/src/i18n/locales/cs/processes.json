@@ -8,12 +8,13 @@
         "save": "Uložit změny",
         "cancel": "Zrušit",
         "restore": "Obnovit",
+        "export": "Exportovat",
         "retry": "Zkusit znovu",
         "resolve_in_governance": "Vyřešit ve správě",
         "back_to_register": "Zpět na procesy"
     },
     "filters": {
-        "search_placeholder": "Hledat podle F-kódu, oblasti, procesu nebo vlastníka...",
+        "search_placeholder": "Hledat F-kód, název L0/L1/L2, vlastníka nebo útvar...",
         "all_statuses": "Všechny stavy"
     },
     "status": {
@@ -185,6 +186,61 @@
         "not_found": "Proces nenalezen.",
         "load_failed": "Načtení procesů se nezdařilo.",
         "archive_failed": "Archivace procesu se nezdařila."
+    },
+    "register": {
+        "views": {
+            "all": "Vše",
+            "department": "Podle útvaru",
+            "owner": "Podle vlastníka",
+            "l0": "Podle L0 oblasti",
+            "criticality": "Podle kritičnosti",
+            "vendor": "Podle dodavatele"
+        },
+        "filters": {
+            "add": "Filtry",
+            "active_count": "Aktivní filtry: {{count}}",
+            "clear_all": "Vymazat vše",
+            "remove": "Odebrat filtr {{label}}",
+            "lifecycle": "Životní cyklus",
+            "department": "Vlastnický útvar",
+            "owner": "Vlastník procesu",
+            "l0": "L0 oblast",
+            "criticality": "Třída kritičnosti",
+            "cif": "Stav CIF",
+            "completeness": "Úplnost",
+            "licensed_activity": "Licencovaná činnost",
+            "bcm": "BCM vazba",
+            "dr_result": "Výsledek DR testu",
+            "mtpd": "Rozsah MTPD",
+            "linked_asset": "Propojené aktivum",
+            "linked_vendor": "Propojený dodavatel",
+            "linked_risk": "Propojené riziko",
+            "search_options": "Hledat ve viditelných možnostech...",
+            "search_options_for": "Hledat možnosti {{label}}",
+            "no_options": "Žádné viditelné možnosti",
+            "minimum": "Minimum pro {{label}}",
+            "maximum": "Maximum pro {{label}}",
+            "min": "Minimum",
+            "max": "Maximum"
+        },
+        "lifecycle": {
+            "active": "Aktivní",
+            "archived": "Archivované",
+            "all": "Všechny záznamy"
+        },
+        "boolean": {
+            "any": "Libovolné",
+            "yes": "Ano",
+            "no": "Ne"
+        },
+        "groups": {
+            "unassigned": "Nepřiřazeno",
+            "unclassified": "Bez klasifikace",
+            "no_linked_vendor": "Bez propojeného dodavatele"
+        },
+        "export": {
+            "title": "Export odpovídajících procesů"
+        }
     },
     "links": {
         "add": "Propojit",

@@ -18,6 +18,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, computed_field, field_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
+from app.schemas.collection import CollectionGroupRead
 from app.services._ict_register_reference import (
     PROCESS_CONTROLLED_CODES_BY_FIELD,
     is_closed_list_value,
@@ -293,6 +294,27 @@ class ProcessListCapabilities(BaseModel):
     """Collection-level Process list action capabilities."""
 
     can_create: bool
+    can_export: bool = False
+
+
+class ProcessFacetOption(BaseModel):
+    """One permission-scoped Process facet option."""
+
+    value: str
+    label: str
+    count: int
+    disabled: bool = False
+    selected: bool = False
+
+
+class ProcessLookupOption(BaseModel):
+    """Safe remote Process-filter lookup; labels are never raw identifiers."""
+
+    id: int
+    label: str
+    secondary_label: str | None = None
+    disabled: bool = False
+    count: int | None = None
 
 
 class ProcessListResponse(BaseModel):
@@ -301,6 +323,8 @@ class ProcessListResponse(BaseModel):
     offset: int
     limit: int
     capabilities: ProcessListCapabilities | None = None
+    groups: list[CollectionGroupRead] = Field(default_factory=list)
+    facets: dict[str, list[ProcessFacetOption]] = Field(default_factory=dict)
 
     @computed_field
     def skip(self) -> int:

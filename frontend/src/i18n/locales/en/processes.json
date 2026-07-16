@@ -8,12 +8,13 @@
         "save": "Save Changes",
         "cancel": "Cancel",
         "restore": "Restore",
+        "export": "Export",
         "retry": "Retry",
         "resolve_in_governance": "Resolve in Governance",
         "back_to_register": "Back to Processes"
     },
     "filters": {
-        "search_placeholder": "Search by F-code, area, process, or owner...",
+        "search_placeholder": "Search F-code, L0/L1/L2 name, owner, or department...",
         "all_statuses": "All statuses"
     },
     "status": {
@@ -185,6 +186,61 @@
         "not_found": "Process not found.",
         "load_failed": "Failed to load processes.",
         "archive_failed": "Failed to archive the process."
+    },
+    "register": {
+        "views": {
+            "all": "All",
+            "department": "By Department",
+            "owner": "By Owner",
+            "l0": "By L0 Area",
+            "criticality": "By Criticality",
+            "vendor": "By Vendor"
+        },
+        "filters": {
+            "add": "Filters",
+            "active_count": "{{count}} active filters",
+            "clear_all": "Clear all",
+            "remove": "Remove {{label}} filter",
+            "lifecycle": "Lifecycle",
+            "department": "Owning Department",
+            "owner": "Process Owner",
+            "l0": "L0 Area",
+            "criticality": "Criticality class",
+            "cif": "CIF status",
+            "completeness": "Completeness",
+            "licensed_activity": "Licensed activity",
+            "bcm": "BCM linkage",
+            "dr_result": "DR test result",
+            "mtpd": "MTPD range",
+            "linked_asset": "Linked Asset",
+            "linked_vendor": "Linked Vendor",
+            "linked_risk": "Linked Risk",
+            "search_options": "Search visible options...",
+            "search_options_for": "Search {{label}} options",
+            "no_options": "No visible options",
+            "minimum": "Minimum {{label}}",
+            "maximum": "Maximum {{label}}",
+            "min": "Minimum",
+            "max": "Maximum"
+        },
+        "lifecycle": {
+            "active": "Active",
+            "archived": "Archived",
+            "all": "All records"
+        },
+        "boolean": {
+            "any": "Any",
+            "yes": "Yes",
+            "no": "No"
+        },
+        "groups": {
+            "unassigned": "Unassigned",
+            "unclassified": "Unclassified",
+            "no_linked_vendor": "No linked Vendor"
+        },
+        "export": {
+            "title": "Export matching Processes"
+        }
     },
     "links": {
         "add": "Link",

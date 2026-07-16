@@ -1,3 +1,5 @@
+import type { CollectionGroup } from './collection';
+
 export interface ProcessCapabilities {
     can_read: boolean;
     can_update: boolean;
@@ -68,7 +70,38 @@ export interface ProcessDerived {
 }
 
 export interface ProcessListCapabilities {
-    can_create?: boolean;
+    can_create: boolean;
+    can_export: boolean;
+}
+
+export interface ProcessFacetOption {
+    value: string;
+    label: string;
+    count: number;
+    disabled: boolean;
+    selected: boolean;
+}
+
+export type ProcessFacetKey =
+    | 'lifecycle'
+    | 'department'
+    | 'owner'
+    | 'l0'
+    | 'criticality'
+    | 'cif'
+    | 'is_complete'
+    | 'licensed_activity'
+    | 'bcm_link'
+    | 'dr_test_result';
+
+export type ProcessFacets = Partial<Record<ProcessFacetKey, ProcessFacetOption[]>>;
+
+export interface ProcessLookupOption {
+    id: number;
+    label: string;
+    secondary_label?: string | null;
+    disabled: boolean;
+    count?: number | null;
 }
 
 export interface ProcessOwnerRead {
@@ -166,9 +199,27 @@ export interface ProcessListParams {
     limit: number;
     search?: string;
     include_archived?: boolean;
+    lifecycle?: Array<'active' | 'archived'>;
     sort_by?: ProcessSortField;
     sort_order?: 'asc' | 'desc';
     cif?: boolean;
+    is_complete?: boolean;
+    sort?: { field: string; direction: 'asc' | 'desc' };
+    view?: 'all' | 'department' | 'owner' | 'l0' | 'criticality' | 'vendor';
+    group_by?: 'department' | 'owner' | 'l0' | 'criticality' | 'vendor';
+    group_value?: string;
+    department_ids?: number[];
+    owner_ids?: number[];
+    l0_areas?: string[];
+    criticality?: string[];
+    licensed_activity?: string[];
+    bcm_link?: string[];
+    dr_test_result?: string[];
+    mtpd_min?: number;
+    mtpd_max?: number;
+    linked_asset_ids?: number[];
+    linked_vendor_ids?: number[];
+    linked_risk_ids?: number[];
 }
 
 export type ProcessSortField = 'f_code' | 'l0_area' | 'l1_process' | 'owner' | 'created_at';
@@ -179,6 +230,8 @@ export interface ProcessListResponse {
     offset: number;
     limit: number;
     capabilities?: ProcessListCapabilities | null;
+    groups?: CollectionGroup[] | null;
+    facets?: ProcessFacets | null;
 }
 
 export interface ProcessVendorLinkCapabilities {
