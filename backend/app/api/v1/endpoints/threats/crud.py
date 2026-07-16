@@ -16,6 +16,7 @@ from app.services._ict_register_lifecycle.threat_lifecycle import (
     read_threat_detail,
     update_threat_detail,
 )
+from app.services._register_listings.lifecycle import build_in_memory_register_response
 from app.services._register_listings.threats import (
     ThreatListCriteria,
     build_threat_listing,
@@ -87,15 +88,11 @@ async def list_threats(
     current_user: User = Depends(require_permission("threats", "read")),
 ):
     result = await build_threat_listing(db, current_user=current_user, criteria=criteria)
-    items = [] if criteria.group_by and not criteria.group_value else result.page_items
-    return ThreatListResponse(
-        items=items,
-        total=len(result.matching_items),
-        offset=criteria.offset,
-        limit=criteria.limit,
+    return build_in_memory_register_response(
+        response_model=ThreatListResponse,
+        criteria=criteria,
+        result=result,
         capabilities=threat_collection_capabilities(current_user),
-        groups=result.groups,
-        facets=result.facets,
     )
 
 

@@ -1,7 +1,7 @@
 ---
 title: Uživatelský manuál RiskHub
 version: "2.4"
-last_updated: "2026-04-25"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
 summary: "Produkční manuály pro každodenní práci v RiskHubu: navigace, oprávnění, workflow (schvalování), exporty a troubleshooting."
@@ -64,6 +64,21 @@ První týden používejte hlavně k vytvoření správných návyků. Při otev
 Pokud nevidíte stránku, začněte [Začínáme](./getting-started.md) a [Správa přístupů](./access-management.md). Pokud se změna neprojevila, čtěte [Notifikace a schvalování](./notifications.md). Pokud potřebujete evidenci, použijte [Dashboard](./dashboard.md), [Activity Log](./activity-log.md) a manuál pro příslušný typ záznamu.
 
 U dodavatelské práce začněte [Dodavatelé](./vendors.md), potom pokračujte na rizika, kontroly, KRI nebo nálezy. U dotazníků začněte [Risk Hub](./risk-hub.md), pokud je posíláte nebo reviewujete, a [Správa rizik](./risks.md), pokud odpovídáte z detailu rizika.
+
+Registry procesů, aktiv, hrozeb, dodavatelů, rizik, kontrol, KRI a nálezů
+používají stejný pracovní postup. Hledání, pohled, řazení, filtry a vybraná
+skupina se ukládají do URL, takže obnovení, sdílený odkaz a tlačítka Zpět/Vpřed
+vrátí stejný pracovní rozsah, pokud má příjemce odpovídající přístup. Změna
+tohoto rozsahu vrátí stránkování na stranu 1. Volby filtrů, počty, skupiny,
+řádky i akce vždy omezuje serverový scope a capabilities; chybějící hodnota
+nebo akce proto může znamenat omezený přístup, nikoli chybějící data.
+
+Export **Aktuální pohled** použijte pro všechny odpovídající řádky živého
+filtrovaného registru, ne jen pro zobrazenou stránku. Rizika, kontroly, KRI a
+nálezy mají navíc samostatný historický snapshot pro evidenci k datu. Lifecycle
+a čekající schválení zůstávají oddělené: schválený záznam může zůstat Aktivní,
+zatímco navržená změna čeká na review, a Archivovat nebo Obnovit se zobrazí jen
+tehdy, když to povoluje capability konkrétního řádku.
 
 ## Jak vaše role ovlivňuje zobrazení
 

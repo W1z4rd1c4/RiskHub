@@ -1,7 +1,6 @@
-import type { ProcessListParams, ProcessSortField, ProcessWritePayload } from '@/types/process';
+import type { ProcessWritePayload } from '@/types/process';
 import type { Process } from '@/types/process';
 
-export type ProcessArchiveFilter = 'active' | 'archived' | '';
 export type ProcessDisplayStatus = 'active' | 'archived';
 
 export const PROCESS_CONTROLLED_CODES = {
@@ -141,40 +140,6 @@ export function getProcessDisplayStatus(process: Pick<Process, 'is_archived'>): 
  */
 export function processesEmptyStateKey(hasActiveSearch: boolean): string {
     return hasActiveSearch ? 'empty.no_results' : 'empty.no_processes';
-}
-
-interface BuildProcessListParamsOptions {
-    currentPage: number;
-    debouncedSearch: string;
-    includeArchived: boolean;
-    limit: number;
-    sortDirection: 'asc' | 'desc' | null;
-    sortField: ProcessSortField | null;
-}
-
-export function buildProcessListParams({
-    currentPage,
-    debouncedSearch,
-    includeArchived,
-    limit,
-    sortDirection,
-    sortField,
-}: BuildProcessListParamsOptions): ProcessListParams {
-    const params: ProcessListParams = {
-        offset: (currentPage - 1) * limit,
-        limit,
-        include_archived: includeArchived,
-    };
-
-    if (debouncedSearch.trim()) {
-        params.search = debouncedSearch.trim();
-    }
-    if (sortField && sortDirection) {
-        params.sort_by = sortField;
-        params.sort_order = sortDirection;
-    }
-
-    return params;
 }
 
 /**

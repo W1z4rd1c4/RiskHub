@@ -9,7 +9,6 @@ import {
     assetDerivedBooleanLabel,
     assetDerivedCriticalityLabel,
     assetsEmptyStateKey,
-    buildAssetListParams,
     buildAssetWritePayload,
     getAssetDisplayStatus,
 } from '@/pages/assets/assetsPagePresentation';
@@ -121,37 +120,6 @@ function sampleAsset(overrides: Partial<Asset> = {}): Asset {
 }
 
 describe('Assets page presentation helpers', () => {
-    it('builds register list params with search, archive filter, sort, and paging', () => {
-        expect(
-            buildAssetListParams({
-                currentPage: 3,
-                debouncedSearch: '  veris  ',
-                includeArchived: true,
-                limit: 20,
-                sortDirection: 'desc',
-                sortField: 'name',
-            })
-        ).toEqual({
-            offset: 40,
-            limit: 20,
-            include_archived: true,
-            search: 'veris',
-            sort_by: 'name',
-            sort_order: 'desc',
-        });
-
-        expect(
-            buildAssetListParams({
-                currentPage: 1,
-                debouncedSearch: '',
-                includeArchived: false,
-                limit: 20,
-                sortDirection: null,
-                sortField: null,
-            })
-        ).toEqual({ offset: 0, limit: 20, include_archived: false });
-    });
-
     it('derives the display status from the archive flag', () => {
         expect(getAssetDisplayStatus(sampleAsset())).toBe('active');
         expect(getAssetDisplayStatus(sampleAsset({ is_archived: true }))).toBe('archived');

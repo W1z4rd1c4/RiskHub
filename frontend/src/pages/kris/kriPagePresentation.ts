@@ -1,8 +1,5 @@
-import type { ViewMode } from '@/components/tables';
 import type { CollectionGroup } from '@/types/collection';
 import type { KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
-
-import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
 
 export type KriStatusFilter = 'all' | 'archived' | KRIMonitoringStatus;
 export type KriTimelinessFilter = KRITimelinessStatus | null;
@@ -15,15 +12,6 @@ export const KRI_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
 export const KRI_GROUP_NO_PROCESS = '__no_process__';
 export const KRI_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
 export const KRI_GROUP_UNKNOWN_RISK = '__unknown_risk__';
-const KRI_VIEW_MODE_GROUPS = {
-    category: 'category',
-    department: 'department',
-    process: 'process',
-    type: 'risk_type',
-    risk_type: 'risk_type',
-    vendor: 'vendor',
-    risk: 'risk',
-} as const satisfies Partial<Record<ViewMode, string>>;
 
 export function isMonitoringStatus(
     value: string | null,
@@ -58,32 +46,6 @@ export function readKriRouteFilters(
     return { statusFilter: 'all', timelinessFilter: null };
 }
 
-export function buildKriListParams(params: {
-    currentPage: number;
-    limit: number;
-    search: string;
-    statusFilter: KriStatusFilter;
-    timelinessFilter: KriTimelinessFilter;
-    groupBy?: string | null;
-    groupValue?: string | null;
-}) {
-    const trimmedSearch = params.search.trim();
-
-    return {
-        offset: (params.currentPage - 1) * params.limit,
-        limit: params.limit,
-        is_archived: params.statusFilter === 'archived' ? true : undefined,
-        monitoring_status:
-            !params.timelinessFilter && params.statusFilter !== 'all' && params.statusFilter !== 'archived'
-                ? params.statusFilter
-                : undefined,
-        search: trimmedSearch || undefined,
-        timeliness_status: params.timelinessFilter ?? undefined,
-        group_by: params.groupBy ?? undefined,
-        group_value: params.groupValue ?? undefined,
-    };
-}
-
 export function buildKriExportFilters(params: {
     search: string;
     statusFilter: KriStatusFilter;
@@ -115,10 +77,6 @@ export function buildKriExportFilters(params: {
         search,
         timelinessStatus: null,
     };
-}
-
-export function getKriGroupBy(viewMode: ViewMode): string | null {
-    return getCollectionGroupBy(viewMode, KRI_VIEW_MODE_GROUPS);
 }
 
 export function formatKriGroupLabel(group: CollectionGroup, labels: {

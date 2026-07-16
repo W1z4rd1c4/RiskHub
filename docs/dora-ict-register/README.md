@@ -25,6 +25,11 @@ behind it.
   collection plus permission-scoped linked-Risk facets, groups, lookups, and standard export.
 - [`VENDOR-REGISTER-QUERY-CONTRACT.md`](./VENDOR-REGISTER-QUERY-CONTRACT.md): Permission-scoped
   Vendor filters, multi-membership views, safe lookups, URL state, and standard export.
+- [`SHARED-REGISTER-CONTRACT.md`](./SHARED-REGISTER-CONTRACT.md): Canonical frontend shell,
+  normalized backend query/facet/export seams, invariants, and evidence map for all eight
+  operational registers.
+- [`REGISTER-LISTING-CONTRACTION-2026-07-16.md`](./REGISTER-LISTING-CONTRACTION-2026-07-16.md):
+  #83 expand-contract decision, removed legacy paths, and regression locks.
 - [`dashboard-cro-tile-inventory.md`](./dashboard-cro-tile-inventory.md): Inventory of the
   workbook's Dashboard / CRO-overview tiles reproduced by the ICT Committee read-model.
 - [`GRILLING-CAPTURE.md`](./GRILLING-CAPTURE.md): grill-with-docs capture of what the register

@@ -814,7 +814,6 @@ def test_collection_contracts_have_one_canonical_definition() -> None:
     duplicate_contracts = []
     for relative_path in (
         "backend/app/api/v1/endpoints/_collection.py",
-        "backend/app/api/v1/endpoints/_collection_execution.py",
         "backend/app/services/_collection_contracts.py",
     ):
         class_names = _defined_class_names(relative_path)

@@ -18,10 +18,6 @@ import { VENDOR_REGISTER_CONFIG, type VendorRegisterView } from './vendors/vendo
 import { formatVendorGroupLabel } from './vendors/vendorsPagePresentation';
 import { useVendorsPageState } from './vendors/useVendorsPageState';
 
-// Keep the mature table component available to compatibility consumers while
-// the routed page uses the normalized register shell.
-export { VendorsTableSection } from './vendors/VendorsTableSection';
-
 export function VendorsPage() {
     const navigate = useNavigate();
     const { i18n, t } = useTranslation('vendors');

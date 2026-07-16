@@ -23,6 +23,7 @@ from app.services._register_listings.assets import (
     asset_criteria_from_filters,
     build_asset_listing,
 )
+from app.services._register_listings.lifecycle import build_in_memory_register_response
 from app.services._reporting.asset_register_export import render_asset_register_csv
 
 router = APIRouter()
@@ -118,15 +119,11 @@ async def list_assets(
     current_user: User = Depends(deps.get_current_user),
 ):
     result = await build_asset_listing(db, current_user=current_user, criteria=criteria)
-    items = [] if criteria.group_by and not criteria.group_value else result.page_items
-    return AssetListResponse(
-        items=items,
-        total=len(result.matching_items),
-        offset=criteria.offset,
-        limit=criteria.limit,
+    return build_in_memory_register_response(
+        response_model=AssetListResponse,
+        criteria=criteria,
+        result=result,
         capabilities=asset_collection_capabilities(current_user),
-        groups=result.groups,
-        facets=result.facets,
     )
 
 

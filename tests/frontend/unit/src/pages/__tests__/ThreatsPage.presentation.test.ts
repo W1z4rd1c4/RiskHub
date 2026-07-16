@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 import { buildThreatColumns } from '@/pages/threats/threatColumns';
 import {
-    buildThreatListParams,
     buildThreatWritePayload,
     getThreatDisplayStatus,
     threatCategoryLabel,
@@ -57,37 +56,6 @@ function sampleRiskLink(overrides: Partial<ThreatRiskLink> = {}): ThreatRiskLink
 }
 
 describe('Threats page presentation helpers', () => {
-    it('builds register list params with search, archive filter, sort, and paging', () => {
-        expect(
-            buildThreatListParams({
-                currentPage: 3,
-                debouncedSearch: '  ransom  ',
-                includeArchived: true,
-                limit: 20,
-                sortDirection: 'desc',
-                sortField: 'name',
-            })
-        ).toEqual({
-            offset: 40,
-            limit: 20,
-            include_archived: true,
-            search: 'ransom',
-            sort_by: 'name',
-            sort_order: 'desc',
-        });
-
-        expect(
-            buildThreatListParams({
-                currentPage: 1,
-                debouncedSearch: '',
-                includeArchived: false,
-                limit: 20,
-                sortDirection: null,
-                sortField: null,
-            })
-        ).toEqual({ offset: 0, limit: 20, include_archived: false });
-    });
-
     it('derives the display status from the archive flag', () => {
         expect(getThreatDisplayStatus(sampleThreat())).toBe('active');
         expect(getThreatDisplayStatus(sampleThreat({ is_archived: true }))).toBe('archived');

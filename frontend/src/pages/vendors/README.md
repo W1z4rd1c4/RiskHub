@@ -13,7 +13,8 @@ and `frontend/src/pages/VendorsPage.tsx`.
 - `VendorFormView.tsx`
 - `VendorOverviewTab.tsx`
 - `VendorSubOutsourcingSection.tsx`
-- `VendorsTableSection.tsx`
+- `VendorRegisterFilterBar.tsx`
+- `vendorColumns.tsx`
 - `useVendorDetailState.ts`
 - `vendorContractsPresentation.tsx`
 - `vendorDetailPresentation.ts`

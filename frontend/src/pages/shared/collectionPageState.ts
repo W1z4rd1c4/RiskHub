@@ -149,43 +149,6 @@ export function useLatestRequestGuard() {
     return { beginRequest, isCurrentRequest };
 }
 
-export function useCollectionGroupSelection() {
-    const [selectedGroupValue, setSelectedGroupValue] = useState<string | null>(null);
-    const [selectedGroupLabel, setSelectedGroupLabel] = useState<string | null>(null);
-
-    const resetGroupSelection = useCallback(() => {
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
-
-    const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        setSelectedGroupValue(groupValue);
-        setSelectedGroupLabel(groupLabel);
-    }, []);
-
-    return {
-        resetGroupSelection,
-        selectGroup,
-        selectedGroupLabel,
-        selectedGroupValue,
-    };
-}
-
-export function useExportDialogState() {
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
-    const closeExportDialog = useCallback(() => setIsExportDialogOpen(false), []);
-    const openExportDialog = useCallback(() => setIsExportDialogOpen(true), []);
-
-    return {
-        closeExportDialog,
-        isExportDialogOpen,
-        isExporting,
-        openExportDialog,
-        setIsExporting,
-    };
-}
-
 export function useCollectionDataState<
     TItem,
     TCapabilities extends object = CollectionCapabilities,
@@ -227,14 +190,6 @@ export function useCollectionDataState<
         isLoading,
         setErrorKey,
         setIsLoading,
-    };
-}
-
-export function useCollectionPageController() {
-    return {
-        ...useLatestRequestGuard(),
-        ...useCollectionGroupSelection(),
-        ...useExportDialogState(),
     };
 }
 

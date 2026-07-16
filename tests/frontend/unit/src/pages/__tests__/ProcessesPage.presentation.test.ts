@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildProcessColumns } from '@/pages/processes/processColumns';
 import { processSchema } from '@/services/api/schemas/entities/processes';
 import {
-    buildProcessListParams,
     buildProcessWritePayload,
     getProcessDisplayStatus,
     processControlledValueLabel,
@@ -112,37 +111,6 @@ function sampleProcess(overrides: Partial<Process> = {}): Process {
 }
 
 describe('Processes page presentation helpers', () => {
-    it('builds register list params with search, archive filter, sort, and paging', () => {
-        expect(
-            buildProcessListParams({
-                currentPage: 3,
-                debouncedSearch: '  smluv  ',
-                includeArchived: true,
-                limit: 20,
-                sortDirection: 'desc',
-                sortField: 'l1_process',
-            })
-        ).toEqual({
-            offset: 40,
-            limit: 20,
-            include_archived: true,
-            search: 'smluv',
-            sort_by: 'l1_process',
-            sort_order: 'desc',
-        });
-
-        expect(
-            buildProcessListParams({
-                currentPage: 1,
-                debouncedSearch: '',
-                includeArchived: false,
-                limit: 20,
-                sortDirection: null,
-                sortField: null,
-            })
-        ).toEqual({ offset: 0, limit: 20, include_archived: false });
-    });
-
     it('derives the display status from the archive flag', () => {
         expect(getProcessDisplayStatus(sampleProcess())).toBe('active');
         expect(getProcessDisplayStatus(sampleProcess({ is_archived: true }))).toBe('archived');

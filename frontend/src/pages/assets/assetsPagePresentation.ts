@@ -1,6 +1,5 @@
-import type { Asset, AssetListParams, AssetOwnerRead, AssetSortField, AssetWritePayload } from '@/types/asset';
+import type { Asset, AssetOwnerRead, AssetWritePayload } from '@/types/asset';
 
-export type AssetArchiveFilter = 'active' | 'archived' | '';
 export type AssetDisplayStatus = 'active' | 'archived';
 
 export function getAssetDisplayStatus(asset: Pick<Asset, 'is_archived'>): AssetDisplayStatus {
@@ -127,40 +126,6 @@ export function assetDepartmentDisplay(asset: Pick<Asset, 'owning_department'>):
  */
 export function assetsEmptyStateKey(hasActiveSearch: boolean): string {
     return hasActiveSearch ? 'empty.no_results' : 'empty.no_assets';
-}
-
-interface BuildAssetListParamsOptions {
-    currentPage: number;
-    debouncedSearch: string;
-    includeArchived: boolean;
-    limit: number;
-    sortDirection: 'asc' | 'desc' | null;
-    sortField: AssetSortField | null;
-}
-
-export function buildAssetListParams({
-    currentPage,
-    debouncedSearch,
-    includeArchived,
-    limit,
-    sortDirection,
-    sortField,
-}: BuildAssetListParamsOptions): AssetListParams {
-    const params: AssetListParams = {
-        offset: (currentPage - 1) * limit,
-        limit,
-        include_archived: includeArchived,
-    };
-
-    if (debouncedSearch.trim()) {
-        params.search = debouncedSearch.trim();
-    }
-    if (sortField && sortDirection) {
-        params.sort_by = sortField;
-        params.sort_order = sortDirection;
-    }
-
-    return params;
 }
 
 /**

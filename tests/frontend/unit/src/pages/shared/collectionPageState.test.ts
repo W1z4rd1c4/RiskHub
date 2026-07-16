@@ -7,14 +7,6 @@ import {
     createCollectionSuccessPatch,
     resolveCollectionLoadFailure,
 } from '@/pages/shared/collectionPageState';
-import {
-    getCollectionGroupBy,
-    resetCollectionGroupAndPage,
-} from '@/pages/shared/collectionViewVocabulary';
-import {
-    buildRegisterExportCriteria,
-    resolveRegisterFilterChange,
-} from '@/pages/shared/useRegisterPageWorkflow';
 import { ApiClientError } from '@/services/apiClient';
 
 describe('resolveCollectionLoadFailure', () => {
@@ -156,53 +148,6 @@ describe('collection state model', () => {
             errorKey: null,
             isAccessDenied: true,
             hasLoadedOnce: false,
-        });
-    });
-});
-
-describe('collection view vocabulary', () => {
-    it('maps register view modes to backend group values through one shared helper', () => {
-        const groups = {
-            department: 'department',
-            risk_type: 'risk_type',
-            vendor: 'vendor',
-        };
-
-        expect(getCollectionGroupBy('department', groups)).toBe('department');
-        expect(getCollectionGroupBy('risk_type', groups)).toBe('risk_type');
-        expect(getCollectionGroupBy('all', groups)).toBeNull();
-    });
-
-    it('resets group selection and paging through one shared helper', () => {
-        const calls: string[] = [];
-
-        resetCollectionGroupAndPage(
-            () => calls.push('reset-group'),
-            (page) => calls.push(`page:${page}`)
-        );
-
-        expect(calls).toEqual(['reset-group', 'page:1']);
-    });
-});
-
-describe('register page workflow', () => {
-    it('resets page and group selection when filters change', () => {
-        expect(resolveRegisterFilterChange({ currentPage: 4, selectedGroupValue: 'risk:1' })).toEqual({
-            currentPage: 1,
-            selectedGroupValue: null,
-        });
-    });
-
-    it('builds export criteria from the current register filters', () => {
-        expect(buildRegisterExportCriteria({
-            filters: { status: 'active', search: 'vendor' },
-            sort: { field: 'name', direction: 'asc' },
-            view: { groupBy: 'department', groupValue: 'Operations' },
-        })).toEqual({
-            filters: { status: 'active', search: 'vendor' },
-            sort: { field: 'name', direction: 'asc' },
-            groupBy: 'department',
-            groupValue: 'Operations',
         });
     });
 });

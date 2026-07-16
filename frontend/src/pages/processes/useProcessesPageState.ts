@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { SortDirection } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { type SupportedLanguage } from '@/i18n';
-import { apiClient, isForbiddenApiError } from '@/services/apiClient';
+import { apiClient } from '@/services/apiClient';
 import { processApi } from '@/services/processApi';
 import type {
     Process,
@@ -15,6 +15,11 @@ import type {
 } from '@/types/process';
 
 import type { ProcessSemanticFilters } from '../shared/ictRegisterSemanticFilters';
+import {
+    getTotalPages,
+    useCollectionDataState,
+    useLatestRequestGuard,
+} from '../shared/collectionPageState';
 import {
     buildRegisterUrlParams,
     parseRegisterUrlState,
@@ -59,17 +64,23 @@ export function useProcessesPageState(
     const selectedGroupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
     const [currentPage, setCurrentPage] = useState(1);
-    const [items, setItems] = useState<Process[]>([]);
-    const [groups, setGroups] = useState<Array<{ value: string; label: string; count: number; active_count?: number | null; highlighted_count?: number | null; meta?: Record<string, unknown> }>>([]);
     const [facets, setFacets] = useState<ProcessFacets>({});
-    const [capabilities, setCapabilities] = useState<ProcessListCapabilities | null>(null);
-    const [totalCount, setTotalCount] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
-    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-    const [isAccessDenied, setIsAccessDenied] = useState(false);
-    const [errorKey, setErrorKey] = useState<string | null>(null);
     const [isExporting, setIsExporting] = useState(false);
-    const requestId = useRef(0);
+    const {
+        applyFailure,
+        applySuccess,
+        capabilities,
+        errorKey,
+        groups,
+        hasLoadedOnce,
+        isAccessDenied,
+        isLoading,
+        items,
+        setErrorKey,
+        setIsLoading,
+        totalCount,
+    } = useCollectionDataState<Process, ProcessListCapabilities>();
+    const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
     const effectiveFilters = useMemo<ProcessRegisterFilters>(() => ({
         ...filters,
@@ -87,37 +98,26 @@ export function useProcessesPageState(
     }), [currentPage, debouncedSearch, effectiveFilters, selectedGroupValue, sort, viewMode]);
 
     const fetchProcesses = useCallback(async () => {
-        const currentRequest = ++requestId.current;
+        const currentRequest = beginRequest();
         setIsLoading(true);
         try {
             const response = await processApi.getProcesses(listParams);
-            if (currentRequest !== requestId.current) return;
-            setItems(response.items);
-            setGroups(response.groups ?? []);
+            if (!isCurrentRequest(currentRequest)) return;
+            applySuccess({
+                items: response.items,
+                groups: response.groups ?? [],
+                capabilities: response.capabilities ?? null,
+                total: response.total,
+            });
             setFacets(response.facets ?? {});
-            setCapabilities(response.capabilities ?? null);
-            setTotalCount(response.total);
-            setHasLoadedOnce(true);
-            setIsAccessDenied(false);
-            setErrorKey(null);
         } catch (error) {
-            if (currentRequest !== requestId.current) return;
-            if (isForbiddenApiError(error)) {
-                setItems([]);
-                setGroups([]);
-                setFacets({});
-                setCapabilities(null);
-                setTotalCount(0);
-                setHasLoadedOnce(false);
-                setIsAccessDenied(true);
-                setErrorKey(null);
-            } else {
-                setErrorKey(apiClient.toUiMessageKey(error));
-            }
+            if (!isCurrentRequest(currentRequest)) return;
+            const patch = applyFailure(error, { toErrorKey: apiClient.toUiMessageKey.bind(apiClient) });
+            if (patch.isAccessDenied) setFacets({});
         } finally {
-            if (currentRequest === requestId.current) setIsLoading(false);
+            if (isCurrentRequest(currentRequest)) setIsLoading(false);
         }
-    }, [listParams]);
+    }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -167,7 +167,7 @@ export function useProcessesPageState(
         } catch (error) {
             setErrorKey(apiClient.toUiMessageKey(error));
         }
-    }, [fetchProcesses]);
+    }, [fetchProcesses, setErrorKey]);
 
     const exportProcesses = useCallback(async () => {
         setIsExporting(true);
@@ -183,7 +183,7 @@ export function useProcessesPageState(
         } finally {
             setIsExporting(false);
         }
-    }, [language, listParams, urlState.search]);
+    }, [language, listParams, setErrorKey, urlState.search]);
 
     return {
         capabilities,
@@ -212,7 +212,7 @@ export function useProcessesPageState(
         sortField: (sort?.field as ProcessSortField | undefined) ?? null,
         statusFilter: filters.lifecycle,
         totalCount,
-        totalPages: Math.ceil(totalCount / DEFAULT_LIST_PAGE_SIZE) || 1,
+        totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE),
         updateFilter,
         updateProcessFilter: <K extends ProcessFilterKey>(key: K, value: ProcessRegisterFilters[K]) => updateFilter(key, value),
         updateSearch,

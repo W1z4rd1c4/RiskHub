@@ -1,6 +1,5 @@
-import type { Threat, ThreatListParams, ThreatSortField, ThreatWritePayload } from '@/types/threat';
+import type { Threat, ThreatWritePayload } from '@/types/threat';
 
-export type ThreatArchiveFilter = 'active' | 'archived' | '';
 export type ThreatDisplayStatus = 'active' | 'archived';
 
 export const THREAT_CATEGORY_CODES = [
@@ -34,40 +33,6 @@ export function getThreatDisplayStatus(threat: Pick<Threat, 'is_archived'>): Thr
  */
 export function threatsEmptyStateKey(hasActiveSearch: boolean): string {
     return hasActiveSearch ? 'empty.no_results' : 'empty.no_threats';
-}
-
-interface BuildThreatListParamsOptions {
-    currentPage: number;
-    debouncedSearch: string;
-    includeArchived: boolean;
-    limit: number;
-    sortDirection: 'asc' | 'desc' | null;
-    sortField: ThreatSortField | null;
-}
-
-export function buildThreatListParams({
-    currentPage,
-    debouncedSearch,
-    includeArchived,
-    limit,
-    sortDirection,
-    sortField,
-}: BuildThreatListParamsOptions): ThreatListParams {
-    const params: ThreatListParams = {
-        offset: (currentPage - 1) * limit,
-        limit,
-        include_archived: includeArchived,
-    };
-
-    if (debouncedSearch.trim()) {
-        params.search = debouncedSearch.trim();
-    }
-    if (sortField && sortDirection) {
-        params.sort_by = sortField;
-        params.sort_order = sortDirection;
-    }
-
-    return params;
 }
 
 /**

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Protocol, TypeVar
 
 from app.services._collection_contracts import (
     BuildInMemoryGroupedPage,
@@ -23,10 +23,52 @@ TItem = TypeVar("TItem")
 SerializeItems = Callable[[list[TModel]], Awaitable[list[TItem]]]
 
 
+class InMemoryRegisterCriteria(Protocol):
+    """Pagination and grouping state shared by derived in-memory registers."""
+
+    offset: int
+    limit: int
+    group_by: str | None
+    group_value: str | None
+
+
+class InMemoryRegisterResult(Protocol[TItem]):
+    """Canonical result shape produced from one permission-scoped candidate set."""
+
+    matching_items: list[TItem]
+    page_items: list[TItem]
+    groups: list[Any]
+    facets: dict[str, Any]
+
+
 @dataclass(frozen=True)
 class RegisterListingPlan(Generic[TModel, TItem]):
     ordered_query: Any
     listing_definition: CollectionListingDefinition[TModel, TItem]
+
+
+def build_in_memory_register_response(
+    *,
+    response_model: type[Any],
+    criteria: InMemoryRegisterCriteria,
+    result: InMemoryRegisterResult[TItem],
+    capabilities: dict[str, bool] | None,
+) -> Any:
+    """Build the shared list response for permission-bounded derived registers.
+
+    Processes, Assets, and Threats derive filters, facets, and multi-membership
+    groups from one readable candidate set. Keeping response assembly here makes
+    their summary/drilldown behavior identical to the SQL listing lifecycle.
+    """
+    return response_model(
+        items=[] if criteria.group_by and not criteria.group_value else result.page_items,
+        total=len(result.matching_items),
+        offset=criteria.offset,
+        limit=criteria.limit,
+        capabilities=capabilities,
+        groups=result.groups,
+        facets=result.facets,
+    )
 
 
 def build_register_listing_plan(

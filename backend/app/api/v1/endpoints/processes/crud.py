@@ -17,6 +17,7 @@ from app.services._ict_register_lifecycle.lifecycle import (
     read_process_detail,
     update_process_detail,
 )
+from app.services._register_listings.lifecycle import build_in_memory_register_response
 from app.services._register_listings.processes import (
     ProcessListCriteria,
     build_process_listing,
@@ -103,15 +104,11 @@ async def list_processes(
     current_user: User = Depends(deps.get_current_user),
 ):
     result = await build_process_listing(db, current_user=current_user, criteria=criteria)
-    items = [] if criteria.group_by and not criteria.group_value else result.page_items
-    return ProcessListResponse(
-        items=items,
-        total=len(result.matching_items),
-        offset=criteria.offset,
-        limit=criteria.limit,
+    return build_in_memory_register_response(
+        response_model=ProcessListResponse,
+        criteria=criteria,
+        result=result,
         capabilities=process_collection_capabilities(current_user),
-        groups=result.groups,
-        facets=result.facets,
     )
 
 

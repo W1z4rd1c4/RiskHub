@@ -3,7 +3,7 @@
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 > Version: 1.0
-> Last reviewed: 2026-07-10
+> Last reviewed: 2026-07-16
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
@@ -301,6 +301,7 @@ oversight surface, not a register-end detail view.
 | `backend/app/services/_activity_log_query/README.md`, `backend/app/services/_approval_queue/README.md`, `backend/app/services/_auth_session/README.md`, `backend/app/services/_dashboard_metrics/README.md`, `backend/app/services/_deadline_execution/README.md`, `backend/app/services/_entity_mutation_lifecycle/README.md`, `backend/app/services/_identity_access_lifecycle/README.md`, `backend/app/services/_register_listings/README.md`, `backend/app/services/_reporting/exports/README.md`, and `backend/app/services/_vendor_governance/README.md` | 2026-05-10 documentation-only README coverage pass for authz-sensitive service packages. User-visible authorization policy and capability semantics unchanged. |
 | `backend/app/services/_approval_execution/delete_side_effects.py` | 2026-05-25 Postgres compatibility fix changed the KRI delete side-effect loader from joined eager loading to select-in loading so row locking does not target nullable outer-join relations. User-visible authorization policy and capability semantics unchanged. |
 | `backend/app/services/_ict_register_lifecycle/`, `backend/app/services/_register_listings/`, ICT register endpoints, and ICT register frontend pages | 2026-07-14 DORA remediation added semantic committee drill-down filters, shared lifecycle/list-state adapters, RoI readiness normalization, and serialized sub-outsourcing validation. All filtered register queries continue to compose with their canonical row-visibility predicates; route guards, mutation authority, and capability field shapes are unchanged. |
+| `backend/app/services/_register_listings/lifecycle.py`, Process/Asset/Threat list endpoints, and shared frontend register-list state | 2026-07-16 ICT-GOV #83 removed unused collection/frontend orchestration facades and routed the three in-memory registers through the shared response lifecycle. Permission-scoped facets, groups, counts, exports, route guards, mutation authority, and capability field shapes are unchanged. |
 | `frontend/src/lib/capabilities.ts` | Backend-first capability fallback resolver. |
 | `frontend/src/authz/policy.ts` | Local route/navigation policy projection that mirrors backend policy. |
 | `docs/TESTING.md` | Existing RBAC, authz, capability, report, dashboard, vendor, KRI, questionnaire, and access verification lanes. |

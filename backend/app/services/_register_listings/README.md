@@ -2,21 +2,25 @@
 
 ## Purpose
 
-Business/service-layer logic for `_register_listings`.
+Canonical permission-scoped list planning for the Process, Asset, Threat,
+Vendor, Risk, Control, KRI, and Issue registers.
 
 ## Contents
 
 - `__init__.py`
-- `__pycache__/`
 - `assets.py` — permission-scoped Asset filter, facet, grouping, lookup,
   pagination, and standard-export query plan.
-- `controls.py`
-- `issues.py`
-- `kris.py`
-- `lifecycle.py`
+- `controls.py` — Control scope, filters, facets, grouping, deterministic
+  ordering, and list/export plan.
+- `issues.py` — Issue scope, filters, facets, grouping, deterministic ordering,
+  and list/export plan.
+- `kris.py` — KRI scope, filters, facets, grouping, deterministic ordering, and
+  list/export plan.
+- `lifecycle.py` — shared SQL plan execution and in-memory response assembly.
 - `processes.py` — permission-scoped Process filter, facet, grouping, lookup,
   pagination, and standard-export query plan.
-- `risks.py`
+- `risks.py` — Risk scope, filters, facets, grouping, deterministic ordering,
+  and list/export plan.
 - `threats.py` — global Threat filter, permission-scoped linked-Risk context,
   facet, multi-membership grouping, lookup, pagination, and standard-export
   query plan.
@@ -25,6 +29,22 @@ Business/service-layer logic for `_register_listings`.
   query plan.
 
 ## Notes
+
+Every planner starts from one caller-readable candidate set. Facets, groups,
+lookups, counts, pages, and current-view exports must derive from that same set;
+hidden relationship context must not affect labels or quantities.
+
+SQL-backed Risk, Control, KRI, and Issue planners execute a
+`RegisterListingPlan`. Vendor uses `list_vendor_governance`, which executes
+through the same lifecycle. Derived in-memory Process, Asset, and Threat
+planners assemble their normalized list response through
+`build_in_memory_register_response` after applying scope, filters, ordering,
+grouping, and pagination.
+
+The public query boundary remains
+`app.api.v1.endpoints._collection.build_list_context`. Keep list and export
+criteria aligned, remove pagination only for current-view export, and keep
+stable entity-ID tie-breakers in every default order.
 
 Keep this README updated when responsibilities or structure in this folder change.
 

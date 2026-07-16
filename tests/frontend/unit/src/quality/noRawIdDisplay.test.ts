@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
 
 const guardedFiles = [
-    'frontend/src/pages/vendors/VendorsTableSection.tsx',
+    'frontend/src/pages/vendors/vendorColumns.tsx',
     'frontend/src/pages/vendors/useVendorDetailState.ts',
     'frontend/src/pages/ControlDetailPage.tsx',
     'frontend/src/components/access/AccessEditModal.tsx',

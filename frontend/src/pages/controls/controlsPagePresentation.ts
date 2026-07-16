@@ -1,12 +1,5 @@
-import type { ViewMode } from '@/components/tables';
-import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import {
-    ControlStatus,
-    type ControlMonitoringStatus,
-} from '@/types/control';
+import { ControlStatus } from '@/types/control';
 import type { CollectionGroup } from '@/types/collection';
-
-import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
 
 export const CONTROL_GROUP_UNLINKED_VENDOR = '__unlinked_vendor__';
 export const CONTROL_GROUP_UNCATEGORIZED = '__uncategorized__';
@@ -14,63 +7,9 @@ export const CONTROL_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
 export const CONTROL_GROUP_NO_PROCESS = '__no_process__';
 export const CONTROL_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
 export const CONTROL_GROUP_UNKNOWN_RISK = '__unknown_risk__';
-const CONTROL_VIEW_MODE_GROUPS = {
-    category: 'category',
-    department: 'department',
-    process: 'process',
-    risk_type: 'risk_type',
-    vendor: 'vendor',
-    risk: 'risk',
-} as const satisfies Partial<Record<ViewMode, string>>;
-
-export type ControlListStatusFilter = '' | 'archived' | ControlMonitoringStatus;
 export const ARCHIVED_CONTROL_FILTER = 'archived' as const;
 export const ARCHIVED_CONTROL_BADGE_CLASS_NAME = 'text-yellow-400 bg-yellow-400/10';
 export type ControlDisplayStatus = ControlStatus | typeof ARCHIVED_CONTROL_FILTER;
-
-interface BuildControlListParamsOptions {
-    currentPage: number;
-    limit?: number;
-    search: string;
-    statusFilter: ControlListStatusFilter;
-    groupBy?: string | null;
-    groupValue?: string | null;
-}
-
-interface BuildControlExportFiltersOptions {
-    search: string;
-    statusFilter: ControlListStatusFilter;
-}
-
-export function buildControlListParams({
-    currentPage,
-    limit = DEFAULT_LIST_PAGE_SIZE,
-    search,
-    statusFilter,
-    groupBy,
-    groupValue,
-}: BuildControlListParamsOptions) {
-    return {
-        offset: (currentPage - 1) * limit,
-        limit,
-        search: search.trim() || undefined,
-        lifecycle: statusFilter === ARCHIVED_CONTROL_FILTER ? 'archived' : 'active',
-        monitoring_status: statusFilter && statusFilter !== ARCHIVED_CONTROL_FILTER ? statusFilter : undefined,
-        group_by: groupBy || undefined,
-        group_value: groupValue || undefined,
-    };
-}
-
-export function buildControlExportFilters({
-    search,
-    statusFilter,
-}: BuildControlExportFiltersOptions) {
-    return {
-        status: statusFilter === ARCHIVED_CONTROL_FILTER ? ARCHIVED_CONTROL_FILTER : null,
-        monitoringStatus: statusFilter && statusFilter !== ARCHIVED_CONTROL_FILTER ? statusFilter : null,
-        search: search.trim() || null,
-    };
-}
 
 export function getControlRiskLevelColor(level: number): string {
     if (level >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
@@ -101,10 +40,6 @@ export function getControlStatusColor(status: ControlDisplayStatus): string {
         default:
             return 'text-slate-400 bg-slate-400/10';
     }
-}
-
-export function getControlGroupBy(viewMode: ViewMode): string | null {
-    return getCollectionGroupBy(viewMode, CONTROL_VIEW_MODE_GROUPS);
 }
 
 export function formatControlGroupLabel(
