@@ -122,7 +122,7 @@ export function serializeProcessRegisterFilters(filters: ProcessRegisterFilters)
 }
 
 export function processGroupBy(view: ProcessRegisterView): ProcessListParams['group_by'] {
-    return PROCESS_REGISTER_CONFIG.views.find((option) => option.value === view)?.groupBy ?? null;
+    return PROCESS_REGISTER_CONFIG.views.find((option) => option.value === view)?.groupBy ?? undefined;
 }
 
 interface BuildProcessRegisterListParamsOptions {

@@ -219,12 +219,13 @@ export function ProcessRegisterFilterBar({
         }
         if (definition.kind === 'facet') {
             const localizeOption = (option: ProcessFacetOption): ProcessFacetOption => {
-                const translationField = {
+                const translationFields: Partial<Record<ProcessFilterKey, string>> = {
                     criticality: 'preliminary_criticality',
                     licensed_activity: 'licensed_activity',
                     bcm_link: 'bcm_link',
                     dr_test_result: 'dr_test_result',
-                }[definition.key];
+                };
+                const translationField = translationFields[definition.key];
                 return translationField
                     ? { ...option, label: t(`values.${translationField}.${option.value}`, t('values.unknown')) }
                     : option;
