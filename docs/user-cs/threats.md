@@ -1,10 +1,10 @@
 ---
 title: Správa hrozeb
-version: "2.5"
-last_updated: "2026-07-15"
+version: "2.6"
+last_updated: "2026-07-16"
 audience: user
-source_of_truth: "frontend/src/pages/ThreatsPage.tsx + frontend/src/pages/ThreatDetailPage.tsx + backend/app/services/_ict_register_lifecycle/threat_lifecycle.py"
-summary: "Uživatelský manuál pro globální katalog hrozeb, správu CISO, kanonické kategorie, vazby na rizika, archivaci a přeřazení osiřelé odpovědnosti."
+source_of_truth: "frontend/src/pages/ThreatsPage.tsx + frontend/src/pages/threats/ThreatRegisterFilterBar.tsx + backend/app/services/_register_listings/threats.py + backend/app/services/_ict_register_lifecycle/threat_lifecycle.py"
+summary: "Uživatelský manuál pro sdílený registr hrozeb, správu CISO, filtrované skupiny rizik, export, archivaci a přeřazení osiřelé odpovědnosti."
 tags:
   - risks
   - governance
@@ -35,7 +35,9 @@ Dostupné akce určuje server pomocí capabilities. Pokud nevidíte vytvoření,
 
 V levém menu otevřete **Hrozby**. Řádek otevře detail, **Nová hrozba** vytvoří záznam a **Upravit hrozbu** umožní změnit správce.
 
-Hlavní tabulka standardně ukazuje aktivní záznamy. Archivovaný pohled slouží ke kontrole nebo obnovení vyřazených položek. Detail obsahuje přehled záznamu a sekci vazeb na rizika. Uživatelé governance najdou mezery v odpovědnosti také v části osiřelých položek, pokud původní CISO přestane být aktivní nebo ztratí roli CISO.
+Registr se otevře v pohledu **Vše** s aktivními záznamy a bez uživatelského řazení. Další pohledy jsou **Podle kategorie**, **Podle správce hrozby**, **Podle relevantního subjektu** a **Podle navázaného rizika**. Skupinový pohled nejprve zobrazí karty skupin; výběrem karty otevřete její hrozby a ovládacím prvkem zpět se vrátíte ke skupinám. Zpět a Vpřed v prohlížeči, obnovení stránky i zkopírovaná URL obnoví stejné hledání, filtry, pohled, řazení a vybranou skupinu. Číslo stránky se záměrně neuchovává; změna pracovního rozsahu začne znovu na straně 1.
+
+Filtr stavu použijte pro kontrolu nebo obnovení vyřazené položky. Detail obsahuje přehled záznamu a sekci vazeb na rizika. Uživatelé governance najdou mezery v odpovědnosti také v části osiřelých položek, pokud původní CISO přestane být aktivní nebo ztratí roli CISO.
 
 ## Co můžete vidět a měnit
 
@@ -71,9 +73,27 @@ Vytvoření, změny polí, archivace, obnovení a změny vazeb na rizika vytvá�
 
 ## Vyhledávání, filtrování a evidence
 
-Hledejte podle názvu, lokalizované kategorie nebo relevantního subjektu. Detail a Activity Log slouží jako evidence správy, lifecycle změn a vazeb na rizika. UI nikdy nenahrazuje chybějící jméno surovým ID uživatele.
+Vyhledávání pokrývá název hrozby, popis, typické zranitelnosti, relevantní subjekt a jméno správce. Hledání se kombinuje se všemi vybranými filtry. Různá pole filtrů používají **AND**; více hodnot uvnitř jednoho pole používá **OR**. Každá změna filtru začne znovu na straně 1, takže zúžený výsledek nezůstane skrytý starým číslem stránky.
 
-Při evidenční kontrole zaznamenejte název hrozby, kategorii, aktuálně způsobilého správce, stav archivace a business identifikátory navázaných rizik. V Activity Logu ověřte, kdo a kdy záznam vytvořil, změnil, archivoval, obnovil, propojil nebo odpojil. Filtrovaný výsledek vyhledávání pomáhá s navigací, ale není úplným auditním exportem; pro dlouhodobou evidenci použijte Activity Log nebo autorizovaný report.
+Filtr stavu zůstává stále viditelný. Pomocí **Filtry** přidejte jen ostatní ovládací prvky potřebné pro danou kontrolu:
+
+- kategorii;
+- správce hrozby;
+- relevantní subjekt;
+- informaci, zda má hrozba navázané riziko;
+- konkrétní navázané riziko;
+- typ navázaného rizika; a
+- oddělení navázaného rizika.
+
+Počet aktivních filtrů a jejich štítky ukazují celý výběr. Odebráním jednoho štítku vymažete jedno pole; **Vymazat vše** odstraní všechny přidané filtry, ale ponechá hledaný text. Možnosti, popisky a počty se počítají pouze ze záznamů a kontextu rizik, které smíte vidět. Řízené kategorie a typy rizik používají stabilní kódy s lokalizovanými popisky; správce a navázané riziko se vybírají z prohledávatelných seznamů omezených oprávněním. Zakázaná možnost s nulovým počtem je informace, ne důvod k rozšíření přístupu.
+
+**Podle navázaného rizika** je vícečetný pohled: hrozba navázaná na tři rizika se objeví ve všech třech čitelných skupinách rizik, nejen u prvního rizika. Rizika mimo rozsah čtení nevytvoří skupinu, možnost, počet, popisek ani nepřímou indicii. Skupina bez vazby znamená, že ve vašem viditelném rozsahu není žádné čitelné navázané riziko; nedokazuje neexistenci skryté vazby.
+
+Řazení a stránkování pracují uvnitř aktuálního filtrovaného rozsahu a vybrané skupiny. **Export** stáhne všechny odpovídající hrozby ve stejném oprávněném rozsahu bez ohledu na právě zobrazenou stránku. Standardní export zachová stabilní kódy kategorií a doplní popisky ve zvoleném jazyce exportu. Přenáší hledání, filtry, pohled a vybranou skupinu, nikoli nesouvisející parametry URL nebo stránkování seznamu. Pokud **Export** chybí, server tuto capability neposkytl.
+
+Detail a Activity Log slouží jako evidence správy, lifecycle změn a vazeb na rizika. UI nikdy nenahrazuje chybějící jméno surovým ID uživatele.
+
+Při evidenční kontrole zaznamenejte název hrozby, kategorii, aktuálně způsobilého správce, stav archivace a business identifikátory navázaných rizik. V Activity Logu ověřte, kdo a kdy záznam vytvořil, změnil, archivoval, obnovil, propojil nebo odpojil. Filtrovaný seznam nebo standardní export je snímek registru, nikoli úplná auditní stopa. Pokud evidence musí ukázat, kdo a kdy změnil vazbu nebo pole, použijte Activity Log nebo autorizovaný auditní report.
 
 Jantarové upozornění na osiřelou odpovědnost znamená, že systém po deaktivaci nebo ztrátě role CISO zachoval původní vazbu. Jde o záměrné zachování evidence. Hrozba zůstává čitelná a původní vztah není přepsán vymyšleným náhradníkem. Detail skryje **Upravit hrozbu** a oprávněného CRO nasměruje do fronty hrozeb v Governance; CISO bez přístupu do Governance dostane pokyn požádat CRO. Governance statistiky počítají mezeru, dokud tento uživatel explicitně nepřeřadí záznam na aktivního CISO.
 
@@ -92,6 +112,8 @@ Když selže běžná úprava, ověřte aktivitu uživatele a roli CISO. Jantaro
 Pokud se seznam správců nenačte, použijte **Opakovat** a ověřte funkčnost jiných seznamů načítaných z API. Trvající problém může znamenat výpadek připojení nebo služby; před obnovením stránky si uchovejte rozepsaný text a podpoře předejte čas a název stránky. Pokud se seznam načte, ale osoba chybí, ověřte aktivní stav a skutečnou RiskHub roli CISO. Podobný pracovní titul z adresáře sám o sobě oprávnění nevytváří.
 
 Když v pickeru vazeb nenajdete riziko, zkontrolujte, že je aktivní a patří do vašeho povoleného rozsahu. Služba záměrně neodhaluje rizika mimo rozsah uživatele. Pokud u archivované hrozby není dostupná změna vazby, nejprve ji oprávněně obnovte. Když se kategorie zobrazí v nesprávném jazyce, ověřte aktivní jazyk a nahlaste přesný text; neupravujte uložená data jako náhradu za opravu lokalizace.
+
+Pokud se registr nenačte, použijte klávesnicí ovladatelnou akci **Opakovat**. Serverem potvrzené odepření přístupu nahradí registr a nenechá na obrazovce staré řádky, skupiny, filtry ani počty. Pokud se skupinová URL otevře bez vybrané skupiny, skupina už nemusí existovat ve vašem filtrovaném a oprávněném rozsahu; vraťte se ke skupinám a zvolte viditelnou kartu. Když selže export, ponechte URL a po obnovení připojení operaci zopakujte; neoslabujte kvůli tomu filtry.
 
 ## Související manuály
 

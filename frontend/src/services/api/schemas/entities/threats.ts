@@ -2,6 +2,7 @@ import type {
     RiskAssetLink,
     RiskProcessLink,
     Threat,
+    ThreatListItem,
     ThreatListResponse,
     ThreatRiskLink,
 } from '@/types/threat';
@@ -16,7 +17,32 @@ export const threatCapabilitiesSchema = passthroughObject({
 });
 
 export const threatListCapabilitiesSchema = passthroughObject({
-    can_create: z.boolean().optional(),
+    can_create: z.boolean(),
+    can_export: z.boolean(),
+});
+
+export const threatFacetOptionSchema = passthroughObject({
+    value: z.string(),
+    label: z.string(),
+    count: z.number(),
+    disabled: z.boolean(),
+    selected: z.boolean(),
+});
+
+export const threatFacetsSchema = passthroughObject({
+    lifecycle: z.array(threatFacetOptionSchema).optional(),
+    category: z.array(threatFacetOptionSchema).optional(),
+    relevant_subject: z.array(threatFacetOptionSchema).optional(),
+    has_linked_risk: z.array(threatFacetOptionSchema).optional(),
+    linked_risk_type: z.array(threatFacetOptionSchema).optional(),
+});
+
+export const threatLookupOptionSchema = passthroughObject({
+    id: z.number(),
+    label: z.string(),
+    secondary_label: z.string().nullable().optional(),
+    disabled: z.boolean(),
+    count: z.number().nullable().optional(),
 });
 
 export const threatStewardSchema = passthroughObject({
@@ -44,7 +70,6 @@ export const threatSchema: z.ZodType<Threat> = passthroughObject({
     typical_weaknesses: z.string().nullable().optional(),
     relevant_subject: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
-
     is_archived: z.boolean(),
     archived_at: z.string().nullable().optional(),
     archived_by_id: z.number().nullable().optional(),
@@ -53,9 +78,15 @@ export const threatSchema: z.ZodType<Threat> = passthroughObject({
     updated_at: z.string(),
 });
 
+export const threatListItemSchema: z.ZodType<ThreatListItem> = z.intersection(
+    threatSchema,
+    passthroughObject({ visible_linked_risk_count: z.number() }),
+);
+
 export const threatListResponseSchema: z.ZodType<ThreatListResponse> =
-    collectionPaginationSchema(threatSchema).extend({
+    collectionPaginationSchema(threatListItemSchema).extend({
         capabilities: threatListCapabilitiesSchema.nullable().optional(),
+        facets: threatFacetsSchema.nullable().optional(),
     });
 
 export const threatRiskLinkCapabilitiesSchema = passthroughObject({

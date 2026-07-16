@@ -10,15 +10,17 @@
         "restore": "Restore",
         "retry": "Retry",
         "resolve_in_governance": "Resolve in Governance",
-        "back_to_register": "Back to Threats"
+    "back_to_register": "Back to Threats",
+    "export": "Export"
     },
     "filters": {
-        "search_placeholder": "Search by name, category, or relevant subject...",
+    "search_placeholder": "Search name, description, weaknesses, subject, or Steward...",
         "all_statuses": "All statuses"
     },
     "status": {
         "active": "Active",
-        "archived": "Archived"
+    "archived": "Archived",
+    "pending_governance": "Pending Governance"
     },
     "categories": {
         "availability": "Availability",
@@ -31,10 +33,12 @@
     },
     "columns": {
         "name": "Threat",
-        "category": "Category",
+    "category": "Category",
+    "threat_steward": "Threat Steward",
         "typical_weaknesses": "Typical weaknesses",
         "relevant_subject": "Relevant subject",
-        "status": "Status"
+    "linked_risks": "Linked Risks",
+    "status": "Status"
     },
     "form": {
         "sections": {
@@ -80,7 +84,59 @@
         "load_failed": "Loading threats failed.",
         "archive_failed": "Archiving the threat failed. Please try again."
     },
-    "messages": {
+  "register": {
+    "views": {
+      "all": "All",
+      "category": "By Category",
+      "threat_steward": "By Threat Steward",
+      "relevant_subject": "By Relevant Subject",
+      "linked_risk": "By Linked Risk"
+    },
+    "filters": {
+      "add": "Filters",
+      "active_count": "{{count}} active filters",
+      "clear_all": "Clear all",
+      "remove": "Remove {{label}} filter",
+      "lifecycle": "Lifecycle",
+      "category": "Category",
+      "threat_steward": "Threat Steward",
+      "relevant_subject": "Relevant subject",
+      "has_linked_risk": "Linked-risk presence",
+      "linked_risk": "Linked Risk",
+      "linked_risk_type": "Linked Risk type",
+      "linked_risk_department": "Linked Risk Department",
+      "search_options": "Search visible options...",
+      "search_options_for": "Search {{label}} options",
+      "no_options": "No visible options"
+    },
+    "lifecycle": {
+      "active": "Active",
+      "archived": "Archived",
+      "all": "All records"
+    },
+    "boolean": {
+      "any": "Any",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "risk_types": {
+      "strategic": "Strategic",
+      "operational": "Operational"
+    },
+    "groups": {
+      "uncategorized": "Uncategorized",
+      "unassigned": "Unassigned",
+      "unspecified": "Unspecified",
+      "no_linked_risk": "No linked Risk"
+    },
+    "values": {
+      "unknown": "Unknown"
+    },
+    "export": {
+      "title": "Export matching Threats"
+    }
+  },
+  "messages": {
         "archive_confirm": "Archive threat \"{{threatName}}\"? It stays available in the archived view.",
         "steward_orphaned": "The assigned Threat Steward is inactive or no longer a CISO. Reassign this threat explicitly.",
         "steward_orphaned_governance": "The preserved Threat Steward is inactive or no longer a CISO. Editing is locked while this gap is pending. Assign an active CISO through Governance.",

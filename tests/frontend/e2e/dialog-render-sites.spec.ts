@@ -599,6 +599,7 @@ Object.assign(drivers, {
   'export.risks-page': liveDriver(RM, list('/risks'), (page) => page.getByTestId('risks-export-button')),
   'export.processes-page': liveDriver(RM, list('/processes'), (page) => page.getByTestId('processes-export-button')),
   'confirm.threat-detail': liveDriver(RM, detail('/threats', /\/threats\/\d+$/), (page) => page.getByTestId('threat-detail-archive')),
+  'export.threats-page': liveDriver(RM, list('/threats'), (page) => page.getByTestId('threats-export-button')),
   'access-edit.users-page': liveDriver(CRO, (page) => gotoOwnerRoute(page, '/users'), (page) => page.getByRole('button', { name: /edit access/i }).first()),
   'confirm.users-page': liveDriver(ADMIN, arrangeUserLifecycle, (page) => page.getByRole('button', { name: /deactivate|reactivate|activate/i }).first()),
   'ad-picker.users-page': liveDriver(ADMIN, (page) => gotoOwnerRoute(page, '/users'), (page) => page.getByRole('button', { name: /add from ad/i }).first()),

@@ -377,6 +377,9 @@ Orphaned item governance uses backend workflow helpers:
 > [!NOTE]
 > Grouped register views are multi-membership, not exclusive partitions. `By Vendor` on Risks, Controls, Issues, and KRIs must place one record into every readable linked-vendor bucket, while `By Flag` on Vendors must place one vendor into every applicable flag bucket (`DORA relevant`, `Supports core function`, `Significant vendor`). Vendors with none of those flags fall into `Insignificant vendors`.
 
+> [!NOTE]
+> Threats are a global CISO-stewarded catalog, but their linked-Risk list context is independently permission-scoped. The shared Threat register searches name, description, typical weaknesses, relevant subject, and Steward; applies AND across filter fields and OR within repeated values; and groups one Threat into every caller-readable linked Risk. Hidden Risk identifiers, labels, facet counts, lookup options, group memberships, and CSV cells are never exposed. Standard Threat export requires both `threats:read` and `reports:read`, reuses the filtered/group-selected list plan, and ignores pagination.
+
 ### 4.2 Role-Permission Grid
 
 | Role | Risks / KRI Design | Controls | KRI Values | Approvals | Users | Risk Hub / Departments |

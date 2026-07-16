@@ -976,7 +976,7 @@ async def test_risk_manager_seed_grants_full_threat_maintenance(
         ).status_code == 200
 
         listing = (await client.get("/api/v1/threats")).json()
-        assert listing["capabilities"] == {"can_create": True}
+        assert listing["capabilities"] == {"can_create": True, "can_export": True}
 
         # Link maintenance from both ends is part of the seed grants.
         risk = (await client.post("/api/v1/risks", json=_risk_payload())).json()
@@ -1012,7 +1012,7 @@ async def test_employee_reads_threats_but_cannot_maintain_them(
     async with client_factory(user=test_user_employee) as client:
         listing = await client.get("/api/v1/threats")
         assert listing.status_code == 200
-        assert listing.json()["capabilities"] == {"can_create": False}
+        assert listing.json()["capabilities"] == {"can_create": False, "can_export": True}
 
         detail = await client.get(f"/api/v1/threats/{seeded['id']}")
         assert detail.status_code == 200

@@ -7,6 +7,7 @@ import {
     buildThreatListParams,
     buildThreatWritePayload,
     getThreatDisplayStatus,
+    threatCategoryLabel,
     threatsEmptyStateKey,
 } from '@/pages/threats/threatsPagePresentation';
 import {
@@ -14,17 +15,26 @@ import {
     canDeleteThreatRiskLink,
     parseLinkTargetId,
 } from '@/pages/threats/threatRiskLinksPresentation';
-import type { Threat, ThreatRiskLink } from '@/types/threat';
+import type { ThreatListItem, ThreatRiskLink } from '@/types/threat';
 
-function sampleThreat(overrides: Partial<Threat> = {}): Threat {
+function sampleThreat(overrides: Partial<ThreatListItem> = {}): ThreatListItem {
     return {
         id: 7,
         name: 'Ransomware',
-        category: 'Dostupnost',
+        threat_steward_user_id: 8,
+        threat_steward: {
+            name: 'Klára Černá',
+            email: 'klara@example.com',
+            role_name: 'CISO',
+        },
+        steward_orphaned: false,
+        stewardship_status: 'assigned',
+        category: 'availability',
         description: 'Zašifrování dat a vydírání.',
         typical_weaknesses: 'Neaktualizované systémy, phishing',
         relevant_subject: 'Aktivum',
         notes: null,
+        visible_linked_risk_count: 2,
         is_archived: false,
         archived_at: null,
         archived_by_id: null,
@@ -83,18 +93,22 @@ describe('Threats page presentation helpers', () => {
         expect(getThreatDisplayStatus(sampleThreat({ is_archived: true }))).toBe('archived');
     });
 
+    it('does not render legacy controlled labels as canonical category values', () => {
+        expect(threatCategoryLabel((key) => key, 'Dostupnost')).toBe('threats:register.values.unknown');
+    });
+
     it('strips empty strings to nulls and drops untouched fields in write payloads', () => {
         expect(
             buildThreatWritePayload({
                 name: ' Ransomware ',
-                category: 'Dostupnost',
+                category: 'availability',
                 description: '',
                 typical_weaknesses: 'Neaktualizované systémy, phishing',
                 notes: '',
             })
         ).toEqual({
             name: 'Ransomware',
-            category: 'Dostupnost',
+            category: 'availability',
             description: null,
             typical_weaknesses: 'Neaktualizované systémy, phishing',
             notes: null,
@@ -114,8 +128,10 @@ describe('Threats page presentation helpers', () => {
 
         expect(keys).toContain('name');
         expect(keys).toContain('category');
+        expect(keys).toContain('threat_steward');
         expect(keys).toContain('typical_weaknesses');
         expect(keys).toContain('relevant_subject');
+        expect(keys).toContain('linked_risk_count');
         expect(keys).toContain('status');
 
         const nameColumn = columns.find((column) => column.key === 'name');
@@ -124,7 +140,16 @@ describe('Threats page presentation helpers', () => {
 
         const categoryColumn = columns.find((column) => column.key === 'category');
         render(categoryColumn?.render?.(sampleThreat(), 0) as ReactElement);
-        expect(screen.getByText('Dostupnost')).toBeInTheDocument();
+        expect(screen.getByText('threats:categories.availability')).toBeInTheDocument();
+
+        const stewardColumn = columns.find((column) => column.key === 'threat_steward');
+        render(stewardColumn?.render?.(sampleThreat(), 0) as ReactElement);
+        expect(screen.getByText('Klára Černá')).toBeInTheDocument();
+
+        const linkedRiskColumn = columns.find((column) => column.key === 'linked_risk_count');
+        render(linkedRiskColumn?.render?.(sampleThreat(), 0) as ReactElement);
+        expect(screen.getByText('2')).toBeInTheDocument();
+        expect(linkedRiskColumn?.className).toContain('text-right');
     });
 
     it('distinguishes an empty register from an unmatched search (FR-P5-5)', () => {

@@ -20,6 +20,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, computed_field, field_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
+from app.schemas.collection import CollectionGroupRead
 from app.services._ict_register_reference import THREAT_CATEGORY_CODES
 
 
@@ -94,7 +95,6 @@ class ThreatRead(BaseModel):
     typical_weaknesses: str | None = None
     relevant_subject: str | None = None
     notes: str | None = None
-
     is_archived: bool = False
     archived_at: UtcAwareDatetime | None = None
     archived_by_id: int | None = None
@@ -109,14 +109,44 @@ class ThreatListCapabilities(BaseModel):
     """Collection-level Threat list action capabilities."""
 
     can_create: bool
+    can_export: bool = False
+
+
+class ThreatFacetOption(BaseModel):
+    """One permission-scoped Threat facet option."""
+
+    value: str
+    label: str
+    count: int
+    disabled: bool = False
+    selected: bool = False
+
+
+class ThreatLookupOption(BaseModel):
+    """Safe remote Threat-filter lookup; hidden Risk context is excluded."""
+
+    id: int
+    label: str
+    secondary_label: str | None = None
+    disabled: bool = False
+    count: int | None = None
+
+
+class ThreatListItem(ThreatRead):
+    """Threat list projection with permission-scoped linked-Risk metadata."""
+
+    # Hidden Risk links never contribute to this projection.
+    visible_linked_risk_count: int = 0
 
 
 class ThreatListResponse(BaseModel):
-    items: list[ThreatRead]
+    items: list[ThreatListItem]
     total: int
     offset: int
     limit: int
     capabilities: ThreatListCapabilities | None = None
+    groups: list[CollectionGroupRead] = Field(default_factory=list)
+    facets: dict[str, list[ThreatFacetOption]] = Field(default_factory=dict)
 
     @computed_field
     def skip(self) -> int:

@@ -1,10 +1,10 @@
 ---
 title: Managing Threats
-version: "2.5"
-last_updated: "2026-07-15"
+version: "2.6"
+last_updated: "2026-07-16"
 audience: user
-source_of_truth: "frontend/src/pages/ThreatsPage.tsx + frontend/src/pages/ThreatDetailPage.tsx + backend/app/services/_ict_register_lifecycle/threat_lifecycle.py"
-summary: "User guide for the global Threat catalog, CISO stewardship, canonical categories, Risk links, archive state, and orphan reassignment."
+source_of_truth: "frontend/src/pages/ThreatsPage.tsx + frontend/src/pages/threats/ThreatRegisterFilterBar.tsx + backend/app/services/_register_listings/threats.py + backend/app/services/_ict_register_lifecycle/threat_lifecycle.py"
+summary: "User guide for the shared Threat register, CISO stewardship, scoped filters and Risk grouping, export, archive state, and orphan reassignment."
 tags:
   - risks
   - governance
@@ -35,7 +35,9 @@ Your visible actions come from server-provided capabilities. If the create, edit
 
 Open **Threats** from the sidebar. Select a row for detail, use **New Threat** to create a record, or open **Edit Threat** to reassign its steward.
 
-The main table shows active records by default. Use the archived view when you need to inspect or restore a retired entry. The detail page contains the record overview and the Risk-link section. Governance users can also reach stewardship gaps from the orphaned-items area when a previously assigned CISO becomes inactive or loses the CISO role.
+The register opens in **All** view with active records and no user-selected sort. The other views are **By Category**, **By Threat Steward**, **By Relevant Subject**, and **By Linked Risk**. A grouped view first shows group cards; select one to drill down to its Threat rows, then use the back control to return to the groups. Browser Back and Forward, a reload, and a copied URL restore the same search, filters, view, sort, and selected group. Page numbers are deliberately not persistent; changing the working set starts again on page 1.
+
+Use the lifecycle filter when you need to inspect or restore a retired entry. The detail page contains the record overview and the Risk-link section. Governance users can also reach stewardship gaps from the orphaned-items area when a previously assigned CISO becomes inactive or loses the CISO role.
 
 ## What You Can See and Change
 
@@ -71,9 +73,27 @@ Creation, field changes, archive, restore, and Risk-link mutations create attrib
 
 ## Finding, Filtering, and Evidence
 
-Search by name, localized category, or relevant subject. Use the detail and Activity Log as evidence of stewardship, lifecycle changes, and Risk-link changes. The UI never substitutes a raw User ID for a missing name.
+Search covers the Threat name, description, typical weaknesses, relevant subject, and Steward name. Search is combined with every selected filter. Different filter fields use **AND**; selecting several values inside one field uses **OR**. Any filter change starts again on page 1, so a narrow result is not hidden by an old page number.
 
-For an evidence review, capture the Threat’s name, category, current eligible steward, archive state, and linked Risk business identifiers. Then inspect the Activity Log for who created, edited, archived, restored, linked, or unlinked the record and when. A filtered search result is a navigation aid, not a complete audit extract; use the Activity Log or an authorized report when the evidence must be retained outside the page.
+The lifecycle control stays visible. Use **Filters** to add only the other controls needed for the current review:
+
+- category;
+- Threat Steward;
+- relevant subject;
+- whether the Threat has a linked Risk;
+- a specific Linked Risk;
+- Linked Risk type; and
+- Linked Risk Department.
+
+The active-filter count and chips show the complete selection. Remove one chip to clear one field, or use **Clear all** to remove all added filters without discarding the search term. Options, labels, and counts are calculated only from records and linked Risk context you are allowed to see. Controlled category and Risk-type values use stable codes with localized labels; the Steward and Linked Risk controls use permission-scoped searchable directories. A disabled zero-count option is informative, not an invitation to broaden access.
+
+**By Linked Risk** is a multi-membership view: one Threat linked to three Risks appears in all three readable Risk groups. It is not assigned to only its first Risk. Risks outside your read scope do not produce a group, option, count, label, or indirect clue. The unlinked group means no readable linked Risk in your visible universe; it does not prove that no hidden relationship exists.
+
+Sorting and pagination operate inside the current filtered universe and selected group. Use **Export** to download every matching Threat under the same permission scope, independent of the page currently displayed. The standard export keeps stable category codes and adds labels in the selected export locale. It also carries the current search, filters, view, and selected group; it does not export unrelated URL parameters or list pagination. If **Export** is absent, the server did not grant that collection capability.
+
+Use the detail and Activity Log as evidence of stewardship, lifecycle changes, and Risk-link changes. The UI never substitutes a raw User ID for a missing name.
+
+For an evidence review, capture the Threat’s name, category, current eligible steward, archive state, and linked Risk business identifiers. Then inspect the Activity Log for who created, edited, archived, restored, linked, or unlinked the record and when. A filtered list or standard export is a register snapshot, not a complete audit trail. Use the Activity Log or an authorized audit report when the evidence must show who changed a relationship or field and when.
 
 An amber orphan warning means the relationship was preserved after the former steward became inactive or lost the CISO role. This is intentional evidence preservation. The Threat remains readable, and the prior foreign-key relationship is not overwritten with an invented replacement. The detail suppresses **Edit Threat** and directs an authorized CRO to the Threat queue in Governance; a CISO without Governance access is told to ask a CRO. Governance statistics count the gap until that operator explicitly resolves it to an active CISO.
 
@@ -92,6 +112,8 @@ If saving an ordinary edit is rejected, confirm that the selected User is active
 If the steward list fails to load, use **Retry** and check whether other API-backed lists work. A continuing failure may be a connectivity or service issue; preserve the form text before refreshing and provide the time and page to support. If the list loads but a person is absent, confirm that the User is active and has the CISO role rather than a similar job title stored only as directory metadata.
 
 If a Risk cannot be found in the link picker, verify that it is active and within your permitted visibility. The service deliberately does not reveal out-of-scope Risk records. If a link action is unavailable on an archived Threat, restore the Threat before making an authorized change. If category text appears in the wrong language, confirm the active language and report the displayed label; do not edit stored data to compensate for a localization problem.
+
+If the register fails to load, use the keyboard-accessible **Retry** action. A server-declared access denial replaces the register rather than leaving stale rows, groups, filters, or counts on screen. If a grouped URL opens without its selected group, that group may no longer exist in your filtered and permission-scoped universe; return to the grouped view and choose a visible group. If an export fails, keep the URL and retry after connectivity is restored rather than weakening the filters.
 
 ## Related Manuals
 

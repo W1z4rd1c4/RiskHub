@@ -2,7 +2,7 @@ import type { MouseEvent } from 'react';
 import { ArchiveRestore } from 'lucide-react';
 
 import type { Column } from '@/components/tables/SortableTable';
-import type { Threat } from '@/types/threat';
+import type { ThreatListItem } from '@/types/threat';
 
 import { getThreatDisplayStatus, threatCategoryLabel, type ThreatDisplayStatus } from './threatsPagePresentation';
 
@@ -11,7 +11,7 @@ type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 type BuildThreatColumnsParams = {
     t: TranslateFn;
     onRestore: (threatId: number, event: MouseEvent) => void | Promise<void>;
-    canRestoreThreat: (threat: Threat) => boolean;
+    canRestoreThreat: (threat: ThreatListItem) => boolean;
 };
 
 export function getThreatStatusColor(status: ThreatDisplayStatus): string {
@@ -22,7 +22,7 @@ export function buildThreatColumns({
     t,
     onRestore,
     canRestoreThreat,
-}: BuildThreatColumnsParams): Column<Threat>[] {
+}: BuildThreatColumnsParams): Column<ThreatListItem>[] {
     return [
         {
             key: 'name',
@@ -52,6 +52,16 @@ export function buildThreatColumns({
             render: (threat) => <span className="text-sm text-slate-300">{threatCategoryLabel(t, threat.category)}</span>,
         },
         {
+            key: 'threat_steward',
+            label: t('threats:columns.threat_steward'),
+            sortable: true,
+            render: (threat) => (
+                <span className="text-sm text-slate-300">
+                    {threat.threat_steward?.name ?? t('common:fallbacks.unknown_user')}
+                </span>
+            ),
+        },
+        {
             key: 'typical_weaknesses',
             label: t('threats:columns.typical_weaknesses'),
             render: (threat) => (
@@ -74,6 +84,16 @@ export function buildThreatColumns({
             render: (threat) => <span className="text-sm text-slate-300">{threat.relevant_subject ?? '—'}</span>,
         },
         {
+            key: 'linked_risk_count',
+            label: t('threats:columns.linked_risks'),
+            sortable: true,
+            className: 'text-right',
+            headerClassName: 'text-right',
+            render: (threat) => (
+                <span className="text-sm tabular-nums text-slate-300">{threat.visible_linked_risk_count}</span>
+            ),
+        },
+        {
             key: 'status',
             label: t('threats:columns.status'),
             className: 'w-[130px]',
@@ -86,6 +106,11 @@ export function buildThreatColumns({
                         >
                             {t(`threats:status.${status}`)}
                         </span>
+                        {threat.stewardship_status === 'pending_governance' ? (
+                            <span className="inline-flex items-center rounded-full bg-amber-400/10 px-2.5 py-0.5 text-xs font-bold text-amber-300">
+                                {t('threats:status.pending_governance')}
+                            </span>
+                        ) : null}
                         {status === 'archived' && canRestoreThreat(threat) ? (
                             <button
                                 type="button"

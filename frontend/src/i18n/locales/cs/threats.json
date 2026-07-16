@@ -10,15 +10,17 @@
         "restore": "Obnovit",
         "retry": "Zkusit znovu",
         "resolve_in_governance": "Vyřešit v Governance",
-        "back_to_register": "Zpět na hrozby"
+    "back_to_register": "Zpět na hrozby",
+    "export": "Exportovat"
     },
     "filters": {
-        "search_placeholder": "Hledat podle názvu, kategorie nebo relevantního subjektu...",
+    "search_placeholder": "Hledat v názvu, popisu, zranitelnostech, subjektu nebo správci...",
         "all_statuses": "Všechny stavy"
     },
     "status": {
         "active": "Aktivní",
-        "archived": "Archivováno"
+    "archived": "Archivováno",
+    "pending_governance": "Čeká na Governance"
     },
     "categories": {
         "availability": "Dostupnost",
@@ -31,10 +33,12 @@
     },
     "columns": {
         "name": "Hrozba",
-        "category": "Kategorie",
+    "category": "Kategorie",
+    "threat_steward": "Správce hrozby",
         "typical_weaknesses": "Typické zranitelnosti",
         "relevant_subject": "Relevantní subjekt",
-        "status": "Stav"
+    "linked_risks": "Propojená rizika",
+    "status": "Stav"
     },
     "form": {
         "sections": {
@@ -80,7 +84,59 @@
         "load_failed": "Načtení hrozeb se nezdařilo.",
         "archive_failed": "Archivace hrozby se nezdařila. Zkuste to prosím znovu."
     },
-    "messages": {
+  "register": {
+    "views": {
+      "all": "Vše",
+      "category": "Podle kategorie",
+      "threat_steward": "Podle správce hrozby",
+      "relevant_subject": "Podle relevantního subjektu",
+      "linked_risk": "Podle propojeného rizika"
+    },
+    "filters": {
+      "add": "Filtry",
+      "active_count": "Aktivní filtry: {{count}}",
+      "clear_all": "Vymazat vše",
+      "remove": "Odebrat filtr {{label}}",
+      "lifecycle": "Životní cyklus",
+      "category": "Kategorie",
+      "threat_steward": "Správce hrozby",
+      "relevant_subject": "Relevantní subjekt",
+      "has_linked_risk": "Přítomnost propojeného rizika",
+      "linked_risk": "Propojené riziko",
+      "linked_risk_type": "Typ propojeného rizika",
+      "linked_risk_department": "Útvar propojeného rizika",
+      "search_options": "Hledat ve viditelných možnostech...",
+      "search_options_for": "Hledat možnosti {{label}}",
+      "no_options": "Žádné viditelné možnosti"
+    },
+    "lifecycle": {
+      "active": "Aktivní",
+      "archived": "Archivované",
+      "all": "Všechny záznamy"
+    },
+    "boolean": {
+      "any": "Libovolné",
+      "yes": "Ano",
+      "no": "Ne"
+    },
+    "risk_types": {
+      "strategic": "Strategické",
+      "operational": "Operační"
+    },
+    "groups": {
+      "uncategorized": "Bez kategorie",
+      "unassigned": "Nepřiřazeno",
+      "unspecified": "Neuvedeno",
+      "no_linked_risk": "Bez propojeného rizika"
+    },
+    "values": {
+      "unknown": "Neznámé"
+    },
+    "export": {
+      "title": "Export odpovídajících hrozeb"
+    }
+  },
+  "messages": {
         "archive_confirm": "Archivovat hrozbu „{{threatName}}“? Zůstane dostupná v archivovaném zobrazení.",
         "steward_orphaned": "Přiřazený správce hrozby je neaktivní nebo již nemá roli CISO. Hrozbu explicitně přeřaďte.",
         "steward_orphaned_governance": "Zachovaný správce hrozby je neaktivní nebo již nemá roli CISO. Úpravy jsou po dobu otevřené mezery uzamčené. Přiřaďte aktivního CISO přes Governance.",

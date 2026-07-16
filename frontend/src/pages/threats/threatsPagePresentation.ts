@@ -17,7 +17,10 @@ export function threatCategoryLabel(
     translate: (key: string) => string,
     category: string | null | undefined,
 ): string {
-    return category ? translate(`threats:categories.${category}`) : '—';
+    if (!category) return '—';
+    return THREAT_CATEGORY_CODES.includes(category as (typeof THREAT_CATEGORY_CODES)[number])
+        ? translate(`threats:categories.${category}`)
+        : translate('threats:register.values.unknown');
 }
 
 export function getThreatDisplayStatus(threat: Pick<Threat, 'is_archived'>): ThreatDisplayStatus {
