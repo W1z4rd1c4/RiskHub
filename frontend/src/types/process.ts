@@ -1,3 +1,4 @@
+import type { ApprovalCreatedResponse, GovernedDerivedImpact } from './approval';
 import type { CollectionGroup } from './collection';
 
 export interface ProcessCapabilities {
@@ -5,6 +6,46 @@ export interface ProcessCapabilities {
     can_update: boolean;
     can_archive: boolean;
     can_restore: boolean;
+    protected_change_requires_approval: boolean;
+    can_request_change: boolean;
+    can_cancel_pending_change: boolean;
+    has_pending_change: boolean;
+    business_edit_blocked: boolean;
+}
+
+export interface ProcessPendingChangeCapabilities {
+    can_view_diff: boolean;
+    can_cancel: boolean;
+}
+
+export interface ProcessPendingChangeRead {
+    approval_id: number;
+    proposal_id: string;
+    proposal_version: number;
+    status: 'pending';
+    requested_at: string;
+    requested_by_name: string | null;
+    reason: string;
+    before: Record<string, unknown>;
+    after: Record<string, unknown>;
+    derived_impact: GovernedDerivedImpact;
+    capabilities: ProcessPendingChangeCapabilities;
+}
+
+export interface ProcessApprovalQueuedResponse extends ApprovalCreatedResponse {
+    proposal_id: string;
+    proposal_version: number;
+}
+
+export function isProcessApprovalQueuedResponse(
+    response: unknown,
+): response is ProcessApprovalQueuedResponse {
+    return typeof response === 'object'
+        && response !== null
+        && 'status' in response
+        && response.status === 'approval_required'
+        && 'proposal_id' in response
+        && 'proposal_version' in response;
 }
 
 export type ProcessCriticalityCode = 'low' | 'medium' | 'high' | 'critical';
@@ -160,6 +201,7 @@ export interface Process {
     notes?: string | null;
 
     derived?: ProcessDerived | null;
+    pending_change?: ProcessPendingChangeRead | null;
 
     is_archived: boolean;
     archived_at?: string | null;
@@ -192,6 +234,7 @@ export interface ProcessWritePayload {
     interruption_impact?: string | null;
     assessment_date?: string | null;
     notes?: string | null;
+    request_reason?: string;
 }
 
 export interface ProcessListParams {

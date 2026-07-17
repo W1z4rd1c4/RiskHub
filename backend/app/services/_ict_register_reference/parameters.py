@@ -170,3 +170,34 @@ async def load_ict_workbook_parameter_set(db: "AsyncSession") -> IctWorkbookPara
 
     version = values[_VERSION_PARAMETER_NAME]
     return IctWorkbookParameterSet(version=str(version), values=values)
+
+
+async def load_ict_workbook_parameter_set_for_update(
+    db: "AsyncSession",
+) -> IctWorkbookParameterSet:
+    """Lock and load one uncached parameter snapshot for a governed mutation."""
+    from sqlalchemy import select
+
+    from app.models.global_config import GlobalConfig
+
+    config_keys = sorted(parameter.config_key for parameter in ICT_WORKBOOK_PARAMETERS)
+    rows = list(
+        (
+            await db.execute(
+                select(GlobalConfig)
+                .where(GlobalConfig.key.in_(config_keys))
+                .order_by(GlobalConfig.key)
+                .with_for_update()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    rows_by_key = {row.key: row for row in rows}
+    values: dict[str, IctParameterValue] = {}
+    for parameter in ICT_WORKBOOK_PARAMETERS:
+        row = rows_by_key.get(parameter.config_key)
+        raw = row.get_typed_value() if row is not None else parameter.default
+        values[parameter.name] = _coerce_effective_value(parameter, raw)
+    version = values[_VERSION_PARAMETER_NAME]
+    return IctWorkbookParameterSet(version=str(version), values=values)

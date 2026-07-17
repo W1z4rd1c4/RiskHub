@@ -1,23 +1,44 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.permissions import visible_vendor_ids
 from app.core.security import check_permission
-from app.models import OrphanedItem, Process, ProcessVendorLink, User
+from app.models import (
+    ApprovalRequest,
+    ApprovalStatus,
+    GovernedMutationImpactLock,
+    GovernedMutationProposal,
+    OrphanedItem,
+    Process,
+    ProcessVendorLink,
+    User,
+)
 from app.schemas.process import (
     ProcessDepartmentRead,
     ProcessDerived,
     ProcessListCapabilities,
     ProcessListResponse,
     ProcessOwnerRead,
+    ProcessPendingChange,
     ProcessRead,
 )
 from app.services._authorization_capabilities import process_capabilities
-from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
+from app.services._governed_mutations.process_identity import (
+    InvalidGovernedProcessIdentity,
+    strict_governed_process_identity,
+)
+from app.services._governed_mutations.projection import actor_safe_process_snapshots
+from app.services._ict_register_reference.parameters import (
+    load_ict_workbook_parameter_set,
+    load_ict_workbook_parameter_set_for_update,
+)
+from app.services.approval_scenario_policy import load_approval_scenario_policy
 
 from .derivation import (
     ANO,
@@ -28,7 +49,8 @@ from .derivation import (
     RTO_MTPD_GAP,
     derive_ict_register,
 )
-from .derivation_inputs import load_ict_register_graph
+from .derivation_inputs import load_ict_register_graph, process_derivation_input
+from .policy import can_use_process_assignment_lookup
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,6 +68,18 @@ _PROCESS_BCM_CHECK_CODE_BY_ENGINE_VALUE = {
     CHECK_OK: "ok",
     BCM_GAP: "cif_without_bcm",
 }
+_PROTECTED_PROCESS_EDIT_SCENARIO_KEY = "protected_process_edit"
+
+
+async def protected_process_changes_require_approval(db: "AsyncSession") -> bool:
+    """Project the live fixed-scenario switch used by Process mutation intake."""
+    policy = await load_approval_scenario_policy(
+        db,
+        _PROTECTED_PROCESS_EDIT_SCENARIO_KEY,
+        default_roles=("risk_manager", "cro"),
+        default_requires_approval=True,
+    )
+    return policy.requires_approval
 
 
 def _required_engine_code(mapping: dict[str, str], value: str, *, field: str) -> str:
@@ -138,6 +172,115 @@ async def load_process_derived_blocks(
     )
 
 
+async def load_proposed_process_derived_block(
+    db: "AsyncSession",
+    process: Process,
+    *,
+    updates: dict[str, object],
+) -> ProcessDerived:
+    """Derive a proposed Process without mutating the operational ORM row."""
+    parameters = await load_ict_workbook_parameter_set(db)
+    graph = await load_ict_register_graph(db, processes=[process])
+    current = process_derivation_input(process)
+    derivation_fields = set(current.__dataclass_fields__)
+    proposed_values = {key: value for key, value in updates.items() if key in derivation_fields}
+    proposed = replace(current, **proposed_values)
+    proposed_graph = replace(
+        graph,
+        processes=tuple(proposed if row.id == process.id else row for row in graph.processes),
+    )
+    return _canonical_process_derived_block(
+        derive_ict_register(proposed_graph, parameters).processes[process.id]
+    )
+
+
+async def load_governed_process_derived_blocks(
+    db: "AsyncSession",
+    process: Process,
+    *,
+    updates: dict[str, object],
+) -> tuple[ProcessDerived, ProcessDerived]:
+    """Derive current/proposed state from one locked parameter and graph snapshot."""
+    parameters = await load_ict_workbook_parameter_set_for_update(db)
+    graph = await load_ict_register_graph(db, processes=[process])
+    current = process_derivation_input(process)
+    derivation_fields = set(current.__dataclass_fields__)
+    proposed = replace(
+        current,
+        **{key: value for key, value in updates.items() if key in derivation_fields},
+    )
+    proposed_graph = replace(
+        graph,
+        processes=tuple(proposed if row.id == process.id else row for row in graph.processes),
+    )
+    current_derivation = derive_ict_register(graph, parameters).processes[process.id]
+    proposed_derivation = derive_ict_register(proposed_graph, parameters).processes[process.id]
+    return (
+        _canonical_process_derived_block(current_derivation),
+        _canonical_process_derived_block(proposed_derivation),
+    )
+
+
+async def load_pending_process_changes(
+    db: "AsyncSession",
+    *,
+    process_ids: list[int],
+    current_user: User,
+) -> dict[int, ProcessPendingChange]:
+    if not process_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(GovernedMutationProposal)
+            .options(
+                selectinload(GovernedMutationProposal.approval_request),
+                selectinload(GovernedMutationProposal.requested_by),
+            )
+            .join(GovernedMutationImpactLock)
+            .join(GovernedMutationProposal.approval_request)
+            .where(
+                GovernedMutationImpactLock.resource_type == "process",
+                GovernedMutationImpactLock.resource_id.in_(process_ids),
+                GovernedMutationImpactLock.released_at.is_(None),
+                ApprovalRequest.status == ApprovalStatus.PENDING,
+            )
+        )
+    ).scalars().unique().all()
+    can_view_proposed_references = await can_use_process_assignment_lookup(
+        db,
+        current_user=current_user,
+    )
+    projections: dict[int, ProcessPendingChange] = {}
+    for proposal in rows:
+        try:
+            identity = strict_governed_process_identity(proposal)
+        except InvalidGovernedProcessIdentity:
+            continue
+        if identity is None:
+            continue
+        approval = proposal.approval_request
+        before, after = actor_safe_process_snapshots(
+            proposal,
+            can_view_proposed_references=can_view_proposed_references,
+        )
+        projections[identity.primary_resource_id] = ProcessPendingChange(
+            approval_id=approval.id,
+            proposal_id=proposal.proposal_id,
+            proposal_version=proposal.proposal_version,
+            requested_at=approval.created_at,
+            requested_by_name=(proposal.requested_by.name if proposal.requested_by else None),
+            reason=approval.reason,
+            before=before,
+            after=after,
+            derived_impact=proposal.derived_impact_snapshot,
+            capabilities={
+                "can_view_diff": True,
+                "can_cancel": identity.requested_by_id == current_user.id,
+            },
+        )
+    return projections
+
+
 async def _filter_linked_context(
     db: "AsyncSession",
     *,
@@ -215,8 +358,10 @@ def serialize_process_detail(
     process: Process,
     *,
     current_user: User,
+    protected_change_requires_approval: bool,
     derived: ProcessDerived | None = None,
     ownership_pending: bool = False,
+    pending_change: ProcessPendingChange | None = None,
 ) -> ProcessRead:
     owner = process.process_owner
     department = process.owning_department
@@ -256,8 +401,16 @@ def serialize_process_detail(
                 current_user,
                 process,
                 ownership_pending=ownership_pending,
+                governed_mutation_pending=pending_change is not None,
+                pending_requested_by_id=(
+                    current_user.id
+                    if pending_change is not None and pending_change.capabilities.can_cancel
+                    else None
+                ),
+                protected_change_requires_approval=protected_change_requires_approval,
             ),
             "derived": derived,
+            "pending_change": pending_change,
         }
     )
 
@@ -292,11 +445,17 @@ async def serialize_process_detail_with_derived(
 ) -> ProcessRead:
     blocks = await load_process_derived_blocks(db, [process], current_user=current_user)
     pending_ids = await pending_process_ownership_orphan_ids(db, process_ids=[process.id])
+    pending_changes = await load_pending_process_changes(
+        db, process_ids=[process.id], current_user=current_user
+    )
+    protected_change_requires_approval = await protected_process_changes_require_approval(db)
     return serialize_process_detail(
         process,
         current_user=current_user,
         derived=blocks[process.id],
         ownership_pending=process.id in pending_ids,
+        pending_change=pending_changes.get(process.id),
+        protected_change_requires_approval=protected_change_requires_approval,
     )
 
 
@@ -318,6 +477,12 @@ async def serialize_process_list(
         db,
         process_ids=[process.id for process in processes],
     )
+    pending_changes = await load_pending_process_changes(
+        db,
+        process_ids=[process.id for process in processes],
+        current_user=current_user,
+    )
+    protected_change_requires_approval = await protected_process_changes_require_approval(db)
     return ProcessListResponse(
         items=[
             serialize_process_detail(
@@ -325,6 +490,8 @@ async def serialize_process_list(
                 current_user=current_user,
                 derived=blocks.get(process.id),
                 ownership_pending=process.id in pending_ids,
+                pending_change=pending_changes.get(process.id),
+                protected_change_requires_approval=protected_change_requires_approval,
             )
             for process in processes
         ],

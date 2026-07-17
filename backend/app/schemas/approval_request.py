@@ -16,6 +16,7 @@ class ApprovalStatusEnum(str, Enum):
     approved = "approved"
     rejected = "rejected"
     cancelled = "cancelled"
+    expired = "expired"
 
 
 class ApprovalResourceTypeEnum(str, Enum):
@@ -24,6 +25,7 @@ class ApprovalResourceTypeEnum(str, Enum):
     risk = "risk"
     control = "control"
     kri = "kri"
+    process = "process"
 
 
 class ApprovalActionTypeEnum(str, Enum):
@@ -44,6 +46,18 @@ class ApprovalQueuedResponse(BaseModel):
     pending_changes: dict[str, Any] | None = None
     primary_approver_id: int | None = None
     requires_privileged_approval: bool = False
+    proposal_id: str | None = None
+    proposal_version: int | None = None
+
+
+class GovernedMutationApprovalRead(BaseModel):
+    proposal_id: str
+    proposal_version: int
+    mutation_kind: str
+    before: dict[str, Any]
+    after: dict[str, Any]
+    derived_impact: dict[str, Any]
+    impacted_resources: list[dict[str, Any]]
 
 
 class ApprovalRequestCreate(BaseModel):
@@ -114,6 +128,7 @@ class ApprovalRequestRead(BaseModel):
     can_approve: bool
     can_reject: bool
     capabilities: ApprovalRequestCapabilities | None = None
+    governed_mutation: GovernedMutationApprovalRead | None = None
 
     model_config = {"from_attributes": True}
 

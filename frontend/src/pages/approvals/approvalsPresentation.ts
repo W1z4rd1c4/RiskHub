@@ -39,6 +39,8 @@ export function getApprovalStatusBadge(status: ApprovalStatus): string {
             return 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5';
         case 'rejected':
             return 'text-rose-400 border-rose-400/20 bg-rose-400/5';
+        case 'expired':
+            return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
         case 'cancelled':
         default:
             return 'text-slate-400 border-slate-400/20 bg-slate-400/5';

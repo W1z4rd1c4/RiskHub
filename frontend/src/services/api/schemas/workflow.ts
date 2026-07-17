@@ -3,6 +3,8 @@ import type {
     ApprovalCreatedResponse,
     ApprovalListResponse,
     ApprovalRequest,
+    GovernedDerivedImpact,
+    GovernedMutationRead,
     PendingChange,
 } from '@/types/approval';
 import type {
@@ -47,6 +49,30 @@ const pendingChangeSchema: z.ZodType<PendingChange> = z.preprocess(
     }),
 );
 
+export const governedDerivedImpactSchema: z.ZodType<GovernedDerivedImpact> = passthroughObject({
+    before: passthroughObject({
+        cif: z.string(),
+        criticality_class: z.string().nullable(),
+    }),
+    after: passthroughObject({
+        cif: z.string(),
+        criticality_class: z.string().nullable(),
+    }),
+});
+
+export const governedMutationReadSchema: z.ZodType<GovernedMutationRead> = passthroughObject({
+    proposal_id: z.string(),
+    proposal_version: z.number(),
+    mutation_kind: z.string(),
+    before: unknownRecordSchema,
+    after: unknownRecordSchema,
+    derived_impact: governedDerivedImpactSchema,
+    impacted_resources: z.array(z.strictObject({
+        resource_type: z.string(),
+        resource_name: z.string(),
+    })).optional(),
+});
+
 export const activityLogEntrySchema: z.ZodType<ActivityLogEntry> = passthroughObject({
     id: z.number(),
     entity_type: z.string(),
@@ -72,12 +98,13 @@ export const activityLogListResponseSchema: z.ZodType<ActivityLogListResponse> =
 
 export const approvalRequestSchema: z.ZodType<ApprovalRequest> = passthroughObject({
     id: z.number(),
-    resource_type: z.enum(['risk', 'control', 'kri']),
+    resource_type: z.enum(['risk', 'control', 'kri', 'process']),
     resource_id: z.number(),
     resource_name: z.string(),
     action_type: z.enum(['delete', 'edit']),
     pending_changes: z.record(z.string(), pendingChangeSchema).nullable(),
-    status: z.enum(['pending', 'pending_privileged', 'approved', 'rejected', 'cancelled']),
+    governed_mutation: governedMutationReadSchema.nullable().optional(),
+    status: z.enum(['pending', 'pending_privileged', 'approved', 'rejected', 'cancelled', 'expired']),
     reason: z.string(),
     requested_by_id: z.number(),
     requested_by_name: z.string().nullable(),
@@ -109,8 +136,7 @@ export const approvalRequestSchema: z.ZodType<ApprovalRequest> = passthroughObje
 });
 export const approvalListResponseSchema: z.ZodType<ApprovalListResponse> =
     offsetPaginationSchema(approvalRequestSchema);
-export const approvalCreatedResponseSchema: z.ZodType<ApprovalCreatedResponse> =
-    passthroughObject({
+export const approvalCreatedResponseSchema = passthroughObject({
         status: z.literal('approval_required'),
         message: z.string(),
         approval_id: z.number(),
@@ -119,7 +145,7 @@ export const approvalCreatedResponseSchema: z.ZodType<ApprovalCreatedResponse> =
         pending_changes: unknownRecordSchema.nullable().optional(),
         primary_approver_id: z.number().nullable().optional(),
         requires_privileged_approval: z.boolean().optional(),
-    });
+    }) satisfies z.ZodType<ApprovalCreatedResponse>;
 
 export const notificationSchema: z.ZodType<Notification> = passthroughObject({
     id: z.number(),
@@ -164,6 +190,8 @@ export const notificationPreferencesSchema: z.ZodType<NotificationPreferences> =
         approval_pending: z.boolean(),
         approval_resolved: z.boolean(),
         approval_cancelled: z.boolean(),
+        governed_approval_action_required: z.boolean(),
+        governed_approval_request_updates: z.boolean(),
         kri_due_soon: z.boolean(),
         kri_due_tomorrow: z.boolean(),
         kri_overdue: z.boolean(),

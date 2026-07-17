@@ -13,7 +13,15 @@ from app.services._approval_queue import (
     count_pending_approval_queue,
     list_my_approval_queue_page,
 )
-from app.services._approval_queue.projection import build_approval_read
+from app.services._approval_queue.projection import (
+    build_approval_read,
+    governed_process_response_access,
+)
+from app.services._governed_mutations.process_identity import (
+    strict_governed_process_identity,
+)
+from app.services._ict_register_lifecycle.policy import can_use_process_assignment_lookup
+from app.services.approval_scenario_policy import can_view_approval_resource
 
 from ._shared import logger
 
@@ -24,6 +32,40 @@ _APPROVAL_AUTH_NOT_FOUND_RESPONSES: dict[int | str, dict[str, Any]] = {
     403: {"description": "Authenticated user is not allowed to resolve this approval."},
     404: {"description": "Approval request not found."},
 }
+
+
+async def _build_resolution_response(
+    db: AsyncSession,
+    *,
+    approval,
+    current_user,
+) -> ApprovalRequestRead:
+    identity = strict_governed_process_identity(
+        approval.governed_mutation_proposal
+    )
+    if identity is not None:
+        can_view_snapshot, governed_resolver = (
+            await governed_process_response_access(
+                db,
+                approval=approval,
+                current_user=current_user,
+            )
+        )
+    else:
+        can_view_snapshot = await can_view_approval_resource(
+            db, current_user, approval
+        )
+        governed_resolver = False
+    return build_approval_read(
+        approval,
+        current_user,
+        can_view_governed_snapshot=can_view_snapshot,
+        governed_resolver=governed_resolver,
+        can_view_governed_references=await can_use_process_assignment_lookup(
+            db,
+            current_user=current_user,
+        ),
+    )
 
 
 @router.post("/{approval_id}/approve", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
@@ -58,7 +100,11 @@ async def approve_request(
         logger.exception("Error applying approval %s", approval_id)
         raise HTTPException(status_code=500, detail="Failed to process approval request")
 
-    return build_approval_read(approval, ctx.user)
+    return await _build_resolution_response(
+        db,
+        approval=approval,
+        current_user=ctx.user,
+    )
 
 
 @router.post("/{approval_id}/reject", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
@@ -82,7 +128,11 @@ async def reject_request(
         resolution_notes=resolve_data.resolution_notes,
     )
 
-    return build_approval_read(approval, ctx.user)
+    return await _build_resolution_response(
+        db,
+        approval=approval,
+        current_user=ctx.user,
+    )
 
 
 @router.post("/{approval_id}/cancel", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
@@ -99,7 +149,11 @@ async def cancel_request(
 
     approval = await cancel_request_workflow(db, approval_id=approval_id, current_user=ctx.user)
 
-    return build_approval_read(approval, ctx.user)
+    return await _build_resolution_response(
+        db,
+        approval=approval,
+        current_user=ctx.user,
+    )
 
 
 @router.get(

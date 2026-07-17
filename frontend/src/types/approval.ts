@@ -1,10 +1,35 @@
-export type ApprovalStatus = 'pending' | 'pending_privileged' | 'approved' | 'rejected' | 'cancelled';
-export type ApprovalResourceType = 'risk' | 'control' | 'kri';
+export type ApprovalStatus = 'pending' | 'pending_privileged' | 'approved' | 'rejected' | 'cancelled' | 'expired';
+export type ApprovalResourceType = 'risk' | 'control' | 'kri' | 'process';
 export type ApprovalActionType = 'delete' | 'edit';
 
 export interface PendingChange {
     old: unknown;
     new: unknown;
+}
+
+export interface GovernedDerivedState {
+    cif: string;
+    criticality_class: string | null;
+}
+
+export interface GovernedDerivedImpact {
+    before: GovernedDerivedState;
+    after: GovernedDerivedState;
+}
+
+export interface GovernedImpactedResource {
+    resource_type: string;
+    resource_name: string;
+}
+
+export interface GovernedMutationRead {
+    proposal_id: string;
+    proposal_version: number;
+    mutation_kind: string;
+    before: Record<string, unknown>;
+    after: Record<string, unknown>;
+    derived_impact: GovernedDerivedImpact;
+    impacted_resources?: GovernedImpactedResource[];
 }
 
 export interface ApprovalRequestCapabilities {
@@ -32,6 +57,7 @@ export interface ApprovalRequest {
     resource_name: string;
     action_type: ApprovalActionType;
     pending_changes: Record<string, PendingChange> | null;
+    governed_mutation?: GovernedMutationRead | null;
     status: ApprovalStatus;
     reason: string;
     requested_by_id: number;

@@ -17,6 +17,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
 import type { ApprovalRequest } from '@/types/approval';
 
+import { GovernedMutationDiff } from '@/components/approvals/GovernedMutationDiff';
 import { getApprovalActionBadge, getApprovalStatusBadge } from './approvalsPresentation';
 import { approvalPendingChangeEntries, canViewApprovalPendingChanges } from './approvalPendingChanges';
 
@@ -78,7 +79,7 @@ export function ApprovalList({
                         <div className="flex flex-col gap-2 min-w-[120px]">
                             <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                    {approval.resource_type}
+                                    {t(`entity_types.${approval.resource_type}`)}
                                 </span>
                             </div>
                             <div className="flex gap-2">
@@ -93,7 +94,7 @@ export function ApprovalList({
                                     ) : (
                                         <Edit className="h-3 w-3" />
                                     )}
-                                    {approval.action_type}
+                                    {t(`request_types.${approval.action_type === 'edit' ? 'update' : 'delete'}`)}
                                 </span>
                             </div>
                         </div>
@@ -101,7 +102,7 @@ export function ApprovalList({
                         <div className="flex-1">
                             <h3 className="text-base font-bold text-white mb-1">{approval.resource_name}</h3>
                             <p className="text-sm text-slate-400 mb-2">
-                                <span className="text-slate-600">Re:</span> {approval.reason}
+                                <span className="text-slate-600">{t('approvals:labels.re')}</span> {approval.reason}
                             </p>
                             <div className="flex items-center gap-4 text-xs text-slate-500">
                                 <span className="flex items-center gap-1">
@@ -109,7 +110,7 @@ export function ApprovalList({
                                     {formatDateValue(approval.created_at, locale)}
                                 </span>
                                 <span>
-                                    by <span className="text-accent">{approval.requested_by_name}</span>
+                                    {t('labels.by')} <span className="text-accent">{approval.requested_by_name}</span>
                                 </span>
                             </div>
 
@@ -135,7 +136,7 @@ export function ApprovalList({
                                         </span>
                                         {approval.resolved_by_name && (
                                             <span>
-                                                by <span className="text-accent">{approval.resolved_by_name}</span>
+                                                {t('labels.by')} <span className="text-accent">{approval.resolved_by_name}</span>
                                             </span>
                                         )}
                                     </div>
@@ -153,7 +154,7 @@ export function ApprovalList({
                                     getApprovalStatusBadge(approval.status),
                                 )}
                             >
-                                {approval.status}
+                                {t(`status.${approval.status}`)}
                             </span>
 
                             <div className="flex items-center gap-2">
@@ -199,7 +200,9 @@ export function ApprovalList({
 
                                 {resolveCapabilityFlag(
                                     approval.capabilities,
-                                    'can_cancel',
+                                    approval.governed_mutation
+                                        ? 'can_cancel_as_requester'
+                                        : 'can_cancel',
                                 ) && (
                                         <button
                                             onClick={() => onCancel(approval.id)}
@@ -227,27 +230,37 @@ export function ApprovalList({
                                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
                                         {t('labels.proposed_changes')}
                                     </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {pendingChangeEntries.map(([field, change]) => (
-                                            <div
-                                                key={field}
-                                                className="bg-black/20 rounded-lg p-3 border border-white/5"
-                                            >
-                                                <span className="block text-[10px] text-accent font-bold uppercase mb-1">
-                                                    {field}
-                                                </span>
-                                                <div className="flex items-center gap-2 text-xs">
-                                                    <span className="text-rose-400 line-through opacity-70">
-                                                        {String(change.old)}
+                                    {approval.governed_mutation ? (
+                                        <GovernedMutationDiff
+                                            before={approval.governed_mutation.before}
+                                            after={approval.governed_mutation.after}
+                                            derivedImpact={approval.governed_mutation.derived_impact}
+                                            impactedResources={approval.governed_mutation.impacted_resources}
+                                            testId={`approval-governed-mutation-${approval.id}`}
+                                        />
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {pendingChangeEntries.map(([field, change]) => (
+                                                <div
+                                                    key={field}
+                                                    className="bg-black/20 rounded-lg p-3 border border-white/5"
+                                                >
+                                                    <span className="block text-[10px] text-accent font-bold uppercase mb-1">
+                                                        {field}
                                                     </span>
-                                                    <span className="text-slate-600">→</span>
-                                                    <span className="text-emerald-400 font-bold">
-                                                        {String(change.new)}
-                                                    </span>
+                                                    <div className="flex items-center gap-2 text-xs">
+                                                        <span className="text-rose-400 line-through opacity-70">
+                                                            {String(change.old)}
+                                                        </span>
+                                                        <span className="text-slate-600">→</span>
+                                                        <span className="text-emerald-400 font-bold">
+                                                            {String(change.new)}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
                     </AnimatePresence>

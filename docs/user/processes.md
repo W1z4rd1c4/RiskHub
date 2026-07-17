@@ -1,10 +1,10 @@
 ---
 title: Managing Processes
-version: "2.6"
+version: "2.7"
 last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/ProcessesPage.tsx + frontend/src/pages/processes/processRegisterConfig.ts + backend/app/services/_register_listings/processes.py + backend/app/services/_ict_register_lifecycle/lifecycle.py"
-summary: "User guide for the shared Process register, ownership, canonical values, derived criticality, lifecycle, links, export, and governance reassignment."
+summary: "User guide for the shared Process register, ownership, derived criticality, protected edits, lifecycle, links, export, and governance reassignment."
 tags:
   - workflow
   - governance
@@ -62,9 +62,15 @@ Archive only when the Process should leave active operational views. Archive and
 
 ## Approvals and Notifications
 
-Process accountability is audited. Creation, update, archive, restore, link changes, and orphan resolution record attributable business events.
+Process accountability and protected edits are audited. Creation, update, archive, restore, link changes, proposal decisions, stale expiry, and orphan resolution record attributable business events.
 
-This Process ownership release does not add a Process-specific approval queue or notification workflow. When an owner becomes inactive, the shipped path is Governance: RiskHub preserves the former relationship and creates a pending Governance item. The Process detail shows the governance state and blocks ordinary edits and Process-Vendor link mutations. A Governance user with the required authority opens the Process orphan in Governance and explicitly reassigns the Process to an active owner and active Owning Department. The resolution is atomic: the Process cannot finish with only one side of accountability assigned.
+A Process is protected when its current or proposed derived CIF is **Yes**. When the **Protected Process edits** scenario is enabled, saving a business-data edit submits a proposal instead of changing the approved Process immediately. Enter a clear request reason. The detail keeps showing the approved values and adds a separate **Pending change** state with the permission-scoped before/after and derived-CIF impact. A pending proposal locks later business edits; it does not change the Process lifecycle and does not create a due date, reminder, overdue state, or automatic decision.
+
+One active configured Risk Manager or CRO who is not the requester must approve or reject. Risk Managers and CROs cannot approve their own proposals. Rejection requires a reason. The requester may cancel while the request is pending. At approval, RiskHub rechecks the Process version, authorization, scenario, referenced records, and derived result. If the proposal is stale, it expires without changing the approved Process; refresh the record and submit a new focused proposal if the change is still needed.
+
+Two default-on notification preferences control delivery for this workflow: **Approval requests requiring my action** and **Updates to my approval requests**. Turning either preference off suppresses only matching notifications. The request remains visible in Approvals or My Requests, including its work count. A disabled Protected Process scenario lets an otherwise authorized edit apply directly, but it never weakens ordinary Process authorization or validation.
+
+Owner deactivation remains a separate Governance path. RiskHub preserves the former relationship and creates a pending Governance item. The Process detail shows the orphan-governance state and blocks ordinary edits and Process-Vendor link mutations. A Governance user explicitly reassigns the Process to an active owner and active Owning Department in one atomic resolution.
 
 ## Finding, Filtering, and Evidence
 

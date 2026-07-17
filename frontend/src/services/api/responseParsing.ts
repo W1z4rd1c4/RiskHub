@@ -84,12 +84,24 @@ export function extractErrorCode(errorData: unknown): string | undefined {
     if (!errorData || typeof errorData !== 'object') {
         return undefined;
     }
-    const candidate = errorData as { code?: unknown; error_code?: unknown };
-    if (typeof candidate.code === 'string') {
-        return candidate.code;
-    }
-    if (typeof candidate.error_code === 'string') {
-        return candidate.error_code;
+    const candidate = errorData as {
+        code?: unknown;
+        error_code?: unknown;
+        detail?: unknown;
+    };
+    const sources = [
+        candidate,
+        candidate.detail && typeof candidate.detail === 'object'
+            ? candidate.detail as { code?: unknown; error_code?: unknown }
+            : undefined,
+    ];
+    for (const source of sources) {
+        if (typeof source?.code === 'string') {
+            return source.code;
+        }
+        if (typeof source?.error_code === 'string') {
+            return source.error_code;
+        }
     }
     return undefined;
 }

@@ -16,7 +16,8 @@
         "pending_privileged": "Čeká na privilegované schválení",
         "approved": "Schváleno",
         "rejected": "Zamítnuto",
-        "cancelled": "Zrušeno"
+        "cancelled": "Zrušeno",
+        "expired": "Vypršelo"
     },
     "request_types": {
         "create": "Vytvoření",
@@ -26,7 +27,8 @@
     "entity_types": {
         "risk": "Riziko",
         "control": "Kontrola",
-        "kri": "KRI"
+        "kri": "KRI",
+        "process": "Proces"
     },
     "fields": {
         "request_type": "Typ žádosti",
@@ -87,6 +89,20 @@
         "rejected_on": "Zamítnuto {{date}} v {{time}}",
         "by": "od",
         "re": "Ohledně:"
+    },
+    "governed": {
+        "business_changes": "Před změnou a po změně",
+        "derived_impact": "Dopad na odvozené hodnoty",
+        "impacted_resources": "Ovlivněné záznamy",
+        "not_set": "Nenastaveno",
+        "redacted_change": "Omezená změna",
+        "redacted_value": "Skryto kvůli rozsahu oprávnění",
+        "yes": "Ano",
+        "no": "Ne",
+        "derived": {
+            "cif": "CIF",
+            "criticality_class": "Třída kritičnosti"
+        }
     },
     "notifications": {
         "submitted_for_approval": "Odesláno ke schválení",

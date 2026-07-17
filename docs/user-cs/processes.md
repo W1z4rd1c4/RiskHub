@@ -1,10 +1,10 @@
 ---
 title: Správa procesů
-version: "2.6"
+version: "2.7"
 last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/ProcessesPage.tsx + frontend/src/pages/processes/processRegisterConfig.ts + backend/app/services/_register_listings/processes.py + backend/app/services/_ict_register_lifecycle/lifecycle.py"
-summary: "Uživatelský manuál pro sdílený registr procesů, vlastnictví, kanonické hodnoty, odvozenou kritičnost, lifecycle, vazby, export a governance přeřazení."
+summary: "Uživatelský manuál pro registr procesů, vlastnictví, odvozenou kritičnost, chráněné změny, lifecycle, vazby, export a governance přeřazení."
 tags:
   - workflow
   - governance
@@ -58,9 +58,15 @@ Archivaci použijte, až když proces nemá zůstat v aktivních provozních poh
 
 ## Schvalování a notifikace
 
-Změny odpovědnosti se auditují. Vytvoření, úpravy, archivace, obnovení, vazby a Governance resolution vytvářejí dohledatelné události.
+Odpovědnost i chráněné změny se auditují. Vytvoření, úpravy, archivace, obnovení, vazby, rozhodnutí o návrhu, stale expirace a Governance resolution vytvářejí dohledatelné události.
 
-Tato verze vlastnictví procesů nepřidává samostatnou approval frontu ani notifikační workflow pro procesy. Dodaná cesta při deaktivaci vlastníka vede přes Governance: RiskHub zachová původní vazbu a vytvoří čekající položku Governance. Detail procesu zobrazí governance stav a zablokuje běžné úpravy i změny vazeb Proces–Dodavatel. Uživatel Governance s potřebným oprávněním otevře orphan položku procesu a explicitně přeřadí proces na aktivního vlastníka a aktivní vlastnický útvar. Resolution je atomické: proces po dokončení nesmí zůstat pouze s jednou stranou odpovědnosti.
+Proces je chráněný, pokud má aktuální nebo navrhovaný odvozený CIF **Ano**. Když je scénář **Chráněné úpravy procesů** zapnutý, uložení změny business dat vytvoří návrh místo okamžité změny schváleného procesu. Uveďte jasný důvod žádosti. Detail dál zobrazuje schválené hodnoty a přidá samostatný stav **Čekající změna** s before/after rozdílem a dopadem na odvozený CIF v rozsahu vašich oprávnění. Čekající návrh blokuje další business úpravy; nemění lifecycle procesu a nemá termín, reminder, overdue stav ani automatické rozhodnutí.
+
+Schválit nebo zamítnout musí jeden aktivní nakonfigurovaný Risk Manager nebo CRO, který není žadatelem. Risk Manager ani CRO nesmí schválit vlastní návrh. Zamítnutí vyžaduje důvod. Žadatel může čekající žádost zrušit. Při schválení RiskHub znovu ověří verzi procesu, oprávnění, scénář, reference a odvozený výsledek. Stale návrh expiruje bez změny schváleného procesu; obnovte záznam a případně odešlete nový úzký návrh.
+
+Dvě výchozím způsobem zapnuté preference řídí doručení: **Žádosti o schválení vyžadující mou akci** a **Aktualizace mých žádostí o schválení**. Vypnutí potlačí jen odpovídající notifikace. Žádost i počet práce zůstávají viditelné ve Schváleních nebo Mých žádostech. Vypnutý scénář dovolí jinak autorizovanou úpravu aplikovat přímo, ale neoslabí běžná oprávnění ani validace procesu.
+
+Deaktivace vlastníka zůstává samostatnou Governance cestou. RiskHub zachová původní vazbu a vytvoří čekající Governance položku. Detail zobrazí orphan-governance stav a zablokuje běžné úpravy i změny vazeb Proces–Dodavatel. Uživatel Governance explicitně přeřadí proces na aktivního vlastníka a aktivní vlastnický útvar v jedné atomické resolution.
 
 ## Vyhledávání, filtrování a evidence
 

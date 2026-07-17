@@ -16,7 +16,8 @@
         "pending_privileged": "Pending Privileged Review",
         "approved": "Approved",
         "rejected": "Rejected",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "expired": "Expired"
     },
     "request_types": {
         "create": "Create",
@@ -26,7 +27,8 @@
     "entity_types": {
         "risk": "Risk",
         "control": "Control",
-        "kri": "KRI"
+        "kri": "KRI",
+        "process": "Process"
     },
     "fields": {
         "request_type": "Request Type",
@@ -87,6 +89,20 @@
         "rejected_on": "Rejected on {{date}} at {{time}}",
         "by": "by",
         "re": "Re:"
+    },
+    "governed": {
+        "business_changes": "Before and after",
+        "derived_impact": "Derived impact",
+        "impacted_resources": "Impacted resources",
+        "not_set": "Not set",
+        "redacted_change": "Restricted change",
+        "redacted_value": "Hidden by permission scope",
+        "yes": "Yes",
+        "no": "No",
+        "derived": {
+            "cif": "CIF",
+            "criticality_class": "Criticality class"
+        }
     },
     "notifications": {
         "submitted_for_approval": "Submitted for approval",

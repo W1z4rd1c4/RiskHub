@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from fastapi.responses import JSONResponse
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -10,6 +11,10 @@ from app.core.audit import process as audit_process
 from app.models import Department, Process, User
 from app.models._archivable import archived_clause
 from app.schemas.process import ProcessCreate, ProcessListResponse, ProcessRead, ProcessUpdate
+from app.services._governed_mutations import (
+    assert_no_pending_process_mutation,
+    submit_process_mutation_if_required,
+)
 from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
 from app.services.transaction_boundary import commit_service_boundary
 
@@ -24,11 +29,10 @@ from .lifecycle_adapters import (
 from .policy import (
     assert_active_owning_department,
     assert_active_process_owner,
-    assert_process_archive_allowed,
     assert_process_create_allowed,
+    assert_process_lifecycle_mutation_allowed,
     assert_process_ordinary_mutation_allowed,
     assert_process_readable,
-    assert_process_restore_allowed,
     assert_process_update_allowed,
     load_process,
     process_visibility_clause,
@@ -49,7 +53,7 @@ async def create_process_detail(
     db: AsyncSession,
     payload: ProcessCreate,
     current_user: User,
-) -> ProcessRead:
+) -> ProcessRead | JSONResponse:
     await assert_process_create_allowed(current_user=current_user)
     owner = await assert_active_process_owner(db, user_id=payload.process_owner_user_id)
     department = await assert_active_owning_department(
@@ -107,6 +111,7 @@ async def update_process_detail(
             "owning_department_id",
         ),
     )
+    request_reason = updates.pop("request_reason", None)
     if not updates:
         return await serialize_process_detail_with_derived(db, process, current_user=current_user)
 
@@ -122,18 +127,49 @@ async def update_process_detail(
         additional_owner_user_ids=(proposed_owner_id,),
     )
 
+    changed_fields = audit_process.process_update_changes(process, updates)
+    updates = {
+        field: value for field, value in updates.items() if field in changed_fields
+    }
+    if not updates:
+        return await serialize_process_detail_with_derived(
+            db, process, current_user=current_user
+        )
+
+    await assert_no_pending_process_mutation(db, process_id=process.id)
+
+    new_owner = None
     if "process_owner_user_id" in updates:
         new_owner_id = int(updates["process_owner_user_id"])
-        process.process_owner = await assert_active_process_owner(
+        new_owner = await assert_active_process_owner(
             db,
             user_id=new_owner_id,
             acquire_identity_lock=False,
         )
+    new_department = None
     if "owning_department_id" in updates:
-        process.owning_department = await assert_active_owning_department(
+        new_department = await assert_active_owning_department(
             db,
             department_id=int(updates["owning_department_id"]),
         )
+
+    queued = await submit_process_mutation_if_required(
+        db=db,
+        process=process,
+        updates=updates,
+        request_reason=request_reason,
+        current_user=current_user,
+        proposed_owner=new_owner,
+        proposed_department=new_department,
+    )
+    if queued is not None:
+        return queued
+
+    if new_owner is not None:
+        process.process_owner = new_owner
+    if new_department is not None:
+        process.owning_department = new_department
+    process.governance_version += 1
 
     await apply_update_lifecycle(
         db=db,
@@ -156,7 +192,14 @@ async def archive_process_detail(
     process_id: int,
     current_user: User,
 ) -> None:
-    process = await assert_process_archive_allowed(db, process_id=process_id, current_user=current_user)
+    process = await assert_process_lifecycle_mutation_allowed(
+        db,
+        process_id=process_id,
+        current_user=current_user,
+        restore=False,
+    )
+    await assert_no_pending_process_mutation(db, process_id=process.id)
+    process.governance_version += 1
     await apply_archive_lifecycle(
         db=db,
         entity=process,
@@ -175,7 +218,14 @@ async def restore_process_detail(
     process_id: int,
     current_user: User,
 ) -> ProcessRead:
-    process = await assert_process_restore_allowed(db, process_id=process_id, current_user=current_user)
+    process = await assert_process_lifecycle_mutation_allowed(
+        db,
+        process_id=process_id,
+        current_user=current_user,
+        restore=True,
+    )
+    await assert_no_pending_process_mutation(db, process_id=process.id)
+    process.governance_version += 1
     await apply_archive_lifecycle(
         db=db,
         entity=process,

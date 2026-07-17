@@ -17,7 +17,14 @@ from app.core.permissions import (
 from app.models import ApprovalRequest, Control, Issue, KeyRiskIndicator, Notification, Risk, RiskQuestionnaire, User
 from app.models.approval_request import ApprovalResourceType
 from app.models.vendor import Vendor
-from app.services.approval_scenario_policy import approval_privilege_tier, can_view_approval_resource
+from app.services._governed_mutations.process_identity import (
+    any_governed_mutation_proposal_exists_clause,
+    governed_process_requester_clause,
+)
+from app.services.approval_scenario_policy import (
+    approval_privilege_tier,
+    process_approval_resolver_clause,
+)
 from app.services.risk_questionnaire_service import can_read_questionnaire
 
 
@@ -66,18 +73,6 @@ async def can_view_notification_resource(
     clause = await visible_notification_clause(db, current_user)
     result = await db.execute(select(Notification.id).where(Notification.id == notification.id, clause))
     return result.scalar_one_or_none() is not None
-
-
-async def _can_view_approval_notification(db: AsyncSession, current_user: User, approval_id: int) -> bool:
-    approval = await db.get(ApprovalRequest, approval_id)
-    if approval is None:
-        return False
-    tier = approval_privilege_tier(current_user, approval)
-    if tier.is_requester or tier.is_primary_approver:
-        return True
-    if tier.is_privileged:
-        return True
-    return tier.scenario_match is True and await can_view_approval_resource(db, current_user, approval)
 
 
 async def _can_view_questionnaire_notification(db: AsyncSession, current_user: User, questionnaire_id: int) -> bool:
@@ -197,17 +192,34 @@ def _approval_exists_clause(
     kri_clause: ColumnElement[bool] | None,
     resource_id: Any,
 ) -> ColumnElement[bool]:
+    any_proposal = any_governed_mutation_proposal_exists_clause()
     direct_clauses: list[ColumnElement[bool]] = [
-        ApprovalRequest.requested_by_id == current_user.id,
-        ApprovalRequest.primary_approver_id == current_user.id,
+        or_(
+            and_(
+                ~any_proposal,
+                ApprovalRequest.requested_by_id == current_user.id,
+            ),
+            governed_process_requester_clause(current_user.id),
+        ),
+        process_approval_resolver_clause(current_user),
+        and_(
+            ~any_proposal,
+            ApprovalRequest.primary_approver_id == current_user.id,
+        ),
     ]
     if approval_privilege_tier(current_user).is_privileged:
-        direct_clauses.append(true())
+        direct_clauses.append(
+            and_(
+                ~any_proposal,
+                true(),
+            )
+        )
 
     role_name = getattr(getattr(current_user, "role", None), "name", None)
     scenario_clause: ColumnElement[bool] = false()
     if role_name:
         scenario_clause = and_(
+            ~any_proposal,
             ApprovalRequest.scenario_approver_roles.is_not(None),
             cast(ApprovalRequest.scenario_approver_roles, String).contains(f'"{role_name}"'),
             _approval_resource_visibility_clause(

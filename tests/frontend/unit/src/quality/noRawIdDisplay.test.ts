@@ -16,6 +16,7 @@ const guardedFiles = [
     'frontend/src/components/riskhub/RiskQuestionnairesPanel.tsx',
     'frontend/src/components/governance/OrphanedItemsTable.tsx',
     'frontend/src/components/governance/ResolveOrphanModal.tsx',
+    'frontend/src/components/approvals/GovernedMutationDiff.tsx',
     // ICT Register link sections + their presentation modules: row names come
     // from server-embedded display fields, unresolved ends render the i18n'd
     // "Unknown <entity>" label — never a `#<id>` fallback.
@@ -63,5 +64,15 @@ describe('frontend raw ID display guardrails', () => {
         for (const pattern of rawIdFallbackPatterns) {
             expect(source).not.toMatch(pattern);
         }
+    });
+
+    it('governed diffs never stringify arbitrary snapshot values into the UI', () => {
+        const source = readFileSync(
+            resolve(repoRoot, 'frontend/src/components/approvals/GovernedMutationDiff.tsx'),
+            'utf8',
+        );
+
+        expect(source).not.toMatch(/String\(value\)/);
+        expect(source).not.toMatch(/JSON\.stringify\(value\)/);
     });
 });

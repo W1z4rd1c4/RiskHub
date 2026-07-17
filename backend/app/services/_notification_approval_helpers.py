@@ -2,11 +2,17 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.user_query_options import user_selectinload_options
-from app.models.approval_request import ApprovalRequest
+from app.models.approval_request import ApprovalRequest, ApprovalResourceType
 from app.models.role import Permission, Role, RolePermission
 from app.models.user import AccessScope, User
+from app.services._governed_mutations.process_identity import (
+    InvalidGovernedProcessIdentity,
+    is_exact_governed_process_proposal,
+    strict_governed_process_identity,
+)
 from app.services.approval_scenario_policy import (
     RISK_OWNER_APPROVER_ROLE,
+    can_resolve_scenario_approval,
     can_view_approval_resource,
     scenario_roles_for_approval,
 )
@@ -36,7 +42,20 @@ async def load_approval_notification_candidates(db: AsyncSession) -> list[User]:
 
 
 async def load_scenario_approval_notification_candidates(db: AsyncSession, approval: ApprovalRequest) -> list[User]:
-    roles = scenario_roles_for_approval(approval)
+    proposal = approval.governed_mutation_proposal
+    if proposal is not None and not is_exact_governed_process_proposal(proposal):
+        return []
+    if proposal is not None:
+        try:
+            identity = strict_governed_process_identity(
+                approval.governed_mutation_proposal
+            )
+        except InvalidGovernedProcessIdentity:
+            return []
+        assert identity is not None
+        roles = list(identity.approver_roles)
+    else:
+        roles = scenario_roles_for_approval(approval)
     if roles is None:
         return await load_approval_notification_candidates(db)
 
@@ -52,7 +71,13 @@ async def load_scenario_approval_notification_candidates(db: AsyncSession, appro
         )
         candidates.extend(result.unique().scalars().all())
 
-    if RISK_OWNER_APPROVER_ROLE in roles and approval.primary_approver_id is not None:
+    if (
+        not is_exact_governed_process_proposal(
+            approval.governed_mutation_proposal
+        )
+        and RISK_OWNER_APPROVER_ROLE in roles
+        and approval.primary_approver_id is not None
+    ):
         result = await db.execute(
             select(User)
             .where(User.id == approval.primary_approver_id, User.is_active.is_(True))
@@ -79,6 +104,13 @@ async def eligible_approval_notification_recipients(
     exclude_user_id: int | None = None,
 ) -> tuple[list[User], dict[str, int]]:
     candidates = await load_scenario_approval_notification_candidates(db, approval)
+    if (
+        approval.governed_mutation_proposal is not None
+        and not is_exact_governed_process_proposal(
+            approval.governed_mutation_proposal
+        )
+    ):
+        return [], {"excluded_actor": 0, "hidden_resource": 0}
     recipients: list[User] = []
     skipped = {
         "excluded_actor": 0,
@@ -88,7 +120,18 @@ async def eligible_approval_notification_recipients(
         if exclude_user_id is not None and candidate.id == exclude_user_id:
             skipped["excluded_actor"] += 1
             continue
-        if not await can_view_approval_resource(db, candidate, approval):
+        can_receive = (
+            await can_resolve_scenario_approval(db, candidate, approval)
+            if is_exact_governed_process_proposal(
+                approval.governed_mutation_proposal
+            )
+            else (
+                await can_resolve_scenario_approval(db, candidate, approval)
+                if approval.resource_type == ApprovalResourceType.PROCESS
+                else await can_view_approval_resource(db, candidate, approval)
+            )
+        )
+        if not can_receive:
             skipped["hidden_resource"] += 1
             continue
         recipients.append(candidate)

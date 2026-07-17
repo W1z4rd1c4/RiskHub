@@ -14,7 +14,11 @@ from app.schemas.notification import (
     NotificationRead,
     NotificationTypeEnum,
 )
-from app.services.notification_visibility import count_visible_unread_notifications, paginate_visible_notifications
+from app.services.notification_visibility import (
+    count_visible_unread_notifications,
+    paginate_visible_notifications,
+    visible_notification_clause,
+)
 from app.services.transaction_boundary import commit_service_boundary
 
 
@@ -117,10 +121,16 @@ async def mark_notification_read(
     notification_id: int,
     actor: User,
 ) -> NotificationReadOutcome:
-    result = await db.execute(select(Notification).where(Notification.id == notification_id))
+    visibility_clause = await visible_notification_clause(db, actor)
+    result = await db.execute(
+        select(Notification).where(
+            Notification.id == notification_id,
+            visibility_clause,
+        )
+    )
     notification = result.scalar_one_or_none()
 
-    if not notification or notification.user_id != actor.id:
+    if notification is None:
         raise HTTPException(status_code=404, detail="Notification not found")
 
     notification.is_read = True
@@ -130,9 +140,10 @@ async def mark_notification_read(
 
 
 async def mark_all_notifications_read(db: AsyncSession, actor: User) -> NotificationReadOutcome:
+    visibility_clause = await visible_notification_clause(db, actor)
     await db.execute(
         update(Notification)
-        .where(Notification.user_id == actor.id, Notification.is_read.is_(False))
+        .where(visibility_clause, Notification.is_read.is_(False))
         .values(is_read=True)
     )
     await commit_service_boundary(db, boundary="notification_inbox.mark_all_read")

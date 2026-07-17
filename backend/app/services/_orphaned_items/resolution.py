@@ -504,6 +504,10 @@ async def _resolve_process_orphan(
     if process is None:
         raise ValueError(f"Process {preview.item_id} no longer exists")
 
+    from app.services._governed_mutations import assert_no_pending_process_mutation
+
+    await assert_no_pending_process_mutation(db, process_id=process.id)
+
     orphan = (
         await db.execute(
             select(OrphanedItem)
@@ -548,6 +552,7 @@ async def _resolve_process_orphan(
     process.process_owner_user_id = new_owner_id
     process.owning_department = owning_department
     process.owning_department_id = target_dept_id
+    process.governance_version += 1
     resolving_user = await db.get(User, resolved_by_id)
     await log_activity(
         db,

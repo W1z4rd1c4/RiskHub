@@ -117,11 +117,21 @@ export function buildProcessColumns({
                 const status = getProcessDisplayStatus(process);
                 return (
                     <div className="flex items-center gap-2">
-                        <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getProcessStatusColor(status)}`}
-                        >
-                            {t(`processes:status.${status}`)}
-                        </span>
+                        <div className="flex flex-col items-start gap-1">
+                            <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getProcessStatusColor(status)}`}
+                            >
+                                {t(`processes:status.${status}`)}
+                            </span>
+                            {process.pending_change ? (
+                                <span
+                                    data-testid={`process-pending-change-${process.id}`}
+                                    className="inline-flex items-center rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-200"
+                                >
+                                    {t('processes:pending_change.badge')}
+                                </span>
+                            ) : null}
+                        </div>
                         {status === 'archived' && canRestoreProcess(process) ? (
                             <button
                                 type="button"

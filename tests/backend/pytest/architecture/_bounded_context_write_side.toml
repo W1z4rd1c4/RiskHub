@@ -8,4 +8,5 @@ packages = [
     "_approval_execution",
     "_entity_mutation_lifecycle",
     "_kri_history",
+    "_governed_mutations",
 ]

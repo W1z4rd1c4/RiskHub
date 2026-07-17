@@ -1,7 +1,7 @@
 ---
 title: Risk Hub Configuration Support Boundaries (Admin Runbook)
-version: "2.1"
-last_updated: "2026-04-25"
+version: "2.2"
+last_updated: "2026-07-16"
 audience: admin
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + backend/app/api/v1/endpoints/riskhub/* + authz role model"
 summary: "Admin runbook defining what admins support in Risk Hub configuration (technical enablement) vs what remains a business-owner decision, with incident triage procedures."
@@ -129,6 +129,15 @@ Role/department-specific support:
 - Risk Hub role and department rows expose backend capability metadata for update/delete/restore actions; if an action disappears after refresh, treat the backend as authoritative.
 - Department managers must be active users. Reactivating or replacing the user is safer than bypassing this validation.
 - Department deletes are intentionally conservative because department scope drives RBAC, reports, vendors, KRIs, and orphan governance.
+
+Protected Process approval support:
+
+- `protected_process_edit` is a fixed Risk Hub scenario. The CRO may enable or disable it and select a non-empty subset of Risk Manager and CRO approver roles.
+- The protection rule (current or proposed CIF is Yes), covered edit action, and no-self-approval rule are immutable. Treat attempts to patch them as invalid requests, not as a missing admin override.
+- Enabling the scenario is unsafe when no active independent User exists in a configured approver role. Submission must fail closed instead of creating unresolvable queue work.
+- Disabling the scenario affects only whether an authorized protected edit is submitted or applied directly. It does not grant Process access or bypass field, owner, Department, or derivation validation.
+- Governed Process requests are event-driven. Do not configure due dates, reminder jobs, overdue escalation, or automatic decisions.
+- The two User preferences suppress notification delivery only. A missing notification with a still-visible approval row or count can be an intentional preference outcome.
 
 ### 4) Boundary handling: technical vs policy
 

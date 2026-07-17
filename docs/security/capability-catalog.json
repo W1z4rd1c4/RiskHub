@@ -360,7 +360,12 @@
     "can_read",
     "can_update",
     "can_archive",
-    "can_restore"
+    "can_restore",
+    "protected_change_requires_approval",
+    "can_request_change",
+    "can_cancel_pending_change",
+    "has_pending_change",
+    "business_edit_blocked"
    ]
   },
   {

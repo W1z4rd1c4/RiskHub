@@ -277,6 +277,36 @@ entity_type = "APPROVAL"
 action = "CANCEL"
 
 [[adapter]]
+module = "governed_mutation"
+function = "proposal_submitted"
+entity_type = "APPROVAL"
+action = "CREATE"
+
+[[adapter]]
+module = "governed_mutation"
+function = "proposal_applied"
+entity_type = "APPROVAL"
+action = "APPROVE"
+
+[[adapter]]
+module = "governed_mutation"
+function = "proposal_rejected"
+entity_type = "APPROVAL"
+action = "REJECT"
+
+[[adapter]]
+module = "governed_mutation"
+function = "proposal_cancelled"
+entity_type = "APPROVAL"
+action = "CANCEL"
+
+[[adapter]]
+module = "governed_mutation"
+function = "proposal_expired"
+entity_type = "APPROVAL"
+action = "STATUS_CHANGE"
+
+[[adapter]]
 module = "process"
 function = "process_created"
 entity_type = "PROCESS"

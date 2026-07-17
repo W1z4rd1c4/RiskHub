@@ -9,6 +9,9 @@ Playwright E2E suite for `approval-workflows`.
 - `self-approval.spec.ts`
 - `status-flow.spec.ts`
 - `tiered-approval.spec.ts`
+- `governed-process-edit.spec.ts` — ADR-016 protected CIF Process submission,
+  immutable pending truth/diff/edit lock, requester cancellation, and a
+  stateful zero-tolerance accessibility scan.
 
 ## Notes
 

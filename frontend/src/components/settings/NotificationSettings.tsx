@@ -22,6 +22,10 @@ function ToggleItem({ label, description, checked, onChange, loading }: ToggleIt
                 <p className="text-slate-500 text-sm">{description}</p>
             </div>
             <button
+                type="button"
+                role="switch"
+                aria-checked={checked}
+                aria-label={label}
                 onClick={() => onChange(!checked)}
                 disabled={loading}
                 className={cn(
@@ -127,6 +131,8 @@ export function NotificationSettings() {
         { key: 'approval_pending', labelKey: 'notifications.approval_pending', descKey: 'notifications.approval_pending_desc' },
         { key: 'approval_resolved', labelKey: 'notifications.approval_resolved', descKey: 'notifications.approval_resolved_desc' },
         { key: 'approval_cancelled', labelKey: 'notifications.approval_cancelled', descKey: 'notifications.approval_cancelled_desc' },
+        { key: 'governed_approval_action_required', labelKey: 'notifications.governed_approval_action_required', descKey: 'notifications.governed_approval_action_required_desc' },
+        { key: 'governed_approval_request_updates', labelKey: 'notifications.governed_approval_request_updates', descKey: 'notifications.governed_approval_request_updates_desc' },
     ];
 
     const kriSettings: { key: keyof NotificationPreferences; labelKey: string; descKey: string }[] = [

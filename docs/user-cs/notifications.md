@@ -1,7 +1,7 @@
 ---
 title: Notifikace a schvalování
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + frontend/src/pages/NotificationsPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "Produkční workflow manuál pro schvalování, notifikace, rozhodovací poznámky, triage front a eskalační vzory."
@@ -98,6 +98,15 @@ Schvalování je kontrolní bod pro citlivé změny. Zkontrolujte kontext zázna
 Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; inbox řádek a Activity Log pomáhají rekonstruovat workflow.
 
 Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Obnovte inbox, porovnejte aktuální řádek se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
+
+Chráněná úprava procesu ukazuje neměnný návrh se schválenými hodnotami **před**, navrhovanými hodnotami **po** a dopadem na odvozený CIF. Schválený proces zůstává během čekání provozním stavem. Rozhodnout smí jeden nakonfigurovaný Risk Manager nebo CRO, který není žadatelem; seniorní role nemají výjimku pro vlastní návrh. Zamítnutí vyžaduje důvod a stale návrh expiruje bez aplikace hodnot.
+
+Dvě preference governed schvalování jsou výchozím způsobem zapnuté:
+
+- **Žádosti o schválení vyžadující mou akci** řídí doručení při odeslání, zrušení a stale expiraci relevantní pro oprávněného schvalovatele.
+- **Aktualizace mých žádostí o schválení** řídí doručení výsledku žadateli při schválení, zamítnutí, zrušení a stale expiraci.
+
+Vypnutí preference ovlivní pouze notifikace. Nikdy neodstraní řádky ve frontě, Moje žádosti, capabilities ani počty práce. Chráněné schvalování procesů nemá termín, SLA, reminder, overdue štítek, automatické rozhodnutí ani časovou eskalaci.
 
 ## Vyhledávání, filtrování a evidence
 

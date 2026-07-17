@@ -164,7 +164,10 @@ async def update_global_config(
     log_activity_func: GlobalConfigLogActivity = log_activity,
 ) -> GlobalConfigRead:
     result = await db.execute(
-        select(GlobalConfig).options(selectinload(GlobalConfig.updated_by)).where(GlobalConfig.key == key)
+        select(GlobalConfig)
+        .options(selectinload(GlobalConfig.updated_by))
+        .where(GlobalConfig.key == key)
+        .with_for_update()
     )
     config = result.scalar_one_or_none()
 

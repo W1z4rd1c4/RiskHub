@@ -1,7 +1,7 @@
 ---
 title: Podpora konfigurace Risk Hub a hranice odpovědnosti (admin runbook)
-version: "2.1"
-last_updated: "2026-04-25"
+version: "2.2"
+last_updated: "2026-07-16"
 audience: admin
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + backend/app/api/v1/endpoints/riskhub/* + authz role model"
 summary: "Admin runbook vymezující technickou podporu konfigurace Risk Hub vs business rozhodnutí, včetně triage postupů a evidence balíčku."
@@ -131,6 +131,15 @@ Podpora rolí a oddělení:
 - schvalovací scénáře jsou runtime politika: vypnutý scénář může nechat autorizovanou změnu proběhnout přímo a `approver_roles` omezuje, kdo smí nově vytvořený approval schválit nebo odmítnout
 - department manager musí být active user; bezpečnější je usera nahradit nebo řízeně reaktivovat než validaci obcházet
 - department delete je záměrně konzervativní, protože department scope ovlivňuje RBAC, reporty, vendory, KRIs a orphan governance
+
+Podpora chráněného schvalování procesů:
+
+- `protected_process_edit` je pevný scénář v Risk Hubu. CRO jej může zapnout nebo vypnout a vybrat neprázdnou podmnožinu rolí Risk Manager a CRO.
+- Pravidlo ochrany (aktuální nebo navrhovaný CIF je Ano), pokrytá editace a zákaz self-approval jsou neměnné. Pokus o jejich změnu je neplatný request, ne důvod pro admin override.
+- Zapnutý scénář není řešitelný, pokud neexistuje aktivní nezávislý uživatel v některé nakonfigurované roli. Odeslání musí fail-closed místo vytvoření neřešitelné fronty.
+- Vypnutí scénáře mění pouze to, zda se autorizovaná chráněná změna odešle nebo aplikuje přímo. Neuděluje přístup k procesům a neobchází validace polí, vlastníka, útvaru ani derivace.
+- Governed žádosti procesů jsou event-driven. Nekonfigurujte termíny, reminder joby, overdue eskalaci ani automatická rozhodnutí.
+- Dvě uživatelské preference potlačují jen doručení notifikací. Chybějící notifikace při stále viditelném approval řádku nebo počtu může být očekávaným výsledkem preference.
 
 ### 4) Hranice: technické vs policy
 

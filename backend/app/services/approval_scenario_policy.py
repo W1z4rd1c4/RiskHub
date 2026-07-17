@@ -5,12 +5,31 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import and_, false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id, can_resolve_approvals
-from app.models import ApprovalRequest, ApprovalResourceType, User
+from app.models import (
+    ApprovalRequest,
+    ApprovalResourceType,
+    GovernedMutationProposal,
+    Process,
+    User,
+)
 from app.models.approval_scenario import ApprovalScenario
+from app.services._governed_mutations.process_identity import (
+    InvalidGovernedProcessIdentity,
+    any_governed_mutation_proposal_exists_clause,
+    exact_governed_process_proposal_exists_clause,
+    governed_process_role_match_clause,
+    is_exact_governed_process_proposal,
+    strict_governed_process_identity,
+    valid_governed_process_proposal_exists_clause,
+)
+from app.services._ict_register_lifecycle.policy import (
+    can_read_process_record,
+    process_visibility_clause,
+)
 from app.services._riskhub_config.approval_scenario_roles import get_approval_scenario_roles
 
 RISK_OWNER_APPROVER_ROLE = "risk_owner"
@@ -143,6 +162,146 @@ def scenario_allows_privileged_resolution(approval: ApprovalRequest, user: User)
     return bool(role_name in roles and role_name in PRIVILEGED_APPROVER_ROLES)
 
 
+def can_resolve_process_approval(
+    user: User,
+    process: Process,
+    *,
+    requester_id: int,
+    configured_roles: Sequence[str],
+    user_is_active: bool | None = None,
+    role_name: str | None = None,
+) -> bool:
+    """Canonical Process scenario resolver rule over already loaded state."""
+    active = user.is_active if user_is_active is None else user_is_active
+    current_role = (
+        role_name
+        if role_name is not None
+        else getattr(getattr(user, "role", None), "name", None)
+    )
+    return bool(
+        active
+        and user.id != requester_id
+        and current_role in {str(role) for role in configured_roles}
+        and (
+            can_resolve_approvals(user)
+            or can_read_process_record(user, process)
+        )
+    )
+
+
+def can_view_governed_process_snapshot(
+    user: User,
+    process: Process,
+    *,
+    requester_id: int,
+    configured_roles: Sequence[str],
+) -> bool:
+    """Expose a proposal snapshot only with Process read or resolver authority."""
+    return can_read_process_record(user, process) or can_resolve_process_approval(
+        user,
+        process,
+        requester_id=requester_id,
+        configured_roles=configured_roles,
+    )
+
+
+def process_approval_visibility_clause(user: User):
+    """SQL equivalent of the Process resolver's authority-or-visibility arm."""
+    if can_resolve_approvals(user):
+        return None
+    return process_visibility_clause(user)
+
+
+def is_governed_process_approval(approval: ApprovalRequest) -> bool:
+    """Classify the fixed workflow from its immutable proposal evidence."""
+    return is_exact_governed_process_proposal(
+        approval.governed_mutation_proposal
+    )
+
+
+def governed_process_approval_exists_clause():
+    """Correlated immutable-evidence classifier for approval SQL queries."""
+    return exact_governed_process_proposal_exists_clause()
+
+
+def approval_resource_type_filter_clause(resource_type: ApprovalResourceType):
+    """Filter fixed approvals by immutable proposal type and legacy rows by envelope."""
+    any_proposal = any_governed_mutation_proposal_exists_clause()
+    governed_type_match = (
+        select(GovernedMutationProposal.id)
+        .where(
+            GovernedMutationProposal.approval_request_id == ApprovalRequest.id,
+            GovernedMutationProposal.mutation_kind == "process.edit",
+            GovernedMutationProposal.primary_resource_type == resource_type.value,
+        )
+        .exists()
+    )
+    return or_(
+        governed_type_match,
+        and_(
+            ~any_proposal,
+            ApprovalRequest.resource_type == resource_type,
+        ),
+    )
+
+
+def process_approval_resolver_clause(user: User):
+    """SQL equivalent of the canonical governed Process resolver predicate."""
+    role_name = getattr(getattr(user, "role", None), "name", None)
+    if not user.is_active or user.id is None or not role_name:
+        return false()
+
+    conditions = [
+        GovernedMutationProposal.requested_by_id != user.id,
+        governed_process_role_match_clause(str(role_name)),
+    ]
+    visibility_clause = process_approval_visibility_clause(user)
+    if visibility_clause is not None:
+        conditions.append(visibility_clause)
+    return valid_governed_process_proposal_exists_clause(
+        *conditions,
+        join_process=True,
+    )
+
+
+async def can_resolve_scenario_approval(
+    db: AsyncSession,
+    user: User,
+    approval: ApprovalRequest,
+) -> bool:
+    """Apply scenario role and resource scope through one resolver policy."""
+    proposal = (
+        await db.execute(
+            select(GovernedMutationProposal).where(
+                GovernedMutationProposal.approval_request_id == approval.id,
+                GovernedMutationProposal.mutation_kind == "process.edit",
+                GovernedMutationProposal.primary_resource_type == "process",
+            )
+        )
+    ).scalar_one_or_none()
+    if proposal is not None:
+        try:
+            identity = strict_governed_process_identity(proposal)
+        except InvalidGovernedProcessIdentity:
+            return False
+        assert identity is not None
+        process = await db.get(Process, identity.primary_resource_id)
+        return bool(
+            process is not None
+            and can_resolve_process_approval(
+                user,
+                process,
+                requester_id=identity.requested_by_id,
+                configured_roles=identity.approver_roles,
+            )
+        )
+    if user_matches_approval_scenario_role(approval, user) is not True:
+        return False
+    return can_resolve_approvals(user) or await can_view_approval_resource(
+        db, user, approval
+    )
+
+
 async def can_view_approval_resource(db: AsyncSession, user: User, approval: ApprovalRequest) -> bool:
     """Return whether a user can read the approval's underlying business resource."""
     if approval.resource_type == ApprovalResourceType.RISK:
@@ -151,6 +310,9 @@ async def can_view_approval_resource(db: AsyncSession, user: User, approval: App
         return await can_read_control_id(db, user, approval.resource_id)
     if approval.resource_type == ApprovalResourceType.KRI:
         return await can_read_kri_id(db, user, approval.resource_id)
+    if approval.resource_type == ApprovalResourceType.PROCESS:
+        process = await db.get(Process, approval.resource_id)
+        return process is not None and can_read_process_record(user, process)
     return False
 
 

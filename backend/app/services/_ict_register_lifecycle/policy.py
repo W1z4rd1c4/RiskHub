@@ -133,17 +133,17 @@ async def has_editable_process_record(
     return process_id is not None
 
 
-async def assert_process_assignment_lookup_allowed(
+async def can_use_process_assignment_lookup(
     db: AsyncSession,
     *,
     current_user: User,
-) -> None:
+) -> bool:
     if is_platform_admin(current_user):
-        raise AuthorizationError("Permission denied: Process assignment lookup")
+        return False
 
     department_ids = get_user_department_ids(current_user)
     if department_ids is None and has_permission(current_user, "processes", "write"):
-        return
+        return True
 
     role_name = current_user.role.name if current_user.role is not None else None
     eligibility_clauses = [Process.process_owner_user_id == current_user.id]
@@ -162,7 +162,15 @@ async def assert_process_assignment_lookup_allowed(
             .limit(1)
         )
     ).scalar_one_or_none()
-    if editable_process_id is None:
+    return editable_process_id is not None
+
+
+async def assert_process_assignment_lookup_allowed(
+    db: AsyncSession,
+    *,
+    current_user: User,
+) -> None:
+    if not await can_use_process_assignment_lookup(db, current_user=current_user):
         raise AuthorizationError("Permission denied: Process assignment lookup")
 
 
@@ -178,14 +186,29 @@ async def assert_active_process_owner(
         await db.execute(
             select(User)
             .options(selectinload(User.role), selectinload(User.department))
-            .where(User.id == user_id, User.is_active.is_(True))
+            .where(User.id == user_id)
         )
     ).scalar_one_or_none()
     if owner is None:
         raise ValidationError("Process owner must be an active user")
-    if is_platform_admin(owner):
-        raise ValidationError("Platform admins cannot own business Processes")
+    assert_process_owner_eligible(owner)
     return owner
+
+
+def assert_process_owner_eligible(owner: User) -> None:
+    """Apply the canonical active business-owner policy to a loaded User."""
+    error = process_owner_eligibility_error(owner)
+    if error is not None:
+        raise ValidationError(error)
+
+
+def process_owner_eligibility_error(owner: User) -> str | None:
+    """Return the canonical owner-policy failure without acquiring new locks."""
+    if not owner.is_active:
+        return "Process owner must be an active user"
+    if is_platform_admin(owner):
+        return "Platform admins cannot own business Processes"
+    return None
 
 
 async def assert_active_owning_department(
@@ -281,3 +304,40 @@ async def assert_process_archive_allowed(db: AsyncSession, *, process_id: int, c
 
 async def assert_process_restore_allowed(db: AsyncSession, *, process_id: int, current_user: User) -> Process:
     return await _POLICY.assert_restore_allowed(db, entity_id=process_id, current_user=current_user)
+
+
+async def assert_process_lifecycle_mutation_allowed(
+    db: AsyncSession,
+    *,
+    process_id: int,
+    current_user: User,
+    restore: bool,
+) -> Process:
+    """Authorize, then serialize archive/restore in the canonical owner order."""
+    snapshot = (
+        await assert_process_restore_allowed(
+            db,
+            process_id=process_id,
+            current_user=current_user,
+        )
+        if restore
+        else await assert_process_archive_allowed(
+            db,
+            process_id=process_id,
+            current_user=current_user,
+        )
+    )
+    expected_owner_id = snapshot.process_owner_user_id
+    process = await lock_process_for_owner_mutation(
+        db,
+        process_id=process_id,
+        user_ids=(expected_owner_id,),
+        expected_owner_user_id=expected_owner_id,
+    )
+    if process is None:
+        raise NotFoundError("Process not found")
+    if restore and not process.is_archived:
+        raise ValidationError("Process is not archived")
+    if not restore and process.is_archived:
+        raise ValidationError("Process is already archived")
+    return process

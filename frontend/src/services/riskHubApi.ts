@@ -87,9 +87,17 @@ export interface ApprovalScenario {
     description: string;
     requires_approval: boolean;
     approver_roles: string[];
+    fixed_policy: boolean;
+    fixed_policy_definition?: ApprovalScenarioFixedPolicyDefinition | null;
     updated_at: string;
     updated_by_name: string | null;
     capabilities?: ApprovalScenarioCapabilities | null;
+}
+
+export interface ApprovalScenarioFixedPolicyDefinition {
+    threshold: 'current_or_proposed_cif_yes';
+    covered_actions: 'edit'[];
+    allow_self_approval: false;
 }
 
 export interface ApprovalScenarioCapabilities {

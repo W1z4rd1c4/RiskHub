@@ -318,7 +318,7 @@ Rules:
 | `controls:approve` | **Reserved** for future granular control approval workflow | Reserved |
 | `controls:execute` | Log control executions | CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Department Head, Employee |
 | `kri:submit` | Submit KRI values | CRO, Risk Manager, Department Head, KRI Reporting Owner, Risk Owner fallback |
-| `approvals:read` | View approval queue | All |
+| Approval queue read (no standalone permission) | Requester, primary approver, matching scenario approver, or `approvals:write` resolver | Identity/scenario scoped |
 | `approvals:write` | Approve/reject requests | CRO, Risk Manager |
 | `users:read` | View `/users` directory mode and user directory API | Admin, CRO, Risk Manager |
 | `users:write` | Create/edit users | Admin only |
@@ -494,6 +494,37 @@ KRI edit notes:
 
 > [!NOTE]
 > Cancellation is logged in the activity log with action `CANCEL`.
+
+### 5.7 Governed Protected Process Edits
+
+The fixed `protected_process_edit` scenario is the first tracer for the
+immutable governed-mutation contract in ADR-016:
+
+- A Process is protected when its current **or proposed** derived CIF is Yes.
+  With the scenario enabled, an authorized business-data edit requires a
+  request reason and creates an immutable versioned proposal instead of
+  changing the approved Process.
+- The proposal snapshots approved before-values, proposed after-values,
+  derived CIF/class impact, the scenario policy, and the Process governance
+  version. A unique active impact lock permits only one pending proposal for
+  the Process and blocks later business edits while leaving comments and
+  evidence available.
+- Exactly one active Risk Manager or CRO matching the scenario snapshot may
+  approve or reject. The requester never qualifies, including when the
+  requester is a Risk Manager or CRO. Submission fails closed when no
+  independent eligible approver exists, and rejection requires a reason.
+- Approval revalidates the locked Process governance version. A stale
+  proposal expires without applying any proposed value; a valid approval
+  applies the proposal, increments the Process governance version, records
+  the governed-mutation audit fact, releases the lock, and enqueues the
+  outcome notification in the same transaction boundary.
+- Process lifecycle and pending-change state are separate. Permission-scoped
+  before/after and derived-impact data may appear in Process detail,
+  Approvals, and My Requests, while approved Process values remain effective.
+- Disabling the scenario permits an otherwise authorized edit to use the
+  ordinary direct-update lifecycle. It does not weaken Process authorization
+  or validation. The workflow has no SLA, reminder, overdue state, timer,
+  automatic decision, or escalation.
 
 ---
 
@@ -715,6 +746,7 @@ Notification types are stable string keys shared across backend model, backend A
 
 **Core types:**
 - Approval workflow: `approval_pending`, `approval_resolved`, `approval_cancelled`
+- Governed mutation delivery preferences: `governed_approval_action_required`, `governed_approval_request_updates`
 - KRI deadlines/breaches: `kri_due_soon`, `kri_due_tomorrow`, `kri_overdue`, `kri_near_breach`, `kri_breach_detected`
 - Questionnaires: `questionnaire_sent`, `questionnaire_due_soon`, `questionnaire_overdue`, `questionnaire_submitted`, `questionnaire_clarification_requested`
 - Issues: `issue_assigned`, `issue_due_soon`, `issue_overdue`, `issue_exception_requested`, `issue_exception_approved`

@@ -721,6 +721,23 @@
       "configure": "Nastavit: {{name}}",
       "select_roles": "Vyberte role...",
       "roles_selected": "Vybráno rolí: {{count}}"
+    },
+    "fixed_policy": {
+      "title": "Pevná pravidla chráněného Procesu",
+      "immutable_help": "Tato pravidla ochrany vynucuje systém a nelze je změnit.",
+      "threshold": "Práh ochrany",
+      "triggers": {
+        "current_or_proposed_cif_yes": "Současné nebo navrhované CIF je Ano"
+      },
+      "actions": "Pokryté akce",
+      "covered_action_values": {
+        "edit": "Úpravy Procesu"
+      },
+      "separation": "Oddělení žadatele",
+      "self_approval": {
+        "false": "Vlastní schválení je vždy zakázáno",
+        "true": "Vlastní schválení je povoleno"
+      }
     }
   },
   "system_settings": {

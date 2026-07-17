@@ -6,6 +6,7 @@
         "edit": "Upravit proces",
         "create": "Vytvořit proces",
         "save": "Uložit změny",
+        "submit_for_approval": "Odeslat ke schválení",
         "cancel": "Zrušit",
         "restore": "Obnovit",
         "export": "Exportovat",
@@ -38,7 +39,8 @@
             "impacts": "Dopady (1–5)",
             "criticality": "Kritičnost a CIF",
             "continuity": "Kontinuita (BCM/DR)",
-            "assessment": "Posouzení a stav"
+            "assessment": "Posouzení a stav",
+            "change_request": "Schválení změny"
         },
         "l0_area": "L0 oblast",
         "l1_process": "L1 proces",
@@ -69,12 +71,16 @@
         "interruption_impact": "Dopad přerušení funkce",
         "assessment_date": "Datum posouzení",
         "notes": "Poznámka",
+        "request_reason": "Důvod žádosti",
+        "request_reason_help": "Změny chráněného Procesu se odesílají ke schválení. Vysvětlete důvod změny; server vyhodnotí současný i navrhovaný stav CIF.",
         "not_set": "Nevyplněno",
         "errors": {
             "l0_area_required": "L0 oblast je povinná.",
             "l1_process_required": "L1 proces je povinný.",
             "process_owner_required": "Vlastník procesu je povinný.",
             "owning_department_required": "Vlastnický útvar je povinný.",
+            "request_reason_required": "U změny chráněného Procesu je důvod žádosti povinný.",
+            "pending_change_exists": "Tento Proces již má čekající změnu. Před odesláním další změny ji zrušte nebo vyřešte.",
             "save_failed": "Uložení procesu se nezdařilo.",
             "fix_fields": "Opravte prosím zvýrazněná pole.",
             "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."
@@ -131,6 +137,17 @@
         "owner_orphaned_request": "Vlastník tohoto procesu již není způsobilý. Před úpravou požádejte správce o nové přiřazení.",
         "ownership_legacy_unassigned": "Tento starší předprodukční proces zatím nemá kanonického vlastníka ani útvar. Pro opravu přiřaďte obojí.",
         "ownership_invalid_assignment": "Proces má neplatného vlastníka nebo útvar. Před uložením vyberte aktivní náhrady."
+    },
+    "pending_change": {
+        "title": "Navrhovaná změna Procesu",
+        "badge": "Čekající změna",
+        "requested_by_at": "Požadavek zadal {{requester}} dne {{date}} v {{time}}",
+        "unknown_requester": "Neznámý uživatel",
+        "cancel": "Zrušit žádost",
+        "cancel_failed": "Čekající změnu Procesu se nepodařilo zrušit.",
+        "diff_restricted": "Navrhované hodnoty jsou skryté kvůli rozsahu vašich oprávnění.",
+        "edit_blocked_title": "Obchodní úpravy jsou dočasně uzamčeny",
+        "business_edits_blocked": "Řízená změna Procesu čeká na vyřízení. Komentáře a důkazy zůstávají dostupné, ale obchodní pole a vazby nelze do vyřízení upravovat."
     },
     "values": {
         "unknown": "Neznámá hodnota",

@@ -2465,6 +2465,13 @@ async def test_privileged_user_cro_can_cancel_other_users_pending_request(
     assert create_response.status_code == 201
     approval_id = create_response.json()["id"]
 
+    resolver_detail = await client_cro.get(f"/api/v1/approvals/{approval_id}")
+    assert resolver_detail.status_code == 200
+    capabilities = resolver_detail.json()["capabilities"]
+    assert capabilities["can_cancel"] is True
+    assert capabilities["can_cancel_as_requester"] is False
+    assert capabilities["can_cancel_as_resolver"] is True
+
     # CRO cancels it
     cancel_response = await client_cro.post(f"/api/v1/approvals/{approval_id}/cancel")
     assert cancel_response.status_code == 200

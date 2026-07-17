@@ -13,10 +13,9 @@ from app.core.permission_cache import build_permission_sensitive_cache_key
 from app.core.permissions import has_permission
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
-from app.models import ApprovalRequest, ApprovalStatus, OrphanedItem, User
+from app.models import OrphanedItem, User
 from app.schemas.user import UserShellSummary
 from app.services.approval_queue_visibility import count_visible_pending_approvals_for_user
-from app.services.approval_scenario_policy import approval_privilege_tier
 from app.services.authorization_capabilities import build_me_capabilities
 from app.services.notification_visibility import count_visible_unread_notifications
 
@@ -28,14 +27,6 @@ QUESTIONNAIRE_INBOX_DEGRADABLE_ERRORS = (SQLAlchemyError, ValueError, KeyError, 
 
 
 async def _count_pending_approvals(db: AsyncSession, current_user: User) -> int:
-    if approval_privilege_tier(current_user).is_privileged:
-        result = await db.execute(
-            select(func.count())
-            .select_from(ApprovalRequest)
-            .where(ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]))
-        )
-        return result.scalar() or 0
-
     return await count_visible_pending_approvals_for_user(db, current_user=current_user)
 
 

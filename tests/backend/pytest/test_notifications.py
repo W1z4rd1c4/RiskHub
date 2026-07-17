@@ -1,7 +1,6 @@
 """Tests for notification API endpoints."""
 
 from datetime import timedelta
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +11,7 @@ from app.models import (
     Department,
     Issue,
     Permission,
+    Process,
     Risk,
     RiskQuestionnaire,
     Role,
@@ -23,6 +23,9 @@ from app.models.notification import NotificationType
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.user import AccessScope
+from app.services._governed_mutations.process_identity import (
+    new_governed_process_proposal,
+)
 from app.services.kri_deadline_service import KRIDeadlineService
 from app.services.notification_service import NotificationService
 
@@ -569,6 +572,211 @@ async def test_scenario_approval_notifications_require_resource_visibility(
     data = response.json()
     assert data["total"] == 1
     assert [item["title"] for item in data["items"]] == ["Visible scenario approval"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scope_kind", ["department", "manager"])
+async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_department: Department,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+    test_user_cro: User,
+    scope_kind: str,
+):
+    hidden_department = Department(
+        name=f"Hidden Notification Requester {scope_kind}",
+        code=f"NOTIF-REQUESTER-{scope_kind.upper()}",
+        description="Requester deliberately lacks Process scope",
+    )
+    excluded_role = Role(
+        name=f"excluded_notification_approver_{scope_kind}",
+        display_name="Excluded Notification Approver",
+        description="Global approval writer outside fixed Process roles",
+    )
+    approval_permission = Permission(
+        resource="approvals",
+        action="write",
+        description="Resolve approvals",
+    )
+    db_session.add_all(
+        [hidden_department, excluded_role, approval_permission]
+    )
+    await db_session.flush()
+    db_session.add(
+        RolePermission(
+            role_id=excluded_role.id,
+            permission_id=approval_permission.id,
+        )
+    )
+    excluded_user = User(
+        name="Excluded Notification Approver",
+        email=f"excluded.notification.{scope_kind}@test.com",
+        department_id=test_department.id,
+        role_id=excluded_role.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    db_session.add(excluded_user)
+
+    test_user_employee.access_scope = AccessScope.DEPARTMENT
+    test_user_employee.department_id = hidden_department.id
+    test_user_cro.access_scope = (
+        AccessScope.DEPARTMENT
+        if scope_kind == "department"
+        else AccessScope.MANAGER
+    )
+    test_user_cro.department_id = (
+        test_department.id if scope_kind == "department" else None
+    )
+    test_user_cro.manager_id = (
+        test_user_risk_manager.id if scope_kind == "manager" else None
+    )
+
+    process = Process(
+        f_code=f"F-NOTIF-{scope_kind.upper()}",
+        l0_area="Operations",
+        l1_process="Notification approval parity",
+        process_owner_user_id=test_user_risk_manager.id,
+        owning_department_id=test_department.id,
+    )
+    db_session.add(process)
+    await db_session.flush()
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.PROCESS,
+        resource_id=process.id,
+        resource_name=process.f_code,
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Notification SQL must match fixed resolver policy",
+        status=ApprovalStatus.PENDING,
+        scenario_key="protected_process_edit",
+        scenario_approver_roles=["cro"],
+    )
+    db_session.add(approval)
+    await db_session.flush()
+    db_session.add(
+        new_governed_process_proposal(
+            approval_request_id=approval.id,
+            requested_by_id=test_user_employee.id,
+            process_id=process.id,
+            process_name=process.f_code,
+            approver_roles=["cro"],
+            base_governance_version=1,
+            before_snapshot={"notes": None},
+            after_snapshot={"notes": "Reviewed"},
+            raw_before={"notes": None},
+            raw_after={"notes": "Reviewed"},
+            derived_impact_snapshot={
+                "before": {"cif": "yes", "criticality_class": "critical"},
+                "after": {"cif": "yes", "criticality_class": "critical"},
+            },
+        )
+    )
+    await db_session.commit()
+    await db_session.refresh(approval, ["governed_mutation_proposal"])
+
+    reviewer_notifications = await NotificationService.notify_governed_action_required(
+        db_session,
+        approval,
+        event="submitted",
+    )
+    requester_notification = await NotificationService.notify_governed_request_update(
+        db_session,
+        approval,
+        outcome="cancelled",
+    )
+    hidden_governed_notification = await NotificationService.create_notification(
+        db=db_session,
+        user_id=excluded_user.id,
+        notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+        title="Hidden governed Process notification",
+        message="Excluded role must not recover this linked notification",
+        resource_type="approval",
+        resource_id=approval.id,
+    )
+    legacy_approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=987_655,
+        resource_name="Legacy notification approval",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Legacy privileged notification visibility",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(legacy_approval)
+    await db_session.flush()
+    legacy_notification = await NotificationService.create_notification(
+        db=db_session,
+        user_id=excluded_user.id,
+        notification_type=NotificationType.APPROVAL_PENDING,
+        title="Visible legacy approval notification",
+        message="Non-Process privileged behavior remains unchanged",
+        resource_type="approval",
+        resource_id=legacy_approval.id,
+    )
+    await db_session.commit()
+
+    assert len(reviewer_notifications) == 1
+    reviewer_notification = reviewer_notifications[0]
+    assert requester_notification is not None
+    assert hidden_governed_notification is not None
+    assert legacy_notification is not None
+
+    reviewer_headers = _headers_for(test_user_cro)
+    reviewer_page = await client.get(
+        "/api/v1/notifications", headers=reviewer_headers
+    )
+    reviewer_count = await client.get(
+        "/api/v1/notifications/unread/count", headers=reviewer_headers
+    )
+    assert reviewer_page.json()["total"] == 1
+    assert reviewer_page.json()["unread_count"] == 1
+    assert reviewer_count.json() == {"count": 1}
+    reviewer_read = await client.post(
+        f"/api/v1/notifications/{reviewer_notification.id}/read",
+        headers=reviewer_headers,
+    )
+    assert reviewer_read.status_code == 200, reviewer_read.text
+    assert reviewer_read.json() == {"unread_count": 0}
+
+    requester_headers = _headers_for(test_user_employee)
+    requester_page = await client.get(
+        "/api/v1/notifications", headers=requester_headers
+    )
+    assert requester_page.json()["total"] == 1
+    assert requester_page.json()["unread_count"] == 1
+    requester_read = await client.post(
+        f"/api/v1/notifications/{requester_notification.id}/read",
+        headers=requester_headers,
+    )
+    assert requester_read.status_code == 200, requester_read.text
+
+    excluded_headers = _headers_for(excluded_user)
+    excluded_page = await client.get(
+        "/api/v1/notifications", headers=excluded_headers
+    )
+    excluded_count = await client.get(
+        "/api/v1/notifications/unread/count", headers=excluded_headers
+    )
+    assert excluded_page.json()["total"] == 1
+    assert excluded_page.json()["unread_count"] == 1
+    assert [item["id"] for item in excluded_page.json()["items"]] == [
+        legacy_notification.id
+    ]
+    assert excluded_count.json() == {"count": 1}
+    hidden_read = await client.post(
+        f"/api/v1/notifications/{hidden_governed_notification.id}/read",
+        headers=excluded_headers,
+    )
+    assert hidden_read.status_code == 404, hidden_read.text
+    legacy_read = await client.post(
+        f"/api/v1/notifications/{legacy_notification.id}/read",
+        headers=excluded_headers,
+    )
+    assert legacy_read.status_code == 200, legacy_read.text
+    assert legacy_read.json() == {"unread_count": 0}
 
 
 @pytest.mark.asyncio

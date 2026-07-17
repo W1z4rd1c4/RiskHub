@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, Save, X } from 'lucide-react';
 
@@ -7,14 +7,21 @@ import { Input } from '@/components/ui/input';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
+import { ApiClientError } from '@/services/apiClient';
 import { lookupApi } from '@/services/lookupApi';
 import { processApi } from '@/services/processApi';
 import { logError } from '@/services/logger';
-import type { Process } from '@/types/process';
+import {
+    isProcessApprovalQueuedResponse,
+    type Process,
+    type ProcessApprovalQueuedResponse,
+} from '@/types/process';
 
 import { buildProcessWritePayload, PROCESS_CONTROLLED_CODES } from './processesPagePresentation';
+import { processEditNeedsRequestReason } from './processProtectedEdit';
 
 // Token-driven textarea styling matching the `Input` primitive (no `<Textarea>`
 // primitive shipped in #58); the `aria-[invalid=true]` hook lets `Field` drive
@@ -26,6 +33,7 @@ interface ProcessFormProps {
     initialData?: Process;
     isEdit?: boolean;
     onSaved: (process: Process) => void;
+    onApprovalQueued?: (response: ProcessApprovalQueuedResponse) => void;
     onCancel?: () => void;
 }
 
@@ -52,6 +60,7 @@ type FormFields = {
     interruption_impact: string;
     assessment_date: string;
     notes: string;
+    request_reason: string;
 };
 
 const IMPACT_FIELDS = [
@@ -90,6 +99,7 @@ function initialFields(process?: Process): FormFields {
         interruption_impact: toFieldValue(process?.interruption_impact),
         assessment_date: toFieldValue(process?.assessment_date),
         notes: toFieldValue(process?.notes),
+        request_reason: '',
     };
 }
 
@@ -102,7 +112,13 @@ function toNullableInt(value: string): number | null {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: ProcessFormProps) {
+export function ProcessForm({
+    initialData,
+    isEdit = false,
+    onSaved,
+    onApprovalQueued,
+    onCancel,
+}: ProcessFormProps) {
     const { t } = useTranslation('processes');
     const [fields, setFields] = useState<FormFields>(() => initialFields(initialData));
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,13 +126,60 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
     const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormFields, string>>>({});
     const [ownerSearch, setOwnerSearch] = useState('');
     const [departmentSearch, setDepartmentSearch] = useState('');
+    const [serverRequiredRoutingSignature, setServerRequiredRoutingSignature] = useState<string | null>(null);
+    const protectedChangeRequiresApproval = resolveCapabilityFlag(
+        initialData?.capabilities,
+        'protected_change_requires_approval',
+    );
+    const canRequestChange = resolveCapabilityFlag(initialData?.capabilities, 'can_request_change');
+    const protectionRoutingSignature = [
+        initialData?.id ?? '',
+        protectedChangeRequiresApproval ? 'enabled' : 'disabled',
+        canRequestChange ? 'requestable' : 'blocked',
+        initialData?.derived?.cif ?? '',
+        initialData?.derived?.inputs.threshold_critical_score ?? '',
+        initialData?.derived?.inputs.mtpd_critical_hours ?? '',
+        fields.cif_override,
+        fields.preliminary_criticality,
+        fields.mtpd_hours,
+        fields.impact_client,
+        fields.impact_market_operations,
+        fields.impact_regulatory,
+        fields.impact_financial,
+    ].join('|');
+    const protectionRoutingSignatureRef = useRef(protectionRoutingSignature);
+    protectionRoutingSignatureRef.current = protectionRoutingSignature;
+
+    useEffect(() => {
+        setServerRequiredRoutingSignature(null);
+        setFieldErrors((current) => {
+            if (!current.request_reason) return current;
+            const { request_reason: _requestReason, ...remaining } = current;
+            return remaining;
+        });
+    }, [protectionRoutingSignature]);
+
+    const serverRequiresApproval = serverRequiredRoutingSignature === protectionRoutingSignature;
+    const requestReasonRequired = Boolean(
+        isEdit
+        && initialData !== undefined
+        && (
+            serverRequiresApproval
+            || (
+                protectedChangeRequiresApproval
+                && canRequestChange
+                && processEditNeedsRequestReason(initialData, fields)
+            )
+        ),
+    );
 
     // Required fields in DOM order — drives focus-first-invalid (N12).
-    const REQUIRED_FIELDS: Array<keyof FormFields> = [
+    const requiredFields: Array<keyof FormFields> = [
         'l0_area',
         'l1_process',
         'process_owner_user_id',
         'owning_department_id',
+        ...(requestReasonRequired ? ['request_reason' as const] : []),
     ];
     const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLElement | null>>>({});
     const registerFieldRef = (field: keyof FormFields) => (element: HTMLElement | null) => {
@@ -231,6 +294,9 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
         if (!fields.owning_department_id) {
             nextErrors.owning_department_id = t('form.errors.owning_department_required');
         }
+        if (requestReasonRequired && !fields.request_reason.trim()) {
+            nextErrors.request_reason = t('form.errors.request_reason_required');
+        }
         return nextErrors;
     };
 
@@ -238,7 +304,7 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
         event.preventDefault();
         const validationErrors = validate();
         setFieldErrors(validationErrors);
-        const firstInvalid = REQUIRED_FIELDS.find((field) => validationErrors[field]);
+        const firstInvalid = requiredFields.find((field) => validationErrors[field]);
         if (firstInvalid) {
             fieldRefs.current[firstInvalid]?.focus();
             return;
@@ -268,17 +334,43 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
             assessment_date: fields.assessment_date,
             notes: fields.notes,
         });
+        if (isEdit && fields.request_reason.trim()) {
+            payload.request_reason = fields.request_reason.trim();
+        }
 
         try {
             setIsSubmitting(true);
             setError(null);
-            const saved = isEdit && initialData
+            const result = isEdit && initialData
                 ? await processApi.updateProcess(initialData.id, payload)
                 : await processApi.createProcess(payload);
-            onSaved(saved);
+            if (isProcessApprovalQueuedResponse(result)) {
+                setServerRequiredRoutingSignature(null);
+                onApprovalQueued?.(result);
+                return;
+            }
+            setServerRequiredRoutingSignature(null);
+            onSaved(result);
         } catch (submitError) {
             logError('Failed to save process:', submitError);
-            setError(t('form.errors.save_failed'));
+            if (submitError instanceof ApiClientError && submitError.code === 'process_pending_mutation') {
+                setError(t('form.errors.pending_change_exists'));
+            } else if (
+                submitError instanceof ApiClientError
+                && submitError.status === 422
+                && submitError.code === 'governed_mutation_reason_required'
+                && protectionRoutingSignatureRef.current === protectionRoutingSignature
+            ) {
+                setServerRequiredRoutingSignature(protectionRoutingSignature);
+                setError(null);
+                setFieldErrors((current) => ({
+                    ...current,
+                    request_reason: t('form.errors.request_reason_required'),
+                }));
+                fieldRefs.current.request_reason?.focus();
+            } else {
+                setError(t('form.errors.save_failed'));
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -365,6 +457,37 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
                         {t('actions.retry')}
                     </button>
                 </div>
+            ) : null}
+
+            {isEdit ? (
+                <section className="glass-card space-y-4 border border-amber-400/20">
+                    <div>
+                        <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                            {t('form.sections.change_request')}
+                        </h2>
+                        <p className="mt-2 text-sm text-slate-500">
+                            {t('form.request_reason_help')}
+                        </p>
+                    </div>
+                    <Field
+                        label={t('form.request_reason')}
+                        required={requestReasonRequired}
+                        error={fieldErrors.request_reason}
+                        labelClassName={labelClassName}
+                    >
+                        {(control) => (
+                            <textarea
+                                {...control}
+                                ref={registerFieldRef('request_reason')}
+                                data-testid="process-form-request-reason"
+                                value={fields.request_reason}
+                                onChange={(event) => setField('request_reason', event.target.value)}
+                                rows={3}
+                                className={TEXTAREA_CLASS}
+                            />
+                        )}
+                    </Field>
+                </section>
             ) : null}
 
             <section className="glass-card space-y-5">
@@ -507,7 +630,11 @@ export function ProcessForm({ initialData, isEdit = false, onSaved, onCancel }: 
                     className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
                 >
                     <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
-                    {isEdit ? t('actions.save') : t('actions.create')}
+                    {isEdit && requestReasonRequired
+                        ? t('actions.submit_for_approval')
+                        : isEdit
+                            ? t('actions.save')
+                            : t('actions.create')}
                 </button>
             </div>
         </form>

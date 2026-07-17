@@ -21,6 +21,8 @@ class NotificationType(str, PyEnum):
     APPROVAL_PENDING = "approval_pending"
     APPROVAL_RESOLVED = "approval_resolved"
     APPROVAL_CANCELLED = "approval_cancelled"
+    GOVERNED_APPROVAL_ACTION_REQUIRED = "governed_approval_action_required"
+    GOVERNED_APPROVAL_REQUEST_UPDATES = "governed_approval_request_updates"
     KRI_DUE_SOON = "kri_due_soon"
     KRI_DUE_TOMORROW = "kri_due_tomorrow"
     KRI_OVERDUE = "kri_overdue"

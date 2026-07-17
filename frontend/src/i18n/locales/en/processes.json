@@ -6,6 +6,7 @@
         "edit": "Edit Process",
         "create": "Create Process",
         "save": "Save Changes",
+        "submit_for_approval": "Submit for approval",
         "cancel": "Cancel",
         "restore": "Restore",
         "export": "Export",
@@ -38,7 +39,8 @@
             "impacts": "Impacts (1–5)",
             "criticality": "Criticality and CIF",
             "continuity": "Continuity (BCM/DR)",
-            "assessment": "Assessment and state"
+            "assessment": "Assessment and state",
+            "change_request": "Change approval"
         },
         "l0_area": "L0 area",
         "l1_process": "L1 process",
@@ -69,12 +71,16 @@
         "interruption_impact": "Function interruption impact",
         "assessment_date": "Assessment date",
         "notes": "Notes",
+        "request_reason": "Request reason",
+        "request_reason_help": "Protected Process changes are submitted for approval. Explain why the change is needed; the server evaluates both current and proposed CIF state.",
         "not_set": "Not set",
         "errors": {
             "l0_area_required": "L0 area is required.",
             "l1_process_required": "L1 process is required.",
             "process_owner_required": "Process owner is required.",
             "owning_department_required": "Owning department is required.",
+            "request_reason_required": "A request reason is required for a protected Process change.",
+            "pending_change_exists": "This Process already has a pending change. Cancel or resolve it before submitting another.",
             "save_failed": "Failed to save the process.",
             "fix_fields": "Please correct the highlighted fields.",
             "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."
@@ -131,6 +137,17 @@
         "owner_orphaned_request": "This Process owner is no longer eligible. Ask a Governance user to reassign ownership before editing.",
         "ownership_legacy_unassigned": "This pre-release legacy Process has no canonical owner or department yet. Assign both to repair the record.",
         "ownership_invalid_assignment": "This Process has an invalid owner or department assignment. Select active replacements before saving."
+    },
+    "pending_change": {
+        "title": "Proposed Process change",
+        "badge": "Pending change",
+        "requested_by_at": "Requested by {{requester}} on {{date}} at {{time}}",
+        "unknown_requester": "Unknown user",
+        "cancel": "Cancel request",
+        "cancel_failed": "Failed to cancel the pending Process change.",
+        "diff_restricted": "The proposed values are hidden by your permission scope.",
+        "edit_blocked_title": "Business edits are temporarily locked",
+        "business_edits_blocked": "A governed Process change is pending. Comments and evidence remain available, but business fields and relationships cannot be edited until it is resolved."
     },
     "values": {
         "unknown": "Unknown",

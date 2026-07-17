@@ -41,6 +41,14 @@ class ProcessWriteValidators(BaseModel):
 
     model_config = {"extra": "forbid"}
 
+    @field_validator("l0_area", "l1_process", check_fields=False)
+    @classmethod
+    def _validate_required_process_labels(cls, value: str | None) -> str | None:
+        """Reject visually blank hierarchy labels while preserving entered text."""
+        if value is not None and ("\x00" in value or not value.strip()):
+            raise ValueError("Process L0/L1 labels must contain visible text")
+        return value
+
     @field_validator(*PROCESS_CONTROLLED_CODES_BY_FIELD, check_fields=False)
     @classmethod
     def _validate_controlled_fields(cls, value: str | None, info) -> str | None:
@@ -103,6 +111,7 @@ class ProcessCreate(ProcessBase):
 
 
 class ProcessUpdate(ProcessWriteValidators):
+    request_reason: str | None = Field(None, max_length=1000)
     l0_area: str | None = Field(None, min_length=1, max_length=255)
     l1_process: str | None = Field(None, min_length=1, max_length=255)
     l2_subprocess: str | None = Field(None, max_length=255)
@@ -138,6 +147,35 @@ class ProcessCapabilities(BaseModel):
     can_update: bool
     can_archive: bool
     can_restore: bool
+    protected_change_requires_approval: bool
+    can_request_change: bool = False
+    can_cancel_pending_change: bool = False
+    has_pending_change: bool = False
+    business_edit_blocked: bool = False
+
+
+class ProcessPendingChangeCapabilities(BaseModel):
+    can_view_diff: bool
+    can_cancel: bool
+
+
+class ProcessPendingDerivedImpact(BaseModel):
+    before: dict[str, str | None]
+    after: dict[str, str | None]
+
+
+class ProcessPendingChange(BaseModel):
+    approval_id: int
+    proposal_id: str
+    proposal_version: int
+    status: Literal["pending"] = "pending"
+    requested_at: UtcAwareDatetime
+    requested_by_name: str | None = None
+    reason: str
+    before: dict[str, object]
+    after: dict[str, object]
+    derived_impact: ProcessPendingDerivedImpact
+    capabilities: ProcessPendingChangeCapabilities
 
 
 class ProcessOwnerRead(BaseModel):
@@ -284,6 +322,7 @@ class ProcessRead(BaseModel):
     archived_at: UtcAwareDatetime | None = None
     archived_by_id: int | None = None
     capabilities: ProcessCapabilities | None = None
+    pending_change: ProcessPendingChange | None = None
     created_at: UtcAwareDatetime
     updated_at: UtcAwareDatetime
 

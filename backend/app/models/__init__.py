@@ -6,6 +6,7 @@ from app.models.control import Control, ControlForm, ControlFrequency, ControlSt
 from app.models.control_execution import ControlExecution, ExecutionResult
 from app.models.department import Department
 from app.models.global_config import GlobalConfig
+from app.models.governed_mutation import GovernedMutationImpactLock, GovernedMutationProposal
 from app.models.issue import (
     Issue,
     IssueException,
@@ -75,6 +76,8 @@ __all__ = [
     "ApprovalStatus",
     "ApprovalResourceType",
     "ApprovalActionType",
+    "GovernedMutationProposal",
+    "GovernedMutationImpactLock",
     "Notification",
     "NotificationType",
     "OutboxEvent",

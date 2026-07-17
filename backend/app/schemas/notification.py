@@ -13,6 +13,8 @@ class NotificationTypeEnum(str, Enum):
     approval_pending = "approval_pending"
     approval_resolved = "approval_resolved"
     approval_cancelled = "approval_cancelled"
+    governed_approval_action_required = "governed_approval_action_required"
+    governed_approval_request_updates = "governed_approval_request_updates"
     kri_due_soon = "kri_due_soon"
     kri_due_tomorrow = "kri_due_tomorrow"
     kri_overdue = "kri_overdue"
@@ -75,6 +77,8 @@ class NotificationPreferences(BaseModel):
     approval_pending: bool = True
     approval_resolved: bool = True
     approval_cancelled: bool = True
+    governed_approval_action_required: bool = True
+    governed_approval_request_updates: bool = True
     kri_due_soon: bool = True
     kri_due_tomorrow: bool = True
     kri_overdue: bool = True
@@ -100,6 +104,8 @@ class NotificationPreferencesUpdate(BaseModel):
     approval_pending: bool | None = None
     approval_resolved: bool | None = None
     approval_cancelled: bool | None = None
+    governed_approval_action_required: bool | None = None
+    governed_approval_request_updates: bool | None = None
     kri_due_soon: bool | None = None
     kri_due_tomorrow: bool | None = None
     kri_overdue: bool | None = None

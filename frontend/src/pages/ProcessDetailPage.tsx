@@ -6,6 +6,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { approvalsApi } from '@/services/approvalsApi';
 import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
 import type { Process } from '@/types/process';
@@ -14,6 +16,7 @@ import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ProcessForm } from './processes/ProcessForm';
+import { ProcessPendingChangePanel } from './processes/ProcessPendingChangePanel';
 import { ProcessVendorLinksSection } from './processes/ProcessVendorLinksSection';
 import {
     getProcessDisplayStatus,
@@ -116,10 +119,11 @@ function ProcessOwnershipAlert({
 export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     const navigate = useNavigate();
     const authz = useAuthz();
-    const { t } = useTranslation('processes');
+    const { t, i18n } = useTranslation('processes');
     const { t: tCommon } = useTranslation('common');
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
+    const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
 
     const {
@@ -155,6 +159,21 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         } finally {
             setIsArchiving(false);
             setIsArchiveDialogOpen(false);
+        }
+    };
+
+    const cancelPendingChange = async () => {
+        if (!process?.pending_change) return;
+        try {
+            setIsCancellingPendingChange(true);
+            setActionError(null);
+            await approvalsApi.cancel(process.pending_change.approval_id);
+            await fetchProcess();
+        } catch (cancelError) {
+            logError('Failed to cancel pending Process change:', cancelError);
+            setActionError(t('pending_change.cancel_failed'));
+        } finally {
+            setIsCancellingPendingChange(false);
         }
     };
 
@@ -215,6 +234,45 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     }
 
     if (mode === 'edit') {
+        if (process.capabilities?.business_edit_blocked || process.pending_change) {
+            return (
+                <div className="space-y-8">
+                    <div className="flex items-start gap-3">
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/processes/${process.id}`)}
+                            aria-label={t('actions.back_to_register')}
+                            className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                        >
+                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                        <div>
+                            <h1 className="text-3xl font-bold text-white">{t('pending_change.edit_blocked_title')}</h1>
+                            <p className="text-slate-500 font-medium mt-1">{process.l1_process}</p>
+                        </div>
+                    </div>
+                    {actionError ? (
+                        <div role="alert" className="glass-card border border-rose-400/30 text-sm text-rose-300">
+                            {actionError}
+                        </div>
+                    ) : null}
+                    {process.pending_change ? (
+                        <ProcessPendingChangePanel
+                            pendingChange={process.pending_change}
+                            locale={i18n.language}
+                            cancelling={isCancellingPendingChange}
+                            onCancel={resolveCapabilityFlag(process.pending_change.capabilities, 'can_cancel')
+                                ? () => void cancelPendingChange()
+                                : undefined}
+                        />
+                    ) : (
+                        <div role="status" className="glass-card border border-amber-400/30 text-sm text-amber-200">
+                            {t('pending_change.business_edits_blocked')}
+                        </div>
+                    )}
+                </div>
+            );
+        }
         if (process.ownership_status === 'pending_governance') {
             return (
                 <div className="space-y-8">
@@ -279,6 +337,9 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         }
                         : process}
                     isEdit
+                    onApprovalQueued={() => {
+                        void navigate(`/processes/${process.id}`);
+                    }}
                     onSaved={(saved: Process) => {
                         setProcess(saved);
                         void navigate(`/processes/${saved.id}`);
@@ -298,6 +359,16 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{actionError}</p>
                 </div>
+            ) : null}
+            {process.pending_change ? (
+                <ProcessPendingChangePanel
+                    pendingChange={process.pending_change}
+                    locale={i18n.language}
+                    cancelling={isCancellingPendingChange}
+                    onCancel={resolveCapabilityFlag(process.pending_change.capabilities, 'can_cancel')
+                        ? () => void cancelPendingChange()
+                        : undefined}
+                />
             ) : null}
             {process.ownership_status === 'pending_governance' ? (
                 <ProcessOwnershipAlert
@@ -356,7 +427,10 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             {t('actions.restore')}
                         </button>
                     )}
-                    {canEdit && process.ownership_status !== 'pending_governance' && (
+                    {canEdit
+                        && !process.capabilities?.business_edit_blocked
+                        && !process.pending_change
+                        && process.ownership_status !== 'pending_governance' && (
                         <button
                             type="button"
                             onClick={() => navigate(`/processes/${process.id}/edit`)}
@@ -642,7 +716,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
 
             <ProcessVendorLinksSection
                 process={process}
-                canManageLinks={canEdit === true}
+                canManageLinks={canEdit === true && !process.capabilities?.business_edit_blocked && !process.pending_change}
                 onLinksChanged={() => fetchProcess()}
             />
 

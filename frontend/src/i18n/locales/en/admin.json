@@ -721,6 +721,23 @@
       "configure": "Configure: {{name}}",
       "select_roles": "Select roles...",
       "roles_selected": "{{count}} role(s) selected"
+    },
+    "fixed_policy": {
+      "title": "Fixed protected Process policy",
+      "immutable_help": "These protection rules are enforced by the system and cannot be changed.",
+      "threshold": "Protection threshold",
+      "triggers": {
+        "current_or_proposed_cif_yes": "Current or proposed CIF is Yes"
+      },
+      "actions": "Covered actions",
+      "covered_action_values": {
+        "edit": "Process edits"
+      },
+      "separation": "Requester separation",
+      "self_approval": {
+        "false": "Self-approval is always prohibited",
+        "true": "Self-approval is allowed"
+      }
     }
   },
   "system_settings": {

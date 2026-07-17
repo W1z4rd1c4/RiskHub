@@ -1,7 +1,7 @@
 ---
 title: Notifications and Approvals
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + frontend/src/pages/NotificationsPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "Production workflow manual for approvals, notifications, decision notes, queue triage, and escalation patterns."
@@ -98,6 +98,15 @@ Approvals are the control point for sensitive changes. Review the record context
 Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the inbox row and Activity Log help reconstruct the workflow.
 
 If you receive a stale or rejected approval, do not immediately resubmit the same change. Refresh the inbox, compare the current row with your intended update, and submit a new focused change only if it is still needed.
+
+Protected Process edits show an immutable proposal with approved **before** values, proposed **after** values, and the derived CIF impact. The approved Process remains operational while the proposal is pending. Only one configured Risk Manager or CRO who is not the requester may decide it; there is no senior-role self-approval bypass. Rejection requires a reason, and stale proposals expire without applying their values.
+
+The two governed-approval preferences are default-on:
+
+- **Approval requests requiring my action** controls event delivery for submissions, cancellations, and stale expiry relevant to an eligible approver.
+- **Updates to my approval requests** controls outcome delivery to the requester for approval, rejection, cancellation, and stale expiry.
+
+Disabling either preference affects notifications only. It never removes queue rows, My Requests rows, capabilities, or work counts. Protected Process approvals have no due date, SLA, reminder, overdue label, automatic decision, or time-based escalation.
 
 ## Finding, Filtering, and Evidence
 

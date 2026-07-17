@@ -24,6 +24,8 @@ def build_approval_queued_response(
     pending_changes: dict | None = None,
     primary_approver_id: int | None = None,
     requires_privileged_approval: bool = False,
+    proposal_id: str | None = None,
+    proposal_version: int | None = None,
 ):
     from fastapi.responses import JSONResponse
 
@@ -37,6 +39,8 @@ def build_approval_queued_response(
         pending_changes=pending_changes,
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=requires_privileged_approval,
+        proposal_id=proposal_id,
+        proposal_version=proposal_version,
     )
     return JSONResponse(status_code=202, content=payload.model_dump(mode="json"))
 

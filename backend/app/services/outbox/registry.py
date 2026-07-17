@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.services.outbox.handlers.approvals import (
     handle_approval_request_cancelled,
     handle_approval_request_created,
+    handle_approval_request_expired,
     handle_approval_request_resolved,
 )
 from app.services.outbox.handlers.common import OutboxHandler
@@ -24,6 +25,7 @@ OUTBOX_EVENT_HANDLERS: dict[str, OutboxHandler] = {
     "approval.request_created": handle_approval_request_created,
     "approval.request_resolved": handle_approval_request_resolved,
     "approval.request_cancelled": handle_approval_request_cancelled,
+    "approval.request_expired": handle_approval_request_expired,
     "issue.assigned": handle_issue_assigned,
     "issue.exception_requested": handle_issue_exception_requested,
     "issue.exception_approved": handle_issue_exception_approved,

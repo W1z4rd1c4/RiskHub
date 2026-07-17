@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 import {
     ictClosedListCollectionSchema,
     processListResponseSchema,
+    processApprovalQueuedResponseSchema,
     processLookupOptionSchema,
     processSchema,
     processVendorLinkListSchema,
@@ -10,6 +11,7 @@ import {
 } from '@/services/api/schemas';
 import type {
     Process,
+    ProcessApprovalQueuedResponse,
     ProcessListParams,
     ProcessListResponse,
     ProcessLookupOption,
@@ -131,8 +133,10 @@ export const processApi = {
         return apiClient.post('/processes', data, { schema: processSchema });
     },
 
-    async updateProcess(id: number, data: ProcessWritePayload): Promise<Process> {
-        return apiClient.patch(`/processes/${id}`, data, { schema: processSchema });
+    async updateProcess(id: number, data: ProcessWritePayload): Promise<Process | ProcessApprovalQueuedResponse> {
+        return apiClient.patch(`/processes/${id}`, data, {
+            schema: processSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     async archiveProcess(id: number): Promise<void> {

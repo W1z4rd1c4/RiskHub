@@ -104,6 +104,7 @@ AGENTS.md
   - [`docs/adr/ADR-002-service-owned-transactions.md`](./adr/ADR-002-service-owned-transactions.md)
   - [`docs/adr/ADR-005-archivable-mixin-schema-contract.md`](./adr/ADR-005-archivable-mixin-schema-contract.md)
   - [`docs/adr/ADR-010-postgres-migration-rehearsal-contract.md`](./adr/ADR-010-postgres-migration-rehearsal-contract.md)
+  - [`docs/adr/ADR-016-governed-mutation-proposals.md`](./adr/ADR-016-governed-mutation-proposals.md)
 - client_factory:
   - `tests/backend/pytest/conftest.py`
   - `tests/backend/pytest/_get_db_override_whitelist.toml`

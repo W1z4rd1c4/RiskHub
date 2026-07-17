@@ -2,14 +2,33 @@
 
 from __future__ import annotations
 
-from sqlalchemy import String, and_, cast, false, func, or_, select
+from sqlalchemy import String, and_, cast, false, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
 
 from app.core.permissions import control_visibility_clause, kri_visibility_clause, risk_visibility_clause
-from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus, Control, KeyRiskIndicator, Risk, User
-from app.services.approval_scenario_policy import can_view_approval_resource, user_matches_approval_scenario_role
+from app.models import (
+    ApprovalRequest,
+    ApprovalResourceType,
+    ApprovalStatus,
+    Control,
+    KeyRiskIndicator,
+    Process,
+    Risk,
+    User,
+)
+from app.services._governed_mutations.process_identity import (
+    any_governed_mutation_proposal_exists_clause,
+    governed_process_requester_clause,
+)
+from app.services.approval_scenario_policy import (
+    approval_privilege_tier,
+    approval_resource_type_filter_clause,
+    governed_process_approval_exists_clause,
+    process_approval_resolver_clause,
+    process_approval_visibility_clause,
+)
 
 PENDING_APPROVAL_STATUSES = (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED)
 
@@ -43,6 +62,11 @@ async def _approval_resource_visibility_clause(db: AsyncSession, current_user: U
     if kri_clause is not None:
         kri_query = kri_query.where(kri_clause)
 
+    process_query = select(Process.id)
+    process_clause = process_approval_visibility_clause(current_user)
+    if process_clause is not None:
+        process_query = process_query.where(process_clause)
+
     return or_(
         and_(
             ApprovalRequest.resource_type == ApprovalResourceType.RISK,
@@ -56,32 +80,11 @@ async def _approval_resource_visibility_clause(db: AsyncSession, current_user: U
             ApprovalRequest.resource_type == ApprovalResourceType.KRI,
             ApprovalRequest.resource_id.in_(kri_query),
         ),
+        and_(
+            ApprovalRequest.resource_type == ApprovalResourceType.PROCESS,
+            ApprovalRequest.resource_id.in_(process_query),
+        ),
     )
-
-
-async def can_view_pending_approval_queue_item(
-    db: AsyncSession,
-    *,
-    approval: ApprovalRequest,
-    current_user: User,
-    include_requester: bool = True,
-) -> bool:
-    """Return whether a non-privileged user should see an approval as pending queue work."""
-    if (
-        include_requester
-        and approval.requested_by_id == current_user.id
-        and approval.status in PENDING_APPROVAL_STATUSES
-    ):
-        return True
-    if approval.requested_by_id == current_user.id:
-        return False
-    if approval.primary_approver_id == current_user.id and approval.status == ApprovalStatus.PENDING:
-        return True
-    if approval.status != ApprovalStatus.PENDING:
-        return False
-    if user_matches_approval_scenario_role(approval, current_user) is not True:
-        return False
-    return await can_view_approval_resource(db, current_user, approval)
 
 
 async def visible_pending_approvals_for_user(
@@ -111,8 +114,10 @@ async def build_visible_pending_approvals_query(
     resource_type: ApprovalResourceType | None = None,
     include_requester: bool = True,
 ) -> Select[tuple[ApprovalRequest]]:
-    """Build SQL-scoped non-privileged pending approval visibility before pagination."""
-    candidate_clauses = [
+    """Build the canonical pending-approval visibility query before pagination."""
+    governed_process = governed_process_approval_exists_clause()
+    any_proposal = any_governed_mutation_proposal_exists_clause()
+    legacy_candidate_clauses = [
         and_(
             ApprovalRequest.primary_approver_id == current_user.id,
             ApprovalRequest.status == ApprovalStatus.PENDING,
@@ -126,17 +131,40 @@ async def build_visible_pending_approvals_query(
             await _approval_resource_visibility_clause(db, current_user),
         ),
     ]
+    legacy_visibility = (
+        true()
+        if include_requester and approval_privilege_tier(current_user).is_privileged
+        else or_(*legacy_candidate_clauses)
+    )
+    candidate_clauses = [
+        and_(
+            governed_process,
+            ApprovalRequest.status.in_(PENDING_APPROVAL_STATUSES),
+            process_approval_resolver_clause(current_user),
+        ),
+        and_(
+            ~any_proposal,
+            ApprovalRequest.status.in_(PENDING_APPROVAL_STATUSES),
+            legacy_visibility,
+        ),
+    ]
     if include_requester:
         candidate_clauses.append(
             and_(
-                ApprovalRequest.requested_by_id == current_user.id,
                 ApprovalRequest.status.in_(PENDING_APPROVAL_STATUSES),
+                or_(
+                    and_(
+                        ~any_proposal,
+                        ApprovalRequest.requested_by_id == current_user.id,
+                    ),
+                    governed_process_requester_clause(current_user.id),
+                ),
             )
         )
 
     query = select(ApprovalRequest).where(or_(*candidate_clauses))
     if resource_type is not None:
-        query = query.where(ApprovalRequest.resource_type == resource_type)
+        query = query.where(approval_resource_type_filter_clause(resource_type))
     return query.order_by(ApprovalRequest.created_at.desc(), ApprovalRequest.id.desc())
 
 

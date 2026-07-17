@@ -52,6 +52,8 @@ export interface NotificationPreferences {
     approval_pending: boolean;
     approval_resolved: boolean;
     approval_cancelled: boolean;
+    governed_approval_action_required: boolean;
+    governed_approval_request_updates: boolean;
     kri_due_soon: boolean;
     kri_due_tomorrow: boolean;
     kri_overdue: boolean;

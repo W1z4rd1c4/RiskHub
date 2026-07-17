@@ -45,8 +45,10 @@ from app.services._ict_register_lifecycle.asset_policy import asset_visibility_c
 from app.services._ict_register_lifecycle.policy import process_visibility_clause
 from app.services._ict_register_lifecycle.projection import (
     build_process_collection_capabilities,
+    load_pending_process_changes,
     load_process_derived_blocks,
     pending_process_ownership_orphan_ids,
+    protected_process_changes_require_approval,
     serialize_process_detail,
 )
 from app.services._ict_register_reference.process_values import (
@@ -303,12 +305,20 @@ async def build_process_listing(
     )
     blocks = await load_process_derived_blocks(db, processes, current_user=current_user)
     pending_ids = await pending_process_ownership_orphan_ids(db, process_ids=[process.id for process in processes])
+    pending_changes = await load_pending_process_changes(
+        db,
+        process_ids=[process.id for process in processes],
+        current_user=current_user,
+    )
+    protected_change_requires_approval = await protected_process_changes_require_approval(db)
     all_items = [
         serialize_process_detail(
             process,
             current_user=current_user,
             derived=blocks.get(process.id),
             ownership_pending=process.id in pending_ids,
+            pending_change=pending_changes.get(process.id),
+            protected_change_requires_approval=protected_change_requires_approval,
         )
         for process in processes
     ]

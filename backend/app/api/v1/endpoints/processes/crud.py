@@ -10,6 +10,7 @@ from app.api.v1.endpoints._collection import build_list_context
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.collection import SortDirection
 from app.schemas.process import ProcessCreate, ProcessListResponse, ProcessRead, ProcessUpdate
 from app.services._ict_register_lifecycle.lifecycle import (
@@ -143,7 +144,11 @@ async def get_process(
     return await read_process_detail(db=db, process_id=process_id, current_user=current_user)
 
 
-@router.patch("/{process_id}", response_model=ProcessRead)
+@router.patch(
+    "/{process_id}",
+    response_model=ProcessRead,
+    responses={202: {"model": ApprovalQueuedResponse}},
+)
 async def update_process(
     process_id: int,
     payload: ProcessUpdate,

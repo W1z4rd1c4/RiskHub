@@ -12,6 +12,7 @@ from app.core.datetime_utils import utc_now
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.governed_mutation import GovernedMutationProposal
     from app.models.user import User
 
 
@@ -23,6 +24,7 @@ class ApprovalStatus(str, PyEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
 
 
 class ApprovalResourceType(str, PyEnum):
@@ -31,6 +33,7 @@ class ApprovalResourceType(str, PyEnum):
     RISK = "risk"
     CONTROL = "control"
     KRI = "kri"
+    PROCESS = "process"
 
 
 class ApprovalActionType(str, PyEnum):
@@ -114,6 +117,12 @@ class ApprovalRequest(Base):
     resolved_by: Mapped["User"] = relationship("User", foreign_keys=[resolved_by_id], lazy="selectin")
     primary_approver: Mapped["User"] = relationship("User", foreign_keys=[primary_approver_id], lazy="selectin")
     privileged_approver: Mapped["User"] = relationship("User", foreign_keys=[privileged_approver_id], lazy="selectin")
+    governed_mutation_proposal: Mapped["GovernedMutationProposal | None"] = relationship(
+        "GovernedMutationProposal",
+        back_populates="approval_request",
+        uselist=False,
+        lazy="selectin",
+    )
 
     # Indexes for efficient queries
     # Note: ux_approval_pending partial unique index is created via migration,

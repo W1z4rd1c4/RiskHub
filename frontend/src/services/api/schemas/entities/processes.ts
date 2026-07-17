@@ -1,13 +1,48 @@
-import type { Process, ProcessListResponse, ProcessVendorLink } from '@/types/process';
+import type {
+    Process,
+    ProcessApprovalQueuedResponse,
+    ProcessListResponse,
+    ProcessPendingChangeRead,
+    ProcessVendorLink,
+} from '@/types/process';
 
 import { collectionPaginationSchema, passthroughObject, z } from '../common';
+import { approvalCreatedResponseSchema, governedDerivedImpactSchema } from '../workflow';
 
 export const processCapabilitiesSchema = passthroughObject({
     can_read: z.boolean(),
     can_update: z.boolean(),
     can_archive: z.boolean(),
     can_restore: z.boolean(),
+    protected_change_requires_approval: z.boolean(),
+    can_request_change: z.boolean(),
+    can_cancel_pending_change: z.boolean(),
+    has_pending_change: z.boolean(),
+    business_edit_blocked: z.boolean(),
 });
+
+export const processPendingChangeSchema: z.ZodType<ProcessPendingChangeRead> = passthroughObject({
+    approval_id: z.number(),
+    proposal_id: z.string(),
+    proposal_version: z.number(),
+    status: z.literal('pending'),
+    requested_at: z.string(),
+    requested_by_name: z.string().nullable(),
+    reason: z.string(),
+    before: z.record(z.string(), z.unknown()),
+    after: z.record(z.string(), z.unknown()),
+    derived_impact: governedDerivedImpactSchema,
+    capabilities: passthroughObject({
+        can_view_diff: z.boolean(),
+        can_cancel: z.boolean(),
+    }),
+});
+
+export const processApprovalQueuedResponseSchema: z.ZodType<ProcessApprovalQueuedResponse> =
+    approvalCreatedResponseSchema.extend({
+        proposal_id: z.string(),
+        proposal_version: z.number(),
+    });
 
 export const processListCapabilitiesSchema = passthroughObject({
     can_create: z.boolean(),
@@ -156,6 +191,7 @@ export const processSchema: z.ZodType<Process> = passthroughObject({
     notes: z.string().nullable().optional(),
 
     derived: processDerivedSchema.nullable().optional(),
+    pending_change: processPendingChangeSchema.nullable().optional(),
 
     is_archived: z.boolean(),
     archived_at: z.string().nullable().optional(),

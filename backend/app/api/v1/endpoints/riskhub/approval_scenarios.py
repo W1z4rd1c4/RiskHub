@@ -7,8 +7,18 @@ from app.core.activity_logger import log_activity
 from app.db.session import get_db
 from app.models import ApprovalScenario, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.schemas.riskhub import ApprovalScenarioRead, ApprovalScenarioUpdate
+from app.schemas.riskhub import (
+    ApprovalScenarioFixedPolicyRead,
+    ApprovalScenarioRead,
+    ApprovalScenarioUpdate,
+)
 from app.services._authorization_capabilities import approval_scenario_capabilities
+from app.services._governed_mutations.fixed_policy import (
+    ALLOWED_APPROVER_ROLES,
+    FIXED_PROCESS_POLICY,
+    SCENARIO_KEY,
+    load_fixed_process_scenario_for_update,
+)
 from app.services._riskhub_config import approval_scenario_roles
 from app.services._riskhub_config.lifecycle import build_config_audit_plan, run_config_noop_update, run_config_update
 from app.services.approval_scenario_policy import normalize_approval_scenario_roles
@@ -32,6 +42,16 @@ def _approval_scenario_read(scenario: ApprovalScenario, *, updated_by_name: str 
         updated_at=scenario.updated_at.isoformat(),
         updated_by_name=resolved_updated_by_name,
         capabilities=approval_scenario_capabilities(),
+        fixed_policy=scenario.key == SCENARIO_KEY,
+        fixed_policy_definition=(
+            ApprovalScenarioFixedPolicyRead(
+                threshold=FIXED_PROCESS_POLICY.threshold,
+                covered_actions=list(FIXED_PROCESS_POLICY.covered_actions),
+                allow_self_approval=FIXED_PROCESS_POLICY.allow_self_approval,
+            )
+            if scenario.key == SCENARIO_KEY
+            else None
+        ),
     )
 
 
@@ -57,13 +77,27 @@ async def update_approval_scenario(
     db: AsyncSession = Depends(get_db),
     cro_user: User = Depends(get_cro_user),
 ) -> ApprovalScenarioRead:
-    result = await db.execute(
-        select(ApprovalScenario).options(selectinload(ApprovalScenario.updated_by)).where(ApprovalScenario.key == key)
-    )
-    scenario = result.scalar_one_or_none()
+    if key == SCENARIO_KEY:
+        scenario = await load_fixed_process_scenario_for_update(db)
+    else:
+        result = await db.execute(
+            select(ApprovalScenario)
+            .options(selectinload(ApprovalScenario.updated_by))
+            .where(ApprovalScenario.key == key)
+            .with_for_update()
+        )
+        scenario = result.scalar_one_or_none()
 
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Approval scenario '{key}' not found")
+
+    if key == SCENARIO_KEY and data.approver_roles is not None:
+        roles = {str(role) for role in data.approver_roles}
+        if not roles or not roles.issubset(ALLOWED_APPROVER_ROLES):
+            raise HTTPException(
+                status_code=422,
+                detail="Protected Process changes may only be approved by Risk Manager or CRO roles",
+            )
 
     changes: list[str] = []
     activity_changes: dict[str, dict[str, object]] = {}

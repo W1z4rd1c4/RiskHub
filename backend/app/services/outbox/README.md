@@ -17,6 +17,13 @@ Transactional outbox package split by responsibility.
 - `payloads.py`
   - Typed payload models and validation registry.
 
+Approval events include `approval.request_created`,
+`approval.request_resolved`, `approval.request_cancelled`, and the governed
+mutation-only `approval.request_expired`. Handlers detect an attached immutable
+governed proposal and route those events through the two semantic, per-user
+preferences. Preference suppression affects notification delivery only; the
+approval queue and its counts are independent read models.
+
 ## Notes
 
 - Persistence/claim logic and handler execution must stay separated.
