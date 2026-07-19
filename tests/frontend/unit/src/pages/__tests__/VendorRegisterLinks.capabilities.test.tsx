@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { VendorRegisterLinksSection } from '@/pages/vendors/VendorRegisterLinksSection';
 import { assetApi } from '@/services/assetApi';
+import { processApi } from '@/services/processApi';
 import { vendorApi } from '@/services/vendorApi';
 
 const canMock = vi.hoisted(() => vi.fn(() => true));
@@ -60,7 +62,9 @@ function renderSection(capabilities: {
     });
     return render(
         <QueryClientProvider client={queryClient}>
-            <VendorRegisterLinksSection vendorId={4} capabilities={capabilities} />
+            <MemoryRouter>
+                <VendorRegisterLinksSection vendorId={4} capabilities={capabilities} />
+            </MemoryRouter>
         </QueryClientProvider>,
     );
 }
@@ -161,5 +165,28 @@ describe('Vendor register-link backend capability gates', () => {
         expect(await screen.findByText('Pending owner asset')).toBeInTheDocument();
         expect(screen.queryByTestId('vendor-asset-link-add')).not.toBeInTheDocument();
         expect(screen.queryByTestId('vendor-asset-link-remove-42')).not.toBeInTheDocument();
+    });
+
+    it('disables Vendor-side Process unlink while the Process impact lock is active', async () => {
+        vi.mocked(vendorApi.getProcessLinks).mockResolvedValue([{
+            id: 51,
+            process_id: 9,
+            vendor_id: 4,
+            process_name: 'Locked payments',
+            process_business_edit_blocked: true,
+            capabilities: { can_delete: true },
+            created_at: '2026-07-17T08:00:00Z',
+        }]);
+
+        renderSection({
+            can_view_asset_links: false,
+            can_manage_asset_links: false,
+            can_manage_process_links: true,
+        });
+
+        expect(await screen.findByText('Locked payments')).toBeInTheDocument();
+        expect(screen.getByTestId('vendor-process-link-remove-51')).toBeDisabled();
+        expect(screen.getByText('processes:pending_change.link_action_blocked')).toBeInTheDocument();
+        expect(processApi.removeVendorLink).not.toHaveBeenCalled();
     });
 });

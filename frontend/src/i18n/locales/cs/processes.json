@@ -145,9 +145,35 @@
         "unknown_requester": "Neznámý uživatel",
         "cancel": "Zrušit žádost",
         "cancel_failed": "Čekající změnu Procesu se nepodařilo zrušit.",
-        "diff_restricted": "Navrhované hodnoty jsou skryté kvůli rozsahu vašich oprávnění.",
-        "edit_blocked_title": "Obchodní úpravy jsou dočasně uzamčeny",
-        "business_edits_blocked": "Řízená změna Procesu čeká na vyřízení. Komentáře a důkazy zůstávají dostupné, ale obchodní pole a vazby nelze do vyřízení upravovat."
+    "diff_restricted": "Navrhované hodnoty jsou skryté kvůli rozsahu vašich oprávnění.",
+    "edit_blocked_title": "Obchodní úpravy jsou dočasně uzamčeny",
+    "business_edits_blocked": "Řízená změna Procesu čeká na vyřízení. Komentáře a důkazy zůstávají dostupné, ale obchodní pole a vazby nelze do vyřízení upravovat.",
+    "link_action_blocked": "Tento Proces má čekající řízenou změnu. Před změnou vazeb ji nejprve vyřešte."
+    },
+    "pending_creation": {
+        "title": "Čekající vytvoření Procesů",
+        "description": "Tyto návrhy nejsou provozními záznamy registru. Do rozhodnutí je vidí pouze žadatel a způsobilí schvalovatelé.",
+        "badge": "Čekající vytvoření",
+        "unnamed": "Návrh Procesu bez názvu",
+        "requested_by_at": "Požadavek zadal {{requester}} dne {{date}} v {{time}}",
+        "open_request": "Otevřít žádost",
+        "cancel_failed": "Čekající vytvoření Procesu se nepodařilo zrušit. Zkuste to znovu."
+    },
+    "link_approval": {
+        "continue": "Pokračovat",
+        "reason_placeholder": "Vysvětlete důvod změny vazby Procesu...",
+        "link_add": {
+            "title": "Požádat o přidání vazby Procesu",
+            "message": "Uveďte důvod. Chráněný Proces si zachová schválené vazby do schválení této žádosti."
+        },
+        "link_remove": {
+            "title": "Požádat o odebrání vazby Procesu",
+            "message": "Uveďte důvod. Existující vazba zůstane aktivní do schválení této žádosti."
+        },
+        "link_update": {
+            "title": "Požádat o změnu vazby Procesu",
+            "message": "Uveďte důvod. Schválená vazba zůstane beze změny do schválení této žádosti."
+        }
     },
     "values": {
         "unknown": "Neznámá hodnota",

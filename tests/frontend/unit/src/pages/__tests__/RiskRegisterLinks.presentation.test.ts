@@ -24,6 +24,7 @@ function sampleProcessLink(overrides: Partial<RiskProcessLink> = {}): RiskProces
         id: 2,
         risk_id: 3,
         process_id: 5,
+        process_business_edit_blocked: false,
         capabilities: { can_delete: true },
         created_at: '2026-07-10T10:00:00Z',
         ...overrides,
@@ -77,5 +78,12 @@ describe('Risk register-links presentation helpers', () => {
             new Set([7]),
         );
         expect(options).toEqual([{ value: '9', label: 'Výpadek datového centra' }]);
+    });
+
+    it('preserves the backend Process lock state on selectable targets', () => {
+        expect(buildRegisterLinkOptions(
+            [{ id: 5, label: 'Payments — Pending change', isArchived: false, disabled: true }],
+            new Set(),
+        )).toEqual([{ value: '5', label: 'Payments — Pending change', disabled: true }]);
     });
 });

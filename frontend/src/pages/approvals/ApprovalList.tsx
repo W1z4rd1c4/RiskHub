@@ -2,10 +2,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
     Check,
     CheckCircle2,
+    Archive,
     ChevronDown,
     ChevronUp,
     Clock,
     Edit,
+    Link2,
+    Plus,
     RotateCcw,
     Trash2,
     X,
@@ -18,7 +21,7 @@ import { cn } from '@/lib/utils';
 import type { ApprovalRequest } from '@/types/approval';
 
 import { GovernedMutationDiff } from '@/components/approvals/GovernedMutationDiff';
-import { getApprovalActionBadge, getApprovalStatusBadge } from './approvalsPresentation';
+import { getApprovalActionBadge, getApprovalStatusBadge, getGovernedActionLabel } from './approvalsPresentation';
 import { approvalPendingChangeEntries, canViewApprovalPendingChanges } from './approvalPendingChanges';
 
 interface ApprovalListProps {
@@ -67,6 +70,17 @@ export function ApprovalList({
             {approvals.map((approval) => {
                 const canViewPendingChanges = canViewApprovalPendingChanges(approval);
                 const pendingChangeEntries = approvalPendingChangeEntries(approval);
+                const governedActionLabel = getGovernedActionLabel(
+                    approval.action_type,
+                    approval.governed_mutation?.mutation_kind,
+                );
+                const ActionIcon = governedActionLabel === 'create'
+                    ? Plus
+                    : governedActionLabel === 'archive'
+                        ? Archive
+                        : governedActionLabel.startsWith('link_')
+                            ? Link2
+                            : Edit;
 
                 return (
                     <motion.div
@@ -89,12 +103,12 @@ export function ApprovalList({
                                         getApprovalActionBadge(approval.action_type),
                                     )}
                                 >
-                                    {approval.action_type === 'delete' ? (
+                                    {approval.action_type === 'delete' && !approval.governed_mutation ? (
                                         <Trash2 className="h-3 w-3" />
                                     ) : (
-                                        <Edit className="h-3 w-3" />
+                                        <ActionIcon className="h-3 w-3" />
                                     )}
-                                    {t(`request_types.${approval.action_type === 'edit' ? 'update' : 'delete'}`)}
+                                    {t(`request_types.${governedActionLabel}`)}
                                 </span>
                             </div>
                         </div>
@@ -218,7 +232,7 @@ export function ApprovalList({
                     </div>
 
                     <AnimatePresence>
-                        {approval.action_type === 'edit' &&
+                        {(approval.action_type === 'edit' || approval.governed_mutation != null) &&
                             expandedRows.has(approval.id) &&
                             canViewPendingChanges && (
                                 <motion.div
@@ -234,8 +248,10 @@ export function ApprovalList({
                                         <GovernedMutationDiff
                                             before={approval.governed_mutation.before}
                                             after={approval.governed_mutation.after}
+                                            mutationKind={approval.governed_mutation.mutation_kind}
                                             derivedImpact={approval.governed_mutation.derived_impact}
                                             impactedResources={approval.governed_mutation.impacted_resources}
+                                            relationshipChange={approval.governed_mutation.relationship_change}
                                             testId={`approval-governed-mutation-${approval.id}`}
                                         />
                                     ) : (

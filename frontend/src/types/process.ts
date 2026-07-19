@@ -32,9 +32,40 @@ export interface ProcessPendingChangeRead {
     capabilities: ProcessPendingChangeCapabilities;
 }
 
-export interface ProcessApprovalQueuedResponse extends ApprovalCreatedResponse {
+export interface ProcessApprovalQueuedResponse extends Omit<ApprovalCreatedResponse, 'resource_id'> {
     proposal_id: string;
     proposal_version: number;
+}
+
+export interface ProcessPendingCreationCapabilities {
+    can_view_diff: boolean;
+    can_cancel: boolean;
+    is_requester: boolean;
+    can_resolve: boolean;
+}
+
+export interface ProcessPendingCreationProposal extends Omit<
+    ProcessWritePayload,
+    'process_owner_user_id' | 'owning_department_id' | 'request_reason'
+> {
+    process_owner?: string | null;
+    owning_department?: string | null;
+}
+
+export interface ProcessPendingCreationRead {
+    approval_id: number;
+    proposal_id: string;
+    proposal_version: number;
+    status: 'pending_creation';
+    requested_at: string;
+    requested_by_name: string | null;
+    reason: string;
+    proposed: ProcessPendingCreationProposal;
+    derived: {
+        cif: ProcessCifCode;
+        criticality_class?: ProcessCriticalityCode | null;
+    };
+    capabilities: ProcessPendingCreationCapabilities;
 }
 
 export function isProcessApprovalQueuedResponse(
@@ -275,6 +306,7 @@ export interface ProcessListResponse {
     capabilities?: ProcessListCapabilities | null;
     groups?: CollectionGroup[] | null;
     facets?: ProcessFacets | null;
+    pending_creations: ProcessPendingCreationRead[];
 }
 
 export interface ProcessVendorLinkCapabilities {
@@ -290,6 +322,7 @@ export interface ProcessVendorLink {
     /** Server-resolved display names (FRONTEND_DISPLAY_GUARDRAILS: no raw-id fallbacks). */
     process_name?: string | null;
     vendor_name?: string | null;
+    process_business_edit_blocked: boolean;
     direct_service_description?: string | null;
     note?: string | null;
     capabilities?: ProcessVendorLinkCapabilities | null;
@@ -300,4 +333,5 @@ export interface ProcessVendorLinkCreatePayload {
     vendor_id: number;
     direct_service_description?: string | null;
     note?: string | null;
+    request_reason?: string;
 }

@@ -27,6 +27,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
+from httpx import AsyncClient, Response
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -36,13 +37,13 @@ from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError
 from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_keys
 from app.models import (
+    ActivityAction,
+    ActivityLog,
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
     ApprovalScenario,
     ApprovalStatus,
-    ActivityAction,
-    ActivityLog,
     Department,
     GovernedMutationImpactLock,
     GovernedMutationProposal,
@@ -73,9 +74,7 @@ async def _directly_corrupt_proposal(
 ) -> None:
     """Bypass ORM immutability only for integrity/legacy corruption fixtures."""
     await db_session.execute(
-        update(GovernedMutationProposal)
-        .where(GovernedMutationProposal.id == proposal_row_id)
-        .values(**values)
+        update(GovernedMutationProposal).where(GovernedMutationProposal.id == proposal_row_id).values(**values)
     )
 
 
@@ -90,6 +89,12 @@ async def process_accountability(test_user_cro: User, test_department: Departmen
     _ACCOUNTABILITY.clear()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def fixed_protected_process_scenario(db_session: AsyncSession):
+    """Install the production-fixed scenario disabled for legacy direct-create tests."""
+    await _add_protected_process_scenario(db_session, requires_approval=False)
+
+
 @pytest_asyncio.fixture
 async def test_user_seeded_risk_manager(db_session: AsyncSession) -> User:
     """Risk manager holding exactly the canonical RBAC seed permissions.
@@ -97,7 +102,11 @@ async def test_user_seeded_risk_manager(db_session: AsyncSession) -> User:
     Built from ``RBAC_ROLE_PERMISSIONS`` so the test proves the production
     seed grants Process register maintenance to the risk_manager role.
     """
-    role = Role(name="risk_manager", display_name="Risk Manager", description="Seed-contract risk manager")
+    role = Role(
+        name="risk_manager",
+        display_name="Risk Manager",
+        description="Seed-contract risk manager",
+    )
     db_session.add(role)
     await db_session.commit()
 
@@ -169,9 +178,7 @@ def _full_payload(**overrides: object) -> dict[str, object]:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("endpoint", ["/api/v1/processes", "/api/v1/assets", "/api/v1/threats"])
-async def test_register_lists_reject_invalid_sort_order(
-    client_factory, test_user_cro: User, endpoint: str
-):
+async def test_register_lists_reject_invalid_sort_order(client_factory, test_user_cro: User, endpoint: str):
     async with client_factory(user=test_user_cro) as client:
         response = await client.get(endpoint, params={"sort_order": "sideways"})
 
@@ -243,7 +250,10 @@ async def test_f_code_is_stable_and_never_reassigned(client_factory, test_user_c
         assert second["f_code"] == "F2"
 
         # Update does not change the F-code.
-        updated = await client.patch(f"/api/v1/processes/{first['id']}", json={"l1_process": "Přejmenovaný proces"})
+        updated = await client.patch(
+            f"/api/v1/processes/{first['id']}",
+            json={"l1_process": "Přejmenovaný proces"},
+        )
         assert updated.status_code == 200
         assert updated.json()["f_code"] == "F1"
         assert updated.json()["l1_process"] == "Přejmenovaný proces"
@@ -286,12 +296,8 @@ async def test_direct_archive_and_restore_each_advance_governance_version_once(
         still_archived = await db_session.get(Process, process_id)
         assert still_archived is not None and still_archived.governance_version == 2
 
-        restored_response = await client.post(
-            f"/api/v1/processes/{process_id}/restore"
-        )
-        duplicate_restore = await client.post(
-            f"/api/v1/processes/{process_id}/restore"
-        )
+        restored_response = await client.post(f"/api/v1/processes/{process_id}/restore")
+        duplicate_restore = await client.post(f"/api/v1/processes/{process_id}/restore")
 
     assert restored_response.status_code == 200, restored_response.text
     assert restored_response.json()["is_archived"] is False
@@ -389,18 +395,21 @@ async def test_coded_fields_are_enforced_against_workbook_closed_lists(client_fa
 
         # Case-sensitivity: closed lists are verbatim ("kritická" is not a class).
         lowercase = await client.post(
-            "/api/v1/processes", json=_minimal_payload(preliminary_criticality="kritická")
+            "/api/v1/processes",
+            json=_minimal_payload(preliminary_criticality="kritická"),
         )
         assert lowercase.status_code == 422
 
         # PATCH enforces the same lists.
         created = (await client.post("/api/v1/processes", json=_minimal_payload())).json()
         patched_bad = await client.patch(
-            f"/api/v1/processes/{created['id']}", json={"preliminary_criticality": "Extrémní"}
+            f"/api/v1/processes/{created['id']}",
+            json={"preliminary_criticality": "Extrémní"},
         )
         assert patched_bad.status_code == 422
         patched_ok = await client.patch(
-            f"/api/v1/processes/{created['id']}", json={"preliminary_criticality": "low"}
+            f"/api/v1/processes/{created['id']}",
+            json={"preliminary_criticality": "low"},
         )
         assert patched_ok.status_code == 200
         assert patched_ok.json()["preliminary_criticality"] == "low"
@@ -490,9 +499,7 @@ async def test_restore_projects_ownership_with_a_fresh_request_session(
         "name": test_user_cro.name,
         "email": test_user_cro.email,
         "role_name": test_user_cro.role.name,
-        "department_name": (
-            test_user_cro.department.name if test_user_cro.department is not None else None
-        ),
+        "department_name": (test_user_cro.department.name if test_user_cro.department is not None else None),
     }
     assert body["owning_department"] == {
         "name": test_department.name,
@@ -503,7 +510,11 @@ async def test_restore_projects_ownership_with_a_fresh_request_session(
 @pytest.mark.asyncio
 async def test_register_listing_supports_search_pagination_and_sorting(client_factory, test_user_cro: User):
     async with client_factory(user=test_user_cro) as client:
-        for name in ("Upisování rizik", "Likvidace pojistných událostí", "Správa smluv"):
+        for name in (
+            "Upisování rizik",
+            "Likvidace pojistných událostí",
+            "Správa smluv",
+        ):
             resp = await client.post("/api/v1/processes", json=_minimal_payload(l1_process=name))
             assert resp.status_code == 201
 
@@ -518,7 +529,10 @@ async def test_register_listing_supports_search_pagination_and_sorting(client_fa
         assert paged["limit"] == 1
 
         sorted_desc = (
-            await client.get("/api/v1/processes", params={"sort_by": "l1_process", "sort_order": "desc"})
+            await client.get(
+                "/api/v1/processes",
+                params={"sort_by": "l1_process", "sort_order": "desc"},
+            )
         ).json()
         assert [item["l1_process"] for item in sorted_desc["items"]] == [
             "Upisování rizik",
@@ -548,13 +562,23 @@ async def test_register_listing_uses_id_tiebreaker_for_stable_offset_pages(
         first_page = (
             await client.get(
                 "/api/v1/processes",
-                params={"sort_by": "l1_process", "sort_order": "desc", "offset": 0, "limit": 2},
+                params={
+                    "sort_by": "l1_process",
+                    "sort_order": "desc",
+                    "offset": 0,
+                    "limit": 2,
+                },
             )
         ).json()
         second_page = (
             await client.get(
                 "/api/v1/processes",
-                params={"sort_by": "l1_process", "sort_order": "desc", "offset": 2, "limit": 2},
+                params={
+                    "sort_by": "l1_process",
+                    "sort_order": "desc",
+                    "offset": 2,
+                    "limit": 2,
+                },
             )
         ).json()
 
@@ -565,9 +589,7 @@ async def test_register_listing_uses_id_tiebreaker_for_stable_offset_pages(
 
 
 @pytest.mark.asyncio
-async def test_register_listing_filters_cif_processes_before_count_and_pagination(
-    client_factory, test_user_cro: User
-):
+async def test_register_listing_filters_cif_processes_before_count_and_pagination(client_factory, test_user_cro: User):
     async with client_factory(user=test_user_cro) as client:
         cif = (
             await client.post(
@@ -580,9 +602,7 @@ async def test_register_listing_filters_cif_processes_before_count_and_paginatio
             json=_minimal_payload(l1_process="Ordinary process", cif_override="no"),
         )
 
-        response = await client.get(
-            "/api/v1/processes", params={"cif": True, "offset": 0, "limit": 1}
-        )
+        response = await client.get("/api/v1/processes", params={"cif": True, "offset": 0, "limit": 1})
 
     assert response.status_code == 200, response.text
     assert response.json()["total"] == 1
@@ -591,13 +611,18 @@ async def test_register_listing_filters_cif_processes_before_count_and_paginatio
 
 @pytest.mark.asyncio
 async def test_risk_manager_seed_grants_full_process_maintenance(
-    client_factory, test_user_seeded_risk_manager: User
+    client_factory,
+    db_session: AsyncSession,
+    test_user_seeded_risk_manager: User,
 ):
     """Maintenance goes to the risk_manager role via the RBAC seed (CRO wildcard aside)."""
     async with client_factory(user=test_user_seeded_risk_manager) as client:
-        created = await client.post("/api/v1/processes", json=_minimal_payload())
-        assert created.status_code == 201, created.text
-        process_id = created.json()["id"]
+        created_response = await _create_process_before_enabling_protection(
+            client, db_session, payload=_minimal_payload()
+        )
+        process_id = created_response.json()["id"]
+        created = await client.get(f"/api/v1/processes/{process_id}")
+        assert created.status_code == 200, created.text
         assert created.json()["capabilities"] == {
             "can_read": True,
             "can_update": True,
@@ -610,9 +635,7 @@ async def test_risk_manager_seed_grants_full_process_maintenance(
             "business_edit_blocked": False,
         }
 
-        assert (
-            await client.patch(f"/api/v1/processes/{process_id}", json={"notes": "Úsek UW"})
-        ).status_code == 200
+        assert (await client.patch(f"/api/v1/processes/{process_id}", json={"notes": "Úsek UW"})).status_code == 200
 
         listing = (await client.get("/api/v1/processes")).json()
         assert listing["capabilities"] == {"can_create": True, "can_export": True}
@@ -674,14 +697,17 @@ async def test_protected_noop_patch_does_not_queue_or_advance_version(
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
 ):
-    await _add_protected_process_scenario(db_session)
     payload = _full_payload(
         process_owner_user_id=test_user_seeded_risk_manager.id,
         owning_department_id=test_department.id,
         notes="Stable protected Process",
     )
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=payload)
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=payload,
+        )
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -703,9 +729,7 @@ async def test_protected_noop_patch_does_not_queue_or_advance_version(
 
     assert unchanged.status_code == 200, unchanged.text
     assert submitted.status_code == 202, submitted.text
-    assert unchanged.json()["pending_change"]["approval_id"] == submitted.json()[
-        "approval_id"
-    ]
+    assert unchanged.json()["pending_change"]["approval_id"] == submitted.json()["approval_id"]
     db_session.expire_all()
     persisted = await db_session.get(Process, process_id)
     assert persisted is not None and persisted.governance_version == 1
@@ -750,9 +774,7 @@ async def test_fixed_process_scenario_exposes_read_only_policy_definition(
         )
 
     assert listed.status_code == 200, listed.text
-    scenario = next(
-        row for row in listed.json() if row["key"] == "protected_process_edit"
-    )
+    scenario = next(row for row in listed.json() if row["key"] == "protected_process_edit")
     assert scenario["fixed_policy"] is True
     assert scenario["fixed_policy_definition"] == {
         "threshold": "current_or_proposed_cif_yes",
@@ -769,22 +791,19 @@ async def test_protected_process_edit_is_immutable_until_independent_approval(
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
 ):
-    scenario = ApprovalScenario(
-        key="protected_process_edit",
-        display_name="Protected Process edit",
-        description="Independent approval for CIF Process edits",
-        requires_approval=True,
-        approver_roles=["risk_manager", "cro"],
-    )
-    db_session.add(scenario)
-    await db_session.commit()
-
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(),
+        )
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
-            json={"l1_process": "Governed name", "request_reason": "Material CIF change"},
+            json={
+                "l1_process": "Governed name",
+                "request_reason": "Material CIF change",
+            },
         )
         assert submitted.status_code == 202, submitted.text
         approval_id = submitted.json()["approval_id"]
@@ -793,9 +812,7 @@ async def test_protected_process_edit_is_immutable_until_independent_approval(
             "l1_process"
         ] == "Správa pojistných smluv"
         listing = await requester.get("/api/v1/processes")
-        listed = next(
-            row for row in listing.json()["items"] if row["id"] == process_id
-        )
+        listed = next(row for row in listing.json()["items"] if row["id"] == process_id)
         assert listed["pending_change"]["approval_id"] == approval_id
         assert listed["capabilities"]["has_pending_change"] is True
         assert listed["capabilities"]["business_edit_blocked"] is True
@@ -823,9 +840,7 @@ async def test_protected_process_edit_is_immutable_until_independent_approval(
         )
         assert self_rejection.status_code == 403
 
-    pending_after_self_resolution = await db_session.get(
-        ApprovalRequest, approval_id
-    )
+    pending_after_self_resolution = await db_session.get(ApprovalRequest, approval_id)
     active_after_self_resolution = (
         await db_session.execute(
             select(GovernedMutationImpactLock).where(
@@ -871,16 +886,42 @@ async def _add_protected_process_scenario(
     approver_roles: list[str] | None = None,
     requires_approval: bool = True,
 ) -> None:
-    db_session.add(
-        ApprovalScenario(
+    scenario = (
+        await db_session.execute(select(ApprovalScenario).where(ApprovalScenario.key == "protected_process_edit"))
+    ).scalar_one_or_none()
+    if scenario is None:
+        scenario = ApprovalScenario(
             key="protected_process_edit",
             display_name="Protected Process edit",
             description="Independent approval for CIF Process edits",
-            requires_approval=requires_approval,
-            approver_roles=approver_roles or ["risk_manager", "cro"],
         )
-    )
+        db_session.add(scenario)
+    scenario.requires_approval = requires_approval
+    scenario.approver_roles = approver_roles or ["risk_manager", "cro"]
     await db_session.commit()
+
+
+async def _create_process_before_enabling_protection(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    *,
+    payload: dict[str, object],
+    approver_roles: list[str] | None = None,
+) -> Response:
+    """Create setup state directly, then enable protection for the behavior under test."""
+    await _add_protected_process_scenario(
+        db_session,
+        approver_roles=approver_roles,
+        requires_approval=False,
+    )
+    created = await client.post("/api/v1/processes", json=payload)
+    assert created.status_code == 201, created.text
+    await _add_protected_process_scenario(
+        db_session,
+        approver_roles=approver_roles,
+        requires_approval=True,
+    )
+    return created
 
 
 @pytest.mark.asyncio
@@ -935,10 +976,13 @@ async def test_protected_process_edit_requires_non_blank_reason(
     request_reason: str | None,
 ):
     del test_user_cro  # active independent CRO satisfies the scenario
-    await _add_protected_process_scenario(db_session)
 
     async with client_factory(user=test_user_seeded_risk_manager) as client:
-        created = await client.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(
+            client,
+            db_session,
+            payload=_full_payload(),
+        )
         payload = {"notes": "Governed note"}
         if request_reason is not None:
             payload["request_reason"] = request_reason
@@ -957,10 +1001,13 @@ async def test_protected_process_edit_fails_without_independent_configured_appro
     db_session: AsyncSession,
     test_user_seeded_risk_manager: User,
 ):
-    await _add_protected_process_scenario(db_session, approver_roles=["risk_manager"])
-
     async with client_factory(user=test_user_seeded_risk_manager) as client:
-        created = await client.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(
+            client,
+            db_session,
+            payload=_full_payload(),
+            approver_roles=["risk_manager"],
+        )
         response = await client.patch(
             f"/api/v1/processes/{created.json()['id']}",
             json={"notes": "Governed note", "request_reason": "Needs review"},
@@ -988,15 +1035,15 @@ async def test_out_of_scope_configured_approver_is_not_counted_for_submission(
     test_user_cro.access_scope = AccessScope.DEPARTMENT
     test_user_cro.department_id = hidden_department.id
     await db_session.commit()
-    await _add_protected_process_scenario(db_session, approver_roles=["cro"])
-
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post(
-            "/api/v1/processes",
-            json=_full_payload(
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(
                 process_owner_user_id=test_user_seeded_risk_manager.id,
                 owning_department_id=test_department.id,
             ),
+            approver_roles=["cro"],
         )
         process_id = created.json()["id"]
         response = await requester.patch(
@@ -1057,16 +1104,15 @@ async def test_out_of_scope_configured_reviewer_cannot_observe_or_resolve(
         resolver_user = test_user_seeded_risk_manager
         configured_role = "risk_manager"
 
-    await _add_protected_process_scenario(
-        db_session, approver_roles=[configured_role]
-    )
     async with client_factory(user=requester_user) as requester:
-        created = await requester.post(
-            "/api/v1/processes",
-            json=_full_payload(
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(
                 process_owner_user_id=requester_user.id,
                 owning_department_id=test_department.id,
             ),
+            approver_roles=[configured_role],
         )
         process_id = created.json()["id"]
         submitted = await requester.patch(
@@ -1093,16 +1139,12 @@ async def test_out_of_scope_configured_reviewer_cannot_observe_or_resolve(
 
     approval = await db_session.get(ApprovalRequest, approval_id)
     assert approval is not None
-    recipients, _ = await eligible_approval_notification_recipients(
-        db_session, approval
-    )
+    recipients, _ = await eligible_approval_notification_recipients(db_session, approval)
     assert resolver_user_id not in {recipient.id for recipient in recipients}
 
     async with client_factory(user=resolver_user) as resolver:
         detail = await resolver.get(f"/api/v1/approvals/{approval_id}")
-        queue = await resolver.get(
-            "/api/v1/approvals", params={"status": "pending"}
-        )
+        queue = await resolver.get("/api/v1/approvals", params={"status": "pending"})
         my_queue = await resolver.get("/api/v1/approvals/my-approvals")
 
     assert detail.status_code == 403, detail.text
@@ -1112,9 +1154,7 @@ async def test_out_of_scope_configured_reviewer_cannot_observe_or_resolve(
 
     proposal_before = (
         await db_session.execute(
-            select(GovernedMutationProposal).where(
-                GovernedMutationProposal.approval_request_id == approval_id
-            )
+            select(GovernedMutationProposal).where(GovernedMutationProposal.approval_request_id == approval_id)
         )
     ).scalar_one()
     proposal_row_id = proposal_before.id
@@ -1128,12 +1168,8 @@ async def test_out_of_scope_configured_reviewer_cannot_observe_or_resolve(
         )
     ).scalar_one()
     lock_row_id = lock_before.id
-    activity_ids_before = set(
-        (await db_session.execute(select(ActivityLog.id))).scalars().all()
-    )
-    outbox_ids_before = set(
-        (await db_session.execute(select(OutboxEvent.id))).scalars().all()
-    )
+    activity_ids_before = set((await db_session.execute(select(ActivityLog.id))).scalars().all())
+    outbox_ids_before = set((await db_session.execute(select(OutboxEvent.id))).scalars().all())
 
     async with client_factory(user=resolver_user) as resolver:
         approved = await resolver.post(
@@ -1203,14 +1239,15 @@ async def test_excluded_global_approval_writer_cannot_bypass_governed_process_po
     test_user_cro.access_scope = AccessScope.DEPARTMENT
     test_user_cro.department_id = test_department.id
     await db_session.commit()
-    await _add_protected_process_scenario(db_session, approver_roles=["cro"])
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post(
-            "/api/v1/processes",
-            json=_full_payload(
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(
                 process_owner_user_id=test_user_seeded_risk_manager.id,
                 owning_department_id=test_department.id,
             ),
+            approver_roles=["cro"],
         )
         process_id = created.json()["id"]
         submitted = await requester.patch(
@@ -1229,9 +1266,7 @@ async def test_excluded_global_approval_writer_cannot_bypass_governed_process_po
 
     proposal = (
         await db_session.execute(
-            select(GovernedMutationProposal).where(
-                GovernedMutationProposal.approval_request_id == approval_id
-            )
+            select(GovernedMutationProposal).where(GovernedMutationProposal.approval_request_id == approval_id)
         )
     ).scalar_one()
     corrupted_envelope = await db_session.get(ApprovalRequest, approval_id)
@@ -1262,36 +1297,20 @@ async def test_excluded_global_approval_writer_cannot_bypass_governed_process_po
                 "my_requests": True,
             },
         )
-    assert approval_id in {
-        item["id"] for item in requester_pending.json()["items"]
-    }
-    assert approval_id in {
-        item["id"] for item in requester_process_pending.json()["items"]
-    }
-    assert approval_id not in {
-        item["id"] for item in requester_corrupt_type.json()["items"]
-    }
+    assert approval_id in {item["id"] for item in requester_pending.json()["items"]}
+    assert approval_id in {item["id"] for item in requester_process_pending.json()["items"]}
+    assert approval_id not in {item["id"] for item in requester_corrupt_type.json()["items"]}
 
     from app.api.v1.endpoints.users.summary import SHELL_SUMMARY_CACHE
 
     SHELL_SUMMARY_CACHE.clear()
     async with client_factory(user=test_user_employee) as unrelated_primary:
         unrelated_main = await unrelated_primary.get("/api/v1/approvals")
-        unrelated_pending = await unrelated_primary.get(
-            "/api/v1/approvals", params={"status": "pending"}
-        )
-        unrelated_my = await unrelated_primary.get(
-            "/api/v1/approvals/my-approvals"
-        )
-        unrelated_count = await unrelated_primary.get(
-            "/api/v1/approvals/pending/count"
-        )
-        unrelated_shell = await unrelated_primary.get(
-            "/api/v1/users/me/shell-summary"
-        )
-        unrelated_detail = await unrelated_primary.get(
-            f"/api/v1/approvals/{approval_id}"
-        )
+        unrelated_pending = await unrelated_primary.get("/api/v1/approvals", params={"status": "pending"})
+        unrelated_my = await unrelated_primary.get("/api/v1/approvals/my-approvals")
+        unrelated_count = await unrelated_primary.get("/api/v1/approvals/pending/count")
+        unrelated_shell = await unrelated_primary.get("/api/v1/users/me/shell-summary")
+        unrelated_detail = await unrelated_primary.get(f"/api/v1/approvals/{approval_id}")
     for response in (unrelated_main, unrelated_pending, unrelated_my):
         assert approval_id not in {item["id"] for item in response.json()["items"]}
     assert unrelated_count.json() == {"count": 0}
@@ -1300,9 +1319,7 @@ async def test_excluded_global_approval_writer_cannot_bypass_governed_process_po
 
     SHELL_SUMMARY_CACHE.clear()
     async with client_factory(user=test_user_cro) as configured_reviewer:
-        reviewer_pending = await configured_reviewer.get(
-            "/api/v1/approvals", params={"status": "pending"}
-        )
+        reviewer_pending = await configured_reviewer.get("/api/v1/approvals", params={"status": "pending"})
         reviewer_process_pending = await configured_reviewer.get(
             "/api/v1/approvals",
             params={"status": "pending", "resource_type": "process"},
@@ -1311,26 +1328,14 @@ async def test_excluded_global_approval_writer_cannot_bypass_governed_process_po
             "/api/v1/approvals",
             params={"status": "pending", "resource_type": "risk"},
         )
-        reviewer_my = await configured_reviewer.get(
-            "/api/v1/approvals/my-approvals"
-        )
-        reviewer_count = await configured_reviewer.get(
-            "/api/v1/approvals/pending/count"
-        )
-        reviewer_shell = await configured_reviewer.get(
-            "/api/v1/users/me/shell-summary"
-        )
-        reviewer_detail = await configured_reviewer.get(
-            f"/api/v1/approvals/{approval_id}"
-        )
+        reviewer_my = await configured_reviewer.get("/api/v1/approvals/my-approvals")
+        reviewer_count = await configured_reviewer.get("/api/v1/approvals/pending/count")
+        reviewer_shell = await configured_reviewer.get("/api/v1/users/me/shell-summary")
+        reviewer_detail = await configured_reviewer.get(f"/api/v1/approvals/{approval_id}")
     for response in (reviewer_pending, reviewer_process_pending, reviewer_my):
-        row = next(
-            item for item in response.json()["items"] if item["id"] == approval_id
-        )
+        row = next(item for item in response.json()["items"] if item["id"] == approval_id)
         assert row["governed_mutation"] is not None
-    assert approval_id not in {
-        item["id"] for item in reviewer_corrupt_type.json()["items"]
-    }
+    assert approval_id not in {item["id"] for item in reviewer_corrupt_type.json()["items"]}
     assert reviewer_count.json() == {"count": 1}
     assert reviewer_shell.json()["pending_approvals_count"] == 1
     assert reviewer_detail.status_code == 200, reviewer_detail.text
@@ -1338,9 +1343,7 @@ async def test_excluded_global_approval_writer_cannot_bypass_governed_process_po
 
     async with client_factory(user=excluded_user) as excluded:
         main_queue = await excluded.get("/api/v1/approvals")
-        pending_queue = await excluded.get(
-            "/api/v1/approvals", params={"status": "pending"}
-        )
+        pending_queue = await excluded.get("/api/v1/approvals", params={"status": "pending"})
         my_approvals = await excluded.get("/api/v1/approvals/my-approvals")
         pending_count = await excluded.get("/api/v1/approvals/pending/count")
         shell_summary = await excluded.get("/api/v1/users/me/shell-summary")
@@ -1362,12 +1365,8 @@ async def test_excluded_global_approval_writer_cannot_bypass_governed_process_po
         )
     ).scalar_one()
     proposal_id = proposal.proposal_id
-    activity_ids_before = set(
-        (await db_session.execute(select(ActivityLog.id))).scalars().all()
-    )
-    outbox_ids_before = set(
-        (await db_session.execute(select(OutboxEvent.id))).scalars().all()
-    )
+    activity_ids_before = set((await db_session.execute(select(ActivityLog.id))).scalars().all())
+    outbox_ids_before = set((await db_session.execute(select(OutboxEvent.id))).scalars().all())
 
     async with client_factory(user=test_user_employee) as unrelated_primary:
         unrelated_approved = await unrelated_primary.post(
@@ -1413,9 +1412,7 @@ async def test_excluded_global_approval_writer_cannot_bypass_governed_process_po
     assert resolved.status_code == 200, resolved.text
 
     async with client_factory(user=excluded_user) as excluded:
-        history = await excluded.get(
-            "/api/v1/approvals", params={"status": "approved"}
-        )
+        history = await excluded.get("/api/v1/approvals", params={"status": "approved"})
         resolved_detail = await excluded.get(f"/api/v1/approvals/{approval_id}")
     assert approval_id not in {item["id"] for item in history.json()["items"]}
     assert resolved_detail.status_code == 403, resolved_detail.text
@@ -1433,20 +1430,14 @@ async def test_excluded_global_approval_writer_cannot_bypass_governed_process_po
     await db_session.commit()
     async with client_factory(user=excluded_user) as excluded:
         legacy_queue = await excluded.get("/api/v1/approvals")
-        legacy_detail = await excluded.get(
-            f"/api/v1/approvals/{legacy_approval.id}"
-        )
-    assert legacy_approval.id in {
-        item["id"] for item in legacy_queue.json()["items"]
-    }
+        legacy_detail = await excluded.get(f"/api/v1/approvals/{legacy_approval.id}")
+    assert legacy_approval.id in {item["id"] for item in legacy_queue.json()["items"]}
     assert legacy_detail.status_code == 200, legacy_detail.text
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("scope_kind", ["department", "manager"])
-@pytest.mark.parametrize(
-    "resolution_status", ["approved", "rejected", "expired", "cancelled"]
-)
+@pytest.mark.parametrize("resolution_status", ["approved", "rejected", "expired", "cancelled"])
 async def test_in_scope_configured_reviewer_can_resolve_governed_process(
     client_factory,
     db_session: AsyncSession,
@@ -1456,17 +1447,9 @@ async def test_in_scope_configured_reviewer_can_resolve_governed_process(
     scope_kind: str,
     resolution_status: str,
 ):
-    test_user_cro.access_scope = (
-        AccessScope.DEPARTMENT
-        if scope_kind == "department"
-        else AccessScope.MANAGER
-    )
-    test_user_cro.department_id = (
-        test_department.id if scope_kind == "department" else None
-    )
-    test_user_cro.manager_id = (
-        test_user_seeded_risk_manager.id if scope_kind == "manager" else None
-    )
+    test_user_cro.access_scope = AccessScope.DEPARTMENT if scope_kind == "department" else AccessScope.MANAGER
+    test_user_cro.department_id = test_department.id if scope_kind == "department" else None
+    test_user_cro.manager_id = test_user_seeded_risk_manager.id if scope_kind == "manager" else None
     if scope_kind == "manager":
         test_user_seeded_risk_manager.department_id = test_department.id
 
@@ -1498,15 +1481,15 @@ async def test_in_scope_configured_reviewer_can_resolve_governed_process(
     )
     db_session.add(excluded_user)
     await db_session.commit()
-    await _add_protected_process_scenario(db_session, approver_roles=["cro"])
-
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post(
-            "/api/v1/processes",
-            json=_full_payload(
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(
                 process_owner_user_id=test_user_seeded_risk_manager.id,
                 owning_department_id=test_department.id,
             ),
+            approver_roles=["cro"],
         )
         process_id = created.json()["id"]
         submitted = await requester.patch(
@@ -1522,18 +1505,14 @@ async def test_in_scope_configured_reviewer_can_resolve_governed_process(
         )
     assert submitted.status_code == 202, submitted.text
     approval_id = submitted.json()["approval_id"]
-    assert approval_id in {
-        item["id"] for item in requester_pending.json()["items"]
-    }
+    assert approval_id in {item["id"] for item in requester_pending.json()["items"]}
 
     from app.api.v1.endpoints.users.summary import SHELL_SUMMARY_CACHE
 
     SHELL_SUMMARY_CACHE.clear()
     async with client_factory(user=test_user_cro) as reviewer:
         detail = await reviewer.get(f"/api/v1/approvals/{approval_id}")
-        pending = await reviewer.get(
-            "/api/v1/approvals", params={"status": "pending"}
-        )
+        pending = await reviewer.get("/api/v1/approvals", params={"status": "pending"})
         my_approvals = await reviewer.get("/api/v1/approvals/my-approvals")
         pending_count = await reviewer.get("/api/v1/approvals/pending/count")
         shell_summary = await reviewer.get("/api/v1/users/me/shell-summary")
@@ -1553,9 +1532,7 @@ async def test_in_scope_configured_reviewer_can_resolve_governed_process(
 
     if resolution_status == "cancelled":
         async with client_factory(user=test_user_seeded_risk_manager) as requester:
-            resolved = await requester.post(
-                f"/api/v1/approvals/{approval_id}/cancel"
-            )
+            resolved = await requester.post(f"/api/v1/approvals/{approval_id}/cancel")
     else:
         endpoint = "reject" if resolution_status == "rejected" else "approve"
         async with client_factory(user=test_user_cro) as reviewer:
@@ -1569,16 +1546,10 @@ async def test_in_scope_configured_reviewer_can_resolve_governed_process(
 
     SHELL_SUMMARY_CACHE.clear()
     async with client_factory(user=test_user_cro) as reviewer:
-        history = await reviewer.get(
-            "/api/v1/approvals", params={"status": resolution_status}
-        )
+        history = await reviewer.get("/api/v1/approvals", params={"status": resolution_status})
         all_history = await reviewer.get("/api/v1/approvals")
-        pending_after = await reviewer.get(
-            "/api/v1/approvals", params={"status": "pending"}
-        )
-        my_approvals_after = await reviewer.get(
-            "/api/v1/approvals/my-approvals"
-        )
+        pending_after = await reviewer.get("/api/v1/approvals", params={"status": "pending"})
+        my_approvals_after = await reviewer.get("/api/v1/approvals/my-approvals")
         count_after = await reviewer.get("/api/v1/approvals/pending/count")
         shell_after = await reviewer.get("/api/v1/users/me/shell-summary")
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
@@ -1587,9 +1558,7 @@ async def test_in_scope_configured_reviewer_can_resolve_governed_process(
             params={"status": resolution_status, "my_requests": True},
         )
     async with client_factory(user=excluded_user) as excluded:
-        excluded_history = await excluded.get(
-            "/api/v1/approvals", params={"status": resolution_status}
-        )
+        excluded_history = await excluded.get("/api/v1/approvals", params={"status": resolution_status})
 
     for response in (history, all_history, requester_history):
         assert approval_id in {item["id"] for item in response.json()["items"]}
@@ -1648,7 +1617,6 @@ async def test_governed_process_snapshots_use_business_safe_owner_and_department
     test_user_cro: User,
     test_user_employee: User,
 ):
-    await _add_protected_process_scenario(db_session)
     proposed_department = Department(
         name="Claims Department",
         code="CLAIMS",
@@ -1658,7 +1626,11 @@ async def test_governed_process_snapshots_use_business_safe_owner_and_department
     await db_session.commit()
 
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(),
+        )
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -1668,9 +1640,7 @@ async def test_governed_process_snapshots_use_business_safe_owner_and_department
                 "request_reason": "Accountability must move",
             },
         )
-        detail = await requester.get(
-            f"/api/v1/approvals/{submitted.json()['approval_id']}"
-        )
+        detail = await requester.get(f"/api/v1/approvals/{submitted.json()['approval_id']}")
         process_detail = await requester.get(f"/api/v1/processes/{process_id}")
 
     assert submitted.status_code == 202, submitted.text
@@ -1678,15 +1648,11 @@ async def test_governed_process_snapshots_use_business_safe_owner_and_department
     assert snapshot["before"]["process_owner_user_id"] == "Test CRO"
     assert snapshot["after"]["process_owner_user_id"] == "Test Employee"
     assert snapshot["before"]["owning_department_id"] == "TEST — Test Department"
-    assert snapshot["after"]["owning_department_id"] == (
-        "CLAIMS — Claims Department"
-    )
+    assert snapshot["after"]["owning_department_id"] == ("CLAIMS — Claims Department")
     assert "resource_id" not in snapshot["impacted_resources"][0]
     assert snapshot["impacted_resources"][0] == {
         "resource_type": "process",
-        "resource_name": created.json()["f_code"]
-        + " — "
-        + created.json()["l1_process"],
+        "resource_name": created.json()["f_code"] + " — " + created.json()["l1_process"],
     }
     assert detail.json()["pending_changes"]["process_owner_user_id"] == {
         "old": "Test CRO",
@@ -1723,7 +1689,6 @@ async def test_governed_snapshot_changed_references_follow_actor_process_assignm
     test_user_cro: User,
     test_user_employee: User,
 ):
-    await _add_protected_process_scenario(db_session)
     hidden_department = Department(
         name="Hidden Shared Services",
         code="HIDDEN",
@@ -1735,9 +1700,10 @@ async def test_governed_snapshot_changed_references_follow_actor_process_assignm
     await db_session.commit()
 
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post(
-            "/api/v1/processes",
-            json=_full_payload(
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(
                 process_owner_user_id=test_user_seeded_risk_manager.id,
                 owning_department_id=test_department.id,
             ),
@@ -1774,20 +1740,14 @@ async def test_governed_snapshot_changed_references_follow_actor_process_assignm
             params={"status": "pending", "my_requests": True},
         )
 
-    requester_queue_row = next(
-        item
-        for item in requester_queue.json()["items"]
-        if item["id"] == approval_id
-    )
+    requester_queue_row = next(item for item in requester_queue.json()["items"] if item["id"] == approval_id)
     for projected in (
         requester_process.json()["pending_change"],
         requester_detail.json()["governed_mutation"],
         requester_queue_row["governed_mutation"],
     ):
         assert projected["after"]["process_owner_user_id"] == "Test Employee"
-        assert projected["after"]["owning_department_id"] == (
-            "HIDDEN — Hidden Shared Services"
-        )
+        assert projected["after"]["owning_department_id"] == ("HIDDEN — Hidden Shared Services")
     for approval_projection in (requester_detail.json(), requester_queue_row):
         assert approval_projection["pending_changes"]["process_owner_user_id"] == {
             "old": "Seeded Risk Manager",
@@ -1805,19 +1765,11 @@ async def test_governed_snapshot_changed_references_follow_actor_process_assignm
     async with client_factory(user=test_user_cro) as scoped_reviewer:
         reviewer_process = await scoped_reviewer.get(f"/api/v1/processes/{process_id}")
         reviewer_detail = await scoped_reviewer.get(f"/api/v1/approvals/{approval_id}")
-        reviewer_queue = await scoped_reviewer.get(
-            "/api/v1/approvals", params={"status": "pending"}
-        )
-        reviewer_my_approvals = await scoped_reviewer.get(
-            "/api/v1/approvals/my-approvals"
-        )
+        reviewer_queue = await scoped_reviewer.get("/api/v1/approvals", params={"status": "pending"})
+        reviewer_my_approvals = await scoped_reviewer.get("/api/v1/approvals/my-approvals")
 
     queue_rows = [
-        next(
-            item
-            for item in response.json()["items"]
-            if item["id"] == approval_id
-        )
+        next(item for item in response.json()["items"] if item["id"] == approval_id)
         for response in (reviewer_queue, reviewer_my_approvals)
     ]
     for projected in (
@@ -1857,9 +1809,8 @@ async def test_governed_proposal_orm_is_insert_only(
     mutation: str,
 ):
     del test_user_cro
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         submitted = await requester.patch(
             f"/api/v1/processes/{created.json()['id']}",
             json={"notes": "Immutable proposal", "request_reason": "Evidence"},
@@ -1867,8 +1818,7 @@ async def test_governed_proposal_orm_is_insert_only(
     proposal = (
         await db_session.execute(
             select(GovernedMutationProposal).where(
-                GovernedMutationProposal.approval_request_id
-                == submitted.json()["approval_id"]
+                GovernedMutationProposal.approval_request_id == submitted.json()["approval_id"]
             )
         )
     ).scalar_one()
@@ -1897,9 +1847,8 @@ async def test_postgres_governed_proposal_trigger_rejects_update_and_delete(
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL trigger is authoritative")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         submitted = await requester.patch(
             f"/api/v1/processes/{created.json()['id']}",
             json={"notes": "Immutable in PostgreSQL", "request_reason": "Evidence"},
@@ -1907,9 +1856,7 @@ async def test_postgres_governed_proposal_trigger_rejects_update_and_delete(
     approval_id = submitted.json()["approval_id"]
     proposal_id = (
         await db_session.execute(
-            select(GovernedMutationProposal.id).where(
-                GovernedMutationProposal.approval_request_id == approval_id
-            )
+            select(GovernedMutationProposal.id).where(GovernedMutationProposal.approval_request_id == approval_id)
         )
     ).scalar_one()
 
@@ -1921,11 +1868,7 @@ async def test_postgres_governed_proposal_trigger_rejects_update_and_delete(
         )
     await db_session.rollback()
     with pytest.raises(DBAPIError, match="immutable after insertion"):
-        await db_session.execute(
-            delete(GovernedMutationProposal).where(
-                GovernedMutationProposal.id == proposal_id
-            )
-        )
+        await db_session.execute(delete(GovernedMutationProposal).where(GovernedMutationProposal.id == proposal_id))
     await db_session.rollback()
     await db_session.refresh(test_user_cro)
 
@@ -1946,10 +1889,9 @@ async def test_governed_approval_keeps_lifecycle_row_but_redacts_snapshot_after_
     test_user_cro: User,
 ):
     del test_user_cro
-    await _add_protected_process_scenario(db_session)
 
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         submitted = await requester.patch(
             f"/api/v1/processes/{created.json()['id']}",
             json={"notes": "Scoped proposal", "request_reason": "Needs review"},
@@ -1985,9 +1927,8 @@ async def test_malformed_governed_snapshot_is_excluded_from_approval_and_process
     if db_session.bind.dialect.name == "postgresql":
         pytest.skip("PostgreSQL proposal immutability rejects legacy corruption setup")
     del test_user_cro
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -2001,8 +1942,7 @@ async def test_malformed_governed_snapshot_is_excluded_from_approval_and_process
     proposal = (
         await db_session.execute(
             select(GovernedMutationProposal).where(
-                GovernedMutationProposal.approval_request_id
-                == submitted.json()["approval_id"]
+                GovernedMutationProposal.approval_request_id == submitted.json()["approval_id"]
             )
         )
     ).scalar_one()
@@ -2023,9 +1963,7 @@ async def test_malformed_governed_snapshot_is_excluded_from_approval_and_process
     await db_session.commit()
 
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        approval = await requester.get(
-            f"/api/v1/approvals/{submitted.json()['approval_id']}"
-        )
+        approval = await requester.get(f"/api/v1/approvals/{submitted.json()['approval_id']}")
         process = await requester.get(f"/api/v1/processes/{process_id}")
 
     assert approval.status_code == 403
@@ -2042,10 +1980,8 @@ async def test_governed_reject_and_cancel_release_process_lock_without_applying(
     test_user_cro: User,
     terminal_action: str,
 ):
-    await _add_protected_process_scenario(db_session)
-
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -2064,9 +2000,7 @@ async def test_governed_reject_and_cancel_release_process_lock_without_applying(
                 json={"resolution_notes": "   "},
             )
             assert blank.status_code == 422
-            assert blank.json()["detail"]["code"] == (
-                "governed_mutation_rejection_reason_required"
-            )
+            assert blank.json()["detail"]["code"] == ("governed_mutation_rejection_reason_required")
             resolved = await approver.post(
                 f"/api/v1/approvals/{approval_id}/reject",
                 json={"resolution_notes": "Business reason is insufficient"},
@@ -2075,9 +2009,7 @@ async def test_governed_reject_and_cancel_release_process_lock_without_applying(
     assert resolved is not None and resolved.status_code == 200, (
         resolved.text if resolved is not None else "missing response"
     )
-    assert resolved.json()["status"] == (
-        "rejected" if terminal_action == "reject" else "cancelled"
-    )
+    assert resolved.json()["status"] == ("rejected" if terminal_action == "reject" else "cancelled")
     active_lock = (
         await db_session.execute(
             select(GovernedMutationImpactLock).where(
@@ -2098,10 +2030,8 @@ async def test_governed_resolver_cannot_cancel_and_pending_lock_remains_active(
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
 ):
-    await _add_protected_process_scenario(db_session)
-
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -2119,9 +2049,7 @@ async def test_governed_resolver_cannot_cancel_and_pending_lock_remains_active(
     assert capabilities["can_cancel_as_requester"] is False
     assert capabilities["can_cancel_as_resolver"] is False
     assert denied.status_code == 403, denied.text
-    assert denied.json()["detail"]["code"] == (
-        "governed_mutation_requester_cancel_required"
-    )
+    assert denied.json()["detail"]["code"] == ("governed_mutation_requester_cancel_required")
 
     db_session.expire_all()
     approval = await db_session.get(ApprovalRequest, approval_id)
@@ -2145,10 +2073,8 @@ async def test_governed_cancel_uses_immutable_requester_and_expires_drifted_enve
     test_user_seeded_risk_manager: User,
     test_user_employee: User,
 ):
-    await _add_protected_process_scenario(db_session)
-
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -2162,40 +2088,20 @@ async def test_governed_cancel_uses_immutable_requester_and_expires_drifted_enve
     await db_session.commit()
 
     async with client_factory(user=test_user_employee) as substituted_requester:
-        substituted_projection = await substituted_requester.get(
-            f"/api/v1/processes/{process_id}"
-        )
-        denied = await substituted_requester.post(
-            f"/api/v1/approvals/{approval_id}/cancel"
-        )
+        substituted_projection = await substituted_requester.get(f"/api/v1/processes/{process_id}")
+        denied = await substituted_requester.post(f"/api/v1/approvals/{approval_id}/cancel")
     assert substituted_projection.status_code == 200, substituted_projection.text
-    assert substituted_projection.json()["pending_change"]["requested_by_name"] == (
-        test_user_seeded_risk_manager.name
-    )
-    assert (
-        substituted_projection.json()["pending_change"]["capabilities"]["can_cancel"]
-        is False
-    )
+    assert substituted_projection.json()["pending_change"]["requested_by_name"] == (test_user_seeded_risk_manager.name)
+    assert substituted_projection.json()["pending_change"]["capabilities"]["can_cancel"] is False
     assert denied.status_code == 403, denied.text
-    assert denied.json()["detail"]["code"] == (
-        "governed_mutation_requester_cancel_required"
-    )
+    assert denied.json()["detail"]["code"] == ("governed_mutation_requester_cancel_required")
 
     async with client_factory(user=test_user_seeded_risk_manager) as immutable_requester:
-        immutable_projection = await immutable_requester.get(
-            f"/api/v1/processes/{process_id}"
-        )
-        expired = await immutable_requester.post(
-            f"/api/v1/approvals/{approval_id}/cancel"
-        )
+        immutable_projection = await immutable_requester.get(f"/api/v1/processes/{process_id}")
+        expired = await immutable_requester.post(f"/api/v1/approvals/{approval_id}/cancel")
     assert immutable_projection.status_code == 200, immutable_projection.text
-    assert immutable_projection.json()["pending_change"]["requested_by_name"] == (
-        test_user_seeded_risk_manager.name
-    )
-    assert (
-        immutable_projection.json()["pending_change"]["capabilities"]["can_cancel"]
-        is True
-    )
+    assert immutable_projection.json()["pending_change"]["requested_by_name"] == (test_user_seeded_risk_manager.name)
+    assert immutable_projection.json()["pending_change"]["capabilities"]["can_cancel"] is True
     assert expired.status_code == 200, expired.text
     assert expired.json()["status"] == "expired"
 
@@ -2222,9 +2128,8 @@ async def test_restore_rejects_legacy_archived_process_with_active_governed_lock
     test_user_cro: User,
 ):
     del test_user_cro
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -2234,16 +2139,12 @@ async def test_restore_rejects_legacy_archived_process_with_active_governed_lock
 
     # Simulate a legacy/intervening archived state while retaining the active
     # proposal lock; the normal archive endpoint is guarded by this invariant.
-    await db_session.execute(
-        update(Process).where(Process.id == process_id).values(is_archived=True)
-    )
+    await db_session.execute(update(Process).where(Process.id == process_id).values(is_archived=True))
     await db_session.commit()
     await db_session.refresh(test_user_seeded_risk_manager)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
         detail = await requester.get(f"/api/v1/processes/{process_id}")
-        blocked_restore = await requester.post(
-            f"/api/v1/processes/{process_id}/restore"
-        )
+        blocked_restore = await requester.post(f"/api/v1/processes/{process_id}/restore")
 
     assert detail.status_code == 200, detail.text
     assert detail.json()["capabilities"]["can_restore"] is False
@@ -2262,9 +2163,8 @@ async def test_pending_governed_business_lock_keeps_process_and_activity_reads_a
     test_user_cro: User,
 ):
     del test_user_cro
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -2278,9 +2178,7 @@ async def test_pending_governed_business_lock_keeps_process_and_activity_reads_a
 
     assert submitted.status_code == 202, submitted.text
     assert process_detail.status_code == 200, process_detail.text
-    assert process_detail.json()["pending_change"]["approval_id"] == (
-        submitted.json()["approval_id"]
-    )
+    assert process_detail.json()["pending_change"]["approval_id"] == (submitted.json()["approval_id"])
     assert activity.status_code == 200, activity.text
     process = await db_session.get(Process, process_id)
     active_lock = (
@@ -2302,9 +2200,8 @@ async def test_live_scenario_change_expires_and_releases_governed_process_lock(
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
 ):
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -2312,11 +2209,7 @@ async def test_live_scenario_change_expires_and_releases_governed_process_lock(
         )
 
     scenario = (
-        await db_session.execute(
-            select(ApprovalScenario).where(
-                ApprovalScenario.key == "protected_process_edit"
-            )
-        )
+        await db_session.execute(select(ApprovalScenario).where(ApprovalScenario.key == "protected_process_edit"))
     ).scalar_one()
     scenario.requires_approval = False
     await db_session.commit()
@@ -2351,14 +2244,11 @@ async def test_concurrent_protected_process_submissions_create_one_active_lock(
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL row/advisory lock semantics required")
     del test_user_cro
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as setup_client:
-        created = await setup_client.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(setup_client, db_session, payload=_full_payload())
     process_id = created.json()["id"]
 
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
     async def independent_db_session():
         async with session_maker() as session:
@@ -2398,7 +2288,7 @@ async def test_concurrent_protected_process_submissions_create_one_active_lock(
 
 @pytest.mark.postgres
 @pytest.mark.asyncio
-async def test_direct_archive_serializes_before_protected_submission(
+async def test_protected_archive_serializes_before_protected_submission(
     client_factory,
     db_session: AsyncSession,
     async_engine,
@@ -2408,9 +2298,8 @@ async def test_direct_archive_serializes_before_protected_submission(
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL Process row-lock serialization is authoritative")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as setup:
-        created = await setup.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(setup, db_session, payload=_full_payload())
     process_id = created.json()["id"]
 
     session_maker = async_sessionmaker(
@@ -2452,7 +2341,11 @@ async def test_direct_archive_serializes_before_protected_submission(
         ) as requester,
     ):
         archive_task = asyncio.create_task(
-            archiver.delete(f"/api/v1/processes/{process_id}")
+            archiver.request(
+                "DELETE",
+                f"/api/v1/processes/{process_id}",
+                json={"request_reason": "Archive wins the Process lock"},
+            )
         )
         await asyncio.wait_for(archive_holds_process_lock.wait(), timeout=2)
         submission_task = asyncio.create_task(
@@ -2472,32 +2365,43 @@ async def test_direct_archive_serializes_before_protected_submission(
             submission_task,
         )
 
-    assert archived.status_code == 204, archived.text
+    assert archived.status_code == 202, archived.text
     assert blocked_submission.status_code == 409, blocked_submission.text
+    assert blocked_submission.json()["detail"]["code"] == "process_pending_mutation"
+    approval_id = archived.json()["approval_id"]
     async with session_maker() as verification:
         process = await verification.get(Process, process_id)
-        pending_approval = (
-            await verification.execute(
-                select(ApprovalRequest.id).where(
-                    ApprovalRequest.resource_type == ApprovalResourceType.PROCESS,
-                    ApprovalRequest.resource_id == process_id,
-                    ApprovalRequest.status == ApprovalStatus.PENDING,
+        pending_approvals = list(
+            (
+                await verification.execute(
+                    select(ApprovalRequest).where(
+                        ApprovalRequest.resource_type == ApprovalResourceType.PROCESS,
+                        ApprovalRequest.resource_id == process_id,
+                        ApprovalRequest.status == ApprovalStatus.PENDING,
+                    )
                 )
             )
-        ).scalar_one_or_none()
-        active_lock = (
-            await verification.execute(
-                select(GovernedMutationImpactLock.id).where(
-                    GovernedMutationImpactLock.resource_type == "process",
-                    GovernedMutationImpactLock.resource_id == process_id,
-                    GovernedMutationImpactLock.released_at.is_(None),
+            .scalars()
+            .all()
+        )
+        active_locks = list(
+            (
+                await verification.execute(
+                    select(GovernedMutationImpactLock).where(
+                        GovernedMutationImpactLock.resource_type == "process",
+                        GovernedMutationImpactLock.resource_id == process_id,
+                        GovernedMutationImpactLock.released_at.is_(None),
+                    )
                 )
             )
-        ).scalar_one_or_none()
-    assert process is not None and process.is_archived is True
-    assert process.governance_version == 2
-    assert pending_approval is None
-    assert active_lock is None
+            .scalars()
+            .all()
+        )
+    assert process is not None and process.is_archived is False
+    assert process.governance_version == 1
+    assert [approval.id for approval in pending_approvals] == [approval_id]
+    assert len(active_locks) == 1
+    assert active_locks[0].proposal_id == pending_approvals[0].governed_mutation_proposal.id
 
 
 @pytest.mark.postgres
@@ -2512,9 +2416,8 @@ async def test_protected_submission_serializes_before_direct_archive(
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL Process row-lock serialization is authoritative")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as setup:
-        created = await setup.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(setup, db_session, payload=_full_payload())
     process_id = created.json()["id"]
 
     session_maker = async_sessionmaker(
@@ -2565,7 +2468,11 @@ async def test_protected_submission_serializes_before_direct_archive(
         )
         await asyncio.wait_for(submission_holds_process_lock.wait(), timeout=2)
         archive_task = asyncio.create_task(
-            archiver.delete(f"/api/v1/processes/{process_id}")
+            archiver.request(
+                "DELETE",
+                f"/api/v1/processes/{process_id}",
+                json={"request_reason": "Archive after the competing edit"},
+            )
         )
         await asyncio.sleep(0.1)
         assert not archive_task.done()
@@ -2606,9 +2513,8 @@ async def test_submit_waits_for_resolution_and_starts_from_committed_process_ver
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL row-lock serialization is authoritative")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as setup_client:
-        created = await setup_client.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(setup_client, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await setup_client.patch(
             f"/api/v1/processes/{process_id}",
@@ -2619,9 +2525,7 @@ async def test_submit_waits_for_resolution_and_starts_from_committed_process_ver
         )
     approval_id = submitted.json()["approval_id"]
 
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
     async def independent_db_session():
         async with session_maker() as session:
@@ -2658,9 +2562,7 @@ async def test_submit_waits_for_resolution_and_starts_from_committed_process_ver
         user=test_user_seeded_risk_manager,
         db_override=independent_db_session,
     ) as requester:
-        approve_task = asyncio.create_task(
-            resolve_in_independent_transaction()
-        )
+        approve_task = asyncio.create_task(resolve_in_independent_transaction())
         await asyncio.wait_for(resolution_holds_locks.wait(), timeout=2)
         submit_task = asyncio.create_task(
             requester.patch(
@@ -2674,9 +2576,7 @@ async def test_submit_waits_for_resolution_and_starts_from_committed_process_ver
         await asyncio.sleep(0.1)
         assert not submit_task.done()
         allow_resolution.set()
-        approved_request, second_submission = await asyncio.gather(
-            approve_task, submit_task
-        )
+        approved_request, second_submission = await asyncio.gather(approve_task, submit_task)
 
     assert approved_request.status.value == "APPROVED"
     assert second_submission.status_code == 202, second_submission.text
@@ -2684,9 +2584,7 @@ async def test_submit_waits_for_resolution_and_starts_from_committed_process_ver
     async with session_maker() as verification:
         process = await verification.get(Process, process_id)
         first_approval = await verification.get(ApprovalRequest, approval_id)
-        second_approval = await verification.get(
-            ApprovalRequest, second_approval_id
-        )
+        second_approval = await verification.get(ApprovalRequest, second_approval_id)
         active_locks = list(
             (
                 await verification.execute(
@@ -2708,9 +2606,7 @@ async def test_submit_waits_for_resolution_and_starts_from_committed_process_ver
     assert second_approval is not None and second_approval.status.value == "PENDING"
     assert len(active_locks) == 1
     assert active_locks[0].proposal_id == second_approval.governed_mutation_proposal.id
-    assert second_approval.governed_mutation_proposal.base_versions == {
-        "process": 2
-    }
+    assert second_approval.governed_mutation_proposal.base_versions == {"process": 2}
 
 
 async def _assign_user_role_after_lock(
@@ -2719,11 +2615,7 @@ async def _assign_user_role_after_lock(
     user_id: int,
     role_id: int,
 ) -> None:
-    user = (
-        await db.execute(
-            select(User).where(User.id == user_id).with_for_update()
-        )
-    ).scalar_one()
+    user = (await db.execute(select(User).where(User.id == user_id).with_for_update())).scalar_one()
     user.role_id = role_id
     await db.flush()
 
@@ -2735,11 +2627,7 @@ async def _assign_user_scope_after_lock(
     access_scope: AccessScope,
     department_id: int | None,
 ) -> None:
-    user = (
-        await db.execute(
-            select(User).where(User.id == user_id).with_for_update()
-        )
-    ).scalar_one()
+    user = (await db.execute(select(User).where(User.id == user_id).with_for_update())).scalar_one()
     user.access_scope = access_scope
     user.department_id = department_id
     await db.flush()
@@ -2758,7 +2646,6 @@ async def test_resolver_scope_change_before_approval_is_authoritative(
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL User scope row-lock serialization is authoritative")
-    await _add_protected_process_scenario(db_session, approver_roles=["cro"])
     hidden_department = Department(
         name="Concurrent Hidden Department",
         code="CONCURRENT-HIDDEN-BEFORE",
@@ -2770,12 +2657,14 @@ async def test_resolver_scope_change_before_approval_is_authoritative(
     resolver_id = test_user_cro.id
 
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post(
-            "/api/v1/processes",
-            json=_full_payload(
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(
                 process_owner_user_id=test_user_seeded_risk_manager.id,
                 owning_department_id=test_department.id,
             ),
+            approver_roles=["cro"],
         )
         process_id = created.json()["id"]
         submitted = await requester.patch(
@@ -2786,9 +2675,7 @@ async def test_resolver_scope_change_before_approval_is_authoritative(
             },
         )
     approval_id = submitted.json()["approval_id"]
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
     from app.services._governed_mutations import resolution
 
@@ -2865,7 +2752,6 @@ async def test_approval_before_resolver_scope_change_uses_locked_visibility(
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL User scope row-lock serialization is authoritative")
-    await _add_protected_process_scenario(db_session, approver_roles=["cro"])
     hidden_department = Department(
         name="Concurrent Hidden Department",
         code="CONCURRENT-HIDDEN-AFTER",
@@ -2877,12 +2763,14 @@ async def test_approval_before_resolver_scope_change_uses_locked_visibility(
     resolver_id = test_user_cro.id
 
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post(
-            "/api/v1/processes",
-            json=_full_payload(
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(
                 process_owner_user_id=test_user_seeded_risk_manager.id,
                 owning_department_id=test_department.id,
             ),
+            approver_roles=["cro"],
         )
         process_id = created.json()["id"]
         submitted = await requester.patch(
@@ -2893,9 +2781,7 @@ async def test_approval_before_resolver_scope_change_uses_locked_visibility(
             },
         )
     approval_id = submitted.json()["approval_id"]
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
     from app.services._governed_mutations import resolution
 
@@ -2904,9 +2790,7 @@ async def test_approval_before_resolver_scope_change_uses_locked_visibility(
     allow_resolution = asyncio.Event()
 
     async def paused_load(db, *, approval_id, current_user):
-        loaded = await original_load(
-            db, approval_id=approval_id, current_user=current_user
-        )
+        loaded = await original_load(db, approval_id=approval_id, current_user=current_user)
         resolution_holds_scope.set()
         await allow_resolution.wait()
         return loaded
@@ -2976,13 +2860,11 @@ async def test_proposed_owner_role_change_before_approval_expires_proposal(
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL User/Role row-lock serialization is authoritative")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post(
-            "/api/v1/processes",
-            json=_full_payload(
-                process_owner_user_id=test_user_seeded_risk_manager.id
-            ),
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(process_owner_user_id=test_user_seeded_risk_manager.id),
         )
         process_id = created.json()["id"]
         submitted = await requester.patch(
@@ -2995,9 +2877,7 @@ async def test_proposed_owner_role_change_before_approval_expires_proposal(
     approval_id = submitted.json()["approval_id"]
     admin_role_id = test_user_platform_admin.role_id
     assert admin_role_id is not None
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
     from app.services._governed_mutations import resolution
 
@@ -3067,13 +2947,11 @@ async def test_approval_before_proposed_owner_role_change_uses_locked_eligibilit
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL User/Role row-lock serialization is authoritative")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post(
-            "/api/v1/processes",
-            json=_full_payload(
-                process_owner_user_id=test_user_seeded_risk_manager.id
-            ),
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(process_owner_user_id=test_user_seeded_risk_manager.id),
         )
         process_id = created.json()["id"]
         submitted = await requester.patch(
@@ -3086,9 +2964,7 @@ async def test_approval_before_proposed_owner_role_change_uses_locked_eligibilit
     approval_id = submitted.json()["approval_id"]
     admin_role_id = test_user_platform_admin.role_id
     assert admin_role_id is not None
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
     from app.services._governed_mutations import resolution
 
@@ -3097,9 +2973,7 @@ async def test_approval_before_proposed_owner_role_change_uses_locked_eligibilit
     allow_resolution = asyncio.Event()
 
     async def paused_load(db, *, approval_id, current_user):
-        loaded = await original_load(
-            db, approval_id=approval_id, current_user=current_user
-        )
+        loaded = await original_load(db, approval_id=approval_id, current_user=current_user)
         resolution_holds_owner_role.set()
         await allow_resolution.wait()
         return loaded
@@ -3152,9 +3026,7 @@ async def test_approval_before_proposed_owner_role_change_uses_locked_eligibilit
     assert active_lock is None
 
 
-async def _remove_process_write_after_role_lock(
-    db: AsyncSession, *, role_id: int
-) -> None:
+async def _remove_process_write_after_role_lock(db: AsyncSession, *, role_id: int) -> None:
     from app.services._riskhub_config.roles import load_role_for_update
 
     await load_role_for_update(db, role_id)
@@ -3183,9 +3055,8 @@ async def test_requester_permission_removal_before_approval_serializes_and_expir
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL Role row-lock serialization is authoritative")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -3197,9 +3068,7 @@ async def test_requester_permission_removal_before_approval_serializes_and_expir
     approval_id = submitted.json()["approval_id"]
     role_id = test_user_seeded_risk_manager.role_id
     assert role_id is not None
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
     from app.services._governed_mutations import resolution
 
@@ -3251,9 +3120,8 @@ async def test_approval_before_requester_permission_removal_uses_locked_old_auth
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL Role row-lock serialization is authoritative")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -3265,9 +3133,7 @@ async def test_approval_before_requester_permission_removal_uses_locked_old_auth
     approval_id = submitted.json()["approval_id"]
     role_id = test_user_seeded_risk_manager.role_id
     assert role_id is not None
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
     from app.services._governed_mutations import resolution
 
@@ -3276,9 +3142,7 @@ async def test_approval_before_requester_permission_removal_uses_locked_old_auth
     allow_resolution = asyncio.Event()
 
     async def paused_load(db, *, approval_id, current_user):
-        loaded = await original_load(
-            db, approval_id=approval_id, current_user=current_user
-        )
+        loaded = await original_load(db, approval_id=approval_id, current_user=current_user)
         resolution_holds_role_lock.set()
         await allow_resolution.wait()
         return loaded
@@ -3333,15 +3197,13 @@ async def test_governed_resolution_failure_rolls_back_process_approval_lock_audi
     client_factory,
     db_session: AsyncSession,
     async_engine,
-    monkeypatch,
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
 ):
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL transaction rollback is authoritative")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -3352,31 +3214,49 @@ async def test_governed_resolution_failure_rolls_back_process_approval_lock_audi
         )
     approval_id = submitted.json()["approval_id"]
 
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
     async def independent_db_session():
         async with session_maker() as session:
             yield session
 
-    from app.services._governed_mutations import resolution
-
-    original_enqueue_terminal = resolution._enqueue_terminal
-
-    async def enqueue_then_fail(db, approval):
-        await original_enqueue_terminal(db, approval)
-        raise RuntimeError("injected failure after mutation, audit, and outbox")
-
-    monkeypatch.setattr(resolution, "_enqueue_terminal", enqueue_then_fail)
-    async with client_factory(
-        user=test_user_cro,
-        db_override=independent_db_session,
-    ) as approver:
-        failed = await approver.post(
-            f"/api/v1/approvals/{approval_id}/approve",
-            json={"resolution_notes": "Would otherwise approve"},
+    trigger_name = f"t85_fail_resolved_outbox_{approval_id}"
+    function_name = f"t85_fail_resolved_outbox_{approval_id}"
+    async with async_engine.begin() as connection:
+        await connection.exec_driver_sql(
+            f"""
+            CREATE FUNCTION {function_name}() RETURNS trigger
+            LANGUAGE plpgsql AS $$
+            BEGIN
+                IF NEW.event_type = 'approval.request_resolved'
+                   AND NEW.aggregate_id = {approval_id} THEN
+                    RAISE EXCEPTION 'injected outbox persistence failure';
+                END IF;
+                RETURN NEW;
+            END;
+            $$
+            """
         )
+        await connection.exec_driver_sql(
+            f"""
+            CREATE TRIGGER {trigger_name}
+            BEFORE INSERT ON app_outbox_events
+            FOR EACH ROW EXECUTE FUNCTION {function_name}()
+            """
+        )
+    try:
+        async with client_factory(
+            user=test_user_cro,
+            db_override=independent_db_session,
+        ) as approver:
+            failed = await approver.post(
+                f"/api/v1/approvals/{approval_id}/approve",
+                json={"resolution_notes": "Would otherwise approve"},
+            )
+    finally:
+        async with async_engine.begin() as connection:
+            await connection.exec_driver_sql(f"DROP TRIGGER IF EXISTS {trigger_name} ON app_outbox_events")
+            await connection.exec_driver_sql(f"DROP FUNCTION IF EXISTS {function_name}()")
     assert failed.status_code == 500, failed.text
 
     async with session_maker() as verification:
@@ -3446,14 +3326,15 @@ async def test_stale_governance_version_expires_proposal_and_enqueues_expiry(
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
 ):
-    await _add_protected_process_scenario(db_session)
-
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
-            json={"l1_process": "Stale proposed name", "request_reason": "Needs review"},
+            json={
+                "l1_process": "Stale proposed name",
+                "request_reason": "Needs review",
+            },
         )
         approval_id = submitted.json()["approval_id"]
 
@@ -3501,14 +3382,15 @@ async def test_envelope_resource_name_drift_remains_proposal_backed_and_expires(
     test_user_cro: User,
     resolution_action: str,
 ):
-    await _add_protected_process_scenario(db_session, approver_roles=["cro"])
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post(
-            "/api/v1/processes",
-            json=_full_payload(
+        created = await _create_process_before_enabling_protection(
+            requester,
+            db_session,
+            payload=_full_payload(
                 process_owner_user_id=test_user_seeded_risk_manager.id,
                 owning_department_id=test_department.id,
             ),
+            approver_roles=["cro"],
         )
         process_id = created.json()["id"]
         submitted = await requester.patch(
@@ -3523,16 +3405,12 @@ async def test_envelope_resource_name_drift_remains_proposal_backed_and_expires(
     approval = await db_session.get(ApprovalRequest, approval_id)
     proposal = (
         await db_session.execute(
-            select(GovernedMutationProposal).where(
-                GovernedMutationProposal.approval_request_id == approval_id
-            )
+            select(GovernedMutationProposal).where(GovernedMutationProposal.approval_request_id == approval_id)
         )
     ).scalar_one()
     impact_lock = (
         await db_session.execute(
-            select(GovernedMutationImpactLock).where(
-                GovernedMutationImpactLock.proposal_id == proposal.id
-            )
+            select(GovernedMutationImpactLock).where(GovernedMutationImpactLock.proposal_id == proposal.id)
         )
     ).scalar_one()
     impact_lock_id = impact_lock.id
@@ -3577,9 +3455,7 @@ async def test_envelope_resource_name_drift_remains_proposal_backed_and_expires(
     SHELL_SUMMARY_CACHE.clear()
     async with client_factory(user=test_user_cro) as reviewer:
         queue = await reviewer.get("/api/v1/approvals")
-        pending = await reviewer.get(
-            "/api/v1/approvals", params={"status": "pending"}
-        )
+        pending = await reviewer.get("/api/v1/approvals", params={"status": "pending"})
         my_approvals = await reviewer.get("/api/v1/approvals/my-approvals")
         count = await reviewer.get("/api/v1/approvals/pending/count")
         shell = await reviewer.get("/api/v1/users/me/shell-summary")
@@ -3587,9 +3463,7 @@ async def test_envelope_resource_name_drift_remains_proposal_backed_and_expires(
         process_detail = await reviewer.get(f"/api/v1/processes/{process_id}")
         inbox = await reviewer.get("/api/v1/notifications")
         unread = await reviewer.get("/api/v1/notifications/unread/count")
-        marked_read = await reviewer.post(
-            f"/api/v1/notifications/{linked_notification.id}/read"
-        )
+        marked_read = await reviewer.post(f"/api/v1/notifications/{linked_notification.id}/read")
 
     for response in (queue, pending, my_approvals):
         assert response.status_code == 200, response.text
@@ -3638,13 +3512,9 @@ async def test_envelope_resource_name_drift_remains_proposal_backed_and_expires(
 
     SHELL_SUMMARY_CACHE.clear()
     async with client_factory(user=test_user_cro) as reviewer:
-        history = await reviewer.get(
-            "/api/v1/approvals", params={"status": "expired"}
-        )
+        history = await reviewer.get("/api/v1/approvals", params={"status": "expired"})
         terminal_detail = await reviewer.get(f"/api/v1/approvals/{approval_id}")
-    history_row = next(
-        item for item in history.json()["items"] if item["id"] == approval_id
-    )
+    history_row = next(item for item in history.json()["items"] if item["id"] == approval_id)
     assert history_row["resource_name"] == immutable_name
     assert terminal_detail.status_code == 200, terminal_detail.text
     assert terminal_detail.json()["resource_name"] == immutable_name
@@ -3694,9 +3564,8 @@ async def test_corrupt_governed_envelope_expires_without_process_mutation(
         "business_snapshot",
     }:
         pytest.skip("PostgreSQL proposal immutability rejects corruption setup")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -3709,17 +3578,13 @@ async def test_corrupt_governed_envelope_expires_without_process_mutation(
     approval = await db_session.get(ApprovalRequest, approval_id)
     proposal = (
         await db_session.execute(
-            select(GovernedMutationProposal).where(
-                GovernedMutationProposal.approval_request_id == approval_id
-            )
+            select(GovernedMutationProposal).where(GovernedMutationProposal.approval_request_id == approval_id)
         )
     ).scalar_one()
     proposal_row_id = proposal.id
     impact_lock = (
         await db_session.execute(
-            select(GovernedMutationImpactLock).where(
-                GovernedMutationImpactLock.proposal_id == proposal.id
-            )
+            select(GovernedMutationImpactLock).where(GovernedMutationImpactLock.proposal_id == proposal.id)
         )
     ).scalar_one()
     assert approval is not None
@@ -3745,39 +3610,25 @@ async def test_corrupt_governed_envelope_expires_without_process_mutation(
     elif corruption == "lock_base_version":
         impact_lock.base_governance_version += 1
     elif corruption == "proposal_uuid":
-        await _directly_corrupt_proposal(
-            db_session, proposal.id, proposal_id="not-a-canonical-uuid"
-        )
+        await _directly_corrupt_proposal(db_session, proposal.id, proposal_id="not-a-canonical-uuid")
     elif corruption == "proposal_version":
-        await _directly_corrupt_proposal(
-            db_session, proposal.id, proposal_version=proposal.proposal_version + 1
-        )
+        await _directly_corrupt_proposal(db_session, proposal.id, proposal_version=proposal.proposal_version + 1)
     elif corruption == "schema_version":
-        await _directly_corrupt_proposal(
-            db_session, proposal.id, schema_version=proposal.schema_version + 1
-        )
+        await _directly_corrupt_proposal(db_session, proposal.id, schema_version=proposal.schema_version + 1)
     elif corruption == "mutation_kind":
-        await _directly_corrupt_proposal(
-            db_session, proposal.id, mutation_kind="process.archive"
-        )
+        await _directly_corrupt_proposal(db_session, proposal.id, mutation_kind="process.archive")
     elif corruption == "proposal_requester":
-        await _directly_corrupt_proposal(
-            db_session, proposal.id, requested_by_id=test_user_employee.id
-        )
+        await _directly_corrupt_proposal(db_session, proposal.id, requested_by_id=test_user_employee.id)
     elif corruption == "approval_requester":
         approval.requested_by_id = test_user_cro.id
     elif corruption == "approval_status":
         approval.status = ApprovalStatus.PENDING_PRIVILEGED
     elif corruption == "proposal_resource":
-        await _directly_corrupt_proposal(
-            db_session, proposal.id, primary_resource_id=process_id + 100_000
-        )
+        await _directly_corrupt_proposal(db_session, proposal.id, primary_resource_id=process_id + 100_000)
     elif corruption == "approval_identity":
         approval.resource_name = "Corrupt approval identity"
     elif corruption == "base_versions":
-        await _directly_corrupt_proposal(
-            db_session, proposal.id, base_versions={"process": 2}
-        )
+        await _directly_corrupt_proposal(db_session, proposal.id, base_versions={"process": 2})
     elif corruption == "impacted_snapshot":
         await _directly_corrupt_proposal(
             db_session,
@@ -3809,7 +3660,6 @@ async def test_corrupt_governed_envelope_expires_without_process_mutation(
         "proposal_uuid",
         "proposal_version",
         "schema_version",
-        "mutation_kind",
         "proposal_resource",
         "base_versions",
         "impacted_snapshot",
@@ -3824,9 +3674,7 @@ async def test_corrupt_governed_envelope_expires_without_process_mutation(
     all_locks = list(
         (
             await db_session.execute(
-                select(GovernedMutationImpactLock).where(
-                    GovernedMutationImpactLock.proposal_id == proposal_row_id
-                )
+                select(GovernedMutationImpactLock).where(GovernedMutationImpactLock.proposal_id == proposal_row_id)
             )
         )
         .scalars()
@@ -3859,9 +3707,7 @@ async def test_corrupt_governed_envelope_expires_without_process_mutation(
     assert process is not None
     assert process.l1_process == "Správa pojistných smluv"
     assert process.governance_version == 1
-    expected_status = (
-        ApprovalStatus.PENDING if malformed_or_unsupported else ApprovalStatus.EXPIRED
-    )
+    expected_status = ApprovalStatus.PENDING if malformed_or_unsupported else ApprovalStatus.EXPIRED
     assert approval is not None and approval.status == expected_status
     if malformed_or_unsupported:
         assert all(impact.released_at is None for impact in all_locks)
@@ -3882,14 +3728,10 @@ async def test_reject_expires_corrupt_envelope_before_self_or_live_policy_checks
     test_user_cro: User,
     corruption: str,
 ):
-    if (
-        db_session.bind.dialect.name == "postgresql"
-        and corruption == "proposal_uuid"
-    ):
+    if db_session.bind.dialect.name == "postgresql" and corruption == "proposal_uuid":
         pytest.skip("PostgreSQL proposal immutability rejects corruption setup")
-    await _add_protected_process_scenario(db_session)
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         process_id = created.json()["id"]
         submitted = await requester.patch(
             f"/api/v1/processes/{process_id}",
@@ -3902,9 +3744,7 @@ async def test_reject_expires_corrupt_envelope_before_self_or_live_policy_checks
     approval = await db_session.get(ApprovalRequest, approval_id)
     proposal = (
         await db_session.execute(
-            select(GovernedMutationProposal).where(
-                GovernedMutationProposal.approval_request_id == approval_id
-            )
+            select(GovernedMutationProposal).where(GovernedMutationProposal.approval_request_id == approval_id)
         )
     ).scalar_one()
     proposal_row_id = proposal.id
@@ -3982,8 +3822,6 @@ async def test_disabled_notification_delivery_never_hides_process_approval_queue
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
 ):
-    await _add_protected_process_scenario(db_session)
-
     async with client_factory(user=test_user_cro) as approver:
         disabled = await approver.put(
             "/api/v1/notifications/preferences",
@@ -3992,7 +3830,7 @@ async def test_disabled_notification_delivery_never_hides_process_approval_queue
         assert disabled.status_code == 200, disabled.text
 
     async with client_factory(user=test_user_seeded_risk_manager) as requester:
-        created = await requester.post("/api/v1/processes", json=_full_payload())
+        created = await _create_process_before_enabling_protection(requester, db_session, payload=_full_payload())
         submitted = await requester.patch(
             f"/api/v1/processes/{created.json()['id']}",
             json={"notes": "Pending queue work", "request_reason": "Needs review"},
@@ -4016,16 +3854,24 @@ async def test_disabled_notification_delivery_never_hides_process_approval_queue
 
 @pytest.mark.asyncio
 async def test_employee_reads_processes_but_cannot_maintain_them(
-    client_factory, test_user_cro: User, test_user_employee: User
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_user_employee: User,
 ):
     """Reads follow the standard business-entity pattern; writes 403 for employees."""
     async with client_factory(user=test_user_cro) as client:
-        seeded = (await client.post("/api/v1/processes", json=_minimal_payload())).json()
+        seeded = (
+            await _create_process_before_enabling_protection(client, db_session, payload=_minimal_payload())
+        ).json()
 
     async with client_factory(user=test_user_employee) as client:
         listing = await client.get("/api/v1/processes")
         assert listing.status_code == 200
-        assert listing.json()["capabilities"] == {"can_create": False, "can_export": True}
+        assert listing.json()["capabilities"] == {
+            "can_create": False,
+            "can_export": True,
+        }
 
         detail = await client.get(f"/api/v1/processes/{seeded['id']}")
         assert detail.status_code == 200
@@ -4043,9 +3889,7 @@ async def test_employee_reads_processes_but_cannot_maintain_them(
 
         # Every maintenance verb is denied.
         assert (await client.post("/api/v1/processes", json=_minimal_payload())).status_code == 403
-        assert (
-            await client.patch(f"/api/v1/processes/{seeded['id']}", json={"notes": "X"})
-        ).status_code == 403
+        assert (await client.patch(f"/api/v1/processes/{seeded['id']}", json={"notes": "X"})).status_code == 403
         assert (await client.delete(f"/api/v1/processes/{seeded['id']}")).status_code == 403
         assert (await client.post(f"/api/v1/processes/{seeded['id']}/restore")).status_code == 403
 
@@ -4075,13 +3919,9 @@ async def test_platform_admin_is_excluded_and_unauthenticated_is_rejected(
     # empty; record reads are concealed and every mutation is denied.
     platform_admin_statuses = (200, 404, 403, 404, 403, 403)
     async with client_factory(user=test_user_platform_admin) as client:
-        for (method, path, body), expected_status in zip(
-            paths_and_calls, platform_admin_statuses, strict=True
-        ):
+        for (method, path, body), expected_status in zip(paths_and_calls, platform_admin_statuses, strict=True):
             resp = await call(client, method, path, body)
-            assert resp.status_code == expected_status, (
-                f"{method.upper()} {path} -> {resp.status_code}"
-            )
+            assert resp.status_code == expected_status, f"{method.upper()} {path} -> {resp.status_code}"
 
     # Unauthenticated requests are rejected outright.
     async with client_factory() as client:
@@ -4159,9 +3999,7 @@ def test_process_permission_sync_migration_matches_seed_contract_and_is_forward_
     # Role grants mirror the seed exactly: risk_manager holds processes:*;
     # every role holding vendors:read in the seed gains processes:read.
     seed_process_grants = {
-        role_name: {
-            key for key in expand_permission_keys(permission_keys) if key.startswith("processes:")
-        }
+        role_name: {key for key in expand_permission_keys(permission_keys) if key.startswith("processes:")}
         for role_name, permission_keys in RBAC_ROLE_PERMISSIONS.items()
         if role_name != "cro"  # CRO holds the wildcard; the migration re-ensures it explicitly
     }

@@ -15,13 +15,17 @@ from app.services._approval_queue import (
 )
 from app.services._approval_queue.projection import (
     build_approval_read,
-    governed_process_response_access,
+    build_malformed_governed_terminal_read,
+    governed_process_actor_safe_labels,
 )
-from app.services._governed_mutations.process_identity import (
-    strict_governed_process_identity,
+from app.services._governed_mutations.process_mutations import (
+    is_extended_process_kind,
 )
 from app.services._ict_register_lifecycle.policy import can_use_process_assignment_lookup
-from app.services.approval_scenario_policy import can_view_approval_resource
+from app.services.approval_scenario_policy import (
+    can_view_approval_resource,
+    governed_process_response_policy,
+)
 
 from ._shared import logger
 
@@ -40,22 +44,32 @@ async def _build_resolution_response(
     approval,
     current_user,
 ) -> ApprovalRequestRead:
-    identity = strict_governed_process_identity(
-        approval.governed_mutation_proposal
-    )
-    if identity is not None:
-        can_view_snapshot, governed_resolver = (
-            await governed_process_response_access(
-                db,
-                approval=approval,
-                current_user=current_user,
-            )
+    proposal = approval.governed_mutation_proposal
+    try:
+        response_policy = await governed_process_response_policy(
+            db,
+            approval=approval,
+            user=current_user,
         )
+    except ValueError:
+        if (
+            proposal is not None
+            and is_extended_process_kind(proposal.mutation_kind)
+            and approval.status.value == "EXPIRED"
+        ):
+            return build_malformed_governed_terminal_read(approval, current_user)
+        raise
+    if response_policy is not None:
+        can_view_snapshot = response_policy.can_view_snapshot
+        governed_resolver = response_policy.can_resolve
     else:
-        can_view_snapshot = await can_view_approval_resource(
-            db, current_user, approval
-        )
+        can_view_snapshot = await can_view_approval_resource(db, current_user, approval)
         governed_resolver = False
+    actor_safe_labels = await governed_process_actor_safe_labels(
+        db,
+        approvals=[approval],
+        current_user=current_user,
+    )
     return build_approval_read(
         approval,
         current_user,
@@ -65,6 +79,7 @@ async def _build_resolution_response(
             db,
             current_user=current_user,
         ),
+        actor_safe_extended_labels=actor_safe_labels.get(approval.id),
     )
 
 

@@ -114,4 +114,61 @@ describe('GovernedMutationDiff', () => {
         }
         expect(screen.queryByText('hidden relationship payload', { exact: false })).not.toBeInTheDocument();
     });
+
+    it('renders only the safe relationship snapshot for governed Process links', async () => {
+        render(
+            <GovernedMutationDiff
+                mutationKind="process.link.asset.update"
+                before={{
+                    relationship: { related_resource_id: 7315, significance: 'supporting' },
+                }}
+                after={{
+                    relationship: { related_resource_id: 7315, significance: 'critical' },
+                }}
+                derivedImpact={{
+                    processes: [{
+                        resource_name: 'F7 — Payments',
+                        before: { cif: 'yes', criticality_class: 'high' },
+                        after: { cif: 'yes', criticality_class: 'critical' },
+                    }],
+                }}
+                impactedResources={[{ resource_type: 'process', resource_name: 'F7 — Payments' }]}
+                relationshipChange={{
+                    target_resource_type: 'asset',
+                    target_resource_name: 'Claims platform',
+                    action: 'update',
+                    before: { significance: 'supporting', is_primary: false },
+                    after: { significance: 'critical', is_primary: true },
+                }}
+            />,
+        );
+        expect(screen.getByText('Update Process and Asset link')).toBeInTheDocument();
+        expect(screen.getByText('Relationship change')).toBeInTheDocument();
+        expect(screen.getByText('Asset')).toBeInTheDocument();
+        expect(screen.getByText('Update relationship')).toBeInTheDocument();
+        expect(screen.getByText('Significance')).toBeInTheDocument();
+        expect(screen.getByText('Primary relationship')).toBeInTheDocument();
+        expect(screen.getByText('Claims platform')).toBeInTheDocument();
+        expect(screen.getAllByText('F7 — Payments')).toHaveLength(2);
+        expect(screen.queryByText('7315')).not.toBeInTheDocument();
+        expect(screen.queryByText(/resource_id/i)).not.toBeInTheDocument();
+    });
+
+    it('renders protected creation derived impact without dereferencing the null before state', () => {
+        render(
+            <GovernedMutationDiff
+                mutationKind="process.create"
+                before={{}}
+                after={{ l1_process: 'Critical settlement' }}
+                derivedImpact={{
+                    before: null,
+                    after: { cif: 'yes', criticality_class: 'critical' },
+                }}
+            />,
+        );
+
+        expect(screen.getByText('Critical settlement')).toBeInTheDocument();
+        expect(screen.getAllByText('Not set').length).toBeGreaterThanOrEqual(2);
+        expect(screen.getAllByText('Yes').length).toBeGreaterThan(0);
+    });
 });

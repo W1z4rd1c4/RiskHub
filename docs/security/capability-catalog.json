@@ -1,6 +1,6 @@
 {
  "version": "1.0",
- "last_reviewed": "2026-07-16",
+ "last_reviewed": "2026-07-17",
  "owner": "RiskHub Maintainer",
  "description": "Validator catalog for backend Pydantic capability models and frontend Zod capability schemas. The authorization capability contract remains the source of protected action semantics; this catalog checks field-shape drift only.",
  "surfaces": [
@@ -381,6 +381,23 @@
    "fields": [
     "can_create",
     "can_export"
+   ]
+  },
+  {
+   "id": "process_pending_creation",
+   "backend": {
+    "path": "backend/app/schemas/process.py",
+    "class": "ProcessPendingCreationCapabilities"
+   },
+   "frontend": {
+    "path": "frontend/src/services/api/schemas/entities/processes.ts",
+    "schema": "processPendingCreationCapabilitiesSchema"
+   },
+   "fields": [
+    "can_view_diff",
+    "can_cancel",
+    "is_requester",
+    "can_resolve"
    ]
   },
   {

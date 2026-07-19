@@ -20,12 +20,15 @@ from app.models import (
 )
 from app.services._governed_mutations.process_identity import (
     any_governed_mutation_proposal_exists_clause,
-    governed_process_requester_clause,
+)
+from app.services._governed_mutations.process_mutations import (
+    valid_extended_process_approval_ids,
 )
 from app.services.approval_scenario_policy import (
     approval_privilege_tier,
     approval_resource_type_filter_clause,
     governed_process_approval_exists_clause,
+    governed_process_requester_clause,
     process_approval_resolver_clause,
     process_approval_visibility_clause,
 )
@@ -115,7 +118,11 @@ async def build_visible_pending_approvals_query(
     include_requester: bool = True,
 ) -> Select[tuple[ApprovalRequest]]:
     """Build the canonical pending-approval visibility query before pagination."""
-    governed_process = governed_process_approval_exists_clause()
+    valid_extended_ids = await valid_extended_process_approval_ids(
+        db,
+        approval_statuses=PENDING_APPROVAL_STATUSES,
+    )
+    governed_process = governed_process_approval_exists_clause(valid_extended_ids)
     any_proposal = any_governed_mutation_proposal_exists_clause()
     legacy_candidate_clauses = [
         and_(
@@ -140,7 +147,7 @@ async def build_visible_pending_approvals_query(
         and_(
             governed_process,
             ApprovalRequest.status.in_(PENDING_APPROVAL_STATUSES),
-            process_approval_resolver_clause(current_user),
+            process_approval_resolver_clause(current_user, valid_extended_ids),
         ),
         and_(
             ~any_proposal,
@@ -157,14 +164,14 @@ async def build_visible_pending_approvals_query(
                         ~any_proposal,
                         ApprovalRequest.requested_by_id == current_user.id,
                     ),
-                    governed_process_requester_clause(current_user.id),
+                    governed_process_requester_clause(current_user.id, valid_extended_ids),
                 ),
             )
         )
 
     query = select(ApprovalRequest).where(or_(*candidate_clauses))
     if resource_type is not None:
-        query = query.where(approval_resource_type_filter_clause(resource_type))
+        query = query.where(approval_resource_type_filter_clause(resource_type, valid_extended_ids))
     return query.order_by(ApprovalRequest.created_at.desc(), ApprovalRequest.id.desc())
 
 

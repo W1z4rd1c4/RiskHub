@@ -33,6 +33,7 @@ class ApprovalActionTypeEnum(str, Enum):
 
     delete = "delete"
     edit = "edit"
+    create = "create"
 
 
 class ApprovalQueuedResponse(BaseModel):
@@ -58,6 +59,7 @@ class GovernedMutationApprovalRead(BaseModel):
     after: dict[str, Any]
     derived_impact: dict[str, Any]
     impacted_resources: list[dict[str, Any]]
+    relationship_change: dict[str, Any] | None = None
 
 
 class ApprovalRequestCreate(BaseModel):
@@ -108,7 +110,7 @@ class ApprovalRequestRead(BaseModel):
 
     id: int
     resource_type: ApprovalResourceTypeEnum
-    resource_id: int
+    resource_id: int | None
     resource_name: str
     action_type: ApprovalActionTypeEnum = ApprovalActionTypeEnum.delete
     pending_changes: dict | None = None

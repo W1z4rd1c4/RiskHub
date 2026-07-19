@@ -11,6 +11,7 @@ import type {
     Process,
     ProcessFacets,
     ProcessListCapabilities,
+    ProcessPendingCreationRead,
     ProcessSortField,
 } from '@/types/process';
 
@@ -65,6 +66,7 @@ export function useProcessesPageState(
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
     const [currentPage, setCurrentPage] = useState(1);
     const [facets, setFacets] = useState<ProcessFacets>({});
+    const [pendingCreations, setPendingCreations] = useState<ProcessPendingCreationRead[]>([]);
     const [isExporting, setIsExporting] = useState(false);
     const {
         applyFailure,
@@ -110,10 +112,14 @@ export function useProcessesPageState(
                 total: response.total,
             });
             setFacets(response.facets ?? {});
+            setPendingCreations(response.pending_creations);
         } catch (error) {
             if (!isCurrentRequest(currentRequest)) return;
             const patch = applyFailure(error, { toErrorKey: apiClient.toUiMessageKey.bind(apiClient) });
-            if (patch.isAccessDenied) setFacets({});
+            setPendingCreations([]);
+            if (patch.isAccessDenied) {
+                setFacets({});
+            }
         } finally {
             if (isCurrentRequest(currentRequest)) setIsLoading(false);
         }
@@ -202,6 +208,7 @@ export function useProcessesPageState(
         isLoading,
         items,
         limit: DEFAULT_LIST_PAGE_SIZE,
+        pendingCreations,
         restoreProcess,
         search: urlState.search,
         selectGroup: (value: string, _label?: string) => selectGroup(value),

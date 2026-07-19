@@ -8,10 +8,9 @@ from sqlalchemy.orm import selectinload
 
 from app.core.approval_display import approval_resource_label
 from app.models import ApprovalRequest, NotificationType, User
-from app.services._governed_mutations.process_identity import (
-    InvalidGovernedProcessIdentity,
-    is_exact_governed_process_proposal,
-    strict_governed_process_identity,
+from app.services._governed_mutations.notification_identity import (
+    InvalidGovernedProcessNotificationIdentity,
+    strict_governed_process_notification_identity,
 )
 from app.services.notification_service import NotificationService
 from app.services.outbox.handlers.common import run_notification_operation
@@ -41,11 +40,9 @@ def _proposal_dispatch_kind(approval: ApprovalRequest) -> str:
     proposal = approval.governed_mutation_proposal
     if proposal is None:
         return "legacy"
-    if not is_exact_governed_process_proposal(proposal):
-        return "unsupported"
     try:
-        identity = strict_governed_process_identity(proposal)
-    except InvalidGovernedProcessIdentity:
+        identity = strict_governed_process_notification_identity(proposal)
+    except InvalidGovernedProcessNotificationIdentity:
         return "invalid"
     return "governed" if identity is not None else "unsupported"
 

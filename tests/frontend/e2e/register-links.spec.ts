@@ -170,6 +170,11 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
             .getByTestId('process-vendor-link-description')
             .fill('E2E direct service (§1)');
         await riskManagerPage.getByTestId('process-vendor-link-add').click();
+        const addDialog = riskManagerPage.getByRole('alertdialog');
+        // PORTAL_SUPPORT derives CIF No. The deterministic confirmation stays
+        // visible, but it must not invent a governed-request reason field.
+        await expect(addDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+        await addDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
 
         const processLinks = riskManagerPage.getByTestId('process-vendor-links');
         await expect(processLinks.getByText(E2E_VENDORS.ACTIVE_PRIMARY.name).first()).toBeVisible();
@@ -187,6 +192,9 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
         );
         expect(created).toBeDefined();
         await riskManagerPage.getByTestId(`process-vendor-link-remove-${created!.id}`).click();
+        const removeDialog = riskManagerPage.getByRole('alertdialog');
+        await expect(removeDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+        await removeDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
         await expect(riskManagerPage.getByTestId(`process-vendor-link-remove-${created!.id}`)).toHaveCount(0);
         const remaining = await listProcessVendorLinks(processId);
         expect(remaining.some((link) => link.vendor_id === vendorId)).toBe(false);

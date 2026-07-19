@@ -56,6 +56,17 @@ async def approve_request_workflow(
             current_user=current_user,
             resolution_notes=resolution_notes,
         )
+    if dispatch_kind == "fixed_process_extended":
+        from app.services._governed_mutations.resolution_extensions import (
+            approve_extended_process_mutation,
+        )
+
+        return await approve_extended_process_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
     if dispatch_kind == "unsupported":
         raise ValidationError(
             "Unsupported governed mutation proposal",
@@ -97,6 +108,17 @@ async def reject_request_workflow(
     dispatch_kind = await governed_proposal_dispatch_kind(db, approval_id)
     if dispatch_kind == "fixed_process":
         return await reject_governed_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "fixed_process_extended":
+        from app.services._governed_mutations.resolution_extensions import (
+            reject_extended_process_mutation,
+        )
+
+        return await reject_extended_process_mutation(
             db,
             approval_id=approval_id,
             current_user=current_user,
@@ -151,6 +173,16 @@ async def cancel_request_workflow(
     dispatch_kind = await governed_proposal_dispatch_kind(db, approval_id)
     if dispatch_kind == "fixed_process":
         return await cancel_governed_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+        )
+    if dispatch_kind == "fixed_process_extended":
+        from app.services._governed_mutations.resolution_extensions import (
+            cancel_extended_process_mutation,
+        )
+
+        return await cancel_extended_process_mutation(
             db,
             approval_id=approval_id,
             current_user=current_user,

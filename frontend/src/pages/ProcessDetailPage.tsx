@@ -10,7 +10,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { approvalsApi } from '@/services/approvalsApi';
 import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
-import type { Process } from '@/types/process';
+import { isProcessApprovalQueuedResponse, type Process } from '@/types/process';
 
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
@@ -18,6 +18,7 @@ import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ProcessForm } from './processes/ProcessForm';
 import { ProcessPendingChangePanel } from './processes/ProcessPendingChangePanel';
 import { ProcessVendorLinksSection } from './processes/ProcessVendorLinksSection';
+import { processMutationRequiresApprovalReason } from './processes/processProtectedEdit';
 import {
     getProcessDisplayStatus,
     processDepartmentDisplayLabel,
@@ -145,13 +146,17 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         logMessage: 'Failed to load process create capabilities.',
     });
 
-    const archiveProcess = async () => {
+    const archiveProcess = async (requestReason?: string) => {
         if (!process) {
             return;
         }
         try {
             setIsArchiving(true);
-            await processApi.archiveProcess(process.id);
+            const result = await processApi.archiveProcess(process.id, requestReason?.trim() ?? '');
+            if (isProcessApprovalQueuedResponse(result)) {
+                void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
+                return;
+            }
             void navigate('/processes');
         } catch (archiveError) {
             logError('Failed to archive process:', archiveError);
@@ -199,6 +204,9 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 </div>
                 <ProcessForm
                     onSaved={(saved: Process) => navigate(`/processes/${saved.id}`)}
+                    onApprovalQueued={(queued) => {
+                        void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`);
+                    }}
                     onCancel={() => navigate('/processes')}
                 />
             </div>
@@ -729,6 +737,10 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 confirmLabel={tCommon('actions.archive')}
                 variant="danger"
                 isLoading={isArchiving}
+                showInput={processMutationRequiresApprovalReason(process)}
+                inputRequired={processMutationRequiresApprovalReason(process)}
+                inputLabel={t('form.request_reason')}
+                inputPlaceholder={t('form.request_reason_help')}
             />
         </div>
     );

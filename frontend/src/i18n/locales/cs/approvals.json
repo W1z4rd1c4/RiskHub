@@ -22,7 +22,11 @@
     "request_types": {
         "create": "Vytvoření",
         "update": "Aktualizace",
-        "delete": "Smazání"
+        "delete": "Smazání",
+        "archive": "Archivace",
+        "link_add": "Přidání vazby",
+        "link_update": "Aktualizace vazby",
+        "link_remove": "Odebrání vazby"
     },
     "entity_types": {
         "risk": "Riziko",
@@ -99,9 +103,46 @@
         "redacted_value": "Skryto kvůli rozsahu oprávnění",
         "yes": "Ano",
         "no": "Ne",
-        "derived": {
-            "cif": "CIF",
-            "criticality_class": "Třída kritičnosti"
+    "derived": {
+      "cif": "CIF",
+      "criticality_class": "Třída kritičnosti"
+    },
+    "relationship": {
+      "title": "Změna vazby",
+      "target": "Cílový záznam",
+      "type": "Typ vazby",
+      "action_label": "Akce",
+      "resource_type": {
+        "risk": "Riziko",
+        "asset": "Aktivum",
+        "vendor": "Dodavatel"
+      },
+      "action": {
+        "add": "Přidat vazbu",
+        "update": "Aktualizovat vazbu",
+        "remove": "Odebrat vazbu"
+      }
+    },
+    "mutation_kind": {
+            "process_create": "Vytvoření chráněného Procesu",
+            "process_edit": "Aktualizace chráněného Procesu",
+            "process_archive": "Archivace chráněného Procesu",
+            "process_link_risk_add": "Přidání vazby Procesu a Rizika",
+            "process_link_risk_remove": "Odebrání vazby Procesu a Rizika",
+            "process_link_asset_add": "Přidání vazby Procesu a Aktiva",
+            "process_link_asset_update": "Aktualizace vazby Procesu a Aktiva",
+            "process_link_asset_remove": "Odebrání vazby Procesu a Aktiva",
+            "process_link_vendor_add": "Přidání vazby Procesu a Dodavatele",
+            "process_link_vendor_remove": "Odebrání vazby Procesu a Dodavatele"
+        },
+        "link_fields": {
+            "linked": "Propojeno",
+            "related_resource": "Související záznam",
+            "significance": "Význam vazby",
+            "spof": "Jediný bod selhání",
+            "is_primary": "Primární vazba",
+            "note": "Poznámka k vazbě",
+            "direct_service_description": "Popis přímé služby"
         }
     },
     "notifications": {

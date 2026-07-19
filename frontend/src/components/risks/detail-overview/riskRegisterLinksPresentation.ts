@@ -31,10 +31,14 @@ export function registerLinkRowName(
 
 /** Options for a link-add select: active targets not already linked. */
 export function buildRegisterLinkOptions(
-    candidates: Array<{ id: number; label: string; isArchived: boolean }>,
+    candidates: Array<{ id: number; label: string; isArchived: boolean; disabled?: boolean }>,
     linkedIds: ReadonlySet<number>,
-): Array<{ value: string; label: string }> {
+): Array<{ value: string; label: string; disabled?: boolean }> {
     return candidates
         .filter((candidate) => !candidate.isArchived && !linkedIds.has(candidate.id))
-        .map((candidate) => ({ value: String(candidate.id), label: candidate.label }));
+        .map((candidate) => ({
+            value: String(candidate.id),
+            label: candidate.label,
+            ...(candidate.disabled === undefined ? {} : { disabled: candidate.disabled }),
+        }));
 }

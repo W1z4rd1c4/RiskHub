@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
@@ -6,9 +7,12 @@ import type { SortDirection } from '@/components/tables';
 import { useLanguage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { Process, ProcessSortField } from '@/types/process';
+import { approvalsApi } from '@/services/approvalsApi';
+import { logError } from '@/services/logger';
 
 import { buildProcessColumns } from './processes/processColumns';
 import { ProcessRegisterFilterBar } from './processes/ProcessRegisterFilterBar';
+import { ProcessPendingCreationsPanel } from './processes/ProcessPendingCreationsPanel';
 import { PROCESS_REGISTER_CONFIG, type ProcessRegisterView } from './processes/processRegisterConfig';
 import { processesEmptyStateKey } from './processes/processesPagePresentation';
 import { useProcessesPageState } from './processes/useProcessesPageState';
@@ -24,6 +28,22 @@ export function ProcessesPage() {
         useIctRegisterSemanticPageState(parseProcessSemanticFilters);
     const { t } = useTranslation('processes');
     const state = useProcessesPageState(semanticFilters, language);
+    const [cancellingApprovalId, setCancellingApprovalId] = useState<number | null>(null);
+    const [pendingCreationCancelFailed, setPendingCreationCancelFailed] = useState(false);
+
+    const cancelPendingCreation = async (approvalId: number) => {
+        setCancellingApprovalId(approvalId);
+        setPendingCreationCancelFailed(false);
+        try {
+            await approvalsApi.cancel(approvalId);
+            await state.fetchProcesses();
+        } catch (error) {
+            logError('Failed to cancel pending Process creation.', error);
+            setPendingCreationCancelFailed(true);
+        } finally {
+            setCancellingApprovalId(null);
+        }
+    };
 
     const columns = buildProcessColumns({
         t,
@@ -110,6 +130,21 @@ export function ProcessesPage() {
             testIdPrefix="processes"
             toolbar={(
                 <div className="space-y-4">
+                    {pendingCreationCancelFailed ? (
+                        <div
+                            role="alert"
+                            aria-atomic="true"
+                            className="rounded-xl border border-rose-400/30 bg-rose-400/5 px-4 py-3 text-sm font-medium text-rose-300"
+                        >
+                            {t('pending_creation.cancel_failed')}
+                        </div>
+                    ) : null}
+                    <ProcessPendingCreationsPanel
+                        items={state.pendingCreations}
+                        cancellingApprovalId={cancellingApprovalId}
+                        onCancel={(approvalId) => void cancelPendingCreation(approvalId)}
+                        onOpenRequest={(approvalId, tab) => void navigate(`/approvals?tab=${tab}&approvalId=${approvalId}`)}
+                    />
                     <SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} />
                     <ProcessRegisterFilterBar
                         facets={state.facets}

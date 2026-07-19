@@ -283,6 +283,7 @@ export interface ProcessAssetLink {
     /** Server-resolved display names (FRONTEND_DISPLAY_GUARDRAILS: no raw-id fallbacks). */
     process_name?: string | null;
     asset_name?: string | null;
+    process_business_edit_blocked: boolean;
     significance?: string | null;
     spof?: string | null;
     is_primary: boolean;
@@ -296,6 +297,7 @@ export interface ProcessAssetLinkCreatePayload {
     spof?: string | null;
     is_primary?: boolean;
     note?: string | null;
+    request_reason?: string;
 }
 
 export interface ProcessAssetLinkUpdatePayload {
@@ -303,6 +305,7 @@ export interface ProcessAssetLinkUpdatePayload {
     spof?: string | null;
     is_primary?: boolean;
     note?: string | null;
+    request_reason?: string;
 }
 
 export interface AssetAssetLink {

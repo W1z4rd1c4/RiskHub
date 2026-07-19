@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Body, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.db.session import get_db
 from app.models import User
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.asset import (
     AssetAssetLinkCreate,
     AssetAssetLinkRead,
@@ -15,6 +16,7 @@ from app.schemas.asset import (
     ProcessAssetLinkRead,
     ProcessAssetLinkUpdate,
 )
+from app.schemas.process import ProcessRelationshipMutationRequest
 from app.schemas.risk import RiskAssetLinkRead
 from app.services._ict_register_lifecycle.asset_links import (
     add_asset_asset_link,
@@ -58,6 +60,7 @@ async def list_asset_process_links_route(
     "/{asset_id}/process-links",
     response_model=ProcessAssetLinkRead,
     status_code=status.HTTP_201_CREATED,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
 )
 async def create_asset_process_link(
     asset_id: int,
@@ -68,7 +71,11 @@ async def create_asset_process_link(
     return await add_asset_process_link(db, asset_id=asset_id, payload=payload, current_user=current_user)
 
 
-@router.patch("/{asset_id}/process-links/{process_id}", response_model=ProcessAssetLinkRead)
+@router.patch(
+    "/{asset_id}/process-links/{process_id}",
+    response_model=ProcessAssetLinkRead,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
+)
 async def update_asset_process_link_route(
     asset_id: int,
     process_id: int,
@@ -81,15 +88,25 @@ async def update_asset_process_link_route(
     )
 
 
-@router.delete("/{asset_id}/process-links/{process_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{asset_id}/process-links/{process_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
+)
 async def delete_asset_process_link(
     asset_id: int,
     process_id: int,
+    payload: ProcessRelationshipMutationRequest = Body(default_factory=ProcessRelationshipMutationRequest),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await remove_asset_process_link(db, asset_id=asset_id, process_id=process_id, current_user=current_user)
-    return None
+    return await remove_asset_process_link(
+        db,
+        asset_id=asset_id,
+        process_id=process_id,
+        request_reason=payload.request_reason,
+        current_user=current_user,
+    )
 
 
 @router.get("/{asset_id}/asset-links", response_model=list[AssetAssetLinkRead])

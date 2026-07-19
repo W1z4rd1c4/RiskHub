@@ -30,6 +30,7 @@ function processLink(overrides: Partial<ProcessVendorLink> = {}): ProcessVendorL
         process_id: 5,
         vendor_id: 4,
         process_name: 'Správa pojistných smluv – Upisování',
+        process_business_edit_blocked: false,
         direct_service_description: 'Přímá dodávka datových služeb.',
         note: null,
         capabilities: { can_delete: true },
@@ -86,5 +87,13 @@ describe('Vendor register-links presentation helpers', () => {
         ]);
         expect(rows[0].meta).toBe('Přímá dodávka datových služeb.');
         expect(rows.map((row) => row.canDelete)).toEqual([true, false]);
+    });
+
+    it('preserves the authoritative Process impact lock for Vendor-side actions', () => {
+        const [row] = buildVendorProcessLinkRows(
+            [processLink({ process_business_edit_blocked: true })],
+            'Unknown process',
+        );
+        expect(row.processEditBlocked).toBe(true);
     });
 });

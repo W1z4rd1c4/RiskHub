@@ -28,6 +28,7 @@
     { "id": "break-glass-enable-dialog", "component": "BreakGlassEnableDialog", "file": "frontend/src/pages/users/BreakGlassEnableDialog.tsx", "role": "dialog", "kind": "semantic", "verificationCaseIds": ["owner.break-glass-enable-dialog"] }
   ],
   "applicationRenderSites": [
+    { "id": "confirm.governed-mutation-reason", "component": "ConfirmDialog", "file": "frontend/src/components/approvals/GovernedMutationReasonDialog.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "confirm.link-management", "component": "ConfirmDialog", "file": "frontend/src/components/LinkManagementDialog.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "issue.execution-history", "component": "IssueQuickCreateModal", "file": "frontend/src/components/executions/ExecutionHistory.tsx", "verificationCaseId": "owner.issue-quick-create-modal" },
     { "id": "mismatch.kri-form", "component": "KriMismatchDialog", "file": "frontend/src/components/kri-form/KRIFormContainer.tsx", "verificationCaseId": "owner.kri-mismatch-dialog" },

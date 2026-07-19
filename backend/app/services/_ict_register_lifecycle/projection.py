@@ -26,19 +26,32 @@ from app.schemas.process import (
     ProcessListResponse,
     ProcessOwnerRead,
     ProcessPendingChange,
+    ProcessPendingCreationCapabilities,
+    ProcessPendingCreationRead,
     ProcessRead,
 )
 from app.services._authorization_capabilities import process_capabilities
 from app.services._governed_mutations.process_identity import (
     InvalidGovernedProcessIdentity,
+    canonical_process_display_name,
     strict_governed_process_identity,
+)
+from app.services._governed_mutations.process_mutations import (
+    PROCESS_CREATE_KIND,
+    ExtendedProcessMutationIdentity,
+    is_extended_process_kind,
+    strict_extended_process_identity,
 )
 from app.services._governed_mutations.projection import actor_safe_process_snapshots
 from app.services._ict_register_reference.parameters import (
+    IctWorkbookParameterSet,
     load_ict_workbook_parameter_set,
     load_ict_workbook_parameter_set_for_update,
 )
-from app.services.approval_scenario_policy import load_approval_scenario_policy
+from app.services.approval_scenario_policy import (
+    can_resolve_extended_process_approval,
+    load_approval_scenario_policy,
+)
 
 from .derivation import (
     ANO,
@@ -50,7 +63,7 @@ from .derivation import (
     derive_ict_register,
 )
 from .derivation_inputs import load_ict_register_graph, process_derivation_input
-from .policy import can_use_process_assignment_lookup
+from .policy import can_read_process_record, can_use_process_assignment_lookup
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -80,6 +93,86 @@ async def protected_process_changes_require_approval(db: "AsyncSession") -> bool
         default_requires_approval=True,
     )
     return policy.requires_approval
+
+
+async def load_visible_pending_process_creations(
+    db: "AsyncSession",
+    *,
+    current_user: User,
+) -> list[ProcessPendingCreationRead]:
+    """Project non-operational create proposals for requester/eligible approvers.
+
+    These rows are intentionally loaded independently from operational Process
+    listing candidates, so they cannot influence totals, facets, groups,
+    exports, relationship queries, or Department health.
+    """
+    rows = list(
+        (
+            await db.execute(
+                select(GovernedMutationProposal)
+                .options(
+                    selectinload(GovernedMutationProposal.approval_request),
+                    selectinload(GovernedMutationProposal.requested_by),
+                    selectinload(GovernedMutationProposal.impact_locks),
+                )
+                .join(GovernedMutationProposal.approval_request)
+                .where(
+                    GovernedMutationProposal.mutation_kind == PROCESS_CREATE_KIND,
+                    GovernedMutationProposal.primary_resource_type == "process",
+                    GovernedMutationProposal.primary_resource_id.is_(None),
+                    ApprovalRequest.resource_id.is_(None),
+                    ApprovalRequest.status == ApprovalStatus.PENDING,
+                )
+                .order_by(ApprovalRequest.created_at.desc(), ApprovalRequest.id.desc())
+            )
+        )
+        .scalars()
+        .unique()
+        .all()
+    )
+    projected: list[ProcessPendingCreationRead] = []
+    for proposal in rows:
+        try:
+            identity = strict_extended_process_identity(proposal)
+        except ValueError:
+            continue
+        if identity is None or identity.mutation_kind != PROCESS_CREATE_KIND:
+            continue
+        is_requester = identity.requested_by_id == current_user.id
+        is_eligible_approver = can_resolve_extended_process_approval(
+            current_user,
+            proposal,
+            requester_id=identity.requested_by_id,
+            configured_roles=identity.approver_roles,
+            process=None,
+        )
+        if not is_requester and not is_eligible_approver:
+            continue
+        approval = proposal.approval_request
+        derived_after = proposal.derived_impact_snapshot.get("after")
+        if not isinstance(derived_after, dict):
+            continue
+        projected.append(
+            ProcessPendingCreationRead(
+                approval_id=approval.id,
+                proposal_id=proposal.proposal_id,
+                proposal_version=proposal.proposal_version,
+                requested_at=approval.created_at,
+                requested_by_name=(proposal.requested_by.name if proposal.requested_by else None),
+                reason=approval.reason,
+                proposed=dict(proposal.after_snapshot),
+                derived={
+                    "cif": derived_after.get("cif"),
+                    "criticality_class": derived_after.get("criticality_class"),
+                },
+                capabilities=ProcessPendingCreationCapabilities(
+                    can_cancel=is_requester,
+                    is_requester=is_requester,
+                    can_resolve=is_eligible_approver,
+                ),
+            )
+        )
+    return projected
 
 
 def _required_engine_code(mapping: dict[str, str], value: str, *, field: str) -> str:
@@ -161,10 +254,7 @@ async def load_process_derived_blocks(
     parameters = await load_ict_workbook_parameter_set(db)
     graph = await load_ict_register_graph(db, processes=processes)
     derivation = derive_ict_register(graph, parameters)
-    blocks = {
-        process.id: _canonical_process_derived_block(derivation.processes[process.id])
-        for process in processes
-    }
+    blocks = {process.id: _canonical_process_derived_block(derivation.processes[process.id]) for process in processes}
     return await _filter_linked_context(
         db,
         current_user=current_user,
@@ -189,9 +279,7 @@ async def load_proposed_process_derived_block(
         graph,
         processes=tuple(proposed if row.id == process.id else row for row in graph.processes),
     )
-    return _canonical_process_derived_block(
-        derive_ict_register(proposed_graph, parameters).processes[process.id]
-    )
+    return _canonical_process_derived_block(derive_ict_register(proposed_graph, parameters).processes[process.id])
 
 
 async def load_governed_process_derived_blocks(
@@ -199,9 +287,11 @@ async def load_governed_process_derived_blocks(
     process: Process,
     *,
     updates: dict[str, object],
+    parameters: IctWorkbookParameterSet | None = None,
 ) -> tuple[ProcessDerived, ProcessDerived]:
     """Derive current/proposed state from one locked parameter and graph snapshot."""
-    parameters = await load_ict_workbook_parameter_set_for_update(db)
+    if parameters is None:
+        parameters = await load_ict_workbook_parameter_set_for_update(db)
     graph = await load_ict_register_graph(db, processes=[process])
     current = process_derivation_input(process)
     derivation_fields = set(current.__dataclass_fields__)
@@ -230,40 +320,111 @@ async def load_pending_process_changes(
     if not process_ids:
         return {}
     rows = (
-        await db.execute(
-            select(GovernedMutationProposal)
-            .options(
-                selectinload(GovernedMutationProposal.approval_request),
-                selectinload(GovernedMutationProposal.requested_by),
-            )
-            .join(GovernedMutationImpactLock)
-            .join(GovernedMutationProposal.approval_request)
-            .where(
-                GovernedMutationImpactLock.resource_type == "process",
-                GovernedMutationImpactLock.resource_id.in_(process_ids),
-                GovernedMutationImpactLock.released_at.is_(None),
-                ApprovalRequest.status == ApprovalStatus.PENDING,
+        (
+            await db.execute(
+                select(GovernedMutationProposal)
+                .options(
+                    selectinload(GovernedMutationProposal.approval_request),
+                    selectinload(GovernedMutationProposal.requested_by),
+                )
+                .join(GovernedMutationImpactLock)
+                .join(GovernedMutationProposal.approval_request)
+                .where(
+                    GovernedMutationImpactLock.resource_type == "process",
+                    GovernedMutationImpactLock.resource_id.in_(process_ids),
+                    GovernedMutationImpactLock.released_at.is_(None),
+                    ApprovalRequest.status == ApprovalStatus.PENDING,
+                )
             )
         )
-    ).scalars().unique().all()
+        .scalars()
+        .unique()
+        .all()
+    )
     can_view_proposed_references = await can_use_process_assignment_lookup(
         db,
         current_user=current_user,
     )
-    projections: dict[int, ProcessPendingChange] = {}
+    parsed: list[
+        tuple[
+            GovernedMutationProposal,
+            object,
+            set[int],
+        ]
+    ] = []
+    relationship_derived_process_ids: set[int] = set()
     for proposal in rows:
-        try:
-            identity = strict_governed_process_identity(proposal)
-        except InvalidGovernedProcessIdentity:
-            continue
+        if is_extended_process_kind(proposal.mutation_kind):
+            try:
+                identity = strict_extended_process_identity(proposal)
+            except ValueError:
+                continue
+        else:
+            try:
+                identity = strict_governed_process_identity(proposal)
+            except InvalidGovernedProcessIdentity:
+                continue
         if identity is None:
             continue
-        approval = proposal.approval_request
-        before, after = actor_safe_process_snapshots(
-            proposal,
-            can_view_proposed_references=can_view_proposed_references,
+        active_locked_process_ids = {
+            lock.resource_id
+            for lock in proposal.impact_locks
+            if lock.resource_type == "process" and lock.released_at is None
+        }
+        if isinstance(identity, ExtendedProcessMutationIdentity):
+            impacted_process_ids = {
+                resource["resource_id"]
+                for resource in proposal.impacted_resources_snapshot
+                if isinstance(resource, dict)
+                and resource.get("resource_type") == "process"
+                and type(resource.get("resource_id")) is int
+            }
+            if identity.mutation_kind.startswith("process.link."):
+                relationship_derived_process_ids.update(impacted_process_ids)
+        parsed.append((proposal, identity, active_locked_process_ids & set(process_ids)))
+
+    readable_process_labels: dict[int, str] = {}
+    if relationship_derived_process_ids:
+        impacted_processes = list(
+            (await db.execute(select(Process).where(Process.id.in_(relationship_derived_process_ids)))).scalars().all()
         )
-        projections[identity.primary_resource_id] = ProcessPendingChange(
+        readable_process_labels = {
+            process.id: canonical_process_display_name(process.f_code, process.l1_process)
+            for process in impacted_processes
+            if can_read_process_record(current_user, process)
+        }
+
+    projections: dict[int, ProcessPendingChange] = {}
+    for proposal, identity, affected_process_ids in parsed:
+        if not affected_process_ids:
+            continue
+        approval = proposal.approval_request
+        if isinstance(identity, ExtendedProcessMutationIdentity):
+            before = dict(proposal.before_snapshot)
+            after = dict(proposal.after_snapshot)
+            if identity.mutation_kind.startswith("process.link."):
+                derived_impact = {
+                    "processes": [
+                        {
+                            "resource_name": readable_process_labels.get(
+                                row["resource_id"],
+                                "Restricted Process",
+                            ),
+                            "before": row["before"],
+                            "after": row["after"],
+                        }
+                        for row in proposal.derived_impact_snapshot["processes"]
+                    ]
+                }
+            else:
+                derived_impact = dict(proposal.derived_impact_snapshot)
+        else:
+            before, after = actor_safe_process_snapshots(
+                proposal,
+                can_view_proposed_references=can_view_proposed_references,
+            )
+            derived_impact = proposal.derived_impact_snapshot
+        pending = ProcessPendingChange(
             approval_id=approval.id,
             proposal_id=proposal.proposal_id,
             proposal_version=proposal.proposal_version,
@@ -272,12 +433,14 @@ async def load_pending_process_changes(
             reason=approval.reason,
             before=before,
             after=after,
-            derived_impact=proposal.derived_impact_snapshot,
+            derived_impact=derived_impact,
             capabilities={
                 "can_view_diff": True,
                 "can_cancel": identity.requested_by_id == current_user.id,
             },
         )
+        for process_id in affected_process_ids:
+            projections[process_id] = pending
     return projections
 
 
@@ -302,11 +465,7 @@ async def _filter_linked_context(
     can_read_vendors = check_permission(current_user, "vendors", "read")
 
     manual_vendor_ids: dict[int, list[int]] = defaultdict(list)
-    candidate_vendor_ids = {
-        link.vendor_id
-        for block in blocks.values()
-        for link in block.transitive_vendor_links
-    }
+    candidate_vendor_ids = {link.vendor_id for block in blocks.values() for link in block.transitive_vendor_links}
     if can_read_vendors:
         rows = await db.execute(
             select(ProcessVendorLink.process_id, ProcessVendorLink.vendor_id).where(
@@ -318,21 +477,16 @@ async def _filter_linked_context(
             candidate_vendor_ids.add(vendor_id)
 
     readable_vendor_ids = (
-        await visible_vendor_ids(db, current_user, candidate_vendor_ids)
-        if can_read_vendors
-        else set()
+        await visible_vendor_ids(db, current_user, candidate_vendor_ids) if can_read_vendors else set()
     )
 
     filtered: dict[int, ProcessDerived] = {}
     for process_id, block in blocks.items():
         visible_transitive_links = [
-            link
-            for link in block.transitive_vendor_links
-            if can_read_assets and link.vendor_id in readable_vendor_ids
+            link for link in block.transitive_vendor_links if can_read_assets and link.vendor_id in readable_vendor_ids
         ]
         visible_manual_vendor_count = sum(
-            vendor_id in readable_vendor_ids
-            for vendor_id in manual_vendor_ids.get(process_id, [])
+            vendor_id in readable_vendor_ids for vendor_id in manual_vendor_ids.get(process_id, [])
         )
         visible_transitive_vendor_count = len(visible_transitive_links)
         filtered_inputs = block.inputs.model_copy(
@@ -344,9 +498,7 @@ async def _filter_linked_context(
         filtered[process_id] = block.model_copy(
             update={
                 "linked_asset_count": block.linked_asset_count if can_read_assets else 0,
-                "linked_vendor_count": (
-                    visible_manual_vendor_count + visible_transitive_vendor_count
-                ),
+                "linked_vendor_count": (visible_manual_vendor_count + visible_transitive_vendor_count),
                 "inputs": filtered_inputs,
                 "transitive_vendor_links": visible_transitive_links,
             }
@@ -403,9 +555,7 @@ def serialize_process_detail(
                 ownership_pending=ownership_pending,
                 governed_mutation_pending=pending_change is not None,
                 pending_requested_by_id=(
-                    current_user.id
-                    if pending_change is not None and pending_change.capabilities.can_cancel
-                    else None
+                    current_user.id if pending_change is not None and pending_change.capabilities.can_cancel else None
                 ),
                 protected_change_requires_approval=protected_change_requires_approval,
             ),
@@ -445,9 +595,7 @@ async def serialize_process_detail_with_derived(
 ) -> ProcessRead:
     blocks = await load_process_derived_blocks(db, [process], current_user=current_user)
     pending_ids = await pending_process_ownership_orphan_ids(db, process_ids=[process.id])
-    pending_changes = await load_pending_process_changes(
-        db, process_ids=[process.id], current_user=current_user
-    )
+    pending_changes = await load_pending_process_changes(db, process_ids=[process.id], current_user=current_user)
     protected_change_requires_approval = await protected_process_changes_require_approval(db)
     return serialize_process_detail(
         process,

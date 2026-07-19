@@ -4,6 +4,7 @@ import {
     riskAssetLinkSchema,
     riskProcessLinkListSchema,
     riskProcessLinkSchema,
+    processApprovalQueuedResponseSchema,
     threatListResponseSchema,
     threatLookupOptionSchema,
     threatRiskLinkListSchema,
@@ -21,6 +22,7 @@ import type {
     ThreatRiskLink,
     ThreatWritePayload,
 } from '@/types/threat';
+import type { ProcessApprovalQueuedResponse } from '@/types/process';
 
 type ThreatLookupKind = 'stewards' | 'risks' | 'risk-departments';
 
@@ -173,16 +175,27 @@ export const riskRegisterLinksApi = {
         return apiClient.get(`/risks/${riskId}/process-links`, { schema: riskProcessLinkListSchema });
     },
 
-    async addProcessLink(riskId: number, processId: number): Promise<RiskProcessLink> {
+    async addProcessLink(
+        riskId: number,
+        processId: number,
+        requestReason: string,
+    ): Promise<RiskProcessLink | ProcessApprovalQueuedResponse> {
         return apiClient.post(
             `/risks/${riskId}/process-links`,
-            { process_id: processId },
-            { schema: riskProcessLinkSchema }
+            { process_id: processId, request_reason: requestReason },
+            { schema: riskProcessLinkSchema.or(processApprovalQueuedResponseSchema) }
         );
     },
 
-    async removeProcessLink(riskId: number, linkId: number): Promise<void> {
-        return apiClient.delete(`/risks/${riskId}/process-links/${linkId}`, { schema: voidSchema });
+    async removeProcessLink(
+        riskId: number,
+        linkId: number,
+        requestReason: string,
+    ): Promise<void | ProcessApprovalQueuedResponse> {
+        return apiClient.delete(`/risks/${riskId}/process-links/${linkId}`, {
+            body: JSON.stringify({ request_reason: requestReason }),
+            schema: voidSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     async getAssetLinks(riskId: number): Promise<RiskAssetLink[]> {

@@ -159,6 +159,7 @@ export interface RiskProcessLink {
     process_name?: string | null;
     risk_id_code?: string | null;
     risk_name?: string | null;
+    process_business_edit_blocked: boolean;
     capabilities?: RiskProcessLinkCapabilities | null;
     created_at: string;
 }

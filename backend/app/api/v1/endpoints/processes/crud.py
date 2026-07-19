@@ -18,6 +18,7 @@ from app.services._ict_register_lifecycle.lifecycle import (
     read_process_detail,
     update_process_detail,
 )
+from app.services._ict_register_lifecycle.projection import load_visible_pending_process_creations
 from app.services._register_listings.lifecycle import build_in_memory_register_response
 from app.services._register_listings.processes import (
     ProcessListCriteria,
@@ -105,11 +106,14 @@ async def list_processes(
     current_user: User = Depends(deps.get_current_user),
 ):
     result = await build_process_listing(db, current_user=current_user, criteria=criteria)
-    return build_in_memory_register_response(
+    response = build_in_memory_register_response(
         response_model=ProcessListResponse,
         criteria=criteria,
         result=result,
         capabilities=process_collection_capabilities(current_user),
+    )
+    return response.model_copy(
+        update={"pending_creations": await load_visible_pending_process_creations(db, current_user=current_user)}
     )
 
 
@@ -126,7 +130,12 @@ async def export_processes(
     return render_process_register_csv(result.matching_items, locale=locale)
 
 
-@router.post("", response_model=ProcessRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=ProcessRead,
+    status_code=status.HTTP_201_CREATED,
+    responses={202: {"model": ApprovalQueuedResponse}},
+)
 async def create_process(
     payload: ProcessCreate,
     db: AsyncSession = Depends(get_db),

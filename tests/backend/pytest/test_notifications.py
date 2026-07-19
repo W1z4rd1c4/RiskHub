@@ -1,6 +1,7 @@
 """Tests for notification API endpoints."""
 
 from datetime import timedelta
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +19,11 @@ from app.models import (
     RolePermission,
     User,
 )
-from app.models.approval_request import ApprovalActionType, ApprovalResourceType, ApprovalStatus
+from app.models.approval_request import (
+    ApprovalActionType,
+    ApprovalResourceType,
+    ApprovalStatus,
+)
 from app.models.notification import NotificationType
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
@@ -600,9 +605,7 @@ async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
         action="write",
         description="Resolve approvals",
     )
-    db_session.add_all(
-        [hidden_department, excluded_role, approval_permission]
-    )
+    db_session.add_all([hidden_department, excluded_role, approval_permission])
     await db_session.flush()
     db_session.add(
         RolePermission(
@@ -622,17 +625,9 @@ async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
 
     test_user_employee.access_scope = AccessScope.DEPARTMENT
     test_user_employee.department_id = hidden_department.id
-    test_user_cro.access_scope = (
-        AccessScope.DEPARTMENT
-        if scope_kind == "department"
-        else AccessScope.MANAGER
-    )
-    test_user_cro.department_id = (
-        test_department.id if scope_kind == "department" else None
-    )
-    test_user_cro.manager_id = (
-        test_user_risk_manager.id if scope_kind == "manager" else None
-    )
+    test_user_cro.access_scope = AccessScope.DEPARTMENT if scope_kind == "department" else AccessScope.MANAGER
+    test_user_cro.department_id = test_department.id if scope_kind == "department" else None
+    test_user_cro.manager_id = test_user_risk_manager.id if scope_kind == "manager" else None
 
     process = Process(
         f_code=f"F-NOTIF-{scope_kind.upper()}",
@@ -725,12 +720,8 @@ async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
     assert legacy_notification is not None
 
     reviewer_headers = _headers_for(test_user_cro)
-    reviewer_page = await client.get(
-        "/api/v1/notifications", headers=reviewer_headers
-    )
-    reviewer_count = await client.get(
-        "/api/v1/notifications/unread/count", headers=reviewer_headers
-    )
+    reviewer_page = await client.get("/api/v1/notifications", headers=reviewer_headers)
+    reviewer_count = await client.get("/api/v1/notifications/unread/count", headers=reviewer_headers)
     assert reviewer_page.json()["total"] == 1
     assert reviewer_page.json()["unread_count"] == 1
     assert reviewer_count.json() == {"count": 1}
@@ -742,9 +733,7 @@ async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
     assert reviewer_read.json() == {"unread_count": 0}
 
     requester_headers = _headers_for(test_user_employee)
-    requester_page = await client.get(
-        "/api/v1/notifications", headers=requester_headers
-    )
+    requester_page = await client.get("/api/v1/notifications", headers=requester_headers)
     assert requester_page.json()["total"] == 1
     assert requester_page.json()["unread_count"] == 1
     requester_read = await client.post(
@@ -754,17 +743,11 @@ async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
     assert requester_read.status_code == 200, requester_read.text
 
     excluded_headers = _headers_for(excluded_user)
-    excluded_page = await client.get(
-        "/api/v1/notifications", headers=excluded_headers
-    )
-    excluded_count = await client.get(
-        "/api/v1/notifications/unread/count", headers=excluded_headers
-    )
+    excluded_page = await client.get("/api/v1/notifications", headers=excluded_headers)
+    excluded_count = await client.get("/api/v1/notifications/unread/count", headers=excluded_headers)
     assert excluded_page.json()["total"] == 1
     assert excluded_page.json()["unread_count"] == 1
-    assert [item["id"] for item in excluded_page.json()["items"]] == [
-        legacy_notification.id
-    ]
+    assert [item["id"] for item in excluded_page.json()["items"]] == [legacy_notification.id]
     assert excluded_count.json() == {"count": 1}
     hidden_read = await client.post(
         f"/api/v1/notifications/{hidden_governed_notification.id}/read",

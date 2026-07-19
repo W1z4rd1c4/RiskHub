@@ -136,6 +136,7 @@ async def risk_link_created(
     risk: Risk,
     link_kind: str,
     target_id: int,
+    target_label: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     """ICT Register link mutations managed from the Risk end (issue #47)."""
@@ -143,16 +144,23 @@ async def risk_link_created(
         db,
         entity_type=ActivityEntityType.RISK_LINK,
         entity_id=risk.id,
-        entity_name=f"{risk_display_name(risk)} {link_kind} link {target_id}",
+        entity_name=f"{risk_display_name(risk)} {link_kind} link {target_label or target_id}",
         safe_entity_label=f"{risk.risk_id_code}-LINK",
         action=ActivityAction.CREATE,
         actor=actor,
         department_id=risk.department_id,
-        changes={
-            "link_kind": {"old": None, "new": link_kind},
-            "target_id": {"old": None, "new": target_id},
-            "risk_id": {"old": None, "new": risk.id},
-        },
+        changes=(
+            {
+                "relationship_type": {"old": None, "new": link_kind},
+                "relationship_target": {"old": None, "new": target_label},
+            }
+            if target_label is not None
+            else {
+                "link_kind": {"old": None, "new": link_kind},
+                "target_id": {"old": None, "new": target_id},
+                "risk_id": {"old": None, "new": risk.id},
+            }
+        ),
         description=f"Created risk {link_kind} link",
         log_activity_func=log_activity_func,
     )
@@ -165,6 +173,7 @@ async def risk_link_deleted(
     risk: Risk,
     link_kind: str,
     target_id: int,
+    target_label: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     """ICT Register unlink mutations managed from the Risk end (issue #47)."""
@@ -172,16 +181,23 @@ async def risk_link_deleted(
         db,
         entity_type=ActivityEntityType.RISK_LINK,
         entity_id=risk.id,
-        entity_name=f"{risk_display_name(risk)} {link_kind} link {target_id}",
+        entity_name=f"{risk_display_name(risk)} {link_kind} link {target_label or target_id}",
         safe_entity_label=f"{risk.risk_id_code}-LINK",
         action=ActivityAction.DELETE,
         actor=actor,
         department_id=risk.department_id,
-        changes={
-            "link_kind": {"old": None, "new": link_kind},
-            "target_id": {"old": None, "new": target_id},
-            "risk_id": {"old": None, "new": risk.id},
-        },
+        changes=(
+            {
+                "relationship_type": {"old": link_kind, "new": None},
+                "relationship_target": {"old": target_label, "new": None},
+            }
+            if target_label is not None
+            else {
+                "link_kind": {"old": None, "new": link_kind},
+                "target_id": {"old": None, "new": target_id},
+                "risk_id": {"old": None, "new": risk.id},
+            }
+        ),
         description=f"Deleted risk {link_kind} link",
         log_activity_func=log_activity_func,
     )

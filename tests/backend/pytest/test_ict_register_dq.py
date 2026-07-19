@@ -14,10 +14,11 @@ Two seams, mirroring the derivation golden suites:
    exhaustive branches.
 
 2. **The HTTP seam** via ``client_factory``: GET /ict-register/dq returns all
-   52 checks with correct statuses for a mini-graph seeded THROUGH the write
-   API (which simultaneously proves the mandatory-if states are writable —
-   flag-don't-prevent), plus the authz matrix on the standard vendors:read
-   business pattern.
+   52 checks with correct statuses for a mini-graph whose supporting records
+   are mostly seeded through the write API. Its historical ownerless derived-CIF
+   Process is ORM-seeded because that invalid state is deliberately rejected
+   by governed intake. The seam also covers the authz matrix on the standard
+   vendors:read business pattern.
 
 The risk-side column mapping (13_Rizika -> the production Risk entity) is
 asserted against ``risk_dq_input`` — the loader seam where the app's
@@ -263,9 +264,7 @@ def test_catalog_serves_all_52_checks_in_workbook_order_with_threshold_zero():
     # CZ titles verbatim (builder sheets_out.py:360-547) — spot pins.
     assert check(result, "DQ-03").title_cs == "CIF proces bez navázaného aktiva"
     assert check(result, "DQ-21").title_cs == "Akceptace nad toleranci bez schválení/odůvodnění"
-    assert check(result, "DQ-52").title_cs == (
-        "Kritický/Významný dodavatel bez posouzené významnosti outsourcingu"
-    )
+    assert check(result, "DQ-52").title_cs == ("Kritický/Významný dodavatel bez posouzené významnosti outsourcingu")
     assert check(result, "DQ-17").severity == "Kritická"
     assert check(result, "DQ-45").severity == "Střední"
 
@@ -286,7 +285,11 @@ def test_clean_mini_register_reads_all_ok():
         vendors=(vendor_row(1),),
         contracts=(
             VendorContractInput(
-                id=1, vendor_id=1, contract_reference="SML-2020-001", main_contract="Ano", roi_scope="Ano"
+                id=1,
+                vendor_id=1,
+                contract_reference="SML-2020-001",
+                main_contract="Ano",
+                roi_scope="Ano",
             ),
         ),
         asset_vendor_links=(avl(1, 1),),
@@ -307,7 +310,12 @@ def test_dq01_process_without_owner():
     assert check(result, "DQ-01").status == DQ_STATUS_FINDING
     assert check(result, "DQ-01").count == 1
     row = check(result, "DQ-01").violating_rows[0]
-    assert (row.entity_type, row.entity_id, row.route_entity_type, row.route_entity_id) == (
+    assert (
+        row.entity_type,
+        row.entity_id,
+        row.route_entity_type,
+        row.route_entity_id,
+    ) == (
         "process",
         1,
         "process",
@@ -346,9 +354,7 @@ def test_dq03_cif_process_without_linked_asset():
 def test_dq04_process_without_score_bootstrap():
     """=SUMPRODUCT((03.l1<>"")*(03.skore="")) — score blank unless all four
     impacts AND mtpd are entered (spec 2.1)."""
-    result = run_dq(
-        IctRegisterGraph(processes=(process_row(1, impact_client=None), process_row(2)))
-    )
+    result = run_dq(IctRegisterGraph(processes=(process_row(1, impact_client=None), process_row(2))))
     assert violating_ids(result, "DQ-04") == [1]
 
 
@@ -420,19 +426,13 @@ def test_dq08_critical_asset_requires_an_identified_risk():
             asset_row(3),
         )
     )
-    result = run_dq(
-        graph, risk_asset_links=(RiskAssetLinkDqInput(risk_id=7, asset_id=2),)
-    )
+    result = run_dq(graph, risk_asset_links=(RiskAssetLinkDqInput(risk_id=7, asset_id=2),))
     assert violating_ids(result, "DQ-08") == [1]
 
 
 def test_dq09_asset_flagged_for_review():
     """=COUNTIF(04.stav_revize,"K revizi") — sheets_out.py:384-386."""
-    result = run_dq(
-        IctRegisterGraph(
-            assets=(asset_row(1, review_state="review_required"), asset_row(2))
-        )
-    )
+    result = run_dq(IctRegisterGraph(assets=(asset_row(1, review_state="review_required"), asset_row(2))))
     assert violating_ids(result, "DQ-09") == [1]
 
 
@@ -540,9 +540,7 @@ def test_dq35_dq47_confidentiality_thresholds_with_blank_counting():
 
     # The threshold is the live P_GdprMinC parameter, not a constant.
     relaxed = run_dq(
-        IctRegisterGraph(
-            assets=(asset_row(1, gdpr_relevance="yes", confidentiality_rating=2),)
-        ),
+        IctRegisterGraph(assets=(asset_row(1, gdpr_relevance="yes", confidentiality_rating=2),)),
         parameters=parameter_set(P_GdprMinC=2),
     )
     assert check(relaxed, "DQ-35").status == DQ_STATUS_OK
@@ -621,7 +619,11 @@ def test_dq11_duplicate_process_asset_pairs_count_every_row():
     graph = IctRegisterGraph(
         processes=(process_row(1),),
         assets=(asset_row(1), asset_row(2)),
-        process_asset_links=(pal(1, 1, is_primary=True), pal(1, 1), pal(1, 2, is_primary=True)),
+        process_asset_links=(
+            pal(1, 1, is_primary=True),
+            pal(1, 1),
+            pal(1, 2, is_primary=True),
+        ),
     )
     result = run_dq(graph)
     assert check(result, "DQ-11").count == 2
@@ -715,21 +717,11 @@ def test_dq37_dependency_direction_uses_level_first_chars():
     graph = IctRegisterGraph(
         assets=(a_primary, b_support, c_infra, blank),
         asset_asset_links=(
-            AssetAssetLinkInput(
-                dependent_asset_id=1, supporting_asset_id=2
-            ),  # A->B expected
-            AssetAssetLinkInput(
-                dependent_asset_id=2, supporting_asset_id=1
-            ),  # B->A suspicious
-            AssetAssetLinkInput(
-                dependent_asset_id=3, supporting_asset_id=1
-            ),  # C->A suspicious
-            AssetAssetLinkInput(
-                dependent_asset_id=2, supporting_asset_id=4
-            ),  # "0" < "B" fires
-            AssetAssetLinkInput(
-                dependent_asset_id=4, supporting_asset_id=2
-            ),  # "B" > "0" OK
+            AssetAssetLinkInput(dependent_asset_id=1, supporting_asset_id=2),  # A->B expected
+            AssetAssetLinkInput(dependent_asset_id=2, supporting_asset_id=1),  # B->A suspicious
+            AssetAssetLinkInput(dependent_asset_id=3, supporting_asset_id=1),  # C->A suspicious
+            AssetAssetLinkInput(dependent_asset_id=2, supporting_asset_id=4),  # "0" < "B" fires
+            AssetAssetLinkInput(dependent_asset_id=4, supporting_asset_id=2),  # "B" > "0" OK
         ),
     )
     result = run_dq(graph)
@@ -749,9 +741,27 @@ def test_dq38_chain_breaks_reuse_the_engine_sentinel_and_duplicates_mask():
         contracts=(VendorContractInput(id=1, vendor_id=1, contract_reference="SML-1", main_contract="Ano"),),
         sub_outsourcing=(
             SubOutsourcingInput(id=1, vendor_id=1, contract_id=1, sub_provider_name="Sub A"),
-            SubOutsourcingInput(id=2, vendor_id=1, contract_id=1, predecessor_id=99, sub_provider_name="Sub B"),
-            SubOutsourcingInput(id=3, vendor_id=1, contract_id=1, predecessor_id=98, sub_provider_name="Dup"),
-            SubOutsourcingInput(id=4, vendor_id=1, contract_id=1, predecessor_id=97, sub_provider_name="Dup"),
+            SubOutsourcingInput(
+                id=2,
+                vendor_id=1,
+                contract_id=1,
+                predecessor_id=99,
+                sub_provider_name="Sub B",
+            ),
+            SubOutsourcingInput(
+                id=3,
+                vendor_id=1,
+                contract_id=1,
+                predecessor_id=98,
+                sub_provider_name="Dup",
+            ),
+            SubOutsourcingInput(
+                id=4,
+                vendor_id=1,
+                contract_id=1,
+                predecessor_id=97,
+                sub_provider_name="Dup",
+            ),
         ),
     )
     result = run_dq(graph)
@@ -776,8 +786,20 @@ def test_dq40_existence_checks_across_06_08_09():
             VendorContractInput(id=2, vendor_id=77, contract_reference="SML-2"),  # vendor missing
         ),
         sub_outsourcing=(
-            SubOutsourcingInput(id=1, vendor_id=1, contract_id=1, predecessor_id=55, sub_provider_name="S"),
-            SubOutsourcingInput(id=2, vendor_id=1, contract_id=1, sub_provider_name="T", sub_provider_vendor_id=88),
+            SubOutsourcingInput(
+                id=1,
+                vendor_id=1,
+                contract_id=1,
+                predecessor_id=55,
+                sub_provider_name="S",
+            ),
+            SubOutsourcingInput(
+                id=2,
+                vendor_id=1,
+                contract_id=1,
+                sub_provider_name="T",
+                sub_provider_vendor_id=88,
+            ),
         ),
     )
     result = run_dq(graph)
@@ -798,7 +820,11 @@ def test_dq_drilldown_labels_never_synthesize_raw_ids_for_absent_business_labels
         sub_outsourcing=(
             # DQ-40: predecessor missing AND the sub carries no provider name.
             SubOutsourcingInput(
-                id=1, vendor_id=1, contract_id=1, predecessor_id=888, sub_provider_name=None
+                id=1,
+                vendor_id=1,
+                contract_id=1,
+                predecessor_id=888,
+                sub_provider_name=None,
             ),
         ),
     )
@@ -850,7 +876,16 @@ def test_standard_tier_vendor_carries_no_top_tier_obligations():
     """A bare tier-Standard vendor: DQ-16/17/18/19/32/49/50/52 all OK even
     with every obligation field blank."""
     result = run_dq(IctRegisterGraph(vendors=(vendor_row(1),)))
-    for check_id in ("DQ-16", "DQ-17", "DQ-18", "DQ-19", "DQ-32", "DQ-49", "DQ-50", "DQ-52"):
+    for check_id in (
+        "DQ-16",
+        "DQ-17",
+        "DQ-18",
+        "DQ-19",
+        "DQ-32",
+        "DQ-49",
+        "DQ-50",
+        "DQ-52",
+    ):
         assert check(result, check_id).status == DQ_STATUS_OK, check_id
 
 
@@ -859,11 +894,28 @@ def test_critical_vendor_with_every_obligation_met_is_clean():
     graph = critical_vendor_graph(
         vendor,
         contracts=(
-            VendorContractInput(id=1, vendor_id=3, contract_reference="SML-1", main_contract="Ano", roi_scope="Ano"),
+            VendorContractInput(
+                id=1,
+                vendor_id=3,
+                contract_reference="SML-1",
+                main_contract="Ano",
+                roi_scope="Ano",
+            ),
         ),
     )
     result = run_dq(graph, risk_vendor_links=(RiskVendorLinkDqInput(risk_id=5, vendor_id=3),))
-    for check_id in ("DQ-16", "DQ-17", "DQ-18", "DQ-19", "DQ-32", "DQ-39", "DQ-41", "DQ-49", "DQ-50", "DQ-52"):
+    for check_id in (
+        "DQ-16",
+        "DQ-17",
+        "DQ-18",
+        "DQ-19",
+        "DQ-32",
+        "DQ-39",
+        "DQ-41",
+        "DQ-49",
+        "DQ-50",
+        "DQ-52",
+    ):
         assert check(result, check_id).status == DQ_STATUS_OK, check_id
 
 
@@ -874,7 +926,17 @@ def test_bare_critical_vendor_fires_the_whole_obligation_family():
     unassessed."""
     vendor = vendor_row(3, substitutability=None)
     result = run_dq(critical_vendor_graph(vendor))
-    for check_id in ("DQ-16", "DQ-17", "DQ-18", "DQ-19", "DQ-32", "DQ-41", "DQ-49", "DQ-50", "DQ-52"):
+    for check_id in (
+        "DQ-16",
+        "DQ-17",
+        "DQ-18",
+        "DQ-19",
+        "DQ-32",
+        "DQ-41",
+        "DQ-49",
+        "DQ-50",
+        "DQ-52",
+    ):
         assert violating_ids(result, check_id) == [3], check_id
     # ... but not DQ-39 (no contracts at all -> the exactly-one rule is idle).
     assert check(result, "DQ-39").status == DQ_STATUS_OK
@@ -901,7 +963,11 @@ def test_dq17_dq49_exit_plan_state_branches_are_exhaustive():
                 vendor,
                 contracts=(
                     VendorContractInput(
-                        id=1, vendor_id=3, contract_reference="SML-1", main_contract="Ano", roi_scope="Ano"
+                        id=1,
+                        vendor_id=3,
+                        contract_reference="SML-1",
+                        main_contract="Ano",
+                        roi_scope="Ano",
                     ),
                 ),
             ),
@@ -929,7 +995,13 @@ def test_dq19_counts_vendor_risk_links():
     graph = critical_vendor_graph(
         vendor,
         contracts=(
-            VendorContractInput(id=1, vendor_id=3, contract_reference="SML-1", main_contract="Ano", roi_scope="Ano"),
+            VendorContractInput(
+                id=1,
+                vendor_id=3,
+                contract_reference="SML-1",
+                main_contract="Ano",
+                roi_scope="Ano",
+            ),
         ),
     )
     without_risk = run_dq(graph)
@@ -971,7 +1043,12 @@ def test_dq39_main_contract_multiplicity_is_exactly_one():
         return IctRegisterGraph(
             vendors=(vendor_row(1),),
             contracts=tuple(
-                VendorContractInput(id=i + 1, vendor_id=1, contract_reference=f"SML-{i + 1}", main_contract=main)
+                VendorContractInput(
+                    id=i + 1,
+                    vendor_id=1,
+                    contract_reference=f"SML-{i + 1}",
+                    main_contract=main,
+                )
                 for i, main in enumerate(mains)
             ),
         )
@@ -1033,7 +1110,11 @@ def test_dq50_due_diligence_not_started_states():
                 vendor,
                 contracts=(
                     VendorContractInput(
-                        id=1, vendor_id=3, contract_reference="SML-1", main_contract="Ano", roi_scope="Ano"
+                        id=1,
+                        vendor_id=3,
+                        contract_reference="SML-1",
+                        main_contract="Ano",
+                        roi_scope="Ano",
                     ),
                 ),
             ),
@@ -1051,7 +1132,9 @@ def test_dq52_significance_outcome_must_not_stay_ne_for_top_tiers():
     assert 3 in violating_ids(result, "DQ-52")
 
     irrelevant_only = obligated_vendor_row(
-        3, significance_service_quality="Nerelevantní", significance_financial_impact="Nerelevantní"
+        3,
+        significance_service_quality="Nerelevantní",
+        significance_financial_impact="Nerelevantní",
     )
     assert 3 in violating_ids(run_dq(critical_vendor_graph(irrelevant_only)), "DQ-52")
 
@@ -1080,7 +1163,11 @@ def test_dq20_high_or_critical_net_risk_without_action_plan():
     result = run_dq(risks=risks)
     assert violating_ids(result, "DQ-20") == [1, 2]
     row = check(result, "DQ-20").violating_rows[0]
-    assert (row.entity_type, row.route_entity_type, row.label) == ("risk", "risk", "RIZ-001 — Riziko 1")
+    assert (row.entity_type, row.route_entity_type, row.label) == (
+        "risk",
+        "risk",
+        "RIZ-001 — Riziko 1",
+    )
 
 
 def test_dq20_band_thresholds_follow_the_parameter_set():
@@ -1311,7 +1398,13 @@ def test_dq42_sub_outsourcing_on_contract_outside_roi_scope():
     graph = IctRegisterGraph(
         vendors=(vendor_row(1),),
         contracts=(
-            VendorContractInput(id=1, vendor_id=1, contract_reference="SML-1", main_contract="Ano", roi_scope="Ne"),
+            VendorContractInput(
+                id=1,
+                vendor_id=1,
+                contract_reference="SML-1",
+                main_contract="Ano",
+                roi_scope="Ne",
+            ),
             VendorContractInput(id=2, vendor_id=1, contract_reference="SML-2", roi_scope="Ano"),
         ),
         sub_outsourcing=(
@@ -1346,12 +1439,11 @@ def _risk_payload(**overrides: object) -> dict[str, object]:
 async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
     client_factory, db_session, test_user_cro: User, test_department, seed_risk_types
 ):
-    """The read-model endpoint computes the 52 checks on read over a register
-    seeded THROUGH the write API — which simultaneously proves the
-    mandatory-if states are writable (findings, never write blocks): the
-    ownerless process, the partially-accepted over-tolerance risk, and the
-    obligation-less CIF vendor are all accepted by their endpoints and then
-    flagged here."""
+    """The read model computes all 52 checks over a supporting graph mostly
+    seeded through the write API. The historical ownerless Process is ORM-seeded;
+    governed intake intentionally prevents constructing that invalid state.
+    The partially accepted over-tolerance risk and obligation-less CIF vendor
+    remain accepted by their endpoints and are flagged here."""
     from app.models import GlobalConfig
 
     # Tune the risk banding/tolerance to the app's 1-25 net scale (the
@@ -1380,36 +1472,23 @@ async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
     clear_config_cache()
 
     async with client_factory(user=test_user_cro) as client:
-        # An ownerless CIF process without assets or BCM (DQ-01/03/05/43; its
-        # missing impacts would be DQ-04, so score it fully).
-        process_resp = await client.post(
-            "/api/v1/processes",
-            json={
-                "l0_area": "Provoz a služby klientům",
-                "l1_process": "Správa pojistných smluv",
-                "process_owner_user_id": test_user_cro.id,
-                "owning_department_id": test_department.id,
-                "impact_client": 5,
-                "impact_market_operations": 4,
-                "impact_regulatory": 4,
-                "impact_financial": 4,
-                "mtpd_hours": 2,
-                "rto_hours": 1,
-                "rpo_hours": 1,
-                "interruption_impact": "high",
-                "assessment_date": "2026-01-15",
-            },
+        # Seed the historical Process row directly: protected CIF creation is
+        # governed, while this test exercises the DQ read model rather than
+        # approval intake. Keep it ordinary until its API relationships exist.
+        stored_process = Process(
+            f_code="FDQ001",
+            l0_area="Provoz a služby klientům",
+            l1_process="Správa pojistných smluv",
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+            rto_hours=1,
+            rpo_hours=1,
+            interruption_impact="high",
+            assessment_date=date(2026, 1, 15),
         )
-        assert process_resp.status_code == 201, process_resp.text
-        process = process_resp.json()
-
-        # DQ-01 remains a historical-data guard even though #74 prevents new
-        # ownerless Processes at the API boundary.
-        stored_process = await db_session.get(Process, process["id"])
-        assert stored_process is not None
-        stored_process.process_owner_user_id = None
-        stored_process.owning_department_id = None
+        db_session.add(stored_process)
         await db_session.commit()
+        process_id = stored_process.id
 
         # A vendor put on the Critical tier through the cascade, with every
         # top-tier obligation left blank — accepted by the API, flagged by DQ.
@@ -1447,7 +1526,7 @@ async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
         await db_session.commit()
         link = await client.post(
             f"/api/v1/assets/{asset['id']}/process-links",
-            json={"process_id": process["id"], "is_primary": True},
+            json={"process_id": process_id, "is_primary": True},
         )
         assert link.status_code == 201, link.text
         av_link = await client.post(
@@ -1468,9 +1547,21 @@ async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
         )
         assert risk.status_code == 201, risk.text
         risk_link = await client.post(
-            f"/api/v1/risks/{risk.json()['id']}/process-links", json={"process_id": process["id"]}
+            f"/api/v1/risks/{risk.json()['id']}/process-links",
+            json={"process_id": process_id},
         )
         assert risk_link.status_code == 201, risk_link.text
+
+        # Preserve the fixture's derived-CIF semantics (maximal impact and
+        # MTPD trigger) before introducing the historical DQ-01 ownership gap.
+        stored_process.impact_client = 5
+        stored_process.impact_market_operations = 4
+        stored_process.impact_regulatory = 4
+        stored_process.impact_financial = 4
+        stored_process.mtpd_hours = 2
+        stored_process.process_owner_user_id = None
+        stored_process.owning_department_id = None
+        await db_session.commit()
 
         resp = await client.get("/api/v1/ict-register/dq")
 
@@ -1486,10 +1577,10 @@ async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
     assert checks_by_id["DQ-01"]["violating_rows"] == [
         {
             "entity_type": "process",
-            "entity_id": process["id"],
+            "entity_id": process_id,
             "label": "Správa pojistných smluv",
             "route_entity_type": "process",
-            "route_entity_id": process["id"],
+            "route_entity_id": process_id,
         }
     ]
     assert checks_by_id["DQ-05"]["status"] == "NÁLEZ"  # CIF without BCM
@@ -1498,7 +1589,17 @@ async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
 
     # Vendor obligations: the cascade makes BIZ DATA Critical; everything is
     # blank, so the whole family fires with the vendor as the violating row.
-    for check_id in ("DQ-16", "DQ-17", "DQ-18", "DQ-19", "DQ-32", "DQ-41", "DQ-49", "DQ-50", "DQ-52"):
+    for check_id in (
+        "DQ-16",
+        "DQ-17",
+        "DQ-18",
+        "DQ-19",
+        "DQ-32",
+        "DQ-41",
+        "DQ-49",
+        "DQ-50",
+        "DQ-52",
+    ):
         assert checks_by_id[check_id]["status"] == "NÁLEZ", check_id
         assert checks_by_id[check_id]["violating_rows"][0]["entity_id"] == vendor["id"], check_id
         assert checks_by_id[check_id]["violating_rows"][0]["route_entity_type"] == "vendor"
@@ -1526,9 +1627,7 @@ async def test_dq_endpoint_reports_all_52_checks_over_an_api_seeded_register(
 
 
 @pytest.mark.asyncio
-async def test_dq38_rises_when_a_mid_chain_sub_outsourcing_row_is_archived(
-    client_factory, test_user_cro: User
-):
+async def test_dq38_rises_when_a_mid_chain_sub_outsourcing_row_is_archived(client_factory, test_user_cro: User):
     """DQ-38 = COUNTIF(09.K,"CHYBA ŘETĚZCE"). Archiving a mid-chain row removes
     it from the active register, so the successor pointing at it can no longer
     resolve its Rank — the chain breaks and the finding count rises by one. The
@@ -1546,24 +1645,36 @@ async def test_dq38_rises_when_a_mid_chain_sub_outsourcing_row_is_archived(
         assert vendor.status_code == 201, vendor.text
         vendor = vendor.json()
         contract = await client.post(
-            f"/api/v1/vendors/{vendor['id']}/contracts", json={"contract_reference": "SML-2020-001"}
+            f"/api/v1/vendors/{vendor['id']}/contracts",
+            json={"contract_reference": "SML-2020-001"},
         )
         assert contract.status_code == 201, contract.text
         contract = contract.json()
         chain_url = f"/api/v1/vendors/{vendor['id']}/sub-outsourcing"
         a = (
-            await client.post(chain_url, json={"contract_id": contract["id"], "sub_provider_name": "A"})
+            await client.post(
+                chain_url,
+                json={"contract_id": contract["id"], "sub_provider_name": "A"},
+            )
         ).json()
         b = (
             await client.post(
                 chain_url,
-                json={"contract_id": contract["id"], "predecessor_id": a["id"], "sub_provider_name": "B"},
+                json={
+                    "contract_id": contract["id"],
+                    "predecessor_id": a["id"],
+                    "sub_provider_name": "B",
+                },
             )
         ).json()
         c = (
             await client.post(
                 chain_url,
-                json={"contract_id": contract["id"], "predecessor_id": b["id"], "sub_provider_name": "C"},
+                json={
+                    "contract_id": contract["id"],
+                    "predecessor_id": b["id"],
+                    "sub_provider_name": "C",
+                },
             )
         ).json()
 
@@ -1704,9 +1815,7 @@ def test_visible_dq_result_gates_contract_rows_on_vendor_contracts_read():
         threshold=0,
         count=1,
         status=DQ_STATUS_FINDING,
-        violating_rows=(
-            DqViolatingRow("contract", 1, "SML-2020-001 → ?", "vendor", 7, vendor_scope_ids=(7,)),
-        ),
+        violating_rows=(DqViolatingRow("contract", 1, "SML-2020-001 → ?", "vendor", 7, vendor_scope_ids=(7,)),),
     )
     synthetic = IctRegisterDqResult(checks=(contract_check,), finding_count=1)
 
@@ -1736,7 +1845,11 @@ def test_visible_dq_result_gates_contract_rows_on_vendor_contracts_read():
 
 @pytest.mark.asyncio
 async def test_dq_endpoint_scopes_rows_per_viewer_but_reports_global_counts(
-    client_factory, db_session, test_user_cro: User, test_user_employee: User, seed_risk_types
+    client_factory,
+    db_session,
+    test_user_cro: User,
+    test_user_employee: User,
+    seed_risk_types,
 ):
     """Oversight semantics at the HTTP seam: a dept-scoped employee sees the
     GLOBAL finding counts, but the listed rows are filtered through each
@@ -1822,14 +1935,21 @@ async def test_dq_endpoint_scopes_rows_per_viewer_but_reports_global_counts(
         assert vendor_link.status_code == 201, vendor_link.text
 
         in_scope = (
-            await client.post("/api/v1/risks", json=scoped_risk("Viditelné riziko", employee_department_id))
+            await client.post(
+                "/api/v1/risks",
+                json=scoped_risk("Viditelné riziko", employee_department_id),
+            )
         ).json()
         out_of_scope = (
-            await client.post("/api/v1/risks", json=scoped_risk("Skryté riziko jiného útvaru", other_dept_id))
+            await client.post(
+                "/api/v1/risks",
+                json=scoped_risk("Skryté riziko jiného útvaru", other_dept_id),
+            )
         ).json()
         for risk_id in (in_scope["id"], out_of_scope["id"]):
             link = await client.post(
-                f"/api/v1/risks/{risk_id}/process-links", json={"process_id": process["id"]}
+                f"/api/v1/risks/{risk_id}/process-links",
+                json={"process_id": process["id"]},
             )
             assert link.status_code == 201, link.text
 

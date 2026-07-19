@@ -29,9 +29,7 @@ PROPOSAL_VERSION = 1
 PROPOSAL_SCHEMA_VERSION = 1
 PROCESS_DISPLAY_NAME_MAX_LENGTH = 255
 _SAFE_IDENTITY_FIELDS = {"process_owner_user_id", "owning_department_id"}
-_PROCESS_UPDATE_FIELDS = tuple(
-    sorted(set(ProcessUpdate.model_fields) - {"request_reason"})
-)
+_PROCESS_UPDATE_FIELDS = tuple(sorted(set(ProcessUpdate.model_fields) - {"request_reason"}))
 _PROCESS_STRING_LIMITS = {
     "l0_area": (1, 255),
     "l1_process": (1, 255),
@@ -92,6 +90,7 @@ class GovernedProcessIdentity:
     base_governance_version: int
     action_type: ApprovalActionType
     pending_changes: dict[str, dict[str, Any]]
+    mutation_kind: str = PROCESS_MUTATION_KIND
 
 
 def new_governed_process_proposal(
@@ -151,12 +150,7 @@ def canonical_process_display_name(f_code: str, l1_process: str) -> str:
         raise InvalidGovernedProcessIdentity("Process display label is malformed")
     canonical_code = f_code.strip()
     canonical_l1 = l1_process.strip()
-    if (
-        not canonical_code
-        or not canonical_l1
-        or "\x00" in canonical_code
-        or "\x00" in canonical_l1
-    ):
+    if not canonical_code or not canonical_l1 or "\x00" in canonical_code or "\x00" in canonical_l1:
         raise InvalidGovernedProcessIdentity("Process display label is malformed")
     prefix = f"{canonical_code} — "
     available = PROCESS_DISPLAY_NAME_MAX_LENGTH - len(prefix)
@@ -218,12 +212,7 @@ def _canonical_process_update_payload(value: dict[str, Any]) -> bool:
 
 
 def _canonical_identity_text(value: object) -> bool:
-    return bool(
-        isinstance(value, str)
-        and "\x00" not in value
-        and value
-        and value == value.strip()
-    )
+    return bool(isinstance(value, str) and "\x00" not in value and value and value == value.strip())
 
 
 def _required_process_fields_are_valid(
@@ -233,11 +222,7 @@ def _required_process_fields_are_valid(
 ) -> bool:
     for field in _REQUIRED_PROCESS_LABEL_FIELDS & value.keys():
         label = value[field]
-        if (
-            not isinstance(label, str)
-            or "\x00" in label
-            or not label.strip()
-        ):
+        if not isinstance(label, str) or "\x00" in label or not label.strip():
             return False
     for field in _REQUIRED_PROCESS_ID_FIELDS & value.keys():
         if value[field] is None and not require_identity_ids:
@@ -274,12 +259,8 @@ def _valid_derived_impact_snapshot(value: object) -> bool:
         criticality = block["criticality_class"]
         if not isinstance(cif, str) or cif not in _DERIVED_CIF_VALUES:
             return False
-        if (
-            criticality is not None
-            and (
-                not isinstance(criticality, str)
-                or criticality not in _DERIVED_CRITICALITY_VALUES
-            )
+        if criticality is not None and (
+            not isinstance(criticality, str) or criticality not in _DERIVED_CRITICALITY_VALUES
         ):
             return False
     return any(block["cif"] == "yes" for block in value.values())
@@ -337,14 +318,11 @@ def strict_governed_process_identity(
     ):
         raise InvalidGovernedProcessIdentity("Governed Process snapshot diverges from operation")
     if any(
-        not _canonical_identity_text(before_snapshot[field])
-        or not _canonical_identity_text(after_snapshot[field])
+        not _canonical_identity_text(before_snapshot[field]) or not _canonical_identity_text(after_snapshot[field])
         for field in field_names & _SAFE_IDENTITY_FIELDS
     ):
         raise InvalidGovernedProcessIdentity("Governed Process identity labels are malformed")
-    if not _canonical_process_update_payload(
-        raw_before
-    ) or not _canonical_process_update_payload(raw_after):
+    if not _canonical_process_update_payload(raw_before) or not _canonical_process_update_payload(raw_after):
         raise InvalidGovernedProcessIdentity("Governed Process update is invalid")
     if not _required_process_fields_are_valid(
         raw_before,
@@ -353,15 +331,11 @@ def strict_governed_process_identity(
         raw_after,
         require_identity_ids=True,
     ):
-        raise InvalidGovernedProcessIdentity(
-            "Governed Process required fields are invalid"
-        )
+        raise InvalidGovernedProcessIdentity("Governed Process required fields are invalid")
 
     base_versions = proposal.base_versions
     base_version = (
-        base_versions.get("process")
-        if isinstance(base_versions, dict) and set(base_versions) == {"process"}
-        else None
+        base_versions.get("process") if isinstance(base_versions, dict) and set(base_versions) == {"process"} else None
     )
     primary_resource_id = _positive_int(proposal.primary_resource_id)
     requested_by_id = _positive_int(proposal.requested_by_id)
@@ -379,9 +353,7 @@ def strict_governed_process_identity(
     if (
         not _canonical_uuid4(proposal.proposal_id)
         or not _supported_plain_int(proposal.proposal_version, PROPOSAL_VERSION)
-        or not _supported_plain_int(
-            proposal.schema_version, PROPOSAL_SCHEMA_VERSION
-        )
+        or not _supported_plain_int(proposal.schema_version, PROPOSAL_SCHEMA_VERSION)
         or approval_request_id is None
         or requested_by_id is None
         or primary_resource_id is None
@@ -393,9 +365,7 @@ def strict_governed_process_identity(
         or not set(roles).issubset(ALLOWED_APPROVER_ROLES)
         or _positive_int(base_version) is None
         or not _valid_derived_impact_snapshot(proposal.derived_impact_snapshot)
-        or not _canonical_json_equal(
-            proposal.impacted_resources_snapshot, expected_impact
-        )
+        or not _canonical_json_equal(proposal.impacted_resources_snapshot, expected_impact)
     ):
         raise InvalidGovernedProcessIdentity("Malformed governed Process identity")
 
@@ -557,10 +527,7 @@ def _compiled_arguments(element, compiler, **kw) -> list[str]:
 
 def _identity_trim_sql(value: str, *, dialect: str) -> str:
     character_function = "char" if dialect == "sqlite" else "chr"
-    characters = " || ".join(
-        f"{character_function}({codepoint})"
-        for codepoint in _IDENTITY_WHITESPACE_CODEPOINTS
-    )
+    characters = " || ".join(f"{character_function}({codepoint})" for codepoint in _IDENTITY_WHITESPACE_CODEPOINTS)
     trim_function = "trim" if dialect == "sqlite" else "btrim"
     return f"{trim_function}({value}, {characters})"
 
@@ -680,17 +647,7 @@ def _compile_json_field_document_postgresql(element, compiler, **kw):
 def _compile_canonical_uuid4_sqlite(element, compiler, **kw):
     (value,) = _compiled_arguments(element, compiler, **kw)
     hexdigit = "[0-9a-f]"
-    pattern = (
-        hexdigit * 8
-        + "-"
-        + hexdigit * 4
-        + "-4"
-        + hexdigit * 3
-        + "-[89ab]"
-        + hexdigit * 3
-        + "-"
-        + hexdigit * 12
-    )
+    pattern = hexdigit * 8 + "-" + hexdigit * 4 + "-4" + hexdigit * 3 + "-[89ab]" + hexdigit * 3 + "-" + hexdigit * 12
     return f"({value} GLOB '{pattern}')"
 
 
@@ -706,8 +663,7 @@ def _compile_json_positive_integer_field_sqlite(element, compiler, **kw):
     document, field = _compiled_arguments(element, compiler, **kw)
     path = f"'$.' || {field}"
     return (
-        f"CASE WHEN json_type({document}, {path}) = 'integer' "
-        f"THEN json_extract({document}, {path}) > 0 ELSE 0 END"
+        f"CASE WHEN json_type({document}, {path}) = 'integer' " f"THEN json_extract({document}, {path}) > 0 ELSE 0 END"
     )
 
 
@@ -715,10 +671,7 @@ def _compile_json_positive_integer_field_sqlite(element, compiler, **kw):
 def _compile_json_positive_integer_field_postgresql(element, compiler, **kw):
     document, field = _compiled_arguments(element, compiler, **kw)
     value = f"({document} ->> {field})"
-    return (
-        f"CASE WHEN jsonb_typeof({document} -> {field}) = 'number' "
-        f"THEN {value} ~ '^[1-9][0-9]*$' ELSE false END"
-    )
+    return f"CASE WHEN jsonb_typeof({document} -> {field}) = 'number' " f"THEN {value} ~ '^[1-9][0-9]*$' ELSE false END"
 
 
 @compiles(_JsonObjectKeySetEqual, "sqlite")
@@ -795,9 +748,7 @@ def _compile_json_documents_differ_postgresql(element, compiler, **kw):
 
 @compiles(_JsonImpactMatchesIdentity, "sqlite")
 def _compile_json_impact_matches_identity_sqlite(element, compiler, **kw):
-    snapshot, resource_id, resource_name, base_versions = _compiled_arguments(
-        element, compiler, **kw
-    )
+    snapshot, resource_id, resource_name, base_versions = _compiled_arguments(element, compiler, **kw)
     item = f"json_extract({snapshot}, '$[0]')"
     return (
         f"CASE WHEN json_type({snapshot}) = 'array' THEN CASE WHEN json_array_length({snapshot}) = 1 "
@@ -818,9 +769,7 @@ def _compile_json_impact_matches_identity_sqlite(element, compiler, **kw):
 
 @compiles(_JsonImpactMatchesIdentity, "postgresql")
 def _compile_json_impact_matches_identity_postgresql(element, compiler, **kw):
-    snapshot, resource_id, resource_name, base_versions = _compiled_arguments(
-        element, compiler, **kw
-    )
+    snapshot, resource_id, resource_name, base_versions = _compiled_arguments(element, compiler, **kw)
     item = f"({snapshot} -> 0)"
     resource_id_text = f"({item} ->> 'resource_id')"
     base_version_text = f"({item} ->> 'base_governance_version')"
@@ -862,10 +811,7 @@ def _compile_json_object_keys_allowed_postgresql(element, compiler, **kw):
 
 
 def _quoted_sql_values(values: object) -> str:
-    return ", ".join(
-        "'" + str(value).replace("'", "''") + "'"
-        for value in values
-    )
+    return ", ".join("'" + str(value).replace("'", "''") + "'" for value in values)
 
 
 def _compile_json_process_update_valid_sqlite(
@@ -882,9 +828,7 @@ def _compile_json_process_update_valid_sqlite(
         value_type = f"json_type({document}, {path})"
         value = f"json_extract({document}, {path})"
         if field in PROCESS_CONTROLLED_CODES_BY_FIELD:
-            allowed = _quoted_sql_values(
-                sorted(PROCESS_CONTROLLED_CODES_BY_FIELD[field])
-            )
+            allowed = _quoted_sql_values(sorted(PROCESS_CONTROLLED_CODES_BY_FIELD[field]))
             valid = f"{value_type} = 'text' AND {value} IN ({allowed})"
         elif field in _PROCESS_STRING_LIMITS:
             minimum, maximum = _PROCESS_STRING_LIMITS[field]
@@ -892,10 +836,7 @@ def _compile_json_process_update_valid_sqlite(
             bounds = [f"{length} >= {minimum}"]
             if maximum is not None:
                 bounds.append(f"{length} <= {maximum}")
-            valid = (
-                f"{value_type} = 'text' AND instr({value}, char(0)) = 0 AND "
-                + " AND ".join(bounds)
-            )
+            valid = f"{value_type} = 'text' AND instr({value}, char(0)) = 0 AND " + " AND ".join(bounds)
             if field in _REQUIRED_PROCESS_LABEL_FIELDS:
                 valid += f" AND length({_identity_trim_sql(value, dialect='sqlite')}) > 0"
         elif field in _PROCESS_POSITIVE_INTEGER_FIELDS:
@@ -921,11 +862,7 @@ def _compile_json_process_update_valid_sqlite(
             if field in required_fields
             else f"({value_type} IS NULL OR {value_type} = 'null' OR ({valid}))"
         )
-    return (
-        f"CASE WHEN json_type({document}) = 'object' THEN "
-        + " AND ".join(conditions)
-        + " ELSE 0 END"
-    )
+    return f"CASE WHEN json_type({document}) = 'object' THEN " + " AND ".join(conditions) + " ELSE 0 END"
 
 
 @compiles(_JsonProcessBeforeUpdateValid, "sqlite")
@@ -963,9 +900,7 @@ def _compile_json_process_update_valid_postgresql(
         value_type = f"jsonb_typeof({json_value})"
         value = f"({document} ->> {key})"
         if field in PROCESS_CONTROLLED_CODES_BY_FIELD:
-            allowed = _quoted_sql_values(
-                sorted(PROCESS_CONTROLLED_CODES_BY_FIELD[field])
-            )
+            allowed = _quoted_sql_values(sorted(PROCESS_CONTROLLED_CODES_BY_FIELD[field]))
             valid = f"{value_type} = 'string' AND {value} IN ({allowed})"
         elif field in _PROCESS_STRING_LIMITS:
             minimum, maximum = _PROCESS_STRING_LIMITS[field]
@@ -976,11 +911,7 @@ def _compile_json_process_update_valid_postgresql(
             valid = f"{value_type} = 'string' AND " + " AND ".join(bounds)
             if field in _REQUIRED_PROCESS_LABEL_FIELDS:
                 valid += f" AND length({_identity_trim_sql(value, dialect='postgresql')}) > 0"
-        elif field in (
-            _PROCESS_POSITIVE_INTEGER_FIELDS
-            | _PROCESS_NONNEGATIVE_INTEGER_FIELDS
-            | _PROCESS_IMPACT_FIELDS
-        ):
+        elif field in (_PROCESS_POSITIVE_INTEGER_FIELDS | _PROCESS_NONNEGATIVE_INTEGER_FIELDS | _PROCESS_IMPACT_FIELDS):
             if field in _PROCESS_POSITIVE_INTEGER_FIELDS:
                 range_check = "numeric_value >= 1"
             elif field in _PROCESS_NONNEGATIVE_INTEGER_FIELDS:
@@ -993,15 +924,12 @@ def _compile_json_process_update_valid_postgresql(
                 "ELSE false END"
             )
         elif field in _PROCESS_DATE_FIELDS:
-            date_pattern = (
-                "'^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'"
-            )
+            date_pattern = "'^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'"
             year = f"CAST(substring({value} from 1 for 4) AS integer)"
             month = f"CAST(substring({value} from 6 for 2) AS integer)"
             day = f"CAST(substring({value} from 9 for 2) AS integer)"
             february_days = (
-                f"CASE WHEN ({year} % 400 = 0 OR ({year} % 4 = 0 AND {year} % 100 != 0)) "
-                "THEN 29 ELSE 28 END"
+                f"CASE WHEN ({year} % 400 = 0 OR ({year} % 4 = 0 AND {year} % 100 != 0)) " "THEN 29 ELSE 28 END"
             )
             valid = (
                 f"{value_type} = 'string' AND CASE WHEN {value} ~ {date_pattern} "
@@ -1019,11 +947,7 @@ def _compile_json_process_update_valid_postgresql(
             if field in required_fields
             else f"(NOT ({document} ? {key}) OR {value_type} = 'null' OR ({valid}))"
         )
-    return (
-        f"CASE WHEN jsonb_typeof({document}) = 'object' THEN "
-        + " AND ".join(conditions)
-        + " ELSE false END"
-    )
+    return f"CASE WHEN jsonb_typeof({document}) = 'object' THEN " + " AND ".join(conditions) + " ELSE false END"
 
 
 @compiles(_JsonProcessBeforeUpdateValid, "postgresql")
@@ -1100,8 +1024,7 @@ def _compile_json_derived_impact_valid_sqlite(element, compiler, **kw):
         f"(SELECT count(*) FROM json_each({document})) = 2 AND "
         + " AND ".join(block_conditions)
         + f" AND (json_extract({document}, '$.before.cif') = 'yes' "
-        f"OR json_extract({document}, '$.after.cif') = 'yes')"
-        + " ELSE 0 END"
+        f"OR json_extract({document}, '$.after.cif') = 'yes')" + " ELSE 0 END"
     )
 
 
@@ -1127,8 +1050,7 @@ def _compile_json_derived_impact_valid_postgresql(element, compiler, **kw):
         f"(SELECT count(*) FROM jsonb_object_keys({document})) = 2 AND "
         + " AND ".join(block_conditions)
         + f" AND (({document} -> 'before' ->> 'cif') = 'yes' "
-        f"OR ({document} -> 'after' ->> 'cif') = 'yes')"
-        + " ELSE false END"
+        f"OR ({document} -> 'after' ->> 'cif') = 'yes')" + " ELSE false END"
     )
 
 
@@ -1175,9 +1097,7 @@ def _strict_sql_identity_predicate():
         ),
     )
     proposed_changes = GovernedMutationProposal.proposed_changes
-    operation_before = _JsonFieldDocument(
-        proposed_changes, literal("before")
-    )
+    operation_before = _JsonFieldDocument(proposed_changes, literal("before"))
     operation_after = _JsonFieldDocument(proposed_changes, literal("after"))
     base_versions = GovernedMutationProposal.base_versions
     before_snapshot = GovernedMutationProposal.before_snapshot
@@ -1190,10 +1110,8 @@ def _strict_sql_identity_predicate():
         GovernedMutationProposal.requested_by_id > 0,
         GovernedMutationProposal.primary_resource_id > 0,
         func.length(_IdentityTrim(GovernedMutationProposal.primary_resource_name)) > 0,
-        GovernedMutationProposal.primary_resource_name
-        == _IdentityTrim(GovernedMutationProposal.primary_resource_name),
-        func.length(GovernedMutationProposal.primary_resource_name)
-        <= PROCESS_DISPLAY_NAME_MAX_LENGTH,
+        GovernedMutationProposal.primary_resource_name == _IdentityTrim(GovernedMutationProposal.primary_resource_name),
+        func.length(GovernedMutationProposal.primary_resource_name) <= PROCESS_DISPLAY_NAME_MAX_LENGTH,
         _TextNoNul(GovernedMutationProposal.primary_resource_name),
         _JsonType(scenario) == "object",
         case(
@@ -1277,25 +1195,19 @@ def valid_governed_process_proposal_exists_clause(
             Process,
             Process.id == GovernedMutationProposal.primary_resource_id,
         )
-    return (
-        statement
-        .where(
-            GovernedMutationProposal.approval_request_id == ApprovalRequest.id,
-            GovernedMutationProposal.mutation_kind == PROCESS_MUTATION_KIND,
-            GovernedMutationProposal.primary_resource_type == PROCESS_RESOURCE_TYPE,
-            _strict_sql_identity_predicate(),
-            *extra_conditions,
-        )
-        .exists()
-    )
+    return statement.where(
+        GovernedMutationProposal.approval_request_id == ApprovalRequest.id,
+        GovernedMutationProposal.mutation_kind == PROCESS_MUTATION_KIND,
+        GovernedMutationProposal.primary_resource_type == PROCESS_RESOURCE_TYPE,
+        _strict_sql_identity_predicate(),
+        *extra_conditions,
+    ).exists()
 
 
 def governed_process_requester_clause(user_id: int | None):
     if user_id is None:
         return false()
-    return valid_governed_process_proposal_exists_clause(
-        GovernedMutationProposal.requested_by_id == user_id
-    )
+    return valid_governed_process_proposal_exists_clause(GovernedMutationProposal.requested_by_id == user_id)
 
 
 def governed_process_role_match_clause(role_name: str | None):

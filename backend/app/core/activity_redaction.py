@@ -96,6 +96,13 @@ SAFE_CHANGESET_FIELDS = {
 
 SAFE_CHANGESET_ALLOWLIST_BY_ENTITY = {
     "approval": {"primary_approver_id", "secondary_approver_id"},
+    "asset_link": {
+        "is_primary",
+        "process_governance_version",
+        "relationship_target",
+        "relationship_type",
+        "replacement_primary_process",
+    },
     "config": {
         "app_log_retention_count",
         "app_log_rotation_size_mb",
@@ -113,7 +120,9 @@ SAFE_CHANGESET_ALLOWLIST_BY_ENTITY = {
     },
     "kri": {"metric_name"},
     "risk": {"risk_id_code"},
+    "risk_link": {"relationship_target", "relationship_type"},
     "role": {"display_name"},
+    "process_link": {"relationship_target", "relationship_type"},
     "user": {
         "password_changed",
         "entra_business_role",

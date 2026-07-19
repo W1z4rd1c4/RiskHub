@@ -13,6 +13,8 @@ from app.models._archivable import archived_clause
 from app.schemas.process import ProcessCreate, ProcessListResponse, ProcessRead, ProcessUpdate
 from app.services._governed_mutations import (
     assert_no_pending_process_mutation,
+    submit_process_archive_if_required,
+    submit_process_creation_if_required,
     submit_process_mutation_if_required,
 )
 from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
@@ -61,9 +63,22 @@ async def create_process_detail(
         department_id=payload.owning_department_id,
     )
 
+    queued = await submit_process_creation_if_required(
+        db=db,
+        payload=payload,
+        current_user=current_user,
+        owner=owner,
+        department=department,
+    )
+    if queued is not None:
+        return queued
+
     # Insert with a transaction-unique placeholder; the id is unknown until
     # the flush assigns it, and the column is NOT NULL.
-    process = Process(**payload.model_dump(), f_code=f"pending-{uuid4().hex[:12]}")
+    process = Process(
+        **payload.model_dump(exclude={"request_reason"}),
+        f_code=f"pending-{uuid4().hex[:12]}",
+    )
     process.process_owner = owner
     process.owning_department = department
     db.add(process)
@@ -116,9 +131,7 @@ async def update_process_detail(
         return await serialize_process_detail_with_derived(db, process, current_user=current_user)
 
     proposed_owner_id = (
-        int(updates["process_owner_user_id"])
-        if "process_owner_user_id" in updates
-        else process.process_owner_user_id
+        int(updates["process_owner_user_id"]) if "process_owner_user_id" in updates else process.process_owner_user_id
     )
     process = await assert_process_ordinary_mutation_allowed(
         db,
@@ -128,13 +141,9 @@ async def update_process_detail(
     )
 
     changed_fields = audit_process.process_update_changes(process, updates)
-    updates = {
-        field: value for field, value in updates.items() if field in changed_fields
-    }
+    updates = {field: value for field, value in updates.items() if field in changed_fields}
     if not updates:
-        return await serialize_process_detail_with_derived(
-            db, process, current_user=current_user
-        )
+        return await serialize_process_detail_with_derived(db, process, current_user=current_user)
 
     await assert_no_pending_process_mutation(db, process_id=process.id)
 
@@ -176,9 +185,7 @@ async def update_process_detail(
         entity=process,
         updates=updates,
         changes_factory=audit_process.process_update_changes,
-        audit=lambda changes: audit_process.process_updated(
-            db, actor=current_user, process=process, changes=changes
-        ),
+        audit=lambda changes: audit_process.process_updated(db, actor=current_user, process=process, changes=changes),
         boundary="ict_register_process_update",
     )
     refreshed = await load_process(db, process.id)
@@ -191,7 +198,8 @@ async def archive_process_detail(
     db: AsyncSession,
     process_id: int,
     current_user: User,
-) -> None:
+    request_reason: str | None = None,
+) -> JSONResponse | None:
     process = await assert_process_lifecycle_mutation_allowed(
         db,
         process_id=process_id,
@@ -199,17 +207,24 @@ async def archive_process_detail(
         restore=False,
     )
     await assert_no_pending_process_mutation(db, process_id=process.id)
+    queued = await submit_process_archive_if_required(
+        db=db,
+        process=process,
+        request_reason=request_reason,
+        current_user=current_user,
+    )
+    if queued is not None:
+        return queued
     process.governance_version += 1
     await apply_archive_lifecycle(
         db=db,
         entity=process,
         current_user=current_user,
         changes_factory=audit_process.process_archive_changes,
-        audit=lambda changes: audit_process.process_archived(
-            db, actor=current_user, process=process, changes=changes
-        ),
+        audit=lambda changes: audit_process.process_archived(db, actor=current_user, process=process, changes=changes),
         boundary="ict_register_process_archive",
     )
+    return None
 
 
 async def restore_process_detail(
@@ -231,9 +246,7 @@ async def restore_process_detail(
         entity=process,
         current_user=current_user,
         changes_factory=audit_process.process_restore_changes,
-        audit=lambda changes: audit_process.process_restored(
-            db, actor=current_user, process=process, changes=changes
-        ),
+        audit=lambda changes: audit_process.process_restored(db, actor=current_user, process=process, changes=changes),
         boundary="ict_register_process_restore",
         restore=True,
         refresh=True,
@@ -283,11 +296,7 @@ async def list_process_register(
         parameters = await load_ict_workbook_parameter_set(db)
         graph = await load_ict_register_graph(db, processes=candidates)
         derivation = derive_ict_register(graph, parameters)
-        eligible_ids = [
-            process.id
-            for process in candidates
-            if (derivation.processes[process.id].cif == ANO) is cif
-        ]
+        eligible_ids = [process.id for process in candidates if (derivation.processes[process.id].cif == ANO) is cif]
         query = query.where(Process.id.in_(eligible_ids))
 
     rows, total = await load_register_page(

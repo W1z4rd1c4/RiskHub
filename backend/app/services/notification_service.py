@@ -11,9 +11,9 @@ from app.core.permissions import can_read_vendor_id
 from app.models.approval_request import ApprovalRequest
 from app.models.notification import Notification, NotificationType
 from app.models.user import User
-from app.services._governed_mutations.process_identity import (
-    InvalidGovernedProcessIdentity,
-    strict_governed_process_identity,
+from app.services._governed_mutations.notification_identity import (
+    InvalidGovernedProcessNotificationIdentity,
+    strict_governed_process_notification_identity,
 )
 from app.services._notification_approval_helpers import (
     approval_action_label,
@@ -37,17 +37,11 @@ EXPECTED_NOTIFICATION_DELIVERY_ERRORS = (ExpectedNotificationDeliveryError,)
 
 def _strict_governed_notification_identity(approval: ApprovalRequest):
     try:
-        identity = strict_governed_process_identity(
-            approval.governed_mutation_proposal
-        )
-    except InvalidGovernedProcessIdentity as exc:
-        raise ExpectedNotificationDeliveryError(
-            "Malformed governed Process identity"
-        ) from exc
+        identity = strict_governed_process_notification_identity(approval.governed_mutation_proposal)
+    except InvalidGovernedProcessNotificationIdentity as exc:
+        raise ExpectedNotificationDeliveryError("Malformed governed Process identity") from exc
     if identity is None:
-        raise ExpectedNotificationDeliveryError(
-            "Approval is not an exact governed Process proposal"
-        )
+        raise ExpectedNotificationDeliveryError("Approval is not an exact governed Process proposal")
     return identity
 
 
@@ -327,10 +321,7 @@ class NotificationService:
                     user_id=approver.id,
                     notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
                     title=titles[event],
-                    message=(
-                        f"Protected Process request for "
-                        f"'{identity.primary_resource_name}' was {event}."
-                    ),
+                    message=(f"Protected Process request for " f"'{identity.primary_resource_name}' was {event}."),
                     resource_type="approval",
                     resource_id=approval.id,
                 )
@@ -379,10 +370,7 @@ class NotificationService:
                 user_id=identity.requested_by_id,
                 notification_type=NotificationType.GOVERNED_APPROVAL_REQUEST_UPDATES,
                 title=f"Protected Process request {outcome}",
-                message=(
-                    f"Your request for '{identity.primary_resource_name}' "
-                    f"was {outcome}."
-                ),
+                message=(f"Your request for '{identity.primary_resource_name}' " f"was {outcome}."),
                 resource_type="approval",
                 resource_id=approval.id,
             )

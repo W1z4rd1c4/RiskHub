@@ -13,6 +13,7 @@ function sampleLink(overrides: Partial<ProcessVendorLink> = {}): ProcessVendorLi
         id: 11,
         process_id: 5,
         vendor_id: 4,
+        process_business_edit_blocked: false,
         direct_service_description: 'Přímá dodávka datových služeb.',
         note: 'k revizi',
         capabilities: { can_delete: true },

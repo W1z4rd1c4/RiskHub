@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-05-25
+**Analysis Date:** 2026-07-18
 
 ## Test Stack Overview
 
@@ -77,6 +77,8 @@
 - Backend report export scope/as-of: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_reports_rbac.py ../tests/backend/pytest/api/v1/test_reports_audit.py ../tests/backend/pytest/api/v1/test_reports_export_pipeline.py ../tests/backend/pytest/api/v1/test_reports_issues.py ../tests/backend/pytest/test_vendor_reports.py`
 - Backend vendor governance/reports: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_vendors.py ../tests/backend/pytest/test_vendor_reports.py ../tests/backend/pytest/test_vendor_links.py`
 - Backend governed Process mutations: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_governed_mutation_models.py ../tests/backend/pytest/test_governed_mutation_audit.py ../tests/backend/pytest/test_governed_mutation_outbox.py ../tests/backend/pytest/test_ict_register_processes.py ../tests/backend/pytest/test_notification_preferences.py ../tests/backend/pytest/test_notification_service.py`
+- Backend governed Process extended/relationship SQLite contract: `cd backend && ./venv/bin/pytest -q -m "not postgres" ../tests/backend/pytest/test_governed_process_extended.py ../tests/backend/pytest/test_governed_process_relationships.py`
+- Backend governed Process extended/relationship Postgres contract: `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test ./venv/bin/pytest -q -m postgres ../tests/backend/pytest/test_governed_process_extended.py ../tests/backend/pytest/test_governed_process_relationships.py`
 - Backend Vendor shared register: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_vendor_register_framework.py ../tests/backend/pytest/test_vendors.py ../tests/backend/pytest/test_ict_register_vendor_sub_outsourcing.py`
 - Backend vendor link module: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_vendor_link_workflow_module.py ../tests/backend/pytest/test_vendor_links.py`
 - Backend control execution/linking: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_executions.py ../tests/backend/pytest/test_controls.py ../tests/backend/pytest/test_cross_department_access.py`
@@ -98,6 +100,7 @@
 - Frontend collection state regression: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/shared/collectionPageState.test.ts ../tests/frontend/unit/src/services/__tests__/collectionApi.test.ts`
 - Frontend governed Process mutations: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/approvals/GovernedMutationDiff.test.tsx ../tests/frontend/unit/src/components/riskhub/ProtectedProcessScenario.test.tsx ../tests/frontend/unit/src/components/settings/NotificationSettings.governedApprovals.test.tsx ../tests/frontend/unit/src/pages/approvals/ApprovalList.governedMutation.test.tsx ../tests/frontend/unit/src/pages/processes/ProcessForm.protectedEdit.test.tsx ../tests/frontend/unit/src/pages/processes/ProcessPendingChangePanel.test.tsx ../tests/frontend/unit/src/pages/processes/processProtectedEdit.test.ts ../tests/frontend/unit/src/services/protectedProcessSchemas.test.ts`
 - Frontend governed Process browser flow: `cd frontend && npx playwright test -c playwright.config.ts --project=ci ../tests/frontend/e2e/approval-workflows/governed-process-edit.spec.ts`
+- Frontend governed Process create/relationship browser flows: `cd frontend && npx playwright test -c playwright.config.ts --project=ci ../tests/frontend/e2e/approval-workflows/governed-process-create.spec.ts ../tests/frontend/e2e/approval-workflows/governed-process-relationships.spec.ts`
 - Frontend questionnaire workflow state regression: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/risks/questionnaireWorkflowState.test.ts ../tests/frontend/unit/src/components/risks/__tests__/riskQuestionnaireOpenFlow.test.tsx`
 - Frontend vendor governance/report regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/VendorForm.test.tsx ../tests/frontend/unit/src/components/__tests__/VendorForm.payloads.test.ts ../tests/frontend/unit/src/pages/__tests__/VendorsPage.grouped-views.test.tsx ../tests/frontend/unit/src/pages/__tests__/VendorDetailPage.presentation.test.ts ../tests/frontend/unit/src/services/__tests__/vendorReportApi.test.ts`
 - Frontend control execution/detail regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/ExecutionHistory.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlDetailPage.execution-status.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlsPage.presentation.test.ts`

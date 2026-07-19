@@ -2,6 +2,7 @@ import type {
     Process,
     ProcessApprovalQueuedResponse,
     ProcessListResponse,
+    ProcessPendingCreationRead,
     ProcessPendingChangeRead,
     ProcessVendorLink,
 } from '@/types/process';
@@ -39,10 +40,58 @@ export const processPendingChangeSchema: z.ZodType<ProcessPendingChangeRead> = p
 });
 
 export const processApprovalQueuedResponseSchema: z.ZodType<ProcessApprovalQueuedResponse> =
-    approvalCreatedResponseSchema.extend({
+    approvalCreatedResponseSchema.omit({ resource_id: true }).extend({
         proposal_id: z.string(),
         proposal_version: z.number(),
     });
+
+const processPendingCreationProposalSchema = z.strictObject({
+    l0_area: z.string().optional(),
+    l1_process: z.string().optional(),
+    l2_subprocess: z.string().nullable().optional(),
+    process_owner: z.string().nullable().optional(),
+    owning_department: z.string().nullable().optional(),
+    impact_client: z.number().nullable().optional(),
+    impact_market_operations: z.number().nullable().optional(),
+    impact_regulatory: z.number().nullable().optional(),
+    impact_financial: z.number().nullable().optional(),
+    impact_reputational: z.number().nullable().optional(),
+    mtpd_hours: z.number().nullable().optional(),
+    preliminary_criticality: z.string().nullable().optional(),
+    cif_override: z.string().nullable().optional(),
+    licensed_activity: z.string().nullable().optional(),
+    rto_hours: z.number().nullable().optional(),
+    rpo_hours: z.number().nullable().optional(),
+    bcm_link: z.string().nullable().optional(),
+    last_dr_test_date: z.string().nullable().optional(),
+    dr_test_result: z.string().nullable().optional(),
+    interruption_impact: z.string().nullable().optional(),
+    assessment_date: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+});
+
+export const processPendingCreationCapabilitiesSchema = passthroughObject({
+    can_view_diff: z.boolean(),
+    can_cancel: z.boolean(),
+    is_requester: z.boolean(),
+    can_resolve: z.boolean(),
+});
+
+export const processPendingCreationSchema: z.ZodType<ProcessPendingCreationRead> = passthroughObject({
+    approval_id: z.number(),
+    proposal_id: z.string(),
+    proposal_version: z.number(),
+    status: z.literal('pending_creation'),
+    requested_at: z.string(),
+    requested_by_name: z.string().nullable(),
+    reason: z.string(),
+    proposed: processPendingCreationProposalSchema,
+    derived: passthroughObject({
+        cif: z.enum(['yes', 'no']),
+        criticality_class: z.enum(['low', 'medium', 'high', 'critical']).nullable().optional(),
+    }),
+    capabilities: processPendingCreationCapabilitiesSchema,
+});
 
 export const processListCapabilitiesSchema = passthroughObject({
     can_create: z.boolean(),
@@ -205,6 +254,7 @@ export const processListResponseSchema: z.ZodType<ProcessListResponse> =
     collectionPaginationSchema(processSchema).extend({
         capabilities: processListCapabilitiesSchema.nullable().optional(),
         facets: processFacetsSchema.nullable().optional(),
+        pending_creations: z.array(processPendingCreationSchema),
     });
 
 export const ictClosedListSchema = passthroughObject({
@@ -226,6 +276,7 @@ export const processVendorLinkSchema: z.ZodType<ProcessVendorLink> = passthrough
     vendor_id: z.number(),
     process_name: z.string().nullable().optional(),
     vendor_name: z.string().nullable().optional(),
+    process_business_edit_blocked: z.boolean(),
     direct_service_description: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
     capabilities: processVendorLinkCapabilitiesSchema.nullable().optional(),

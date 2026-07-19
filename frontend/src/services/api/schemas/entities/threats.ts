@@ -117,6 +117,7 @@ export const riskProcessLinkSchema: z.ZodType<RiskProcessLink> = passthroughObje
     process_name: z.string().nullable().optional(),
     risk_id_code: z.string().nullable().optional(),
     risk_name: z.string().nullable().optional(),
+    process_business_edit_blocked: z.boolean(),
     capabilities: riskProcessLinkCapabilitiesSchema.nullable().optional(),
     created_at: z.string(),
 });

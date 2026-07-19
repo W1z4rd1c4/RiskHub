@@ -107,7 +107,13 @@ class ProcessBase(ProcessWriteValidators):
 
 
 class ProcessCreate(ProcessBase):
-    pass
+    request_reason: str | None = Field(None, max_length=1000)
+
+
+class ProcessArchiveRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class ProcessUpdate(ProcessWriteValidators):
@@ -164,6 +170,16 @@ class ProcessPendingDerivedImpact(BaseModel):
     after: dict[str, str | None]
 
 
+class ProcessPendingRelationshipDerivedProcess(BaseModel):
+    resource_name: str
+    before: dict[str, str | None]
+    after: dict[str, str | None]
+
+
+class ProcessPendingRelationshipDerivedImpact(BaseModel):
+    processes: list[ProcessPendingRelationshipDerivedProcess]
+
+
 class ProcessPendingChange(BaseModel):
     approval_id: int
     proposal_id: str
@@ -174,7 +190,7 @@ class ProcessPendingChange(BaseModel):
     reason: str
     before: dict[str, object]
     after: dict[str, object]
-    derived_impact: ProcessPendingDerivedImpact
+    derived_impact: ProcessPendingDerivedImpact | ProcessPendingRelationshipDerivedImpact
     capabilities: ProcessPendingChangeCapabilities
 
 
@@ -336,6 +352,26 @@ class ProcessListCapabilities(BaseModel):
     can_export: bool = False
 
 
+class ProcessPendingCreationCapabilities(BaseModel):
+    can_view_diff: bool = True
+    can_cancel: bool = False
+    is_requester: bool = False
+    can_resolve: bool = False
+
+
+class ProcessPendingCreationRead(BaseModel):
+    approval_id: int
+    proposal_id: str
+    proposal_version: int
+    status: Literal["pending_creation"] = "pending_creation"
+    requested_at: UtcAwareDatetime
+    requested_by_name: str | None = None
+    reason: str
+    proposed: dict[str, object]
+    derived: dict[str, str | None]
+    capabilities: ProcessPendingCreationCapabilities
+
+
 class ProcessFacetOption(BaseModel):
     """One permission-scoped Process facet option."""
 
@@ -364,6 +400,8 @@ class ProcessListResponse(BaseModel):
     capabilities: ProcessListCapabilities | None = None
     groups: list[CollectionGroupRead] = Field(default_factory=list)
     facets: dict[str, list[ProcessFacetOption]] = Field(default_factory=dict)
+    # Proposal-only rows are deliberately outside items/total/facets/groups.
+    pending_creations: list[ProcessPendingCreationRead] = Field(default_factory=list)
 
     @computed_field
     def skip(self) -> int:
@@ -378,6 +416,15 @@ class ProcessVendorLinkCreate(BaseModel):
     vendor_id: int = Field(..., ge=1)
     direct_service_description: str | None = None
     note: str | None = None
+    request_reason: str | None = Field(None, max_length=1000)
+
+
+class ProcessRelationshipMutationRequest(BaseModel):
+    """Optional reason envelope for a relationship removal request."""
+
+    model_config = {"extra": "forbid"}
+
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class ProcessVendorLinkCapabilities(BaseModel):
@@ -397,6 +444,7 @@ class ProcessVendorLinkRead(BaseModel):
     direct_service_description: str | None = None
     note: str | None = None
     capabilities: ProcessVendorLinkCapabilities | None = None
+    process_business_edit_blocked: bool = False
     created_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}

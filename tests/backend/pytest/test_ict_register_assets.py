@@ -37,7 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_keys
-from app.models import Permission, Role, RolePermission, User
+from app.models import Department, Permission, Role, RolePermission, User
 from app.models.user import AccessScope
 
 
@@ -1460,15 +1460,19 @@ async def test_link_mutations_land_on_the_audit_trail(
             f"/api/v1/assets/{asset['id']}/process-links/{process['id']}",
             json={"is_primary": True},
         )
-        await client.post(
+        asset_link = await client.post(
             f"/api/v1/assets/{asset['id']}/asset-links",
             json={
                 "dependent_asset_id": asset["id"],
                 "supporting_asset_id": other["id"],
             },
         )
+        assert asset_link.status_code == 201, asset_link.text
         await client.delete(
             f"/api/v1/assets/{asset['id']}/process-links/{process['id']}"
+        )
+        await client.delete(
+            f"/api/v1/assets/{asset['id']}/asset-links/{asset_link.json()['id']}"
         )
 
         log = await client.get(
@@ -1481,8 +1485,103 @@ async def test_link_mutations_land_on_the_audit_trail(
     actions = [entry["action"] for entry in entries]
     assert actions.count("create") == 2  # process link + asset link
     assert actions.count("update") == 1  # primary designation
-    assert actions.count("delete") == 1  # unlink
+    assert actions.count("delete") == 2  # process unlink + asset unlink
     assert all(entry["actor_name"] == "Test CRO" for entry in entries)
+    assert {
+        (
+            entry["action"],
+            entry["changes"]["relationship_type"]["old"],
+            entry["changes"]["relationship_type"]["new"],
+            entry["changes"]["relationship_target"]["old"],
+            entry["changes"]["relationship_target"]["new"],
+        )
+        for entry in entries
+    } == {
+        ("create", None, "process", None, "Správa pojistných smluv"),
+        (
+            "update",
+            "process",
+            "process",
+            "Správa pojistných smluv",
+            "Správa pojistných smluv",
+        ),
+        ("create", None, "asset", None, "Oracle DB"),
+        ("delete", "process", None, "Správa pojistných smluv", None),
+        ("delete", "asset", None, "Oracle DB", None),
+    }
+    raw_id_fields = {"target_id", "process_id", "asset_id", "risk_id"}
+    assert all(raw_id_fields.isdisjoint(entry["changes"] or {}) for entry in entries)
+
+
+@pytest.mark.asyncio
+async def test_unreadable_asset_unlink_audits_unknown_asset_label(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_user_seeded_risk_manager: User,
+):
+    """Cross-scope cleanup must not disclose the hidden Asset's name or id."""
+    other_department = Department(
+        name="Hidden audit Asset department",
+        code="HAA",
+    )
+    db_session.add(other_department)
+    await db_session.commit()
+
+    async with client_factory(user=test_user_cro) as client:
+        visible = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                    name="Visible asset",
+                    owning_department_id=test_user_seeded_risk_manager.department_id,
+                ),
+            )
+        ).json()
+        hidden = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                    name="Hidden asset",
+                    owning_department_id=other_department.id,
+                ),
+            )
+        ).json()
+        created = await client.post(
+            f"/api/v1/assets/{visible['id']}/asset-links",
+            json={
+                "dependent_asset_id": visible["id"],
+                "supporting_asset_id": hidden["id"],
+            },
+        )
+        assert created.status_code == 201, created.text
+
+    test_user_seeded_risk_manager.access_scope = AccessScope.DEPARTMENT
+    await db_session.commit()
+
+    async with client_factory(user=test_user_seeded_risk_manager) as client:
+        removed = await client.delete(
+            f"/api/v1/assets/{visible['id']}/asset-links/{created.json()['id']}"
+        )
+    assert removed.status_code == 204, removed.text
+
+    async with client_factory(user=test_user_cro) as client:
+        log = await client.get(
+            "/api/v1/activity-log",
+            params={"entity_type": "asset_link", "entity_id": visible["id"]},
+        )
+    assert log.status_code == 200, log.text
+    deletion = next(
+        entry
+        for entry in log.json()["items"]
+        if entry["action"] == "delete"
+    )
+    assert deletion["changes"] == {
+        "relationship_type": {"old": "asset", "new": None},
+        "relationship_target": {"old": "Unknown asset", "new": None},
+    }
 
 
 def test_asset_migrations_follow_repo_convention_and_are_forward_only():

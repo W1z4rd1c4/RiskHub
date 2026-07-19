@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text, event, text
+from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, event, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,7 +35,10 @@ class GovernedMutationProposal(Base):
     )
     mutation_kind: Mapped[str] = mapped_column(String(50), nullable=False)
     primary_resource_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    primary_resource_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Pending creations intentionally have no operational resource identity.
+    # The approval ID/proposal ID identify the pending request; this column
+    # remains NULL because the Process row does not exist before approval.
+    primary_resource_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     primary_resource_name: Mapped[str] = mapped_column(String(255), nullable=False)
     scenario_snapshot: Mapped[dict[str, Any]] = mapped_column(_json_column(), nullable=False)
     base_versions: Mapped[dict[str, Any]] = mapped_column(_json_column(), nullable=False)
@@ -59,6 +62,13 @@ class GovernedMutationProposal(Base):
     )
 
     __table_args__ = (
+        CheckConstraint(
+            "(primary_resource_id IS NULL AND primary_resource_type = 'process' "
+            "AND mutation_kind = 'process.create') OR "
+            "(primary_resource_id IS NOT NULL AND NOT "
+            "(primary_resource_type = 'process' AND mutation_kind = 'process.create'))",
+            name="ck_governed_mutation_process_create_resource_identity",
+        ),
         Index("ux_governed_mutation_proposal_version", "proposal_id", "proposal_version", unique=True),
     )
 
@@ -79,9 +89,7 @@ class GovernedMutationImpactLock(Base):
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     release_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    proposal: Mapped[GovernedMutationProposal] = relationship(
-        "GovernedMutationProposal", back_populates="impact_locks"
-    )
+    proposal: Mapped[GovernedMutationProposal] = relationship("GovernedMutationProposal", back_populates="impact_locks")
 
     __table_args__ = (
         Index("ix_governed_mutation_impact_resource", "resource_type", "resource_id"),

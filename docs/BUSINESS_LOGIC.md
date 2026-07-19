@@ -495,34 +495,52 @@ KRI edit notes:
 > [!NOTE]
 > Cancellation is logged in the activity log with action `CANCEL`.
 
-### 5.7 Governed Protected Process Edits
+### 5.7 Governed Protected Process Mutations
 
-The fixed `protected_process_edit` scenario is the first tracer for the
-immutable governed-mutation contract in ADR-016:
+The fixed `protected_process_edit` scenario governs protected Process create,
+edit, relationship, and archive proposals under ADR-016:
 
 - A Process is protected when its current **or proposed** derived CIF is Yes.
   With the scenario enabled, an authorized business-data edit requires a
   request reason and creates an immutable versioned proposal instead of
   changing the approved Process.
+- Protected creation creates only an approval and immutable proposal. No
+  Process row, F-code, operational count, export row, or graph node exists
+  until approval inserts the Process and assigns `F<id>`. Because there is no
+  operational row, the pending creation has no Process impact lock or base
+  governance version; duplicate proposals are serialized by their immutable
+  rowless-creation identity.
+- A relationship mutation is protected when any impacted Process has current
+  derived CIF Yes and locks every impacted Process whose approved relationship
+  state or primary designation changes. Ticket #85 governs that Process-side
+  operation only. Protected downstream Asset effects, Asset locks, and the
+  Composite Process-to-Asset approval are ticket #86. Protected archive
+  preserves the active row until approval. Restore remains direct.
 - The proposal snapshots approved before-values, proposed after-values,
   derived CIF/class impact, the scenario policy, and the Process governance
-  version. A unique active impact lock permits only one pending proposal for
-  the Process and blocks later business edits while leaving comments and
-  evidence available.
+  version for each existing impacted Process. A unique active impact lock
+  permits only one pending proposal per existing Process and blocks later
+  business edits while leaving comments and evidence available; rowless
+  creation uses no impact lock.
 - Exactly one active Risk Manager or CRO matching the scenario snapshot may
   approve or reject. The requester never qualifies, including when the
   requester is a Risk Manager or CRO. Submission fails closed when no
   independent eligible approver exists, and rejection requires a reason.
-- Approval revalidates the locked Process governance version. A stale
-  proposal expires without applying any proposed value; a valid approval
+- Approval revalidates every stored Process governance version; rowless
+  creation instead revalidates its owner, Department, derivation references,
+  scenario, and duplicate identity before insert. A stale proposal expires
+  without applying any proposed value; a valid approval
   applies the proposal, increments the Process governance version, records
   the governed-mutation audit fact, releases the lock, and enqueues the
   outcome notification in the same transaction boundary.
+- Governed relationship domain audit facts use safe business labels/types, not
+  numeric target IDs. A primary-Process swap also records the resolver-attributed
+  demotion and demoted Process version change in that transaction.
 - Process lifecycle and pending-change state are separate. Permission-scoped
   before/after and derived-impact data may appear in Process detail,
   Approvals, and My Requests, while approved Process values remain effective.
-- Disabling the scenario permits an otherwise authorized edit to use the
-  ordinary direct-update lifecycle. It does not weaken Process authorization
+- Disabling the scenario permits an otherwise authorized mutation to use the
+  ordinary direct lifecycle. It does not weaken Process authorization
   or validation. The workflow has no SLA, reminder, overdue state, timer,
   automatic decision, or escalation.
 

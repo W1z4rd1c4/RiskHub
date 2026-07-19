@@ -7,6 +7,7 @@ import type {
     GovernedMutationRead,
     PendingChange,
 } from '@/types/approval';
+import { GOVERNED_MUTATION_KINDS } from '@/types/approval';
 import type {
     Notification,
     NotificationListResponse,
@@ -49,28 +50,114 @@ const pendingChangeSchema: z.ZodType<PendingChange> = z.preprocess(
     }),
 );
 
-export const governedDerivedImpactSchema: z.ZodType<GovernedDerivedImpact> = passthroughObject({
-    before: passthroughObject({
-        cif: z.string(),
-        criticality_class: z.string().nullable(),
-    }),
-    after: passthroughObject({
-        cif: z.string(),
-        criticality_class: z.string().nullable(),
-    }),
+const governedDerivedStateSchema = z.strictObject({
+    cif: z.string(),
+    criticality_class: z.string().nullable(),
 });
 
-export const governedMutationReadSchema: z.ZodType<GovernedMutationRead> = passthroughObject({
+const governedEditDerivedImpactSchema = z.strictObject({
+    before: governedDerivedStateSchema,
+    after: governedDerivedStateSchema,
+});
+
+const governedCreateDerivedImpactSchema = z.strictObject({
+    before: z.null(),
+    after: governedDerivedStateSchema,
+});
+
+const governedRelationshipDerivedImpactSchema = z.strictObject({
+    processes: z.array(z.strictObject({
+        resource_name: z.string(),
+        before: governedDerivedStateSchema,
+        after: governedDerivedStateSchema,
+    })),
+});
+
+export const governedDerivedImpactSchema: z.ZodType<GovernedDerivedImpact> = z.union([
+    governedEditDerivedImpactSchema,
+    governedCreateDerivedImpactSchema,
+    governedRelationshipDerivedImpactSchema,
+]);
+
+const governedRelationshipSnapshotValueSchema = z.union([
+    z.string(),
+    z.boolean(),
+    z.null(),
+]);
+
+const governedRelationshipSnapshotSchema = z.record(
+    z.string(),
+    governedRelationshipSnapshotValueSchema,
+).refine(
+    (snapshot) => Object.keys(snapshot).every((field) => !field.endsWith('_id') && field !== 'id'),
+    { message: 'Relationship display snapshots cannot contain identifiers' },
+);
+
+const governedRelationshipChangeSchema = z.strictObject({
+    target_resource_type: z.enum(['risk', 'asset', 'vendor']),
+    target_resource_name: z.string(),
+    action: z.enum(['add', 'update', 'remove']),
+    before: governedRelationshipSnapshotSchema,
+    after: governedRelationshipSnapshotSchema,
+});
+
+const governedRelationshipContract = {
+    'process.link.risk.add': ['risk', 'add'],
+    'process.link.risk.remove': ['risk', 'remove'],
+    'process.link.asset.add': ['asset', 'add'],
+    'process.link.asset.update': ['asset', 'update'],
+    'process.link.asset.remove': ['asset', 'remove'],
+    'process.link.vendor.add': ['vendor', 'add'],
+    'process.link.vendor.remove': ['vendor', 'remove'],
+} as const;
+
+export const governedMutationReadSchema: z.ZodType<GovernedMutationRead> = z.strictObject({
     proposal_id: z.string(),
     proposal_version: z.number(),
-    mutation_kind: z.string(),
+    mutation_kind: z.enum(GOVERNED_MUTATION_KINDS),
     before: unknownRecordSchema,
     after: unknownRecordSchema,
     derived_impact: governedDerivedImpactSchema,
     impacted_resources: z.array(z.strictObject({
-        resource_type: z.string(),
+        resource_type: z.literal('process'),
         resource_name: z.string(),
-    })).optional(),
+    })),
+    relationship_change: governedRelationshipChangeSchema.nullable(),
+}).superRefine((value, context) => {
+    const relationshipContract = governedRelationshipContract[
+        value.mutation_kind as keyof typeof governedRelationshipContract
+    ];
+    const hasRelationshipImpact = 'processes' in value.derived_impact;
+
+    if (relationshipContract === undefined) {
+        if (value.relationship_change != null || hasRelationshipImpact) {
+            context.addIssue({
+                code: 'custom',
+                message: 'Non-relationship governed mutations cannot expose relationship data',
+            });
+        }
+        const isCreationImpact = value.derived_impact.before === null;
+        if ((value.mutation_kind === 'process.create') !== isCreationImpact) {
+            context.addIssue({
+                code: 'custom',
+                message: 'Governed mutation kind does not match its derived impact',
+            });
+        }
+        return;
+    }
+
+    const [expectedResourceType, expectedAction] = relationshipContract;
+    if (
+        value.relationship_change == null
+        || value.relationship_change.target_resource_type !== expectedResourceType
+        || value.relationship_change.action !== expectedAction
+        || !hasRelationshipImpact
+    ) {
+        context.addIssue({
+            code: 'custom',
+            message: 'Governed relationship projection does not match its mutation kind',
+        });
+    }
 });
 
 export const activityLogEntrySchema: z.ZodType<ActivityLogEntry> = passthroughObject({
@@ -99,9 +186,9 @@ export const activityLogListResponseSchema: z.ZodType<ActivityLogListResponse> =
 export const approvalRequestSchema: z.ZodType<ApprovalRequest> = passthroughObject({
     id: z.number(),
     resource_type: z.enum(['risk', 'control', 'kri', 'process']),
-    resource_id: z.number(),
+    resource_id: z.number().nullable(),
     resource_name: z.string(),
-    action_type: z.enum(['delete', 'edit']),
+    action_type: z.enum(['delete', 'edit', 'create', 'archive']),
     pending_changes: z.record(z.string(), pendingChangeSchema).nullable(),
     governed_mutation: governedMutationReadSchema.nullable().optional(),
     status: z.enum(['pending', 'pending_privileged', 'approved', 'rejected', 'cancelled', 'expired']),
@@ -140,7 +227,8 @@ export const approvalCreatedResponseSchema = passthroughObject({
         status: z.literal('approval_required'),
         message: z.string(),
         approval_id: z.number(),
-        action_type: z.enum(['delete', 'edit']),
+        action_type: z.enum(['delete', 'edit', 'create', 'archive']),
+        resource_id: z.number().nullable().optional(),
         pending_fields: z.array(z.string()),
         pending_changes: unknownRecordSchema.nullable().optional(),
         primary_approver_id: z.number().nullable().optional(),

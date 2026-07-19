@@ -15,6 +15,7 @@ archived TARGET from an active register end stays possible.
 
 from __future__ import annotations
 
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +30,14 @@ from app.schemas.process import ProcessVendorLinkCreate, ProcessVendorLinkRead
 from app.services._authorization_capabilities import (
     asset_vendor_link_capabilities,
     process_vendor_link_capabilities,
+)
+from app.services._governed_mutations.process_mutations import (
+    submit_process_relationship_mutation,
+)
+from app.services._governed_mutations.process_relationships import process_impact_resource
+from app.services._governed_mutations.process_updates import (
+    active_governed_process_mutation_ids,
+    assert_no_pending_process_mutation,
 )
 from app.services._vendor_governance.policy import lock_vendor_ordinary_mutation
 from app.services.transaction_boundary import commit_service_boundary
@@ -88,6 +97,7 @@ def _serialize_process_vendor_link(
     process: Process,
     vendor: Vendor,
     ownership_pending: bool = False,
+    process_business_edit_blocked: bool = False,
 ) -> ProcessVendorLinkRead:
     base = ProcessVendorLinkRead.model_validate(link)
     return base.model_copy(
@@ -100,6 +110,7 @@ def _serialize_process_vendor_link(
             ),
             "process_name": process_display_name(process.l1_process, process.l2_subprocess),
             "vendor_name": vendor.name,
+            "process_business_edit_blocked": process_business_edit_blocked,
         }
     )
 
@@ -114,9 +125,7 @@ async def _visible_vendors_by_id(
     readable_ids = await visible_vendor_ids(db, current_user, vendor_ids)
     if not readable_ids:
         return {}
-    vendors = (
-        await db.execute(select(Vendor).where(Vendor.id.in_(readable_ids)))
-    ).scalars().all()
+    vendors = (await db.execute(select(Vendor).where(Vendor.id.in_(readable_ids)))).scalars().all()
     return {vendor.id: vendor for vendor in vendors}
 
 
@@ -199,8 +208,7 @@ async def list_vendor_asset_links(
     readable_assets = [
         asset
         for link in links
-        if (asset := await load_asset(db, link.asset_id)) is not None
-        and can_read_asset_record(current_user, asset)
+        if (asset := await load_asset(db, link.asset_id)) is not None and can_read_asset_record(current_user, asset)
     ]
     readable_asset_ids = {asset.id for asset in readable_assets}
     assets_by_id = {asset.id: asset for asset in readable_assets}
@@ -263,7 +271,12 @@ async def add_asset_vendor_link(
     await db.flush()
 
     await audit_asset.asset_link_created(
-        db, actor=current_user, asset=asset, link_kind="vendor", target_id=payload.vendor_id
+        db,
+        actor=current_user,
+        asset=asset,
+        link_kind="vendor",
+        target_id=payload.vendor_id,
+        target_label=vendor.name,
     )
     await commit_service_boundary(db, boundary="ict_register_asset_link_create")
     await db.refresh(link)
@@ -302,7 +315,12 @@ async def remove_asset_vendor_link(
     await db.flush()
 
     await audit_asset.asset_link_deleted(
-        db, actor=current_user, asset=asset, link_kind="vendor", target_id=vendor_id
+        db,
+        actor=current_user,
+        asset=asset,
+        link_kind="vendor",
+        target_id=vendor_id,
+        target_label=vendor.name,
     )
     await commit_service_boundary(db, boundary="ict_register_asset_link_delete")
 
@@ -340,9 +358,7 @@ async def list_process_vendor_links(
         db, process_id=process_id, current_user=current_user, require_write=False
     )
     result = await db.execute(
-        select(ProcessVendorLink)
-        .where(ProcessVendorLink.process_id == process_id)
-        .order_by(ProcessVendorLink.id)
+        select(ProcessVendorLink).where(ProcessVendorLink.process_id == process_id).order_by(ProcessVendorLink.id)
     )
     links = list(result.scalars().all())
     vendors = await _visible_vendors_by_id(
@@ -354,6 +370,7 @@ async def list_process_vendor_links(
         db,
         process_ids=[process.id] if links else [],
     )
+    blocked_process_ids = await active_governed_process_mutation_ids(db, process_ids={process.id} if links else set())
     return [
         _serialize_process_vendor_link(
             link,
@@ -361,6 +378,7 @@ async def list_process_vendor_links(
             process=process,
             vendor=vendors[link.vendor_id],
             ownership_pending=process.id in pending_process_ids,
+            process_business_edit_blocked=process.id in blocked_process_ids,
         )
         for link in links
         if link.vendor_id in vendors
@@ -394,6 +412,9 @@ async def list_vendor_process_links(
         db,
         process_ids=list({process.id for _, process in rows}),
     )
+    blocked_process_ids = await active_governed_process_mutation_ids(
+        db, process_ids={process.id for _, process in rows}
+    )
     return [
         _serialize_process_vendor_link(
             link,
@@ -401,6 +422,7 @@ async def list_vendor_process_links(
             process=process,
             vendor=vendor,
             ownership_pending=process.id in pending_process_ids,
+            process_business_edit_blocked=process.id in blocked_process_ids,
         )
         for link, process in rows
     ]
@@ -412,10 +434,11 @@ async def add_process_vendor_link(
     process_id: int,
     payload: ProcessVendorLinkCreate,
     current_user: User,
-) -> ProcessVendorLinkRead:
+) -> ProcessVendorLinkRead | JSONResponse:
     process = await _require_process_vendor_link_access(
         db, process_id=process_id, current_user=current_user, require_write=True
     )
+    await assert_no_pending_process_mutation(db, process_id=process.id)
 
     vendor = await _load_vendor(db, payload.vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
@@ -433,6 +456,32 @@ async def add_process_vendor_link(
     if existing.scalar_one_or_none():
         raise ValidationError("Link already exists")
 
+    after = {
+        "direct_service_description": payload.direct_service_description,
+        "note": payload.note,
+    }
+    operation = {
+        "kind": "process.link.vendor.add",
+        "relationship_type": "vendor",
+        "action": "add",
+        "process_id": process.id,
+        "related_resource_id": vendor.id,
+        "related_resource_name": vendor.name,
+        "before": {},
+        "after": after,
+    }
+    queued = await submit_process_relationship_mutation(
+        db=db,
+        process=process,
+        mutation_kind="process.link.vendor.add",
+        operation=operation,
+        request_reason=payload.request_reason,
+        current_user=current_user,
+        impacted_resources=[process_impact_resource(process)],
+    )
+    if queued is not None:
+        return queued
+
     link = ProcessVendorLink(
         process_id=process_id,
         vendor_id=payload.vendor_id,
@@ -441,9 +490,15 @@ async def add_process_vendor_link(
     )
     db.add(link)
     await db.flush()
+    process.governance_version += 1
 
     await audit_process.process_link_created(
-        db, actor=current_user, process=process, link_kind="vendor", target_id=payload.vendor_id
+        db,
+        actor=current_user,
+        process=process,
+        link_kind="vendor",
+        target_id=payload.vendor_id,
+        target_label=vendor.name,
     )
     await commit_service_boundary(db, boundary="ict_register_process_link_create")
     await db.refresh(link)
@@ -460,11 +515,13 @@ async def remove_process_vendor_link(
     *,
     process_id: int,
     link_id: int,
+    request_reason: str | None = None,
     current_user: User,
-) -> None:
+) -> JSONResponse | None:
     process = await _require_process_vendor_link_access(
         db, process_id=process_id, current_user=current_user, require_write=True
     )
+    await assert_no_pending_process_mutation(db, process_id=process.id)
 
     result = await db.execute(select(ProcessVendorLink).where(ProcessVendorLink.id == link_id))
     link = result.scalar_one_or_none()
@@ -477,10 +534,42 @@ async def remove_process_vendor_link(
     vendor = await lock_vendor_ordinary_mutation(db, vendor_id=vendor.id)
 
     vendor_id = link.vendor_id
+    before = {
+        "direct_service_description": link.direct_service_description,
+        "note": link.note,
+    }
+    operation = {
+        "kind": "process.link.vendor.remove",
+        "relationship_type": "vendor",
+        "action": "remove",
+        "process_id": process.id,
+        "related_resource_id": vendor.id,
+        "related_resource_name": vendor.name,
+        "link_id": link.id,
+        "before": before,
+        "after": {},
+    }
+    queued = await submit_process_relationship_mutation(
+        db=db,
+        process=process,
+        mutation_kind="process.link.vendor.remove",
+        operation=operation,
+        request_reason=request_reason,
+        current_user=current_user,
+        impacted_resources=[process_impact_resource(process)],
+    )
+    if queued is not None:
+        return queued
     await db.delete(link)
     await db.flush()
+    process.governance_version += 1
 
     await audit_process.process_link_deleted(
-        db, actor=current_user, process=process, link_kind="vendor", target_id=vendor_id
+        db,
+        actor=current_user,
+        process=process,
+        link_kind="vendor",
+        target_id=vendor_id,
+        target_label=vendor.name,
     )
     await commit_service_boundary(db, boundary="ict_register_process_link_delete")

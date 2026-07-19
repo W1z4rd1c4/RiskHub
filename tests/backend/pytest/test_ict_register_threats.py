@@ -1454,9 +1454,21 @@ async def test_link_mutations_land_on_the_audit_trail(client_factory, test_user_
         relink = (
             await client.post(f"/api/v1/risks/{risk['id']}/threat-links", json={"threat_id": threat["id"]})
         ).json()
-        await client.post(f"/api/v1/risks/{risk['id']}/process-links", json={"process_id": process["id"]})
-        await client.post(f"/api/v1/risks/{risk['id']}/asset-links", json={"asset_id": asset["id"]})
+        process_link = (
+            await client.post(
+                f"/api/v1/risks/{risk['id']}/process-links",
+                json={"process_id": process["id"]},
+            )
+        ).json()
+        asset_link = (
+            await client.post(
+                f"/api/v1/risks/{risk['id']}/asset-links",
+                json={"asset_id": asset["id"]},
+            )
+        ).json()
         await client.delete(f"/api/v1/risks/{risk['id']}/threat-links/{relink['id']}")
+        await client.delete(f"/api/v1/risks/{risk['id']}/process-links/{process_link['id']}")
+        await client.delete(f"/api/v1/risks/{risk['id']}/asset-links/{asset_link['id']}")
 
         risk_log = await client.get(
             "/api/v1/activity-log",
@@ -1473,8 +1485,93 @@ async def test_link_mutations_land_on_the_audit_trail(client_factory, test_user_
     risk_entries = risk_log.json()["items"]
     risk_actions = [entry["action"] for entry in risk_entries]
     assert risk_actions.count("create") == 3  # threat + process + asset links
-    assert risk_actions.count("delete") == 1
+    assert risk_actions.count("delete") == 3
     assert all(entry["actor_name"] == "Test CRO" for entry in risk_entries)
+    safe_relationship_entries = [
+        entry
+        for entry in risk_entries
+        if "relationship_type" in (entry["changes"] or {})
+    ]
+    assert {
+        (
+            entry["action"],
+            entry["changes"]["relationship_type"].get("old"),
+            entry["changes"]["relationship_type"].get("new"),
+            entry["changes"]["relationship_target"].get("old"),
+            entry["changes"]["relationship_target"].get("new"),
+        )
+        for entry in safe_relationship_entries
+    } == {
+        ("create", None, "process", None, "Správa pojistných smluv"),
+        ("delete", "process", None, "Správa pojistných smluv", None),
+        ("create", None, "asset", None, "Veris"),
+        ("delete", "asset", None, "Veris", None),
+    }
+    raw_id_fields = {"target_id", "process_id", "asset_id", "risk_id"}
+    assert all(
+        raw_id_fields.isdisjoint(entry["changes"] or {})
+        for entry in safe_relationship_entries
+    )
+
+
+@pytest.mark.asyncio
+async def test_unreadable_asset_unlink_audits_unknown_asset_label(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_user_seeded_risk_manager: User,
+    other_department,
+    seed_risk_types,
+):
+    """Risk-end cleanup must not disclose an out-of-scope Asset's name or id."""
+    async with client_factory(user=test_user_cro) as client:
+        risk = (
+            await client.post(
+                "/api/v1/risks",
+                json=_risk_payload(department_id=test_user_cro.department_id),
+            )
+        ).json()
+        hidden = (
+            await client.post(
+                "/api/v1/assets",
+                json=_asset_payload(
+                    test_user_cro,
+                    name="Hidden risk subject",
+                    owning_department_id=other_department.id,
+                ),
+            )
+        ).json()
+        created = await client.post(
+            f"/api/v1/risks/{risk['id']}/asset-links",
+            json={"asset_id": hidden["id"]},
+        )
+        assert created.status_code == 201, created.text
+
+    test_user_seeded_risk_manager.access_scope = AccessScope.DEPARTMENT
+    test_user_seeded_risk_manager.department_id = test_user_cro.department_id
+    await db_session.commit()
+
+    async with client_factory(user=test_user_seeded_risk_manager) as client:
+        removed = await client.delete(
+            f"/api/v1/risks/{risk['id']}/asset-links/{created.json()['id']}"
+        )
+    assert removed.status_code == 204, removed.text
+
+    async with client_factory(user=test_user_cro) as client:
+        log = await client.get(
+            "/api/v1/activity-log",
+            params={"entity_type": "risk_link", "entity_id": risk["id"]},
+        )
+    assert log.status_code == 200, log.text
+    deletion = next(
+        entry
+        for entry in log.json()["items"]
+        if entry["action"] == "delete"
+    )
+    assert deletion["changes"] == {
+        "relationship_type": {"old": "asset", "new": None},
+        "relationship_target": {"old": "Unknown asset", "new": None},
+    }
 
 
 # ---------------------------------------------------------------------------

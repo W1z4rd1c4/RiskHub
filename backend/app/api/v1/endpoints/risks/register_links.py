@@ -8,12 +8,14 @@ reads follow the #43 dual-permission precedent plus Risk row visibility.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Body, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
+from app.schemas.approval_request import ApprovalQueuedResponse
+from app.schemas.process import ProcessRelationshipMutationRequest
 from app.schemas.risk import (
     RiskAssetLinkCreate,
     RiskAssetLinkRead,
@@ -51,6 +53,7 @@ async def list_risk_threat_links_route(
     "/{risk_id}/threat-links",
     response_model=ThreatRiskLinkRead,
     status_code=status.HTTP_201_CREATED,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
 )
 async def create_risk_threat_link(
     risk_id: int,
@@ -85,6 +88,7 @@ async def list_risk_process_links_route(
     "/{risk_id}/process-links",
     response_model=RiskProcessLinkRead,
     status_code=status.HTTP_201_CREATED,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
 )
 async def create_risk_process_link(
     risk_id: int,
@@ -95,15 +99,25 @@ async def create_risk_process_link(
     return await add_risk_process_link(db, risk_id=risk_id, payload=payload, current_user=current_user)
 
 
-@router.delete("/{risk_id}/process-links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{risk_id}/process-links/{link_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
+)
 async def delete_risk_process_link(
     risk_id: int,
     link_id: int,
+    payload: ProcessRelationshipMutationRequest = Body(default_factory=ProcessRelationshipMutationRequest),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "write")),
 ):
-    await remove_risk_process_link(db, risk_id=risk_id, link_id=link_id, current_user=current_user)
-    return None
+    return await remove_risk_process_link(
+        db,
+        risk_id=risk_id,
+        link_id=link_id,
+        request_reason=payload.request_reason,
+        current_user=current_user,
+    )
 
 
 @router.get("/{risk_id}/asset-links", response_model=list[RiskAssetLinkRead])

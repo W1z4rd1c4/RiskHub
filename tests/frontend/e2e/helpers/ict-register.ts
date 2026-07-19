@@ -8,9 +8,13 @@
  * All calls run as the risk manager demo user (processes:* / assets:*).
  */
 
+import type { TestInfo } from '@playwright/test';
+
 import { getApiBaseUrl, getDemoToken } from './api-auth';
 
 const RISK_MANAGER = { email: 'risk.manager@riskhub.local', fallbackUserIds: [3] };
+const CRO = { email: 'cro@riskhub.local', fallbackUserIds: [2] };
+const PROTECTED_PROCESS_SCENARIO = 'protected_process_edit';
 
 export interface ProcessLookup {
     id: number;
@@ -40,6 +44,14 @@ export interface AssetAssetLinkLookup {
 
 async function riskManagerHeaders(): Promise<Record<string, string>> {
     const token = await getDemoToken(RISK_MANAGER);
+    return {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+    };
+}
+
+async function croHeaders(): Promise<Record<string, string>> {
+    const token = await getDemoToken(CRO);
     return {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -280,6 +292,264 @@ export async function resetAssetProcessLinks(assetId: number): Promise<void> {
         if (!response.ok && response.status !== 204 && response.status !== 404) {
             throw new Error(`Failed to remove process link ${link.process_id} on asset ${assetId}: ${response.status}`);
         }
+    }
+}
+
+interface ApprovalScenarioSnapshot {
+    requires_approval: boolean;
+    approver_roles: string[];
+}
+
+interface ApprovalQueueItem {
+    id: number;
+    status: string;
+    reason: string;
+    resource_name: string;
+}
+
+interface ProcessRiskLinkCleanup {
+    id: number;
+    risk_id: number;
+}
+
+interface ProcessVendorLinkCleanup {
+    id: number;
+}
+
+interface RelationshipCleanupOptions<TLink> {
+    relationshipName: 'Risk' | 'Asset' | 'Vendor';
+    listUrl: string;
+    removalUrl: (link: TLink) => string;
+    linkId: (link: TLink) => number;
+    headers: Record<string, string>;
+    processId: number;
+}
+
+export interface GovernedProcessCleanupOptions {
+    processName: string;
+    assetPrimaryBaseline?: {
+        assetId: number;
+        processId: number | null;
+    };
+}
+
+async function cancelPendingApprovalsForMarker(marker: string): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const params = new URLSearchParams({ my_requests: 'true', skip: '0', limit: '100' });
+    const response = await fetch(`${apiBase}/api/v1/approvals?${params.toString()}`, { headers });
+    if (!response.ok) {
+        throw new Error(`Failed to list pending approvals for '${marker}': ${response.status}`);
+    }
+    const body = await response.json() as { items: ApprovalQueueItem[] };
+    const pending = body.items.filter((item) => (
+        (item.status === 'pending' || item.status === 'pending_privileged')
+        && (item.reason.includes(marker) || item.resource_name.includes(marker))
+    ));
+    for (const approval of pending) {
+        const cancelled = await fetch(`${apiBase}/api/v1/approvals/${approval.id}/cancel`, {
+            method: 'POST',
+            headers,
+        });
+        if (!cancelled.ok && ![400, 404, 409].includes(cancelled.status)) {
+            throw new Error(`Failed to cancel approval ${approval.id}: ${cancelled.status}`);
+        }
+    }
+}
+
+async function getProtectedProcessScenario(): Promise<ApprovalScenarioSnapshot> {
+    const apiBase = getApiBaseUrl();
+    const headers = await croHeaders();
+    const response = await fetch(`${apiBase}/api/v1/riskhub/approval-scenarios`, { headers });
+    if (!response.ok) {
+        throw new Error(`Failed to read protected Process approval scenario: ${response.status}`);
+    }
+    const scenarios = await response.json() as Array<ApprovalScenarioSnapshot & { key: string }>;
+    const scenario = scenarios.find((candidate) => candidate.key === PROTECTED_PROCESS_SCENARIO);
+    if (!scenario) {
+        throw new Error(`Approval scenario '${PROTECTED_PROCESS_SCENARIO}' is missing`);
+    }
+    return {
+        requires_approval: scenario.requires_approval,
+        approver_roles: [...scenario.approver_roles],
+    };
+}
+
+async function updateProtectedProcessScenario(snapshot: ApprovalScenarioSnapshot): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const headers = await croHeaders();
+    const response = await fetch(
+        `${apiBase}/api/v1/riskhub/approval-scenarios/${PROTECTED_PROCESS_SCENARIO}`,
+        {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(snapshot),
+        },
+    );
+    if (!response.ok) {
+        throw new Error(
+            `Failed to update protected Process approval scenario: ${response.status} - ${await response.text()}`,
+        );
+    }
+}
+
+function cleanupFailureMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Report a secondary cleanup failure without replacing the failure that made
+ * the test enter its finally block. A cleanup-only failure still fails the test.
+ */
+export async function cleanupWithoutMaskingPrimaryFailure(
+    primaryFailure: unknown,
+    cleanup: () => Promise<void>,
+    testInfo: TestInfo,
+): Promise<void> {
+    try {
+        await cleanup();
+    } catch (cleanupError) {
+        if (primaryFailure === undefined) {
+            throw cleanupError;
+        }
+        testInfo.annotations.push({
+            type: 'cleanup-error',
+            description: cleanupFailureMessage(cleanupError),
+        });
+    }
+}
+
+async function cleanupListedProcessRelationships<TLink>(
+    options: RelationshipCleanupOptions<TLink>,
+): Promise<void> {
+    const {
+        relationshipName,
+        listUrl,
+        removalUrl,
+        linkId,
+        headers,
+        processId,
+    } = options;
+    const response = await fetch(listUrl, { headers });
+    if (!response.ok) {
+        throw new Error(
+            `Failed to list ${relationshipName} links for Process ${processId}: ${response.status}`,
+        );
+    }
+    const links = await response.json() as TLink[];
+    for (const link of links) {
+        const removed = await fetch(removalUrl(link), {
+            method: 'DELETE',
+            headers,
+            body: JSON.stringify({}),
+        });
+        if (!removed.ok && removed.status !== 404) {
+            throw new Error(
+                `Failed to remove ${relationshipName} link ${linkId(link)}: ${removed.status}`,
+            );
+        }
+    }
+}
+
+/**
+ * Remove a unique governed-Process E2E fixture without leaving global policy,
+ * approvals, links, or a seeded Asset's primary designation changed.
+ */
+export async function cleanupGovernedProcessFixture(
+    options: GovernedProcessCleanupOptions,
+): Promise<void> {
+    const { processName, assetPrimaryBaseline } = options;
+    const failures: unknown[] = [];
+    const attempt = async (operation: () => Promise<void>): Promise<void> => {
+        try {
+            await operation();
+        } catch (error) {
+            failures.push(error);
+        }
+    };
+
+    await attempt(() => cancelPendingApprovalsForMarker(processName));
+
+    let scenario: ApprovalScenarioSnapshot | null = null;
+    try {
+        scenario = await getProtectedProcessScenario();
+        if (scenario.requires_approval) {
+            await updateProtectedProcessScenario({
+                requires_approval: false,
+                approver_roles: scenario.approver_roles,
+            });
+        }
+
+        const process = await getProcessByL1(processName);
+        if (process) {
+            const apiBase = getApiBaseUrl();
+            const headers = await riskManagerHeaders();
+
+            await attempt(() => cleanupListedProcessRelationships<ProcessRiskLinkCleanup>({
+                relationshipName: 'Risk',
+                listUrl: `${apiBase}/api/v1/processes/${process.id}/risk-links`,
+                removalUrl: (link) => `${apiBase}/api/v1/risks/${link.risk_id}/process-links/${link.id}`,
+                linkId: (link) => link.id,
+                headers,
+                processId: process.id,
+            }));
+
+            await attempt(() => cleanupListedProcessRelationships<ProcessAssetLinkLookup>({
+                relationshipName: 'Asset',
+                listUrl: `${apiBase}/api/v1/processes/${process.id}/asset-links`,
+                removalUrl: (link) => (
+                    `${apiBase}/api/v1/assets/${link.asset_id}/process-links/${process.id}`
+                ),
+                linkId: (link) => link.id,
+                headers,
+                processId: process.id,
+            }));
+
+            await attempt(() => cleanupListedProcessRelationships<ProcessVendorLinkCleanup>({
+                relationshipName: 'Vendor',
+                listUrl: `${apiBase}/api/v1/processes/${process.id}/vendor-links`,
+                removalUrl: (link) => `${apiBase}/api/v1/processes/${process.id}/vendor-links/${link.id}`,
+                linkId: (link) => link.id,
+                headers,
+                processId: process.id,
+            }));
+
+            if (assetPrimaryBaseline?.processId != null) {
+                await attempt(() => ensureAssetPrimaryProcess(
+                    assetPrimaryBaseline.assetId,
+                    assetPrimaryBaseline.processId!,
+                ));
+            }
+
+            await attempt(async () => {
+                const current = await getProcessByL1(processName);
+                if (!current || current.is_archived === true) {
+                    return;
+                }
+                const archived = await fetch(`${apiBase}/api/v1/processes/${current.id}`, {
+                    method: 'DELETE',
+                    headers,
+                    body: JSON.stringify({}),
+                });
+                if (!archived.ok) {
+                    throw new Error(
+                        `Failed to archive governed Process fixture ${current.id}: ${archived.status} - ${await archived.text()}`,
+                    );
+                }
+            });
+        }
+    } catch (error) {
+        failures.push(error);
+    } finally {
+        if (scenario?.requires_approval) {
+            await attempt(() => updateProtectedProcessScenario(scenario!));
+        }
+    }
+
+    if (failures.length > 0) {
+        throw new Error(
+            `Governed Process cleanup failed: ${failures.map(cleanupFailureMessage).join('; ')}`,
+        );
     }
 }
 

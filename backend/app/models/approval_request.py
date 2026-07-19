@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,6 +41,7 @@ class ApprovalActionType(str, PyEnum):
 
     DELETE = "delete"
     EDIT = "edit"
+    CREATE = "create"
 
 
 class ApprovalRequest(Base):
@@ -65,7 +66,9 @@ class ApprovalRequest(Base):
     resource_type: Mapped[ApprovalResourceType] = mapped_column(
         SQLEnum(ApprovalResourceType, name="approval_resource_type", create_constraint=True), nullable=False
     )
-    resource_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    # NULL is reserved for an exact governed ``process.create`` proposal. It
+    # represents proposal identity, never a fabricated operational row id.
+    resource_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     resource_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Snapshot for display
 
     # Action type: delete or edit
@@ -128,6 +131,12 @@ class ApprovalRequest(Base):
     # Note: ux_approval_pending partial unique index is created via migration,
     # not declaratively (SQLAlchemy doesn't support partial indexes well)
     __table_args__ = (
+        CheckConstraint(
+            "(resource_id IS NULL AND resource_type = 'PROCESS' AND action_type = 'CREATE') "
+            "OR (resource_id IS NOT NULL AND NOT "
+            "(resource_type = 'PROCESS' AND action_type = 'CREATE'))",
+            name="ck_approval_requests_process_create_resource_identity",
+        ),
         Index("ix_approval_resource", "resource_type", "resource_id"),
         Index("ix_approval_status", "status"),
         Index("ix_approval_requests_status_created_at", "status", "created_at"),

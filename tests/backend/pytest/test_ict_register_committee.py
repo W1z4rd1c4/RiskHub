@@ -260,15 +260,28 @@ def test_register_state_tiles_reproduce_the_ten_dashboard_formulas():
         process_vendor_links=(ProcessVendorLinkInput(process_id=1, vendor_id=1),),
         contracts=(
             VendorContractInput(
-                id=1, vendor_id=1, contract_reference="SML-2020-001", main_contract="Ano", roi_scope="Ano"
+                id=1,
+                vendor_id=1,
+                contract_reference="SML-2020-001",
+                main_contract="Ano",
+                roi_scope="Ano",
             ),
             VendorContractInput(
-                id=2, vendor_id=1, contract_reference="SML-2020-002", main_contract="Ne", roi_scope="Ne"
+                id=2,
+                vendor_id=1,
+                contract_reference="SML-2020-002",
+                main_contract="Ne",
+                roi_scope="Ne",
             ),
             VendorContractInput(id=3, vendor_id=2, contract_reference=None, roi_scope="Ano"),
         ),
         sub_outsourcing=(
-            SubOutsourcingInput(id=1, vendor_id=1, contract_id=1, sub_provider_name="Subdodavatel s.r.o."),
+            SubOutsourcingInput(
+                id=1,
+                vendor_id=1,
+                contract_id=1,
+                sub_provider_name="Subdodavatel s.r.o.",
+            ),
         ),
     )
 
@@ -295,9 +308,7 @@ def test_dq_equivalent_tiles_agree_with_the_dq_engine_counts():
             asset_row(2, data_classification="not_assessed"),
             asset_row(3, data_classification=None),
         ),
-        vendors=(
-            vendor_row(1, substitutability="Nenahraditelný", exit_plan_state="Ukončen"),
-        ),
+        vendors=(vendor_row(1, substitutability="Nenahraditelný", exit_plan_state="Ukončen"),),
     )
     committee = run_committee(graph)
     dq = derive_ict_register_dq(IctRegisterDqGraph(graph=graph), parameter_set())
@@ -463,20 +474,25 @@ def test_migration_matrix_band_edges_follow_the_verbatim_thresholds():
     39|40 and 79|80."""
     result = run_committee(
         risks=(
-            risk_input(1, gross_score=14, net_score=14),   # Nízké -> Nízké
-            risk_input(2, gross_score=15, net_score=14),   # Střední -> Nízké
-            risk_input(3, gross_score=39, net_score=15),   # Střední -> Střední
-            risk_input(4, gross_score=40, net_score=39),   # Vysoké -> Střední
-            risk_input(5, gross_score=79, net_score=40),   # Vysoké -> Vysoké
-            risk_input(6, gross_score=80, net_score=79),   # Kritické -> Vysoké
-            risk_input(7, gross_score=80, net_score=80),   # Kritické -> Kritické
+            risk_input(1, gross_score=14, net_score=14),  # Nízké -> Nízké
+            risk_input(2, gross_score=15, net_score=14),  # Střední -> Nízké
+            risk_input(3, gross_score=39, net_score=15),  # Střední -> Střední
+            risk_input(4, gross_score=40, net_score=39),  # Vysoké -> Střední
+            risk_input(5, gross_score=79, net_score=40),  # Vysoké -> Vysoké
+            risk_input(6, gross_score=80, net_score=79),  # Kritické -> Vysoké
+            risk_input(7, gross_score=80, net_score=80),  # Kritické -> Kritické
             risk_input(8, gross_score=None, net_score=10),  # no gross band: out
             risk_input(9, gross_score=90, net_score=None),  # no net band: out
         ),
     )
     matrix = result.cro.migration_matrix
 
-    assert [row.gross_band for row in matrix.rows] == ["Nízké", "Střední", "Vysoké", "Kritické"]
+    assert [row.gross_band for row in matrix.rows] == [
+        "Nízké",
+        "Střední",
+        "Vysoké",
+        "Kritické",
+    ]
     by_gross = {row.gross_band: row.cells for row in matrix.rows}
     # cells ordered by net band Nízké, Střední, Vysoké, Kritické
     assert by_gross["Nízké"] == (1, 0, 0, 0)
@@ -502,7 +518,13 @@ def test_top_risks_rank_by_net_desc_with_ties_to_the_later_register_row():
     result = run_committee(
         graph,
         risks=(
-            risk_input(1, code="RIZ-001", net_score=50, gross_score=60, status_label="Akceptováno"),
+            risk_input(
+                1,
+                code="RIZ-001",
+                net_score=50,
+                gross_score=60,
+                status_label="Akceptováno",
+            ),
             risk_input(2, code="RIZ-002", net_score=50, gross_score=55),
             risk_input(3, code="RIZ-003", net_score=80, gross_score=100),
             risk_input(4, code="RIZ-004", net_score=None, gross_score=90),
@@ -613,9 +635,9 @@ def test_narrative_sentence_values_reproduce_the_five_live_formulas():
     and v4 deeper (C)."""
     graph = IctRegisterGraph(
         processes=(
-            cif_process_row(1),                    # CIF, bcm Ano
-            cif_process_row(2, bcm_link="no"),     # CIF, no BCM evidence
-            process_row(3),                        # non-CIF, bcm Ano
+            cif_process_row(1),  # CIF, bcm Ano
+            cif_process_row(2, bcm_link="no"),  # CIF, no BCM evidence
+            process_row(3),  # non-CIF, bcm Ano
         ),
         vendors=(
             vendor_row(1, exit_plan_state="Schválen", identifier_value="12345678"),
@@ -632,11 +654,20 @@ def test_narrative_sentence_values_reproduce_the_five_live_formulas():
         # off the Critical tier (a CIF prime would propagate cif_ret down the
         # chain and tier them Critical — the workbook's own rule).
         contracts=(
-            VendorContractInput(id=1, vendor_id=5, contract_reference="SML-2020-001", main_contract="Ano"),
+            VendorContractInput(
+                id=1,
+                vendor_id=5,
+                contract_reference="SML-2020-001",
+                main_contract="Ano",
+            ),
         ),
         sub_outsourcing=(
             SubOutsourcingInput(
-                id=1, vendor_id=5, contract_id=1, sub_provider_name="Sub A", sub_provider_vendor_id=3
+                id=1,
+                vendor_id=5,
+                contract_id=1,
+                sub_provider_name="Sub A",
+                sub_provider_vendor_id=3,
             ),
             SubOutsourcingInput(
                 id=2,
@@ -700,7 +731,12 @@ def test_assets_by_resulting_criticality_aggregate():
     )
     aggregate = run_committee(graph).cro.assets_by_criticality
 
-    assert [entry.band for entry in aggregate] == ["Nízká", "Střední", "Vysoká", "Kritická"]
+    assert [entry.band for entry in aggregate] == [
+        "Nízká",
+        "Střední",
+        "Vysoká",
+        "Kritická",
+    ]
     by_band = {entry.band: entry.count for entry in aggregate}
     assert by_band["Kritická"] == 1  # a1 inherits the primary process's class
     assert sum(by_band.values()) == 1  # a2 has no class and lands nowhere
@@ -717,7 +753,12 @@ def test_risks_by_band_gross_vs_net_aggregate():
         ),
     ).cro.risks_by_band
 
-    assert [entry.band for entry in aggregate] == ["Nízké", "Střední", "Vysoké", "Kritické"]
+    assert [entry.band for entry in aggregate] == [
+        "Nízké",
+        "Střední",
+        "Vysoké",
+        "Kritické",
+    ]
     by_band = {entry.band: (entry.gross_count, entry.net_count) for entry in aggregate}
     assert by_band["Nízké"] == (0, 2)
     assert by_band["Střední"] == (1, 0)
@@ -742,7 +783,11 @@ def test_committee_carries_the_roi_readiness_element():
     )
     roi = result.roi_readiness
 
-    assert [template.code for template in roi.templates][:3] == ["B_01.01", "B_01.02", "B_01.03"]
+    assert [template.code for template in roi.templates][:3] == [
+        "B_01.01",
+        "B_01.02",
+        "B_01.03",
+    ]
     assert len(roi.templates) == 15
     by_code = {template.code: template for template in roi.templates}
     assert by_code["B_06.01"].row_count == 1
@@ -763,9 +808,7 @@ def test_material_kpi_is_marked_production_inert_never_a_silent_zero():
     assert production_shaped.material_risk_count_production_inert_reason
     assert "materiality" in production_shaped.material_risk_count_production_inert_reason
 
-    measured = run_committee(
-        risks=(risk_input(1, is_material="Ano"), risk_input(2))
-    ).cro.kpi
+    measured = run_committee(risks=(risk_input(1, is_material="Ano"), risk_input(2))).cro.kpi
     assert measured.material_risk_count == 1  # the verbatim rule, golden-covered
     assert measured.material_risk_count_production_inert is False
     assert measured.material_risk_count_production_inert_reason is None
@@ -782,9 +825,7 @@ def test_dq_engine_accepts_a_precomputed_derivation_with_identical_results():
     params = parameter_set()
 
     self_derived = derive_ict_register_dq(dq_graph, params)
-    pre_derived = derive_ict_register_dq(
-        dq_graph, params, derivation=derive_ict_register(graph, params)
-    )
+    pre_derived = derive_ict_register_dq(dq_graph, params, derivation=derive_ict_register(graph, params))
 
     assert pre_derived == self_derived
 
@@ -829,9 +870,7 @@ async def _seed_contract_user(db_session: AsyncSession, role_name: str) -> User:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "role_name", ["ceo", "cfo", "coo", "risk_manager", "compliance", "internal_audit"]
-)
+@pytest.mark.parametrize("role_name", ["ceo", "cfo", "coo", "risk_manager", "compliance", "internal_audit"])
 async def test_committee_endpoint_allows_every_granted_seed_role(
     client_factory, db_session: AsyncSession, role_name: str
 ):
@@ -845,7 +884,10 @@ async def test_committee_endpoint_allows_every_granted_seed_role(
 
 @pytest.mark.asyncio
 async def test_committee_endpoint_denies_ungranted_and_anonymous_callers(
-    client_factory, db_session: AsyncSession, test_user_employee: User, test_user_platform_admin: User
+    client_factory,
+    db_session: AsyncSession,
+    test_user_employee: User,
+    test_user_platform_admin: User,
 ):
     """NOT employee, NOT department_head, NOT viewer (#38 decision as landed);
     the platform admin holds no business permissions; anonymous is 401. CRO
@@ -928,9 +970,7 @@ async def test_vendor_api_identifier_rules_flow_into_committee_roi_readiness(
 
     assert committee.status_code == 200, committee.text
     b0501 = next(
-        template
-        for template in committee.json()["roi_readiness"]["templates"]
-        if template["code"] == "B_05.01"
+        template for template in committee.json()["roi_readiness"]["templates"] if template["code"] == "B_05.01"
     )
     identifier_gaps = {
         missing["key"]
@@ -939,11 +979,7 @@ async def test_vendor_api_identifier_rules_flow_into_committee_roi_readiness(
         for missing in gap["missing"]
         if missing["key"].startswith("provider_identification_")
     }
-    assert identifier_gaps == (
-        set()
-        if ready
-        else {"provider_identification_code", "provider_identification_type"}
-    )
+    assert identifier_gaps == (set() if ready else {"provider_identification_code", "provider_identification_type"})
 
 
 def _risk_payload(**overrides: object) -> dict[str, object]:
@@ -1023,12 +1059,15 @@ async def test_committee_endpoint_over_an_api_seeded_register(
     seed_risk_types,
     snapshot,
 ):
-    """The full committee read model over a register seeded THROUGH the write
-    API, read by a seeded CEO (the new grant end-to-end), pinned by an
-    ADR-006 redacting snapshot plus explicit goldens: the loader's gross-block
-    mapping, the h_zebr order on live rows, the heatmap gate-3 invariant, and
-    DQ-count consistency with the #50 surface."""
-    from app.models import GlobalConfig
+    """The full committee read model over an API-seeded register, with the
+    protected Process graph installed directly as aggregate fixture state,
+    read by a seeded CEO (the new grant end-to-end), and pinned by an ADR-006
+    redacting snapshot plus explicit goldens: the loader's gross-block mapping,
+    the h_zebr order on live rows, the heatmap gate-3 invariant, and DQ-count
+    consistency with the #50 surface."""
+    from datetime import date
+
+    from app.models import GlobalConfig, Process, ProcessAssetLink, RiskProcessLink
     from app.models.global_config import clear_config_cache
 
     ciso_role = Role(name="ciso", display_name="Chief Information Security Officer")
@@ -1079,28 +1118,32 @@ async def test_committee_endpoint_over_an_api_seeded_register(
     await db_session.commit()
     clear_config_cache()
     try:
-        async with client_factory(user=test_user_cro) as client:
-            process_resp = await client.post(
-                "/api/v1/processes",
-                json={
-                    "l0_area": "Provoz a služby klientům",
-                    "l1_process": "Správa pojistných smluv",
-                    "process_owner_user_id": test_user_cro.id,
-                    "owning_department_id": test_department.id,
-                    "impact_client": 5,
-                    "impact_market_operations": 4,
-                    "impact_regulatory": 4,
-                    "impact_financial": 4,
-                    "mtpd_hours": 2,
-                    "rto_hours": 1,
-                    "rpo_hours": 1,
-                    "interruption_impact": "high",
-                    "assessment_date": "2026-01-15",
-                },
-            )
-            assert process_resp.status_code == 201, process_resp.text
-            process = process_resp.json()
+        # Seed the derived-CIF Process as fixture state. Creating this row
+        # through the write API now correctly enters governed approval, while
+        # the protected Process graph exists here only to exercise the
+        # committee read model's CIF aggregation.
+        process = Process(
+            f_code="F1",
+            l0_area="Provoz a služby klientům",
+            l1_process="Správa pojistných smluv",
+            process_owner_user_id=test_user_cro.id,
+            owning_department_id=test_department.id,
+            impact_client=5,
+            impact_market_operations=4,
+            impact_regulatory=4,
+            impact_financial=4,
+            mtpd_hours=2,
+            rto_hours=1,
+            rpo_hours=1,
+            interruption_impact="high",
+            assessment_date=date(2026, 1, 15),
+        )
+        db_session.add(process)
+        await db_session.flush()
+        process_id = process.id
+        await db_session.commit()
 
+        async with client_factory(user=test_user_cro) as client:
             vendor_resp = await client.post(
                 "/api/v1/vendors",
                 json={
@@ -1133,11 +1176,14 @@ async def test_committee_endpoint_over_an_api_seeded_register(
             stored_asset.ict_owner_user_id = None
             stored_asset.owning_department_id = None
             await db_session.commit()
-            link = await client.post(
-                f"/api/v1/assets/{asset['id']}/process-links",
-                json={"process_id": process["id"], "is_primary": True},
+            db_session.add(
+                ProcessAssetLink(
+                    process_id=process_id,
+                    asset_id=asset["id"],
+                    is_primary=True,
+                )
             )
-            assert link.status_code == 201, link.text
+            await db_session.commit()
             av_link = await client.post(
                 f"/api/v1/assets/{asset['id']}/vendor-links",
                 json={"vendor_id": vendor["id"], "ict_service_code": "S02"},
@@ -1165,12 +1211,13 @@ async def test_committee_endpoint_over_an_api_seeded_register(
             )
             assert risk1_resp.status_code == 201, risk1_resp.text
             risk1 = risk1_resp.json()
-            for path, body in (
-                (f"/api/v1/risks/{risk1['id']}/process-links", {"process_id": process["id"]}),
-                (f"/api/v1/risks/{risk1['id']}/threat-links", {"threat_id": threat["id"]}),
-            ):
-                link_resp = await client.post(path, json=body)
-                assert link_resp.status_code == 201, link_resp.text
+            db_session.add(RiskProcessLink(risk_id=risk1["id"], process_id=process_id))
+            await db_session.commit()
+            link_resp = await client.post(
+                f"/api/v1/risks/{risk1['id']}/threat-links",
+                json={"threat_id": threat["id"]},
+            )
+            assert link_resp.status_code == 201, link_resp.text
 
             # Second risk: gross 2×2=4, net 1×2=2 — Nízké, within tolerance.
             risk2_resp = await client.post(
@@ -1186,7 +1233,8 @@ async def test_committee_endpoint_over_an_api_seeded_register(
             assert risk2_resp.status_code == 201, risk2_resp.text
             risk2 = risk2_resp.json()
             link_resp = await client.post(
-                f"/api/v1/risks/{risk2['id']}/asset-links", json={"asset_id": asset["id"]}
+                f"/api/v1/risks/{risk2['id']}/asset-links",
+                json={"asset_id": asset["id"]},
             )
             assert link_resp.status_code == 201, link_resp.text
 
@@ -1249,14 +1297,26 @@ async def test_committee_endpoint_over_an_api_seeded_register(
     assert kpi["material_risk_count_production_inert_reason"]
 
     # RoI-readiness (#52) rides the same payload: 15 templates in annex order;
-    # the API-created Process gaps only on its unposted licensed activity (the
-    # server-assigned F-code and the engine CIF populate the rest), and the
+    # the fixture Process gaps only on its unset licensed activity (the F-code
+    # and the engine CIF populate the rest), and the
     # loader's supplement path feeds the VAD-driven templates.
     roi = body["roi_readiness"]
     assert [template["code"] for template in roi["templates"]] == [
-        "B_01.01", "B_01.02", "B_01.03", "B_02.01", "B_02.02", "B_02.03",
-        "B_03.01", "B_03.02", "B_03.03", "B_04.01", "B_05.01", "B_05.02",
-        "B_06.01", "B_07.01", "B_99.01",
+        "B_01.01",
+        "B_01.02",
+        "B_01.03",
+        "B_02.01",
+        "B_02.02",
+        "B_02.03",
+        "B_03.01",
+        "B_03.02",
+        "B_03.03",
+        "B_04.01",
+        "B_05.01",
+        "B_05.02",
+        "B_06.01",
+        "B_07.01",
+        "B_99.01",
     ]
     roi_by_code = {template["code"]: template for template in roi["templates"]}
     b0601 = roi_by_code["B_06.01"]

@@ -31,10 +31,7 @@ async def assert_vendor_readable(db: AsyncSession, *, vendor_id: int, current_us
     vendor = await load_vendor_with_deps(db, vendor_id)
     if not vendor or not (
         is_vendor_owner(vendor, current_user)
-        or (
-            check_permission(current_user, "vendors", "read")
-            and can_read_vendor(vendor, current_user)
-        )
+        or (check_permission(current_user, "vendors", "read") and can_read_vendor(vendor, current_user))
     ):
         raise NotFoundError("Vendor not found")
     return vendor
@@ -58,9 +55,7 @@ async def assert_vendor_list_allowed(
     if check_permission(current_user, "vendors", "read"):
         return
     owned_vendor_id = await db.scalar(
-        select(Vendor.id)
-        .where(Vendor.outsourcing_owner_user_id == current_user.id)
-        .limit(1)
+        select(Vendor.id).where(Vendor.outsourcing_owner_user_id == current_user.id).limit(1)
     )
     if owned_vendor_id is None:
         raise AuthorizationError("Permission denied: vendors:read")
@@ -68,10 +63,7 @@ async def assert_vendor_list_allowed(
 
 def assert_vendor_export_allowed(*, current_user: User) -> None:
     """Require both register-read and report-read authority for standard export."""
-    if not (
-        check_permission(current_user, "vendors", "read")
-        and check_permission(current_user, "reports", "read")
-    ):
+    if not (check_permission(current_user, "vendors", "read") and check_permission(current_user, "reports", "read")):
         raise AuthorizationError("Permission denied: Vendor standard export")
 
 
@@ -90,8 +82,7 @@ async def assert_vendor_update_allowed(
         raise ConflictError("Cannot update archived vendor")
 
     can_write_visible = bool(
-        check_permission(current_user, "vendors", "write")
-        and can_read_vendor(vendor, current_user)
+        check_permission(current_user, "vendors", "write") and can_read_vendor(vendor, current_user)
     )
     if not can_write_visible and not is_vendor_owner(vendor, current_user):
         raise AuthorizationError("Permission denied: vendors:write")
@@ -105,9 +96,7 @@ async def lock_vendor_ordinary_mutation(
     additional_owner_user_ids: Iterable[int | None] = (),
 ) -> Vendor:
     """Lock accountability state and reject ordinary mutation while orphaned."""
-    expected_owner_id = await db.scalar(
-        select(Vendor.outsourcing_owner_user_id).where(Vendor.id == vendor_id)
-    )
+    expected_owner_id = await db.scalar(select(Vendor.outsourcing_owner_user_id).where(Vendor.id == vendor_id))
     if expected_owner_id is None:
         raise NotFoundError("Vendor not found")
     vendor = await lock_vendor_for_owner_mutation(
@@ -118,20 +107,27 @@ async def lock_vendor_ordinary_mutation(
     )
     if vendor is None:
         raise NotFoundError("Vendor not found")
+    await assert_vendor_not_pending_governance(db, vendor_id=vendor.id)
+    return vendor
+
+
+async def assert_vendor_not_pending_governance(
+    db: AsyncSession,
+    *,
+    vendor_id: int,
+) -> None:
+    """Apply the ordinary Vendor pending-orphan guard after row locking."""
     pending_orphan_id = await db.scalar(
         select(OrphanedItem.id)
         .where(
             OrphanedItem.item_type == "vendor",
-            OrphanedItem.item_id == vendor.id,
+            OrphanedItem.item_id == vendor_id,
             OrphanedItem.status == "pending",
         )
         .limit(1)
     )
     if pending_orphan_id is not None:
-        raise ConflictError(
-            "Vendor Outsourcing Owner is pending Governance reassignment"
-        )
-    return vendor
+        raise ConflictError("Vendor Outsourcing Owner is pending Governance reassignment")
 
 
 async def assert_vendor_ordinary_mutation_allowed(
@@ -154,8 +150,7 @@ async def assert_vendor_ordinary_mutation_allowed(
     if vendor.is_archived:
         raise ConflictError("Cannot update archived vendor")
     can_write_visible = bool(
-        check_permission(current_user, "vendors", "write")
-        and can_read_vendor(vendor, current_user)
+        check_permission(current_user, "vendors", "write") and can_read_vendor(vendor, current_user)
     )
     if not can_write_visible and not is_vendor_owner(vendor, current_user):
         raise AuthorizationError("Permission denied: vendors:write")
@@ -202,10 +197,7 @@ async def assert_vendor_create_allowed(
 
 
 async def assert_vendor_delete_allowed(db: AsyncSession, *, vendor_id: int, current_user: User) -> Vendor:
-    if not (
-        check_permission(current_user, "vendors", "read")
-        and check_permission(current_user, "vendors", "delete")
-    ):
+    if not (check_permission(current_user, "vendors", "read") and check_permission(current_user, "vendors", "delete")):
         raise AuthorizationError("Permission denied: vendors:delete")
 
     vendor = await load_vendor_for_update(db, vendor_id)

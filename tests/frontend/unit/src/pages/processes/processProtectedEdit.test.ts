@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { processEditNeedsRequestReason } from '@/pages/processes/processProtectedEdit';
+import {
+    processEditNeedsRequestReason,
+    processMutationRequiresApprovalReason,
+} from '@/pages/processes/processProtectedEdit';
 import type { Process } from '@/types/process';
 
 const baseCandidate = {
@@ -67,5 +70,37 @@ describe('processEditNeedsRequestReason', () => {
 
     it('does not require a reason for a provably unprotected candidate', () => {
         expect(processEditNeedsRequestReason(processWithCif('no'), baseCandidate)).toBe(false);
+    });
+});
+
+describe('processMutationRequiresApprovalReason', () => {
+    it('uses live scenario metadata and derived CIF for existing-row actions', () => {
+        const protectedProcess = processWithCif('yes');
+        protectedProcess.capabilities = {
+            can_read: true,
+            can_update: true,
+            can_archive: true,
+            can_restore: false,
+            protected_change_requires_approval: true,
+            can_request_change: true,
+            can_cancel_pending_change: false,
+            has_pending_change: false,
+            business_edit_blocked: false,
+        };
+        expect(processMutationRequiresApprovalReason(protectedProcess)).toBe(true);
+
+        const directProcess = processWithCif('no');
+        directProcess.capabilities = protectedProcess.capabilities;
+        expect(processMutationRequiresApprovalReason(directProcess)).toBe(false);
+
+        protectedProcess.capabilities = {
+            ...protectedProcess.capabilities,
+            protected_change_requires_approval: false,
+        };
+        expect(processMutationRequiresApprovalReason(protectedProcess)).toBe(false);
+    });
+
+    it('fails closed when the selected Process projection is unavailable', () => {
+        expect(processMutationRequiresApprovalReason(undefined)).toBe(true);
     });
 });

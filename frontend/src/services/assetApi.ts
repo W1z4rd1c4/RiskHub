@@ -10,6 +10,7 @@ import {
     ictClosedListCollectionSchema,
     processAssetLinkListSchema,
     processAssetLinkSchema,
+    processApprovalQueuedResponseSchema,
     voidSchema,
 } from '@/services/api/schemas';
 import type {
@@ -26,6 +27,7 @@ import type {
     ProcessAssetLinkCreatePayload,
     ProcessAssetLinkUpdatePayload,
 } from '@/types/asset';
+import type { ProcessApprovalQueuedResponse } from '@/types/process';
 
 export type AssetLookupKind = 'business-owners' | 'ict-owners' | 'departments' | 'processes' | 'assets' | 'vendors' | 'risks';
 
@@ -125,8 +127,13 @@ export const assetApi = {
         return apiClient.get(`/assets/${assetId}/process-links`, { schema: processAssetLinkListSchema });
     },
 
-    async addProcessLink(assetId: number, data: ProcessAssetLinkCreatePayload): Promise<ProcessAssetLink> {
-        return apiClient.post(`/assets/${assetId}/process-links`, data, { schema: processAssetLinkSchema });
+    async addProcessLink(
+        assetId: number,
+        data: ProcessAssetLinkCreatePayload,
+    ): Promise<ProcessAssetLink | ProcessApprovalQueuedResponse> {
+        return apiClient.post(`/assets/${assetId}/process-links`, data, {
+            schema: processAssetLinkSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     /** Setting is_primary: true atomically demotes the previous primary. */
@@ -134,14 +141,21 @@ export const assetApi = {
         assetId: number,
         processId: number,
         data: ProcessAssetLinkUpdatePayload,
-    ): Promise<ProcessAssetLink> {
+    ): Promise<ProcessAssetLink | ProcessApprovalQueuedResponse> {
         return apiClient.patch(`/assets/${assetId}/process-links/${processId}`, data, {
-            schema: processAssetLinkSchema,
+            schema: processAssetLinkSchema.or(processApprovalQueuedResponseSchema),
         });
     },
 
-    async removeProcessLink(assetId: number, processId: number): Promise<void> {
-        return apiClient.delete(`/assets/${assetId}/process-links/${processId}`, { schema: voidSchema });
+    async removeProcessLink(
+        assetId: number,
+        processId: number,
+        requestReason: string,
+    ): Promise<void | ProcessApprovalQueuedResponse> {
+        return apiClient.delete(`/assets/${assetId}/process-links/${processId}`, {
+            body: JSON.stringify({ request_reason: requestReason }),
+            schema: voidSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     /** Asset<->Asset Link relations (directional: dependent relies on supporting). */

@@ -42,8 +42,9 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import User
+from app.models import Process, ProcessAssetLink, ProcessVendorLink, User
 from app.models.global_config import clear_config_cache
 from app.services._ict_register_lifecycle.derivation import (
     AssetDerivationInput,
@@ -129,7 +130,11 @@ def contract_row(cid: int = 1, vendor_id: int = 1, **overrides: object) -> Vendo
 
 
 def sub_row(sid: int, vendor_id: int, contract_id: int, **overrides: object) -> SubOutsourcingInput:
-    defaults: dict[str, object] = {"id": sid, "vendor_id": vendor_id, "contract_id": contract_id}
+    defaults: dict[str, object] = {
+        "id": sid,
+        "vendor_id": vendor_id,
+        "contract_id": contract_id,
+    }
     defaults.update(overrides)
     return SubOutsourcingInput(**defaults)  # type: ignore[arg-type]
 
@@ -189,9 +194,7 @@ def test_vendor_h_rank_is_max_of_max_and_empty_maxifs_resolves_to_zero():
     graph = IctRegisterGraph(
         assets=(
             asset_row(1, preliminary_criticality="medium"),  # vysledna Střední (rank 2)
-            asset_row(
-                2, preliminary_criticality="critical"
-            ),  # vysledna Kritická (rank 4)
+            asset_row(2, preliminary_criticality="critical"),  # vysledna Kritická (rank 4)
             asset_row(3),  # no signals: vysledna blank, contributes nothing
         ),
         asset_vendor_links=(vad(1, 1), vad(2, 1), vad(3, 1), vad(3, 2)),
@@ -276,9 +279,7 @@ def test_tier_significant_via_max_linked_asset_rank_at_least_high():
         (None, "Standardní dodavatel"),
     ],
 )
-def test_tier_significant_via_substitutability_without_any_links(
-    substitutability: str | None, expected_tier: str
-):
+def test_tier_significant_via_substitutability_without_any_links(substitutability: str | None, expected_tier: str):
     """The structurally-unreachable branch, driven via direct engine input: no
     VAD links (h_rank=0), no CIF — substitutability alone decides (spec
     section 8 item 3: unreachable for every seeded candidate until a human
@@ -323,9 +324,7 @@ def _three_deep_chain_graph(*, prime_is_cif: bool) -> IctRegisterGraph:
     Sub-provider rows carry ``sub_provider_vendor_id`` — the engine-level
     analog of 09!F (see the engine module docstring for the #45 disposition).
     """
-    prime_links = (
-        (ProcessVendorLinkInput(process_id=1, vendor_id=1),) if prime_is_cif else ()
-    )
+    prime_links = (ProcessVendorLinkInput(process_id=1, vendor_id=1),) if prime_is_cif else ()
     return IctRegisterGraph(
         processes=(cif_process_row(1),),
         vendors=(vendor_row(1), vendor_row(11), vendor_row(12), vendor_row(13)),
@@ -333,8 +332,22 @@ def _three_deep_chain_graph(*, prime_is_cif: bool) -> IctRegisterGraph:
         contracts=(contract_row(100, 1, contract_reference="SML-2020-001"),),
         sub_outsourcing=(
             sub_row(31, 1, 100, sub_provider_name="X", sub_provider_vendor_id=11),
-            sub_row(32, 1, 100, predecessor_id=31, sub_provider_name="Y", sub_provider_vendor_id=12),
-            sub_row(33, 1, 100, predecessor_id=32, sub_provider_name="Z", sub_provider_vendor_id=13),
+            sub_row(
+                32,
+                1,
+                100,
+                predecessor_id=31,
+                sub_provider_name="Y",
+                sub_provider_vendor_id=12,
+            ),
+            sub_row(
+                33,
+                1,
+                100,
+                predecessor_id=32,
+                sub_provider_name="Z",
+                sub_provider_vendor_id=13,
+            ),
         ),
     )
 
@@ -453,9 +466,7 @@ def test_sub_outsourcing_contract_lookups():
     """09!C/D/J/O are XLOOKUPs into 08 (builder :354-358, :366-368, :375-377)."""
     graph = IctRegisterGraph(
         vendors=(vendor_row(1, name="BIZ DATA"),),
-        contracts=(
-            contract_row(100, 1, contract_reference="SML-2020-001", roi_scope="Ano"),
-        ),
+        contracts=(contract_row(100, 1, contract_reference="SML-2020-001", roi_scope="Ano"),),
         sub_outsourcing=(sub_row(31, 1, 100, sub_provider_name="X"),),
     )
     result = derive(graph)
@@ -490,16 +501,30 @@ def test_chain_level_a_for_any_own_contract_asset_or_process_link():
 
 
 def test_chain_level_b_and_c_from_subcontractor_rank():
-    """"B" ⇔ subcontractor at rank exactly 2 anywhere; "C" ⇔ subcontractor at
+    """ "B" ⇔ subcontractor at rank exactly 2 anywhere; "C" ⇔ subcontractor at
     all (deeper, or with a broken rank)."""
     graph = IctRegisterGraph(
         vendors=(vendor_row(1), vendor_row(11), vendor_row(12), vendor_row(13)),
         contracts=(contract_row(100, 1),),
         sub_outsourcing=(
             sub_row(31, 1, 100, sub_provider_name="X", sub_provider_vendor_id=11),
-            sub_row(32, 1, 100, predecessor_id=31, sub_provider_name="Y", sub_provider_vendor_id=12),
+            sub_row(
+                32,
+                1,
+                100,
+                predecessor_id=31,
+                sub_provider_name="Y",
+                sub_provider_vendor_id=12,
+            ),
             # Broken rank: counts for C (COUNTIF matches F), never for B.
-            sub_row(33, 1, 100, predecessor_id=999, sub_provider_name="Z", sub_provider_vendor_id=13),
+            sub_row(
+                33,
+                1,
+                100,
+                predecessor_id=999,
+                sub_provider_name="Z",
+                sub_provider_vendor_id=13,
+            ),
         ),
     )
     result = derive(graph)
@@ -529,23 +554,24 @@ def test_direct_sub_providers_list_rows_whose_parent_is_this_vendor():
     assert result.vendors[11].direct_sub_provider_count == 1
 
 
-@pytest.mark.parametrize("answer_field", [
-    "significance_authorization_conditions",
-    "significance_regulatory_requirements",
-    "significance_service_quality",
-    "significance_financial_impact",
-    "significance_reputation_continuity",
-    "significance_cumulative_impact",
-])
+@pytest.mark.parametrize(
+    "answer_field",
+    [
+        "significance_authorization_conditions",
+        "significance_regulatory_requirements",
+        "significance_service_quality",
+        "significance_financial_impact",
+        "significance_reputation_continuity",
+        "significance_cumulative_impact",
+    ],
+)
 def test_significance_outcome_any_true_over_the_six_criteria(answer_field: str):
     """vyz_vysledek = "Ano" iff COUNTIF(the 6 criteria,"Ano")>0 (builder
     :134-136); "Ne" and "Nerelevantní" never count."""
     single_yes = derive(IctRegisterGraph(vendors=(vendor_row(1, **{answer_field: "Ano"}),)))
     assert single_yes.vendors[1].significance_outcome == "Ano"
 
-    others = derive(
-        IctRegisterGraph(vendors=(vendor_row(1, **{answer_field: "Nerelevantní"}),))
-    )
+    others = derive(IctRegisterGraph(vendors=(vendor_row(1, **{answer_field: "Nerelevantní"}),)))
     assert others.vendors[1].significance_outcome == "Ne"
 
 
@@ -914,30 +940,52 @@ async def _create_vendor(client, *, department_id: int, owner_user_id: int, **ov
     return await _create_via_api(client, "/api/v1/vendors", payload)
 
 
+async def _seed_cif_process(
+    db_session: AsyncSession,
+    *,
+    f_code: str,
+    l0_area: str,
+    l1_process: str,
+    owner_user_id: int,
+    department_id: int,
+    l2_subprocess: str | None = None,
+) -> Process:
+    """Seed the CIF input when this suite is testing derivation, not intake."""
+    process = Process(
+        f_code=f_code,
+        l0_area=l0_area,
+        l1_process=l1_process,
+        l2_subprocess=l2_subprocess,
+        process_owner_user_id=owner_user_id,
+        owning_department_id=department_id,
+        impact_client=4,
+        impact_market_operations=4,
+        impact_regulatory=4,
+        impact_financial=4,
+        mtpd_hours=4,
+    )
+    db_session.add(process)
+    await db_session.commit()
+    return process
+
+
 @pytest.mark.asyncio
 async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
-    client_factory, test_user_cro: User, test_department
+    client_factory, db_session: AsyncSession, test_user_cro: User, test_department
 ):
     """The #49 cascade end to end over HTTP: a CIF process feeds an asset,
     the asset feeds the vendor, the contract propagates CIF down a 2-deep
     chain — and all three vendor-domain Read payloads expose their engine
     blocks, plus the Process dod_n flip and the Asset hotovo."""
     async with client_factory(user=test_user_cro) as client:
-        process = await _create_via_api(
-            client,
-            "/api/v1/processes",
-            {
-                "l0_area": "Prodej a distribuce",
-                "l1_process": "Sjednání pojištění",
-                "l2_subprocess": "Online",
-                "process_owner_user_id": test_user_cro.id,
-                "owning_department_id": test_department.id,
-                "impact_client": 4,
-                "impact_market_operations": 4,
-                "impact_regulatory": 4,
-                "impact_financial": 4,
-                "mtpd_hours": 4,
-            },
+        process = await _seed_cif_process(
+            db_session,
+            f_code="FDER-VENDOR-001",
+            l0_area="Prodej a distribuce",
+            l1_process="Sjednání pojištění",
+            l2_subprocess="Online",
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
         )
         asset = await _create_via_api(
             client,
@@ -949,11 +997,8 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
                 "owning_department_id": test_department.id,
             },
         )
-        link = await client.post(
-            f"/api/v1/assets/{asset['id']}/process-links",
-            json={"process_id": process["id"], "is_primary": True},
-        )
-        assert link.status_code == 201, link.text
+        db_session.add(ProcessAssetLink(asset_id=asset["id"], process_id=process.id, is_primary=True))
+        await db_session.commit()
 
         vendor = await _create_vendor(
             client,
@@ -1019,16 +1064,14 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
         # Kritický without an ex-ante date: incomplete, and the explain block
         # names the identity gaps too.
         assert derived["is_complete"] is False
-        assert (
-            "ex_ante_assessment_date" in derived["inputs"]["missing_for_completeness"]
-        )
+        assert "ex_ante_assessment_date" in derived["inputs"]["missing_for_completeness"]
         # proc_n = §1 (0) + §2 (2 roles × 1 process) = 2.
         assert derived["linked_process_count"] == 2
         assert derived["cif_process_count"] == 2
         # The transitive expansion is browsable on the vendor payload.
         transitive = derived["transitive_process_links"]
         assert len(transitive) == 2
-        assert {row["process_id"] for row in transitive} == {process["id"]}
+        assert {row["process_id"] for row in transitive} == {process.id}
         assert transitive[0]["process_name"] == "Sjednání pojištění – Online"
         assert transitive[0]["process_cif"] == "yes"
         assert transitive[0]["via_asset_name"] == "Veris"
@@ -1040,10 +1083,7 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
         assert contract_read["derived"]["vendor_name"] == "BIZ DATA"
         assert contract_read["derived"]["cif"] == "Ano"
         assert contract_read["derived"]["duplicate_check"] == "OK"
-        assert (
-            contract_read["derived"]["sub_outsourcing_chain"]
-            == "BIZ DATA → CLOUD OPS s.r.o. → DC HOSTING GmbH"
-        )
+        assert contract_read["derived"]["sub_outsourcing_chain"] == "BIZ DATA → CLOUD OPS s.r.o. → DC HOSTING GmbH"
 
         # --- Sub-outsourcing collection: authoritative Ranks + uniform CIF.
         chain = await client.get(chain_url)
@@ -1060,7 +1100,7 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
             assert row["derived"]["roi_scope"] == "Ano"
 
         # --- Process detail: dod_n now counts the §2 triples.
-        process_detail = await client.get(f"/api/v1/processes/{process['id']}")
+        process_detail = await client.get(f"/api/v1/processes/{process.id}")
         assert process_detail.status_code == 200
         process_derived = process_detail.json()["derived"]
         assert process_derived["linked_vendor_count"] == 2
@@ -1084,43 +1124,32 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
 
 @pytest.mark.asyncio
 async def test_vendor_derived_block_recomputes_on_read(
-    client_factory, test_user_cro: User, test_department
+    client_factory, db_session: AsyncSession, test_user_cro: User, test_department
 ):
     """Compute-on-read: unlinking the CIF path immediately demotes the tier."""
     async with client_factory(user=test_user_cro) as client:
-        process = await _create_via_api(
-            client,
-            "/api/v1/processes",
-            {
-                "l0_area": "Finance",
-                "l1_process": "Regulatorní reporting",
-                "process_owner_user_id": test_user_cro.id,
-                "owning_department_id": test_department.id,
-                "impact_client": 4,
-                "impact_market_operations": 4,
-                "impact_regulatory": 4,
-                "impact_financial": 4,
-                "mtpd_hours": 4,
-            },
+        process = await _seed_cif_process(
+            db_session,
+            f_code="FDER-VENDOR-002",
+            l0_area="Finance",
+            l1_process="Regulatorní reporting",
+            owner_user_id=test_user_cro.id,
+            department_id=test_department.id,
         )
-        vendor = await _create_vendor(
-            client, department_id=test_department.id, owner_user_id=test_user_cro.id
+        vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
+        link = ProcessVendorLink(
+            process_id=process.id,
+            vendor_id=vendor["id"],
         )
-        created = await client.post(
-            f"/api/v1/processes/{process['id']}/vendor-links",
-            json={"vendor_id": vendor["id"]},
-        )
-        assert created.status_code == 201, created.text
-        link_id = created.json()["id"]
+        db_session.add(link)
+        await db_session.commit()
 
         before = await client.get(f"/api/v1/vendors/{vendor['id']}")
         assert before.json()["derived"]["tier"] == "critical"
         assert before.json()["derived"]["cif"] == "yes"
 
-        removed = await client.delete(
-            f"/api/v1/processes/{process['id']}/vendor-links/{link_id}"
-        )
-        assert removed.status_code == 204, removed.text
+        await db_session.delete(link)
+        await db_session.commit()
 
         after = await client.get(f"/api/v1/vendors/{vendor['id']}")
         assert after.json()["derived"]["tier"] == "standard"
@@ -1136,9 +1165,7 @@ async def test_vendor_writes_that_include_derived_fields_are_rejected(
     one of its member names 422 BY NAME, while Vendor writes stay tolerant of
     other unknown keys (the #44 decision, locked by the contracts suite)."""
     async with client_factory(user=test_user_cro) as client:
-        vendor = await _create_vendor(
-            client, department_id=test_department.id, owner_user_id=test_user_cro.id
-        )
+        vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
         base = {
             "name": "X",
             "process": "IT",
@@ -1163,17 +1190,13 @@ async def test_vendor_writes_that_include_derived_fields_are_rejected(
 
 
 @pytest.mark.asyncio
-async def test_archived_predecessor_breaks_the_derived_chain(
-    client_factory, test_user_cro: User, test_department
-):
+async def test_archived_predecessor_breaks_the_derived_chain(client_factory, test_user_cro: User, test_department):
     """An archived predecessor is a #49 chain break, never a valid rank source:
     once the row a successor points at is archived it stops feeding the graph,
     so the successor's Rank recursion misses and 09!K derives "CHYBA ŘETĚZCE"
     (rank None). Spec 2.3(3b); sub_outsourcing_policy.py:120-121."""
     async with client_factory(user=test_user_cro) as client:
-        vendor = await _create_vendor(
-            client, department_id=test_department.id, owner_user_id=test_user_cro.id
-        )
+        vendor = await _create_vendor(client, department_id=test_department.id, owner_user_id=test_user_cro.id)
         contract = await _create_via_api(
             client,
             f"/api/v1/vendors/{vendor['id']}/contracts",
@@ -1181,7 +1204,9 @@ async def test_archived_predecessor_breaks_the_derived_chain(
         )
         chain_url = f"/api/v1/vendors/{vendor['id']}/sub-outsourcing"
         predecessor = await _create_via_api(
-            client, chain_url, {"contract_id": contract["id"], "sub_provider_name": "CLOUD OPS s.r.o."}
+            client,
+            chain_url,
+            {"contract_id": contract["id"], "sub_provider_name": "CLOUD OPS s.r.o."},
         )
         successor = await _create_via_api(
             client,
@@ -1202,8 +1227,6 @@ async def test_archived_predecessor_breaks_the_derived_chain(
         # Archive the predecessor — it leaves the active register entirely.
         assert (await client.delete(f"{chain_url}/{predecessor['id']}")).status_code == 204
 
-        successor_row = next(
-            row for row in (await client.get(chain_url)).json() if row["id"] == successor["id"]
-        )
+        successor_row = next(row for row in (await client.get(chain_url)).json() if row["id"] == successor["id"])
         assert successor_row["derived"]["rank"] is None
         assert successor_row["derived"]["chain_check"] == "CHYBA ŘETĚZCE"

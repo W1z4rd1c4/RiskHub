@@ -48,17 +48,18 @@ async function expectNoAxeViolations(node: Element): Promise<void> {
 
 function renderForm() {
     const onSaved = vi.fn();
+    const onApprovalQueued = vi.fn();
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     const utils = render(
         <QueryClientProvider client={client}>
             <MemoryRouter>
-                <ProcessForm onSaved={onSaved} />
+                <ProcessForm onSaved={onSaved} onApprovalQueued={onApprovalQueued} />
             </MemoryRouter>
         </QueryClientProvider>,
     );
-    return { onSaved, ...utils };
+    return { onSaved, onApprovalQueued, ...utils };
 }
 
 const l0Label = () => i18n.t('processes:form.l0_area');
@@ -138,6 +139,36 @@ describe('ProcessForm — Field migration + per-field validation (#59)', () => {
             owning_department_id: 5,
         }));
         expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+
+    it('routes protected creation to the approval callback without an operational Process id', async () => {
+        const user = userEvent.setup();
+        mockCreateProcess.mockResolvedValue({
+            status: 'approval_required',
+            message: 'Submitted',
+            approval_id: 85,
+            action_type: 'create',
+            pending_fields: ['l1_process'],
+            proposal_id: 'proposal-create-85',
+            proposal_version: 1,
+        });
+        const { onSaved, onApprovalQueued } = renderForm();
+
+        await user.type(screen.getByRole('textbox', { name: l0Label() }), 'Operations');
+        await user.type(screen.getByRole('textbox', { name: l1Label() }), 'Critical settlement');
+        await user.click(screen.getByTestId('process-form-owner'));
+        await user.click(await screen.findByRole('option', { name: /Clara Owner/ }));
+        await user.type(screen.getByTestId('process-form-request-reason'), 'New critical function');
+        await user.click(screen.getByTestId('process-form-submit'));
+
+        await waitFor(() => expect(onApprovalQueued).toHaveBeenCalledWith(expect.objectContaining({
+            approval_id: 85,
+            action_type: 'create',
+        })));
+        expect(mockCreateProcess).toHaveBeenCalledWith(expect.objectContaining({
+            request_reason: 'New critical function',
+        }));
+        expect(onSaved).not.toHaveBeenCalled();
     });
 
     it('never overwrites an independently selected Department when the owner changes', async () => {

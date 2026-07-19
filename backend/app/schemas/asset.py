@@ -403,6 +403,7 @@ class ProcessAssetLinkCreate(ProcessAssetLinkWriteValidators):
     spof: str | None = Field(None, max_length=10)
     is_primary: bool = False
     note: str | None = None
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class ProcessAssetLinkUpdate(ProcessAssetLinkWriteValidators):
@@ -410,6 +411,7 @@ class ProcessAssetLinkUpdate(ProcessAssetLinkWriteValidators):
     spof: str | None = Field(None, max_length=10)
     is_primary: bool | None = None
     note: str | None = None
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class ProcessAssetLinkRead(BaseModel):
@@ -424,6 +426,7 @@ class ProcessAssetLinkRead(BaseModel):
     spof: str | None = None
     is_primary: bool = False
     note: str | None = None
+    process_business_edit_blocked: bool = False
     created_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}

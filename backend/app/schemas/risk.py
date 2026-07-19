@@ -316,6 +316,7 @@ class RiskProcessLinkCreate(BaseModel):
     model_config = {"extra": "forbid"}
 
     process_id: int = Field(..., ge=1)
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class RiskProcessLinkCapabilities(BaseModel):
@@ -334,6 +335,7 @@ class RiskProcessLinkRead(BaseModel):
     risk_id_code: Optional[str] = None
     risk_name: Optional[str] = None
     capabilities: Optional[RiskProcessLinkCapabilities] = None
+    process_business_edit_blocked: bool = False
     created_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}

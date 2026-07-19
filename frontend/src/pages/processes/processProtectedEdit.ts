@@ -1,4 +1,5 @@
 import type { Process } from '@/types/process';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 export interface ProcessProtectionCandidate {
     cif_override: string;
@@ -8,6 +9,28 @@ export interface ProcessProtectionCandidate {
     impact_market_operations: string;
     impact_regulatory: string;
     impact_financial: string;
+}
+
+/**
+ * Existing-row archive/link actions need a reason only when the server's live
+ * scenario is enabled and the projected Process is protected. Unknown rows
+ * fail closed so the API can still enforce a protected mutation.
+ */
+export function processMutationRequiresApprovalReason(
+    process: Process | null | undefined,
+): boolean {
+    if (!process) return true;
+    if (
+        process.capabilities
+        && !resolveCapabilityFlag(process.capabilities, 'protected_change_requires_approval')
+    ) return false;
+    if (process.derived?.cif === 'no') return false;
+    return true;
+}
+
+/** The API projection is authoritative for active governed-mutation impact locks. */
+export function processBusinessEditBlocked(process: Process | null | undefined): boolean {
+    return process?.capabilities?.business_edit_blocked === true;
 }
 
 function optionalNumber(value: string): number | null {

@@ -1,6 +1,6 @@
 export type ApprovalStatus = 'pending' | 'pending_privileged' | 'approved' | 'rejected' | 'cancelled' | 'expired';
 export type ApprovalResourceType = 'risk' | 'control' | 'kri' | 'process';
-export type ApprovalActionType = 'delete' | 'edit';
+export type ApprovalActionType = 'delete' | 'edit' | 'create' | 'archive';
 
 export interface PendingChange {
     old: unknown;
@@ -12,25 +12,90 @@ export interface GovernedDerivedState {
     criticality_class: string | null;
 }
 
-export interface GovernedDerivedImpact {
+export interface GovernedEditDerivedImpact {
     before: GovernedDerivedState;
     after: GovernedDerivedState;
 }
 
+export interface GovernedCreateDerivedImpact {
+    before: null;
+    after: GovernedDerivedState;
+}
+
+export interface GovernedRelationshipProcessImpact {
+    resource_name: string;
+    before: GovernedDerivedState;
+    after: GovernedDerivedState;
+}
+
+export interface GovernedRelationshipDerivedImpact {
+    processes: GovernedRelationshipProcessImpact[];
+}
+
+export type GovernedDerivedImpact =
+    | GovernedEditDerivedImpact
+    | GovernedCreateDerivedImpact
+    | GovernedRelationshipDerivedImpact;
+
+export type GovernedRelationshipSnapshotValue = string | boolean | null;
+
+export const GOVERNED_MUTATION_KINDS = [
+    'process.edit',
+    'process.create',
+    'process.archive',
+    'process.link.risk.add',
+    'process.link.risk.remove',
+    'process.link.asset.add',
+    'process.link.asset.update',
+    'process.link.asset.remove',
+    'process.link.vendor.add',
+    'process.link.vendor.remove',
+] as const;
+
+export type GovernedMutationKind = typeof GOVERNED_MUTATION_KINDS[number];
+export type GovernedPointMutationKind = 'process.edit' | 'process.create' | 'process.archive';
+export type GovernedRelationshipMutationKind = Exclude<GovernedMutationKind, GovernedPointMutationKind>;
+export type GovernedImpactResourceType = 'process';
+export type GovernedRelationshipResourceType = 'risk' | 'asset' | 'vendor';
+
+export interface GovernedRelationshipChange {
+    target_resource_type: GovernedRelationshipResourceType;
+    target_resource_name: string;
+    action: 'add' | 'update' | 'remove';
+    before: Record<string, GovernedRelationshipSnapshotValue>;
+    after: Record<string, GovernedRelationshipSnapshotValue>;
+}
+
 export interface GovernedImpactedResource {
-    resource_type: string;
+    resource_type: GovernedImpactResourceType;
     resource_name: string;
 }
 
-export interface GovernedMutationRead {
+interface GovernedMutationReadBase {
     proposal_id: string;
     proposal_version: number;
-    mutation_kind: string;
     before: Record<string, unknown>;
     after: Record<string, unknown>;
-    derived_impact: GovernedDerivedImpact;
-    impacted_resources?: GovernedImpactedResource[];
+    impacted_resources: GovernedImpactedResource[];
 }
+
+export type GovernedMutationRead = GovernedMutationReadBase & (
+    | {
+        mutation_kind: 'process.create';
+        derived_impact: GovernedCreateDerivedImpact;
+        relationship_change: null;
+    }
+    | {
+        mutation_kind: 'process.edit' | 'process.archive';
+        derived_impact: GovernedEditDerivedImpact;
+        relationship_change: null;
+    }
+    | {
+        mutation_kind: GovernedRelationshipMutationKind;
+        derived_impact: GovernedRelationshipDerivedImpact;
+        relationship_change: GovernedRelationshipChange;
+    }
+);
 
 export interface ApprovalRequestCapabilities {
     can_read: boolean;
@@ -53,7 +118,7 @@ export interface ApprovalRequestCapabilities {
 export interface ApprovalRequest {
     id: number;
     resource_type: ApprovalResourceType;
-    resource_id: number;
+    resource_id: number | null;
     resource_name: string;
     action_type: ApprovalActionType;
     pending_changes: Record<string, PendingChange> | null;
@@ -99,6 +164,7 @@ export interface ApprovalCreatedResponse {
     message: string;
     approval_id: number;
     action_type: ApprovalActionType;
+    resource_id?: number | null;
     pending_fields: string[];
     pending_changes?: Record<string, unknown> | null;
     primary_approver_id?: number | null;

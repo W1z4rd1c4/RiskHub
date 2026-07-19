@@ -8,29 +8,21 @@ pytestmark = pytest.mark.contract
 
 ROOT = Path(__file__).resolve().parents[4]
 ADR_PATH = ROOT / "docs/adr/ADR-016-governed-mutation-proposals.md"
-RESOLUTION_PATH = (
-    ROOT / "backend/app/services/_governed_mutations/resolution.py"
-)
+RESOLUTION_PATH = ROOT / "backend/app/services/_governed_mutations/resolution.py"
+EXTENDED_RESOLUTION_PATH = ROOT / "backend/app/services/_governed_mutations/resolution_extensions.py"
+RESOLUTION_LOCK_PLAN_PATH = ROOT / "backend/app/services/_governed_mutations/resolution_lock_plan.py"
+TERMINAL_TRANSITIONS_PATH = ROOT / "backend/app/services/_governed_mutations/terminal_transitions.py"
 POLICY_PATH = ROOT / "backend/app/services/approval_scenario_policy.py"
-PROCESS_IDENTITY_PATH = (
-    ROOT / "backend/app/services/_governed_mutations/process_identity.py"
-)
+PROCESS_IDENTITY_PATH = ROOT / "backend/app/services/_governed_mutations/process_identity.py"
 QUEUE_QUERY_PATH = ROOT / "backend/app/services/_approval_queue/queries.py"
 QUEUE_COUNT_PATH = ROOT / "backend/app/services/_approval_queue/counts.py"
-PENDING_VISIBILITY_PATH = (
-    ROOT / "backend/app/services/approval_queue_visibility.py"
-)
-QUEUE_PROJECTION_PATH = (
-    ROOT / "backend/app/services/_approval_queue/projection.py"
-)
+PENDING_VISIBILITY_PATH = ROOT / "backend/app/services/approval_queue_visibility.py"
+QUEUE_PROJECTION_PATH = ROOT / "backend/app/services/_approval_queue/projection.py"
 USERS_SUMMARY_PATH = ROOT / "backend/app/api/v1/endpoints/users/summary.py"
 DETAIL_PATH = ROOT / "backend/app/api/v1/endpoints/approvals/detail.py"
-NOTIFICATION_VISIBILITY_PATH = (
-    ROOT / "backend/app/services/notification_visibility.py"
-)
-NOTIFICATION_INBOX_PATH = (
-    ROOT / "backend/app/services/_notification_inbox/lifecycle.py"
-)
+RESOLVE_PATH = ROOT / "backend/app/api/v1/endpoints/approvals/resolve.py"
+NOTIFICATION_VISIBILITY_PATH = ROOT / "backend/app/services/notification_visibility.py"
+NOTIFICATION_INBOX_PATH = ROOT / "backend/app/services/_notification_inbox/lifecycle.py"
 
 
 def test_adr_016_is_indexed_and_accepted_before_implementation() -> None:
@@ -84,6 +76,8 @@ def test_adr_016_keeps_lifecycle_capabilities_and_notifications_separate() -> No
 def test_adr_016_pins_envelope_integrity_and_actor_role_lock_order() -> None:
     adr = ADR_PATH.read_text(encoding="utf-8")
     resolution = RESOLUTION_PATH.read_text(encoding="utf-8")
+    extended_resolution = EXTENDED_RESOLUTION_PATH.read_text(encoding="utf-8")
+    lock_plan = RESOLUTION_LOCK_PLAN_PATH.read_text(encoding="utf-8")
 
     assert "requester, resolver, and proposed-owner Role rows ordered by Role ID" in adr
     assert "requester-permission update versus approval races" in adr
@@ -95,8 +89,14 @@ def test_adr_016_pins_envelope_integrity_and_actor_role_lock_order() -> None:
     assert "manager_snapshot = {row.id: row.manager_id" in resolution
     assert "can_resolve_process_approval(" in resolution
     role_lock = resolution.index(".where(Role.id.in_(reference_role_ids))")
-    process_lock = resolution.index(".where(Process.id == process_id)", role_lock)
-    assert role_lock < process_lock
+    delegated_lock_plan = resolution.index("lock_governed_process_resolution_suffix(", role_lock)
+    assert role_lock < delegated_lock_plan
+    assert "lock_governed_process_resolution_suffix(" in extended_resolution
+    department_lock = lock_plan.index("select(Department)")
+    process_lock = lock_plan.index("select(Process)", department_lock)
+    parameter_lock = lock_plan.index("load_ict_workbook_parameter_set_for_update(db)")
+    scenario_lock = lock_plan.index("load_fixed_process_scenario_for_update(db)")
+    assert department_lock < process_lock < parameter_lock < scenario_lock
 
 
 def test_adr_016_pins_queue_detail_and_notification_policy_parity() -> None:
@@ -109,9 +109,8 @@ def test_adr_016_pins_queue_detail_and_notification_policy_parity() -> None:
     queue_projection = QUEUE_PROJECTION_PATH.read_text(encoding="utf-8")
     users_summary = USERS_SUMMARY_PATH.read_text(encoding="utf-8")
     detail = DETAIL_PATH.read_text(encoding="utf-8")
-    notification_visibility = NOTIFICATION_VISIBILITY_PATH.read_text(
-        encoding="utf-8"
-    )
+    resolve = RESOLVE_PATH.read_text(encoding="utf-8")
+    notification_visibility = NOTIFICATION_VISIBILITY_PATH.read_text(encoding="utf-8")
     notification_inbox = NOTIFICATION_INBOX_PATH.read_text(encoding="utf-8")
 
     assert "immutable `GovernedMutationProposal`" in adr
@@ -140,7 +139,30 @@ def test_adr_016_pins_queue_detail_and_notification_policy_parity() -> None:
     assert "identity.primary_resource_id" in queue_projection
     assert "strict_governed_process_identity" in queue_projection
     assert "approval.id in governed_snapshot_access_ids" in queue_projection
-    assert "is_governed_process_approval" in detail
-    assert "strict_governed_process_identity" in detail
+    assert "def governed_process_response_policy(" in policy
+    for endpoint in (detail, resolve):
+        assert "governed_process_response_policy(" in endpoint
+        assert "strict_governed_process_identity" not in endpoint
+        assert "strict_extended_process_identity" not in endpoint
     assert "_can_view_approval_notification" not in notification_visibility
     assert "visible_notification_clause" in notification_inbox
+
+
+def test_adr_016_pins_canonical_cancellation_and_terminal_suffixes() -> None:
+    resolution = RESOLUTION_PATH.read_text(encoding="utf-8")
+    extended_resolution = EXTENDED_RESOLUTION_PATH.read_text(encoding="utf-8")
+    terminal_transitions = TERMINAL_TRANSITIONS_PATH.read_text(encoding="utf-8")
+
+    cancellation = resolution[resolution.index("async def cancel_governed_mutation(") :]
+    assert "context = await _load_governed_resolution(" in cancellation
+    assert "select(Process)" not in cancellation
+    for source in (resolution, extended_resolution):
+        assert "finalize_governed_terminal_transition(" in source
+        assert "approval.status = ApprovalStatus." not in source
+        assert "approval.request_resolved" not in source
+        assert "approval.request_cancelled" not in source
+        assert "approval.request_expired" not in source
+    assert "approval.status = status" in terminal_transitions
+    assert "_release_impact_locks(" in terminal_transitions
+    assert "_audit_terminal_transition(" in terminal_transitions
+    assert "_enqueue_terminal_transition(" in terminal_transitions

@@ -34,7 +34,7 @@ def _process_payload(*, owner_id: int, department_id: int, l0: str, l1: str, **o
         "impact_regulatory": 5,
         "impact_financial": 5,
         "mtpd_hours": 24,
-        "cif_override": "yes",
+        "cif_override": "no",
         "licensed_activity": "non_life_insurance",
         "bcm_link": "yes",
         "dr_test_result": "successful",
@@ -103,7 +103,10 @@ async def test_process_shared_filters_groups_lifecycle_and_unpaged_export(
             params=[("l0_areas", "Claims"), ("l0_areas", "Underwriting")],
         )
         assert l0_union.status_code == 200, l0_union.text
-        assert [row["id"] for row in l0_union.json()["items"]] == [first["id"], second["id"]]
+        assert [row["id"] for row in l0_union.json()["items"]] == [
+            first["id"],
+            second["id"],
+        ]
         union_l0_facets = {row["value"]: row for row in l0_union.json()["facets"]["l0"]}
         assert {
             value: (row["count"], row["selected"])
@@ -120,7 +123,7 @@ async def test_process_shared_filters_groups_lifecycle_and_unpaged_export(
                         "department_ids": [test_department.id],
                         "owner_ids": [test_user_cro.id],
                         "l0_areas": ["Claims", "Other"],
-                        "cif": True,
+                        "cif": False,
                         "licensed_activity": ["non_life_insurance"],
                         "bcm_link": ["yes"],
                         "dr_test_result": ["successful"],
@@ -172,7 +175,7 @@ async def test_process_shared_filters_groups_lifecycle_and_unpaged_export(
         assert exported.status_code == 200, exported.text
         rows = list(csv.DictReader(io.StringIO(exported.text)))
         assert {row["f_code"] for row in rows} == {first["f_code"], second["f_code"]}
-        assert next(row for row in rows if row["f_code"] == first["f_code"])["cif_label"] == "Ano"
+        assert next(row for row in rows if row["f_code"] == first["f_code"])["cif_label"] == "Ne"
 
 
 @pytest.mark.asyncio
@@ -270,14 +273,20 @@ async def test_process_default_and_explicit_f_code_sort_use_business_code(
 
         default_order = await client.get("/api/v1/processes")
         assert default_order.status_code == 200, default_order.text
-        assert [row["f_code"] for row in default_order.json()["items"]] == ["F100", "F900"]
+        assert [row["f_code"] for row in default_order.json()["items"]] == [
+            "F100",
+            "F900",
+        ]
 
         explicit_order = await client.get(
             "/api/v1/processes",
             params={"sort_by": "f_code", "sort_order": "asc"},
         )
         assert explicit_order.status_code == 200, explicit_order.text
-        assert [row["f_code"] for row in explicit_order.json()["items"]] == ["F100", "F900"]
+        assert [row["f_code"] for row in explicit_order.json()["items"]] == [
+            "F100",
+            "F900",
+        ]
 
 
 @pytest.mark.asyncio
@@ -400,7 +409,10 @@ async def test_process_link_filters_lookups_and_record_owner_non_leakage(
     async with client_factory(user=record_owner) as owner_client:
         listing = await owner_client.get("/api/v1/processes")
         assert {row["id"] for row in listing.json()["items"]} == {owner_only_process["id"]}
-        assert listing.json()["capabilities"] == {"can_create": False, "can_export": False}
+        assert listing.json()["capabilities"] == {
+            "can_create": False,
+            "can_export": False,
+        }
         assert (await owner_client.get("/api/v1/processes/export")).status_code == 403
         assert (await owner_client.get("/api/v1/processes/lookups/assets")).json() == []
         owner_vendor_lookup = (await owner_client.get("/api/v1/processes/lookups/vendors")).json()

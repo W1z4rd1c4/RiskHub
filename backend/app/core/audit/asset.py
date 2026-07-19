@@ -132,22 +132,30 @@ async def asset_link_created(
     asset: Asset,
     link_kind: str,
     target_id: int,
+    target_label: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     await emit_adapter(
         db,
         entity_type=ActivityEntityType.ASSET_LINK,
         entity_id=asset.id,
-        entity_name=f"{asset.name} {link_kind} link {target_id}",
+        entity_name=f"{asset.name} {link_kind} link {target_label or target_id}",
         safe_entity_label=safe_entity_label("ASTLINK", asset.id),
         action=ActivityAction.CREATE,
         actor=actor,
         department_id=asset.owning_department_id,
-        changes={
-            "link_kind": {"old": None, "new": link_kind},
-            "target_id": {"old": None, "new": target_id},
-            "asset_id": {"old": None, "new": asset.id},
-        },
+        changes=(
+            {
+                "relationship_type": {"old": None, "new": link_kind},
+                "relationship_target": {"old": None, "new": target_label},
+            }
+            if target_label is not None
+            else {
+                "link_kind": {"old": None, "new": link_kind},
+                "target_id": {"old": None, "new": target_id},
+                "asset_id": {"old": None, "new": asset.id},
+            }
+        ),
         description=f"Created asset {link_kind} link",
         log_activity_func=log_activity_func,
     )
@@ -161,18 +169,27 @@ async def asset_link_updated(
     link_kind: str,
     target_id: int,
     changes: dict[str, dict[str, object]],
+    target_label: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     await emit_adapter(
         db,
         entity_type=ActivityEntityType.ASSET_LINK,
         entity_id=asset.id,
-        entity_name=f"{asset.name} {link_kind} link {target_id}",
+        entity_name=f"{asset.name} {link_kind} link {target_label or target_id}",
         safe_entity_label=safe_entity_label("ASTLINK", asset.id),
         action=ActivityAction.UPDATE,
         actor=actor,
         department_id=asset.owning_department_id,
-        changes=changes,
+        changes=(
+            {
+                "relationship_type": {"old": link_kind, "new": link_kind},
+                "relationship_target": {"old": target_label, "new": target_label},
+                **changes,
+            }
+            if target_label is not None
+            else changes
+        ),
         description=f"Updated asset {link_kind} link",
         log_activity_func=log_activity_func,
     )
@@ -185,22 +202,30 @@ async def asset_link_deleted(
     asset: Asset,
     link_kind: str,
     target_id: int,
+    target_label: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     await emit_adapter(
         db,
         entity_type=ActivityEntityType.ASSET_LINK,
         entity_id=asset.id,
-        entity_name=f"{asset.name} {link_kind} link {target_id}",
+        entity_name=f"{asset.name} {link_kind} link {target_label or target_id}",
         safe_entity_label=safe_entity_label("ASTLINK", asset.id),
         action=ActivityAction.DELETE,
         actor=actor,
         department_id=asset.owning_department_id,
-        changes={
-            "link_kind": {"old": None, "new": link_kind},
-            "target_id": {"old": None, "new": target_id},
-            "asset_id": {"old": None, "new": asset.id},
-        },
+        changes=(
+            {
+                "relationship_type": {"old": link_kind, "new": None},
+                "relationship_target": {"old": target_label, "new": None},
+            }
+            if target_label is not None
+            else {
+                "link_kind": {"old": None, "new": link_kind},
+                "target_id": {"old": None, "new": target_id},
+                "asset_id": {"old": None, "new": asset.id},
+            }
+        ),
         description=f"Deleted asset {link_kind} link",
         log_activity_func=log_activity_func,
     )

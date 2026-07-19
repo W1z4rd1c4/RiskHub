@@ -129,8 +129,10 @@ export const processApi = {
         return apiClient.get(`/processes/${id}`, { schema: processSchema });
     },
 
-    async createProcess(data: ProcessWritePayload): Promise<Process> {
-        return apiClient.post('/processes', data, { schema: processSchema });
+    async createProcess(data: ProcessWritePayload): Promise<Process | ProcessApprovalQueuedResponse> {
+        return apiClient.post('/processes', data, {
+            schema: processSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     async updateProcess(id: number, data: ProcessWritePayload): Promise<Process | ProcessApprovalQueuedResponse> {
@@ -139,8 +141,11 @@ export const processApi = {
         });
     },
 
-    async archiveProcess(id: number): Promise<void> {
-        return apiClient.delete(`/processes/${id}`, { schema: voidSchema });
+    async archiveProcess(id: number, requestReason: string): Promise<void | ProcessApprovalQueuedResponse> {
+        return apiClient.delete(`/processes/${id}`, {
+            body: JSON.stringify({ request_reason: requestReason }),
+            schema: voidSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     async restoreProcess(id: number): Promise<Process> {
@@ -152,12 +157,24 @@ export const processApi = {
         return apiClient.get(`/processes/${processId}/vendor-links`, { schema: processVendorLinkListSchema });
     },
 
-    async addVendorLink(processId: number, data: ProcessVendorLinkCreatePayload): Promise<ProcessVendorLink> {
-        return apiClient.post(`/processes/${processId}/vendor-links`, data, { schema: processVendorLinkSchema });
+    async addVendorLink(
+        processId: number,
+        data: ProcessVendorLinkCreatePayload,
+    ): Promise<ProcessVendorLink | ProcessApprovalQueuedResponse> {
+        return apiClient.post(`/processes/${processId}/vendor-links`, data, {
+            schema: processVendorLinkSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
-    async removeVendorLink(processId: number, linkId: number): Promise<void> {
-        return apiClient.delete(`/processes/${processId}/vendor-links/${linkId}`, { schema: voidSchema });
+    async removeVendorLink(
+        processId: number,
+        linkId: number,
+        requestReason: string,
+    ): Promise<void | ProcessApprovalQueuedResponse> {
+        return apiClient.delete(`/processes/${processId}/vendor-links/${linkId}`, {
+            body: JSON.stringify({ request_reason: requestReason }),
+            schema: voidSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     /** Workbook closed lists from the ICT Register reference registry (issue #41). */

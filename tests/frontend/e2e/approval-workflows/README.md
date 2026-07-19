@@ -12,6 +12,18 @@ Playwright E2E suite for `approval-workflows`.
 - `governed-process-edit.spec.ts` — ADR-016 protected CIF Process submission,
   immutable pending truth/diff/edit lock, requester cancellation, and a
   stateful zero-tolerance accessibility scan.
+- `governed-process-create.spec.ts` — protected CIF creation remains outside
+  the operational register, projects only to requester/approver pending work,
+  enforces no-self/cancellation, activates only after independent approval,
+  governs archive while keeping restore direct, excludes pending creation from
+  operational list/export surfaces, and passes a stateful accessibility scan.
+- `governed-process-relationships.spec.ts` — protected Risk, Asset, and Vendor
+  relationship add/remove (plus Asset primary-link update) preserve approved
+  truth until an eligible CRO approves each immutable proposal.
+
+The ordinary `register-links.spec.ts` pair uses `E2E-PROC-004`, whose derived
+CIF is No, to pin the complementary direct path: its confirmation dialog has
+no request-reason field and the link mutates without entering the queue.
 
 ## Notes
 

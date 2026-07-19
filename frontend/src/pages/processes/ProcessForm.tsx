@@ -161,16 +161,16 @@ export function ProcessForm({
 
     const serverRequiresApproval = serverRequiredRoutingSignature === protectionRoutingSignature;
     const requestReasonRequired = Boolean(
-        isEdit
-        && initialData !== undefined
-        && (
-            serverRequiresApproval
-            || (
+        serverRequiresApproval
+        || (
+            isEdit
+            && initialData !== undefined
+            && (
                 protectedChangeRequiresApproval
                 && canRequestChange
                 && processEditNeedsRequestReason(initialData, fields)
             )
-        ),
+        )
     );
 
     // Required fields in DOM order — drives focus-first-invalid (N12).
@@ -334,7 +334,7 @@ export function ProcessForm({
             assessment_date: fields.assessment_date,
             notes: fields.notes,
         });
-        if (isEdit && fields.request_reason.trim()) {
+        if (fields.request_reason.trim()) {
             payload.request_reason = fields.request_reason.trim();
         }
 
@@ -459,8 +459,7 @@ export function ProcessForm({
                 </div>
             ) : null}
 
-            {isEdit ? (
-                <section className="glass-card space-y-4 border border-amber-400/20">
+            <section className="glass-card space-y-4 border border-amber-400/20">
                     <div>
                         <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
                             {t('form.sections.change_request')}
@@ -487,8 +486,7 @@ export function ProcessForm({
                             />
                         )}
                     </Field>
-                </section>
-            ) : null}
+            </section>
 
             <section className="glass-card space-y-5">
                 <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
@@ -630,7 +628,7 @@ export function ProcessForm({
                     className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
                 >
                     <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
-                    {isEdit && requestReasonRequired
+                    {requestReasonRequired
                         ? t('actions.submit_for_approval')
                         : isEdit
                             ? t('actions.save')

@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from datetime import date
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,7 @@ from app.models import (
     AssetAssetLink,
     AssetVendorLink,
     Department,
+    Process,
     ProcessAssetLink,
     Risk,
     RiskAssetLink,
@@ -63,24 +65,25 @@ def _asset_payload(
     return payload
 
 
-def _process_payload(*, owner_id: int, department_id: int) -> dict[str, object]:
-    return {
-        "l0_area": "Claims",
-        "l1_process": "Claims handling",
-        "process_owner_user_id": owner_id,
-        "owning_department_id": department_id,
-        "impact_client": 5,
-        "impact_market_operations": 5,
-        "impact_regulatory": 5,
-        "impact_financial": 5,
-        "mtpd_hours": 12,
-        "cif_override": "yes",
-        "licensed_activity": "non_life_insurance",
-        "bcm_link": "yes",
-        "dr_test_result": "successful",
-        "rto_hours": 4,
-        "assessment_date": "2026-07-01",
-    }
+def _process_fixture(*, f_code: str, owner_id: int, department_id: int) -> Process:
+    return Process(
+        f_code=f_code,
+        l0_area="Claims",
+        l1_process="Claims handling",
+        process_owner_user_id=owner_id,
+        owning_department_id=department_id,
+        impact_client=5,
+        impact_market_operations=5,
+        impact_regulatory=5,
+        impact_financial=5,
+        mtpd_hours=12,
+        cif_override="yes",
+        licensed_activity="non_life_insurance",
+        bcm_link="yes",
+        dr_test_result="successful",
+        rto_hours=4,
+        assessment_date=date(2026, 7, 1),
+    )
 
 
 @pytest.mark.asyncio
@@ -234,13 +237,11 @@ async def test_asset_shared_filters_facets_groups_search_lifecycle_and_export(
                 ),
             )
         ).json()
-        process = (
-            await client.post(
-                "/api/v1/processes",
-                json=_process_payload(owner_id=test_user_cro.id, department_id=test_department.id),
-            )
-        ).json()
-
+    process = _process_fixture(
+        f_code="FASSET001",
+        owner_id=test_user_cro.id,
+        department_id=test_department.id,
+    )
     vendors = [
         Vendor(
             name="Cloud One",
@@ -263,12 +264,12 @@ async def test_asset_shared_filters_facets_groups_search_lifecycle_and_export(
         department_id=test_department.id,
         owner_id=test_user_cro.id,
     )
-    db_session.add_all((*vendors, risk))
+    db_session.add_all((process, *vendors, risk))
     await db_session.flush()
     db_session.add_all(
         (
             ProcessAssetLink(
-                process_id=process["id"],
+                process_id=process.id,
                 asset_id=first["id"],
                 spof="Ano",
                 is_primary=True,
@@ -317,7 +318,7 @@ async def test_asset_shared_filters_facets_groups_search_lifecycle_and_export(
                         "internet_exposed": False,
                         "data_classification": ["highly_confidential_regulated"],
                         "is_complete": True,
-                        "linked_process_ids": [process["id"]],
+                        "linked_process_ids": [process.id],
                         "linked_asset_ids": [second["id"]],
                         "linked_vendor_ids": [vendors[0].id],
                         "linked_risk_ids": [risk.id],
@@ -332,15 +333,24 @@ async def test_asset_shared_filters_facets_groups_search_lifecycle_and_export(
             "/api/v1/assets",
             params=[("asset_types", "application"), ("asset_types", "database")],
         )
-        assert [row["id"] for row in type_union.json()["items"]] == [first["id"], second["id"]]
+        assert [row["id"] for row in type_union.json()["items"]] == [
+            first["id"],
+            second["id"],
+        ]
         type_facets = {row["value"]: row for row in type_union.json()["facets"]["asset_type"]}
-        assert (type_facets["application"]["count"], type_facets["application"]["selected"]) == (1, True)
-        assert (type_facets["database"]["count"], type_facets["database"]["selected"]) == (1, True)
+        assert (
+            type_facets["application"]["count"],
+            type_facets["application"]["selected"],
+        ) == (1, True)
+        assert (
+            type_facets["database"]["count"],
+            type_facets["database"]["selected"],
+        ) == (1, True)
 
         process_groups = await client.get("/api/v1/assets", params={"view": "process"})
         assert process_groups.json()["items"] == []
         assert (
-            next(row for row in process_groups.json()["groups"] if row["value"] == f"process:{process['id']}")["count"]
+            next(row for row in process_groups.json()["groups"] if row["value"] == f"process:{process.id}")["count"]
             == 1
         )
 
@@ -399,13 +409,11 @@ async def test_asset_lookup_and_link_filters_do_not_leak_hidden_counterparts(
                 ),
             )
         ).json()
-        process = (
-            await client.post(
-                "/api/v1/processes",
-                json=_process_payload(owner_id=test_user_cro.id, department_id=hidden_department.id),
-            )
-        ).json()
-
+    process = _process_fixture(
+        f_code="FASSET002",
+        owner_id=test_user_cro.id,
+        department_id=hidden_department.id,
+    )
     vendor = Vendor(
         name="Hidden Vendor",
         process="Technology",
@@ -420,11 +428,11 @@ async def test_asset_lookup_and_link_filters_do_not_leak_hidden_counterparts(
         department_id=hidden_department.id,
         owner_id=test_user_cro.id,
     )
-    db_session.add_all((vendor, risk))
+    db_session.add_all((process, vendor, risk))
     await db_session.flush()
     db_session.add_all(
         (
-            ProcessAssetLink(process_id=process["id"], asset_id=owned["id"], is_primary=True),
+            ProcessAssetLink(process_id=process.id, asset_id=owned["id"], is_primary=True),
             AssetVendorLink(asset_id=owned["id"], vendor_id=vendor.id, ict_service_code="S01"),
             RiskAssetLink(risk_id=risk.id, asset_id=owned["id"]),
         )
@@ -434,24 +442,25 @@ async def test_asset_lookup_and_link_filters_do_not_leak_hidden_counterparts(
     async with client_factory(user=test_user_cro) as client:
         assert [
             row["id"]
-            for row in (await client.get("/api/v1/assets", params={"linked_process_ids": process["id"]})).json()[
-                "items"
-            ]
+            for row in (await client.get("/api/v1/assets", params={"linked_process_ids": process.id})).json()["items"]
         ] == [owned["id"]]
-        assert (await client.get("/api/v1/assets/lookups/processes")).json()[0]["label"] == process["f_code"]
+        assert (await client.get("/api/v1/assets/lookups/processes")).json()[0]["label"] == process.f_code
         assert (await client.get("/api/v1/assets/lookups/vendors")).json()[0]["label"] == "Hidden Vendor"
         assert (await client.get("/api/v1/assets/lookups/risks")).json()[0]["label"] == "HIDDEN-ASSET-RISK"
 
     async with client_factory(user=test_user_employee) as owner_client:
         listing = await owner_client.get("/api/v1/assets")
         assert [row["id"] for row in listing.json()["items"]] == [owned["id"]]
-        assert listing.json()["capabilities"] == {"can_create": False, "can_export": True}
+        assert listing.json()["capabilities"] == {
+            "can_create": False,
+            "can_export": True,
+        }
         owner_export = await owner_client.get("/api/v1/assets/export")
         assert owner_export.status_code == 200
         assert [row["name"] for row in csv.DictReader(io.StringIO(owner_export.text))] == ["Assigned Asset"]
         assert (await owner_client.get("/api/v1/assets/lookups/processes")).json() == []
         assert (await owner_client.get("/api/v1/assets/lookups/vendors")).json() == []
         assert (await owner_client.get("/api/v1/assets/lookups/risks")).json() == []
-        assert (await owner_client.get("/api/v1/assets", params={"linked_process_ids": process["id"]})).json()[
+        assert (await owner_client.get("/api/v1/assets", params={"linked_process_ids": process.id})).json()[
             "items"
         ] == []

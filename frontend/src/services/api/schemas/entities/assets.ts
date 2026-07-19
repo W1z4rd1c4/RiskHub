@@ -189,6 +189,7 @@ export const processAssetLinkSchema: z.ZodType<ProcessAssetLink> = passthroughOb
     asset_id: z.number(),
     process_name: z.string().nullable().optional(),
     asset_name: z.string().nullable().optional(),
+    process_business_edit_blocked: z.boolean(),
     significance: z.string().nullable().optional(),
     spof: z.string().nullable().optional(),
     is_primary: z.boolean(),

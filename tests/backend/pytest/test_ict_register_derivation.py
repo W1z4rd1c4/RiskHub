@@ -35,7 +35,7 @@ from datetime import date
 
 import pytest
 
-from app.models import User
+from app.models import Process, ProcessAssetLink, User
 from app.models.global_config import clear_config_cache
 from app.services._ict_register_lifecycle.derivation import (
     AssetAssetLinkInput,
@@ -63,9 +63,7 @@ def _clear_config_cache():
 
 def parameter_set(**overrides: IctParameterValue) -> IctWorkbookParameterSet:
     """The verbatim workbook parameter set (spec section 6), with overrides."""
-    values: dict[str, IctParameterValue] = {
-        p.name: p.default for p in ICT_WORKBOOK_PARAMETERS
-    }
+    values: dict[str, IctParameterValue] = {p.name: p.default for p in ICT_WORKBOOK_PARAMETERS}
     values.update(overrides)
     return IctWorkbookParameterSet(version=str(values["P_Verze"]), values=values)
 
@@ -82,12 +80,8 @@ def asset_row(aid: int = 1, **overrides: object) -> AssetDerivationInput:
     return AssetDerivationInput(**defaults)  # type: ignore[arg-type]
 
 
-def derive_single_process(
-    row: ProcessDerivationInput, params: IctWorkbookParameterSet | None = None
-):
-    result = derive_ict_register(
-        IctRegisterGraph(processes=(row,)), params or parameter_set()
-    )
+def derive_single_process(row: ProcessDerivationInput, params: IctWorkbookParameterSet | None = None):
+    result = derive_ict_register(IctRegisterGraph(processes=(row,)), params or parameter_set())
     return result.processes[row.id]
 
 
@@ -114,9 +108,7 @@ _SCORE_BANDING_MATRIX: list[tuple[tuple[int, int, int, int], int, int, str]] = [
 ]
 
 
-@pytest.mark.parametrize(
-    ("impacts", "mtpd", "expected_score", "expected_class"), _SCORE_BANDING_MATRIX
-)
+@pytest.mark.parametrize(("impacts", "mtpd", "expected_score", "expected_class"), _SCORE_BANDING_MATRIX)
 def test_process_score_and_banding_matrix(
     impacts: tuple[int, int, int, int],
     mtpd: int,
@@ -273,9 +265,7 @@ _CIF_MATRIX: list[tuple[dict[str, object], str, str]] = [
 
 
 @pytest.mark.parametrize(("fields", "expected_cif", "reason"), _CIF_MATRIX)
-def test_process_cif_override_precedence_and_triggers(
-    fields: dict[str, object], expected_cif: str, reason: str
-):
+def test_process_cif_override_precedence_and_triggers(fields: dict[str, object], expected_cif: str, reason: str):
     derived = derive_single_process(process_row(**fields))
     assert derived.cif == expected_cif
 
@@ -327,19 +317,9 @@ def test_process_bcm_gap_check_fires_for_cif_without_bcm_yes():
     """kontrola_bcm: GAP: CIF bez BCM if cif="Ano" and bcm<>"Ano" (spec section 1.1)."""
     cif_fields: dict[str, object] = {"cif_override": "yes"}
 
-    assert (
-        derive_single_process(process_row(**cif_fields)).bcm_check == "GAP: CIF bez BCM"
-    )
-    assert (
-        derive_single_process(
-            process_row(bcm_link="not_assessed", **cif_fields)
-        ).bcm_check
-        == "GAP: CIF bez BCM"
-    )
-    assert (
-        derive_single_process(process_row(bcm_link="yes", **cif_fields)).bcm_check
-        == "OK"
-    )
+    assert derive_single_process(process_row(**cif_fields)).bcm_check == "GAP: CIF bez BCM"
+    assert derive_single_process(process_row(bcm_link="not_assessed", **cif_fields)).bcm_check == "GAP: CIF bez BCM"
+    assert derive_single_process(process_row(bcm_link="yes", **cif_fields)).bcm_check == "OK"
     # A non-CIF process never gaps, entered BCM or not.
     assert derive_single_process(process_row()).bcm_check == "OK"
 
@@ -541,9 +521,7 @@ def test_asset_worked_example_veris():
             lifecycle_state="operational",
         ),
         processes=(_P_CIF_LOW,),
-        process_asset_links=(
-            ProcessAssetLinkInput(process_id=103, asset_id=6, is_primary=True),
-        ),
+        process_asset_links=(ProcessAssetLinkInput(process_id=103, asset_id=6, is_primary=True),),
     )
     assert derived.ciaa_value == 5  # MAX(5,5,5,5)
     assert derived.weighted_score == 4.95  # spec 2.5 literal
@@ -568,11 +546,7 @@ def test_asset_ciaa_value_blank_unless_all_four_ratings_scored():
     )
     assert scored.ciaa_value == 4
 
-    partial = derive_single_asset(
-        asset_row(
-            1, confidentiality_rating=5, integrity_rating=5, availability_rating=5
-        )
-    )
+    partial = derive_single_asset(asset_row(1, confidentiality_rating=5, integrity_rating=5, availability_rating=5))
     assert partial.ciaa_value is None
 
 
@@ -587,12 +561,8 @@ _WEIGHTED_SCORE_MATRIX: list[tuple[int, float, str]] = [
 ]
 
 
-@pytest.mark.parametrize(
-    ("uniform_value", "expected_score", "expected_class"), _WEIGHTED_SCORE_MATRIX
-)
-def test_asset_weighted_score_banding_matrix(
-    uniform_value: int, expected_score: float, expected_class: str
-):
+@pytest.mark.parametrize(("uniform_value", "expected_score", "expected_class"), _WEIGHTED_SCORE_MATRIX)
+def test_asset_weighted_score_banding_matrix(uniform_value: int, expected_score: float, expected_class: str):
     derived = derive_single_asset(
         asset_row(
             1,
@@ -654,9 +624,7 @@ def test_asset_business_criticality_is_class_of_max_business_impact():
     inherited = derive_single_asset(
         asset_row(1, impact_client=1, impact_regulatory=1),
         processes=(_P_HIGH,),
-        process_asset_links=(
-            ProcessAssetLinkInput(process_id=102, asset_id=1, is_primary=True),
-        ),
+        process_asset_links=(ProcessAssetLinkInput(process_id=102, asset_id=1, is_primary=True),),
     )
     assert inherited.inherited_impact_operations == 3
     assert inherited.inherited_impact_financial == 2
@@ -668,14 +636,8 @@ def test_asset_business_criticality_is_class_of_max_business_impact():
 
     assert derive_single_asset(asset_row(1)).business_criticality is None
 
-    assert (
-        derive_single_asset(asset_row(1, impact_client=2)).business_criticality
-        == "Nízká"
-    )
-    assert (
-        derive_single_asset(asset_row(1, impact_regulatory=4)).business_criticality
-        == "Vysoká"
-    )
+    assert derive_single_asset(asset_row(1, impact_client=2)).business_criticality == "Nízká"
+    assert derive_single_asset(asset_row(1, impact_regulatory=4)).business_criticality == "Vysoká"
 
 
 def test_asset_h_rank_never_below_primary_process_criticality():
@@ -684,9 +646,7 @@ def test_asset_h_rank_never_below_primary_process_criticality():
     derived = derive_single_asset(
         asset_row(1),  # nothing entered on the asset itself
         processes=(_P_CRITICAL_NO_CIF,),
-        process_asset_links=(
-            ProcessAssetLinkInput(process_id=101, asset_id=1, is_primary=True),
-        ),
+        process_asset_links=(ProcessAssetLinkInput(process_id=101, asset_id=1, is_primary=True),),
     )
     assert derived.primary_process_criticality == "Kritická"
     assert derived.h_rank == 4
@@ -712,9 +672,7 @@ def test_asset_own_signals_only_raise_above_the_primary_process():
             vendor_dependency_rating=5,
         ),
         processes=(_P_LOW,),
-        process_asset_links=(
-            ProcessAssetLinkInput(process_id=104, asset_id=1, is_primary=True),
-        ),
+        process_asset_links=(ProcessAssetLinkInput(process_id=104, asset_id=1, is_primary=True),),
     )
     assert derived.primary_process_criticality == "Nízká"
     assert derived.score_criticality == "Kritická"  # own weighted score 5.0
@@ -741,9 +699,7 @@ def test_asset_primary_process_missing_contributes_rank_zero():
     derived = derive_single_asset(
         asset_row(1),
         processes=(_P_CIF_LOW,),
-        process_asset_links=(
-            ProcessAssetLinkInput(process_id=103, asset_id=1),
-        ),  # not primary
+        process_asset_links=(ProcessAssetLinkInput(process_id=103, asset_id=1),),  # not primary
     )
     assert derived.primary_process_name is None
     assert derived.primary_process_criticality is None
@@ -799,24 +755,18 @@ def test_asset_cif_any_true_across_all_linked_processes():
     none_cif = derive_single_asset(
         asset_row(1),
         processes=(_P_LOW,),
-        process_asset_links=(
-            ProcessAssetLinkInput(process_id=104, asset_id=1, is_primary=True),
-        ),
+        process_asset_links=(ProcessAssetLinkInput(process_id=104, asset_id=1, is_primary=True),),
     )
     assert none_cif.cif == "Ne"
 
 
 def test_asset_cif_process_names_use_the_workbook_display_name():
     """Process names join as l1 [– l2], the workbook's lookup shape (spec 1.2)."""
-    cif_with_l2 = process_row(
-        105, l1_process="Sjednání pojištění", l2_subprocess="Online", cif_override="yes"
-    )
+    cif_with_l2 = process_row(105, l1_process="Sjednání pojištění", l2_subprocess="Online", cif_override="yes")
     derived = derive_single_asset(
         asset_row(1),
         processes=(cif_with_l2,),
-        process_asset_links=(
-            ProcessAssetLinkInput(process_id=105, asset_id=1, is_primary=True),
-        ),
+        process_asset_links=(ProcessAssetLinkInput(process_id=105, asset_id=1, is_primary=True),),
     )
     assert derived.cif_process_names == ("Sjednání pojištění – Online",)
     assert derived.primary_process_name == "Sjednání pojištění – Online"
@@ -895,22 +845,16 @@ def test_asset_legacy_flag_from_state_or_support_end_before_reference_date():
     assert derive_single_asset(asset_row(1, lifecycle_state="legacy")).legacy == "Ano"
 
     before_ref = derive_single_asset(
-        asset_row(
-            1, lifecycle_state="operational", standard_support_end_date=date(2026, 7, 2)
-        )
+        asset_row(1, lifecycle_state="operational", standard_support_end_date=date(2026, 7, 2))
     )
     assert before_ref.legacy == "Ano"  # P_RefDatum default is 2026-07-03
 
     on_ref = derive_single_asset(
-        asset_row(
-            1, lifecycle_state="operational", standard_support_end_date=date(2026, 7, 3)
-        )
+        asset_row(1, lifecycle_state="operational", standard_support_end_date=date(2026, 7, 3))
     )
     assert on_ref.legacy == "Ne"  # strictly-before comparison
 
-    assert (
-        derive_single_asset(asset_row(1, lifecycle_state="operational")).legacy == "Ne"
-    )
+    assert derive_single_asset(asset_row(1, lifecycle_state="operational")).legacy == "Ne"
 
     # The reference date is a parameter: moving it moves the flag.
     moved = derive_single_asset(
@@ -967,9 +911,7 @@ def test_asset_score_banding_shifts_with_parameter_overlay():
 # ===========================================================================
 
 
-async def _create_via_api(
-    client, path: str, payload: dict[str, object]
-) -> dict[str, object]:
+async def _create_via_api(client, path: str, payload: dict[str, object]) -> dict[str, object]:
     response = await client.post(path, json=payload)
     assert response.status_code == 201, response.text
     return response.json()
@@ -992,45 +934,55 @@ def _accountable_asset_payload(user: User, **fields: object) -> dict[str, object
     }
 
 
+async def _seed_process(
+    db_session,
+    user: User,
+    *,
+    f_code: str,
+    **fields: object,
+) -> Process:
+    """Seed a Process when the test seam is derivation, not governance intake."""
+    process = Process(
+        f_code=f_code,
+        process_owner_user_id=user.id,
+        owning_department_id=user.department_id,
+        **fields,
+    )
+    db_session.add(process)
+    await db_session.commit()
+    return process
+
+
 @pytest.mark.asyncio
-async def test_process_read_payloads_carry_the_derived_block(
-    client_factory, test_user_cro: User
-):
+async def test_process_read_payloads_carry_the_derived_block(client_factory, db_session, test_user_cro: User):
     async with client_factory(user=test_user_cro) as client:
-        process = await _create_via_api(
-            client,
-            "/api/v1/processes",
-            _accountable_process_payload(
-                test_user_cro,
-                **{
-                    "l0_area": "Provoz a služby klientům",
-                    "l1_process": "Správa pojistných smluv",
-                    "impact_client": 4,
-                    "impact_market_operations": 4,
-                    "impact_regulatory": 4,
-                    "impact_financial": 4,
-                    "impact_reputational": 1,
-                    "mtpd_hours": 4,
-                    "rto_hours": 8,
-                    "rpo_hours": 4,
-                    "bcm_link": "yes",
-                    "interruption_impact": "high",
-                    "assessment_date": "2026-06-01",
-                },
-            ),
+        process = await _seed_process(
+            db_session,
+            test_user_cro,
+            f_code="FDER001",
+            l0_area="Provoz a služby klientům",
+            l1_process="Správa pojistných smluv",
+            impact_client=4,
+            impact_market_operations=4,
+            impact_regulatory=4,
+            impact_financial=4,
+            impact_reputational=1,
+            mtpd_hours=4,
+            rto_hours=8,
+            rpo_hours=4,
+            bcm_link="yes",
+            interruption_impact="high",
+            assessment_date=date(2026, 6, 1),
         )
         asset = await _create_via_api(
             client,
             "/api/v1/assets",
             _accountable_asset_payload(test_user_cro, name="Veris"),
         )
-        link = await client.post(
-            f"/api/v1/assets/{asset['id']}/process-links",
-            json={"process_id": process["id"], "is_primary": True},
-        )
-        assert link.status_code == 201, link.text
+        db_session.add(ProcessAssetLink(asset_id=asset["id"], process_id=process.id, is_primary=True))
+        await db_session.commit()
 
-        detail = await client.get(f"/api/v1/processes/{process['id']}")
+        detail = await client.get(f"/api/v1/processes/{process.id}")
         assert detail.status_code == 200
         derived = detail.json()["derived"]
 
@@ -1056,54 +1008,45 @@ async def test_process_read_payloads_carry_the_derived_block(
         assert inputs["missing_for_completeness"] == []
 
         # The list payload carries the same derived block per row.
-        listing = await client.get(
-            "/api/v1/processes", params={"search": "Správa pojistných smluv"}
-        )
+        listing = await client.get("/api/v1/processes", params={"search": "Správa pojistných smluv"})
         assert listing.status_code == 200
-        [row] = [
-            item for item in listing.json()["items"] if item["id"] == process["id"]
-        ]
+        [row] = [item for item in listing.json()["items"] if item["id"] == process.id]
         assert row["derived"]["criticality_class"] == "critical"
         assert row["derived"]["cif"] == "yes"
 
 
 @pytest.mark.asyncio
-async def test_process_derived_block_recomputes_on_read(
-    client_factory, test_user_cro: User
-):
+async def test_process_derived_block_recomputes_on_read(client_factory, db_session, test_user_cro: User):
     """Compute-on-read: an input change moves the derived block immediately."""
     async with client_factory(user=test_user_cro) as client:
-        process = await _create_via_api(
-            client,
-            "/api/v1/processes",
-            _accountable_process_payload(
-                test_user_cro,
-                **{
-                    "l0_area": "Finance",
-                    "l1_process": "Regulatorní reporting",
-                    "impact_client": 4,
-                    "impact_market_operations": 4,
-                    "impact_regulatory": 4,
-                    "impact_financial": 4,
-                    "mtpd_hours": 25,
-                },
-            ),
+        process = await _seed_process(
+            db_session,
+            test_user_cro,
+            f_code="FDER002",
+            l0_area="Finance",
+            l1_process="Regulatorní reporting",
+            impact_client=4,
+            impact_market_operations=4,
+            impact_regulatory=4,
+            impact_financial=4,
+            mtpd_hours=25,
         )
-        assert process["derived"]["criticality_score"] == 17
-        assert process["derived"]["criticality_class"] == "critical"
+        initial = await client.get(f"/api/v1/processes/{process.id}")
+        assert initial.status_code == 200
+        assert initial.json()["derived"]["criticality_score"] == 17
+        assert initial.json()["derived"]["criticality_class"] == "critical"
 
-        updated = await client.patch(
-            f"/api/v1/processes/{process['id']}", json={"impact_client": 1}
-        )
+        process.impact_client = 1
+        await db_session.commit()
+
+        updated = await client.get(f"/api/v1/processes/{process.id}")
         assert updated.status_code == 200
         assert updated.json()["derived"]["criticality_score"] == 14
         assert updated.json()["derived"]["criticality_class"] == "high"
 
 
 @pytest.mark.asyncio
-async def test_process_reputational_impact_stays_outside_score_and_cif(
-    client_factory, test_user_cro: User
-):
+async def test_process_reputational_impact_stays_outside_score_and_cif(client_factory, test_user_cro: User):
     """d_rep is entered but read by no formula (spec section 8 item 10)."""
     async with client_factory(user=test_user_cro) as client:
         process = await _create_via_api(
@@ -1124,51 +1067,41 @@ async def test_process_reputational_impact_stays_outside_score_and_cif(
             ),
         )
         derived = process["derived"]
-        assert (
-            derived["criticality_score"] == 5
-        )  # 4 + default bonus; the 5 never summed
+        assert derived["criticality_score"] == 5  # 4 + default bonus; the 5 never summed
         assert derived["criticality_class"] == "low"
         assert derived["cif"] == "no"  # the reputational 5 is not a CIF axis
 
 
 @pytest.mark.asyncio
 async def test_asset_read_payloads_carry_the_derived_block_with_explain(
-    client_factory, test_user_cro: User
+    client_factory, db_session, test_user_cro: User
 ):
     async with client_factory(user=test_user_cro) as client:
-        cif_process = await _create_via_api(
-            client,
-            "/api/v1/processes",
-            _accountable_process_payload(
-                test_user_cro,
-                **{
-                    "l0_area": "Prodej a distribuce",
-                    "l1_process": "Sjednání pojištění",
-                    "l2_subprocess": "Online",
-                    "impact_client": 5,
-                    "impact_market_operations": 4,
-                    "impact_regulatory": 4,
-                    "impact_financial": 4,
-                    "mtpd_hours": 4,
-                    "rto_hours": 6,
-                },
-            ),
+        cif_process = await _seed_process(
+            db_session,
+            test_user_cro,
+            f_code="FDER003",
+            l0_area="Prodej a distribuce",
+            l1_process="Sjednání pojištění",
+            l2_subprocess="Online",
+            impact_client=5,
+            impact_market_operations=4,
+            impact_regulatory=4,
+            impact_financial=4,
+            mtpd_hours=4,
+            rto_hours=6,
         )
-        low_process = await _create_via_api(
-            client,
-            "/api/v1/processes",
-            _accountable_process_payload(
-                test_user_cro,
-                **{
-                    "l0_area": "Podpůrné funkce",
-                    "l1_process": "Interní podpora",
-                    "impact_client": 1,
-                    "impact_market_operations": 1,
-                    "impact_regulatory": 1,
-                    "impact_financial": 1,
-                    "mtpd_hours": 100,
-                },
-            ),
+        low_process = await _seed_process(
+            db_session,
+            test_user_cro,
+            f_code="FDER004",
+            l0_area="Podpůrné funkce",
+            l1_process="Interní podpora",
+            impact_client=1,
+            impact_market_operations=1,
+            impact_regulatory=1,
+            impact_financial=1,
+            mtpd_hours=100,
         )
         asset = await _create_via_api(
             client,
@@ -1192,14 +1125,18 @@ async def test_asset_read_payloads_carry_the_derived_block_with_explain(
         assert asset["derived"]["cif"] == "no"
         assert asset["derived"]["linked_process_count"] == 0
 
-        for payload in (
-            {"process_id": cif_process["id"], "is_primary": True, "spof": "Ano"},
-            {"process_id": low_process["id"]},
-        ):
-            response = await client.post(
-                f"/api/v1/assets/{asset['id']}/process-links", json=payload
-            )
-            assert response.status_code == 201, response.text
+        db_session.add_all(
+            [
+                ProcessAssetLink(
+                    asset_id=asset["id"],
+                    process_id=cif_process.id,
+                    is_primary=True,
+                    spof="Ano",
+                ),
+                ProcessAssetLink(asset_id=asset["id"], process_id=low_process.id),
+            ]
+        )
+        await db_session.commit()
 
         detail = await client.get(f"/api/v1/assets/{asset['id']}")
         assert detail.status_code == 200
@@ -1217,9 +1154,7 @@ async def test_asset_read_payloads_carry_the_derived_block_with_explain(
         assert derived["cif_process_count"] == 1
         assert derived["cif_process_names"] == ["Sjednání pojištění – Online"]
         assert derived["spof"] == "yes"
-        assert (
-            derived["external_dependency"] == "no"
-        )  # Asset<->Vendor links arrive with #46
+        assert derived["external_dependency"] == "no"  # Asset<->Vendor links arrive with #46
         assert derived["legacy"] == "no"
         assert derived["linked_process_count"] == 2
         assert derived["linked_vendor_count"] == 0
@@ -1236,7 +1171,7 @@ async def test_asset_read_payloads_carry_the_derived_block_with_explain(
 
         # The explain block carries the five h_rank signals.
         inputs = derived["inputs"]
-        assert inputs["primary_process_id"] == cif_process["id"]
+        assert inputs["primary_process_id"] == cif_process.id
         assert inputs["rank_primary_process_criticality"] == 4
         assert inputs["rank_score_criticality"] == 4
         assert inputs["rank_preliminary_criticality"] == 4
@@ -1249,13 +1184,11 @@ async def test_asset_read_payloads_carry_the_derived_block_with_explain(
         [row] = [item for item in listing.json()["items"] if item["id"] == asset["id"]]
         assert row["derived"]["resulting_criticality"] == "critical"
         assert row["derived"]["cif"] == "yes"
-        assert row["primary_process_id"] == cif_process["id"]
+        assert row["primary_process_id"] == cif_process.id
 
 
 @pytest.mark.asyncio
-async def test_derived_fields_stay_rejected_on_write(
-    client_factory, test_user_cro: User
-):
+async def test_derived_fields_stay_rejected_on_write(client_factory, test_user_cro: User):
     """AC: the API rejects writes that include derived fields (both entities)."""
     async with client_factory(user=test_user_cro) as client:
         process = await _create_via_api(
@@ -1279,9 +1212,7 @@ async def test_derived_fields_stay_rejected_on_write(
             {"l0_area": "Provoz", "l1_process": "X", "cif": "Ano"},
         ]
         for payload in process_writes:
-            assert (
-                await client.post("/api/v1/processes", json=payload)
-            ).status_code == 422
+            assert (await client.post("/api/v1/processes", json=payload)).status_code == 422
         assert (
             await client.patch(
                 f"/api/v1/processes/{process['id']}",
@@ -1295,41 +1226,33 @@ async def test_derived_fields_stay_rejected_on_write(
             {"name": "X", "weighted_score": 1.0},
         ]
         for payload in asset_writes:
-            assert (
-                await client.post("/api/v1/assets", json=payload)
-            ).status_code == 422
-        assert (
-            await client.patch(f"/api/v1/assets/{asset['id']}", json={"h_rank": 4})
-        ).status_code == 422
+            assert (await client.post("/api/v1/assets", json=payload)).status_code == 422
+        assert (await client.patch(f"/api/v1/assets/{asset['id']}", json={"h_rank": 4})).status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_parameter_overlay_shifts_the_derived_class_over_http(
-    client_factory, db_session, test_user_cro: User
-):
+async def test_parameter_overlay_shifts_the_derived_class_over_http(client_factory, db_session, test_user_cro: User):
     """The engine reads the seeded parameter set: an ADR-008 config row moves
     the banding edge for every read (precedent: test_ict_register_reference)."""
     from app.models import GlobalConfig
 
     async with client_factory(user=test_user_cro) as client:
-        process = await _create_via_api(
-            client,
-            "/api/v1/processes",
-            _accountable_process_payload(
-                test_user_cro,
-                **{
-                    "l0_area": "Finance",
-                    "l1_process": "Uzávěrka",
-                    "impact_client": 4,
-                    "impact_market_operations": 4,
-                    "impact_regulatory": 4,
-                    "impact_financial": 4,
-                    "mtpd_hours": 25,
-                },
-            ),
+        process = await _seed_process(
+            db_session,
+            test_user_cro,
+            f_code="FDER005",
+            l0_area="Finance",
+            l1_process="Uzávěrka",
+            impact_client=4,
+            impact_market_operations=4,
+            impact_regulatory=4,
+            impact_financial=4,
+            mtpd_hours=25,
         )
-        assert process["derived"]["criticality_score"] == 17
-        assert process["derived"]["criticality_class"] == "critical"
+        initial = await client.get(f"/api/v1/processes/{process.id}")
+        assert initial.status_code == 200
+        assert initial.json()["derived"]["criticality_score"] == 17
+        assert initial.json()["derived"]["criticality_class"] == "critical"
 
         db_session.add(
             GlobalConfig(
@@ -1344,7 +1267,7 @@ async def test_parameter_overlay_shifts_the_derived_class_over_http(
         await db_session.commit()
         clear_config_cache()
 
-        shifted = await client.get(f"/api/v1/processes/{process['id']}")
+        shifted = await client.get(f"/api/v1/processes/{process.id}")
         assert shifted.status_code == 200
         derived = shifted.json()["derived"]
         assert derived["criticality_score"] == 17

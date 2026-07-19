@@ -136,22 +136,30 @@ async def process_link_created(
     process: Process,
     link_kind: str,
     target_id: int,
+    target_label: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     await emit_adapter(
         db,
         entity_type=ActivityEntityType.PROCESS_LINK,
         entity_id=process.id,
-        entity_name=f"{_process_entity_name(process)} {link_kind} link {target_id}",
+        entity_name=f"{_process_entity_name(process)} {link_kind} link {target_label or target_id}",
         safe_entity_label=safe_entity_label("PROCLINK", process.id),
         action=ActivityAction.CREATE,
         actor=actor,
         department_id=None,
-        changes={
-            "link_kind": {"old": None, "new": link_kind},
-            "target_id": {"old": None, "new": target_id},
-            "process_id": {"old": None, "new": process.id},
-        },
+        changes=(
+            {
+                "relationship_type": {"old": None, "new": link_kind},
+                "relationship_target": {"old": None, "new": target_label},
+            }
+            if target_label is not None
+            else {
+                "link_kind": {"old": None, "new": link_kind},
+                "target_id": {"old": None, "new": target_id},
+                "process_id": {"old": None, "new": process.id},
+            }
+        ),
         description=f"Created process {link_kind} link",
         log_activity_func=log_activity_func,
     )
@@ -164,22 +172,30 @@ async def process_link_deleted(
     process: Process,
     link_kind: str,
     target_id: int,
+    target_label: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     await emit_adapter(
         db,
         entity_type=ActivityEntityType.PROCESS_LINK,
         entity_id=process.id,
-        entity_name=f"{_process_entity_name(process)} {link_kind} link {target_id}",
+        entity_name=f"{_process_entity_name(process)} {link_kind} link {target_label or target_id}",
         safe_entity_label=safe_entity_label("PROCLINK", process.id),
         action=ActivityAction.DELETE,
         actor=actor,
         department_id=None,
-        changes={
-            "link_kind": {"old": None, "new": link_kind},
-            "target_id": {"old": None, "new": target_id},
-            "process_id": {"old": None, "new": process.id},
-        },
+        changes=(
+            {
+                "relationship_type": {"old": link_kind, "new": None},
+                "relationship_target": {"old": target_label, "new": None},
+            }
+            if target_label is not None
+            else {
+                "link_kind": {"old": None, "new": link_kind},
+                "target_id": {"old": None, "new": target_id},
+                "process_id": {"old": None, "new": process.id},
+            }
+        ),
         description=f"Deleted process {link_kind} link",
         log_activity_func=log_activity_func,
     )

@@ -17,6 +17,7 @@ const guardedFiles = [
     'frontend/src/components/governance/OrphanedItemsTable.tsx',
     'frontend/src/components/governance/ResolveOrphanModal.tsx',
     'frontend/src/components/approvals/GovernedMutationDiff.tsx',
+    'frontend/src/pages/processes/ProcessPendingCreationsPanel.tsx',
     // ICT Register link sections + their presentation modules: row names come
     // from server-embedded display fields, unresolved ends render the i18n'd
     // "Unknown <entity>" label — never a `#<id>` fallback.

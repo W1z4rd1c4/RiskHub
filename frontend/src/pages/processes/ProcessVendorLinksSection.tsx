@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Plus, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
+import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
 import { vendorApi } from '@/services/vendorApi';
-import type { Process } from '@/types/process';
+import { isProcessApprovalQueuedResponse, type Process } from '@/types/process';
+import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { processMutationRequiresApprovalReason } from '@/pages/processes/processProtectedEdit';
 
 import {
     buildProcessVendorLinkPayload,
@@ -27,8 +31,10 @@ interface ProcessVendorLinksSectionProps {
 /** The manual Process<->Vendor Link relations (sheet 11 §1, issue #46). */
 export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChanged }: ProcessVendorLinksSectionProps) {
     const { t } = useTranslation(['processes', 'common']);
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [linkError, setLinkError] = useState<string | null>(null);
+    const [pendingAction, setPendingAction] = useState<{ kind: 'add' } | { kind: 'remove'; linkId: number } | null>(null);
 
     const [vendorToLink, setVendorToLink] = useState('');
     const [serviceDescription, setServiceDescription] = useState('');
@@ -66,14 +72,19 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
     });
 
     const addVendorLink = useMutation({
-        mutationFn: () => {
+        mutationFn: (requestReason: string) => {
             if (!linkPayload) {
                 return Promise.reject(new Error('Vendor is required'));
             }
-            return processApi.addVendorLink(process.id, linkPayload);
+            return processApi.addVendorLink(process.id, { ...linkPayload, request_reason: requestReason });
         },
-        onSuccess: async () => {
+        onSuccess: async (result) => {
             setLinkError(null);
+            setPendingAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             setVendorToLink('');
             setServiceDescription('');
             await refreshLinks();
@@ -82,9 +93,15 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
     });
 
     const removeVendorLink = useMutation({
-        mutationFn: (linkId: number) => processApi.removeVendorLink(process.id, linkId),
-        onSuccess: async () => {
+        mutationFn: ({ linkId, reason }: { linkId: number; reason: string }) =>
+            processApi.removeVendorLink(process.id, linkId, reason),
+        onSuccess: async (result) => {
             setLinkError(null);
+            setPendingAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             await refreshLinks();
         },
         onError: handleMutationError,
@@ -133,7 +150,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                                     <button
                                         type="button"
                                         data-testid={`process-vendor-link-remove-${link.id}`}
-                                        onClick={() => removeVendorLink.mutate(link.id)}
+                                        onClick={() => setPendingAction({ kind: 'remove', linkId: link.id })}
                                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
                                         title={t('links.remove')}
                                     >
@@ -172,7 +189,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                             type="button"
                             data-testid="process-vendor-link-add"
                             disabled={!linkPayload || addVendorLink.isPending}
-                            onClick={() => addVendorLink.mutate()}
+                            onClick={() => setPendingAction({ kind: 'add' })}
                             className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
                         >
                             <Plus className="h-4 w-4" />
@@ -181,6 +198,20 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                     </div>
                 ) : null}
             </div>
+            <GovernedMutationReasonDialog
+                isOpen={pendingAction !== null}
+                reasonRequired={processMutationRequiresApprovalReason(process)}
+                kind={pendingAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
+                isLoading={addVendorLink.isPending || removeVendorLink.isPending}
+                onClose={() => setPendingAction(null)}
+                onConfirm={(reason) => {
+                    if (pendingAction?.kind === 'remove') {
+                        removeVendorLink.mutate({ linkId: pendingAction.linkId, reason });
+                    } else if (pendingAction?.kind === 'add') {
+                        addVendorLink.mutate(reason);
+                    }
+                }}
+            />
         </div>
     );
 }

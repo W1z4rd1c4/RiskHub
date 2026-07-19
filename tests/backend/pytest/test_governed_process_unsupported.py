@@ -33,9 +33,9 @@ from app.services.outbox.payloads import (
     ApprovalRequestResolvedPayload,
 )
 
-
 _UNSUPPORTED_AXES = (
     "kind",
+    "relationship_kind",
     "type",
     "required_null",
     "derived_domain",
@@ -85,7 +85,9 @@ async def _unsupported_approval(
         },
     )
     if unsupported_axis == "kind":
-        proposal.mutation_kind = "process.archive"
+        proposal.mutation_kind = "process.unsupported"
+    elif unsupported_axis == "relationship_kind":
+        proposal.mutation_kind = "process.link.unknown.execute"
     elif unsupported_axis == "type":
         proposal.primary_resource_type = "vendor"
     elif unsupported_axis == "required_null":
@@ -105,9 +107,7 @@ async def _unsupported_approval(
             "number": 1,
             "boolean": True,
         }
-        proposal.derived_impact_snapshot["after"]["cif"] = malformed_values[
-            value_kind
-        ]
+        proposal.derived_impact_snapshot["after"]["cif"] = malformed_values[value_kind]
     else:  # pragma: no cover - parametrization is exhaustive
         raise AssertionError(unsupported_axis)
     notification = Notification(
@@ -150,9 +150,7 @@ async def test_unsupported_proposal_is_excluded_from_queue_and_notification_surf
         detail = await client.get(f"/api/v1/approvals/{approval.id}")
         inbox = await client.get("/api/v1/notifications")
         unread_count = await client.get("/api/v1/notifications/unread/count")
-        mark_one = await client.post(
-            f"/api/v1/notifications/{notification_id}/read"
-        )
+        mark_one = await client.post(f"/api/v1/notifications/{notification_id}/read")
         mark_all = await client.post("/api/v1/notifications/read-all")
 
     assert queue.status_code == 200
@@ -211,7 +209,7 @@ async def test_unsupported_proposal_is_rejected_before_legacy_execution(
 
     expected_code = (
         "governed_mutation_unsupported"
-        if unsupported_axis in {"kind", "type"}
+        if unsupported_axis in {"kind", "relationship_kind", "type"}
         else "governed_mutation_identity_invalid"
     )
     assert exc_info.value.code == expected_code

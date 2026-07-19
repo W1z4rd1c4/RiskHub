@@ -16,6 +16,7 @@ mutating from an archived Risk, or linking TO an archived target, conflicts
 
 from __future__ import annotations
 
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +35,17 @@ from app.services._authorization_capabilities import (
     risk_asset_link_capabilities,
     risk_process_link_capabilities,
 )
+from app.services._governed_mutations.process_mutations import (
+    submit_process_relationship_mutation,
+)
+from app.services._governed_mutations.process_relationships import (
+    lock_process_relationship_targets,
+    process_impact_resource,
+)
+from app.services._governed_mutations.process_updates import (
+    active_governed_process_mutation_ids,
+    assert_no_pending_process_mutation,
+)
 from app.services.transaction_boundary import commit_service_boundary
 
 from .asset_policy import assert_asset_readable, can_read_asset_record, load_asset
@@ -49,6 +61,7 @@ def _serialize_risk_process_link(
     process_name: str | None = None,
     risk_id_code: str | None = None,
     risk_name: str | None = None,
+    process_business_edit_blocked: bool = False,
 ) -> RiskProcessLinkRead:
     base = RiskProcessLinkRead.model_validate(link)
     return base.model_copy(
@@ -57,6 +70,7 @@ def _serialize_risk_process_link(
             "process_name": process_name,
             "risk_id_code": risk_id_code,
             "risk_name": risk_name,
+            "process_business_edit_blocked": process_business_edit_blocked,
         }
     )
 
@@ -97,9 +111,7 @@ async def _asset_names_by_id(db: AsyncSession, asset_ids: set[int]) -> dict[int,
     return {asset_id: name for asset_id, name in rows.all()}
 
 
-async def _visible_risk_labels(
-    db: AsyncSession, current_user: User, risk_ids: set[int]
-) -> dict[int, tuple[str, str]]:
+async def _visible_risk_labels(db: AsyncSession, current_user: User, risk_ids: set[int]) -> dict[int, tuple[str, str]]:
     """The caller-visible slice of the referenced Risks, with display fields.
 
     One helper for both far-end lists: the id set is filtered through the
@@ -109,9 +121,7 @@ async def _visible_risk_labels(
     readable_ids = await visible_risk_ids(db, current_user, risk_ids)
     if not readable_ids:
         return {}
-    rows = await db.execute(
-        select(Risk.id, Risk.risk_id_code, Risk.name).where(Risk.id.in_(readable_ids))
-    )
+    rows = await db.execute(select(Risk.id, Risk.risk_id_code, Risk.name).where(Risk.id.in_(readable_ids)))
     return {risk_id: (code, name) for risk_id, code, name in rows.all()}
 
 
@@ -130,6 +140,9 @@ async def list_risk_process_links(
     )
     links = list(result.scalars().all())
     process_names = await _process_names_by_id(db, {link.process_id for link in links})
+    blocked_process_ids = await active_governed_process_mutation_ids(
+        db, process_ids={link.process_id for link in links}
+    )
     return [
         _serialize_risk_process_link(
             link,
@@ -137,6 +150,7 @@ async def list_risk_process_links(
             process_name=process_names.get(link.process_id),
             risk_id_code=risk.risk_id_code,
             risk_name=risk.name,
+            process_business_edit_blocked=link.process_id in blocked_process_ids,
         )
         for link in links
     ]
@@ -168,6 +182,7 @@ async def list_process_risk_links(
     links = list(result.scalars().all())
     risk_labels = await _visible_risk_labels(db, current_user, {link.risk_id for link in links})
     process_name = process_display_name(process.l1_process, process.l2_subprocess)
+    blocked_process_ids = await active_governed_process_mutation_ids(db, process_ids={process.id} if links else set())
     return [
         _serialize_risk_process_link(
             link,
@@ -175,6 +190,7 @@ async def list_process_risk_links(
             process_name=process_name,
             risk_id_code=risk_labels[link.risk_id][0],
             risk_name=risk_labels[link.risk_id][1],
+            process_business_edit_blocked=process.id in blocked_process_ids,
         )
         for link in links
         if link.risk_id in risk_labels
@@ -187,16 +203,23 @@ async def add_risk_process_link(
     risk_id: int,
     payload: RiskProcessLinkCreate,
     current_user: User,
-) -> RiskProcessLinkRead:
+) -> RiskProcessLinkRead | JSONResponse:
     risk = await require_risk_end_access(
         db, risk_id=risk_id, current_user=current_user, other_resource="processes", require_write=True
     )
 
     process = await load_process(db, payload.process_id)
-    if not process:
+    if process is None:
         raise NotFoundError("Process not found")
-    if process.is_archived:
-        raise ConflictError("Cannot link archived process")
+    process = (
+        await lock_process_relationship_targets(
+            db,
+            process_ids={process.id},
+            current_user=current_user,
+            readable_process_id=process.id,
+        )
+    )[process.id]
+    await assert_no_pending_process_mutation(db, process_id=process.id)
 
     existing = await db.execute(
         select(RiskProcessLink).where(
@@ -207,12 +230,40 @@ async def add_risk_process_link(
     if existing.scalar_one_or_none():
         raise ValidationError("Link already exists")
 
+    operation = {
+        "kind": "process.link.risk.add",
+        "relationship_type": "risk",
+        "action": "add",
+        "process_id": process.id,
+        "related_resource_id": risk.id,
+        "related_resource_name": f"{risk.risk_id_code} — {risk.name}",
+        "before": {"linked": False},
+        "after": {"linked": True},
+    }
+    queued = await submit_process_relationship_mutation(
+        db=db,
+        process=process,
+        mutation_kind="process.link.risk.add",
+        operation=operation,
+        request_reason=payload.request_reason,
+        current_user=current_user,
+        impacted_resources=[process_impact_resource(process)],
+    )
+    if queued is not None:
+        return queued
+
     link = RiskProcessLink(risk_id=risk_id, process_id=payload.process_id)
     db.add(link)
     await db.flush()
+    process.governance_version += 1
 
     await audit_risk.risk_link_created(
-        db, actor=current_user, risk=risk, link_kind="process", target_id=payload.process_id
+        db,
+        actor=current_user,
+        risk=risk,
+        link_kind="process",
+        target_id=payload.process_id,
+        target_label=process_display_name(process.l1_process, process.l2_subprocess),
     )
     await commit_service_boundary(db, boundary="ict_register_risk_link_create")
     await db.refresh(link)
@@ -230,8 +281,9 @@ async def remove_risk_process_link(
     *,
     risk_id: int,
     link_id: int,
+    request_reason: str | None = None,
     current_user: User,
-) -> None:
+) -> JSONResponse | None:
     risk = await require_risk_end_access(
         db, risk_id=risk_id, current_user=current_user, other_resource="processes", require_write=True
     )
@@ -242,11 +294,65 @@ async def remove_risk_process_link(
         raise NotFoundError("Link not found")
 
     process_id = link.process_id
+    process = await load_process(db, process_id)
+    if process is None:
+        raise NotFoundError("Link not found")
+    process = (
+        await lock_process_relationship_targets(
+            db,
+            process_ids={process.id},
+            current_user=current_user,
+            readable_process_id=process.id,
+            allow_archived=True,
+        )
+    )[process.id]
+    await assert_no_pending_process_mutation(db, process_id=process.id)
+    link = (
+        await db.execute(
+            select(RiskProcessLink)
+            .where(
+                RiskProcessLink.id == link_id,
+                RiskProcessLink.risk_id == risk_id,
+                RiskProcessLink.process_id == process.id,
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if link is None:
+        raise ConflictError("Risk-Process link changed concurrently; retry")
+    operation = {
+        "kind": "process.link.risk.remove",
+        "relationship_type": "risk",
+        "action": "remove",
+        "process_id": process.id,
+        "related_resource_id": risk.id,
+        "related_resource_name": f"{risk.risk_id_code} — {risk.name}",
+        "link_id": link.id,
+        "before": {"linked": True},
+        "after": {"linked": False},
+    }
+    queued = await submit_process_relationship_mutation(
+        db=db,
+        process=process,
+        mutation_kind="process.link.risk.remove",
+        operation=operation,
+        request_reason=request_reason,
+        current_user=current_user,
+        impacted_resources=[process_impact_resource(process)],
+    )
+    if queued is not None:
+        return queued
     await db.delete(link)
     await db.flush()
+    process.governance_version += 1
 
     await audit_risk.risk_link_deleted(
-        db, actor=current_user, risk=risk, link_kind="process", target_id=process_id
+        db,
+        actor=current_user,
+        risk=risk,
+        link_kind="process",
+        target_id=process_id,
+        target_label=process_display_name(process.l1_process, process.l2_subprocess),
     )
     await commit_service_boundary(db, boundary="ict_register_risk_link_delete")
 
@@ -261,15 +367,12 @@ async def list_risk_asset_links(
     risk = await require_risk_end_access(
         db, risk_id=risk_id, current_user=current_user, other_resource="assets", require_write=False
     )
-    result = await db.execute(
-        select(RiskAssetLink).where(RiskAssetLink.risk_id == risk_id).order_by(RiskAssetLink.id)
-    )
+    result = await db.execute(select(RiskAssetLink).where(RiskAssetLink.risk_id == risk_id).order_by(RiskAssetLink.id))
     links = list(result.scalars().all())
     readable_assets = [
         asset
         for link in links
-        if (asset := await load_asset(db, link.asset_id)) is not None
-        and can_read_asset_record(current_user, asset)
+        if (asset := await load_asset(db, link.asset_id)) is not None and can_read_asset_record(current_user, asset)
     ]
     readable_asset_ids = {asset.id for asset in readable_assets}
     asset_names = {asset.id: asset.name for asset in readable_assets}
@@ -357,7 +460,12 @@ async def add_risk_asset_link(
     await db.flush()
 
     await audit_risk.risk_link_created(
-        db, actor=current_user, risk=risk, link_kind="asset", target_id=payload.asset_id
+        db,
+        actor=current_user,
+        risk=risk,
+        link_kind="asset",
+        target_id=payload.asset_id,
+        target_label=asset.name,
     )
     await commit_service_boundary(db, boundary="ict_register_risk_link_create")
     await db.refresh(link)
@@ -387,10 +495,17 @@ async def remove_risk_asset_link(
         raise NotFoundError("Link not found")
 
     asset_id = link.asset_id
+    asset = await load_asset(db, asset_id)
+    target_label = asset.name if asset is not None and can_read_asset_record(current_user, asset) else "Unknown asset"
     await db.delete(link)
     await db.flush()
 
     await audit_risk.risk_link_deleted(
-        db, actor=current_user, risk=risk, link_kind="asset", target_id=asset_id
+        db,
+        actor=current_user,
+        risk=risk,
+        link_kind="asset",
+        target_id=asset_id,
+        target_label=target_label,
     )
     await commit_service_boundary(db, boundary="ict_register_risk_link_delete")

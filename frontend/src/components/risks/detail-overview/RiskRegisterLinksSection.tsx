@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Flame, Plus, Server, Trash2, Workflow } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
+import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
@@ -12,6 +14,12 @@ import { assetApi } from '@/services/assetApi';
 import { processApi } from '@/services/processApi';
 import { riskRegisterLinksApi, threatApi } from '@/services/threatApi';
 import type { Risk } from '@/types/risk';
+import { isProcessApprovalQueuedResponse } from '@/types/process';
+import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import {
+    processBusinessEditBlocked,
+    processMutationRequiresApprovalReason,
+} from '@/pages/processes/processProtectedEdit';
 
 import {
     buildRegisterLinkOptions,
@@ -35,13 +43,14 @@ interface LinkBlockProps {
     removeLabel: string;
     testIdPrefix: string;
     canManageLinks: boolean;
-    rows: Array<{ id: number; name: string; canDelete: boolean }>;
-    options: Array<{ value: string; label: string }>;
+    rows: Array<{ id: number; name: string; canDelete: boolean; processEditBlocked?: boolean }>;
+    options: Array<{ value: string; label: string; disabled?: boolean }>;
     searchValue: string;
     onSearchChange: (value: string) => void;
     onAdd: (targetId: number) => void;
     onRemove: (linkId: number) => void;
     isAddPending: boolean;
+    processBlockedLabel?: string;
 }
 
 function LinkBlock({
@@ -61,9 +70,13 @@ function LinkBlock({
     onAdd,
     onRemove,
     isAddPending,
+    processBlockedLabel,
 }: LinkBlockProps) {
     const [targetToLink, setTargetToLink] = useState('');
     const targetId = parseRegisterLinkTargetId(targetToLink);
+    const selectedTargetBlocked = options.some(
+        (option) => option.value === targetToLink && option.disabled === true,
+    );
 
     return (
         <div className="space-y-4" data-testid={`${testIdPrefix}-block`}>
@@ -81,13 +94,19 @@ function LinkBlock({
                             className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5"
                         >
                             <span className="text-sm font-bold text-white truncate">{row.name}</span>
+                            {row.processEditBlocked && processBlockedLabel ? (
+                                <p className="text-xs font-medium text-amber-300">{processBlockedLabel}</p>
+                            ) : null}
                             {canManageLinks && row.canDelete ? (
                                 <button
                                     type="button"
+                                    disabled={row.processEditBlocked}
                                     data-testid={`${testIdPrefix}-remove-${row.id}`}
                                     onClick={() => onRemove(row.id)}
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-                                    title={removeLabel}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                    title={row.processEditBlocked && processBlockedLabel
+                                        ? processBlockedLabel
+                                        : removeLabel}
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </button>
@@ -112,7 +131,7 @@ function LinkBlock({
                     <button
                         type="button"
                         data-testid={`${testIdPrefix}-add`}
-                        disabled={targetId === null || isAddPending}
+                        disabled={targetId === null || selectedTargetBlocked || isAddPending}
                         onClick={() => {
                             if (targetId !== null) {
                                 onAdd(targetId);
@@ -124,6 +143,11 @@ function LinkBlock({
                         <Plus className="h-4 w-4" />
                         {addLabel}
                     </button>
+                    {selectedTargetBlocked && processBlockedLabel ? (
+                        <p className="md:col-span-4 text-xs font-medium text-amber-300">
+                            {processBlockedLabel}
+                        </p>
+                    ) : null}
                 </div>
             ) : null}
         </div>
@@ -133,8 +157,12 @@ function LinkBlock({
 /** ICT Register link sections on the Risk detail: Threats, Processes, Assets (issue #47). */
 export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterLinksSectionProps) {
     const { t } = useTranslation(['risks', 'common']);
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [linkError, setLinkError] = useState<string | null>(null);
+    const [pendingProcessAction, setPendingProcessAction] = useState<
+        { kind: 'add'; processId: number } | { kind: 'remove'; linkId: number } | null
+    >(null);
     const [threatSearch, setThreatSearch] = useState('');
     const [processSearch, setProcessSearch] = useState('');
     const [assetSearch, setAssetSearch] = useState('');
@@ -210,13 +238,29 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
         onError: handleMutationError,
     });
     const addProcessLink = useMutation({
-        mutationFn: (processId: number) => riskRegisterLinksApi.addProcessLink(risk.id, processId),
-        onSuccess: makeInvalidate(ictRegisterKeys.riskProcessLinks(risk.id)),
+        mutationFn: ({ processId, reason }: { processId: number; reason: string }) =>
+            riskRegisterLinksApi.addProcessLink(risk.id, processId, reason),
+        onSuccess: async (result) => {
+            setPendingProcessAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
+            await makeInvalidate(ictRegisterKeys.riskProcessLinks(risk.id))();
+        },
         onError: handleMutationError,
     });
     const removeProcessLink = useMutation({
-        mutationFn: (linkId: number) => riskRegisterLinksApi.removeProcessLink(risk.id, linkId),
-        onSuccess: makeInvalidate(ictRegisterKeys.riskProcessLinks(risk.id)),
+        mutationFn: ({ linkId, reason }: { linkId: number; reason: string }) =>
+            riskRegisterLinksApi.removeProcessLink(risk.id, linkId, reason),
+        onSuccess: async (result) => {
+            setPendingProcessAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
+            await makeInvalidate(ictRegisterKeys.riskProcessLinks(risk.id))();
+        },
         onError: handleMutationError,
     });
     const addAssetLink = useMutation({
@@ -233,6 +277,12 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
     const threatLinks = threatLinksQuery.data ?? [];
     const processLinks = processLinksQuery.data ?? [];
     const assetLinks = assetLinksQuery.data ?? [];
+    const pendingProcessId = pendingProcessAction?.kind === 'add'
+        ? pendingProcessAction.processId
+        : processLinks.find((link) => link.id === pendingProcessAction?.linkId)?.process_id;
+    const pendingProcess = processOptionsQuery.data?.items.find(
+        (candidate) => candidate.id === pendingProcessId,
+    );
 
     return (
         <div className="glass-card space-y-6" data-testid="risk-register-links-section">
@@ -292,20 +342,25 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                     id: link.id,
                     name: registerLinkRowName(link.process_name, t('common:fallbacks.unknown_process')),
                     canDelete: canDeleteRegisterLink(link),
+                    processEditBlocked: link.process_business_edit_blocked,
                 }))}
                 options={buildRegisterLinkOptions(
                     (processOptionsQuery.data?.items ?? []).map((process) => ({
                         id: process.id,
-                        label: process.l1_process,
+                        label: processBusinessEditBlocked(process)
+                            ? `${process.l1_process} — ${t('processes:pending_change.badge')}`
+                            : process.l1_process,
                         isArchived: process.is_archived,
+                        disabled: processBusinessEditBlocked(process),
                     })),
                     new Set(processLinks.map((link) => link.process_id)),
                 )}
                 searchValue={processSearch}
                 onSearchChange={setProcessSearch}
-                onAdd={(targetId) => addProcessLink.mutate(targetId)}
-                onRemove={(linkId) => removeProcessLink.mutate(linkId)}
+                onAdd={(processId) => setPendingProcessAction({ kind: 'add', processId })}
+                onRemove={(linkId) => setPendingProcessAction({ kind: 'remove', linkId })}
                 isAddPending={addProcessLink.isPending}
+                processBlockedLabel={t('processes:pending_change.link_action_blocked')}
             />
 
             <LinkBlock
@@ -336,6 +391,20 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                 onAdd={(targetId) => addAssetLink.mutate(targetId)}
                 onRemove={(linkId) => removeAssetLink.mutate(linkId)}
                 isAddPending={addAssetLink.isPending}
+            />
+            <GovernedMutationReasonDialog
+                isOpen={pendingProcessAction !== null}
+                reasonRequired={processMutationRequiresApprovalReason(pendingProcess)}
+                kind={pendingProcessAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
+                isLoading={addProcessLink.isPending || removeProcessLink.isPending}
+                onClose={() => setPendingProcessAction(null)}
+                onConfirm={(reason) => {
+                    if (pendingProcessAction?.kind === 'add') {
+                        addProcessLink.mutate({ processId: pendingProcessAction.processId, reason });
+                    } else if (pendingProcessAction?.kind === 'remove') {
+                        removeProcessLink.mutate({ linkId: pendingProcessAction.linkId, reason });
+                    }
+                }}
             />
         </div>
     );

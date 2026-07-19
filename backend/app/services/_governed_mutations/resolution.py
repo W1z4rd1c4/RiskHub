@@ -11,9 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_committed_value
 
-from app.core.audit import governed_mutation as audit_governed
 from app.core.audit import process as audit_process
-from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
 from app.models import (
     ApprovalRequest,
@@ -27,6 +25,7 @@ from app.models import (
     RolePermission,
     User,
 )
+from app.models.approval_scenario import ApprovalScenario
 from app.schemas.process import ProcessUpdate
 from app.services._ict_register_lifecycle.policy import (
     can_update_process_record,
@@ -35,17 +34,19 @@ from app.services._ict_register_lifecycle.policy import (
 from app.services._ict_register_lifecycle.projection import (
     load_governed_process_derived_blocks,
 )
+from app.services._ict_register_reference.parameters import IctWorkbookParameterSet
 from app.services._process_owner_lock import acquire_process_owner_identity_locks
 from app.services.approval_scenario_policy import can_resolve_process_approval
-from app.services.outbox import OutboxService
 from app.services.transaction_boundary import commit_service_boundary
 
-from .fixed_policy import load_fixed_process_scenario_for_update, validated_fixed_process_roles
+from .fixed_policy import validated_fixed_process_roles
 from .process_identity import (
     GovernedProcessIdentity,
     InvalidGovernedProcessIdentity,
     strict_governed_process_identity,
 )
+from .resolution_lock_plan import lock_governed_process_resolution_suffix
+from .terminal_transitions import finalize_governed_terminal_transition
 
 _PENDING = (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED)
 _ENVELOPE_STALE_REASON = "Governed mutation envelope integrity check failed"
@@ -64,6 +65,8 @@ class _GovernedResolutionContext:
     resolver_role_name: str | None
     proposed_owner: User | None
     proposed_department: Department | None
+    parameters: IctWorkbookParameterSet
+    scenario: ApprovalScenario
     envelope_stale_reason: str | None
 
 
@@ -224,17 +227,12 @@ async def _load_governed_resolution(
     )
     manager_snapshot_rows = list(
         (
-            await db.execute(
-                select(User.id, User.manager_id)
-                .where(User.id.in_(primary_user_ids))
-                .order_by(User.id)
-            )
+            await db.execute(select(User.id, User.manager_id).where(User.id.in_(primary_user_ids)).order_by(User.id))
         ).all()
     )
     manager_snapshot = {row.id: row.manager_id for row in manager_snapshot_rows}
     user_ids = sorted(
-        set(primary_user_ids)
-        | {manager_id for manager_id in manager_snapshot.values() if manager_id is not None}
+        set(primary_user_ids) | {manager_id for manager_id in manager_snapshot.values() if manager_id is not None}
     )
     locked_user_rows = list(
         (
@@ -253,8 +251,7 @@ async def _load_governed_resolution(
     )
     locked_user_state = {row.id: row for row in locked_user_rows}
     if any(
-        user_id not in locked_user_state
-        or locked_user_state[user_id].manager_id != manager_snapshot.get(user_id)
+        user_id not in locked_user_state or locked_user_state[user_id].manager_id != manager_snapshot.get(user_id)
         for user_id in primary_user_ids
     ):
         raise ConflictError(
@@ -268,8 +265,7 @@ async def _load_governed_resolution(
         {
             locked_user_state[user_id].role_id
             for user_id in user_ids
-            if user_id in locked_user_state
-            and locked_user_state[user_id].role_id is not None
+            if user_id in locked_user_state and locked_user_state[user_id].role_id is not None
         }
     )
     locked_roles = list(
@@ -320,37 +316,21 @@ async def _load_governed_resolution(
         }
         - {None}
     )
-    locked_departments = list(
-        (
-            await db.execute(
-                select(Department)
-                .where(Department.id.in_(department_ids))
-                .order_by(Department.id)
-                .with_for_update()
-                .execution_options(populate_existing=True)
-            )
-        )
-        .scalars()
-        .all()
+    locked_suffix = await lock_governed_process_resolution_suffix(
+        db,
+        process_ids=(process_id,),
+        additional_department_ids=department_ids,
+        process_options=(
+            selectinload(Process.process_owner)
+            .selectinload(User.role)
+            .selectinload(Role.permissions)
+            .selectinload(RolePermission.permission),
+            selectinload(Process.process_owner).selectinload(User.department),
+            selectinload(Process.owning_department),
+        ),
     )
-    departments_by_id = {department.id: department for department in locked_departments}
-
-    process = (
-        await db.execute(
-            select(Process)
-            .options(
-                selectinload(Process.process_owner)
-                .selectinload(User.role)
-                .selectinload(Role.permissions)
-                .selectinload(RolePermission.permission),
-                selectinload(Process.process_owner).selectinload(User.department),
-                selectinload(Process.owning_department),
-            )
-            .where(Process.id == process_id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-    ).scalar_one_or_none()
+    departments_by_id = locked_suffix.departments
+    process = locked_suffix.processes.get(process_id)
     if process is None:
         raise NotFoundError("Impacted Process not found")
     if process.process_owner_user_id != process_snapshot.process_owner_user_id:
@@ -373,6 +353,8 @@ async def _load_governed_resolution(
         proposed_department=(
             departments_by_id.get(proposed_department_id) if proposed_department_id is not None else None
         ),
+        parameters=locked_suffix.parameters,
+        scenario=locked_suffix.scenario,
         envelope_stale_reason=envelope_stale_reason,
     )
 
@@ -391,16 +373,13 @@ def _assert_independent_resolver(
     resolver_role_name: str | None = None,
 ) -> None:
     snapshot_roles = list(identity.approver_roles)
-    if (
-        not snapshot_roles
-        or not can_resolve_process_approval(
-            current_user,
-            process,
-            requester_id=identity.requested_by_id,
-            configured_roles=snapshot_roles,
-            user_is_active=resolver_is_active,
-            role_name=resolver_role_name,
-        )
+    if not snapshot_roles or not can_resolve_process_approval(
+        current_user,
+        process,
+        requester_id=identity.requested_by_id,
+        configured_roles=snapshot_roles,
+        user_is_active=resolver_is_active,
+        role_name=resolver_role_name,
     ):
         raise AuthorizationError("Only an independent snapshotted Risk Manager or CRO may resolve this request")
 
@@ -426,13 +405,12 @@ def _assert_envelope_expiry_resolver(
 
 
 async def _live_scenario_stale_reason(
-    db: AsyncSession,
     *,
+    scenario: ApprovalScenario,
     identity: GovernedProcessIdentity,
     current_user: User,
     resolver_role_name: str | None = None,
 ) -> str | None:
-    scenario = await load_fixed_process_scenario_for_update(db)
     if not scenario.requires_approval:
         return "Protected Process approval scenario was disabled after submission"
     live_roles = validated_fixed_process_roles(scenario)
@@ -449,30 +427,6 @@ async def _live_scenario_stale_reason(
     return None
 
 
-def _release_locks(impact_locks: list[GovernedMutationImpactLock], *, reason: str) -> None:
-    released_at = utc_now()
-    for impact_lock in impact_locks:
-        if impact_lock.released_at is None:
-            impact_lock.released_at = released_at
-            impact_lock.release_reason = reason
-
-
-async def _enqueue_terminal(db: AsyncSession, approval: ApprovalRequest) -> None:
-    await OutboxService.enqueue(
-        db,
-        event_type="approval.request_resolved",
-        aggregate_type="approval_request",
-        aggregate_id=approval.id,
-        idempotency_key=(
-            f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}"
-        ),
-        payload={
-            "approval_id": approval.id,
-            "approved": approval.status == ApprovalStatus.APPROVED,
-        },
-    )
-
-
 async def _expire(
     db: AsyncSession,
     *,
@@ -483,30 +437,20 @@ async def _expire(
     current_user: User,
     reason: str,
 ) -> None:
-    approval.status = ApprovalStatus.EXPIRED
-    approval.resolved_by_id = current_user.id
-    approval.resolved_at = utc_now()
-    approval.resolution_notes = reason
-    _release_locks(impact_locks, reason="expired")
     audit_identity = _GovernedAuditIdentity(
         proposal_id=proposal.proposal_id,
         proposal_version=proposal.proposal_version,
     )
-    await audit_governed.proposal_expired(
+    await finalize_governed_terminal_transition(
         db,
         actor=current_user,
         approval=approval,
         proposal=audit_identity,
+        impact_locks=impact_locks,
         department_id=process.owning_department_id,
-        changes={"status": {"old": "pending", "new": "expired"}},
-    )
-    await OutboxService.enqueue(
-        db,
-        event_type="approval.request_expired",
-        aggregate_type="approval_request",
-        aggregate_id=approval.id,
-        idempotency_key=f"approval.request_expired:{approval.id}",
-        payload={"approval_id": approval.id},
+        status=ApprovalStatus.EXPIRED,
+        resolution_notes=reason,
+        audit_previous_status=ApprovalStatus.PENDING,
     )
     await commit_service_boundary(db, boundary="governed_mutation.process_expire")
 
@@ -594,6 +538,7 @@ async def approve_governed_mutation(
             db,
             process,
             updates=typed_updates,
+            parameters=context.parameters,
         )
         if current_block.cif != "yes" and proposed_block.cif != "yes":
             stale_reason = "Process edit is no longer protected by the current policy"
@@ -611,7 +556,7 @@ async def approve_governed_mutation(
 
     if stale_reason is None:
         stale_reason = await _live_scenario_stale_reason(
-            db,
+            scenario=context.scenario,
             identity=context.identity,
             current_user=current_user,
             resolver_role_name=context.resolver_role_name,
@@ -633,21 +578,18 @@ async def approve_governed_mutation(
     for field, value in typed_updates.items():
         setattr(process, field, value)
     process.governance_version += 1
-    approval.status = ApprovalStatus.APPROVED
-    approval.resolved_by_id = current_user.id
-    approval.resolved_at = utc_now()
-    approval.resolution_notes = resolution_notes
-    _release_locks(impact_locks, reason="approved")
     await audit_process.process_updated(db, actor=current_user, process=process, changes=changes)
-    await audit_governed.proposal_applied(
+    await finalize_governed_terminal_transition(
         db,
         actor=current_user,
         approval=approval,
         proposal=proposal,
+        impact_locks=impact_locks,
         department_id=process.owning_department_id,
-        changes=changes,
+        status=ApprovalStatus.APPROVED,
+        resolution_notes=resolution_notes,
+        applied_changes=changes,
     )
-    await _enqueue_terminal(db, approval)
     await commit_service_boundary(db, boundary="governed_mutation.process_apply")
     return await _reload(db, approval.id)
 
@@ -704,7 +646,7 @@ async def reject_governed_mutation(
         resolver_role_name=context.resolver_role_name,
     )
     stale_reason = await _live_scenario_stale_reason(
-        db,
+        scenario=context.scenario,
         identity=context.identity,
         current_user=current_user,
         resolver_role_name=context.resolver_role_name,
@@ -720,20 +662,16 @@ async def reject_governed_mutation(
             reason=stale_reason,
         )
         return await _reload(db, approval.id)
-    approval.status = ApprovalStatus.REJECTED
-    approval.resolved_by_id = current_user.id
-    approval.resolved_at = utc_now()
-    approval.resolution_notes = resolution_reason
-    _release_locks(impact_locks, reason="rejected")
-    await audit_governed.proposal_rejected(
+    await finalize_governed_terminal_transition(
         db,
         actor=current_user,
         approval=approval,
         proposal=proposal,
+        impact_locks=impact_locks,
         department_id=process.owning_department_id,
-        changes={"status": {"old": "pending", "new": "rejected"}},
+        status=ApprovalStatus.REJECTED,
+        resolution_notes=resolution_reason,
     )
-    await _enqueue_terminal(db, approval)
     await commit_service_boundary(db, boundary="governed_mutation.process_reject")
     return await _reload(db, approval.id)
 
@@ -744,40 +682,23 @@ async def cancel_governed_mutation(
     approval_id: int,
     current_user: User,
 ) -> ApprovalRequest:
-    approval, proposal, impact_locks = await _load_governed_envelope(db, approval_id)
+    context = await _load_governed_resolution(
+        db,
+        approval_id=approval_id,
+        current_user=current_user,
+    )
+    approval = context.approval
+    proposal = context.proposal
+    impact_locks = context.impact_locks
+    process = context.process
+    current_user = context.resolver
     _assert_pending(approval)
-    try:
-        identity = strict_governed_process_identity(proposal)
-    except InvalidGovernedProcessIdentity as exc:
-        raise ValidationError(
-            "Malformed governed Process proposal",
-            code="governed_mutation_identity_invalid",
-        ) from exc
-    if identity is None:
-        raise ValidationError(
-            "Approval is not an exact governed Process proposal",
-            code="governed_mutation_unsupported",
-        )
-    process = (
-        await db.execute(
-            select(Process)
-            .where(Process.id == identity.primary_resource_id)
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-    if process is None:
-        raise NotFoundError("Impacted Process not found")
-    if identity.requested_by_id != current_user.id:
+    if context.identity.requested_by_id != current_user.id:
         raise AuthorizationError(
             "Only the requester may cancel a governed mutation request",
             code="governed_mutation_requester_cancel_required",
         )
-    stale_reason = _governed_envelope_stale_reason(
-        approval=approval,
-        proposal=proposal,
-        identity=identity,
-        impact_locks=impact_locks,
-    )
+    stale_reason = context.envelope_stale_reason
     if stale_reason is not None:
         await _expire(
             db,
@@ -789,25 +710,14 @@ async def cancel_governed_mutation(
             reason=stale_reason,
         )
         return await _reload(db, approval.id)
-    approval.status = ApprovalStatus.CANCELLED
-    approval.resolved_by_id = current_user.id
-    approval.resolved_at = utc_now()
-    _release_locks(impact_locks, reason="cancelled")
-    await audit_governed.proposal_cancelled(
+    await finalize_governed_terminal_transition(
         db,
         actor=current_user,
         approval=approval,
         proposal=proposal,
+        impact_locks=impact_locks,
         department_id=process.owning_department_id,
-        changes={"status": {"old": "pending", "new": "cancelled"}},
-    )
-    await OutboxService.enqueue(
-        db,
-        event_type="approval.request_cancelled",
-        aggregate_type="approval_request",
-        aggregate_id=approval.id,
-        idempotency_key=f"approval.request_cancelled:{approval.id}",
-        payload={"approval_id": approval.id, "cancelled_by_user_id": current_user.id},
+        status=ApprovalStatus.CANCELLED,
     )
     await commit_service_boundary(db, boundary="governed_mutation.process_cancel")
     return await _reload(db, approval.id)
@@ -830,7 +740,7 @@ async def _reload(db: AsyncSession, approval_id: int) -> ApprovalRequest:
 
 
 async def is_governed_approval(db: AsyncSession, approval_id: int) -> bool:
-    return await governed_proposal_dispatch_kind(db, approval_id) == "fixed_process"
+    return (await governed_proposal_dispatch_kind(db, approval_id)).startswith("fixed_process")
 
 
 async def governed_proposal_dispatch_kind(
@@ -849,9 +759,12 @@ async def governed_proposal_dispatch_kind(
     ).one_or_none()
     if proposal_identity is None:
         return "legacy"
-    if (
-        proposal_identity.mutation_kind == "process.edit"
-        and proposal_identity.primary_resource_type == "process"
-    ):
+    if proposal_identity.mutation_kind == "process.edit" and proposal_identity.primary_resource_type == "process":
         return "fixed_process"
+    from .process_mutations import is_extended_process_kind
+
+    if proposal_identity.primary_resource_type == "process" and is_extended_process_kind(
+        proposal_identity.mutation_kind
+    ):
+        return "fixed_process_extended"
     return "unsupported"

@@ -749,18 +749,51 @@ async def test_vendor_link_mutations_land_on_the_audit_trail(
     assert [entry["action"] for entry in asset_entries].count("create") == 1
     assert [entry["action"] for entry in asset_entries].count("delete") == 1
     assert all(entry["actor_name"] == "Test CRO" for entry in asset_entries)
-    create_entry = next(entry for entry in asset_entries if entry["action"] == "create")
-    assert create_entry["changes"]["link_kind"]["new"] == "vendor"
-    assert create_entry["changes"]["target_id"]["new"] == vendor["id"]
+    assert {
+        (
+            entry["action"],
+            entry["changes"]["relationship_target"].get("old"),
+            entry["changes"]["relationship_target"].get("new"),
+        )
+        for entry in asset_entries
+    } == {("create", None, vendor["name"]), ("delete", vendor["name"], None)}
+    assert all(
+        entry["changes"]["relationship_type"]
+        == (
+            {"old": None, "new": "vendor"}
+            if entry["action"] == "create"
+            else {"old": "vendor", "new": None}
+        )
+        for entry in asset_entries
+    )
 
     assert process_log.status_code == 200
     process_entries = process_log.json()["items"]
     assert [entry["action"] for entry in process_entries].count("create") == 1
     assert [entry["action"] for entry in process_entries].count("delete") == 1
     assert all(entry["actor_name"] == "Test CRO" for entry in process_entries)
-    process_create = next(entry for entry in process_entries if entry["action"] == "create")
-    assert process_create["changes"]["link_kind"]["new"] == "vendor"
-    assert process_create["changes"]["target_id"]["new"] == vendor["id"]
+    assert {
+        (
+            entry["action"],
+            entry["changes"]["relationship_target"].get("old"),
+            entry["changes"]["relationship_target"].get("new"),
+        )
+        for entry in process_entries
+    } == {("create", None, vendor["name"]), ("delete", vendor["name"], None)}
+    assert all(
+        entry["changes"]["relationship_type"]
+        == (
+            {"old": None, "new": "vendor"}
+            if entry["action"] == "create"
+            else {"old": "vendor", "new": None}
+        )
+        for entry in process_entries
+    )
+    raw_id_fields = {"target_id", "process_id", "asset_id", "risk_id"}
+    assert all(
+        raw_id_fields.isdisjoint(entry["changes"] or {})
+        for entry in [*asset_entries, *process_entries]
+    )
 
 
 @pytest.mark.asyncio

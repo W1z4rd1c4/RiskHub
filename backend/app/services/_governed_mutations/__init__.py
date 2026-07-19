@@ -12,6 +12,9 @@ __all__ = [
     "is_governed_approval",
     "reject_governed_mutation",
     "submit_process_mutation_if_required",
+    "submit_process_archive_if_required",
+    "submit_process_creation_if_required",
+    "submit_process_relationship_mutation",
 ]
 
 
@@ -23,6 +26,14 @@ def __getattr__(name: str) -> Any:
         from . import process_updates
 
         return getattr(process_updates, name)
+    if name in {
+        "submit_process_archive_if_required",
+        "submit_process_creation_if_required",
+        "submit_process_relationship_mutation",
+    }:
+        from . import process_mutations
+
+        return getattr(process_mutations, name)
     if name in {
         "approve_governed_mutation",
         "cancel_governed_mutation",

@@ -145,9 +145,35 @@
         "unknown_requester": "Unknown user",
         "cancel": "Cancel request",
         "cancel_failed": "Failed to cancel the pending Process change.",
-        "diff_restricted": "The proposed values are hidden by your permission scope.",
-        "edit_blocked_title": "Business edits are temporarily locked",
-        "business_edits_blocked": "A governed Process change is pending. Comments and evidence remain available, but business fields and relationships cannot be edited until it is resolved."
+    "diff_restricted": "The proposed values are hidden by your permission scope.",
+    "edit_blocked_title": "Business edits are temporarily locked",
+    "business_edits_blocked": "A governed Process change is pending. Comments and evidence remain available, but business fields and relationships cannot be edited until it is resolved.",
+    "link_action_blocked": "This Process has a pending governed change. Resolve it before changing relationships."
+    },
+    "pending_creation": {
+        "title": "Pending Process creations",
+        "description": "These proposals are not operational register records. Only the requester and eligible approvers can see them until a decision is made.",
+        "badge": "Pending creation",
+        "unnamed": "Unnamed Process proposal",
+        "requested_by_at": "Requested by {{requester}} on {{date}} at {{time}}",
+        "open_request": "Open request",
+        "cancel_failed": "Failed to cancel the pending Process creation. Try again."
+    },
+    "link_approval": {
+        "continue": "Continue",
+        "reason_placeholder": "Explain why this Process relationship change is needed...",
+        "link_add": {
+            "title": "Request Process link addition",
+            "message": "Provide a reason. A protected Process keeps its approved relationships until this request is approved."
+        },
+        "link_remove": {
+            "title": "Request Process link removal",
+            "message": "Provide a reason. The existing relationship remains active until this request is approved."
+        },
+        "link_update": {
+            "title": "Request Process link update",
+            "message": "Provide a reason. The approved relationship remains unchanged until this request is approved."
+        }
     },
     "values": {
         "unknown": "Unknown",

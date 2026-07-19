@@ -6,20 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models import ApprovalRequest, GovernedMutationProposal, Process
+from app.models import ApprovalRequest, GovernedMutationProposal
 from app.schemas.approval_request import ApprovalRequestRead
 from app.services._approval_execution.privilege_context import PrivilegeContext, get_privilege_context
-from app.services._approval_queue.projection import build_approval_read
-from app.services._governed_mutations.process_identity import (
-    InvalidGovernedProcessIdentity,
-    strict_governed_process_identity,
+from app.services._approval_queue.projection import (
+    build_approval_read,
+    governed_process_actor_safe_labels,
 )
 from app.services._ict_register_lifecycle.policy import can_use_process_assignment_lookup
 from app.services.approval_scenario_policy import (
     can_resolve_scenario_approval,
     can_view_approval_resource,
-    can_view_governed_process_snapshot,
-    is_governed_process_approval,
+    governed_process_response_policy,
 )
 
 router = APIRouter()
@@ -58,51 +56,36 @@ async def get_approval_request(
         raise HTTPException(status_code=404, detail="Approval request not found")
 
     tier = await ctx.tier_for_approval(db, approval)
-    is_governed_process = is_governed_process_approval(approval)
-    is_scenario_approver = await can_resolve_scenario_approval(
-        db, ctx.user, approval
-    )
-    identity = None
-    if approval.governed_mutation_proposal is not None and not is_governed_process:
-        raise HTTPException(status_code=403, detail="Access denied")
-    if is_governed_process:
+    response_policy = None
+    if approval.governed_mutation_proposal is not None:
         try:
-            identity = strict_governed_process_identity(
-                approval.governed_mutation_proposal
+            response_policy = await governed_process_response_policy(
+                db,
+                approval=approval,
+                user=ctx.user,
             )
-        except InvalidGovernedProcessIdentity:
+        except ValueError:
             raise HTTPException(status_code=403, detail="Access denied") from None
-        assert identity is not None
-        can_access = (
-            identity.requested_by_id == ctx.user.id or is_scenario_approver
-        )
+        if response_policy is None:
+            raise HTTPException(status_code=403, detail="Access denied")
+        can_access = response_policy.can_access
+        is_scenario_approver = response_policy.can_resolve
     else:
-        can_access = (
-            tier.is_requester
-            or tier.is_primary_approver
-            or tier.is_privileged
-            or is_scenario_approver
-        )
+        is_scenario_approver = await can_resolve_scenario_approval(db, ctx.user, approval)
+        can_access = tier.is_requester or tier.is_primary_approver or tier.is_privileged or is_scenario_approver
     if not can_access:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if is_governed_process:
-        assert identity is not None
-        process = await db.get(Process, identity.primary_resource_id)
-        can_view_governed_snapshot = bool(
-            process is not None
-            and can_view_governed_process_snapshot(
-                ctx.user,
-                process,
-                requester_id=identity.requested_by_id,
-                configured_roles=identity.approver_roles,
-            )
-        )
+    if response_policy is not None:
+        can_view_governed_snapshot = response_policy.can_view_snapshot
     else:
-        can_view_governed_snapshot = await can_view_approval_resource(
-            db, ctx.user, approval
-        )
+        can_view_governed_snapshot = await can_view_approval_resource(db, ctx.user, approval)
 
+    actor_safe_labels = await governed_process_actor_safe_labels(
+        db,
+        approvals=[approval],
+        current_user=ctx.user,
+    )
     return build_approval_read(
         approval,
         ctx.user,
@@ -112,4 +95,5 @@ async def get_approval_request(
             db,
             current_user=ctx.user,
         ),
+        actor_safe_extended_labels=actor_safe_labels.get(approval.id),
     )

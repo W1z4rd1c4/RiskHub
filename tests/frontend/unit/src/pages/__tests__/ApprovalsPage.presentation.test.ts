@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 import {
     buildApprovalListParams,
+    getGovernedActionLabel,
     getApprovalStatusBadge,
     getQuestionnaireStatusBadge,
     getQuestionnaireStatusLabel,
@@ -51,6 +52,12 @@ describe('Approvals page presentation helpers', () => {
         expect(getApprovalStatusBadge('expired')).toBe(
             'text-slate-400 border-slate-400/20 bg-slate-400/5',
         );
+    });
+
+    it('never classifies unknown mutation suffixes as legitimate relationship actions', () => {
+        expect(getGovernedActionLabel('edit', 'future.resource.add')).toBe('update');
+        expect(getGovernedActionLabel('edit', 'process.link.vendor.update')).toBe('update');
+        expect(getGovernedActionLabel('edit', 'unknown_link_remove')).toBe('update');
     });
 
     describe('questionnaire helpers', () => {

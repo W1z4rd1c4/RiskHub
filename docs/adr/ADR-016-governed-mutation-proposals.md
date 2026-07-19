@@ -12,11 +12,10 @@ the proposal must remain reviewable without changing operational truth, every
 impacted record must be locked once, derived impact must be reproducible, and
 approval must never apply a stale or only partially valid change.
 
-The first complete tracer is a Process business-data edit where the Process's
-current or proposed derived CIF is `Ano` (Yes). The same seam must later support
-protected Asset and Vendor changes, accountability reassignment, creation,
-relationships, archive, and Composite cascade impacts without redefining
-proposal identity or transaction ownership.
+The first complete tracer was a Process business-data edit where the Process's
+current or proposed derived CIF is `Ano` (Yes). The contract now also covers
+protected Process creation, Process relationship mutations, and archive while
+leaving room for later Asset, Vendor, accountability, and Composite cascades.
 
 ## Decision
 
@@ -33,11 +32,12 @@ Proposal payload columns are insert-only after the submission transaction:
 - schema version and fixed mutation kind;
 - scenario key, enabled state, and approver-role snapshot;
 - primary resource type and business-safe identity;
-- base resource versions;
+- base resource versions (empty for a rowless `process.create` proposal);
 - permission-neutral before and proposed after business snapshots;
 - before/after derived-impact snapshot;
 - normalized proposed field/link operations;
-- complete impacted-resource identities and base versions;
+- complete impacted-resource identities and base versions (an empty collection
+  for rowless `process.create`, because no operational Process exists yet);
 - requester and UTC-aware creation timestamp.
 
 Lifecycle fields remain on `ApprovalRequest`; proposal content is not rewritten
@@ -48,6 +48,26 @@ SQLAlchemy rejects persisted proposal updates/deletes, and PostgreSQL repeats
 that insert-only invariant with a table trigger so Core SQL and other writers
 cannot rewrite audit evidence.
 
+Revision `n4o5p6q7r8s9` encodes rowless Process creation without weakening the
+identity contract for any existing-row workflow. It adds the PostgreSQL
+`approval_action_type` enum member `CREATE` (and the equivalent constrained
+SQLite enum value), makes `approval_requests.resource_id` and
+`governed_mutation_proposals.primary_resource_id` physically nullable, and
+then narrows those nulls with two named database checks:
+
+- `ck_approval_requests_process_create_resource_identity` permits a null
+  `resource_id` exactly when `resource_type = 'PROCESS'` and
+  `action_type = 'CREATE'`; every other envelope must have a resource ID.
+- `ck_governed_mutation_process_create_resource_identity` permits a null
+  `primary_resource_id` exactly when `primary_resource_type = 'process'` and
+  `mutation_kind = 'process.create'`; every other proposal must have a primary
+  resource ID.
+
+The migration is forward-only under ADR-010. PostgreSQL release evidence must
+include both a blank-database zero-to-head rehearsal and a representative
+`m3n4o5p6q7r8`-to-head rehearsal; application test startup is not a substitute
+for either migration proof.
+
 ### Resource versions and impacted-resource locks
 
 Governed operational records carry a monotonically increasing
@@ -55,33 +75,45 @@ Governed operational records carry a monotonically increasing
 Comments, evidence, and activity entries do not increment it because they are
 explicitly outside the business mutation lock.
 
-Submission stores every impacted `(resource_type, resource_id,
-base_governance_version)` and acquires an active `GovernedMutationImpactLock`.
+For mutations of existing rows, submission stores every impacted
+`(resource_type, resource_id, base_governance_version)` and acquires an active
+`GovernedMutationImpactLock`.
 The database enforces at most one active lock per impacted resource with a
 partial unique index. A lock points to one proposal version and is released only
-when its approval reaches approved, rejected, cancelled, or expired. The
-Process tracer acquires exactly one Process lock; later Composite changes use
-the same table for all Process, Asset, Vendor, Contract, Sub-outsourcing, and
-link impacts.
+when its approval reaches approved, rejected, cancelled, or expired. Process
+edit/archive acquires one Process lock and relationship proposals lock every
+impacted Process in deterministic order. A pending Process creation has no
+operational row and therefore no impact lock; its approval ID and immutable
+proposal UUID are its only identities until approval creates the row.
+
+Ticket #85 governs the Process mutation itself: its normalized Risk, Asset, or
+Vendor relationship operation, every Process whose approved relationship state
+or primary designation changes, and the corresponding Process impact locks and
+versions. It deliberately does not classify the counterpart Asset or Vendor as
+a governed resource. Ticket #86 adds protected Asset mutation policy and the
+downstream Process-to-Asset derivation/Composite approval, including Asset
+impacts and locks. Later resource tickets add Vendor cascade governance. Those
+extensions add resource descriptors and rederivation to the same operation-plan
+seam; they do not reinterpret or weaken the exact #85 Process-link identity.
 
 ### Protection and submission rules
 
-The fixed Process scenario key is `protected_process_edit`. Its immutable rule
-is `current derived CIF == Ano OR proposed derived CIF == Ano`. Current and
-proposed derivations use the same locked readable graph and parameter snapshot,
-so lowering a classification input cannot bypass governance.
+The fixed Process scenario key is `protected_process_edit`. An edit is protected
+by the invariant `current derived CIF == Ano OR proposed derived CIF == Ano`; a
+create is protected when proposed CIF is Yes;
+an archive when current CIF is Yes; and a relationship mutation when any
+impacted Process has current CIF Yes. Derivations use the same locked readable
+graph and parameter snapshot so classification changes cannot bypass governance.
 
-When the scenario is enabled, a protected Process business edit is submitted,
-not applied. A non-empty request reason is mandatory. When it is disabled, the
-same authorized edit applies directly. Disabled scenarios do not weaken
-ordinary authorization or validation. A Process with an active impact lock
-rejects later business edits with a stable conflict response while comments,
-evidence, and activity remain available. Until the protected-archive scenario
-ships separately, direct Process archive and restore remain delete-authorized
-lifecycle actions. They acquire the same owner-identity then Process-row locks
-as edit intake, reject an active governed mutation with
-`process_pending_mutation`, and advance `governance_version` exactly once on
-success.
+When enabled, a protected create/edit/link/archive is submitted, not applied,
+and requires a non-empty reason. Creation inserts no placeholder row or F-code;
+approval performs the insert and then assigns `F<id>`. Pending proposals are
+visible only to their requester and eligible independent approvers and remain
+absent from operational lists, exports, counts, graph derivation, and formal
+outputs. When disabled, the same authorized mutation applies directly. Restore
+always remains direct. Active impact locks reject overlapping business changes
+with `process_pending_mutation` while comments, evidence, and activity remain
+available.
 
 Submission fails when no active independent User exists in at least one
 configured `risk_manager` or `cro` role. `risk_owner` and all other roles are
@@ -99,9 +131,11 @@ The no-self rule is evaluated at submission and again at resolution; role,
 active-user, Process visibility, and scenario eligibility are also revalidated
 at resolution.
 
-One `process_identity.py` module owns the canonical writer, strict object
-parser, and dialect-aware SQL identity predicate for the exact
-`mutation_kind = process.edit` and `primary_resource_type = process` workflow.
+`process_identity.py` owns the strict `process.edit` identity while
+`process_mutations.py` owns strict identities for `process.create`,
+`process.archive`, and normalized `process.link.*` operations. Queue SQL admits
+only the corresponding scenario/action/resource envelope before strict object
+projection.
 SQLite and PostgreSQL parity tests require SQL membership to equal object-parser
 validity for the same payload, including the scenario, versions, snapshots,
 operation, impacted identity, requester, and resource identity. Set-based queue
@@ -114,11 +148,16 @@ uses the governed path. An approval with no proposal may use a legacy path. Any
 unsupported proposal kind/type, and any malformed exact Process proposal, is
 excluded from both paths. Such rows cannot enter queue/detail projection,
 capabilities, notification inbox list/count/read operations, delivery,
-approve/reject/cancel execution, or outbox delivery. The resolver arm uses the
-snapshotted `scenario_approver_roles`, requires the immutable proposal's Process
-to exist, and applies the same global-authority-or-Process-visibility rule before
-pagination or counting. One canonical pending-query predicate feeds the main
-queue, My Approvals, badge count, and User shell-summary count. Terminal history
+business-mutation execution, or ordinary outcome delivery. For a malformed
+proposal of a recognized extended Process kind, a direct resolution action may
+only invoke the bounded integrity-terminalization path described below. The
+resolver arm uses the snapshotted `scenario_approver_roles`. Existing-row
+proposals require the Process identified by the immutable proposal to exist;
+rowless creation reconstructs its non-operational Process scope from the
+immutable proposed `after` payload. Both apply the same
+global-authority-or-Process-visibility rule before pagination or counting. One
+canonical pending-query predicate feeds the main queue, My Approvals, badge
+count, and User shell-summary count. Terminal history
 keeps configured scoped resolvers and requesters visible after approval,
 rejection, expiry, or cancellation. The requester arm remains independent of
 resource scope. Resource-type filters and governed snapshot access use the
@@ -126,14 +165,18 @@ proposal's immutable `primary_resource_type` and `primary_resource_id`, never
 the mutable envelope fields. Generic privileged, primary-approver, and legacy
 scenario arms remain available only when no proposal exists.
 
-Approval locks the approval envelope, immutable proposal, active impact locks,
-and every impacted operational row. Before mutation it revalidates:
+Approval locks the approval envelope and immutable proposal. For an
+existing-row mutation it also locks the active impact locks and every impacted
+operational row. A rowless `process.create` has neither an impact lock nor a
+Process row; resolution instead locks and revalidates its referenced owner,
+Department, roles, parameters, and scenario before inserting the Process. Before
+mutation every applicable path revalidates:
 
 - pending lifecycle and intact proposal identity/version;
 - requester/approver separation and current resolver authority;
 - live scenario identity and compatible fixed policy;
 - current authorization and reference eligibility;
-- each stored base `governance_version`;
+- each stored base `governance_version` (none for rowless creation);
 - current protection and a fresh proposed derivation against current parameters;
 - exact normalized before values and impacted-resource membership.
 
@@ -143,15 +186,24 @@ the approval without applying the proposal. Expiry is a terminal lifecycle
 distinct from rejection, releases all active locks, records a safe audit event,
 and routes the outcome notification. It never overwrites approved operational
 truth. An unsupported or malformed immutable proposal cannot establish the
-trusted identity needed to release locks; resolution instead fails closed and
-leaves the request pending for explicit integrity remediation.
+trusted identity needed for business execution. An unsupported proposal
+kind/type remains excluded from resolution. A malformed proposal of a
+recognized extended Process kind instead fails closed through a bounded
+authorization path: it leaves the immutable proposal unchanged, applies no
+business mutation, moves the approval to terminal `EXPIRED`, releases every
+active impact lock associated with the proposal, records a safe expiry audit
+event, and enqueues the terminal expiry outbox event. The mutable envelope may
+be consulted only for bounded reviewer-scope authorization; it never supplies
+proposal identity or business-mutation data.
 
-All Process-governance paths use one deterministic lock order: approval
+Existing-row Process-governance paths use one deterministic lock order: approval
 envelope, proposal, impact locks ordered by resource identity, Process-owner
 advisory identities ordered by User ID, User rows ordered by ID, the distinct
 requester, resolver, and proposed-owner Role rows ordered by Role ID, Department
 rows ordered by ID, Process row, workbook-parameter rows ordered by config key,
-then the fixed approval-scenario row. The locked Role rows serialize current permission
+then the fixed approval-scenario row. Rowless creation follows the same prefix
+and reference-row order but omits impact-lock and Process-row locks because
+neither exists. The locked Role rows serialize current permission
 revalidation with role configuration updates; RolePermission and Permission
 relationships are refreshed only after those locks are acquired. User rows
 include each primary actor's snapshotted immediate manager, and manager links
@@ -165,6 +217,12 @@ its result or wait until that decision commits. Orphaned Process reassignment
 uses the owner-advisory lock before the Process row, rejects an active impact
 lock with `process_pending_mutation`, and increments `governance_version` on
 success.
+
+Generic edit and extended archive/relationship resolution delegate the shared
+existing-row suffix to `_governed_mutations/resolution_lock_plan.py`; rowless
+creation delegates its applicable reference/parameter/scenario suffix without
+inventing a Process-row lock. An architecture lock prevents either resolver
+from reintroducing an independent lock state machine.
 
 Current and proposed protection are derived from one in-memory graph loaded in
 the transaction and one uncached, row-locked workbook-parameter set. The
@@ -182,8 +240,9 @@ entry, and outbox event. Endpoints do not commit. The workflow uses
 `commit_service_boundary`; outbox storage remains flush-only. Failure at any
 step rolls back the entire transaction. Partial Composite application is forbidden.
 
-Postgres concurrency tests are authoritative for the partial unique lock,
-row-lock ordering, simultaneous submissions, submit-versus-resolve races,
+Postgres concurrency tests are authoritative for existing-row partial unique
+locks and row-lock ordering, rowless-creation duplicate serialization,
+simultaneous submissions, submit-versus-resolve races,
 requester-permission update versus approval races, and proposed-owner role
 assignment versus approval races, plus resolver scope/department updates versus
 approval races. A permission or scope update that
@@ -194,9 +253,10 @@ SQLite tests characterize API behavior but do not prove concurrency.
 ### Lifecycle, projections, capabilities, and audit
 
 Process lifecycle (`active`/`archived`) remains separate from approval state.
-An approved Process remains the effective operational row while a proposal is
-pending. Lists and detail may show `Pending change`, but list facets, counts,
-exports, relationships, and derivations continue to use approved state.
+An approved Process remains effective while edit/link/archive is pending, and
+a pending creation is a proposal only. Lists and detail may show actor-scoped
+pending state, but list facets, operational counts, exports, relationships, and
+derivations continue to use approved state.
 
 Backend capabilities are authoritative. Process projections expose whether a
 pending change exists, whether business editing is blocked, whether the actor
@@ -207,9 +267,12 @@ Frontend gates mirror these capabilities and never infer approval power from
 roles alone.
 
 Audit records proposal submission, approval, rejection, cancellation, expiry,
-application, scenario change, and lock release with proposal identity/version
-and safe Process identifiers. Audit descriptions do not contain unrestricted
-free-text snapshots or hidden linked-record data.
+application, scenario change, and every applicable lock release with proposal
+identity/version and safe Process identifiers. Governed relationship domain
+audits store safe relationship type/business labels instead of numeric target
+IDs; automatic primary-Process demotion records the resolver and both the link
+state and demoted Process version in the same transaction. Audit descriptions do
+not contain unrestricted free-text snapshots or hidden linked-record data.
 
 ### Notifications and timers
 
@@ -273,10 +336,13 @@ action, and no-self rule are returned as fixed policy and cannot be patched.
 
 Add forward-only proposal and impact-lock tables plus a Process
 `governance_version` initialized to 1. Extend approval resource/status contracts
-additively for Process and expired governed requests. Seed the fixed Process
-scenario default-on with Risk Manager and CRO roles. Existing Risk, Control,
-and KRI approvals retain their legacy envelope behavior and do not require a
-backfilled governed proposal.
+additively for Process and expired governed requests. Revision
+`n4o5p6q7r8s9` adds `CREATE` and the nullable-but-check-constrained rowless
+identity described above; it does not permit null identities for edit,
+archive, relationship, or legacy approvals. Seed the fixed Process scenario
+default-on with Risk Manager and CRO roles. Existing Risk, Control, and KRI
+approvals retain their legacy envelope behavior and do not require a backfilled
+governed proposal.
 
 ## Rollback Strategy
 
@@ -299,7 +365,12 @@ direct Process edits only after a consistency check confirms no active lock.
 - Resolution tests cover all stale inputs and prove expired requests never
   mutate approved state.
 - Postgres tests race concurrent submissions and approval/application against
-  competing edits and assert one active lock and atomic rollback.
+  competing edits, assert one active lock per impacted existing row, serialize
+  duplicate rowless creation, and prove atomic rollback.
+- ADR-010 release evidence records successful zero-to-head and
+  `m3n4o5p6q7r8`-to-head PostgreSQL rehearsals for `n4o5p6q7r8s9`, including
+  the `CREATE` enum label, both nullable columns, both named checks, zero check
+  violations, and the final Alembic head.
 - Authz contract tests bind service enforcement, Process/approval capability
   schemas, frontend gates, and documentation.
 - Timezone tests require UTC-aware proposal, resolution, and lock timestamps.

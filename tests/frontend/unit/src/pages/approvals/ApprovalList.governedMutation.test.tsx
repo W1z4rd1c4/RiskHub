@@ -18,7 +18,7 @@ function governedApproval(
         governed_mutation: {
             proposal_id: 'proposal-84',
             proposal_version: 1,
-            mutation_kind: 'process_edit',
+            mutation_kind: 'process.edit',
             before: { l1_process: 'Payments' },
             after: { l1_process: 'Payments v2' },
             derived_impact: {
@@ -26,6 +26,7 @@ function governedApproval(
                 after: { cif: 'yes', criticality_class: 'critical' },
             },
             impacted_resources: [{ resource_type: 'process', resource_name: 'F-0007 · Payments' }],
+            relationship_change: null,
         },
         status: 'pending',
         reason: 'Improve resilience',
@@ -144,5 +145,28 @@ describe('ApprovalList governed Process mutation', () => {
         expect(
             screen.getByRole('button', { name: 'common:tooltips.cancel_request' }),
         ).toBeInTheDocument();
+    });
+
+    it.each([
+        ['process.create', 'create', 'request_types.create'],
+        ['process.archive', 'archive', 'request_types.archive'],
+        ['process.link.vendor.add', 'edit', 'request_types.link_add'],
+        ['process.link.asset.update', 'edit', 'request_types.link_update'],
+        ['process.link.asset.remove', 'edit', 'request_types.link_remove'],
+    ] as const)('labels governed %s requests by mutation intent', (mutationKind, actionType, expectedLabel) => {
+        const approval = governedApproval(true);
+        approval.action_type = actionType;
+        approval.governed_mutation = { ...approval.governed_mutation!, mutation_kind: mutationKind };
+        render(
+            <ApprovalList
+                approvals={[approval]}
+                loading={false}
+                expandedRows={new Set([84])}
+                t={t as never}
+                {...handlers}
+            />,
+        );
+        expect(screen.getByText(expectedLabel)).toBeInTheDocument();
+        expect(screen.getByTestId('approval-governed-mutation-84')).toBeInTheDocument();
     });
 });

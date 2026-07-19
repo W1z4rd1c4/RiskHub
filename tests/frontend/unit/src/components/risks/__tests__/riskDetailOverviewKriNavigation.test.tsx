@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type { ComponentProps, HTMLAttributes } from 'react';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
 import type { Risk, RiskControlLink } from '@/types/risk';
@@ -181,7 +182,8 @@ describe('RiskDetailOverviewTab KRI navigation', () => {
         });
         render(
             <QueryClientProvider client={queryClient}>
-                <RiskDetailOverviewTab
+                <MemoryRouter>
+                    <RiskDetailOverviewTab
                 risk={riskWithKri}
                 linkedControls={[]}
                 linkedVendors={[]}
@@ -203,7 +205,8 @@ describe('RiskDetailOverviewTab KRI navigation', () => {
                 isCreateDialogOpen={false}
                 setIsCreateDialogOpen={vi.fn()}
                     {...overrides}
-                />
+                    />
+                </MemoryRouter>
             </QueryClientProvider>
         );
 

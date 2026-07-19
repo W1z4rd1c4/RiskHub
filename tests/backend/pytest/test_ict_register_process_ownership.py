@@ -219,9 +219,7 @@ async def test_process_owner_eligibility_accepts_active_business_user_but_never_
     async with client_factory(user=test_user_platform_admin) as client:
         admin_picker = await client.get("/api/v1/users/lookup/process-owners")
         admin_list = await client.get("/api/v1/processes")
-        admin_detail = await client.get(
-            f"/api/v1/processes/{admin_owned_process.id}"
-        )
+        admin_detail = await client.get(f"/api/v1/processes/{admin_owned_process.id}")
 
     assert admin_picker.status_code == 403, admin_picker.text
     assert admin_list.status_code == 200, admin_list.text
@@ -260,6 +258,11 @@ async def test_process_owner_gets_record_specific_update_without_archive(
         "can_update": True,
         "can_archive": False,
         "can_restore": False,
+        "protected_change_requires_approval": True,
+        "can_request_change": True,
+        "can_cancel_pending_change": False,
+        "has_pending_change": False,
+        "business_edit_blocked": False,
     }
     assert updated.status_code == 200, updated.text
     assert archived.status_code == 403
@@ -349,9 +352,7 @@ async def test_process_assignment_read_redacts_unreadable_linked_context(
             await db_session.execute(
                 select(User)
                 .options(
-                    selectinload(User.role)
-                    .selectinload(Role.permissions)
-                    .selectinload(RolePermission.permission),
+                    selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
                     selectinload(User.department),
                 )
                 .where(User.id == user_id)
@@ -544,9 +545,7 @@ async def test_process_vendor_links_apply_both_row_policies_without_name_leakage
             await db_session.execute(
                 select(User)
                 .options(
-                    selectinload(User.role)
-                    .selectinload(Role.permissions)
-                    .selectinload(RolePermission.permission),
+                    selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
                     selectinload(User.department),
                 )
                 .where(User.id == user_id)
@@ -562,21 +561,15 @@ async def test_process_vendor_links_apply_both_row_policies_without_name_leakage
     async with client_factory(current_user=owner) as client:
         process_rows = await client.get(f"/api/v1/processes/{process.id}/vendor-links")
         assert process_rows.status_code == 200, process_rows.text
-        assert [row["vendor_name"] for row in process_rows.json()] == [
-            owner_visible_vendor.name
-        ]
+        assert [row["vendor_name"] for row in process_rows.json()] == [owner_visible_vendor.name]
         assert process_rows.json()[0]["capabilities"] == {"can_delete": True}
-        vendor_rows = await client.get(
-            f"/api/v1/vendors/{owner_visible_vendor.id}/process-links"
-        )
+        vendor_rows = await client.get(f"/api/v1/vendors/{owner_visible_vendor.id}/process-links")
         assert vendor_rows.status_code == 200, vendor_rows.text
         assert [row["process_name"] for row in vendor_rows.json()] == [process.l1_process]
         vendor_detail = await client.get(f"/api/v1/vendors/{owner_visible_vendor.id}")
         assert vendor_detail.status_code == 200, vendor_detail.text
         assert vendor_detail.json()["capabilities"]["can_manage_process_links"] is True
-        assert (
-            await client.get(f"/api/v1/vendors/{owning_vendor.id}/process-links")
-        ).status_code == 404
+        assert (await client.get(f"/api/v1/vendors/{owning_vendor.id}/process-links")).status_code == 404
         hidden_create = await client.post(
             f"/api/v1/processes/{process.id}/vendor-links",
             json={"vendor_id": owning_vendor_candidate.id},
@@ -589,23 +582,17 @@ async def test_process_vendor_links_apply_both_row_policies_without_name_leakage
         assert owner_created.status_code == 201, owner_created.text
         assert owner_created.json()["capabilities"] == {"can_delete": True}
         assert (
-            await client.delete(
-                f"/api/v1/processes/{process.id}/vendor-links/{owner_created.json()['id']}"
-            )
+            await client.delete(f"/api/v1/processes/{process.id}/vendor-links/{owner_created.json()['id']}")
         ).status_code == 204
 
     async with client_factory(current_user=department_head) as client:
         assert (await client.get("/api/v1/users/lookup/process-owners")).status_code == 200
-        assert (
-            await client.get("/api/v1/departments/lookup/process-owners")
-        ).status_code == 200
+        assert (await client.get("/api/v1/departments/lookup/process-owners")).status_code == 200
         process_rows = await client.get(f"/api/v1/processes/{process.id}/vendor-links")
         assert process_rows.status_code == 200, process_rows.text
         assert [row["vendor_name"] for row in process_rows.json()] == [owning_vendor.name]
         assert process_rows.json()[0]["capabilities"] == {"can_delete": True}
-        vendor_rows = await client.get(
-            f"/api/v1/vendors/{owning_vendor.id}/process-links"
-        )
+        vendor_rows = await client.get(f"/api/v1/vendors/{owning_vendor.id}/process-links")
         assert [row["process_name"] for row in vendor_rows.json()] == [process.l1_process]
         vendor_detail = await client.get(f"/api/v1/vendors/{owning_vendor.id}")
         assert vendor_detail.status_code == 200, vendor_detail.text
@@ -616,19 +603,13 @@ async def test_process_vendor_links_apply_both_row_policies_without_name_leakage
         )
         assert created.status_code == 201, created.text
         assert (
-            await client.delete(
-                f"/api/v1/processes/{process.id}/vendor-links/{created.json()['id']}"
-            )
+            await client.delete(f"/api/v1/processes/{process.id}/vendor-links/{created.json()['id']}")
         ).status_code == 204
 
     async with client_factory(current_user=unrelated) as client:
-        hidden_process_rows = await client.get(
-            f"/api/v1/processes/{process.id}/vendor-links"
-        )
+        hidden_process_rows = await client.get(f"/api/v1/processes/{process.id}/vendor-links")
         assert hidden_process_rows.status_code == 404
-        hidden_vendor_rows = await client.get(
-            f"/api/v1/vendors/{owner_visible_vendor.id}/process-links"
-        )
+        hidden_vendor_rows = await client.get(f"/api/v1/vendors/{owner_visible_vendor.id}/process-links")
         assert hidden_vendor_rows.status_code == 200
         assert hidden_vendor_rows.json() == []
         assert process.l1_process not in hidden_vendor_rows.text
@@ -648,9 +629,7 @@ async def test_process_vendor_links_apply_both_row_policies_without_name_leakage
             owning_vendor.name,
             owner_visible_vendor.name,
         }
-        vendor_rows = await client.get(
-            f"/api/v1/vendors/{owning_vendor.id}/process-links"
-        )
+        vendor_rows = await client.get(f"/api/v1/vendors/{owning_vendor.id}/process-links")
         assert [row["process_name"] for row in vendor_rows.json()] == [process.l1_process]
         vendor_detail = await client.get(f"/api/v1/vendors/{owning_vendor.id}")
         assert vendor_detail.status_code == 200, vendor_detail.text
@@ -661,9 +640,7 @@ async def test_process_vendor_links_apply_both_row_policies_without_name_leakage
         )
         assert created.status_code == 201, created.text
         assert (
-            await client.delete(
-                f"/api/v1/processes/{process.id}/vendor-links/{created.json()['id']}"
-            )
+            await client.delete(f"/api/v1/processes/{process.id}/vendor-links/{created.json()['id']}")
         ).status_code == 204
 
 
@@ -701,9 +678,7 @@ async def test_process_assignment_lookup_denies_unrelated_read_only_user(
     )
     db_session.add_all([read_only_role, owner_role])
     await db_session.flush()
-    db_session.add(
-        RolePermission(role_id=read_only_role.id, permission_id=process_read.id)
-    )
+    db_session.add(RolePermission(role_id=read_only_role.id, permission_id=process_read.id))
     read_only_user = User(
         name="Unrelated Process Reader",
         email="unrelated.process.reader@test.com",
@@ -737,9 +712,7 @@ async def test_process_assignment_lookup_denies_unrelated_read_only_user(
             await db_session.execute(
                 select(User)
                 .options(
-                    selectinload(User.role)
-                    .selectinload(Role.permissions)
-                    .selectinload(RolePermission.permission),
+                    selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
                     selectinload(User.department),
                 )
                 .where(User.id == user_id)
@@ -753,9 +726,7 @@ async def test_process_assignment_lookup_denies_unrelated_read_only_user(
 
     async with client_factory(current_user=read_only_user) as client:
         assert (await client.get("/api/v1/users/lookup/process-owners")).status_code == 403
-        assert (
-            await client.get("/api/v1/departments/lookup/process-owners")
-        ).status_code == 403
+        assert (await client.get("/api/v1/departments/lookup/process-owners")).status_code == 403
 
     for eligible_user in (process_owner, global_writer):
         async with client_factory(current_user=eligible_user) as client:
@@ -765,9 +736,7 @@ async def test_process_assignment_lookup_denies_unrelated_read_only_user(
                     params={"q": process_owner.email},
                 )
             ).status_code == 200
-            assert (
-                await client.get("/api/v1/departments/lookup/process-owners")
-            ).status_code == 200
+            assert (await client.get("/api/v1/departments/lookup/process-owners")).status_code == 200
 
 
 @pytest.mark.asyncio
@@ -807,22 +776,14 @@ async def test_pending_process_orphan_blocks_vendor_link_create_and_delete(
     await db_session.commit()
 
     async with client_factory(user=test_user_cro) as client:
-        process_end_rows = await client.get(
-            f"/api/v1/processes/{process.id}/vendor-links"
-        )
-        vendor_end_rows = await client.get(
-            f"/api/v1/vendors/{linked_vendor.id}/process-links"
-        )
+        process_end_rows = await client.get(f"/api/v1/processes/{process.id}/vendor-links")
+        vendor_end_rows = await client.get(f"/api/v1/vendors/{linked_vendor.id}/process-links")
         created = await client.post(
             f"/api/v1/processes/{process.id}/vendor-links",
             json={"vendor_id": candidate_vendor.id},
         )
-        removed = await client.delete(
-            f"/api/v1/processes/{process.id}/vendor-links/{link.id}"
-        )
-        pending_only_vendor = await client.get(
-            f"/api/v1/vendors/{linked_vendor.id}"
-        )
+        removed = await client.delete(f"/api/v1/processes/{process.id}/vendor-links/{link.id}")
+        pending_only_vendor = await client.get(f"/api/v1/vendors/{linked_vendor.id}")
 
     assert process_end_rows.status_code == 200, process_end_rows.text
     assert vendor_end_rows.status_code == 200, vendor_end_rows.text
@@ -833,10 +794,7 @@ async def test_pending_process_orphan_blocks_vendor_link_create_and_delete(
     assert "governance workflow" in created.json()["detail"]
     assert "governance workflow" in removed.json()["detail"]
     assert pending_only_vendor.status_code == 200, pending_only_vendor.text
-    assert (
-        pending_only_vendor.json()["capabilities"]["can_manage_process_links"]
-        is False
-    )
+    assert pending_only_vendor.json()["capabilities"]["can_manage_process_links"] is False
 
     db_session.add(
         Process(
@@ -852,6 +810,7 @@ async def test_pending_process_orphan_blocks_vendor_link_create_and_delete(
         mixed_vendor = await client.get(f"/api/v1/vendors/{linked_vendor.id}")
     assert mixed_vendor.status_code == 200, mixed_vendor.text
     assert mixed_vendor.json()["capabilities"]["can_manage_process_links"] is True
+
 
 @pytest.mark.asyncio
 async def test_process_deactivation_preserves_fk_and_governance_reassigns(
@@ -962,9 +921,7 @@ async def test_postgres_process_create_and_owner_deactivation_preserve_invariant
     async with session_maker() as session:
         owner = await session.get(User, test_user_employee.id)
         process = (
-            await session.execute(
-                select(Process).where(Process.l1_process == "Claims handling")
-            )
+            await session.execute(select(Process).where(Process.l1_process == "Claims handling"))
         ).scalar_one_or_none()
         assert owner is not None and owner.is_active is False
         if process is None:

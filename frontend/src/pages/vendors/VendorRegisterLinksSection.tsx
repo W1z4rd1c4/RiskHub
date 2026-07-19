@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Boxes, Plus, Trash2, Workflow } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
+import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useAuthz } from '@/authz/useAuthz';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -15,6 +17,12 @@ import { processApi } from '@/services/processApi';
 import { vendorApi } from '@/services/vendorApi';
 import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
 import type { VendorCapabilities } from '@/types/vendor';
+import { isProcessApprovalQueuedResponse } from '@/types/process';
+import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import {
+    processBusinessEditBlocked,
+    processMutationRequiresApprovalReason,
+} from '@/pages/processes/processProtectedEdit';
 
 import {
     buildVendorAssetLinkRows,
@@ -38,9 +46,13 @@ interface VendorRegisterLinksSectionProps {
  */
 export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorRegisterLinksSectionProps) {
     const { t } = useTranslation(['vendors', 'common']);
+    const navigate = useNavigate();
     const authz = useAuthz();
     const queryClient = useQueryClient();
     const [sectionError, setSectionError] = useState<string | null>(null);
+    const [pendingProcessAction, setPendingProcessAction] = useState<
+        { kind: 'add' } | { kind: 'remove'; processId: number; linkId: number } | null
+    >(null);
 
     const [assetToLink, setAssetToLink] = useState('');
     const [assetLinkServiceCode, setAssetLinkServiceCode] = useState('');
@@ -145,9 +157,17 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
     });
 
     const addProcessLink = useMutation({
-        mutationFn: () => processApi.addVendorLink(Number(processToLink), { vendor_id: vendorId }),
-        onSuccess: async () => {
+        mutationFn: (reason: string) => processApi.addVendorLink(Number(processToLink), {
+            vendor_id: vendorId,
+            request_reason: reason,
+        }),
+        onSuccess: async (result) => {
             setSectionError(null);
+            setPendingProcessAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             setProcessToLink('');
             await refreshLinks();
         },
@@ -155,10 +175,15 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
     });
 
     const removeProcessLink = useMutation({
-        mutationFn: ({ processId, linkId }: { processId: number; linkId: number }) =>
-            processApi.removeVendorLink(processId, linkId),
-        onSuccess: async () => {
+        mutationFn: ({ processId, linkId, reason }: { processId: number; linkId: number; reason: string }) =>
+            processApi.removeVendorLink(processId, linkId, reason),
+        onSuccess: async (result) => {
             setSectionError(null);
+            setPendingProcessAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             await refreshLinks();
         },
         onError: handleMutationError,
@@ -187,10 +212,22 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
         .filter((process) => !process.is_archived && !linkedProcessIds.has(process.id))
         .map((process) => ({
             value: String(process.id),
-            label: process.l2_subprocess
+            label: `${process.l2_subprocess
                 ? `${process.l1_process} – ${process.l2_subprocess}`
-                : process.l1_process,
+                : process.l1_process}${processBusinessEditBlocked(process)
+                ? ` — ${t('processes:pending_change.badge')}`
+                : ''}`,
+            disabled: processBusinessEditBlocked(process),
         }));
+    const pendingProcessId = pendingProcessAction?.kind === 'add'
+        ? Number(processToLink)
+        : pendingProcessAction?.processId;
+    const pendingProcess = processOptionsQuery.data?.items.find(
+        (candidate) => candidate.id === pendingProcessId,
+    );
+    const addProcessBlocked = processBusinessEditBlocked(
+        processOptionsQuery.data?.items.find((candidate) => candidate.id === Number(processToLink)),
+    );
     const ictServiceOptions = (taxonomyQuery.data ?? []).map((service) => ({
         value: service.code,
         label: `${service.code} — ${service.label}`,
@@ -310,19 +347,27 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                         <p className="text-xs text-slate-500">
                                             {row.meta || t('register_links.no_metadata')}
                                         </p>
+                                        {row.processEditBlocked ? (
+                                            <p className="mt-1 text-xs font-medium text-amber-300">
+                                                {t('processes:pending_change.link_action_blocked')}
+                                            </p>
+                                        ) : null}
                                     </div>
                                     {row.canDelete ? (
                                         <button
                                             type="button"
                                             data-testid={`vendor-process-link-remove-${row.link.id}`}
+                                            disabled={row.processEditBlocked}
                                             onClick={() =>
-                                                removeProcessLink.mutate({
+                                                setPendingProcessAction({ kind: 'remove',
                                                     processId: row.link.process_id,
                                                     linkId: row.link.id,
                                                 })
                                             }
-                                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-                                            title={t('register_links.remove')}
+                                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                            title={row.processEditBlocked
+                                                ? t('processes:pending_change.link_action_blocked')
+                                                : t('register_links.remove')}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
@@ -348,17 +393,35 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                             <button
                                 type="button"
                                 data-testid="vendor-process-link-add"
-                                disabled={!processToLink || addProcessLink.isPending}
-                                onClick={() => addProcessLink.mutate()}
+                                disabled={!processToLink || addProcessBlocked || addProcessLink.isPending}
+                                onClick={() => setPendingProcessAction({ kind: 'add' })}
                                 className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
                             >
                                 <Plus className="h-4 w-4" />
                                 {t('register_links.add')}
                             </button>
+                            {addProcessBlocked ? (
+                                <p className="md:col-span-5 text-xs font-medium text-amber-300">
+                                    {t('processes:pending_change.link_action_blocked')}
+                                </p>
+                            ) : null}
                         </div>
                     ) : null}
                 </div>
             ) : null}
+            <GovernedMutationReasonDialog
+                isOpen={pendingProcessAction !== null}
+                reasonRequired={processMutationRequiresApprovalReason(pendingProcess)}
+                kind={pendingProcessAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
+                isLoading={addProcessLink.isPending || removeProcessLink.isPending}
+                onClose={() => setPendingProcessAction(null)}
+                onConfirm={(reason) => {
+                    if (pendingProcessAction?.kind === 'add') addProcessLink.mutate(reason);
+                    if (pendingProcessAction?.kind === 'remove') {
+                        removeProcessLink.mutate({ ...pendingProcessAction, reason });
+                    }
+                }}
+            />
         </div>
     );
 }

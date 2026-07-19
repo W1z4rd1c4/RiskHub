@@ -22,7 +22,11 @@
     "request_types": {
         "create": "Create",
         "update": "Update",
-        "delete": "Delete"
+        "delete": "Delete",
+        "archive": "Archive",
+        "link_add": "Add link",
+        "link_update": "Update link",
+        "link_remove": "Remove link"
     },
     "entity_types": {
         "risk": "Risk",
@@ -99,9 +103,46 @@
         "redacted_value": "Hidden by permission scope",
         "yes": "Yes",
         "no": "No",
-        "derived": {
-            "cif": "CIF",
-            "criticality_class": "Criticality class"
+    "derived": {
+      "cif": "CIF",
+      "criticality_class": "Criticality class"
+    },
+    "relationship": {
+      "title": "Relationship change",
+      "target": "Target record",
+      "type": "Relationship type",
+      "action_label": "Action",
+      "resource_type": {
+        "risk": "Risk",
+        "asset": "Asset",
+        "vendor": "Vendor"
+      },
+      "action": {
+        "add": "Add relationship",
+        "update": "Update relationship",
+        "remove": "Remove relationship"
+      }
+    },
+    "mutation_kind": {
+            "process_create": "Protected Process creation",
+            "process_edit": "Protected Process update",
+            "process_archive": "Protected Process archive",
+            "process_link_risk_add": "Add Process and Risk link",
+            "process_link_risk_remove": "Remove Process and Risk link",
+            "process_link_asset_add": "Add Process and Asset link",
+            "process_link_asset_update": "Update Process and Asset link",
+            "process_link_asset_remove": "Remove Process and Asset link",
+            "process_link_vendor_add": "Add Process and Vendor link",
+            "process_link_vendor_remove": "Remove Process and Vendor link"
+        },
+        "link_fields": {
+            "linked": "Linked",
+            "related_resource": "Related record",
+            "significance": "Significance",
+            "spof": "Single point of failure",
+            "is_primary": "Primary relationship",
+            "note": "Relationship note",
+            "direct_service_description": "Direct service description"
         }
     },
     "notifications": {

@@ -19,10 +19,13 @@ from app.models.approval_request import ApprovalResourceType
 from app.models.vendor import Vendor
 from app.services._governed_mutations.process_identity import (
     any_governed_mutation_proposal_exists_clause,
-    governed_process_requester_clause,
+)
+from app.services._governed_mutations.process_mutations import (
+    valid_extended_process_approval_ids,
 )
 from app.services.approval_scenario_policy import (
     approval_privilege_tier,
+    governed_process_requester_clause,
     process_approval_resolver_clause,
 )
 from app.services.risk_questionnaire_service import can_read_questionnaire
@@ -36,6 +39,21 @@ async def visible_notification_clause(db: AsyncSession, current_user: User) -> C
     vendor_clause = vendor_visibility_clause(current_user)
     issue_clause = (
         await get_issue_scope_clause(db, current_user) if has_permission(current_user, "issues", "read") else false()
+    )
+    notification_approval_ids = set(
+        (
+            await db.execute(
+                select(Notification.resource_id).where(
+                    Notification.user_id == current_user.id,
+                    func.lower(Notification.resource_type) == "approval",
+                    Notification.resource_id.is_not(None),
+                )
+            )
+        ).scalars()
+    )
+    valid_extended_ids = await valid_extended_process_approval_ids(
+        db,
+        approval_ids=notification_approval_ids,
     )
     resource_type = func.lower(Notification.resource_type)
 
@@ -58,6 +76,7 @@ async def visible_notification_clause(db: AsyncSession, current_user: User) -> C
                     control_clause=control_clause,
                     kri_clause=kri_clause,
                     resource_id=Notification.resource_id,
+                    valid_extended_approval_ids=valid_extended_ids,
                 ),
             ),
         ),
@@ -144,8 +163,10 @@ def _kri_exists_clause(
     visibility_clause: ColumnElement[bool] | None,
     resource_id: Any,
 ) -> ColumnElement[bool]:
-    query = select(KeyRiskIndicator.id).join(Risk, Risk.id == KeyRiskIndicator.risk_id).where(
-        KeyRiskIndicator.id == resource_id
+    query = (
+        select(KeyRiskIndicator.id)
+        .join(Risk, Risk.id == KeyRiskIndicator.risk_id)
+        .where(KeyRiskIndicator.id == resource_id)
     )
     if visibility_clause is not None:
         query = query.where(visibility_clause)
@@ -176,8 +197,10 @@ def _questionnaire_exists_clause(
     risk_visibility_clause_value: ColumnElement[bool] | None,
     resource_id: Any,
 ) -> ColumnElement[bool]:
-    query = select(RiskQuestionnaire.id).join(Risk, Risk.id == RiskQuestionnaire.risk_id).where(
-        RiskQuestionnaire.id == resource_id
+    query = (
+        select(RiskQuestionnaire.id)
+        .join(Risk, Risk.id == RiskQuestionnaire.risk_id)
+        .where(RiskQuestionnaire.id == resource_id)
     )
     if risk_visibility_clause_value is not None:
         query = query.where(risk_visibility_clause_value)
@@ -191,6 +214,7 @@ def _approval_exists_clause(
     control_clause: ColumnElement[bool] | None,
     kri_clause: ColumnElement[bool] | None,
     resource_id: Any,
+    valid_extended_approval_ids: frozenset[int],
 ) -> ColumnElement[bool]:
     any_proposal = any_governed_mutation_proposal_exists_clause()
     direct_clauses: list[ColumnElement[bool]] = [
@@ -199,9 +223,15 @@ def _approval_exists_clause(
                 ~any_proposal,
                 ApprovalRequest.requested_by_id == current_user.id,
             ),
-            governed_process_requester_clause(current_user.id),
+            governed_process_requester_clause(
+                current_user.id,
+                valid_extended_approval_ids,
+            ),
         ),
-        process_approval_resolver_clause(current_user),
+        process_approval_resolver_clause(
+            current_user,
+            valid_extended_approval_ids,
+        ),
         and_(
             ~any_proposal,
             ApprovalRequest.primary_approver_id == current_user.id,

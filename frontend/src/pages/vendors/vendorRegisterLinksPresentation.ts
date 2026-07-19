@@ -13,6 +13,8 @@ export interface VendorRegisterLinkRow<TLink> {
     meta: string;
     /** Per-row remove gating from the backend capability (register-end write). */
     canDelete: boolean;
+    /** Authoritative Process impact lock, present on Process relationship rows. */
+    processEditBlocked?: boolean;
 }
 
 /** Rows for the linked-Assets block (sheet 10_VAD seen from the Vendor end).
@@ -42,5 +44,6 @@ export function buildVendorProcessLinkRows(
         name: link.process_name ?? unknownProcessLabel,
         meta: formatProcessVendorLinkMeta(link),
         canDelete: resolveCapabilityFlag(link.capabilities, 'can_delete'),
+        processEditBlocked: link.process_business_edit_blocked,
     }));
 }

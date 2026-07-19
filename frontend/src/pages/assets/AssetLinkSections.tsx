@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Link2, Plus, Star, Trash2, Workflow } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -15,6 +17,12 @@ import { vendorApi } from '@/services/vendorApi';
 import { vendorContractApi } from '@/services/vendorContractApi';
 import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
 import type { Asset } from '@/types/asset';
+import { isProcessApprovalQueuedResponse } from '@/types/process';
+import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import {
+    processBusinessEditBlocked,
+    processMutationRequiresApprovalReason,
+} from '@/pages/processes/processProtectedEdit';
 
 import {
     assetVendorLinkRowName,
@@ -59,10 +67,14 @@ function sectionShell(
 
 export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: AssetLinkSectionsProps) {
     const { t } = useTranslation(['assets', 'common']);
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [linkError, setLinkError] = useState<string | null>(null);
     // FR-P4-8: the single removal awaiting confirmation across all three lists.
     const [pendingRemoval, setPendingRemoval] = useState<PendingLinkRemoval | null>(null);
+    const [pendingProcessAction, setPendingProcessAction] = useState<
+        { kind: 'add' } | { kind: 'update'; processId: number } | { kind: 'remove'; processId: number } | null
+    >(null);
 
     // Picker searches (server-driven; the empty search keeps the first page).
     const [processSearch, setProcessSearch] = useState('');
@@ -185,6 +197,27 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 })),
         [vendorContractsQuery.data],
     );
+    const pendingProcessId = pendingProcessAction?.kind === 'add'
+        ? Number(processToLink)
+        : pendingProcessAction?.processId;
+    const pendingProcessIds = new Set<number>();
+    if (Number.isInteger(pendingProcessId) && Number(pendingProcessId) > 0) {
+        pendingProcessIds.add(Number(pendingProcessId));
+    }
+    const changesPrimary = pendingProcessAction?.kind === 'update'
+        || (pendingProcessAction?.kind === 'add' && processLinkIsPrimary);
+    if (changesPrimary) {
+        processLinksQuery.data
+            ?.filter((link) => link.is_primary)
+            .forEach((link) => pendingProcessIds.add(link.process_id));
+    }
+    const processReasonRequired = [...pendingProcessIds].some((processId) =>
+        processMutationRequiresApprovalReason(
+            processOptionsQuery.data?.items.find((candidate) => candidate.id === processId),
+        ));
+    const selectedProcess = processOptionsQuery.data?.items.find(
+        (candidate) => candidate.id === Number(processToLink),
+    );
 
     const refreshLinks = async () => {
         await Promise.all([
@@ -201,15 +234,21 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
     };
 
     const addProcessLink = useMutation({
-        mutationFn: () =>
+        mutationFn: (requestReason: string) =>
             assetApi.addProcessLink(asset.id, {
                 process_id: Number(processToLink),
                 significance: processLinkSignificance || null,
                 spof: processLinkSpof || null,
                 is_primary: processLinkIsPrimary,
+                request_reason: requestReason,
             }),
-        onSuccess: async () => {
+        onSuccess: async (result) => {
             setLinkError(null);
+            setPendingProcessAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             setProcessToLink('');
             setProcessLinkSignificance('');
             setProcessLinkSpof('');
@@ -220,19 +259,30 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
     });
 
     const setPrimaryProcess = useMutation({
-        mutationFn: (processId: number) =>
-            assetApi.updateProcessLink(asset.id, processId, { is_primary: true }),
-        onSuccess: async () => {
+        mutationFn: ({ processId, reason }: { processId: number; reason: string }) =>
+            assetApi.updateProcessLink(asset.id, processId, { is_primary: true, request_reason: reason }),
+        onSuccess: async (result) => {
             setLinkError(null);
+            setPendingProcessAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             await refreshLinks();
         },
         onError: handleMutationError,
     });
 
     const removeProcessLink = useMutation({
-        mutationFn: (processId: number) => assetApi.removeProcessLink(asset.id, processId),
-        onSuccess: async () => {
+        mutationFn: ({ processId, reason }: { processId: number; reason: string }) =>
+            assetApi.removeProcessLink(asset.id, processId, reason),
+        onSuccess: async (result) => {
             setLinkError(null);
+            setPendingProcessAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             await refreshLinks();
         },
         onError: handleMutationError,
@@ -310,10 +360,16 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         .filter((process) => !process.is_archived && !linkedProcessIds.has(process.id))
         .map((process) => ({
             value: String(process.id),
-            label: process.l2_subprocess
+            label: `${process.l2_subprocess
                 ? `${process.l1_process} – ${process.l2_subprocess}`
-                : process.l1_process,
+                : process.l1_process}${processBusinessEditBlocked(process)
+                ? ` — ${t('processes:pending_change.badge')}`
+                : ''}`,
+            disabled: processBusinessEditBlocked(process),
         }));
+    const currentPrimaryLink = processLinks.find((link) => link.is_primary);
+    const addProcessBlocked = processBusinessEditBlocked(selectedProcess)
+        || (processLinkIsPrimary && currentPrimaryLink?.process_business_edit_blocked === true);
     const assetOptions = (assetOptionsQuery.data?.items ?? [])
         .filter((row) => !row.is_archived && row.id !== asset.id)
         .map((row) => ({ value: String(row.id), label: row.name }));
@@ -327,11 +383,9 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         if (!pendingRemoval) {
             return;
         }
-        if (pendingRemoval.kind === 'process') {
-            removeProcessLink.mutate(pendingRemoval.id);
-        } else if (pendingRemoval.kind === 'asset') {
+        if (pendingRemoval.kind === 'asset') {
             removeAssetLink.mutate(pendingRemoval.id);
-        } else {
+        } else if (pendingRemoval.kind === 'vendor') {
             removeVendorLink.mutate(pendingRemoval.id);
         }
         setPendingRemoval(null);
@@ -353,7 +407,11 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                         <p className="text-xs text-slate-500">{t('links.processes.empty')}</p>
                     ) : (
                         <ul className="space-y-2" data-testid="asset-process-links">
-                            {processLinks.map((link) => (
+                            {processLinks.map((link) => {
+                                const processActionBlocked = link.process_business_edit_blocked;
+                                const primarySwapBlocked = !link.is_primary
+                                    && currentPrimaryLink?.process_business_edit_blocked === true;
+                                return (
                                 <li
                                     key={link.id}
                                     className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
@@ -378,6 +436,11 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                 .filter(Boolean)
                                                 .join(' · ') || t('links.processes.no_metadata')}
                                         </p>
+                                        {processActionBlocked ? (
+                                            <p className="mt-1 text-xs font-medium text-amber-300">
+                                                {t('processes:pending_change.link_action_blocked')}
+                                            </p>
+                                        ) : null}
                                     </div>
                                     {canManageLinks ? (
                                         <div className="flex items-center gap-2">
@@ -385,8 +448,12 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                 <button
                                                     type="button"
                                                     data-testid={`asset-process-link-set-primary-${link.process_id}`}
-                                                    onClick={() => setPrimaryProcess.mutate(link.process_id)}
-                                                    className="px-3 py-1.5 glass rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+                                                    disabled={processActionBlocked || primarySwapBlocked}
+                                                    onClick={() => setPendingProcessAction({ kind: 'update', processId: link.process_id })}
+                                                    title={(processActionBlocked || primarySwapBlocked)
+                                                        ? t('processes:pending_change.link_action_blocked')
+                                                        : undefined}
+                                                    className="px-3 py-1.5 glass rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     {t('links.processes.set_primary')}
                                                 </button>
@@ -394,24 +461,22 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                             <button
                                                 type="button"
                                                 data-testid={`asset-process-link-remove-${link.process_id}`}
+                                                disabled={processActionBlocked}
                                                 onClick={() =>
-                                                    setPendingRemoval({
-                                                        kind: 'process',
-                                                        id: link.process_id,
-                                                        name:
-                                                            link.process_name ??
-                                                            t('common:fallbacks.unknown_process'),
-                                                    })
+                                                    setPendingProcessAction({ kind: 'remove', processId: link.process_id })
                                                 }
-                                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-                                                title={t('links.remove')}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                                title={processActionBlocked
+                                                    ? t('processes:pending_change.link_action_blocked')
+                                                    : t('links.remove')}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
                                         </div>
                                     ) : null}
                                 </li>
-                            ))}
+                                );
+                            })}
                         </ul>
                     )}
 
@@ -461,14 +526,19 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                 <button
                                     type="button"
                                     data-testid="asset-process-link-add"
-                                    disabled={!processToLink || addProcessLink.isPending}
-                                    onClick={() => addProcessLink.mutate()}
+                                    disabled={!processToLink || addProcessBlocked || addProcessLink.isPending}
+                                    onClick={() => setPendingProcessAction({ kind: 'add' })}
                                     className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
                                 >
                                     <Plus className="h-4 w-4" />
                                     {t('links.add')}
                                 </button>
                             </div>
+                            {addProcessBlocked ? (
+                                <p className="md:col-span-5 text-xs font-medium text-amber-300">
+                                    {t('processes:pending_change.link_action_blocked')}
+                                </p>
+                            ) : null}
                         </div>
                     ) : null}
                 </div>
@@ -714,6 +784,26 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 message={t('links.remove_confirm.message', { name: pendingRemoval?.name ?? '' })}
                 confirmLabel={t('links.remove')}
                 variant="danger"
+            />
+            <GovernedMutationReasonDialog
+                isOpen={pendingProcessAction !== null}
+                reasonRequired={processReasonRequired}
+                kind={pendingProcessAction?.kind === 'remove'
+                    ? 'link_remove'
+                    : pendingProcessAction?.kind === 'update'
+                        ? 'link_update'
+                        : 'link_add'}
+                isLoading={addProcessLink.isPending || setPrimaryProcess.isPending || removeProcessLink.isPending}
+                onClose={() => setPendingProcessAction(null)}
+                onConfirm={(reason) => {
+                    if (pendingProcessAction?.kind === 'add') addProcessLink.mutate(reason);
+                    if (pendingProcessAction?.kind === 'update') {
+                        setPrimaryProcess.mutate({ processId: pendingProcessAction.processId, reason });
+                    }
+                    if (pendingProcessAction?.kind === 'remove') {
+                        removeProcessLink.mutate({ processId: pendingProcessAction.processId, reason });
+                    }
+                }}
             />
         </>
     );

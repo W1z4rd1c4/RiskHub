@@ -410,9 +410,9 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(derivedSection.getByTestId('asset-derived-cif')).toHaveText('Yes');
     });
 
-    test('Process link management: add, set primary, swap primary, remove', async ({ riskManagerPage }) => {
+    test('Non-protected Process links add, swap primary, and remove without governed reasons', async ({ riskManagerPage }) => {
         const asset = await getAssetByName(E2E_ASSETS.INTEGRATION_BUS.name);
-        const processA = await getProcessByL1(E2E_PROCESSES.REGULATORY_REPORTING.l1_process);
+        const processA = await getProcessByL1(E2E_PROCESSES.POLICY_ADMIN.l1_process);
         const processB = await getProcessByL1(E2E_PROCESSES.PORTAL_SUPPORT.l1_process);
         expect(asset).not.toBeNull();
         expect(processA).not.toBeNull();
@@ -423,47 +423,52 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.goto(`/assets/${asset!.id}`);
         await waitForDataLoad(riskManagerPage);
 
-        // Add a first Process link with closed-list metadata.
+        // Both deterministic Processes derive CIF No: explicit confirmations
+        // remain, while governed-request reason fields are intentionally absent.
         await riskManagerPage.getByTestId('asset-process-link-select').click();
-        await riskManagerPage.getByRole('option', { name: /E2E-PROC-003/ }).click();
+        await riskManagerPage.getByRole('option', { name: /E2E-PROC-002/ }).click();
         await riskManagerPage.getByTestId('asset-process-link-significance').click();
         await riskManagerPage.getByRole('option', { name: 'BCM/DR vazba', exact: true }).click();
         await riskManagerPage.getByTestId('asset-process-link-add').click();
+        const firstAddDialog = riskManagerPage.getByRole('alertdialog');
+        await expect(firstAddDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+        await firstAddDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
 
         const processLinks = riskManagerPage.getByTestId('asset-process-links');
-        await expect(processLinks.getByText(E2E_PROCESSES.REGULATORY_REPORTING.l1_process).first()).toBeVisible();
+        await expect(processLinks.getByText(E2E_PROCESSES.POLICY_ADMIN.l1_process).first()).toBeVisible();
         await expect(processLinks.getByText('BCM/DR vazba').first()).toBeVisible();
         await expect(riskManagerPage.locator(PRIMARY_BADGE_SELECTOR)).toHaveCount(0);
 
-        // Add a second Process link.
         await riskManagerPage.getByTestId('asset-process-link-select').click();
         await riskManagerPage.getByRole('option', { name: /E2E-PROC-004/ }).click();
         await riskManagerPage.getByTestId('asset-process-link-add').click();
+        const secondAddDialog = riskManagerPage.getByRole('alertdialog');
+        await expect(secondAddDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+        await secondAddDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
         await expect(processLinks.getByText(E2E_PROCESSES.PORTAL_SUPPORT.l1_process).first()).toBeVisible();
 
-        // Designate the first link as primary.
         await riskManagerPage.getByTestId(`asset-process-link-set-primary-${processA!.id}`).click();
+        const firstUpdateDialog = riskManagerPage.getByRole('alertdialog');
+        await expect(firstUpdateDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+        await firstUpdateDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
         await expect(riskManagerPage.getByTestId(`asset-process-link-primary-${processA!.id}`)).toBeVisible();
         await expect(riskManagerPage.locator(PRIMARY_BADGE_SELECTOR)).toHaveCount(1);
 
-        // Swap primary to the second link — the old badge atomically demotes.
         await riskManagerPage.getByTestId(`asset-process-link-set-primary-${processB!.id}`).click();
+        const secondUpdateDialog = riskManagerPage.getByRole('alertdialog');
+        await expect(secondUpdateDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+        await secondUpdateDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
         await expect(riskManagerPage.getByTestId(`asset-process-link-primary-${processB!.id}`)).toBeVisible();
         await expect(riskManagerPage.getByTestId(`asset-process-link-primary-${processA!.id}`)).toHaveCount(0);
         await expect(riskManagerPage.locator(PRIMARY_BADGE_SELECTOR)).toHaveCount(1);
 
-        // Remove both links; the section returns to its empty state.
-        await riskManagerPage.getByTestId(`asset-process-link-remove-${processA!.id}`).click();
-        await riskManagerPage
-            .getByRole('alertdialog', { name: /Remove link\?/ })
-            .getByRole('button', { name: 'Remove link', exact: true })
-            .click();
-        await expect(riskManagerPage.getByTestId(`asset-process-link-remove-${processA!.id}`)).toHaveCount(0);
-        await riskManagerPage.getByTestId(`asset-process-link-remove-${processB!.id}`).click();
-        await riskManagerPage
-            .getByRole('alertdialog', { name: /Remove link\?/ })
-            .getByRole('button', { name: 'Remove link', exact: true })
-            .click();
+        for (const processId of [processA!.id, processB!.id]) {
+            await riskManagerPage.getByTestId(`asset-process-link-remove-${processId}`).click();
+            const removeDialog = riskManagerPage.getByRole('alertdialog');
+            await expect(removeDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+            await removeDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+            await expect(riskManagerPage.getByTestId(`asset-process-link-remove-${processId}`)).toHaveCount(0);
+        }
         await expect(
             riskManagerPage.getByText(/No Processes linked yet|Zatím žádné vazby na procesy/),
         ).toBeVisible();

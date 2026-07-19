@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.approval_helpers import build_approval_queued_response
 from app.core.audit import governed_mutation as audit_governed
 from app.core.exceptions import ConflictError, ValidationError
-from app.core.user_query_options import user_selectinload_options
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
@@ -21,13 +20,11 @@ from app.models import (
     GovernedMutationImpactLock,
     GovernedMutationProposal,
     Process,
-    Role,
     User,
 )
 from app.services._ict_register_lifecycle.projection import (
     load_governed_process_derived_blocks,
 )
-from app.services.approval_scenario_policy import can_resolve_process_approval
 from app.services.outbox import OutboxService
 from app.services.transaction_boundary import commit_service_boundary
 
@@ -39,6 +36,11 @@ from .fixed_policy import (
 from .process_identity import (
     canonical_process_display_name,
     new_governed_process_proposal,
+)
+from .process_mutation_policy import (
+    has_independent_process_approver,
+    safe_process_department_label,
+    safe_process_user_label,
 )
 
 
@@ -69,48 +71,24 @@ async def assert_no_pending_process_mutation(db: AsyncSession, *, process_id: in
         )
 
 
-async def _has_independent_approver(
+async def active_governed_process_mutation_ids(
     db: AsyncSession,
     *,
-    requester_id: int,
-    roles: list[str],
-    process: Process,
-) -> bool:
-    result = await db.execute(
-        select(User)
-        .join(Role, Role.id == User.role_id)
+    process_ids: set[int],
+) -> set[int]:
+    """Batch-project active Process impact locks for authoritative UI gating."""
+    if not process_ids:
+        return set()
+    rows = await db.execute(
+        select(GovernedMutationImpactLock.resource_id)
         .where(
-            User.is_active.is_(True),
-            User.id != requester_id,
-            Role.name.in_(roles),
+            GovernedMutationImpactLock.resource_type == "process",
+            GovernedMutationImpactLock.resource_id.in_(process_ids),
+            GovernedMutationImpactLock.released_at.is_(None),
         )
-        .options(*user_selectinload_options(include_permissions=True))
-        .order_by(User.id)
+        .distinct()
     )
-    return any(
-        can_resolve_process_approval(
-            candidate,
-            process,
-            requester_id=requester_id,
-            configured_roles=roles,
-        )
-        for candidate in result.unique().scalars().all()
-    )
-
-
-def _safe_user_label(user: User | None) -> str:
-    name = (user.name if user is not None else "").strip()
-    return name or "Unknown user"
-
-
-def _safe_department_label(department: Department | None) -> str:
-    if department is None:
-        return "Unknown department"
-    name = (department.name or "").strip()
-    code = (department.code or "").strip()
-    if code and name:
-        return f"{code} — {name}"
-    return name or code or "Unknown department"
+    return set(rows.scalars().all())
 
 
 def _change_snapshots(
@@ -120,22 +98,16 @@ def _change_snapshots(
     proposed_owner: User | None,
     proposed_department: Department | None,
 ) -> tuple[dict, dict, dict, dict, dict]:
-    raw_before = {
-        field: jsonable_encoder(getattr(process, field))
-        for field in sorted(updates)
-    }
-    raw_after = {
-        field: jsonable_encoder(value)
-        for field, value in sorted(updates.items())
-    }
+    raw_before = {field: jsonable_encoder(getattr(process, field)) for field in sorted(updates)}
+    raw_after = {field: jsonable_encoder(value) for field, value in sorted(updates.items())}
     before = dict(raw_before)
     after = dict(raw_after)
     if "process_owner_user_id" in updates:
-        before["process_owner_user_id"] = _safe_user_label(process.process_owner)
-        after["process_owner_user_id"] = _safe_user_label(proposed_owner)
+        before["process_owner_user_id"] = safe_process_user_label(process.process_owner)
+        after["process_owner_user_id"] = safe_process_user_label(proposed_owner)
     if "owning_department_id" in updates:
-        before["owning_department_id"] = _safe_department_label(process.owning_department)
-        after["owning_department_id"] = _safe_department_label(proposed_department)
+        before["owning_department_id"] = safe_process_department_label(process.owning_department)
+        after["owning_department_id"] = safe_process_department_label(proposed_department)
     changes = {
         field: {"old": before[field], "new": after[field]}
         for field in sorted(updates)
@@ -184,7 +156,7 @@ async def submit_process_mutation_if_required(
             code="governed_mutation_reason_required",
             status_code=422,
         )
-    if not await _has_independent_approver(
+    if not await has_independent_process_approver(
         db,
         requester_id=current_user.id,
         roles=roles,

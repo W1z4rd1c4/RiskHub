@@ -8,13 +8,21 @@ import {
     processDerivedCriticalityLabel,
     type ProcessControlledField,
 } from '@/pages/processes/processesPagePresentation';
-import type { GovernedDerivedImpact, GovernedImpactedResource } from '@/types/approval';
+import type {
+    GovernedDerivedImpact,
+    GovernedDerivedState,
+    GovernedImpactedResource,
+    GovernedMutationKind,
+    GovernedRelationshipChange,
+} from '@/types/approval';
 
 interface GovernedMutationDiffProps {
     before: Record<string, unknown>;
     after: Record<string, unknown>;
     derivedImpact: GovernedDerivedImpact;
     impactedResources?: GovernedImpactedResource[];
+    relationshipChange?: GovernedRelationshipChange | null;
+    mutationKind?: GovernedMutationKind;
     testId?: string;
 }
 
@@ -22,7 +30,24 @@ function valuesEqual(before: unknown, after: unknown): boolean {
     return JSON.stringify(before) === JSON.stringify(after);
 }
 
-type GovernedFieldKind = 'controlled' | 'date' | 'number' | 'safe_label' | 'text';
+function isRelationshipImpact(
+    impact: GovernedDerivedImpact,
+): impact is Extract<GovernedDerivedImpact, { processes: unknown }> {
+    return 'processes' in impact;
+}
+
+function derivedStateLabel(
+    t: (key: string, options?: Record<string, unknown>) => string,
+    state: GovernedDerivedState | null,
+    field: 'cif' | 'criticality_class',
+): string | null {
+    if (state === null) return null;
+    return field === 'cif'
+        ? processDerivedCifLabel(t, state.cif)
+        : processDerivedCriticalityLabel(t, state.criticality_class);
+}
+
+type GovernedFieldKind = 'boolean' | 'controlled' | 'date' | 'number' | 'safe_label' | 'text';
 
 interface GovernedFieldSpec {
     labelKey: string;
@@ -79,6 +104,16 @@ const GOVERNED_PROCESS_FIELDS: Record<string, GovernedFieldSpec> = {
     },
     assessment_date: { labelKey: 'processes:form.assessment_date', kind: 'date' },
     notes: { labelKey: 'processes:form.notes', kind: 'text' },
+    linked: { labelKey: 'approvals:governed.link_fields.linked', kind: 'boolean' },
+    related_resource_name: { labelKey: 'approvals:governed.link_fields.related_resource', kind: 'safe_label' },
+    significance: { labelKey: 'approvals:governed.link_fields.significance', kind: 'safe_label' },
+    spof: { labelKey: 'approvals:governed.link_fields.spof', kind: 'safe_label' },
+    is_primary: { labelKey: 'approvals:governed.link_fields.is_primary', kind: 'boolean' },
+    note: { labelKey: 'approvals:governed.link_fields.note', kind: 'text' },
+    direct_service_description: {
+        labelKey: 'approvals:governed.link_fields.direct_service_description',
+        kind: 'text',
+    },
 };
 
 function isSafeBusinessLabel(value: unknown): value is string {
@@ -101,6 +136,11 @@ function displayGovernedValue(
     }
     if (spec.kind === 'text') {
         return typeof value === 'string' ? value : t('approvals:governed.redacted_value');
+    }
+    if (spec.kind === 'boolean') {
+        return typeof value === 'boolean'
+            ? t(value ? 'approvals:governed.yes' : 'approvals:governed.no')
+            : t('approvals:governed.redacted_value');
     }
     if (spec.kind === 'number') {
         return typeof value === 'number' && Number.isFinite(value)
@@ -125,31 +165,85 @@ export function GovernedMutationDiff({
     after,
     derivedImpact,
     impactedResources = [],
+    relationshipChange,
+    mutationKind,
     testId,
 }: GovernedMutationDiffProps) {
     const { t, i18n } = useTranslation(['approvals', 'processes']);
-    const changedFields = [...new Set([...Object.keys(before), ...Object.keys(after)])]
-        .filter((field) => !valuesEqual(before[field], after[field]));
+    const displayedBefore = relationshipChange?.before ?? before;
+    const displayedAfter = relationshipChange?.after ?? after;
+    const changedFields = [...new Set([...Object.keys(displayedBefore), ...Object.keys(displayedAfter)])]
+        .filter((field) => !valuesEqual(displayedBefore[field], displayedAfter[field]));
     const visibleChangedFields = changedFields.filter((field) => GOVERNED_PROCESS_FIELDS[field] !== undefined);
+    const visibleFields = visibleChangedFields;
     const hasRestrictedChanges = visibleChangedFields.length !== changedFields.length;
-    const derivedRows = [
-        [
-            'approvals:governed.derived.cif',
-            processDerivedCifLabel(t, derivedImpact.before.cif),
-            processDerivedCifLabel(t, derivedImpact.after.cif),
-        ],
-        [
-            'approvals:governed.derived.criticality_class',
-            processDerivedCriticalityLabel(t, derivedImpact.before.criticality_class),
-            processDerivedCriticalityLabel(t, derivedImpact.after.criticality_class),
-        ],
-    ] as const;
+    const pointDerivedRows = isRelationshipImpact(derivedImpact)
+        ? []
+        : ([
+            [
+                'approvals:governed.derived.cif',
+                derivedStateLabel(t, derivedImpact.before, 'cif'),
+                derivedStateLabel(t, derivedImpact.after, 'cif'),
+            ],
+            [
+                'approvals:governed.derived.criticality_class',
+                derivedStateLabel(t, derivedImpact.before, 'criticality_class'),
+                derivedStateLabel(t, derivedImpact.after, 'criticality_class'),
+            ],
+        ] as const);
     const readableImpactedResources = impactedResources.filter(
         (resource) => isSafeBusinessLabel(resource.resource_name),
     );
 
     return (
         <div className="space-y-5" data-testid={testId}>
+            {mutationKind ? (
+                <p className="text-xs font-bold uppercase tracking-widest text-accent">
+                    {t(`approvals:governed.mutation_kind.${mutationKind.replaceAll('.', '_')}`, {
+                        defaultValue: t('approvals:request_types.update'),
+                    })}
+                </p>
+            ) : null}
+            {relationshipChange ? (
+                <section aria-labelledby={`${testId ?? 'governed-mutation'}-relationship-context`}>
+                    <h5
+                        id={`${testId ?? 'governed-mutation'}-relationship-context`}
+                        className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >
+                        {t('approvals:governed.relationship.title')}
+                    </h5>
+                    <dl className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="rounded-lg border border-white/5 bg-black/20 p-3">
+                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                                {t('approvals:governed.relationship.target')}
+                            </dt>
+                            <dd className="break-words text-xs font-bold text-slate-300">
+                                {isSafeBusinessLabel(relationshipChange.target_resource_name)
+                                    ? relationshipChange.target_resource_name.trim()
+                                    : t('approvals:governed.redacted_value')}
+                            </dd>
+                        </div>
+                        <div className="rounded-lg border border-white/5 bg-black/20 p-3">
+                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                                {t('approvals:governed.relationship.type')}
+                            </dt>
+                            <dd className="text-xs font-bold text-slate-300">
+                                {t(`approvals:governed.relationship.resource_type.${relationshipChange.target_resource_type}`, {
+                                    defaultValue: t('approvals:governed.redacted_value'),
+                                })}
+                            </dd>
+                        </div>
+                        <div className="rounded-lg border border-white/5 bg-black/20 p-3">
+                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                                {t('approvals:governed.relationship.action_label')}
+                            </dt>
+                            <dd className="text-xs font-bold text-slate-300">
+                                {t(`approvals:governed.relationship.action.${relationshipChange.action}`)}
+                            </dd>
+                        </div>
+                    </dl>
+                </section>
+            ) : null}
             <section aria-labelledby={`${testId ?? 'governed-mutation'}-business-fields`}>
                 <h5
                     id={`${testId ?? 'governed-mutation'}-business-fields`}
@@ -157,26 +251,33 @@ export function GovernedMutationDiff({
                 >
                     {t('approvals:governed.business_changes')}
                 </h5>
-                {changedFields.length === 0 ? (
+                {visibleFields.length === 0 && changedFields.length === 0 ? (
                     <p className="text-sm text-slate-500">{t('approvals:changes.no_changes')}</p>
                 ) : (
                     <dl className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                        {visibleChangedFields.map((field) => {
+                        {visibleFields.map((field) => {
                             const spec = GOVERNED_PROCESS_FIELDS[field];
+                            const unchangedContext = valuesEqual(displayedBefore[field], displayedAfter[field]);
                             return (
                                 <div key={field} className="rounded-lg border border-white/5 bg-black/20 p-3">
                                     <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
                                         {t(spec.labelKey)}
                                     </dt>
-                                    <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                        <span className="break-words text-rose-300">
-                                            {displayGovernedValue(before[field], spec, t, i18n.language)}
-                                        </span>
-                                        <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                        <span className="break-words font-bold text-emerald-300">
-                                            {displayGovernedValue(after[field], spec, t, i18n.language)}
-                                        </span>
-                                    </dd>
+                                    {unchangedContext ? (
+                                        <dd className="break-words text-xs font-bold text-slate-300">
+                                            {displayGovernedValue(displayedAfter[field], spec, t, i18n.language)}
+                                        </dd>
+                                    ) : (
+                                        <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
+                                            <span className="break-words text-rose-300">
+                                                {displayGovernedValue(displayedBefore[field], spec, t, i18n.language)}
+                                            </span>
+                                            <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
+                                            <span className="break-words font-bold text-emerald-300">
+                                                {displayGovernedValue(displayedAfter[field], spec, t, i18n.language)}
+                                            </span>
+                                        </dd>
+                                    )}
                                 </div>
                             );
                         })}
@@ -201,8 +302,44 @@ export function GovernedMutationDiff({
                 >
                     {t('approvals:governed.derived_impact')}
                 </h5>
+                {isRelationshipImpact(derivedImpact) ? (
+                    <div className="space-y-3">
+                        {derivedImpact.processes.map((processImpact, index) => (
+                            <div
+                                key={`${processImpact.resource_name}-${index}`}
+                                className="rounded-lg border border-white/5 bg-black/20 p-3"
+                            >
+                                <p className="mb-3 text-xs font-bold text-slate-200">
+                                    {isSafeBusinessLabel(processImpact.resource_name)
+                                        ? processImpact.resource_name.trim()
+                                        : t('approvals:governed.redacted_value')}
+                                </p>
+                                <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    {(['cif', 'criticality_class'] as const).map((field) => (
+                                        <div key={field}>
+                                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                                                {t(`approvals:governed.derived.${field}`)}
+                                            </dt>
+                                            <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
+                                                <span className="text-rose-300">
+                                                    {derivedStateLabel(t, processImpact.before, field)
+                                                        ?? t('approvals:governed.not_set')}
+                                                </span>
+                                                <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
+                                                <span className="font-bold text-emerald-300">
+                                                    {derivedStateLabel(t, processImpact.after, field)
+                                                        ?? t('approvals:governed.not_set')}
+                                                </span>
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
                 <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {derivedRows.map(([labelKey, oldValue, newValue]) => (
+                    {pointDerivedRows.map(([labelKey, oldValue, newValue]) => (
                         <div key={labelKey} className="rounded-lg border border-white/5 bg-black/20 p-3">
                             <dt className="mb-2 text-[10px] font-bold uppercase text-accent">{t(labelKey)}</dt>
                             <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
@@ -217,6 +354,7 @@ export function GovernedMutationDiff({
                         </div>
                     ))}
                 </dl>
+                )}
             </section>
 
             {readableImpactedResources.length > 0 ? (

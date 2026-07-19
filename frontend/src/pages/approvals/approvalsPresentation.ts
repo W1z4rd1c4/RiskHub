@@ -50,12 +50,45 @@ export function getApprovalStatusBadge(status: ApprovalStatus): string {
 export function getApprovalActionBadge(action: ApprovalActionType): string {
     switch (action) {
         case 'delete':
+        case 'archive':
             return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
+        case 'create':
+            return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
         case 'edit':
             return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
         default:
             return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
     }
+}
+
+export type GovernedActionLabel = 'create' | 'update' | 'archive' | 'link_add' | 'link_update' | 'link_remove';
+
+export function getGovernedActionLabel(
+    actionType: ApprovalActionType,
+    mutationKind?: string | null,
+): GovernedActionLabel {
+    switch (mutationKind) {
+        case 'process.create':
+            return 'create';
+        case 'process.archive':
+            return 'archive';
+        case 'process.link.risk.add':
+        case 'process.link.asset.add':
+        case 'process.link.vendor.add':
+            return 'link_add';
+        case 'process.link.asset.update':
+            return 'link_update';
+        case 'process.link.risk.remove':
+        case 'process.link.asset.remove':
+        case 'process.link.vendor.remove':
+            return 'link_remove';
+        case null:
+        case undefined:
+            break;
+    }
+    if (actionType === 'create') return 'create';
+    if (actionType === 'archive' || actionType === 'delete') return 'archive';
+    return 'update';
 }
 
 export function isQuestionnaireOverdue(questionnaire: RiskQuestionnaireListItem, now = Date.now()): boolean {

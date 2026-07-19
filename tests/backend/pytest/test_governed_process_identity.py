@@ -21,8 +21,8 @@ from app.models import (
 )
 from app.schemas.process import ProcessUpdate
 from app.services._governed_mutations.process_identity import (
-    InvalidGovernedProcessIdentity,
     PROCESS_DISPLAY_NAME_MAX_LENGTH,
+    InvalidGovernedProcessIdentity,
     canonical_process_display_name,
     new_governed_process_proposal,
     strict_governed_process_identity,
@@ -511,9 +511,7 @@ def _apply_corruption(
             "boolean": True,
         }
         derived_field = "criticality_class" if field == "criticality" else field
-        proposal.derived_impact_snapshot[block][derived_field] = malformed_values[
-            value_kind
-        ]
+        proposal.derived_impact_snapshot[block][derived_field] = malformed_values[value_kind]
     elif corruption == "derived_scalar":
         proposal.derived_impact_snapshot = "protected"
     elif corruption == "derived_array":
@@ -524,9 +522,7 @@ def _apply_corruption(
             "before": "protected",
         }
     elif corruption == "derived_missing_block":
-        proposal.derived_impact_snapshot = {
-            "before": {"cif": "yes", "criticality_class": "critical"}
-        }
+        proposal.derived_impact_snapshot = {"before": {"cif": "yes", "criticality_class": "critical"}}
     elif corruption == "derived_extra_block_key":
         proposal.derived_impact_snapshot = {
             **proposal.derived_impact_snapshot,
@@ -592,13 +588,9 @@ def _apply_corruption(
     elif corruption == "impact_empty":
         proposal.impacted_resources_snapshot = []
     elif corruption == "impact_extra_key":
-        proposal.impacted_resources_snapshot = [
-            {**proposal.impacted_resources_snapshot[0], "live_alias": True}
-        ]
+        proposal.impacted_resources_snapshot = [{**proposal.impacted_resources_snapshot[0], "live_alias": True}]
     elif corruption == "impact_resource_id":
-        proposal.impacted_resources_snapshot = [
-            {**proposal.impacted_resources_snapshot[0], "resource_id": 900_002}
-        ]
+        proposal.impacted_resources_snapshot = [{**proposal.impacted_resources_snapshot[0], "resource_id": 900_002}]
     elif corruption == "impact_resource_name":
         proposal.impacted_resources_snapshot = [
             {
@@ -786,10 +778,7 @@ async def test_exact_sql_membership_matches_strict_object_parser(
         "derived_nul_cif",
         "derived_nul_criticality",
     }
-    if (
-        db_session.bind.dialect.name == "postgresql"
-        and corruption in postgres_storage_rejections
-    ):
+    if db_session.bind.dialect.name == "postgresql" and corruption in postgres_storage_rejections:
         assert parser_valid is False
         db_session.add(proposal)
         with pytest.raises(DBAPIError):
