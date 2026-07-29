@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { VendorRegisterLinksSection } from '@/pages/vendors/VendorRegisterLinksSection';
@@ -64,9 +64,15 @@ function renderSection(capabilities: {
         <QueryClientProvider client={queryClient}>
             <MemoryRouter>
                 <VendorRegisterLinksSection vendorId={4} capabilities={capabilities} />
+                <LocationProbe />
             </MemoryRouter>
         </QueryClientProvider>,
     );
+}
+
+function LocationProbe() {
+    const location = useLocation();
+    return <div data-testid="location">{location.pathname}{location.search}</div>;
 }
 
 describe('Vendor register-link backend capability gates', () => {
@@ -136,9 +142,52 @@ describe('Vendor register-link backend capability gates', () => {
         expect(screen.queryByTestId('vendor-asset-link-add')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByTestId('vendor-asset-link-remove-41'));
+        const dialog = screen.getByRole('alertdialog');
+        fireEvent.change(within(dialog).getByRole('textbox'), {
+            target: { value: 'Remove obsolete dependency' },
+        });
+        fireEvent.click(within(dialog).getByText('link_approval.continue'));
 
         await waitFor(() => {
-            expect(assetApi.removeVendorLink).toHaveBeenCalledWith(7, 41);
+            expect(assetApi.removeVendorLink).toHaveBeenCalledWith(7, 41, 'Remove obsolete dependency');
+        });
+    });
+
+    it('navigates to the queued approval returned by a governed Vendor-side Asset unlink', async () => {
+        vi.mocked(vendorApi.getAssetLinks).mockResolvedValue([{
+            id: 43,
+            asset_id: 9,
+            vendor_id: 4,
+            asset_name: 'Protected asset',
+            ict_service_code: 'S03',
+            capabilities: { can_delete: true },
+            created_at: '2026-07-15T08:00:00Z',
+        }]);
+        vi.mocked(assetApi.removeVendorLink).mockResolvedValue({
+            status: 'approval_required',
+            message: 'Queued',
+            approval_id: 186,
+            action_type: 'edit',
+            pending_fields: ['relationship'],
+            proposal_id: 'proposal-vendor-asset-186',
+            proposal_version: 1,
+        });
+
+        renderSection({
+            can_view_asset_links: true,
+            can_manage_asset_links: false,
+            can_manage_process_links: false,
+        });
+
+        fireEvent.click(await screen.findByTestId('vendor-asset-link-remove-43'));
+        const dialog = screen.getByRole('alertdialog');
+        fireEvent.change(within(dialog).getByRole('textbox'), {
+            target: { value: 'Review protected dependency' },
+        });
+        fireEvent.click(within(dialog).getByText('link_approval.continue'));
+
+        await waitFor(() => {
+            expect(screen.getByTestId('location')).toHaveTextContent('/approvals?tab=mine&approvalId=186');
         });
     });
 

@@ -17,7 +17,14 @@ vi.mock('@/authz/useAuthz', () => ({
 }));
 
 vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({ t: (key: string) => key }),
+    useTranslation: () => ({
+        t: (key: string, options?: { date?: string; time?: string }) => (
+            key === 'pending_change.requested_by_at'
+                ? `${options?.date}|${options?.time}`
+                : key
+        ),
+        i18n: { language: 'cs' },
+    }),
 }));
 
 vi.mock('@/pages/assets/useAssetDetailState', () => ({
@@ -91,6 +98,70 @@ function pendingAsset(role: 'business_owner' | 'ict_owner' = 'business_owner'): 
     };
 }
 
+function governedPendingAsset(): Asset {
+    return {
+        ...ownedAsset(),
+        capabilities: {
+            can_read: true,
+            can_update: false,
+            can_archive: false,
+            can_restore: false,
+            has_pending_change: true,
+            business_edit_blocked: true,
+            can_cancel_pending_change: true,
+        },
+        pending_change: {
+            approval_id: 86,
+            proposal_id: '4c17a671-5b7d-4ed6-a9bb-4ab184ed1ed1',
+            proposal_version: 1,
+            status: 'pending',
+            requested_at: '2026-07-19T10:00:00Z',
+            requested_by_name: 'Asset Owner',
+            reason: 'Review protected Asset edit',
+            generic_label: 'protected_asset_change',
+            mutation_kind: 'asset.edit',
+            before: { name: 'Customer account platform' },
+            after: { name: 'Customer account platform v2' },
+            derived_impact: { before: null, after: null },
+            impacted_resources: [{ resource_type: 'asset', resource_name: 'Customer account platform' }],
+            relationship_change: null,
+            capabilities: { can_view_diff: true, can_cancel: true },
+        },
+    };
+}
+
+function redactedGovernedPendingAsset(): Asset {
+    return {
+        ...ownedAsset(),
+        capabilities: {
+            can_read: true,
+            can_update: false,
+            can_archive: false,
+            can_restore: false,
+            has_pending_change: true,
+            business_edit_blocked: true,
+            can_cancel_pending_change: false,
+        },
+        pending_change: {
+            approval_id: null,
+            proposal_id: null,
+            proposal_version: null,
+            status: 'pending',
+            requested_at: '2026-07-19T10:00:00Z',
+            requested_by_name: null,
+            reason: '',
+            generic_label: 'protected_asset_change',
+            mutation_kind: null,
+            before: {},
+            after: {},
+            derived_impact: {},
+            impacted_resources: [],
+            relationship_change: null,
+            capabilities: { can_view_diff: false, can_cancel: false },
+        },
+    };
+}
+
 function LocationProbe() {
     const location = useLocation();
     return <div data-testid="location">{location.pathname}{location.search}</div>;
@@ -113,6 +184,14 @@ describe('AssetDetailPage ownership resolution', () => {
         mocks.canViewGovernance = true;
     });
 
+    it('propagates the active Czech locale to pending-change timestamps', () => {
+        mocks.asset = governedPendingAsset();
+        renderPage('view');
+
+        expect(screen.getByText(/19\. 7\. 2026/)).toBeInTheDocument();
+        expect(screen.queryByText(/7\/19\/2026/)).not.toBeInTheDocument();
+    });
+
     it('hides ordinary Edit and sends an authorized operator to the Asset Governance queue', async () => {
         const user = userEvent.setup();
         const { container } = renderPage('view');
@@ -130,16 +209,22 @@ describe('AssetDetailPage ownership resolution', () => {
         expect(results.violations.map((violation) => violation.id)).toEqual([]);
     });
 
-    it('blocks the direct edit route before rendering AssetForm or an ordinary Edit action', () => {
+    it('blocks the direct edit route with an accessible named back action', async () => {
         mocks.asset = pendingAsset('ict_owner');
-        renderPage('edit');
+        const { container } = renderPage('edit');
 
         expect(screen.getByTestId('asset-orphan-edit-blocked')).toHaveTextContent(
             'detail.ownership_pending',
         );
         expect(screen.getByRole('button', { name: 'detail.resolve_in_governance' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'actions.back_to_register' })).toBeInTheDocument();
         expect(screen.queryByTestId('asset-form')).not.toBeInTheDocument();
         expect(screen.queryByTestId('asset-detail-edit')).not.toBeInTheDocument();
+        const results = await axe.run(container, {
+            runOnly: { type: 'tag', values: AXE_TAGS },
+            rules: { 'color-contrast': { enabled: false } },
+        });
+        expect(results.violations.map((violation) => violation.id)).toEqual([]);
     });
 
     it('renders owner metadata without exposing emails or raw ownership IDs', () => {
@@ -155,5 +240,35 @@ describe('AssetDetailPage ownership resolution', () => {
         expect(screen.queryByText('9137', { exact: true })).not.toBeInTheDocument();
         expect(screen.queryByText('8246', { exact: true })).not.toBeInTheDocument();
         expect(screen.queryByText('7315', { exact: true })).not.toBeInTheDocument();
+    });
+
+    it('renders the governed pending diff and blocks the direct edit route', () => {
+        mocks.asset = governedPendingAsset();
+        const { rerender } = renderPage('view');
+
+        expect(screen.getByTestId('asset-pending-change')).toBeInTheDocument();
+        expect(screen.queryByTestId('asset-detail-edit')).not.toBeInTheDocument();
+
+        rerender(
+            <MemoryRouter initialEntries={['/assets/75/edit']}>
+                <Routes>
+                    <Route path="*" element={<AssetDetailPage mode="edit" />} />
+                </Routes>
+            </MemoryRouter>,
+        );
+        expect(screen.getByTestId('asset-pending-change')).toBeInTheDocument();
+        expect(screen.queryByTestId('asset-form')).not.toBeInTheDocument();
+    });
+
+    it('renders the generic pending banner from a redacted Asset API projection', () => {
+        mocks.asset = redactedGovernedPendingAsset();
+        renderPage('view');
+
+        expect(screen.getByTestId('asset-pending-change')).toBeInTheDocument();
+        expect(screen.getByText('pending_change.badge')).toBeInTheDocument();
+        expect(screen.getByText('pending_change.diff_restricted')).toBeInTheDocument();
+        expect(screen.queryByTestId('asset-pending-change-diff')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('asset-detail-edit')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'pending_change.cancel' })).not.toBeInTheDocument();
     });
 });

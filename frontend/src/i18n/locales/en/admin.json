@@ -727,11 +727,15 @@
       "immutable_help": "These protection rules are enforced by the system and cannot be changed.",
       "threshold": "Protection threshold",
       "triggers": {
-        "current_or_proposed_cif_yes": "Current or proposed CIF is Yes"
+        "current_or_proposed_cif_yes": "Current or proposed CIF is Yes",
+        "current_or_proposed_cif_yes_or_resulting_criticality_critical": "Current or proposed CIF is Yes, or resulting criticality is Critical"
       },
       "actions": "Covered actions",
       "covered_action_values": {
-        "edit": "Process edits"
+        "create": "Creates",
+        "edit": "Edits",
+        "link": "Link changes",
+        "archive": "Archives"
       },
       "separation": "Requester separation",
       "self_approval": {

@@ -19,6 +19,7 @@ from app.core.permissions import has_permission
 from app.models import (
     ApprovalRequest,
     ApprovalStatus,
+    Asset,
     Department,
     GovernedMutationImpactLock,
     GovernedMutationProposal,
@@ -43,7 +44,8 @@ from app.services.approval_scenario_policy import (
 )
 from app.services.transaction_boundary import commit_service_boundary
 
-from .fixed_policy import validated_fixed_process_roles
+from .fixed_asset_policy import ASSET_SCENARIO_KEY, validated_fixed_asset_roles
+from .fixed_policy import SCENARIO_KEY, validated_fixed_process_roles
 from .process_mutation_policy import safe_process_department_label, safe_process_user_label
 from .process_mutations import (
     PROCESS_ARCHIVE_KIND,
@@ -300,13 +302,28 @@ def _assert_resolver(
 async def _live_policy_stale_reason(
     identity: ExtendedProcessMutationIdentity,
     resolver: User,
-    scenario: ApprovalScenario,
+    scenarios: dict[str, ApprovalScenario],
 ) -> str | None:
-    if not scenario.requires_approval:
-        return "Protected Process approval scenario was disabled after submission"
-    roles = validated_fixed_process_roles(scenario)
+    live_role_lists: list[list[str]] = []
+    for scenario_key, policy_snapshot in zip(
+        identity.triggered_scenarios,
+        identity.triggered_policy_snapshots,
+        strict=True,
+    ):
+        scenario = scenarios.get(scenario_key)
+        if scenario is None or not scenario.requires_approval:
+            return "A triggering governed mutation scenario was disabled after submission"
+        live_roles = (
+            validated_fixed_process_roles(scenario)
+            if scenario_key == SCENARIO_KEY
+            else validated_fixed_asset_roles(scenario)
+        )
+        if live_roles != policy_snapshot["configured_roles"]:
+            return "Governed mutation approver roles changed after submission"
+        live_role_lists.append(live_roles)
+    roles = [role for role in live_role_lists[0] if all(role in configured for configured in live_role_lists[1:])]
     if roles != list(identity.approver_roles):
-        return "Protected Process approver roles changed after submission"
+        return "Governed mutation effective approver roles changed after submission"
     if resolver.role is None or resolver.role.name not in roles:
         return "Resolver is no longer eligible under the live scenario"
     return None
@@ -346,6 +363,16 @@ def _impacted_process_ids(proposal: GovernedMutationProposal) -> list[int]:
     return ids
 
 
+def _impacted_asset_ids(proposal: GovernedMutationProposal) -> list[int]:
+    return sorted(
+        {
+            int(item["resource_id"])
+            for item in proposal.impacted_resources_snapshot
+            if item.get("resource_type") == "asset"
+        }
+    )
+
+
 async def _lock_extended_resolution_suffix(
     db: AsyncSession,
     *,
@@ -362,17 +389,30 @@ async def _lock_extended_resolution_suffix(
     return await lock_governed_process_resolution_suffix(
         db,
         process_ids=_impacted_process_ids(proposal),
+        asset_ids=_impacted_asset_ids(proposal),
         additional_department_ids=(*additional_department_ids, *creation_department_ids),
+        scenario_keys=identity.triggered_scenarios,
     )
 
 
-def _version_stale_reason(proposal: GovernedMutationProposal, processes: dict[int, Process]) -> str | None:
+def _version_stale_reason(
+    proposal: GovernedMutationProposal,
+    processes: dict[int, Process],
+    assets: dict[int, Asset] | None = None,
+) -> str | None:
     for item in proposal.impacted_resources_snapshot:
-        process = processes.get(item["resource_id"])
-        if process is None:
-            return "An impacted Process no longer exists"
-        if process.governance_version != item["base_governance_version"]:
-            return "An impacted Process governance version changed after submission"
+        if item.get("resource_type") == "process":
+            process = processes.get(item["resource_id"])
+            if process is None:
+                return "An impacted Process no longer exists"
+            if process.governance_version != item["base_governance_version"]:
+                return "An impacted Process governance version changed after submission"
+        elif item.get("resource_type") == "asset":
+            asset = (assets or {}).get(item["resource_id"])
+            if asset is None:
+                return "An impacted Asset no longer exists"
+            if asset.governance_version != item["base_governance_version"]:
+                return "An impacted Asset governance version changed after submission"
     return None
 
 
@@ -480,6 +520,8 @@ async def approve_extended_process_mutation(
         additional_department_ids=(*actor_department_ids, *relationship_department_ids),
     )
     processes = locked_suffix.processes
+    point_assets = list(locked_suffix.assets.values())
+    point_assets_by_id = {asset.id: asset for asset in point_assets}
     primary = processes.get(identity.primary_resource_id) if identity.primary_resource_id else None
     _assert_resolver(identity, resolver, proposal=proposal, process=primary)
     department_id = (
@@ -489,9 +531,9 @@ async def approve_extended_process_mutation(
     )
     stale = _envelope_stale_reason(approval, proposal, identity, locks)
     if stale is None:
-        stale = _version_stale_reason(proposal, processes)
+        stale = _version_stale_reason(proposal, processes, point_assets_by_id)
     if stale is None:
-        stale = await _live_policy_stale_reason(identity, resolver, locked_suffix.scenario)
+        stale = await _live_policy_stale_reason(identity, resolver, locked_suffix.scenarios)
 
     changes: dict[str, dict[str, Any]] = dict(identity.pending_changes)
     if identity.mutation_kind == PROCESS_CREATE_KIND:
@@ -536,18 +578,47 @@ async def approve_extended_process_mutation(
                 updates={},
                 parameters=locked_suffix.parameters,
             )
-            expected = {
+            process_impact = {
                 "before": {"cif": current.cif, "criticality_class": current.criticality_class},
                 "after": {"cif": current.cif, "criticality_class": current.criticality_class},
             }
-            if current.cif != "yes" or proposal.derived_impact_snapshot != expected:
+            if point_assets:
+                from app.services._governed_mutations.asset_mutations import (
+                    process_point_asset_impacts,
+                )
+
+                _, asset_rows = await process_point_asset_impacts(
+                    db,
+                    process=primary,
+                    updates={},
+                    archive=True,
+                    assets=point_assets,
+                    parameters=locked_suffix.parameters,
+                )
+                expected = {
+                    "processes": [{"resource_id": primary.id, **process_impact}],
+                    "assets": asset_rows,
+                }
+            else:
+                expected = process_impact
+            if (
+                SCENARIO_KEY in identity.triggered_scenarios and current.cif != "yes"
+            ) or proposal.derived_impact_snapshot != expected:
                 stale = "Impacted Process archive derivation changed after submission"
+            elif ASSET_SCENARIO_KEY in identity.triggered_scenarios and not any(
+                block["cif"] == "yes" or block["resulting_criticality"] == "critical"
+                for row in asset_rows
+                for block in (row["before"], row["after"])
+            ):
+                stale = "Downstream Assets are no longer protected by the current policy"
         if stale is None:
             assert primary is not None
             primary.is_archived = True
             primary.archived_at = utc_now()
             primary.archived_by_id = resolver.id
             primary.governance_version += 1
+            for asset in point_assets:
+                asset.governance_version += 1
             await audit_process.process_archived(db, actor=resolver, process=primary, changes=changes)
     elif identity.mutation_kind.startswith(PROCESS_RELATIONSHIP_PREFIX):
         assert relationship_snapshot is not None
@@ -562,6 +633,7 @@ async def approve_extended_process_mutation(
             )
         except ConflictError as exc:
             stale = str(exc)
+        locked_composite_assets: dict[int, Asset] = {}
         if stale is None:
             derived_rows = []
             protected = False
@@ -575,7 +647,40 @@ async def approve_extended_process_mutation(
                 block = {"cif": current.cif, "criticality_class": current.criticality_class}
                 protected = protected or current.cif == "yes"
                 derived_rows.append({"resource_id": process_id, "before": block, "after": block})
-            if not protected or proposal.derived_impact_snapshot != {"processes": derived_rows}:
+            expected_impact: dict[str, object] = {"processes": derived_rows}
+            if proposal.derived_impact_snapshot.get("assets"):
+                from app.services._governed_mutations.asset_mutations import (
+                    process_asset_composite_impact,
+                )
+
+                try:
+                    asset, asset_impact, asset_protected = await process_asset_composite_impact(
+                        db,
+                        operation=proposal.proposed_changes["operation"],
+                        proposal_db_id=proposal.id,
+                        asset=locked_suffix.assets.get(
+                            int(proposal.proposed_changes["operation"]["related_resource_id"])
+                        ),
+                        parameters=locked_suffix.parameters,
+                    )
+                    locked_composite_assets[asset.id] = asset
+                    asset_descriptor = next(
+                        (
+                            item
+                            for item in proposal.impacted_resources_snapshot
+                            if item.get("resource_type") == "asset" and item.get("resource_id") == asset.id
+                        ),
+                        None,
+                    )
+                    if asset_descriptor is None:
+                        stale = "Impacted Asset descriptor is missing"
+                    elif asset.governance_version != asset_descriptor.get("base_governance_version"):
+                        stale = "An impacted Asset governance version changed after submission"
+                    expected_impact["assets"] = [asset_impact]
+                    protected = protected or asset_protected
+                except (ConflictError, NotFoundError, ValidationError) as exc:
+                    stale = str(exc)
+            if stale is None and (not protected or proposal.derived_impact_snapshot != expected_impact):
                 stale = "Impacted Process relationship derivation changed after submission"
         if stale is None:
             if primary is None or requester is None or not requester.is_active:
@@ -593,6 +698,8 @@ async def approve_extended_process_mutation(
                     changes = await apply_process_relationship_operation(
                         db, process=primary, operation=proposal.proposed_changes["operation"], current_user=resolver
                     )
+                    for impacted_asset in locked_composite_assets.values():
+                        impacted_asset.governance_version += 1
                 except (AuthorizationError, ConflictError, NotFoundError, ValidationError) as exc:
                     stale = str(exc)
     else:  # pragma: no cover - the strict parser makes this unreachable
@@ -655,7 +762,7 @@ async def reject_extended_process_mutation(
     _assert_resolver(identity, resolver, proposal=proposal, process=primary)
     stale = _envelope_stale_reason(approval, proposal, identity, locks)
     if stale is None:
-        stale = await _live_policy_stale_reason(identity, resolver, locked_suffix.scenario)
+        stale = await _live_policy_stale_reason(identity, resolver, locked_suffix.scenarios)
     department_id = (
         primary.owning_department_id
         if primary

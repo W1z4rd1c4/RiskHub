@@ -47,6 +47,15 @@ async def _scenario(db: AsyncSession) -> None:
             approver_roles=["risk_manager", "cro"],
         )
     )
+    db.add(
+        ApprovalScenario(
+            key="protected_asset_edit",
+            display_name="Protected Asset mutations",
+            description="Independent approval for protected Asset mutations",
+            requires_approval=True,
+            approver_roles=["risk_manager", "cro"],
+        )
+    )
     await db.commit()
 
 
@@ -63,7 +72,9 @@ async def _scoped_cro_reviewer(db: AsyncSession, source: User) -> User:
     await db.commit()
     return (
         await db.execute(
-            select(User).options(*user_selectinload_options(include_permissions=True)).where(User.id == reviewer.id)
+            select(User)
+            .options(*user_selectinload_options(include_permissions=True))
+            .where(User.id == reviewer.id)
         )
     ).scalar_one()
 
@@ -110,14 +121,21 @@ async def test_protected_creation_has_no_operational_identity_until_approval(
     assert approval.resource_id is None
     proposal = (
         await db_session.execute(
-            select(GovernedMutationProposal).where(GovernedMutationProposal.approval_request_id == approval_id)
+            select(GovernedMutationProposal).where(
+                GovernedMutationProposal.approval_request_id == approval_id
+            )
         )
     ).scalar_one()
     assert proposal.mutation_kind == "process.create"
     assert proposal.primary_resource_id is None
     assert proposal.impacted_resources_snapshot == []
     assert await db_session.scalar(select(func.count()).select_from(Process)) == 0
-    assert await db_session.scalar(select(func.count()).select_from(GovernedMutationImpactLock)) == 0
+    assert (
+        await db_session.scalar(
+            select(func.count()).select_from(GovernedMutationImpactLock)
+        )
+        == 0
+    )
 
     pending = requester_list.json()["pending_creations"]
     assert requester_list.json()["items"] == []
@@ -140,8 +158,12 @@ async def test_protected_creation_has_no_operational_identity_until_approval(
             f"/api/v1/approvals/{approval_id}/approve",
             json={"resolution_notes": "Approved protected creation"},
         )
-    assert [row["approval_id"] for row in visible.json()["pending_creations"]] == [approval_id]
-    assert visible.json()["pending_creations"][0]["capabilities"]["is_requester"] is False
+    assert [row["approval_id"] for row in visible.json()["pending_creations"]] == [
+        approval_id
+    ]
+    assert (
+        visible.json()["pending_creations"][0]["capabilities"]["is_requester"] is False
+    )
     assert visible.json()["pending_creations"][0]["capabilities"]["can_resolve"] is True
     assert approved.status_code == 200, approved.text
     assert approved.json()["status"] == "approved"
@@ -169,7 +191,9 @@ async def test_creation_resolution_expires_snapshot_or_payload_corruption(
     approval_id = submitted.json()["approval_id"]
     proposal = (
         await db_session.execute(
-            select(GovernedMutationProposal).where(GovernedMutationProposal.approval_request_id == approval_id)
+            select(GovernedMutationProposal).where(
+                GovernedMutationProposal.approval_request_id == approval_id
+            )
         )
     ).scalar_one()
     values = (
@@ -185,7 +209,9 @@ async def test_creation_resolution_expires_snapshot_or_payload_corruption(
         }
     )
     await db_session.execute(
-        update(GovernedMutationProposal).where(GovernedMutationProposal.id == proposal.id).values(**values)
+        update(GovernedMutationProposal)
+        .where(GovernedMutationProposal.id == proposal.id)
+        .values(**values)
     )
     await db_session.commit()
 
@@ -272,7 +298,9 @@ async def test_fresh_reload_preserves_valid_classifier_and_scoped_queue(
 
     assert queue.status_code == 200, queue.text
     assert [item["id"] for item in queue.json()["items"]] == [approval_id]
-    created_at = datetime.fromisoformat(queue.json()["items"][0]["created_at"].replace("Z", "+00:00"))
+    created_at = datetime.fromisoformat(
+        queue.json()["items"][0]["created_at"].replace("Z", "+00:00")
+    )
     assert created_at.tzinfo is not None
     assert created_at.utcoffset() is not None
 
@@ -309,7 +337,9 @@ async def test_fresh_reload_preserves_scoped_creation_resolution(
 
     assert resolved.status_code == 200, resolved.text
     assert resolved.json()["status"] == "approved"
-    resolved_at = datetime.fromisoformat(resolved.json()["resolved_at"].replace("Z", "+00:00"))
+    resolved_at = datetime.fromisoformat(
+        resolved.json()["resolved_at"].replace("Z", "+00:00")
+    )
     assert resolved_at.tzinfo is not None
     assert resolved_at.utcoffset() is not None
     assert await db_session.scalar(select(func.count()).select_from(Process)) == 1
@@ -355,10 +385,20 @@ async def test_postgres_fresh_reload_preserves_scoped_queue_and_resolution(
 
     assert queue.status_code == 200, queue.text
     assert [item["id"] for item in queue.json()["items"]] == [approval_id]
-    assert datetime.fromisoformat(queue.json()["items"][0]["created_at"].replace("Z", "+00:00")).utcoffset() is not None
+    assert (
+        datetime.fromisoformat(
+            queue.json()["items"][0]["created_at"].replace("Z", "+00:00")
+        ).utcoffset()
+        is not None
+    )
     assert resolved.status_code == 200, resolved.text
     assert resolved.json()["status"] == "approved"
-    assert datetime.fromisoformat(resolved.json()["resolved_at"].replace("Z", "+00:00")).utcoffset() is not None
+    assert (
+        datetime.fromisoformat(
+            resolved.json()["resolved_at"].replace("Z", "+00:00")
+        ).utcoffset()
+        is not None
+    )
 
 
 @pytest.mark.asyncio
@@ -385,7 +425,10 @@ async def test_strict_extended_identity_rejects_malformed_created_timestamp(
     proposal = await db_session.scalar(
         select(GovernedMutationProposal)
         .options(selectinload(GovernedMutationProposal.approval_request))
-        .where(GovernedMutationProposal.approval_request_id == submitted.json()["approval_id"])
+        .where(
+            GovernedMutationProposal.approval_request_id
+            == submitted.json()["approval_id"]
+        )
     )
     assert proposal is not None
     target = proposal.approval_request if timestamp_owner == "approval" else proposal
@@ -394,6 +437,49 @@ async def test_strict_extended_identity_rejects_malformed_created_timestamp(
     with pytest.raises(
         ValueError,
         match="Malformed extended governed Process",
+    ):
+        strict_extended_process_identity(proposal)
+
+
+@pytest.mark.asyncio
+async def test_extended_process_parser_totalizes_deep_json_before_semantic_descent(
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+) -> None:
+    await _scenario(db_session)
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.post(
+            "/api/v1/processes",
+            json=_payload(
+                test_user_cro,
+                test_department.id,
+                l1_process="Bounded parser topology",
+            ),
+        )
+    assert submitted.status_code == 202, submitted.text
+    proposal = await db_session.scalar(
+        select(GovernedMutationProposal)
+        .options(selectinload(GovernedMutationProposal.approval_request))
+        .where(
+            GovernedMutationProposal.approval_request_id
+            == submitted.json()["approval_id"]
+        )
+    )
+    assert proposal is not None
+    deep: dict[str, object] = {}
+    cursor = deep
+    for _ in range(2_000):
+        nested: dict[str, object] = {}
+        cursor["nested"] = nested
+        cursor = nested
+    proposal.proposed_changes = {"after": deep}
+
+    with pytest.raises(
+        ValueError,
+        match="Malformed extended governed Process identity",
     ):
         strict_extended_process_identity(proposal)
 
@@ -420,7 +506,10 @@ async def test_strict_extended_identity_rejects_inverted_terminal_timestamps(
     proposal = await db_session.scalar(
         select(GovernedMutationProposal)
         .options(selectinload(GovernedMutationProposal.approval_request))
-        .where(GovernedMutationProposal.approval_request_id == submitted.json()["approval_id"])
+        .where(
+            GovernedMutationProposal.approval_request_id
+            == submitted.json()["approval_id"]
+        )
     )
     assert proposal is not None
     approval = proposal.approval_request
@@ -480,6 +569,111 @@ async def test_scoped_configured_reviewer_can_see_and_resolve_protected_archive(
 
 @pytest.mark.postgres
 @pytest.mark.asyncio
+async def test_postgres_process_asset_resolution_waits_for_asset_before_parameters(
+    client_factory,
+    db_session: AsyncSession,
+    async_engine,
+    monkeypatch,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+) -> None:
+    """Process Composite resolution cannot invert Asset -> parameter intake locks."""
+    if db_session.bind.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL Process/Asset lock ordering is authoritative")
+    process = Process(
+        f_code="F9062A",
+        l0_area="Operations",
+        l1_process="Composite Asset lock race",
+        process_owner_user_id=test_user_cro.id,
+        owning_department_id=test_user_cro.department_id,
+        cif_override="yes",
+    )
+    asset = Asset(
+        name="Composite lock-race Asset",
+        business_owner_user_id=test_user_cro.id,
+        ict_owner_user_id=test_user_cro.id,
+        owning_department_id=test_user_cro.department_id,
+        preliminary_criticality="critical",
+    )
+    db_session.add_all([process, asset])
+    await db_session.commit()
+    await _scenario(db_session)
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.post(
+            f"/api/v1/assets/{asset.id}/process-links",
+            json={
+                "process_id": process.id,
+                "significance": "Kritická podpora procesu",
+                "request_reason": "Canonical Composite lock order",
+            },
+        )
+    assert submitted.status_code == 202, submitted.text
+
+    from app.services._governed_mutations import resolution_lock_plan
+    from app.services._ict_register_reference.parameters import (
+        load_ict_workbook_parameter_set_for_update,
+    )
+
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    async def independent_db_session():
+        async with session_maker() as session:
+            await session.execute(text("SET LOCAL lock_timeout = '3s'"))
+            yield session
+
+    asset_locked = asyncio.Event()
+    resolution_asset_attempted = asyncio.Event()
+    original_asset_lock = resolution_lock_plan.lock_governed_assets_for_resolution
+
+    async def observed_asset_lock(*args, **kwargs):
+        resolution_asset_attempted.set()
+        return await original_asset_lock(*args, **kwargs)
+
+    monkeypatch.setattr(
+        resolution_lock_plan,
+        "lock_governed_assets_for_resolution",
+        observed_asset_lock,
+    )
+
+    async def asset_then_parameters() -> None:
+        async with session_maker() as session:
+            await session.execute(text("SET LOCAL lock_timeout = '3s'"))
+            locked = await session.scalar(
+                select(Asset).where(Asset.id == asset.id).with_for_update()
+            )
+            assert locked is not None
+            asset_locked.set()
+            await asyncio.wait_for(resolution_asset_attempted.wait(), timeout=5)
+            await load_ict_workbook_parameter_set_for_update(session)
+            await session.commit()
+
+    async with client_factory(
+        user=test_user_risk_manager,
+        db_override=independent_db_session,
+    ) as approver:
+        holder = asyncio.create_task(
+            asset_then_parameters(), name="asset-then-parameters"
+        )
+        await asyncio.wait_for(asset_locked.wait(), timeout=5)
+        resolution = asyncio.create_task(
+            approver.post(
+                f"/api/v1/approvals/{submitted.json()['approval_id']}/approve",
+                json={"resolution_notes": "Canonical Composite order approved"},
+            ),
+            name="composite-resolution",
+        )
+        _, result = await asyncio.wait_for(
+            asyncio.gather(holder, resolution),
+            timeout=10,
+        )
+    assert result.status_code == 200, result.text
+    assert result.json()["status"] == "approved"
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
 async def test_postgres_generic_edit_and_archive_resolutions_share_lock_order(
     client_factory,
     db_session: AsyncSession,
@@ -498,7 +692,9 @@ async def test_postgres_generic_edit_and_archive_resolutions_share_lock_order(
             owning_department_id=test_user_cro.department_id,
             cif_override="yes",
         )
-        for index, label in enumerate(("Concurrent edit", "Concurrent archive"), start=1)
+        for index, label in enumerate(
+            ("Concurrent edit", "Concurrent archive"), start=1
+        )
     ]
     db_session.add_all([edit_process, archive_process])
     await db_session.commit()
@@ -520,7 +716,9 @@ async def test_postgres_generic_edit_and_archive_resolutions_share_lock_order(
     assert edit.status_code == 202, edit.text
     assert archive.status_code == 202, archive.text
 
-    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async def independent_db_session():
         async with session_maker() as session:
@@ -528,8 +726,12 @@ async def test_postgres_generic_edit_and_archive_resolutions_share_lock_order(
             yield session
 
     async with (
-        client_factory(user=test_user_risk_manager, db_override=independent_db_session) as edit_approver,
-        client_factory(user=test_user_risk_manager, db_override=independent_db_session) as archive_approver,
+        client_factory(
+            user=test_user_risk_manager, db_override=independent_db_session
+        ) as edit_approver,
+        client_factory(
+            user=test_user_risk_manager, db_override=independent_db_session
+        ) as archive_approver,
     ):
         edit_result, archive_result = await asyncio.wait_for(
             asyncio.gather(
@@ -594,7 +796,9 @@ async def test_postgres_generic_edit_and_creation_lock_department_first(
     assert edit.status_code == 202, edit.text
     assert creation.status_code == 202, creation.text
 
-    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async def independent_db_session():
         async with session_maker() as session:
@@ -602,8 +806,12 @@ async def test_postgres_generic_edit_and_creation_lock_department_first(
             yield session
 
     async with (
-        client_factory(user=test_user_risk_manager, db_override=independent_db_session) as edit_approver,
-        client_factory(user=test_user_risk_manager, db_override=independent_db_session) as create_approver,
+        client_factory(
+            user=test_user_risk_manager, db_override=independent_db_session
+        ) as edit_approver,
+        client_factory(
+            user=test_user_risk_manager, db_override=independent_db_session
+        ) as create_approver,
     ):
         edit_result, create_result = await asyncio.wait_for(
             asyncio.gather(
@@ -638,7 +846,9 @@ async def test_postgres_malformed_expiry_serializes_after_parameter_before_scena
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL forced row-lock ordering is authoritative")
     parameter_key = "ict_register_verze"
-    parameter = await db_session.scalar(select(GlobalConfig).where(GlobalConfig.key == parameter_key))
+    parameter = await db_session.scalar(
+        select(GlobalConfig).where(GlobalConfig.key == parameter_key)
+    )
     if parameter is None:
         parameter = GlobalConfig(
             key=parameter_key,
@@ -671,14 +881,20 @@ async def test_postgres_malformed_expiry_serializes_after_parameter_before_scena
     assert queued.status_code == 202, queued.text
     approval_id = queued.json()["approval_id"]
     await db_session.execute(
-        update(ApprovalRequest).where(ApprovalRequest.id == approval_id).values(reason="   ")
+        update(ApprovalRequest)
+        .where(ApprovalRequest.id == approval_id)
+        .values(reason="   ")
     )
     await db_session.commit()
 
     from app.services._governed_mutations import resolution_lock_plan
-    from app.services._governed_mutations.fixed_policy import load_fixed_process_scenario_for_update
+    from app.services._governed_mutations.fixed_policy import (
+        load_fixed_process_scenario_for_update,
+    )
 
-    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async def independent_db_session():
         async with session_maker() as session:
@@ -687,7 +903,9 @@ async def test_postgres_malformed_expiry_serializes_after_parameter_before_scena
 
     parameter_locked = asyncio.Event()
     resolution_reached_parameters = asyncio.Event()
-    original_parameter_lock = resolution_lock_plan.load_ict_workbook_parameter_set_for_update
+    original_parameter_lock = (
+        resolution_lock_plan.load_ict_workbook_parameter_set_for_update
+    )
 
     async def observed_parameter_lock(*args, **kwargs):
         resolution_reached_parameters.set()
@@ -703,7 +921,9 @@ async def test_postgres_malformed_expiry_serializes_after_parameter_before_scena
         async with session_maker() as session:
             await session.execute(text("SET LOCAL lock_timeout = '3s'"))
             locked_parameter = await session.scalar(
-                select(GlobalConfig).where(GlobalConfig.key == parameter_key).with_for_update()
+                select(GlobalConfig)
+                .where(GlobalConfig.key == parameter_key)
+                .with_for_update()
             )
             assert locked_parameter is not None
             parameter_locked.set()
@@ -716,7 +936,9 @@ async def test_postgres_malformed_expiry_serializes_after_parameter_before_scena
         user=test_user_risk_manager,
         db_override=independent_db_session,
     ) as approver:
-        config_task = asyncio.create_task(update_parameter_then_scenario(), name="parameter-scenario-update")
+        config_task = asyncio.create_task(
+            update_parameter_then_scenario(), name="parameter-scenario-update"
+        )
         await asyncio.wait_for(parameter_locked.wait(), timeout=5)
         resolution_task = asyncio.create_task(
             approver.post(
@@ -760,7 +982,9 @@ async def test_postgres_identical_rowless_creations_serialize_to_one_pending_pro
     from app.services._governed_mutations import process_mutations
     from app.services._ict_register_lifecycle import policy as process_policy
 
-    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async def independent_db_session():
         async with session_maker() as session:
@@ -806,10 +1030,16 @@ async def test_postgres_identical_rowless_creations_serialize_to_one_pending_pro
         l1_process="Concurrent identical rowless creation",
     )
     async with (
-        client_factory(user=test_user_cro, db_override=independent_db_session) as first_client,
-        client_factory(user=test_user_cro, db_override=independent_db_session) as second_client,
+        client_factory(
+            user=test_user_cro, db_override=independent_db_session
+        ) as first_client,
+        client_factory(
+            user=test_user_cro, db_override=independent_db_session
+        ) as second_client,
     ):
-        first = asyncio.create_task(first_client.post("/api/v1/processes", json=payload))
+        first = asyncio.create_task(
+            first_client.post("/api/v1/processes", json=payload)
+        )
         first_checked_wait = asyncio.create_task(first_checked.wait())
         completed, _ = await asyncio.wait(
             {first, first_checked_wait},
@@ -822,7 +1052,9 @@ async def test_postgres_identical_rowless_creations_serialize_to_one_pending_pro
             if first in completed
             else "first request did not reach the duplicate-check barrier"
         )
-        second = asyncio.create_task(second_client.post("/api/v1/processes", json=payload))
+        second = asyncio.create_task(
+            second_client.post("/api/v1/processes", json=payload)
+        )
         await asyncio.wait_for(second_lock_attempted.wait(), timeout=5)
         assert owner_lock_attempts == 2
         assert not second.done()
@@ -841,7 +1073,8 @@ async def test_postgres_identical_rowless_creations_serialize_to_one_pending_pro
             await db_session.execute(
                 select(ApprovalRequest).where(
                     ApprovalRequest.resource_type == "process",
-                    ApprovalRequest.resource_name == "Concurrent identical rowless creation",
+                    ApprovalRequest.resource_name
+                    == "Concurrent identical rowless creation",
                     ApprovalRequest.status == ApprovalStatus.PENDING,
                 )
             )
@@ -865,7 +1098,12 @@ async def test_postgres_identical_rowless_creations_serialize_to_one_pending_pro
     )
     assert len(proposals) == 1
     assert await db_session.scalar(select(func.count()).select_from(Process)) == 0
-    assert await db_session.scalar(select(func.count()).select_from(GovernedMutationImpactLock)) == 0
+    assert (
+        await db_session.scalar(
+            select(func.count()).select_from(GovernedMutationImpactLock)
+        )
+        == 0
+    )
 
 
 @pytest.mark.asyncio
@@ -945,13 +1183,17 @@ async def test_scoped_configured_reviewer_can_see_and_resolve_protected_link(
     impacted_names = [item["resource_name"] for item in governed["impacted_resources"]]
     assert f"{process.f_code} — {process.l1_process}" in impacted_names
     assert "Restricted Process" in impacted_names
-    derived_names = [item["resource_name"] for item in governed["derived_impact"]["processes"]]
+    derived_names = [
+        item["resource_name"] for item in governed["derived_impact"]["processes"]
+    ]
     assert f"{process.f_code} — {process.l1_process}" in derived_names
     assert "Restricted Process" in derived_names
     assert hidden_process.l1_process not in detail.text
     assert asset.name not in detail.text
     assert process_detail.status_code == 200, process_detail.text
-    pending_derived = process_detail.json()["pending_change"]["derived_impact"]["processes"]
+    pending_derived = process_detail.json()["pending_change"]["derived_impact"][
+        "processes"
+    ]
     assert [row["resource_name"] for row in pending_derived] == [
         f"{process.f_code} — {process.l1_process}",
         "Restricted Process",
@@ -959,11 +1201,65 @@ async def test_scoped_configured_reviewer_can_see_and_resolve_protected_link(
     assert all("resource_id" not in row for row in pending_derived)
     assert hidden_process.l1_process not in process_detail.text
     assert asset.name not in process_detail.text
-    assert process_detail.json()["pending_change"]["capabilities"]["can_cancel"] is False
+    assert (
+        process_detail.json()["pending_change"]["capabilities"]["can_cancel"] is False
+    )
     assert process_detail.json()["capabilities"]["has_pending_change"] is True
     assert process_detail.json()["capabilities"]["business_edit_blocked"] is True
     assert process_detail.json()["capabilities"]["can_cancel_pending_change"] is False
     assert approved.status_code == 200, approved.text
+
+
+@pytest.mark.asyncio
+async def test_process_asset_link_uses_asset_policy_when_process_policy_is_disabled(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+) -> None:
+    del test_user_risk_manager
+    process = Process(
+        f_code="F9051A",
+        l0_area="Operations",
+        l1_process="Non-CIF Asset-only link",
+        process_owner_user_id=test_user_cro.id,
+        owning_department_id=test_user_cro.department_id,
+        cif_override="no",
+    )
+    asset = Asset(
+        name="Asset-only protected link",
+        business_owner_user_id=test_user_cro.id,
+        ict_owner_user_id=test_user_cro.id,
+        owning_department_id=test_user_cro.department_id,
+        preliminary_criticality="critical",
+    )
+    db_session.add_all([process, asset])
+    await db_session.commit()
+    await _scenario(db_session)
+    process_scenario = await db_session.scalar(
+        select(ApprovalScenario).where(ApprovalScenario.key == "protected_process_edit")
+    )
+    assert process_scenario is not None
+    process_scenario.requires_approval = False
+    await db_session.commit()
+
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.post(
+            f"/api/v1/assets/{asset.id}/process-links",
+            json={
+                "process_id": process.id,
+                "significance": "Kritická podpora procesu",
+                "request_reason": "Asset-only policy must govern",
+            },
+        )
+
+    assert submitted.status_code == 202, submitted.text
+    approval = await db_session.get(ApprovalRequest, submitted.json()["approval_id"])
+    assert approval is not None
+    assert approval.scenario_key == "protected_asset_edit"
+    proposal = approval.governed_mutation_proposal
+    assert proposal is not None
+    assert proposal.proposed_changes["triggered_scenarios"] == ["protected_asset_edit"]
 
 
 @pytest.mark.asyncio
@@ -1165,21 +1461,27 @@ async def test_corrupt_extended_envelope_direct_terminalization_expires_safely(
     approval_id = queued.json()["approval_id"]
     approval = await db_session.get(ApprovalRequest, approval_id)
     proposal = await db_session.scalar(
-        select(GovernedMutationProposal).where(GovernedMutationProposal.approval_request_id == approval_id)
+        select(GovernedMutationProposal).where(
+            GovernedMutationProposal.approval_request_id == approval_id
+        )
     )
     assert approval is not None and proposal is not None
     approval_created_at = approval.created_at
     proposal_created_at = proposal.created_at
     if corruption == "proposal_predates_approval":
         if db_session.bind.dialect.name == "postgresql":
-            await db_session.execute(text("SET LOCAL session_replication_role = replica"))
+            await db_session.execute(
+                text("SET LOCAL session_replication_role = replica")
+            )
         await db_session.execute(
             update(GovernedMutationProposal)
             .where(GovernedMutationProposal.id == proposal.id)
             .values(created_at=approval_created_at - timedelta(seconds=1))
         )
         if db_session.bind.dialect.name == "postgresql":
-            await db_session.execute(text("SET LOCAL session_replication_role = origin"))
+            await db_session.execute(
+                text("SET LOCAL session_replication_role = origin")
+            )
     elif corruption == "approval_postdates_proposal":
         await db_session.execute(
             update(ApprovalRequest)
@@ -1187,7 +1489,11 @@ async def test_corrupt_extended_envelope_direct_terminalization_expires_safely(
             .values(created_at=proposal_created_at + timedelta(seconds=1))
         )
     elif corruption == "blank_reason":
-        await db_session.execute(update(ApprovalRequest).where(ApprovalRequest.id == approval_id).values(reason="   "))
+        await db_session.execute(
+            update(ApprovalRequest)
+            .where(ApprovalRequest.id == approval_id)
+            .values(reason="   ")
+        )
     else:
         await db_session.execute(
             update(ApprovalRequest)
@@ -1195,13 +1501,17 @@ async def test_corrupt_extended_envelope_direct_terminalization_expires_safely(
             .values(status=ApprovalStatus.PENDING_PRIVILEGED)
         )
     await db_session.commit()
-    actor_id = test_user_cro.id if terminal_action == "cancel" else test_user_risk_manager.id
+    actor_id = (
+        test_user_cro.id if terminal_action == "cancel" else test_user_risk_manager.id
+    )
     process_id = process.id
     proposal_id = proposal.id
     db_session.expire_all()
 
     request_kwargs = (
-        {} if terminal_action == "cancel" else {"json": {"resolution_notes": f"Attempt corrupt {terminal_action}"}}
+        {}
+        if terminal_action == "cancel"
+        else {"json": {"resolution_notes": f"Attempt corrupt {terminal_action}"}}
     )
     async with client_factory(headers={"X-Mock-User-Id": str(actor_id)}) as client:
         terminal = await client.post(
@@ -1214,7 +1524,9 @@ async def test_corrupt_extended_envelope_direct_terminalization_expires_safely(
     refreshed_process = await db_session.get(Process, process_id)
     refreshed_approval = await db_session.get(ApprovalRequest, approval_id)
     lock = await db_session.scalar(
-        select(GovernedMutationImpactLock).where(GovernedMutationImpactLock.proposal_id == proposal_id)
+        select(GovernedMutationImpactLock).where(
+            GovernedMutationImpactLock.proposal_id == proposal_id
+        )
     )
     assert refreshed_process is not None
     assert refreshed_process.is_archived is False
@@ -1240,12 +1552,18 @@ async def test_corrupt_extended_envelope_direct_terminalization_expires_safely(
     assert audit_rows[-1].action == ActivityAction.STATUS_CHANGE
     assert audit_rows[-1].changes == {
         "status": {
-            "old": ("pending_privileged" if corruption == "pending_privileged_status" else "pending"),
+            "old": (
+                "pending_privileged"
+                if corruption == "pending_privileged_status"
+                else "pending"
+            ),
             "new": "expired",
         }
     }
     assert not any(
-        row.action in {ActivityAction.APPROVE, ActivityAction.REJECT, ActivityAction.CANCEL} for row in audit_rows
+        row.action
+        in {ActivityAction.APPROVE, ActivityAction.REJECT, ActivityAction.CANCEL}
+        for row in audit_rows
     )
 
 
@@ -1356,7 +1674,9 @@ async def test_malformed_extended_rows_do_not_consume_pages_counts_or_notificati
     valid_id = valid.json()["approval_id"]
     corrupt_id = corrupt.json()["approval_id"]
     proposal = await db_session.scalar(
-        select(GovernedMutationProposal).where(GovernedMutationProposal.approval_request_id == corrupt_id)
+        select(GovernedMutationProposal).where(
+            GovernedMutationProposal.approval_request_id == corrupt_id
+        )
     )
     assert proposal is not None
     if db_session.bind.dialect.name == "postgresql":
@@ -1400,7 +1720,9 @@ async def test_malformed_extended_rows_do_not_consume_pages_counts_or_notificati
             params={"skip": 0, "limit": 1},
         )
         unread = await reviewer.get("/api/v1/notifications/unread/count")
-        corrupt_read = await reviewer.post(f"/api/v1/notifications/{notifications[1].id}/read")
+        corrupt_read = await reviewer.post(
+            f"/api/v1/notifications/{notifications[1].id}/read"
+        )
         read_all = await reviewer.post("/api/v1/notifications/read-all")
 
     assert page.status_code == 200, page.text
@@ -1504,7 +1826,9 @@ async def test_postgres_creation_owner_deactivation_serializes_in_both_orders(
         ) as approver,
     ):
         if deactivation_first:
-            first = asyncio.create_task(admin.patch(f"/api/v1/users/{owner_id}", json={"is_active": False}))
+            first = asyncio.create_task(
+                admin.patch(f"/api/v1/users/{owner_id}", json={"is_active": False})
+            )
         else:
             first = asyncio.create_task(
                 approver.post(
@@ -1521,7 +1845,9 @@ async def test_postgres_creation_owner_deactivation_serializes_in_both_orders(
                 )
             )
         else:
-            second = asyncio.create_task(admin.patch(f"/api/v1/users/{owner_id}", json={"is_active": False}))
+            second = asyncio.create_task(
+                admin.patch(f"/api/v1/users/{owner_id}", json={"is_active": False})
+            )
         release_first.set()
         first_result, second_result = await asyncio.wait_for(
             asyncio.gather(first, second),
@@ -1533,7 +1859,11 @@ async def test_postgres_creation_owner_deactivation_serializes_in_both_orders(
     assert approval_result.json()["status"] == expected_status
     assert deactivation_result.status_code == 200, deactivation_result.text
     async with session_maker() as session:
-        created = await session.scalar(select(Process).where(Process.l1_process == f"Owner race {deactivation_first}"))
+        created = await session.scalar(
+            select(Process).where(
+                Process.l1_process == f"Owner race {deactivation_first}"
+            )
+        )
         if deactivation_first:
             assert created is None
         else:

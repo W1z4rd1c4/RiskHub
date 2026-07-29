@@ -21,6 +21,8 @@ from app.models import (
 from app.schemas.process import ProcessUpdate
 from app.services._ict_register_reference import PROCESS_CONTROLLED_CODES_BY_FIELD
 
+from .composite_policy import strict_triggered_policy_snapshots, triggered_policy_snapshot
+from .fixed_asset_policy import ASSET_SCENARIO_KEY
 from .fixed_policy import ALLOWED_APPROVER_ROLES, SCENARIO_KEY
 
 PROCESS_MUTATION_KIND = "process.edit"
@@ -90,6 +92,8 @@ class GovernedProcessIdentity:
     base_governance_version: int
     action_type: ApprovalActionType
     pending_changes: dict[str, dict[str, Any]]
+    triggered_scenarios: tuple[str, ...]
+    triggered_policy_snapshots: tuple[dict[str, Any], ...]
     mutation_kind: str = PROCESS_MUTATION_KIND
 
 
@@ -106,6 +110,10 @@ def new_governed_process_proposal(
     raw_before: dict[str, Any],
     raw_after: dict[str, Any],
     derived_impact_snapshot: dict[str, Any],
+    asset_impacts: list[dict[str, Any]] | None = None,
+    scenario_key: str = SCENARIO_KEY,
+    triggered_scenarios: list[str] | None = None,
+    triggered_policies: list[dict[str, Any]] | None = None,
 ) -> GovernedMutationProposal:
     """Canonical writer paired with the strict reader below."""
     proposal = GovernedMutationProposal(
@@ -118,25 +126,31 @@ def new_governed_process_proposal(
         primary_resource_id=process_id,
         primary_resource_name=process_name,
         scenario_snapshot={
-            "key": SCENARIO_KEY,
+            "key": scenario_key,
             "requires_approval": True,
             "approver_roles": list(approver_roles),
+            "triggered_policies": list(triggered_policies or [triggered_policy_snapshot(scenario_key, approver_roles)]),
         },
-        base_versions={"process": base_governance_version},
+        base_versions={
+            "process": base_governance_version,
+            **{f"asset:{item['resource_id']}": item["base_governance_version"] for item in (asset_impacts or [])},
+        },
         before_snapshot=dict(before_snapshot),
         after_snapshot=dict(after_snapshot),
         derived_impact_snapshot=dict(derived_impact_snapshot),
         proposed_changes={
             "before": dict(raw_before),
             "after": dict(raw_after),
+            "triggered_scenarios": list(triggered_scenarios or [scenario_key]),
         },
         impacted_resources_snapshot=[
+            *(asset_impacts or []),
             {
                 "resource_type": PROCESS_RESOURCE_TYPE,
                 "resource_id": process_id,
                 "resource_name": process_name,
                 "base_governance_version": base_governance_version,
-            }
+            },
         ],
         requested_by_id=requested_by_id,
     )
@@ -266,7 +280,59 @@ def _valid_derived_impact_snapshot(value: object) -> bool:
     return any(block["cif"] == "yes" for block in value.values())
 
 
-def strict_governed_process_identity(
+def _valid_composite_point_impact(value: object, *, process_id: int, asset_ids: set[int]) -> bool:
+    if not isinstance(value, dict) or set(value) != {"processes", "assets"}:
+        return False
+    processes = value.get("processes")
+    assets = value.get("assets")
+    if not isinstance(processes, list) or len(processes) != 1 or not isinstance(assets, list):
+        return False
+    process_row = processes[0]
+    if (
+        not isinstance(process_row, dict)
+        or set(process_row) != {"resource_id", "before", "after"}
+        or process_row.get("resource_id") != process_id
+    ):
+        return False
+    process_blocks = {"before": process_row.get("before"), "after": process_row.get("after")}
+    if not all(
+        isinstance(block, dict)
+        and set(block) == {"cif", "criticality_class"}
+        and block.get("cif") in _DERIVED_CIF_VALUES
+        and (block.get("criticality_class") is None or block.get("criticality_class") in _DERIVED_CRITICALITY_VALUES)
+        for block in process_blocks.values()
+    ):
+        return False
+    asset_row_ids: list[int] = []
+    for row in assets:
+        if not (
+            isinstance(row, dict)
+            and set(row) == {"resource_id", "before", "after"}
+            and type(row.get("resource_id")) is int
+            and row["resource_id"] > 0
+            and all(
+                isinstance(block, dict)
+                and set(block) == {"cif", "resulting_criticality"}
+                and block.get("cif") in _DERIVED_CIF_VALUES
+                and block.get("resulting_criticality") in {None, *_DERIVED_CRITICALITY_VALUES}
+                for block in (row.get("before"), row.get("after"))
+            )
+        ):
+            return False
+        asset_row_ids.append(row["resource_id"])
+    valid_assets = asset_row_ids == sorted(asset_ids) and len(asset_row_ids) == len(asset_ids)
+    protected = any(
+        isinstance(row, dict)
+        and any(
+            isinstance(block, dict) and (block.get("cif") == "yes" or block.get("resulting_criticality") == "critical")
+            for block in (row.get("before"), row.get("after"))
+        )
+        for row in assets
+    )
+    return valid_assets and protected
+
+
+def _strict_governed_process_identity(
     proposal: GovernedMutationProposal | None,
 ) -> GovernedProcessIdentity | None:
     """Return the fixed identity, None for legacy, and raise for malformed fixed rows."""
@@ -278,8 +344,8 @@ def strict_governed_process_identity(
     roles: list[str] | None = None
     if (
         isinstance(scenario, dict)
-        and set(scenario) == {"key", "requires_approval", "approver_roles"}
-        and scenario.get("key") == SCENARIO_KEY
+        and set(scenario) == {"key", "requires_approval", "approver_roles", "triggered_policies"}
+        and scenario.get("key") in {SCENARIO_KEY, ASSET_SCENARIO_KEY}
         and scenario.get("requires_approval") is True
         and isinstance(scenario.get("approver_roles"), list)
     ):
@@ -292,7 +358,7 @@ def strict_governed_process_identity(
     after_snapshot = proposal.after_snapshot
     operation_valid = bool(
         isinstance(operation, dict)
-        and set(operation) == {"before", "after"}
+        and set(operation) == {"before", "after", "triggered_scenarios"}
         and isinstance(operation.get("before"), dict)
         and isinstance(operation.get("after"), dict)
         and isinstance(before_snapshot, dict)
@@ -302,6 +368,27 @@ def strict_governed_process_identity(
         raise InvalidGovernedProcessIdentity("Malformed governed Process operation")
     raw_before: dict[str, Any] = operation["before"]
     raw_after: dict[str, Any] = operation["after"]
+    triggered_scenarios = operation.get("triggered_scenarios")
+    if not (
+        isinstance(scenario, dict)
+        and isinstance(triggered_scenarios, list)
+        and triggered_scenarios
+        and all(isinstance(key, str) for key in triggered_scenarios)
+        and len(triggered_scenarios) == len(set(triggered_scenarios))
+        and set(triggered_scenarios).issubset({SCENARIO_KEY, ASSET_SCENARIO_KEY})
+        and triggered_scenarios[0] == scenario.get("key")
+    ):
+        raise InvalidGovernedProcessIdentity("Governed Process policy snapshot is malformed")
+    if roles is None:
+        raise InvalidGovernedProcessIdentity("Governed Process policy roles are malformed")
+    try:
+        triggered_policy_snapshots = strict_triggered_policy_snapshots(
+            scenario.get("triggered_policies"),
+            scenario_keys=triggered_scenarios,
+            effective_roles=roles,
+        )
+    except ValueError as exc:
+        raise InvalidGovernedProcessIdentity("Governed Process policy snapshot is malformed") from exc
     field_names = set(raw_before)
     if (
         not field_names
@@ -334,9 +421,7 @@ def strict_governed_process_identity(
         raise InvalidGovernedProcessIdentity("Governed Process required fields are invalid")
 
     base_versions = proposal.base_versions
-    base_version = (
-        base_versions.get("process") if isinstance(base_versions, dict) and set(base_versions) == {"process"} else None
-    )
+    base_version = base_versions.get("process") if isinstance(base_versions, dict) else None
     primary_resource_id = _positive_int(proposal.primary_resource_id)
     requested_by_id = _positive_int(proposal.requested_by_id)
     approval_request_id = _positive_int(proposal.approval_request_id)
@@ -350,6 +435,40 @@ def strict_governed_process_identity(
             "base_governance_version": base_version,
         }
     ]
+    extra_impacts = proposal.impacted_resources_snapshot[:-1]
+    asset_ids = {
+        item.get("resource_id")
+        for item in extra_impacts
+        if isinstance(item, dict) and item.get("resource_type") == "asset"
+    }
+    composite_valid = bool(
+        extra_impacts
+        and all(
+            isinstance(item, dict)
+            and set(item)
+            == {
+                "resource_type",
+                "resource_id",
+                "resource_name",
+                "base_governance_version",
+            }
+            and item.get("resource_type") == "asset"
+            and _positive_int(item.get("resource_id"))
+            and _positive_int(item.get("base_governance_version"))
+            and _canonical_identity_text(item.get("resource_name"))
+            for item in extra_impacts
+        )
+        and [item["resource_id"] for item in extra_impacts] == sorted(asset_ids)
+        and set(base_versions or {}) == {"process", *(f"asset:{asset_id}" for asset_id in asset_ids)}
+        and all(
+            base_versions[f"asset:{item['resource_id']}"] == item["base_governance_version"] for item in extra_impacts
+        )
+        and _valid_composite_point_impact(
+            proposal.derived_impact_snapshot,
+            process_id=primary_resource_id or 0,
+            asset_ids=asset_ids,
+        )
+    )
     if (
         not _canonical_uuid4(proposal.proposal_id)
         or not _supported_plain_int(proposal.proposal_version, PROPOSAL_VERSION)
@@ -364,8 +483,18 @@ def strict_governed_process_identity(
         or len(roles) != len(set(roles))
         or not set(roles).issubset(ALLOWED_APPROVER_ROLES)
         or _positive_int(base_version) is None
-        or not _valid_derived_impact_snapshot(proposal.derived_impact_snapshot)
-        or not _canonical_json_equal(proposal.impacted_resources_snapshot, expected_impact)
+        or not (
+            (
+                not extra_impacts
+                and set(base_versions or {}) == {"process"}
+                and _valid_derived_impact_snapshot(proposal.derived_impact_snapshot)
+            )
+            or composite_valid
+        )
+        or not _canonical_json_equal(
+            proposal.impacted_resources_snapshot,
+            [*extra_impacts, *expected_impact],
+        )
     ):
         raise InvalidGovernedProcessIdentity("Malformed governed Process identity")
 
@@ -380,7 +509,7 @@ def strict_governed_process_identity(
     return GovernedProcessIdentity(
         approval_request_id=approval_request_id,
         requested_by_id=requested_by_id,
-        scenario_key=SCENARIO_KEY,
+        scenario_key=scenario["key"],
         approver_roles=tuple(roles),
         primary_resource_type=PROCESS_RESOURCE_TYPE,
         primary_resource_id=primary_resource_id,
@@ -388,7 +517,21 @@ def strict_governed_process_identity(
         base_governance_version=base_version,
         action_type=ApprovalActionType.EDIT,
         pending_changes=pending_changes,
+        triggered_scenarios=tuple(triggered_scenarios),
+        triggered_policy_snapshots=triggered_policy_snapshots,
     )
+
+
+def strict_governed_process_identity(
+    proposal: GovernedMutationProposal | None,
+) -> GovernedProcessIdentity | None:
+    """Total strict reader with one stable corruption exception."""
+    try:
+        return _strict_governed_process_identity(proposal)
+    except InvalidGovernedProcessIdentity:
+        raise
+    except (AttributeError, IndexError, KeyError, TypeError) as exc:
+        raise InvalidGovernedProcessIdentity("Malformed governed Process identity") from exc
 
 
 class _JsonType(FunctionElement):
@@ -1097,6 +1240,16 @@ def _strict_sql_identity_predicate():
         ),
     )
     proposed_changes = GovernedMutationProposal.proposed_changes
+    triggered_field = literal("triggered_scenarios")
+    triggered_type = _JsonFieldType(proposed_changes, triggered_field)
+    triggered_length = case(
+        (triggered_type == "array", _JsonFieldArrayLength(proposed_changes, triggered_field)),
+        else_=0,
+    )
+    first_trigger = _JsonFieldArrayText(proposed_changes, triggered_field, literal(0))
+    second_trigger = _JsonFieldArrayText(proposed_changes, triggered_field, literal(1))
+    scenario_key = _JsonFieldText(scenario, literal("key"))
+    allowed_scenarios = (SCENARIO_KEY, ASSET_SCENARIO_KEY)
     operation_before = _JsonFieldDocument(proposed_changes, literal("before"))
     operation_after = _JsonFieldDocument(proposed_changes, literal("after"))
     base_versions = GovernedMutationProposal.base_versions
@@ -1118,9 +1271,9 @@ def _strict_sql_identity_predicate():
             (_JsonType(scenario) == "object", _JsonObjectLength(scenario)),
             else_=-1,
         )
-        == 3,
+        == 4,
         _JsonFieldType(scenario, literal("key")) == "text",
-        _JsonFieldText(scenario, literal("key")) == SCENARIO_KEY,
+        scenario_key.in_(allowed_scenarios),
         _JsonFieldType(scenario, literal("requires_approval")) == "boolean",
         _JsonFieldBoolean(scenario, literal("requires_approval")) == "true",
         valid_roles,
@@ -1132,9 +1285,24 @@ def _strict_sql_identity_predicate():
             ),
             else_=-1,
         )
-        == 2,
+        == 3,
         _JsonFieldType(proposed_changes, literal("before")) == "object",
         _JsonFieldType(proposed_changes, literal("after")) == "object",
+        triggered_type == "array",
+        or_(
+            and_(
+                triggered_length == 1,
+                first_trigger.in_(allowed_scenarios),
+                first_trigger == scenario_key,
+            ),
+            and_(
+                triggered_length == 2,
+                first_trigger.in_(allowed_scenarios),
+                second_trigger.in_(allowed_scenarios),
+                first_trigger != second_trigger,
+                first_trigger == scenario_key,
+            ),
+        ),
         _JsonType(base_versions) == "object",
         case(
             (

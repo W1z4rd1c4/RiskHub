@@ -414,7 +414,25 @@
     "can_read",
     "can_update",
     "can_archive",
-    "can_restore"
+    "can_restore",
+    "has_pending_change",
+    "business_edit_blocked",
+    "can_cancel_pending_change"
+   ]
+  },
+  {
+   "id": "asset_pending_change",
+   "backend": {
+    "path": "backend/app/schemas/asset.py",
+    "class": "AssetPendingChangeCapabilities"
+   },
+   "frontend": {
+    "path": "frontend/src/services/api/schemas/entities/assets.ts",
+    "schema": "assetPendingChangeCapabilitiesSchema"
+   },
+   "fields": [
+    "can_view_diff",
+    "can_cancel"
    ]
   },
   {

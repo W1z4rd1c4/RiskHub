@@ -105,7 +105,8 @@
         "no": "Ne",
     "derived": {
       "cif": "CIF",
-      "criticality_class": "Třída kritičnosti"
+      "criticality_class": "Třída kritičnosti",
+      "resulting_criticality": "Výsledná kritičnost"
     },
     "relationship": {
       "title": "Změna vazby",
@@ -133,7 +134,16 @@
             "process_link_asset_update": "Aktualizace vazby Procesu a Aktiva",
             "process_link_asset_remove": "Odebrání vazby Procesu a Aktiva",
             "process_link_vendor_add": "Přidání vazby Procesu a Dodavatele",
-            "process_link_vendor_remove": "Odebrání vazby Procesu a Dodavatele"
+            "process_link_vendor_remove": "Odebrání vazby Procesu a Dodavatele",
+            "asset_create": "Vytvoření chráněného Aktiva",
+            "asset_edit": "Aktualizace chráněného Aktiva",
+            "asset_archive": "Archivace chráněného Aktiva",
+            "asset_link_asset_add": "Přidání vazby Aktiva",
+            "asset_link_asset_remove": "Odebrání vazby Aktiva",
+            "asset_link_vendor_add": "Přidání vazby Aktiva a Dodavatele",
+            "asset_link_vendor_remove": "Odebrání vazby Aktiva a Dodavatele",
+            "asset_link_risk_add": "Přidání vazby Aktiva a Rizika",
+            "asset_link_risk_remove": "Odebrání vazby Aktiva a Rizika"
         },
         "link_fields": {
             "linked": "Propojeno",
@@ -142,7 +152,13 @@
             "spof": "Jediný bod selhání",
             "is_primary": "Primární vazba",
             "note": "Poznámka k vazbě",
-            "direct_service_description": "Popis přímé služby"
+            "direct_service_description": "Popis přímé služby",
+            "archived": "Archivováno",
+            "dependency_type": "Typ závislosti",
+            "vendor_role": "Role dodavatele",
+            "ict_service_code": "Kód ICT služby",
+            "contract_reference": "Reference smlouvy",
+            "reliance": "Míra závislosti"
         }
     },
     "notifications": {

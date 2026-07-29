@@ -18,9 +18,6 @@ from app.services._approval_queue.projection import (
     build_malformed_governed_terminal_read,
     governed_process_actor_safe_labels,
 )
-from app.services._governed_mutations.process_mutations import (
-    is_extended_process_kind,
-)
 from app.services._ict_register_lifecycle.policy import can_use_process_assignment_lookup
 from app.services.approval_scenario_policy import (
     can_view_approval_resource,
@@ -52,11 +49,7 @@ async def _build_resolution_response(
             user=current_user,
         )
     except ValueError:
-        if (
-            proposal is not None
-            and is_extended_process_kind(proposal.mutation_kind)
-            and approval.status.value == "EXPIRED"
-        ):
+        if proposal is not None and approval.status.value.lower() == "expired":
             return build_malformed_governed_terminal_read(approval, current_user)
         raise
     if response_policy is not None:
@@ -65,22 +58,27 @@ async def _build_resolution_response(
     else:
         can_view_snapshot = await can_view_approval_resource(db, current_user, approval)
         governed_resolver = False
-    actor_safe_labels = await governed_process_actor_safe_labels(
-        db,
-        approvals=[approval],
-        current_user=current_user,
-    )
-    return build_approval_read(
-        approval,
-        current_user,
-        can_view_governed_snapshot=can_view_snapshot,
-        governed_resolver=governed_resolver,
-        can_view_governed_references=await can_use_process_assignment_lookup(
+    try:
+        actor_safe_labels = await governed_process_actor_safe_labels(
             db,
+            approvals=[approval],
             current_user=current_user,
-        ),
-        actor_safe_extended_labels=actor_safe_labels.get(approval.id),
-    )
+        )
+        return build_approval_read(
+            approval,
+            current_user,
+            can_view_governed_snapshot=can_view_snapshot,
+            governed_resolver=governed_resolver,
+            can_view_governed_references=await can_use_process_assignment_lookup(
+                db,
+                current_user=current_user,
+            ),
+            actor_safe_extended_labels=actor_safe_labels.get(approval.id),
+        )
+    except ValueError:
+        if proposal is not None and approval.status.value.lower() == "expired":
+            return build_malformed_governed_terminal_read(approval, current_user)
+        raise
 
 
 @router.post("/{approval_id}/approve", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)

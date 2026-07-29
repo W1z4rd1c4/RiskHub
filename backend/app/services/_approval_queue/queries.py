@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,6 +12,10 @@ from app.models import (
     User,
 )
 from app.schemas.approval_request import ApprovalRequestListResponse, ApprovalResourceTypeEnum, ApprovalStatusEnum
+from app.services._governed_mutations.asset_identity import (
+    live_asset_resolver_approval_ids,
+    valid_asset_approval_ids,
+)
 from app.services._governed_mutations.process_identity import (
     any_governed_mutation_proposal_exists_clause,
 )
@@ -114,6 +118,21 @@ async def list_approval_queue_page(
             approval_statuses=candidate_statuses,
         )
     )
+    valid_asset_ids = await valid_asset_approval_ids(
+        db,
+        approval_statuses=candidate_statuses,
+    )
+    asset_governed = ApprovalRequest.id.in_(tuple(valid_asset_ids)) if valid_asset_ids else false()
+    asset_requester = and_(
+        asset_governed,
+        ApprovalRequest.requested_by_id == current_user.id,
+    )
+    live_asset_resolver_ids = await live_asset_resolver_approval_ids(
+        db,
+        current_user=current_user,
+        approval_statuses=candidate_statuses,
+    )
+    asset_resolver = ApprovalRequest.id.in_(tuple(live_asset_resolver_ids)) if live_asset_resolver_ids else false()
     queue_logger.info(
         (
             f"List approvals: user={current_user.id} can_resolve={tier.is_privileged} "
@@ -132,6 +151,7 @@ async def list_approval_queue_page(
                     ApprovalRequest.requested_by_id == current_user.id,
                 ),
                 governed_process_requester_clause(current_user.id, valid_extended_ids),
+                asset_requester,
             )
         )
     elif status_filter != ApprovalStatusEnum.pending:
@@ -143,6 +163,8 @@ async def list_approval_queue_page(
                     ~any_proposal,
                     governed_process_requester_clause(current_user.id, valid_extended_ids),
                     process_approval_resolver_clause(current_user, valid_extended_ids),
+                    asset_requester,
+                    asset_resolver,
                 )
             )
         else:
@@ -159,6 +181,8 @@ async def list_approval_queue_page(
                             process_approval_resolver_clause(current_user, valid_extended_ids),
                         ),
                     ),
+                    asset_requester,
+                    asset_resolver,
                 )
             )
 
@@ -190,9 +214,12 @@ async def list_approval_queue_page(
             base_query = base_query.where(ApprovalRequest.status == ApprovalStatus(status_filter.value.upper()))
     if resource_type:
         base_query = base_query.where(
-            approval_resource_type_filter_clause(
-                ApprovalResourceType(resource_type.value),
-                valid_extended_ids,
+            or_(
+                approval_resource_type_filter_clause(
+                    ApprovalResourceType(resource_type.value),
+                    valid_extended_ids,
+                ),
+                and_(resource_type.value == "asset", asset_governed),
             )
         )
 

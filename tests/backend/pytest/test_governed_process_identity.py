@@ -206,7 +206,9 @@ def _apply_corruption(
         proposal.impacted_resources_snapshot[0]["resource_name"] = "F3 — Claims "
     elif corruption == "resource_name_overflow":
         proposal.primary_resource_name = "X" * (PROCESS_DISPLAY_NAME_MAX_LENGTH + 1)
-        proposal.impacted_resources_snapshot[0]["resource_name"] = proposal.primary_resource_name
+        proposal.impacted_resources_snapshot[0]["resource_name"] = (
+            proposal.primary_resource_name
+        )
     elif corruption == "scenario_array":
         proposal.scenario_snapshot = []
     elif corruption == "scenario_scalar":
@@ -350,6 +352,7 @@ def _apply_corruption(
         proposal.proposed_changes = {
             "before": {"process_owner_user_id": None},
             "after": {"process_owner_user_id": 2},
+            "triggered_scenarios": ["protected_process_edit"],
         }
         proposal.before_snapshot = {"process_owner_user_id": "Unknown user"}
         proposal.after_snapshot = {"process_owner_user_id": "2"}
@@ -357,6 +360,7 @@ def _apply_corruption(
         proposal.proposed_changes = {
             "before": {"owning_department_id": None},
             "after": {"owning_department_id": 2},
+            "triggered_scenarios": ["protected_process_edit"],
         }
         proposal.before_snapshot = {"owning_department_id": "Unknown department"}
         proposal.after_snapshot = {"owning_department_id": "2"}
@@ -440,6 +444,7 @@ def _apply_corruption(
         proposal.proposed_changes = {
             "before": {"process_owner_user_id": 1},
             "after": {"process_owner_user_id": 2},
+            "triggered_scenarios": ["protected_process_edit"],
         }
         proposal.before_snapshot = {"process_owner_user_id": "1"}
         proposal.after_snapshot = {"process_owner_user_id": "2"}
@@ -490,6 +495,7 @@ def _apply_corruption(
         proposal.proposed_changes = {
             "before": {"notes": "old", "rto_hours": 1},
             "after": {"notes": "new", "rto_hours": 2},
+            "triggered_scenarios": ["protected_process_edit"],
         }
         proposal.before_snapshot = {"rto_hours": 1, "notes": "old"}
         proposal.after_snapshot = {"rto_hours": 2, "notes": "new"}
@@ -511,7 +517,9 @@ def _apply_corruption(
             "boolean": True,
         }
         derived_field = "criticality_class" if field == "criticality" else field
-        proposal.derived_impact_snapshot[block][derived_field] = malformed_values[value_kind]
+        proposal.derived_impact_snapshot[block][derived_field] = malformed_values[
+            value_kind
+        ]
     elif corruption == "derived_scalar":
         proposal.derived_impact_snapshot = "protected"
     elif corruption == "derived_array":
@@ -522,7 +530,9 @@ def _apply_corruption(
             "before": "protected",
         }
     elif corruption == "derived_missing_block":
-        proposal.derived_impact_snapshot = {"before": {"cif": "yes", "criticality_class": "critical"}}
+        proposal.derived_impact_snapshot = {
+            "before": {"cif": "yes", "criticality_class": "critical"}
+        }
     elif corruption == "derived_extra_block_key":
         proposal.derived_impact_snapshot = {
             **proposal.derived_impact_snapshot,
@@ -588,9 +598,13 @@ def _apply_corruption(
     elif corruption == "impact_empty":
         proposal.impacted_resources_snapshot = []
     elif corruption == "impact_extra_key":
-        proposal.impacted_resources_snapshot = [{**proposal.impacted_resources_snapshot[0], "live_alias": True}]
+        proposal.impacted_resources_snapshot = [
+            {**proposal.impacted_resources_snapshot[0], "live_alias": True}
+        ]
     elif corruption == "impact_resource_id":
-        proposal.impacted_resources_snapshot = [{**proposal.impacted_resources_snapshot[0], "resource_id": 900_002}]
+        proposal.impacted_resources_snapshot = [
+            {**proposal.impacted_resources_snapshot[0], "resource_id": 900_002}
+        ]
     elif corruption == "impact_resource_name":
         proposal.impacted_resources_snapshot = [
             {
@@ -778,7 +792,10 @@ async def test_exact_sql_membership_matches_strict_object_parser(
         "derived_nul_cif",
         "derived_nul_criticality",
     }
-    if db_session.bind.dialect.name == "postgresql" and corruption in postgres_storage_rejections:
+    if (
+        db_session.bind.dialect.name == "postgresql"
+        and corruption in postgres_storage_rejections
+    ):
         assert parser_valid is False
         db_session.add(proposal)
         with pytest.raises(DBAPIError):

@@ -105,7 +105,8 @@
         "no": "No",
     "derived": {
       "cif": "CIF",
-      "criticality_class": "Criticality class"
+      "criticality_class": "Criticality class",
+      "resulting_criticality": "Resulting criticality"
     },
     "relationship": {
       "title": "Relationship change",
@@ -133,7 +134,16 @@
             "process_link_asset_update": "Update Process and Asset link",
             "process_link_asset_remove": "Remove Process and Asset link",
             "process_link_vendor_add": "Add Process and Vendor link",
-            "process_link_vendor_remove": "Remove Process and Vendor link"
+            "process_link_vendor_remove": "Remove Process and Vendor link",
+            "asset_create": "Protected Asset creation",
+            "asset_edit": "Protected Asset update",
+            "asset_archive": "Protected Asset archive",
+            "asset_link_asset_add": "Add Asset relationship",
+            "asset_link_asset_remove": "Remove Asset relationship",
+            "asset_link_vendor_add": "Add Asset and Vendor link",
+            "asset_link_vendor_remove": "Remove Asset and Vendor link",
+            "asset_link_risk_add": "Add Asset and Risk link",
+            "asset_link_risk_remove": "Remove Asset and Risk link"
         },
         "link_fields": {
             "linked": "Linked",
@@ -142,7 +152,13 @@
             "spof": "Single point of failure",
             "is_primary": "Primary relationship",
             "note": "Relationship note",
-            "direct_service_description": "Direct service description"
+            "direct_service_description": "Direct service description",
+            "archived": "Archived",
+            "dependency_type": "Dependency type",
+            "vendor_role": "Vendor role",
+            "ict_service_code": "ICT service code",
+            "contract_reference": "Contract reference",
+            "reliance": "Reliance"
         }
     },
     "notifications": {

@@ -347,6 +347,7 @@ class RiskAssetLinkCreate(BaseModel):
     model_config = {"extra": "forbid"}
 
     asset_id: int = Field(..., ge=1)
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class RiskAssetLinkCapabilities(BaseModel):

@@ -71,8 +71,11 @@ export const publicConfigValueSchema = passthroughObject({
 });
 
 const approvalScenarioFixedPolicySchema = passthroughObject({
-    threshold: z.literal('current_or_proposed_cif_yes'),
-    covered_actions: z.array(z.literal('edit')),
+    threshold: z.enum([
+        'current_or_proposed_cif_yes',
+        'current_or_proposed_cif_yes_or_resulting_criticality_critical',
+    ]),
+    covered_actions: z.array(z.enum(['create', 'edit', 'link', 'archive'])),
     allow_self_approval: z.literal(false),
 });
 

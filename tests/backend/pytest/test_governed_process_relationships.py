@@ -108,6 +108,18 @@ def _relationship_proposal(
             "key": "protected_process_edit",
             "requires_approval": True,
             "approver_roles": ["risk_manager"],
+            "triggered_policies": [
+                {
+                    "key": "protected_process_edit",
+                    "enabled": True,
+                    "policy_version": 1,
+                    "configured_roles": ["risk_manager"],
+                    "invariants": {
+                        "independent": True,
+                        "allow_self_approval": False,
+                    },
+                }
+            ],
         },
         base_versions={"process": 1},
         before_snapshot={"relationship": operation.get("before")},
@@ -363,7 +375,9 @@ async def test_governed_risk_and_vendor_audits_project_labels_not_target_ids(
                 select(ActivityLog)
                 .where(
                     ActivityLog.actor_id == test_user_cro.id,
-                    ActivityLog.entity_type.in_((ActivityEntityType.RISK_LINK, ActivityEntityType.PROCESS_LINK)),
+                    ActivityLog.entity_type.in_(
+                        (ActivityEntityType.RISK_LINK, ActivityEntityType.PROCESS_LINK)
+                    ),
                 )
                 .order_by(ActivityLog.id)
             )
@@ -439,14 +453,23 @@ async def test_protected_asset_link_stays_pending_until_independent_approval(
     test_user_risk_manager: User,
     test_user_employee: User,
 ) -> None:
-    db_session.add(
-        ApprovalScenario(
-            key="protected_process_edit",
-            display_name="Protected Process mutation",
-            description="Independent approval for CIF Process mutations",
-            requires_approval=True,
-            approver_roles=["risk_manager", "cro"],
-        )
+    db_session.add_all(
+        [
+            ApprovalScenario(
+                key="protected_process_edit",
+                display_name="Protected Process mutation",
+                description="Independent approval for CIF Process mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Independent approval for protected Asset mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
     )
     process = Process(
         f_code="F9020",
@@ -519,9 +542,12 @@ async def test_protected_asset_link_stays_pending_until_independent_approval(
                 "before": {"cif": "yes", "criticality_class": None},
                 "after": {"cif": "yes", "criticality_class": None},
             }
-        ]
+        ],
     }
-    assert process_pending["capabilities"] == {"can_view_diff": True, "can_cancel": True}
+    assert process_pending["capabilities"] == {
+        "can_view_diff": True,
+        "can_cancel": True,
+    }
     assert process_detail.json()["capabilities"]["has_pending_change"] is True
     assert process_detail.json()["capabilities"]["business_edit_blocked"] is True
     assert process_detail.json()["capabilities"]["can_cancel_pending_change"] is True
@@ -544,12 +570,33 @@ async def test_protected_asset_link_stays_pending_until_independent_approval(
     }
     assert requester_body["governed_mutation"]["impacted_resources"] == [
         {
+            "resource_type": "asset",
+            "resource_name": "Policy platform",
+        },
+        {
             "resource_type": "process",
             "resource_name": "F9020 — Policy administration",
+        },
+    ]
+    assert all(
+        "resource_id" not in item
+        for item in requester_body["governed_mutation"]["impacted_resources"]
+    )
+    assert all(
+        "resource_id" not in item
+        for item in requester_body["governed_mutation"]["derived_impact"]["processes"]
+    )
+    assert all(
+        "resource_id" not in item
+        for item in requester_body["governed_mutation"]["derived_impact"]["assets"]
+    )
+    assert requester_body["governed_mutation"]["derived_impact"]["assets"] == [
+        {
+            "resource_name": "Policy platform",
+            "before": {"cif": "no", "resulting_criticality": None},
+            "after": {"cif": "yes", "resulting_criticality": "medium"},
         }
     ]
-    assert all("resource_id" not in item for item in requester_body["governed_mutation"]["impacted_resources"])
-    assert all("resource_id" not in item for item in requester_body["governed_mutation"]["derived_impact"]["processes"])
     assert requester_body["governed_mutation"]["derived_impact"]["processes"] == [
         {
             "resource_name": "F9020 — Policy administration",
@@ -626,7 +673,9 @@ async def test_protected_asset_link_stays_pending_until_independent_approval(
         },
     }
     _assert_no_raw_relationship_id(domain_audit.changes)
-    assert proposal_audit.changes == {"asset_relationship": {"old": None, "new": "[REDACTED]"}}
+    assert proposal_audit.changes == {
+        "asset_relationship": {"old": None, "new": "[REDACTED]"}
+    }
 
 
 @pytest.mark.asyncio
@@ -678,6 +727,13 @@ async def test_all_process_link_rows_project_authoritative_pending_lock_state(
                 requires_approval=True,
                 approver_roles=["risk_manager", "cro"],
             ),
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Independent approval for protected Asset mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
         ]
     )
     await db_session.commit()
@@ -700,12 +756,16 @@ async def test_all_process_link_rows_project_authoritative_pending_lock_state(
 
     assert queued.status_code == 202, queued.text
     assert all(response.status_code == 200 for response in (*before, *after))
-    assert [response.json()[0]["process_business_edit_blocked"] for response in before] == [
+    assert [
+        response.json()[0]["process_business_edit_blocked"] for response in before
+    ] == [
         False,
         False,
         False,
     ]
-    assert [response.json()[0]["process_business_edit_blocked"] for response in after] == [
+    assert [
+        response.json()[0]["process_business_edit_blocked"] for response in after
+    ] == [
         True,
         True,
         True,
@@ -783,7 +843,12 @@ async def test_vendor_link_intake_refreshes_process_authority_after_target_lock(
         )
 
     assert response.status_code == 403, response.text
-    assert await db_session.scalar(select(ApprovalRequest.id).where(ApprovalRequest.resource_id == process.id)) is None
+    assert (
+        await db_session.scalar(
+            select(ApprovalRequest.id).where(ApprovalRequest.resource_id == process.id)
+        )
+        is None
+    )
     assert (
         await db_session.scalar(
             select(ProcessVendorLink.id).where(
@@ -856,14 +921,23 @@ async def test_relationship_reference_drift_expires_and_releases_all_locks(
     test_user_cro: User,
     test_user_risk_manager: User,
 ) -> None:
-    db_session.add(
-        ApprovalScenario(
-            key="protected_process_edit",
-            display_name="Protected Process mutation",
-            description="Independent approval for CIF Process mutations",
-            requires_approval=True,
-            approver_roles=["risk_manager", "cro"],
-        )
+    db_session.add_all(
+        [
+            ApprovalScenario(
+                key="protected_process_edit",
+                display_name="Protected Process mutation",
+                description="Independent approval for CIF Process mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Independent approval for protected Asset mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
     )
     process = Process(
         f_code="F9021",
@@ -916,7 +990,11 @@ async def test_relationship_reference_drift_expires_and_releases_all_locks(
     await db_session.refresh(process)
     assert process.governance_version == 1
     links = list(
-        (await db_session.execute(select(ProcessAssetLink).where(ProcessAssetLink.asset_id == asset.id)))
+        (
+            await db_session.execute(
+                select(ProcessAssetLink).where(ProcessAssetLink.asset_id == asset.id)
+            )
+        )
         .scalars()
         .all()
     )
@@ -940,6 +1018,114 @@ async def test_relationship_reference_drift_expires_and_releases_all_locks(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        "derived_boolean_id",
+        "derived_extra_key",
+        "derived_bad_cif",
+        "descriptor_base_mismatch",
+    ],
+)
+async def test_composite_process_asset_parser_rejects_every_malformed_asset_row_and_expires(
+    corruption: str,
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+) -> None:
+    if db_session.bind.dialect.name == "postgresql":
+        pytest.skip("PostgreSQL insert-only trigger forbids corruption fixtures")
+    db_session.add_all(
+        [
+            ApprovalScenario(
+                key="protected_process_edit",
+                display_name="Protected Process mutation",
+                description="Independent approval for CIF Process mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Independent approval for protected Asset mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
+    )
+    process = Process(
+        f_code=f"F-CORRUPT-{corruption}",
+        l0_area="Operations",
+        l1_process="Composite parser corruption",
+        process_owner_user_id=test_user_cro.id,
+        owning_department_id=test_user_cro.department_id,
+        cif_override="yes",
+    )
+    asset = Asset(
+        name=f"Composite parser Asset {corruption}",
+        business_owner_user_id=test_user_cro.id,
+        ict_owner_user_id=test_user_cro.id,
+        owning_department_id=test_user_cro.department_id,
+        preliminary_criticality="low",
+    )
+    db_session.add_all([process, asset])
+    await db_session.commit()
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.post(
+            f"/api/v1/assets/{asset.id}/process-links",
+            json={
+                "process_id": process.id,
+                "request_reason": "Exercise exact composite Asset identity",
+            },
+        )
+    assert submitted.status_code == 202, submitted.text
+    proposal = await db_session.scalar(
+        select(GovernedMutationProposal).where(
+            GovernedMutationProposal.approval_request_id
+            == submitted.json()["approval_id"]
+        )
+    )
+    assert proposal is not None
+    derived = dict(proposal.derived_impact_snapshot)
+    derived["assets"] = [dict(row) for row in derived["assets"]]
+    impacts = [dict(row) for row in proposal.impacted_resources_snapshot]
+    asset_row = derived["assets"][0]
+    if corruption == "derived_boolean_id":
+        asset_row["resource_id"] = True
+    elif corruption == "derived_extra_key":
+        asset_row["unexpected"] = "field"
+    elif corruption == "derived_bad_cif":
+        asset_row["after"] = {**asset_row["after"], "cif": True}
+    else:
+        asset_impact = next(row for row in impacts if row["resource_type"] == "asset")
+        asset_impact["base_governance_version"] += 1
+
+    proposal.derived_impact_snapshot = derived
+    proposal.impacted_resources_snapshot = impacts
+    with pytest.raises(ValueError, match="Malformed extended governed Process"):
+        strict_extended_process_identity(proposal)
+
+    db_session.expunge(proposal)
+    await db_session.execute(
+        update(GovernedMutationProposal)
+        .where(GovernedMutationProposal.id == proposal.id)
+        .values(
+            derived_impact_snapshot=derived,
+            impacted_resources_snapshot=impacts,
+        )
+    )
+    await db_session.commit()
+    async with client_factory(user=test_user_risk_manager) as approver:
+        resolved = await approver.post(
+            f"/api/v1/approvals/{submitted.json()['approval_id']}/approve",
+            json={"resolution_notes": "Malformed composite identity must expire"},
+        )
+    assert resolved.status_code == 200, resolved.text
+    assert resolved.json()["status"] == "expired"
+
+
+@pytest.mark.asyncio
 async def test_pending_process_creation_queue_is_private_and_uses_safe_labels(
     client_factory,
     db_session: AsyncSession,
@@ -948,14 +1134,23 @@ async def test_pending_process_creation_queue_is_private_and_uses_safe_labels(
     test_user_risk_manager: User,
     test_user_employee: User,
 ) -> None:
-    db_session.add(
-        ApprovalScenario(
-            key="protected_process_edit",
-            display_name="Protected Process mutation",
-            description="Independent approval for CIF Process mutations",
-            requires_approval=True,
-            approver_roles=["risk_manager", "cro"],
-        )
+    db_session.add_all(
+        [
+            ApprovalScenario(
+                key="protected_process_edit",
+                display_name="Protected Process mutation",
+                description="Independent approval for CIF Process mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Independent approval for protected Asset mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
     )
     await db_session.commit()
     payload = {
@@ -985,7 +1180,9 @@ async def test_pending_process_creation_queue_is_private_and_uses_safe_labels(
     assert body["resource_name"] == "Pending claims workflow"
     assert body["action_type"] == "create"
     assert body["pending_changes"]["process_owner"]["new"] == test_user_cro.name
-    assert body["pending_changes"]["owning_department"]["new"] == (f"{test_department.code} — {test_department.name}")
+    assert body["pending_changes"]["owning_department"]["new"] == (
+        f"{test_department.code} — {test_department.name}"
+    )
     assert "process_owner_user_id" not in body["pending_changes"]
     assert "owning_department_id" not in body["pending_changes"]
     assert body["governed_mutation"]["impacted_resources"] == []
@@ -1016,14 +1213,23 @@ async def test_postgres_overlapping_primary_swaps_lock_every_impacted_process(
 ) -> None:
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL multi-resource row/unique lock semantics required")
-    db_session.add(
-        ApprovalScenario(
-            key="protected_process_edit",
-            display_name="Protected Process mutation",
-            description="Independent approval for CIF Process mutations",
-            requires_approval=True,
-            approver_roles=["risk_manager", "cro"],
-        )
+    db_session.add_all(
+        [
+            ApprovalScenario(
+                key="protected_process_edit",
+                display_name="Protected Process mutation",
+                description="Independent approval for CIF Process mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Independent approval for protected Asset mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
     )
     processes = [
         Process(
@@ -1076,7 +1282,9 @@ async def test_postgres_overlapping_primary_swaps_lock_every_impacted_process(
 
     async with (
         client_factory(user=test_user_cro, db_override=independent_db_session) as first,
-        client_factory(user=test_user_cro, db_override=independent_db_session) as second,
+        client_factory(
+            user=test_user_cro, db_override=independent_db_session
+        ) as second,
     ):
         first_result, second_result = await asyncio.gather(
             first.post(
@@ -1101,7 +1309,10 @@ async def test_postgres_overlapping_primary_swaps_lock_every_impacted_process(
 
     assert sorted((first_result.status_code, second_result.status_code)) == [202, 409]
     winner = first_result if first_result.status_code == 202 else second_result
-    winning_new_process_id = processes[1].id if first_result.status_code == 202 else processes[2].id
+    winning_new_process_id = (
+        processes[1].id if first_result.status_code == 202 else processes[2].id
+    )
+    winning_asset_id = assets[0].id if first_result.status_code == 202 else assets[1].id
     async with session_maker() as verification:
         approval = await verification.get(ApprovalRequest, winner.json()["approval_id"])
         active_locks = list(
@@ -1116,10 +1327,17 @@ async def test_postgres_overlapping_primary_swaps_lock_every_impacted_process(
             .all()
         )
         live_links = list(
-            (await verification.execute(select(ProcessAssetLink).order_by(ProcessAssetLink.asset_id))).scalars().all()
+            (
+                await verification.execute(
+                    select(ProcessAssetLink).order_by(ProcessAssetLink.asset_id)
+                )
+            )
+            .scalars()
+            .all()
         )
     assert approval is not None and approval.status == ApprovalStatus.PENDING
     assert [(lock.resource_type, lock.resource_id) for lock in active_locks] == [
+        ("asset", winning_asset_id),
         ("process", processes[0].id),
         ("process", winning_new_process_id),
     ]
@@ -1140,14 +1358,23 @@ async def test_postgres_generic_edit_and_link_resolutions_share_lock_order(
 ) -> None:
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL cross-kind lock ordering is authoritative")
-    db_session.add(
-        ApprovalScenario(
-            key="protected_process_edit",
-            display_name="Protected Process mutation",
-            description="Independent approval for CIF Process mutations",
-            requires_approval=True,
-            approver_roles=["risk_manager", "cro"],
-        )
+    db_session.add_all(
+        [
+            ApprovalScenario(
+                key="protected_process_edit",
+                display_name="Protected Process mutation",
+                description="Independent approval for CIF Process mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Independent approval for protected Asset mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
     )
     edit_process, link_process = [
         Process(
@@ -1158,7 +1385,9 @@ async def test_postgres_generic_edit_and_link_resolutions_share_lock_order(
             owning_department_id=test_user_cro.department_id,
             cif_override="yes",
         )
-        for index, label in enumerate(("Concurrent generic edit", "Concurrent link"), start=1)
+        for index, label in enumerate(
+            ("Concurrent generic edit", "Concurrent link"), start=1
+        )
     ]
     asset = Asset(
         name="Concurrent lock-order platform",
@@ -1188,7 +1417,9 @@ async def test_postgres_generic_edit_and_link_resolutions_share_lock_order(
     assert edit.status_code == 202, edit.text
     assert link.status_code == 202, link.text
 
-    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async def independent_db_session():
         async with session_maker() as session:
@@ -1196,8 +1427,12 @@ async def test_postgres_generic_edit_and_link_resolutions_share_lock_order(
             yield session
 
     async with (
-        client_factory(user=test_user_risk_manager, db_override=independent_db_session) as edit_approver,
-        client_factory(user=test_user_risk_manager, db_override=independent_db_session) as link_approver,
+        client_factory(
+            user=test_user_risk_manager, db_override=independent_db_session
+        ) as edit_approver,
+        client_factory(
+            user=test_user_risk_manager, db_override=independent_db_session
+        ) as link_approver,
     ):
         edit_result, link_result = await asyncio.wait_for(
             asyncio.gather(
@@ -1262,6 +1497,13 @@ async def test_postgres_relationship_authority_change_serializes_in_both_orders(
                 requires_approval=True,
                 approver_roles=["risk_manager", "cro"],
             ),
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Independent approval for protected Asset mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
         ]
     )
     await db_session.commit()
@@ -1294,7 +1536,9 @@ async def test_postgres_relationship_authority_change_serializes_in_both_orders(
     allow_resolution = asyncio.Event()
     snapshot_complete = asyncio.Event()
     original_lock = process_relationships.lock_process_relationship_authorization_rows
-    original_snapshot = process_relationships.snapshot_process_relationship_authorization
+    original_snapshot = (
+        process_relationships.snapshot_process_relationship_authorization
+    )
 
     async def paused_lock(*args, **kwargs):
         result = await original_lock(*args, **kwargs)
@@ -1326,7 +1570,9 @@ async def test_postgres_relationship_authority_change_serializes_in_both_orders(
     async def change_asset_authority() -> None:
         async with session_maker() as session:
             locked_asset = (
-                await session.execute(select(Asset).where(Asset.id == asset.id).with_for_update())
+                await session.execute(
+                    select(Asset).where(Asset.id == asset.id).with_for_update()
+                )
             ).scalar_one()
             updater_locked.set()
             if authorization_change_first:
@@ -1481,7 +1727,9 @@ async def test_postgres_vendor_orphan_and_link_approval_serialize_in_both_orders
         ) as approver,
     ):
         if deactivation_first:
-            first = asyncio.create_task(admin.patch(f"/api/v1/users/{owner_id}", json={"is_active": False}))
+            first = asyncio.create_task(
+                admin.patch(f"/api/v1/users/{owner_id}", json={"is_active": False})
+            )
         else:
             first = asyncio.create_task(
                 approver.post(
@@ -1498,7 +1746,9 @@ async def test_postgres_vendor_orphan_and_link_approval_serialize_in_both_orders
                 )
             )
         else:
-            second = asyncio.create_task(admin.patch(f"/api/v1/users/{owner_id}", json={"is_active": False}))
+            second = asyncio.create_task(
+                admin.patch(f"/api/v1/users/{owner_id}", json={"is_active": False})
+            )
         release_first.set()
         first_result, second_result = await asyncio.wait_for(
             asyncio.gather(first, second),
@@ -1540,14 +1790,23 @@ async def test_postgres_primary_swap_reference_drift_expires_without_partial_app
 ) -> None:
     if db_session.bind.dialect.name != "postgresql":
         pytest.skip("PostgreSQL relationship row-lock and atomicity semantics required")
-    db_session.add(
-        ApprovalScenario(
-            key="protected_process_edit",
-            display_name="Protected Process mutation",
-            description="Independent approval for CIF Process mutations",
-            requires_approval=True,
-            approver_roles=["risk_manager", "cro"],
-        )
+    db_session.add_all(
+        [
+            ApprovalScenario(
+                key="protected_process_edit",
+                display_name="Protected Process mutation",
+                description="Independent approval for CIF Process mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Independent approval for protected Asset mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
     )
     old_primary, proposed_primary, concurrent_primary = [
         Process(
@@ -1666,7 +1925,11 @@ async def test_postgres_primary_swap_reference_drift_expires_without_partial_app
         verified_processes = list(
             (
                 await verification.execute(
-                    select(Process).where(Process.id.in_([old_primary.id, proposed_primary.id, concurrent_primary.id]))
+                    select(Process).where(
+                        Process.id.in_(
+                            [old_primary.id, proposed_primary.id, concurrent_primary.id]
+                        )
+                    )
                 )
             )
             .scalars()
@@ -1675,7 +1938,9 @@ async def test_postgres_primary_swap_reference_drift_expires_without_partial_app
         verified_links = list(
             (
                 await verification.execute(
-                    select(ProcessAssetLink).where(ProcessAssetLink.asset_id == asset.id).order_by(ProcessAssetLink.id)
+                    select(ProcessAssetLink)
+                    .where(ProcessAssetLink.asset_id == asset.id)
+                    .order_by(ProcessAssetLink.id)
                 )
             )
             .scalars()
@@ -1687,7 +1952,9 @@ async def test_postgres_primary_swap_reference_drift_expires_without_partial_app
                     select(GovernedMutationImpactLock).where(
                         GovernedMutationImpactLock.proposal_id
                         == select(GovernedMutationProposal.id)
-                        .where(GovernedMutationProposal.approval_request_id == approval_id)
+                        .where(
+                            GovernedMutationProposal.approval_request_id == approval_id
+                        )
                         .scalar_subquery(),
                         GovernedMutationImpactLock.released_at.is_(None),
                     )

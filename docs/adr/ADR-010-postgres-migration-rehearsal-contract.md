@@ -34,6 +34,9 @@ Before applying these migrations to production-like data, rehearse them on a ref
   `PROCESS`/`CREATE` approval paired with a `process`/`process.create` proposal
   may be rowless; every existing-row and legacy identity remains non-null by
   database constraint.
+- Revision `o5p6q7r8s9t0` adds governed Asset mutation support: the `ASSET`
+  approval resource label, `assets.governance_version`, Asset-compatible
+  proposal identity constraints, and the fixed `protected_asset_edit` scenario.
 
 ### Governed Process extension rehearsal evidence
 
@@ -60,6 +63,14 @@ governed proposals, and active impact locks. A failed or incomplete lane blocks
 release; it is not replaced by a downgrade rehearsal because rollback remains
 snapshot restore.
 
+### Governed Asset extension rehearsal evidence
+
+`o5p6q7r8s9t0` is exercised by the PostgreSQL-only automated rehearsal in
+`tests/backend/pytest/migrations/test_governed_asset_migration_rehearsal.py`.
+It creates disposable databases for both zero-to-head and recorded previous
+head `n4o5p6q7r8s9`-to-head lanes, asserts the final revision is
+`o5p6q7r8s9t0 (head)`, and drops each database after the run.
+
 ## Rollback Strategy
 
 Production rollback is restoring the pre-upgrade database snapshot. Alembic `downgrade()` for these revisions raises `NotImplementedError` and points here.
@@ -69,6 +80,8 @@ Production rollback is restoring the pre-upgrade database snapshot. Alembic `dow
 - Alembic head applies cleanly on a disposable Postgres database.
 - `n4o5p6q7r8s9` applies cleanly both zero-to-head and from recorded previous
   head `m3n4o5p6q7r8`, with the evidence listed above.
+- `o5p6q7r8s9t0` applies cleanly both zero-to-head and from recorded previous
+  head `n4o5p6q7r8s9` via the automated PostgreSQL rehearsal.
 - Archive-state row counts after backfill match the preflight targets.
 - The `set_approval_scenario_roles` helper assigns a list and does not JSON-string encode.
 - Lock monitoring is attached to the staging rehearsal record.

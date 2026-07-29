@@ -35,6 +35,9 @@ from app.services._authorization_capabilities import (
     risk_asset_link_capabilities,
     risk_process_link_capabilities,
 )
+from app.services._governed_mutations.asset_mutations import (
+    submit_asset_link_mutation_if_required,
+)
 from app.services._governed_mutations.process_mutations import (
     submit_process_relationship_mutation,
 )
@@ -455,6 +458,41 @@ async def add_risk_asset_link(
     if existing.scalar_one_or_none():
         raise ValidationError("Link already exists")
 
+    queued = await submit_asset_link_mutation_if_required(
+        db=db,
+        asset=asset,
+        impacted_assets=[asset],
+        operation={
+            "relationship_type": "risk",
+            "action": "add",
+            "related_resource_id": risk.id,
+            "before": None,
+            "after": {
+                "risk_id": risk.id,
+                "asset_id": asset.id,
+                "risk": f"{risk.risk_id_code} — {risk.name}",
+                "asset": asset.name,
+            },
+        },
+        current_user=current_user,
+        request_reason=payload.request_reason,
+    )
+    if queued is not None:
+        return queued
+
+    # The submission service returns with the Asset row lock still held, so
+    # this is the authoritative existence decision for both protected and
+    # ordinary paths. The preflight query above is only an early error.
+    existing = await db.scalar(
+        select(RiskAssetLink.id).where(
+            RiskAssetLink.risk_id == risk_id,
+            RiskAssetLink.asset_id == asset.id,
+        )
+    )
+    if existing is not None:
+        raise ValidationError("Link already exists")
+
+    asset.governance_version += 1
     link = RiskAssetLink(risk_id=risk_id, asset_id=payload.asset_id)
     db.add(link)
     await db.flush()
@@ -483,6 +521,7 @@ async def remove_risk_asset_link(
     *,
     risk_id: int,
     link_id: int,
+    request_reason: str | None = None,
     current_user: User,
 ) -> None:
     risk = await require_risk_end_access(
@@ -497,6 +536,43 @@ async def remove_risk_asset_link(
     asset_id = link.asset_id
     asset = await load_asset(db, asset_id)
     target_label = asset.name if asset is not None and can_read_asset_record(current_user, asset) else "Unknown asset"
+    if asset is not None:
+        queued = await submit_asset_link_mutation_if_required(
+            db=db,
+            asset=asset,
+            impacted_assets=[asset],
+            operation={
+                "relationship_type": "risk",
+                "action": "remove",
+                "related_resource_id": risk.id,
+                "before": {
+                    "id": link.id,
+                    "risk_id": risk.id,
+                    "asset_id": asset.id,
+                    "risk": f"{risk.risk_id_code} — {risk.name}",
+                    "asset": target_label,
+                },
+                "after": None,
+            },
+            current_user=current_user,
+            request_reason=request_reason,
+        )
+        if queued is not None:
+            return queued
+        # Re-read the exact row after the submission service has acquired the
+        # Asset lock. A concurrent ordinary removal may have committed while
+        # this request was waiting for that lock.
+        current_link = await db.scalar(
+            select(RiskAssetLink).where(
+                RiskAssetLink.id == link_id,
+                RiskAssetLink.risk_id == risk_id,
+                RiskAssetLink.asset_id == asset.id,
+            )
+        )
+        if current_link is None:
+            raise NotFoundError("Link not found")
+        link = current_link
+        asset.governance_version += 1
     await db.delete(link)
     await db.flush()
 

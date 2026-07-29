@@ -1,12 +1,21 @@
 import type { Asset, AssetAssetLink, AssetListResponse, AssetVendorLink, ProcessAssetLink } from '@/types/asset';
 
 import { collectionPaginationSchema, passthroughObject, z } from '../common';
+import {
+    governedDerivedImpactSchema,
+    governedImpactedResourceSchema,
+    governedRelationshipChangeSchema,
+} from '../workflow';
+import { GOVERNED_MUTATION_KINDS } from '@/types/approval';
 
 export const assetCapabilitiesSchema = passthroughObject({
     can_read: z.boolean(),
     can_update: z.boolean(),
     can_archive: z.boolean(),
     can_restore: z.boolean(),
+    has_pending_change: z.boolean(),
+    business_edit_blocked: z.boolean(),
+    can_cancel_pending_change: z.boolean(),
 });
 
 export const assetListCapabilitiesSchema = passthroughObject({
@@ -61,6 +70,48 @@ export const assetDepartmentReadSchema = passthroughObject({
     name: z.string(),
     code: z.string(),
 });
+
+const assetPendingChangeFields = {
+    approval_id: z.number().nullable(),
+    proposal_id: z.string().nullable(),
+    proposal_version: z.number().nullable(),
+    status: z.literal('pending'),
+    requested_at: z.string(),
+    requested_by_name: z.string().nullable(),
+    reason: z.string(),
+    generic_label: z.literal('protected_asset_change'),
+    mutation_kind: z.enum(GOVERNED_MUTATION_KINDS).nullable(),
+} as const;
+
+export const assetPendingChangeCapabilitiesSchema = passthroughObject({
+    can_view_diff: z.boolean(),
+    can_cancel: z.boolean(),
+});
+
+export const assetPendingChangeSchema = z.union([
+    z.strictObject({
+        ...assetPendingChangeFields,
+        before: z.record(z.string(), z.unknown()),
+        after: z.record(z.string(), z.unknown()),
+        derived_impact: governedDerivedImpactSchema,
+        impacted_resources: z.array(governedImpactedResourceSchema),
+        relationship_change: governedRelationshipChangeSchema.nullable(),
+        capabilities: assetPendingChangeCapabilitiesSchema.extend({
+            can_view_diff: z.literal(true),
+        }).strict(),
+    }),
+    z.strictObject({
+        ...assetPendingChangeFields,
+        before: z.record(z.string(), z.unknown()).refine((value) => Object.keys(value).length === 0),
+        after: z.record(z.string(), z.unknown()).refine((value) => Object.keys(value).length === 0),
+        derived_impact: z.strictObject({}),
+        impacted_resources: z.array(z.never()).length(0),
+        relationship_change: z.null(),
+        capabilities: assetPendingChangeCapabilitiesSchema.extend({
+            can_view_diff: z.literal(false),
+        }).strict(),
+    }),
+]);
 
 // Engine-derived block (ticket #48): read-only values computed on read, with
 // the explain inputs (h_rank signals, parameter thresholds) behind them.
@@ -173,6 +224,7 @@ export const assetSchema: z.ZodType<Asset> = passthroughObject({
     archived_at: z.string().nullable().optional(),
     archived_by_id: z.number().nullable().optional(),
     capabilities: assetCapabilitiesSchema.nullable().optional(),
+    pending_change: assetPendingChangeSchema.nullable().optional(),
     created_at: z.string(),
     updated_at: z.string(),
 });

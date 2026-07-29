@@ -18,6 +18,10 @@ from app.models import (
     Risk,
     User,
 )
+from app.services._governed_mutations.asset_identity import (
+    live_asset_resolver_approval_ids,
+    valid_asset_approval_ids,
+)
 from app.services._governed_mutations.process_identity import (
     any_governed_mutation_proposal_exists_clause,
 )
@@ -122,6 +126,17 @@ async def build_visible_pending_approvals_query(
         db,
         approval_statuses=PENDING_APPROVAL_STATUSES,
     )
+    valid_asset_ids = await valid_asset_approval_ids(
+        db,
+        approval_statuses=PENDING_APPROVAL_STATUSES,
+    )
+    asset_governed = ApprovalRequest.id.in_(tuple(valid_asset_ids)) if valid_asset_ids else false()
+    live_asset_resolver_ids = await live_asset_resolver_approval_ids(
+        db,
+        current_user=current_user,
+        approval_statuses=PENDING_APPROVAL_STATUSES,
+    )
+    asset_resolver = ApprovalRequest.id.in_(tuple(live_asset_resolver_ids)) if live_asset_resolver_ids else false()
     governed_process = governed_process_approval_exists_clause(valid_extended_ids)
     any_proposal = any_governed_mutation_proposal_exists_clause()
     legacy_candidate_clauses = [
@@ -150,6 +165,10 @@ async def build_visible_pending_approvals_query(
             process_approval_resolver_clause(current_user, valid_extended_ids),
         ),
         and_(
+            ApprovalRequest.status.in_(PENDING_APPROVAL_STATUSES),
+            asset_resolver,
+        ),
+        and_(
             ~any_proposal,
             ApprovalRequest.status.in_(PENDING_APPROVAL_STATUSES),
             legacy_visibility,
@@ -165,13 +184,19 @@ async def build_visible_pending_approvals_query(
                         ApprovalRequest.requested_by_id == current_user.id,
                     ),
                     governed_process_requester_clause(current_user.id, valid_extended_ids),
+                    and_(asset_governed, ApprovalRequest.requested_by_id == current_user.id),
                 ),
             )
         )
 
     query = select(ApprovalRequest).where(or_(*candidate_clauses))
     if resource_type is not None:
-        query = query.where(approval_resource_type_filter_clause(resource_type, valid_extended_ids))
+        query = query.where(
+            or_(
+                approval_resource_type_filter_clause(resource_type, valid_extended_ids),
+                and_(resource_type == ApprovalResourceType.ASSET, asset_governed),
+            )
+        )
     return query.order_by(ApprovalRequest.created_at.desc(), ApprovalRequest.id.desc())
 
 

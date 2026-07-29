@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.audit import asset as audit_asset
+from app.core.exceptions import ValidationError
 from app.models import Asset, Department, User
 from app.models._archivable import archived_clause
 from app.schemas.asset import AssetCreate, AssetListResponse, AssetRead, AssetUpdate
@@ -59,6 +60,12 @@ async def create_asset_detail(
 ) -> AssetRead:
     await assert_asset_create_allowed(current_user=current_user)
 
+    from app.services._governed_mutations.asset_mutations import (
+        acquire_asset_creation_name_lock,
+        submit_asset_creation_if_required,
+    )
+
+    await acquire_asset_creation_name_lock(db, asset_name=payload.name)
     await acquire_asset_owner_identity_locks(
         db,
         user_ids=(payload.business_owner_user_id, payload.ict_owner_user_id),
@@ -78,7 +85,25 @@ async def create_asset_detail(
         department_id=payload.owning_department_id,
     )
 
-    asset = Asset(**payload.model_dump())
+    queued = await submit_asset_creation_if_required(
+        db=db,
+        payload=payload,
+        current_user=current_user,
+        business_owner=business_owner,
+        ict_owner=ict_owner,
+        department=department,
+        name_lock_acquired=True,
+    )
+    if queued is not None:
+        return queued
+
+    # ``submit_asset_creation_if_required`` holds the rowless name lock even
+    # when policy allows direct application. Recheck under that lock so a
+    # concurrent approval resolution cannot create a duplicate display name.
+    if await db.scalar(select(Asset.id).where(Asset.name == payload.name).limit(1)) is not None:
+        raise ValidationError("An Asset with this name already exists")
+
+    asset = Asset(**payload.model_dump(exclude={"request_reason"}))
     asset.business_owner = business_owner
     asset.ict_owner = ict_owner
     asset.owning_department = department
@@ -124,15 +149,13 @@ async def update_asset_detail(
     if not updates:
         return await serialize_asset_detail_with_primary(db, asset, current_user=current_user)
 
+    updates.pop("request_reason", None)
+
     proposed_business_owner_id = (
-        int(updates["business_owner_user_id"])
-        if "business_owner_user_id" in updates
-        else asset.business_owner_user_id
+        int(updates["business_owner_user_id"]) if "business_owner_user_id" in updates else asset.business_owner_user_id
     )
     proposed_ict_owner_id = (
-        int(updates["ict_owner_user_id"])
-        if "ict_owner_user_id" in updates
-        else asset.ict_owner_user_id
+        int(updates["ict_owner_user_id"]) if "ict_owner_user_id" in updates else asset.ict_owner_user_id
     )
     asset = await assert_asset_ordinary_mutation_allowed(
         db,
@@ -143,6 +166,20 @@ async def update_asset_detail(
             proposed_ict_owner_id,
         ),
     )
+
+    from app.services._governed_mutations.asset_mutations import (
+        submit_asset_edit_if_required,
+    )
+
+    queued = await submit_asset_edit_if_required(
+        db=db,
+        asset=asset,
+        payload=payload,
+        current_user=current_user,
+        updates=updates,
+    )
+    if queued is not None:
+        return queued
 
     if "business_owner_user_id" in updates:
         asset.business_owner = await assert_active_asset_owner(
@@ -162,14 +199,13 @@ async def update_asset_detail(
             department_id=int(updates["owning_department_id"]),
         )
 
+    asset.governance_version += 1
     await apply_update_lifecycle(
         db=db,
         entity=asset,
         updates=updates,
         changes_factory=audit_asset.asset_update_changes,
-        audit=lambda changes: audit_asset.asset_updated(
-            db, actor=current_user, asset=asset, changes=changes
-        ),
+        audit=lambda changes: audit_asset.asset_updated(db, actor=current_user, asset=asset, changes=changes),
         boundary="ict_register_asset_update",
     )
     refreshed = await load_asset(db, asset.id)
@@ -182,16 +218,28 @@ async def archive_asset_detail(
     db: AsyncSession,
     asset_id: int,
     current_user: User,
+    request_reason: str | None = None,
 ) -> None:
     asset = await assert_asset_archive_allowed(db, asset_id=asset_id, current_user=current_user)
+    from app.services._governed_mutations.asset_mutations import (
+        submit_asset_archive_if_required,
+    )
+
+    queued = await submit_asset_archive_if_required(
+        db=db,
+        asset=asset,
+        current_user=current_user,
+        request_reason=request_reason,
+    )
+    if queued is not None:
+        return queued
+    asset.governance_version += 1
     await apply_archive_lifecycle(
         db=db,
         entity=asset,
         current_user=current_user,
         changes_factory=audit_asset.asset_archive_changes,
-        audit=lambda changes: audit_asset.asset_archived(
-            db, actor=current_user, asset=asset, changes=changes
-        ),
+        audit=lambda changes: audit_asset.asset_archived(db, actor=current_user, asset=asset, changes=changes),
         boundary="ict_register_asset_archive",
     )
 
@@ -203,14 +251,13 @@ async def restore_asset_detail(
     current_user: User,
 ) -> AssetRead:
     asset = await assert_asset_restore_allowed(db, asset_id=asset_id, current_user=current_user)
+    asset.governance_version += 1
     await apply_archive_lifecycle(
         db=db,
         entity=asset,
         current_user=current_user,
         changes_factory=audit_asset.asset_restore_changes,
-        audit=lambda changes: audit_asset.asset_restored(
-            db, actor=current_user, asset=asset, changes=changes
-        ),
+        audit=lambda changes: audit_asset.asset_restored(db, actor=current_user, asset=asset, changes=changes),
         boundary="ict_register_asset_restore",
         restore=True,
         refresh=True,
@@ -266,22 +313,14 @@ async def list_asset_register(
             current_user=current_user,
         )
         criticality_filter = (
-            _ASSET_CRITICALITY_FILTER_CODES.get(criticality, criticality)
-            if criticality is not None
-            else None
+            _ASSET_CRITICALITY_FILTER_CODES.get(criticality, criticality) if criticality is not None else None
         )
         eligible_ids = []
         for asset in candidates:
             derived = derived_by_asset_id[asset.id]
-            if (
-                has_process_link is not None
-                and ((derived.linked_process_count > 0) is not has_process_link)
-            ):
+            if has_process_link is not None and ((derived.linked_process_count > 0) is not has_process_link):
                 continue
-            if (
-                criticality_filter is not None
-                and derived.resulting_criticality != criticality_filter
-            ):
+            if criticality_filter is not None and derived.resulting_criticality != criticality_filter:
                 continue
             eligible_ids.append(asset.id)
         query = query.where(Asset.id.in_(eligible_ids))

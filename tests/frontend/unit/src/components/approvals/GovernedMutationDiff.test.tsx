@@ -171,4 +171,96 @@ describe('GovernedMutationDiff', () => {
         expect(screen.getAllByText('Not set').length).toBeGreaterThanOrEqual(2);
         expect(screen.getAllByText('Yes').length).toBeGreaterThan(0);
     });
+
+    it.each([
+        ['en', 'Application', 'Cloud', 'Confidential', 'Operational'],
+        ['cs', 'Aplikace', 'Cloud', 'Důvěrná data', 'V provozu'],
+    ] as const)(
+        'renders every mutable Asset field as an intelligible authorized diff in %s',
+        async (locale, assetType, deployment, classification, lifecycle) => {
+            await changeLanguage(locale);
+            render(
+                <GovernedMutationDiff
+                    mutationKind="asset.edit"
+                    before={{
+                        name: 'Claims v1',
+                        asset_type: 'database',
+                        asset_level: 'supporting',
+                        description: 'Old description',
+                        physical_location: 'Prague',
+                        deployment_model: 'on_premise',
+                        alternative_names: 'Legacy claims',
+                        business_owner_user_id: 'Alice Business Owner',
+                        ict_owner_user_id: 'Bob ICT Owner',
+                        owning_department_id: 'OPS — Operations',
+                        gdpr_relevance: 'no',
+                        ai_relevance: 'no',
+                        data_classification: 'internal',
+                        confidentiality_rating: 2,
+                        integrity_rating: 2,
+                        availability_rating: 3,
+                        authenticity_rating: 2,
+                        impact_client: 2,
+                        impact_regulatory: 2,
+                        substitutability_rating: 2,
+                        vendor_dependency_rating: 2,
+                        internet_exposed: 'no',
+                        preliminary_criticality: 'medium',
+                        lifecycle_state: 'in_development',
+                        standard_support_end_date: '2027-01-01',
+                        extended_support_end_date: '2028-01-01',
+                        custom_support_end_date: '2029-01-01',
+                        last_legacy_risk_assessment_date: '2026-01-01',
+                        review_state: 'review_required',
+                        notes: 'Old note',
+                    }}
+                    after={{
+                        name: 'Claims v2',
+                        asset_type: 'application',
+                        asset_level: 'primary',
+                        description: 'New description',
+                        physical_location: 'Brno',
+                        deployment_model: 'cloud',
+                        alternative_names: 'Claims core',
+                        business_owner_user_id: 'Carol Business Owner',
+                        ict_owner_user_id: 'Dan ICT Owner',
+                        owning_department_id: 'ICT — Technology',
+                        gdpr_relevance: 'yes',
+                        ai_relevance: 'yes',
+                        data_classification: 'confidential',
+                        confidentiality_rating: 4,
+                        integrity_rating: 4,
+                        availability_rating: 5,
+                        authenticity_rating: 4,
+                        impact_client: 4,
+                        impact_regulatory: 4,
+                        substitutability_rating: 4,
+                        vendor_dependency_rating: 4,
+                        internet_exposed: 'yes',
+                        preliminary_criticality: 'critical',
+                        lifecycle_state: 'operational',
+                        standard_support_end_date: '2030-01-01',
+                        extended_support_end_date: '2031-01-01',
+                        custom_support_end_date: '2032-01-01',
+                        last_legacy_risk_assessment_date: '2026-07-19',
+                        review_state: 'reviewed',
+                        notes: 'New note',
+                    }}
+                    derivedImpact={{
+                        before: { cif: 'no', resulting_criticality: 'medium' },
+                        after: { cif: 'yes', resulting_criticality: 'critical' },
+                    }}
+                />,
+            );
+
+            expect(screen.queryByText('Restricted change')).not.toBeInTheDocument();
+            expect(screen.getByText(assetType)).toBeInTheDocument();
+            expect(screen.getByText(deployment)).toBeInTheDocument();
+            expect(screen.getByText(classification)).toBeInTheDocument();
+            expect(screen.getByText(lifecycle)).toBeInTheDocument();
+            for (const rawId of ['7315', '8124', '42', '84']) {
+                expect(screen.queryByText(rawId)).not.toBeInTheDocument();
+            }
+        },
+    );
 });

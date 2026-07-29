@@ -9,11 +9,19 @@ pytestmark = pytest.mark.contract
 ROOT = Path(__file__).resolve().parents[4]
 ADR_PATH = ROOT / "docs/adr/ADR-016-governed-mutation-proposals.md"
 RESOLUTION_PATH = ROOT / "backend/app/services/_governed_mutations/resolution.py"
-EXTENDED_RESOLUTION_PATH = ROOT / "backend/app/services/_governed_mutations/resolution_extensions.py"
-RESOLUTION_LOCK_PLAN_PATH = ROOT / "backend/app/services/_governed_mutations/resolution_lock_plan.py"
-TERMINAL_TRANSITIONS_PATH = ROOT / "backend/app/services/_governed_mutations/terminal_transitions.py"
+EXTENDED_RESOLUTION_PATH = (
+    ROOT / "backend/app/services/_governed_mutations/resolution_extensions.py"
+)
+RESOLUTION_LOCK_PLAN_PATH = (
+    ROOT / "backend/app/services/_governed_mutations/resolution_lock_plan.py"
+)
+TERMINAL_TRANSITIONS_PATH = (
+    ROOT / "backend/app/services/_governed_mutations/terminal_transitions.py"
+)
 POLICY_PATH = ROOT / "backend/app/services/approval_scenario_policy.py"
-PROCESS_IDENTITY_PATH = ROOT / "backend/app/services/_governed_mutations/process_identity.py"
+PROCESS_IDENTITY_PATH = (
+    ROOT / "backend/app/services/_governed_mutations/process_identity.py"
+)
 QUEUE_QUERY_PATH = ROOT / "backend/app/services/_approval_queue/queries.py"
 QUEUE_COUNT_PATH = ROOT / "backend/app/services/_approval_queue/counts.py"
 PENDING_VISIBILITY_PATH = ROOT / "backend/app/services/approval_queue_visibility.py"
@@ -85,18 +93,24 @@ def test_adr_016_pins_envelope_integrity_and_actor_role_lock_order() -> None:
     assert "resolver scope/department updates versus\napproval races" in adr
     assert "manager links\nare verified unchanged after locking" in adr
     assert "def _governed_envelope_stale_reason(" in resolution
-    assert "if len(impact_locks) != 1:" in resolution
+    assert "actual_locks != expected_locks" in resolution
     assert "manager_snapshot = {row.id: row.manager_id" in resolution
     assert "can_resolve_process_approval(" in resolution
     role_lock = resolution.index(".where(Role.id.in_(reference_role_ids))")
-    delegated_lock_plan = resolution.index("lock_governed_process_resolution_suffix(", role_lock)
+    delegated_lock_plan = resolution.index(
+        "lock_governed_process_resolution_suffix(", role_lock
+    )
     assert role_lock < delegated_lock_plan
     assert "lock_governed_process_resolution_suffix(" in extended_resolution
     department_lock = lock_plan.index("select(Department)")
     process_lock = lock_plan.index("select(Process)", department_lock)
+    assert "select(Asset)" in lock_plan
+    asset_lock = lock_plan.index(
+        "assets = await lock_governed_assets_for_resolution(", process_lock
+    )
     parameter_lock = lock_plan.index("load_ict_workbook_parameter_set_for_update(db)")
-    scenario_lock = lock_plan.index("load_fixed_process_scenario_for_update(db)")
-    assert department_lock < process_lock < parameter_lock < scenario_lock
+    scenario_lock = lock_plan.index("select(ApprovalScenario)", parameter_lock)
+    assert department_lock < process_lock < asset_lock < parameter_lock < scenario_lock
 
 
 def test_adr_016_pins_queue_detail_and_notification_policy_parity() -> None:

@@ -39,6 +39,7 @@ class Asset(ArchivableMixin, Base):
     __tablename__ = "assets"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    governance_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
     # A·IDENTIFIKACE
     name: Mapped[str] = mapped_column(String(255), index=True)
@@ -141,12 +142,8 @@ class ProcessAssetLink(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    process_id: Mapped[int] = mapped_column(
-        ForeignKey("processes.id", ondelete="CASCADE"), index=True, nullable=False
-    )
-    asset_id: Mapped[int] = mapped_column(
-        ForeignKey("assets.id", ondelete="CASCADE"), index=True, nullable=False
-    )
+    process_id: Mapped[int] = mapped_column(ForeignKey("processes.id", ondelete="CASCADE"), index=True, nullable=False)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id", ondelete="CASCADE"), index=True, nullable=False)
 
     # "Význam vazby pro proces" — closed list VyznamVazby.
     significance: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -168,9 +165,7 @@ class AssetAssetLink(Base):
     """
 
     __tablename__ = "asset_asset_links"
-    __table_args__ = (
-        UniqueConstraint("dependent_asset_id", "supporting_asset_id", name="uq_asset_asset_link"),
-    )
+    __table_args__ = (UniqueConstraint("dependent_asset_id", "supporting_asset_id", name="uq_asset_asset_link"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
@@ -203,18 +198,12 @@ class AssetVendorLink(Base):
     """
 
     __tablename__ = "asset_vendor_links"
-    __table_args__ = (
-        UniqueConstraint("asset_id", "vendor_id", "ict_service_code", name="uq_asset_vendor_link"),
-    )
+    __table_args__ = (UniqueConstraint("asset_id", "vendor_id", "ict_service_code", name="uq_asset_vendor_link"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    asset_id: Mapped[int] = mapped_column(
-        ForeignKey("assets.id", ondelete="CASCADE"), index=True, nullable=False
-    )
-    vendor_id: Mapped[int] = mapped_column(
-        ForeignKey("vendors.id", ondelete="CASCADE"), index=True, nullable=False
-    )
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id", ondelete="CASCADE"), index=True, nullable=False)
+    vendor_id: Mapped[int] = mapped_column(ForeignKey("vendors.id", ondelete="CASCADE"), index=True, nullable=False)
 
     # "Role dodavatele" — closed list RoleDodavatele.
     vendor_role: Mapped[str | None] = mapped_column(String(50), nullable=True)

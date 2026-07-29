@@ -16,10 +16,12 @@ from app.models import (
     ApprovalRequest,
     ApprovalResourceType,
     ApprovalStatus,
+    Asset,
     Department,
     GovernedMutationImpactLock,
     GovernedMutationProposal,
     Process,
+    ProcessAssetLink,
     User,
 )
 from app.services._ict_register_lifecycle.projection import (
@@ -28,6 +30,13 @@ from app.services._ict_register_lifecycle.projection import (
 from app.services.outbox import OutboxService
 from app.services.transaction_boundary import commit_service_boundary
 
+from .asset_mutations import process_point_asset_impacts
+from .composite_policy import effective_triggered_policy_roles, triggered_policy_snapshot
+from .fixed_asset_policy import (
+    ASSET_SCENARIO_KEY,
+    load_fixed_asset_scenario_for_update,
+    validated_fixed_asset_roles,
+)
 from .fixed_policy import (
     SCENARIO_KEY,
     load_fixed_process_scenario_for_update,
@@ -42,6 +51,27 @@ from .process_mutation_policy import (
     safe_process_department_label,
     safe_process_user_label,
 )
+
+
+async def increment_process_downstream_asset_versions(
+    db: AsyncSession,
+    *,
+    process_id: int,
+) -> None:
+    """Version every Asset whose derivation can change with a direct Process point mutation."""
+    assets = list(
+        (
+            await db.execute(
+                select(Asset)
+                .join(ProcessAssetLink, ProcessAssetLink.asset_id == Asset.id)
+                .where(ProcessAssetLink.process_id == process_id)
+                .order_by(Asset.id)
+                .with_for_update()
+            )
+        ).scalars()
+    )
+    for asset in assets:
+        asset.governance_version += 1
 
 
 async def assert_no_pending_process_mutation(db: AsyncSession, *, process_id: int) -> None:
@@ -127,14 +157,6 @@ async def submit_process_mutation_if_required(
     proposed_department: Department | None = None,
 ) -> JSONResponse | None:
     """Queue a protected mutation, or return ``None`` for direct application."""
-    current_block, proposed_block = await load_governed_process_derived_blocks(
-        db,
-        process,
-        updates=updates,
-    )
-    if current_block.cif != "yes" and proposed_block.cif != "yes":
-        return None
-
     before, after, changes, raw_before, raw_after = _change_snapshots(
         process,
         updates,
@@ -144,10 +166,40 @@ async def submit_process_mutation_if_required(
     if not changes:
         return None
 
-    scenario = await load_fixed_process_scenario_for_update(db)
-    roles = validated_fixed_process_roles(scenario)
-    if not scenario.requires_approval:
+    impacted_assets, asset_derived_rows = await process_point_asset_impacts(
+        db,
+        process=process,
+        updates=updates,
+    )
+    current_block, proposed_block = await load_governed_process_derived_blocks(
+        db,
+        process,
+        updates=updates,
+    )
+
+    process_protected = current_block.cif == "yes" or proposed_block.cif == "yes"
+    asset_protected = any(
+        block["cif"] == "yes" or block["resulting_criticality"] == "critical"
+        for row in asset_derived_rows
+        for block in (row["before"], row["after"])
+    )
+    triggered_scenarios: list[str] = []
+    triggered_policies = []
+    if process_protected:
+        process_scenario = await load_fixed_process_scenario_for_update(db)
+        if process_scenario.requires_approval:
+            triggered_scenarios.append(SCENARIO_KEY)
+            process_roles = validated_fixed_process_roles(process_scenario)
+            triggered_policies.append(triggered_policy_snapshot(SCENARIO_KEY, process_roles))
+    if asset_protected:
+        asset_scenario = await load_fixed_asset_scenario_for_update(db)
+        if asset_scenario.requires_approval:
+            triggered_scenarios.append(ASSET_SCENARIO_KEY)
+            asset_roles = validated_fixed_asset_roles(asset_scenario)
+            triggered_policies.append(triggered_policy_snapshot(ASSET_SCENARIO_KEY, asset_roles))
+    if not triggered_scenarios:
         return None
+    roles = effective_triggered_policy_roles(triggered_policies)
 
     reason = (request_reason or "").strip()
     if not reason:
@@ -177,7 +229,7 @@ async def submit_process_mutation_if_required(
         resource_name=process_display_name,
         action_type=ApprovalActionType.EDIT,
         pending_changes=changes,
-        scenario_key=SCENARIO_KEY,
+        scenario_key=triggered_scenarios[0],
         scenario_approver_roles=roles,
         requested_by_id=current_user.id,
         reason=reason,
@@ -187,6 +239,25 @@ async def submit_process_mutation_if_required(
     db.add(approval)
     try:
         await db.flush()
+        process_derived = {
+            "before": {
+                "cif": current_block.cif,
+                "criticality_class": current_block.criticality_class,
+            },
+            "after": {
+                "cif": proposed_block.cif,
+                "criticality_class": proposed_block.criticality_class,
+            },
+        }
+        asset_impacts = [
+            {
+                "resource_type": "asset",
+                "resource_id": asset.id,
+                "resource_name": asset.name,
+                "base_governance_version": asset.governance_version,
+            }
+            for asset in impacted_assets
+        ]
         proposal = new_governed_process_proposal(
             approval_request_id=approval.id,
             requested_by_id=current_user.id,
@@ -198,16 +269,18 @@ async def submit_process_mutation_if_required(
             after_snapshot=after,
             raw_before=raw_before,
             raw_after=raw_after,
-            derived_impact_snapshot={
-                "before": {
-                    "cif": current_block.cif,
-                    "criticality_class": current_block.criticality_class,
-                },
-                "after": {
-                    "cif": proposed_block.cif,
-                    "criticality_class": proposed_block.criticality_class,
-                },
-            },
+            derived_impact_snapshot=(
+                {
+                    "processes": [{"resource_id": process.id, **process_derived}],
+                    "assets": asset_derived_rows,
+                }
+                if asset_impacts
+                else process_derived
+            ),
+            asset_impacts=asset_impacts,
+            scenario_key=triggered_scenarios[0],
+            triggered_scenarios=triggered_scenarios,
+            triggered_policies=triggered_policies,
         )
         db.add(proposal)
         await db.flush()
@@ -219,6 +292,15 @@ async def submit_process_mutation_if_required(
                 base_governance_version=process.governance_version,
             )
         )
+        for asset in impacted_assets:
+            db.add(
+                GovernedMutationImpactLock(
+                    proposal_id=proposal.id,
+                    resource_type="asset",
+                    resource_id=asset.id,
+                    base_governance_version=asset.governance_version,
+                )
+            )
         await db.flush()
         await audit_governed.proposal_submitted(
             db,

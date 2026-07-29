@@ -544,6 +544,50 @@ edit, relationship, and archive proposals under ADR-016:
   or validation. The workflow has no SLA, reminder, overdue state, timer,
   automatic decision, or escalation.
 
+### 5.8 Governed Protected Asset Mutations
+
+The fixed `protected_asset_edit` scenario protects an Asset when its current or
+proposed CIF is Yes, or its current or proposed resulting criticality is
+Critical. Protected create, edit, Asset/Process/Vendor link, and archive
+requests require a reason and independent active Risk Manager/CRO approval;
+the requester cannot approve. Creation remains rowless, while existing-Asset
+proposals lock every affected Asset and preserve approved values and links.
+Submission acquires those Asset locks in stable identifier order before it
+derives or stores the proposal, so a concurrent direct mutation cannot race
+the pending-change visibility check.
+
+Process-to-Asset changes produce one Composite proposal whenever either the
+Process or downstream Asset consequence is protected. Approval locks and
+rederives the complete Process-to-Asset graph, rejects stale versions, and
+applies every relationship and derived consequence atomically or none. Reject,
+cancel, and stale expiry preserve operational truth and release all locks.
+Malformed Asset proposal envelopes and proposals whose fixed scenario is
+missing, disabled, or no longer authorizes their snapshotted approver roles are
+bounded-expired by an independent active Risk Manager/CRO resolver. That
+recovery path never grants ordinary Asset readers approval authority.
+Restore remains direct. The Settings API exposes the threshold, covered actions,
+and disabled self-approval as a fixed read-only policy definition.
+
+All proposal JSON is bounded and total-validated before actor identifiers are
+collected or any actor/resource row is locked. Deep, oversized, wrong-shaped,
+or non-string approver-role data therefore cannot select lock targets or cause
+a resolution error.
+
+Pending Asset detail is confidential to the requester and a currently eligible
+resolver. Other Asset readers receive a redacted pending-change payload for the
+generic banner: only its safe pending status, timestamp, and generic label are
+meaningful; reason, requester, snapshots, relationship, impacts, and diff/cancel
+capabilities are empty or false. The approval detail API remains unavailable to
+those readers. Authorized detail uses typed, localized-safe mutation,
+relationship, affected-resource, and derived-impact fields and never exposes
+raw database identifiers as display fallbacks.
+
+Asset relationship and archive submission services acquire their own sorted
+Asset row locks before pending checks, impact derivation, or base-version
+capture. Governed approval notifications use correlated SQL visibility for the
+linked Asset approval and requester/live resolver rather than materializing a
+platform-wide Asset proposal or identifier set.
+
 ---
 
 ## 6. Sensitive Field Rules

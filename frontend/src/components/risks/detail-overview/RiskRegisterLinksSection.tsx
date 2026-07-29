@@ -163,6 +163,9 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
     const [pendingProcessAction, setPendingProcessAction] = useState<
         { kind: 'add'; processId: number } | { kind: 'remove'; linkId: number } | null
     >(null);
+    const [pendingAssetAction, setPendingAssetAction] = useState<
+        { kind: 'add'; assetId: number } | { kind: 'remove'; linkId: number } | null
+    >(null);
     const [threatSearch, setThreatSearch] = useState('');
     const [processSearch, setProcessSearch] = useState('');
     const [assetSearch, setAssetSearch] = useState('');
@@ -264,13 +267,29 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
         onError: handleMutationError,
     });
     const addAssetLink = useMutation({
-        mutationFn: (assetId: number) => riskRegisterLinksApi.addAssetLink(risk.id, assetId),
-        onSuccess: makeInvalidate(ictRegisterKeys.riskAssetLinks(risk.id)),
+        mutationFn: ({ assetId, reason }: { assetId: number; reason: string }) =>
+            riskRegisterLinksApi.addAssetLink(risk.id, assetId, reason),
+        onSuccess: async (result) => {
+            setPendingAssetAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
+            await makeInvalidate(ictRegisterKeys.riskAssetLinks(risk.id))();
+        },
         onError: handleMutationError,
     });
     const removeAssetLink = useMutation({
-        mutationFn: (linkId: number) => riskRegisterLinksApi.removeAssetLink(risk.id, linkId),
-        onSuccess: makeInvalidate(ictRegisterKeys.riskAssetLinks(risk.id)),
+        mutationFn: ({ linkId, reason }: { linkId: number; reason: string }) =>
+            riskRegisterLinksApi.removeAssetLink(risk.id, linkId, reason),
+        onSuccess: async (result) => {
+            setPendingAssetAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
+            await makeInvalidate(ictRegisterKeys.riskAssetLinks(risk.id))();
+        },
         onError: handleMutationError,
     });
 
@@ -388,8 +407,8 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                 )}
                 searchValue={assetSearch}
                 onSearchChange={setAssetSearch}
-                onAdd={(targetId) => addAssetLink.mutate(targetId)}
-                onRemove={(linkId) => removeAssetLink.mutate(linkId)}
+                onAdd={(assetId) => setPendingAssetAction({ kind: 'add', assetId })}
+                onRemove={(linkId) => setPendingAssetAction({ kind: 'remove', linkId })}
                 isAddPending={addAssetLink.isPending}
             />
             <GovernedMutationReasonDialog
@@ -403,6 +422,20 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                         addProcessLink.mutate({ processId: pendingProcessAction.processId, reason });
                     } else if (pendingProcessAction?.kind === 'remove') {
                         removeProcessLink.mutate({ linkId: pendingProcessAction.linkId, reason });
+                    }
+                }}
+            />
+            <GovernedMutationReasonDialog
+                isOpen={pendingAssetAction !== null}
+                reasonRequired
+                kind={pendingAssetAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
+                isLoading={addAssetLink.isPending || removeAssetLink.isPending}
+                onClose={() => setPendingAssetAction(null)}
+                onConfirm={(reason) => {
+                    if (pendingAssetAction?.kind === 'add') {
+                        addAssetLink.mutate({ assetId: pendingAssetAction.assetId, reason });
+                    } else if (pendingAssetAction?.kind === 'remove') {
+                        removeAssetLink.mutate({ linkId: pendingAssetAction.linkId, reason });
                     }
                 }}
             />

@@ -106,16 +106,19 @@ export const assetApi = {
         return apiClient.get(`/assets/${id}`, { schema: assetSchema });
     },
 
-    async createAsset(data: AssetWritePayload): Promise<Asset> {
-        return apiClient.post('/assets', data, { schema: assetSchema });
+    async createAsset(data: AssetWritePayload): Promise<Asset | ProcessApprovalQueuedResponse> {
+        return apiClient.post('/assets', data, { schema: assetSchema.or(processApprovalQueuedResponseSchema) });
     },
 
-    async updateAsset(id: number, data: AssetWritePayload): Promise<Asset> {
-        return apiClient.patch(`/assets/${id}`, data, { schema: assetSchema });
+    async updateAsset(id: number, data: AssetWritePayload): Promise<Asset | ProcessApprovalQueuedResponse> {
+        return apiClient.patch(`/assets/${id}`, data, { schema: assetSchema.or(processApprovalQueuedResponseSchema) });
     },
 
-    async archiveAsset(id: number): Promise<void> {
-        return apiClient.delete(`/assets/${id}`, { schema: voidSchema });
+    async archiveAsset(id: number, requestReason: string): Promise<void | ProcessApprovalQueuedResponse> {
+        return apiClient.delete(`/assets/${id}`, {
+            body: JSON.stringify({ request_reason: requestReason }),
+            schema: voidSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     async restoreAsset(id: number): Promise<Asset> {
@@ -163,12 +166,17 @@ export const assetApi = {
         return apiClient.get(`/assets/${assetId}/asset-links`, { schema: assetAssetLinkListSchema });
     },
 
-    async addAssetLink(assetId: number, data: AssetAssetLinkCreatePayload): Promise<AssetAssetLink> {
-        return apiClient.post(`/assets/${assetId}/asset-links`, data, { schema: assetAssetLinkSchema });
+    async addAssetLink(assetId: number, data: AssetAssetLinkCreatePayload): Promise<AssetAssetLink | ProcessApprovalQueuedResponse> {
+        return apiClient.post(`/assets/${assetId}/asset-links`, data, {
+            schema: assetAssetLinkSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
-    async removeAssetLink(assetId: number, linkId: number): Promise<void> {
-        return apiClient.delete(`/assets/${assetId}/asset-links/${linkId}`, { schema: voidSchema });
+    async removeAssetLink(assetId: number, linkId: number, requestReason: string): Promise<void | ProcessApprovalQueuedResponse> {
+        return apiClient.delete(`/assets/${assetId}/asset-links/${linkId}`, {
+            body: JSON.stringify({ request_reason: requestReason }),
+            schema: voidSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     /** Asset<->Vendor Link relations (sheet 10_VAD), managed from the Asset detail. */
@@ -176,12 +184,17 @@ export const assetApi = {
         return apiClient.get(`/assets/${assetId}/vendor-links`, { schema: assetVendorLinkListSchema });
     },
 
-    async addVendorLink(assetId: number, data: AssetVendorLinkCreatePayload): Promise<AssetVendorLink> {
-        return apiClient.post(`/assets/${assetId}/vendor-links`, data, { schema: assetVendorLinkSchema });
+    async addVendorLink(assetId: number, data: AssetVendorLinkCreatePayload): Promise<AssetVendorLink | ProcessApprovalQueuedResponse> {
+        return apiClient.post(`/assets/${assetId}/vendor-links`, data, {
+            schema: assetVendorLinkSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
-    async removeVendorLink(assetId: number, linkId: number): Promise<void> {
-        return apiClient.delete(`/assets/${assetId}/vendor-links/${linkId}`, { schema: voidSchema });
+    async removeVendorLink(assetId: number, linkId: number, requestReason: string): Promise<void | ProcessApprovalQueuedResponse> {
+        return apiClient.delete(`/assets/${assetId}/vendor-links/${linkId}`, {
+            body: JSON.stringify({ request_reason: requestReason }),
+            schema: voidSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     /** Workbook closed lists from the ICT Register reference registry (issue #41). */

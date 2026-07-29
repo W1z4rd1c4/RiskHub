@@ -17,6 +17,7 @@ from app.models import (
     ApprovalRequest,
     ApprovalResourceType,
     ApprovalStatus,
+    Asset,
     Department,
     GovernedMutationImpactLock,
     GovernedMutationProposal,
@@ -39,7 +40,8 @@ from app.services._process_owner_lock import acquire_process_owner_identity_lock
 from app.services.approval_scenario_policy import can_resolve_process_approval
 from app.services.transaction_boundary import commit_service_boundary
 
-from .fixed_policy import validated_fixed_process_roles
+from .fixed_asset_policy import ASSET_SCENARIO_KEY, validated_fixed_asset_roles
+from .fixed_policy import SCENARIO_KEY, validated_fixed_process_roles
 from .process_identity import (
     GovernedProcessIdentity,
     InvalidGovernedProcessIdentity,
@@ -59,6 +61,7 @@ class _GovernedResolutionContext:
     identity: GovernedProcessIdentity
     impact_locks: list[GovernedMutationImpactLock]
     process: Process
+    assets: dict[int, Asset]
     requester: User | None
     resolver: User
     resolver_is_active: bool
@@ -67,6 +70,7 @@ class _GovernedResolutionContext:
     proposed_department: Department | None
     parameters: IctWorkbookParameterSet
     scenario: ApprovalScenario
+    scenarios: dict[str, ApprovalScenario]
     envelope_stale_reason: str | None
 
 
@@ -108,16 +112,23 @@ def _governed_envelope_stale_reason(
     if not identity_is_intact:
         return _ENVELOPE_STALE_REASON
 
-    if len(impact_locks) != 1:
+    expected_locks = {
+        (
+            item.get("resource_type"),
+            item.get("resource_id"),
+            item.get("base_governance_version"),
+        )
+        for item in proposal.impacted_resources_snapshot
+        if isinstance(item, dict)
+    }
+    actual_locks = {(lock.resource_type, lock.resource_id, lock.base_governance_version) for lock in impact_locks}
+    if actual_locks != expected_locks:
         return _ENVELOPE_STALE_REASON
-    impact_lock = impact_locks[0]
-    if (
+    if any(
         impact_lock.proposal_id != proposal.id
-        or impact_lock.resource_type != "process"
-        or impact_lock.resource_id != identity.primary_resource_id
-        or impact_lock.base_governance_version != identity.base_governance_version
         or impact_lock.released_at is not None
         or impact_lock.release_reason is not None
+        for impact_lock in impact_locks
     ):
         return _ENVELOPE_STALE_REASON
     return None
@@ -316,9 +327,13 @@ async def _load_governed_resolution(
         }
         - {None}
     )
+    asset_ids = sorted(
+        {item["resource_id"] for item in proposal.impacted_resources_snapshot if item.get("resource_type") == "asset"}
+    )
     locked_suffix = await lock_governed_process_resolution_suffix(
         db,
         process_ids=(process_id,),
+        asset_ids=asset_ids,
         additional_department_ids=department_ids,
         process_options=(
             selectinload(Process.process_owner)
@@ -328,6 +343,7 @@ async def _load_governed_resolution(
             selectinload(Process.process_owner).selectinload(User.department),
             selectinload(Process.owning_department),
         ),
+        scenario_keys=identity.triggered_scenarios,
     )
     departments_by_id = locked_suffix.departments
     process = locked_suffix.processes.get(process_id)
@@ -338,6 +354,7 @@ async def _load_governed_resolution(
             "Process ownership changed concurrently; retry",
             code="process_concurrent_mutation",
         )
+    assets = list(locked_suffix.assets.values())
 
     return _GovernedResolutionContext(
         approval=approval,
@@ -345,6 +362,7 @@ async def _load_governed_resolution(
         identity=identity,
         impact_locks=impact_locks,
         process=process,
+        assets={asset.id: asset for asset in assets},
         requester=users_by_id.get(identity.requested_by_id),
         resolver=resolver,
         resolver_is_active=bool(resolver_state.is_active),
@@ -355,6 +373,7 @@ async def _load_governed_resolution(
         ),
         parameters=locked_suffix.parameters,
         scenario=locked_suffix.scenario,
+        scenarios=locked_suffix.scenarios,
         envelope_stale_reason=envelope_stale_reason,
     )
 
@@ -406,17 +425,31 @@ def _assert_envelope_expiry_resolver(
 
 async def _live_scenario_stale_reason(
     *,
-    scenario: ApprovalScenario,
+    scenarios: dict[str, ApprovalScenario],
     identity: GovernedProcessIdentity,
     current_user: User,
     resolver_role_name: str | None = None,
 ) -> str | None:
-    if not scenario.requires_approval:
-        return "Protected Process approval scenario was disabled after submission"
-    live_roles = validated_fixed_process_roles(scenario)
-    snapshot_roles = list(identity.approver_roles)
-    if live_roles != snapshot_roles:
-        return "Protected Process approver roles changed after submission"
+    live_role_lists: list[list[str]] = []
+    for scenario_key, policy_snapshot in zip(
+        identity.triggered_scenarios,
+        identity.triggered_policy_snapshots,
+        strict=True,
+    ):
+        scenario = scenarios.get(scenario_key)
+        if scenario is None or not scenario.requires_approval:
+            return "A triggering governed mutation scenario was disabled after submission"
+        live_roles = (
+            validated_fixed_process_roles(scenario)
+            if scenario_key == SCENARIO_KEY
+            else validated_fixed_asset_roles(scenario)
+        )
+        if live_roles != policy_snapshot["configured_roles"]:
+            return "Governed mutation approver roles changed after submission"
+        live_role_lists.append(live_roles)
+    live_roles = [role for role in live_role_lists[0] if all(role in roles for roles in live_role_lists[1:])]
+    if live_roles != list(identity.approver_roles):
+        return "Governed mutation effective approver roles changed after submission"
     role_name = (
         resolver_role_name
         if resolver_role_name is not None
@@ -518,6 +551,13 @@ async def approve_governed_mutation(
     elif stale_reason is None and process.governance_version != int(proposal.base_versions["process"]):
         stale_reason = "Process governance version changed after submission"
     elif stale_reason is None and any(
+        context.assets.get(item["resource_id"]) is None
+        or context.assets[item["resource_id"]].governance_version != item["base_governance_version"]
+        for item in proposal.impacted_resources_snapshot
+        if item.get("resource_type") == "asset"
+    ):
+        stale_reason = "Downstream Asset governance version changed after submission"
+    elif stale_reason is None and any(
         jsonable_encoder(getattr(process, field, object())) != value for field, value in approved_before.items()
     ):
         stale_reason = "Process business state changed after submission"
@@ -540,9 +580,13 @@ async def approve_governed_mutation(
             updates=typed_updates,
             parameters=context.parameters,
         )
-        if current_block.cif != "yes" and proposed_block.cif != "yes":
+        if (
+            SCENARIO_KEY in context.identity.triggered_scenarios
+            and current_block.cif != "yes"
+            and proposed_block.cif != "yes"
+        ):
             stale_reason = "Process edit is no longer protected by the current policy"
-        elif proposal.derived_impact_snapshot != {
+        process_impact = {
             "before": {
                 "cif": current_block.cif,
                 "criticality_class": current_block.criticality_class,
@@ -551,12 +595,35 @@ async def approve_governed_mutation(
                 "cif": proposed_block.cif,
                 "criticality_class": proposed_block.criticality_class,
             },
-        }:
+        }
+        if context.assets:
+            from .asset_mutations import process_point_asset_impacts
+
+            _, asset_rows = await process_point_asset_impacts(
+                db,
+                process=process,
+                updates=typed_updates,
+                assets=list(context.assets.values()),
+                parameters=context.parameters,
+            )
+            expected_impact = {
+                "processes": [{"resource_id": process.id, **process_impact}],
+                "assets": asset_rows,
+            }
+            if ASSET_SCENARIO_KEY in context.identity.triggered_scenarios and not any(
+                block["cif"] == "yes" or block["resulting_criticality"] == "critical"
+                for row in asset_rows
+                for block in (row["before"], row["after"])
+            ):
+                stale_reason = "Downstream Assets are no longer protected by the current policy"
+        else:
+            expected_impact = process_impact
+        if proposal.derived_impact_snapshot != expected_impact:
             stale_reason = "Derived Process impact changed after submission"
 
     if stale_reason is None:
         stale_reason = await _live_scenario_stale_reason(
-            scenario=context.scenario,
+            scenarios=context.scenarios,
             identity=context.identity,
             current_user=current_user,
             resolver_role_name=context.resolver_role_name,
@@ -578,6 +645,8 @@ async def approve_governed_mutation(
     for field, value in typed_updates.items():
         setattr(process, field, value)
     process.governance_version += 1
+    for asset in context.assets.values():
+        asset.governance_version += 1
     await audit_process.process_updated(db, actor=current_user, process=process, changes=changes)
     await finalize_governed_terminal_transition(
         db,
@@ -646,7 +715,7 @@ async def reject_governed_mutation(
         resolver_role_name=context.resolver_role_name,
     )
     stale_reason = await _live_scenario_stale_reason(
-        scenario=context.scenario,
+        scenarios=context.scenarios,
         identity=context.identity,
         current_user=current_user,
         resolver_role_name=context.resolver_role_name,
@@ -740,7 +809,7 @@ async def _reload(db: AsyncSession, approval_id: int) -> ApprovalRequest:
 
 
 async def is_governed_approval(db: AsyncSession, approval_id: int) -> bool:
-    return (await governed_proposal_dispatch_kind(db, approval_id)).startswith("fixed_process")
+    return (await governed_proposal_dispatch_kind(db, approval_id)).startswith("fixed_")
 
 
 async def governed_proposal_dispatch_kind(
@@ -767,4 +836,16 @@ async def governed_proposal_dispatch_kind(
         proposal_identity.mutation_kind
     ):
         return "fixed_process_extended"
+    from .asset_mutations import is_asset_governed_kind
+
+    if proposal_identity.primary_resource_type == "asset" and (
+        is_asset_governed_kind(proposal_identity.mutation_kind)
+        or (
+            isinstance(proposal_identity.mutation_kind, str)
+            and proposal_identity.mutation_kind.startswith(("asset.", "composite.process_asset."))
+        )
+    ):
+        # Route malformed/unknown Asset-family kinds through the bounded Asset
+        # resolver so they expire and release locks instead of becoming a 400.
+        return "fixed_asset"
     return "unsupported"

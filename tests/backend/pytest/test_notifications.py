@@ -1,6 +1,7 @@
 """Tests for notification API endpoints."""
 
 from datetime import timedelta
+import inspect
 
 import pytest
 from httpx import AsyncClient
@@ -13,6 +14,7 @@ from app.models import (
     Issue,
     Permission,
     Process,
+    Notification,
     Risk,
     RiskQuestionnaire,
     Role,
@@ -33,6 +35,21 @@ from app.services._governed_mutations.process_identity import (
 )
 from app.services.kri_deadline_service import KRIDeadlineService
 from app.services.notification_service import NotificationService
+
+
+def test_asset_notification_visibility_is_correlated_sql_not_materialized_ids() -> None:
+    from app.services import notification_visibility
+
+    source = inspect.getsource(notification_visibility.visible_notification_clause)
+    assert "valid_asset_approval_ids" not in source
+    assert "live_asset_resolver_approval_ids" not in source
+    helper = inspect.getsource(
+        notification_visibility._asset_approval_visibility_clause
+    )
+    assert ".exists()" in helper
+    assert (
+        "GovernedMutationProposal.approval_request_id == ApprovalRequest.id" in helper
+    )
 
 
 def _headers_for(user) -> dict[str, str]:
@@ -164,7 +181,9 @@ async def test_list_notifications_filters_linked_resources_without_current_visib
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -172,7 +191,9 @@ async def test_list_notifications_filters_linked_resources_without_current_visib
     assert data["unread_count"] == 1
     assert [item["title"] for item in data["items"]] == ["Generic reminder"]
 
-    count_response = await client.get("/api/v1/notifications/unread/count", headers=_headers_for(test_user_employee))
+    count_response = await client.get(
+        "/api/v1/notifications/unread/count", headers=_headers_for(test_user_employee)
+    )
     assert count_response.status_code == 200
     assert count_response.json() == {"count": 1}
 
@@ -223,7 +244,9 @@ async def test_notifications_and_shell_summary_support_manager_derived_scope(
 
     headers = {"X-Mock-User-Id": str(manager_scoped_user_id)}
     response = await client.get("/api/v1/notifications", headers=headers)
-    count_response = await client.get("/api/v1/notifications/unread/count", headers=headers)
+    count_response = await client.get(
+        "/api/v1/notifications/unread/count", headers=headers
+    )
     shell_response = await client.get("/api/v1/users/me/shell-summary", headers=headers)
 
     assert response.status_code == 200
@@ -271,14 +294,18 @@ async def test_issue_notifications_require_issues_read_for_list_count_and_shell_
 
     headers = _headers_for(test_user_employee)
     response = await client.get("/api/v1/notifications", headers=headers)
-    count_response = await client.get("/api/v1/notifications/unread/count", headers=headers)
+    count_response = await client.get(
+        "/api/v1/notifications/unread/count", headers=headers
+    )
     shell_response = await client.get("/api/v1/users/me/shell-summary", headers=headers)
 
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 1
     assert data["unread_count"] == 1
-    assert [item["title"] for item in data["items"]] == ["Generic issue-adjacent reminder"]
+    assert [item["title"] for item in data["items"]] == [
+        "Generic issue-adjacent reminder"
+    ]
     assert count_response.status_code == 200
     assert count_response.json() == {"count": 1}
     assert shell_response.status_code == 200
@@ -298,7 +325,9 @@ async def test_privileged_user_can_trigger_manual_kri_deadline_check(
         assert db is not None
         return {"total_kris_checked": 3, "notifications_created": 1}
 
-    monkeypatch.setattr(KRIDeadlineService, "check_kri_deadlines", fake_check_kri_deadlines)
+    monkeypatch.setattr(
+        KRIDeadlineService, "check_kri_deadlines", fake_check_kri_deadlines
+    )
 
     response = await client_cro.post("/api/v1/notifications/trigger-kri-check")
 
@@ -353,13 +382,17 @@ async def test_issue_notifications_visible_with_issues_read_and_matching_scope(
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 1
     assert data["unread_count"] == 1
-    assert [item["title"] for item in data["items"]] == ["Visible issue linked notification"]
+    assert [item["title"] for item in data["items"]] == [
+        "Visible issue linked notification"
+    ]
 
 
 @pytest.mark.asyncio
@@ -400,7 +433,9 @@ async def test_global_scope_does_not_bypass_issue_notification_read_permission(
     global_user_id = global_user.id
     db_session.expunge_all()
 
-    response = await client.get("/api/v1/notifications", headers={"X-Mock-User-Id": str(global_user_id)})
+    response = await client.get(
+        "/api/v1/notifications", headers={"X-Mock-User-Id": str(global_user_id)}
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -441,14 +476,18 @@ async def test_notification_list_and_count_do_not_use_per_row_visibility_checks(
     await db_session.commit()
 
     async def fail_per_row_visibility(*_args, **_kwargs) -> bool:
-        raise AssertionError("list/count paths must use set-based notification visibility")
+        raise AssertionError(
+            "list/count paths must use set-based notification visibility"
+        )
 
     monkeypatch.setattr(
         "app.services.notification_visibility.can_view_notification_resource",
         fail_per_row_visibility,
     )
 
-    response = await client.get("/api/v1/notifications?limit=1", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications?limit=1", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -456,9 +495,73 @@ async def test_notification_list_and_count_do_not_use_per_row_visibility_checks(
     assert data["unread_count"] == 1
     assert [item["title"] for item in data["items"]] == ["Visible generic reminder"]
 
-    count_response = await client.get("/api/v1/notifications/unread/count", headers=_headers_for(test_user_employee))
+    count_response = await client.get(
+        "/api/v1/notifications/unread/count", headers=_headers_for(test_user_employee)
+    )
     assert count_response.status_code == 200
     assert count_response.json() == {"count": 1}
+
+
+@pytest.mark.asyncio
+async def test_large_linked_approval_notification_set_preserves_list_count_and_read_parity(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_cro: User,
+    test_user_employee: User,
+) -> None:
+    approvals = [
+        ApprovalRequest(
+            resource_type=ApprovalResourceType.ASSET,
+            resource_id=index + 1,
+            resource_name=f"Untrusted Asset approval {index}",
+            action_type=ApprovalActionType.EDIT,
+            requested_by_id=test_user_cro.id,
+            reason="No governed proposal exists",
+            status=ApprovalStatus.PENDING,
+        )
+        for index in range(1_025)
+    ]
+    db_session.add_all(approvals)
+    await db_session.flush()
+    hidden = [
+        Notification(
+            user_id=test_user_employee.id,
+            type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+            title=f"Hidden approval {index}",
+            message="Must stay hidden without a correlated valid proposal",
+            resource_type="approval",
+            resource_id=approval.id,
+        )
+        for index, approval in enumerate(approvals)
+    ]
+    db_session.add_all(hidden)
+    generic = Notification(
+        user_id=test_user_employee.id,
+        type=NotificationType.KRI_DUE_SOON,
+        title="Visible generic notification",
+        message="Large linked sets must not change generic visibility",
+    )
+    db_session.add(generic)
+    await db_session.commit()
+
+    headers = _headers_for(test_user_employee)
+    page = await client.get("/api/v1/notifications?limit=1", headers=headers)
+    count = await client.get("/api/v1/notifications/unread/count", headers=headers)
+    hidden_read = await client.post(
+        f"/api/v1/notifications/{hidden[-1].id}/read", headers=headers
+    )
+    generic_read = await client.post(
+        f"/api/v1/notifications/{generic.id}/read", headers=headers
+    )
+
+    assert page.status_code == 200, page.text
+    assert page.json()["total"] == 1
+    assert page.json()["unread_count"] == 1
+    assert [item["id"] for item in page.json()["items"]] == [generic.id]
+    assert count.json() == {"count": 1}
+    assert hidden_read.status_code == 404
+    assert generic_read.status_code == 200
+    assert generic_read.json() == {"unread_count": 0}
 
 
 @pytest.mark.asyncio
@@ -487,7 +590,9 @@ async def test_notifications_hide_unknown_linked_resources_with_ids(
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -571,7 +676,9 @@ async def test_scenario_approval_notifications_require_resource_visibility(
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -625,9 +732,15 @@ async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
 
     test_user_employee.access_scope = AccessScope.DEPARTMENT
     test_user_employee.department_id = hidden_department.id
-    test_user_cro.access_scope = AccessScope.DEPARTMENT if scope_kind == "department" else AccessScope.MANAGER
-    test_user_cro.department_id = test_department.id if scope_kind == "department" else None
-    test_user_cro.manager_id = test_user_risk_manager.id if scope_kind == "manager" else None
+    test_user_cro.access_scope = (
+        AccessScope.DEPARTMENT if scope_kind == "department" else AccessScope.MANAGER
+    )
+    test_user_cro.department_id = (
+        test_department.id if scope_kind == "department" else None
+    )
+    test_user_cro.manager_id = (
+        test_user_risk_manager.id if scope_kind == "manager" else None
+    )
 
     process = Process(
         f_code=f"F-NOTIF-{scope_kind.upper()}",
@@ -721,7 +834,9 @@ async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
 
     reviewer_headers = _headers_for(test_user_cro)
     reviewer_page = await client.get("/api/v1/notifications", headers=reviewer_headers)
-    reviewer_count = await client.get("/api/v1/notifications/unread/count", headers=reviewer_headers)
+    reviewer_count = await client.get(
+        "/api/v1/notifications/unread/count", headers=reviewer_headers
+    )
     assert reviewer_page.json()["total"] == 1
     assert reviewer_page.json()["unread_count"] == 1
     assert reviewer_count.json() == {"count": 1}
@@ -733,7 +848,9 @@ async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
     assert reviewer_read.json() == {"unread_count": 0}
 
     requester_headers = _headers_for(test_user_employee)
-    requester_page = await client.get("/api/v1/notifications", headers=requester_headers)
+    requester_page = await client.get(
+        "/api/v1/notifications", headers=requester_headers
+    )
     assert requester_page.json()["total"] == 1
     assert requester_page.json()["unread_count"] == 1
     requester_read = await client.post(
@@ -744,10 +861,14 @@ async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
 
     excluded_headers = _headers_for(excluded_user)
     excluded_page = await client.get("/api/v1/notifications", headers=excluded_headers)
-    excluded_count = await client.get("/api/v1/notifications/unread/count", headers=excluded_headers)
+    excluded_count = await client.get(
+        "/api/v1/notifications/unread/count", headers=excluded_headers
+    )
     assert excluded_page.json()["total"] == 1
     assert excluded_page.json()["unread_count"] == 1
-    assert [item["id"] for item in excluded_page.json()["items"]] == [legacy_notification.id]
+    assert [item["id"] for item in excluded_page.json()["items"]] == [
+        legacy_notification.id
+    ]
     assert excluded_count.json() == {"count": 1}
     hidden_read = await client.post(
         f"/api/v1/notifications/{hidden_governed_notification.id}/read",
@@ -854,7 +975,9 @@ async def test_approval_notifications_follow_detail_visibility(
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -898,7 +1021,9 @@ async def test_questionnaire_notifications_require_questionnaire_read_visibility
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -977,7 +1102,9 @@ async def test_mark_as_read(
     assert response.status_code == 200
     data = response.json()
     assert "unread_count" in data
-    assert data["unread_count"] == 0  # Should be 0 after marking the only notification as read
+    assert (
+        data["unread_count"] == 0
+    )  # Should be 0 after marking the only notification as read
 
     # Verify via separate endpoint too
     count_response = await auth_client.get("/api/v1/notifications/unread/count")

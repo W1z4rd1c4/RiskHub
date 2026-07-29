@@ -258,15 +258,29 @@ async def add_asset_vendor_link(
     if existing.scalar_one_or_none():
         raise ValidationError("Link already exists")
 
-    link = AssetVendorLink(
-        asset_id=asset_id,
-        vendor_id=payload.vendor_id,
-        vendor_role=payload.vendor_role,
-        ict_service_code=payload.ict_service_code,
-        contract_reference=payload.contract_reference,
-        reliance=payload.reliance,
-        note=payload.note,
+    from app.services._governed_mutations.asset_mutations import (
+        submit_asset_link_mutation_if_required,
     )
+
+    link_values = {"asset_id": asset_id, **payload.model_dump(exclude={"request_reason"})}
+    queued = await submit_asset_link_mutation_if_required(
+        db=db,
+        asset=asset,
+        impacted_assets=[asset],
+        operation={
+            "relationship_type": "vendor",
+            "action": "add",
+            "before": None,
+            "after": link_values,
+        },
+        current_user=current_user,
+        request_reason=payload.request_reason,
+    )
+    if queued is not None:
+        return queued
+
+    asset.governance_version += 1
+    link = AssetVendorLink(**link_values)
     db.add(link)
     await db.flush()
 
@@ -294,6 +308,7 @@ async def remove_asset_vendor_link(
     *,
     asset_id: int,
     link_id: int,
+    request_reason: str | None,
     current_user: User,
 ) -> None:
     asset = await _require_asset_vendor_link_access(
@@ -311,6 +326,31 @@ async def remove_asset_vendor_link(
     vendor = await lock_vendor_ordinary_mutation(db, vendor_id=vendor.id)
 
     vendor_id = link.vendor_id
+    from app.services._governed_mutations.asset_mutations import (
+        submit_asset_link_mutation_if_required,
+    )
+
+    before = {
+        "id": link.id,
+        "asset_id": link.asset_id,
+        "vendor_id": link.vendor_id,
+        "vendor_role": link.vendor_role,
+        "ict_service_code": link.ict_service_code,
+        "contract_reference": link.contract_reference,
+        "reliance": link.reliance,
+        "note": link.note,
+    }
+    queued = await submit_asset_link_mutation_if_required(
+        db=db,
+        asset=asset,
+        impacted_assets=[asset],
+        operation={"relationship_type": "vendor", "action": "remove", "before": before, "after": None},
+        current_user=current_user,
+        request_reason=request_reason,
+    )
+    if queued is not None:
+        return queued
+    asset.governance_version += 1
     await db.delete(link)
     await db.flush()
 

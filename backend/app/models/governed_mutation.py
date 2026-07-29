@@ -63,10 +63,12 @@ class GovernedMutationProposal(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "(primary_resource_id IS NULL AND primary_resource_type = 'process' "
-            "AND mutation_kind = 'process.create') OR "
+            "(primary_resource_id IS NULL AND ((primary_resource_type = 'process' "
+            "AND mutation_kind = 'process.create') OR (primary_resource_type = 'asset' "
+            "AND mutation_kind = 'asset.create'))) OR "
             "(primary_resource_id IS NOT NULL AND NOT "
-            "(primary_resource_type = 'process' AND mutation_kind = 'process.create'))",
+            "((primary_resource_type = 'process' AND mutation_kind = 'process.create') OR "
+            "(primary_resource_type = 'asset' AND mutation_kind = 'asset.create')))",
             name="ck_governed_mutation_process_create_resource_identity",
         ),
         Index("ux_governed_mutation_proposal_version", "proposal_id", "proposal_version", unique=True),

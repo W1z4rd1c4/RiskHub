@@ -35,12 +35,27 @@ from app.schemas.process import ProcessCreate
 from app.services.outbox import OutboxService
 from app.services.transaction_boundary import commit_service_boundary
 
+from .composite_policy import (
+    effective_triggered_policy_roles,
+    strict_triggered_policy_snapshots,
+    triggered_policy_snapshot,
+)
+from .fixed_asset_policy import (
+    ASSET_SCENARIO_KEY,
+    load_fixed_asset_scenario_for_update,
+    validated_fixed_asset_roles,
+)
 from .fixed_policy import (
     SCENARIO_KEY,
     load_fixed_process_scenario_for_update,
     validated_fixed_process_roles,
 )
-from .process_identity import PROCESS_DISPLAY_NAME_MAX_LENGTH
+from .process_identity import (
+    PROCESS_DISPLAY_NAME_MAX_LENGTH,
+    PROCESS_MUTATION_KIND,
+    InvalidGovernedProcessIdentity,
+    strict_governed_process_identity,
+)
 from .process_mutation_policy import (
     has_independent_process_approver,
     safe_process_department_label,
@@ -71,6 +86,41 @@ SUPPORTED_EXTENDED_PROCESS_KINDS = frozenset(
 )
 PROPOSAL_VERSION = 1
 PROPOSAL_SCHEMA_VERSION = 1
+_MAX_PROCESS_JSON_DEPTH = 12
+_MAX_PROCESS_JSON_NODES = 512
+_MAX_PROCESS_JSON_CONTAINER_ITEMS = 128
+_MAX_PROCESS_JSON_STRING_LENGTH = 65_536
+
+
+def _bounded_process_json_topology(*values: object) -> bool:
+    """Iteratively bound persisted JSON before any semantic descent."""
+    stack = [(value, 0) for value in values]
+    visited = 0
+    while stack:
+        value, depth = stack.pop()
+        visited += 1
+        if visited > _MAX_PROCESS_JSON_NODES or depth > _MAX_PROCESS_JSON_DEPTH:
+            return False
+        if value is None or isinstance(value, (bool, int, float)):
+            continue
+        if isinstance(value, str):
+            if len(value) > _MAX_PROCESS_JSON_STRING_LENGTH:
+                return False
+            continue
+        if isinstance(value, dict):
+            if len(value) > _MAX_PROCESS_JSON_CONTAINER_ITEMS or not all(
+                isinstance(key, str) and len(key) <= _MAX_PROCESS_JSON_STRING_LENGTH for key in value
+            ):
+                return False
+            stack.extend((nested, depth + 1) for nested in value.values())
+            continue
+        if isinstance(value, list):
+            if len(value) > _MAX_PROCESS_JSON_CONTAINER_ITEMS:
+                return False
+            stack.extend((nested, depth + 1) for nested in value)
+            continue
+        return False
+    return True
 
 
 async def _derived_blocks(db: AsyncSession, process: Process):
@@ -94,10 +144,73 @@ class ExtendedProcessMutationIdentity:
     action_type: ApprovalActionType
     base_versions: dict[str, int]
     pending_changes: dict[str, dict[str, Any]]
+    scenario_key: str
+    triggered_scenarios: tuple[str, ...]
+    triggered_policy_snapshots: tuple[dict[str, Any], ...]
 
 
 def _positive_int(value: object) -> int | None:
     return value if type(value) is int and value > 0 else None
+
+
+def _canonical_process_impact_rows(
+    rows: object,
+    *,
+    allowed_types: frozenset[str],
+) -> bool:
+    if not isinstance(rows, list) or not rows:
+        return False
+    identities: list[tuple[str, int]] = []
+    for row in rows:
+        if not (
+            isinstance(row, dict)
+            and set(row)
+            == {
+                "resource_type",
+                "resource_id",
+                "resource_name",
+                "base_governance_version",
+            }
+            and row.get("resource_type") in allowed_types
+            and (resource_id := _positive_int(row.get("resource_id"))) is not None
+            and _positive_int(row.get("base_governance_version")) is not None
+            and _canonical_display_label(row.get("resource_name"))
+        ):
+            return False
+        identities.append((str(row["resource_type"]), resource_id))
+    return identities == sorted(set(identities))
+
+
+def _canonical_asset_derived_rows(
+    rows: object,
+    *,
+    impact_rows: object,
+    base_versions: object,
+) -> bool:
+    """Validate exact Asset derivation rows against canonical descriptors."""
+    if not isinstance(rows, list) or not isinstance(impact_rows, list) or not isinstance(base_versions, dict):
+        return False
+    asset_impacts = [item for item in impact_rows if isinstance(item, dict) and item.get("resource_type") == "asset"]
+    if len(rows) != len(asset_impacts):
+        return False
+    identities: list[int] = []
+    for row, impact in zip(rows, asset_impacts, strict=True):
+        resource_id = _positive_int(row.get("resource_id")) if isinstance(row, dict) else None
+        if not (
+            isinstance(row, dict)
+            and set(row) == {"resource_id", "before", "after"}
+            and resource_id is not None
+            and _canonical_asset_derived_block(row.get("before"))
+            and _canonical_asset_derived_block(row.get("after"))
+            and impact.get("resource_type") == "asset"
+            and impact.get("resource_id") == resource_id
+            and _canonical_display_label(impact.get("resource_name"))
+            and _positive_int(impact.get("base_governance_version")) is not None
+            and base_versions.get(f"asset:{resource_id}") == impact.get("base_governance_version")
+        ):
+            return False
+        identities.append(resource_id)
+    return identities == sorted(set(identities))
 
 
 def _canonical_uuid4(value: object) -> bool:
@@ -131,6 +244,22 @@ def _canonical_derived_block(value: object) -> bool:
         and set(value) == {"cif", "criticality_class"}
         and value.get("cif") in {"yes", "no"}
         and value.get("criticality_class") in {None, "low", "medium", "high", "critical"}
+    )
+
+
+def _canonical_asset_derived_block(value: object) -> bool:
+    return bool(
+        isinstance(value, dict)
+        and set(value) == {"cif", "resulting_criticality"}
+        and value.get("cif") in {"yes", "no"}
+        and value.get("resulting_criticality")
+        in {
+            None,
+            "low",
+            "medium",
+            "high",
+            "critical",
+        }
     )
 
 
@@ -253,7 +382,7 @@ def extended_process_approval_envelope_is_valid(
         and approval.resource_name == identity.primary_resource_name
         and approval.action_type == identity.action_type
         and approval.pending_changes == identity.pending_changes
-        and approval.scenario_key == SCENARIO_KEY
+        and approval.scenario_key == identity.scenario_key
         and approval.scenario_approver_roles == list(identity.approver_roles)
         and approval.requested_by_id == identity.requested_by_id
         and _valid_lifecycle_evidence(approval)
@@ -271,6 +400,19 @@ def _strict_extended_process_identity(
     """Return an exact #85 identity, None for other workflows, raise if corrupt."""
     if proposal is None or not is_extended_process_kind(proposal.mutation_kind):
         return None
+    approval = proposal.approval_request
+    if not _bounded_process_json_topology(
+        proposal.scenario_snapshot,
+        proposal.base_versions,
+        proposal.before_snapshot,
+        proposal.after_snapshot,
+        proposal.derived_impact_snapshot,
+        proposal.proposed_changes,
+        proposal.impacted_resources_snapshot,
+        approval.pending_changes if approval is not None else None,
+        approval.scenario_approver_roles if approval is not None else None,
+    ):
+        raise InvalidGovernedProcessIdentity("Malformed extended governed Process identity")
     scenario = proposal.scenario_snapshot
     roles = scenario.get("approver_roles") if isinstance(scenario, dict) else None
     common_valid = bool(
@@ -285,11 +427,12 @@ def _strict_extended_process_identity(
         and proposal.primary_resource_name == proposal.primary_resource_name.strip()
         and 0 < len(proposal.primary_resource_name) <= PROCESS_DISPLAY_NAME_MAX_LENGTH
         and isinstance(scenario, dict)
-        and set(scenario) == {"key", "requires_approval", "approver_roles"}
-        and scenario.get("key") == SCENARIO_KEY
+        and set(scenario) == {"key", "requires_approval", "approver_roles", "triggered_policies"}
+        and scenario.get("key") in {SCENARIO_KEY, ASSET_SCENARIO_KEY}
         and scenario.get("requires_approval") is True
         and isinstance(roles, list)
         and roles
+        and all(isinstance(role, str) for role in roles)
         and len(roles) == len(set(roles))
         and set(roles).issubset({"risk_manager", "cro"})
         and isinstance(proposal.before_snapshot, dict)
@@ -302,7 +445,21 @@ def _strict_extended_process_identity(
         raise ValueError("Malformed extended governed Process identity")
 
     kind = proposal.mutation_kind
-    approval = proposal.approval_request
+    triggered_scenarios = proposal.proposed_changes.get("triggered_scenarios", [scenario.get("key")])
+    if not (
+        isinstance(triggered_scenarios, list)
+        and triggered_scenarios
+        and all(isinstance(key, str) for key in triggered_scenarios)
+        and len(triggered_scenarios) == len(set(triggered_scenarios))
+        and set(triggered_scenarios).issubset({SCENARIO_KEY, ASSET_SCENARIO_KEY})
+        and triggered_scenarios[0] == scenario.get("key")
+    ):
+        raise ValueError("Malformed governed Process policy triggers")
+    triggered_policy_snapshots = strict_triggered_policy_snapshots(
+        scenario.get("triggered_policies"),
+        scenario_keys=triggered_scenarios,
+        effective_roles=roles,
+    )
     if approval is None:
         raise ValueError("Missing extended governed Process approval envelope")
 
@@ -332,27 +489,73 @@ def _strict_extended_process_identity(
     elif kind == PROCESS_ARCHIVE_KIND:
         process_id = _positive_int(proposal.primary_resource_id)
         base_version = proposal.base_versions.get("process") if isinstance(proposal.base_versions, dict) else None
+        process_impact = {
+            "resource_type": "process",
+            "resource_id": process_id,
+            "resource_name": proposal.primary_resource_name,
+            "base_governance_version": base_version,
+        }
+        extra_impacts = proposal.impacted_resources_snapshot[:-1]
         expected_impact = [
+            *extra_impacts,
             {
-                "resource_type": "process",
-                "resource_id": process_id,
-                "resource_name": proposal.primary_resource_name,
-                "base_governance_version": base_version,
-            }
+                **process_impact,
+            },
         ]
+        simple_derived = bool(
+            set(proposal.derived_impact_snapshot) == {"before", "after"}
+            and _canonical_derived_block(proposal.derived_impact_snapshot.get("before"))
+            and _canonical_derived_block(proposal.derived_impact_snapshot.get("after"))
+            and proposal.derived_impact_snapshot["before"] == proposal.derived_impact_snapshot["after"]
+            and proposal.derived_impact_snapshot["before"]["cif"] == "yes"
+        )
+        composite_derived = bool(
+            extra_impacts
+            and set(proposal.derived_impact_snapshot) == {"processes", "assets"}
+            and isinstance(proposal.derived_impact_snapshot.get("processes"), list)
+            and len(proposal.derived_impact_snapshot["processes"]) == 1
+            and set(proposal.derived_impact_snapshot["processes"][0])
+            == {"resource_id", "before", "after"}
+            and proposal.derived_impact_snapshot["processes"][0].get("resource_id") == process_id
+            and _canonical_derived_block(proposal.derived_impact_snapshot["processes"][0].get("before"))
+            and _canonical_derived_block(proposal.derived_impact_snapshot["processes"][0].get("after"))
+            and _canonical_asset_derived_rows(
+                proposal.derived_impact_snapshot.get("assets"),
+                impact_rows=proposal.impacted_resources_snapshot,
+                base_versions=proposal.base_versions,
+            )
+        )
         valid = bool(
             process_id
             and _positive_int(base_version)
             and proposal.before_snapshot == {"is_archived": False}
             and proposal.after_snapshot == {"is_archived": True}
-            and proposal.proposed_changes == {"before": {"is_archived": False}, "after": {"is_archived": True}}
+            and proposal.proposed_changes
+            == {
+                "before": {"is_archived": False},
+                "after": {"is_archived": True},
+                "triggered_scenarios": triggered_scenarios,
+            }
             and proposal.impacted_resources_snapshot == expected_impact
+            and _canonical_process_impact_rows(
+                proposal.impacted_resources_snapshot,
+                allowed_types=frozenset({"asset", "process"}),
+            )
+            and extra_impacts == sorted(extra_impacts, key=lambda item: item["resource_id"])
+            and proposal.base_versions
+            == {
+                "process": base_version,
+                **{f"asset:{item['resource_id']}": item["base_governance_version"] for item in extra_impacts},
+            }
             and isinstance(proposal.derived_impact_snapshot, dict)
-            and set(proposal.derived_impact_snapshot) == {"before", "after"}
-            and _canonical_derived_block(proposal.derived_impact_snapshot.get("before"))
-            and _canonical_derived_block(proposal.derived_impact_snapshot.get("after"))
-            and proposal.derived_impact_snapshot["before"] == proposal.derived_impact_snapshot["after"]
-            and proposal.derived_impact_snapshot["before"]["cif"] == "yes"
+            and (simple_derived or composite_derived)
+            and all(
+                item.get("resource_type") == "asset"
+                and _positive_int(item.get("resource_id"))
+                and _positive_int(item.get("base_governance_version"))
+                and proposal.base_versions.get(f"asset:{item['resource_id']}") == item["base_governance_version"]
+                for item in extra_impacts
+            )
         )
         action = ApprovalActionType.DELETE
     else:
@@ -372,18 +575,19 @@ def _strict_extended_process_identity(
             if isinstance(item, dict) and item.get("resource_type") == "process"
         ]
         expected_base_versions = (
-            {f"process:{item['resource_id']}": item["base_governance_version"] for item in impact_rows}
+            {f"{item['resource_type']}:{item['resource_id']}": item["base_governance_version"] for item in impact_rows}
             if len(impact_rows) > 1
             else ({"process": impact_rows[0]["base_governance_version"]} if impact_rows else {})
         )
         derived_rows = proposal.derived_impact_snapshot.get("processes")
+        derived_asset_rows = proposal.derived_impact_snapshot.get("assets", [])
         valid = bool(
             process_id
             and isinstance(operation, dict)
             and validated_operation == operation
             and operation.get("kind") == kind
             and operation.get("process_id") == process_id
-            and set(proposal.proposed_changes) == {"operation"}
+            and set(proposal.proposed_changes) == {"operation", "triggered_scenarios"}
             and set(proposal.before_snapshot) == {"relationship"}
             and set(proposal.after_snapshot) == {"relationship"}
             and proposal.before_snapshot["relationship"] == operation.get("before")
@@ -392,21 +596,22 @@ def _strict_extended_process_identity(
             and len(impact_process_ids) == len(set(impact_process_ids))
             and impact_process_ids == sorted(impact_process_ids)
             and proposal.base_versions == expected_base_versions
-            and all(
-                isinstance(item, dict)
-                and set(item) == {"resource_type", "resource_id", "resource_name", "base_governance_version"}
-                and item.get("resource_type") == "process"
-                and _positive_int(item.get("resource_id"))
-                and _positive_int(item.get("base_governance_version"))
-                and isinstance(item.get("resource_name"), str)
-                and bool(item["resource_name"].strip())
-                and not item["resource_name"].strip().isdigit()
-                and _canonical_display_label(item.get("resource_name"))
-                for item in impact_rows
+            and _canonical_process_impact_rows(
+                impact_rows,
+                allowed_types=frozenset({"asset", "process"}),
             )
+            and next(
+                (
+                    item["resource_name"]
+                    for item in impact_rows
+                    if item["resource_type"] == "process" and item["resource_id"] == process_id
+                ),
+                None,
+            )
+            == proposal.primary_resource_name
             and isinstance(derived_rows, list)
-            and set(proposal.derived_impact_snapshot) == {"processes"}
-            and len(derived_rows) == len(impact_rows)
+            and set(proposal.derived_impact_snapshot) in ({"processes"}, {"processes", "assets"})
+            and len(derived_rows) == len(impact_process_ids)
             and [item.get("resource_id") for item in derived_rows if isinstance(item, dict)] == impact_process_ids
             and all(
                 isinstance(item, dict)
@@ -416,7 +621,21 @@ def _strict_extended_process_identity(
                 and item["before"] == item["after"]
                 for item in derived_rows
             )
-            and any(item["before"]["cif"] == "yes" for item in derived_rows)
+            and (
+                any(item["before"]["cif"] == "yes" for item in derived_rows)
+                or any(
+                    item["before"]["cif"] == "yes"
+                    or item["after"]["cif"] == "yes"
+                    or item["before"]["resulting_criticality"] == "critical"
+                    or item["after"]["resulting_criticality"] == "critical"
+                    for item in derived_asset_rows
+                )
+            )
+            and _canonical_asset_derived_rows(
+                derived_asset_rows,
+                impact_rows=impact_rows,
+                base_versions=proposal.base_versions,
+            )
         )
         action = ApprovalActionType.EDIT
     if not valid:
@@ -438,6 +657,9 @@ def _strict_extended_process_identity(
         action_type=action,
         base_versions={str(key): int(value) for key, value in proposal.base_versions.items()},
         pending_changes=pending_changes,
+        scenario_key=scenario["key"],
+        triggered_scenarios=tuple(triggered_scenarios),
+        triggered_policy_snapshots=triggered_policy_snapshots,
     )
     if validate_approval_envelope and not extended_process_approval_envelope_is_valid(
         proposal,
@@ -460,8 +682,8 @@ def strict_extended_process_identity(
         )
     except ValueError:
         raise
-    except (AttributeError, IndexError, KeyError, TypeError) as exc:
-        raise ValueError("Malformed extended governed Process identity") from exc
+    except (AttributeError, IndexError, KeyError, RecursionError, TypeError) as exc:
+        raise InvalidGovernedProcessIdentity("Malformed extended governed Process identity") from exc
 
 
 async def valid_extended_process_approval_ids(
@@ -484,7 +706,9 @@ async def valid_extended_process_approval_ids(
         )
         .options(selectinload(GovernedMutationProposal.approval_request))
         .where(
-            GovernedMutationProposal.mutation_kind.in_(sorted(SUPPORTED_EXTENDED_PROCESS_KINDS)),
+            GovernedMutationProposal.mutation_kind.in_(
+                sorted({PROCESS_MUTATION_KIND, *SUPPORTED_EXTENDED_PROCESS_KINDS})
+            ),
             GovernedMutationProposal.primary_resource_type == "process",
             GovernedMutationProposal.proposal_version == PROPOSAL_VERSION,
             GovernedMutationProposal.schema_version == PROPOSAL_SCHEMA_VERSION,
@@ -492,6 +716,11 @@ async def valid_extended_process_approval_ids(
             GovernedMutationProposal.primary_resource_name == ApprovalRequest.resource_name,
             ApprovalRequest.resource_type == ApprovalResourceType.PROCESS,
             or_(
+                and_(
+                    GovernedMutationProposal.mutation_kind == PROCESS_MUTATION_KIND,
+                    GovernedMutationProposal.primary_resource_id == ApprovalRequest.resource_id,
+                    ApprovalRequest.action_type == ApprovalActionType.EDIT,
+                ),
                 and_(
                     GovernedMutationProposal.mutation_kind == PROCESS_CREATE_KIND,
                     GovernedMutationProposal.primary_resource_id.is_(None),
@@ -525,8 +754,12 @@ async def valid_extended_process_approval_ids(
     valid: set[int] = set()
     for proposal in proposals:
         try:
-            identity = strict_extended_process_identity(proposal)
-        except ValueError:
+            identity = (
+                strict_governed_process_identity(proposal)
+                if proposal.mutation_kind == PROCESS_MUTATION_KIND
+                else strict_extended_process_identity(proposal)
+            )
+        except (InvalidGovernedProcessIdentity, ValueError):
             continue
         if identity is not None:
             valid.add(identity.approval_request_id)
@@ -588,14 +821,19 @@ async def _queue(
     derived_impact: dict[str, Any],
     impacted_resources: list[dict[str, Any]],
     department_id: int | None,
+    scenario_key: str = SCENARIO_KEY,
+    triggered_scenarios: list[str] | None = None,
+    triggered_policies: list[dict[str, Any]] | None = None,
 ) -> JSONResponse:
+    policy_triggers = list(triggered_scenarios) if triggered_scenarios is not None else None
+    policy_snapshots = list(triggered_policies or [triggered_policy_snapshot(scenario_key, roles)])
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.PROCESS,
         resource_id=resource_id,
         resource_name=resource_name,
         action_type=action_type,
         pending_changes=pending_changes,
-        scenario_key=SCENARIO_KEY,
+        scenario_key=scenario_key,
         scenario_approver_roles=roles,
         requested_by_id=current_user.id,
         reason=reason,
@@ -614,16 +852,42 @@ async def _queue(
             primary_resource_type="process",
             primary_resource_id=resource_id,
             primary_resource_name=resource_name,
-            scenario_snapshot={"key": SCENARIO_KEY, "requires_approval": True, "approver_roles": roles},
-            base_versions={
-                f"process:{item['resource_id']}": item["base_governance_version"] for item in impacted_resources
-            }
+            scenario_snapshot={
+                "key": scenario_key,
+                "requires_approval": True,
+                "approver_roles": roles,
+                "triggered_policies": policy_snapshots,
+            },
+            base_versions=(
+                {
+                    **{
+                        "process": next(
+                            item["base_governance_version"]
+                            for item in impacted_resources
+                            if item["resource_type"] == "process"
+                        )
+                    },
+                    **{
+                        f"asset:{item['resource_id']}": item["base_governance_version"]
+                        for item in impacted_resources
+                        if item["resource_type"] == "asset"
+                    },
+                }
+                if mutation_kind == PROCESS_ARCHIVE_KIND and impacted_resources
+                else {
+                    f"{item['resource_type']}:{item['resource_id']}": item["base_governance_version"]
+                    for item in impacted_resources
+                }
+            )
             if len(impacted_resources) > 1
             else ({"process": impacted_resources[0]["base_governance_version"]} if impacted_resources else {}),
             before_snapshot=before_snapshot,
             after_snapshot=after_snapshot,
             derived_impact_snapshot=derived_impact,
-            proposed_changes=proposed_changes,
+            proposed_changes={
+                **proposed_changes,
+                **({"triggered_scenarios": policy_triggers} if policy_triggers is not None else {}),
+            },
             impacted_resources_snapshot=impacted_resources,
             requested_by_id=current_user.id,
         )
@@ -740,13 +1004,38 @@ async def submit_process_creation_if_required(
 async def submit_process_archive_if_required(
     *, db: AsyncSession, process: Process, request_reason: str | None, current_user: User
 ) -> JSONResponse | None:
+    from .asset_mutations import process_point_asset_impacts
+
+    impacted_assets, asset_derived_rows = await process_point_asset_impacts(
+        db,
+        process=process,
+        updates={},
+        archive=True,
+    )
     current, _ = await _derived_blocks(db, process)
-    if current.cif != "yes":
+    process_protected = current.cif == "yes"
+    asset_protected = any(
+        block["cif"] == "yes" or block["resulting_criticality"] == "critical"
+        for row in asset_derived_rows
+        for block in (row["before"], row["after"])
+    )
+    triggered_scenarios: list[str] = []
+    triggered_policies: list[dict[str, Any]] = []
+    if process_protected:
+        process_scenario = await load_fixed_process_scenario_for_update(db)
+        if process_scenario.requires_approval:
+            triggered_scenarios.append(SCENARIO_KEY)
+            process_roles = validated_fixed_process_roles(process_scenario)
+            triggered_policies.append(triggered_policy_snapshot(SCENARIO_KEY, process_roles))
+    if asset_protected:
+        asset_scenario = await load_fixed_asset_scenario_for_update(db)
+        if asset_scenario.requires_approval:
+            triggered_scenarios.append(ASSET_SCENARIO_KEY)
+            asset_roles = validated_fixed_asset_roles(asset_scenario)
+            triggered_policies.append(triggered_policy_snapshot(ASSET_SCENARIO_KEY, asset_roles))
+    if not triggered_scenarios:
         return None
-    scenario = await load_fixed_process_scenario_for_update(db)
-    roles = validated_fixed_process_roles(scenario)
-    if not scenario.requires_approval:
-        return None
+    roles = effective_triggered_policy_roles(triggered_policies)
     if not await has_independent_process_approver(
         db,
         requester_id=current_user.id,
@@ -771,16 +1060,41 @@ async def submit_process_archive_if_required(
         before_snapshot={"is_archived": False},
         after_snapshot={"is_archived": True},
         proposed_changes={"before": {"is_archived": False}, "after": {"is_archived": True}},
-        derived_impact={"before": _derived_snapshot(current), "after": _derived_snapshot(current)},
+        derived_impact=(
+            {
+                "processes": [
+                    {
+                        "resource_id": process.id,
+                        "before": _derived_snapshot(current),
+                        "after": _derived_snapshot(current),
+                    }
+                ],
+                "assets": asset_derived_rows,
+            }
+            if impacted_assets
+            else {"before": _derived_snapshot(current), "after": _derived_snapshot(current)}
+        ),
         impacted_resources=[
+            *[
+                {
+                    "resource_type": "asset",
+                    "resource_id": asset.id,
+                    "resource_name": asset.name,
+                    "base_governance_version": asset.governance_version,
+                }
+                for asset in impacted_assets
+            ],
             {
                 "resource_type": "process",
                 "resource_id": process.id,
                 "resource_name": name,
                 "base_governance_version": process.governance_version,
-            }
+            },
         ],
         department_id=process.owning_department_id,
+        scenario_key=triggered_scenarios[0],
+        triggered_scenarios=triggered_scenarios,
+        triggered_policies=triggered_policies,
     )
 
 
@@ -862,12 +1176,41 @@ async def submit_process_relationship_mutation(
     ]
     if any(not item["resource_name"] or item["resource_name"].isdigit() for item in canonical_impacts):
         raise ValidationError("Invalid impacted Process display identity")
+    asset_derived_rows: list[dict[str, Any]] = []
+    asset_protected = False
+    asset_roles: list[str] = []
+    if operation["relationship_type"] == "asset":
+        from .asset_mutations import process_asset_composite_impact
+
+        asset, asset_impact, asset_protected = await process_asset_composite_impact(
+            db,
+            operation=operation,
+        )
+        if asset_protected:
+            from .fixed_asset_policy import load_fixed_asset_scenario_for_update
+
+            asset_scenario = await load_fixed_asset_scenario_for_update(db)
+            asset_protected = bool(asset_scenario is not None and asset_scenario.requires_approval)
+            if asset_protected:
+                asset_roles = validated_fixed_asset_roles(asset_scenario)
+        if asset_protected:
+            canonical_impacts.append(
+                {
+                    "resource_type": "asset",
+                    "resource_id": asset.id,
+                    "resource_name": asset.name,
+                    "base_governance_version": asset.governance_version,
+                }
+            )
+            canonical_impacts.sort(key=lambda item: (item["resource_type"], item["resource_id"]))
+            asset_derived_rows.append(asset_impact)
+
     derived_rows = []
-    protected = False
+    process_protected = False
     for impacted_id in impact_ids:
         current, _ = await _derived_blocks(db, impacted_processes[impacted_id])
         block = _derived_snapshot(current)
-        protected = protected or current.cif == "yes"
+        process_protected = process_protected or current.cif == "yes"
         derived_rows.append(
             {
                 "resource_id": impacted_id,
@@ -875,12 +1218,31 @@ async def submit_process_relationship_mutation(
                 "after": block,
             }
         )
-    if not protected:
+    process_roles: list[str] = []
+    if process_protected:
+        process_scenario = await load_fixed_process_scenario_for_update(db)
+        process_protected = bool(process_scenario.requires_approval)
+        if process_protected:
+            process_roles = validated_fixed_process_roles(process_scenario)
+    triggered_scenarios = [
+        key
+        for key, enabled in (
+            (SCENARIO_KEY, process_protected),
+            (ASSET_SCENARIO_KEY, asset_protected),
+        )
+        if enabled
+    ]
+    if not triggered_scenarios:
         return None
-    scenario = await load_fixed_process_scenario_for_update(db)
-    roles = validated_fixed_process_roles(scenario)
-    if not scenario.requires_approval:
-        return None
+    triggered_policies = [
+        triggered_policy_snapshot(key, configured_roles)
+        for key, configured_roles in (
+            (SCENARIO_KEY, process_roles),
+            (ASSET_SCENARIO_KEY, asset_roles),
+        )
+        if configured_roles
+    ]
+    roles = effective_triggered_policy_roles(triggered_policies)
     if not await has_independent_process_approver(
         db,
         requester_id=current_user.id,
@@ -907,9 +1269,15 @@ async def submit_process_relationship_mutation(
         before_snapshot={"relationship": before},
         after_snapshot={"relationship": after},
         proposed_changes={"operation": jsonable_encoder(operation)},
-        derived_impact={"processes": derived_rows},
+        derived_impact={
+            "processes": derived_rows,
+            **({"assets": asset_derived_rows} if asset_derived_rows else {}),
+        },
         impacted_resources=canonical_impacts,
         department_id=process.owning_department_id,
+        scenario_key=triggered_scenarios[0],
+        triggered_scenarios=triggered_scenarios,
+        triggered_policies=triggered_policies,
     )
 
 

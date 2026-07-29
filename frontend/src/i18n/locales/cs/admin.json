@@ -727,11 +727,15 @@
       "immutable_help": "Tato pravidla ochrany vynucuje systém a nelze je změnit.",
       "threshold": "Práh ochrany",
       "triggers": {
-        "current_or_proposed_cif_yes": "Současné nebo navrhované CIF je Ano"
+        "current_or_proposed_cif_yes": "Současné nebo navrhované CIF je Ano",
+        "current_or_proposed_cif_yes_or_resulting_criticality_critical": "Současné nebo navrhované CIF je Ano, nebo výsledná kritičnost je Kritická"
       },
       "actions": "Pokryté akce",
       "covered_action_values": {
-        "edit": "Úpravy Procesu"
+        "create": "Vytvoření",
+        "edit": "Úpravy",
+        "link": "Změny vazeb",
+        "archive": "Archivace"
       },
       "separation": "Oddělení žadatele",
       "self_approval": {

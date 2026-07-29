@@ -13,6 +13,7 @@ import { assetApi } from '@/services/assetApi';
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
 import { logError } from '@/services/logger';
 import type { Asset } from '@/types/asset';
+import { isProcessApprovalQueuedResponse, type ProcessApprovalQueuedResponse } from '@/types/process';
 
 import { ASSET_CONTROLLED_CODES, buildAssetWritePayload } from './assetsPagePresentation';
 
@@ -26,6 +27,7 @@ interface AssetFormProps {
     initialData?: Asset;
     isEdit?: boolean;
     onSaved: (asset: Asset) => void;
+    onApprovalQueued?: (response: ProcessApprovalQueuedResponse) => void;
     onCancel?: () => void;
 }
 
@@ -60,6 +62,7 @@ type FormFields = {
     last_legacy_risk_assessment_date: string;
     review_state: string;
     notes: string;
+    request_reason: string;
 };
 
 const RATING_FIELDS = [
@@ -105,6 +108,7 @@ function initialFields(asset?: Asset): FormFields {
         last_legacy_risk_assessment_date: toFieldValue(asset?.last_legacy_risk_assessment_date),
         review_state: toFieldValue(asset?.review_state),
         notes: toFieldValue(asset?.notes),
+        request_reason: '',
     };
 }
 
@@ -117,7 +121,7 @@ function toNullableInt(value: string): number | null {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function AssetForm({ initialData, isEdit = false, onSaved, onCancel }: AssetFormProps) {
+export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueued, onCancel }: AssetFormProps) {
     const { t } = useTranslation('assets');
     const [fields, setFields] = useState<FormFields>(() => initialFields(initialData));
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -262,6 +266,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onCancel }: As
             last_legacy_risk_assessment_date: fields.last_legacy_risk_assessment_date,
             review_state: fields.review_state,
             notes: fields.notes,
+            request_reason: fields.request_reason.trim() || undefined,
         });
 
         try {
@@ -270,7 +275,11 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onCancel }: As
             const saved = isEdit && initialData
                 ? await assetApi.updateAsset(initialData.id, payload)
                 : await assetApi.createAsset(payload);
-            onSaved(saved);
+            if (isProcessApprovalQueuedResponse(saved)) {
+                onApprovalQueued?.(saved);
+            } else {
+                onSaved(saved);
+            }
         } catch (submitError) {
             logError('Failed to save asset:', submitError);
             setError(t('form.errors.save_failed'));
@@ -461,6 +470,22 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onCancel }: As
                         />
                     )}
                 </Field>
+                <Field label={t('form.request_reason')} labelClassName={labelClassName}>
+                    {(control) => (
+                        <textarea
+                            {...control}
+                            data-testid="asset-form-request-reason"
+                            value={fields.request_reason}
+                            onChange={(event) => setField('request_reason', event.target.value)}
+                            aria-describedby="asset-form-request-reason-help"
+                            rows={3}
+                            className={TEXTAREA_CLASS}
+                        />
+                    )}
+                </Field>
+                <p id="asset-form-request-reason-help" className="text-xs text-slate-500">
+                    {t('form.request_reason_help')}
+                </p>
             </section>
 
             <div className="flex items-center justify-end gap-3">

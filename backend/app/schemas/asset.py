@@ -118,10 +118,11 @@ class AssetBase(AssetWriteValidators):
 
 
 class AssetCreate(AssetBase):
-    pass
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class AssetUpdate(AssetWriteValidators):
+    request_reason: str | None = Field(None, max_length=1000)
     name: str | None = Field(None, min_length=1, max_length=255)
     asset_type: str | None = Field(None, max_length=50)
     asset_level: str | None = Field(None, max_length=50)
@@ -161,11 +162,66 @@ class AssetUpdate(AssetWriteValidators):
     notes: str | None = None
 
 
+class AssetArchiveRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    request_reason: str | None = Field(None, max_length=1000)
+
+
 class AssetCapabilities(BaseModel):
     can_read: bool
     can_update: bool
     can_archive: bool
     can_restore: bool
+    has_pending_change: bool = False
+    business_edit_blocked: bool = False
+    can_cancel_pending_change: bool = False
+
+
+class AssetPendingChangeCapabilities(BaseModel):
+    can_view_diff: bool
+    can_cancel: bool
+
+
+class AssetPendingChange(BaseModel):
+    approval_id: int | None
+    proposal_id: str | None
+    proposal_version: int | None
+    status: Literal["pending"] = "pending"
+    requested_at: UtcAwareDatetime
+    requested_by_name: str | None = None
+    reason: str
+    generic_label: Literal["protected_asset_change"] = "protected_asset_change"
+    mutation_kind: (
+        Literal[
+            "process.edit",
+            "process.create",
+            "process.archive",
+            "process.link.risk.add",
+            "process.link.risk.remove",
+            "process.link.asset.add",
+            "process.link.asset.update",
+            "process.link.asset.remove",
+            "process.link.vendor.add",
+            "process.link.vendor.remove",
+            "asset.create",
+            "asset.edit",
+            "asset.archive",
+            "asset.link.asset.add",
+            "asset.link.asset.remove",
+            "asset.link.vendor.add",
+            "asset.link.vendor.remove",
+            "asset.link.risk.add",
+            "asset.link.risk.remove",
+        ]
+        | None
+    )
+    before: dict[str, object]
+    after: dict[str, object]
+    derived_impact: dict[str, object]
+    impacted_resources: list[dict[str, str]]
+    relationship_change: dict[str, object] | None = None
+    capabilities: AssetPendingChangeCapabilities
 
 
 class AssetOwnerRead(BaseModel):
@@ -325,6 +381,7 @@ class AssetRead(BaseModel):
     # Engine-derived block (ticket #48): populated by the projection on every
     # read surface, absent from the persistence model, rejected on write.
     derived: AssetDerived | None = None
+    pending_change: AssetPendingChange | None = None
 
     is_archived: bool = False
     archived_at: UtcAwareDatetime | None = None
@@ -442,6 +499,7 @@ class AssetAssetLinkCreate(BaseModel):
     dependency_type: str | None = Field(None, max_length=50)
     spof: str | None = Field(None, max_length=10)
     note: str | None = None
+    request_reason: str | None = Field(None, max_length=2000)
 
     @field_validator("dependency_type")
     @classmethod
@@ -491,6 +549,7 @@ class AssetVendorLinkCreate(BaseModel):
     contract_reference: str | None = Field(None, max_length=100)
     reliance: str | None = Field(None, max_length=50)
     note: str | None = None
+    request_reason: str | None = Field(None, max_length=2000)
 
     @field_validator("ict_service_code")
     @classmethod

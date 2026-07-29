@@ -8,6 +8,11 @@ from app.db.session import get_db
 from app.models import ApprovalScenario, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import ApprovalScenarioRead, ApprovalScenarioUpdate
+from app.services._governed_mutations.fixed_asset_policy import (
+    ASSET_ALLOWED_APPROVER_ROLES,
+    ASSET_SCENARIO_KEY,
+    load_fixed_asset_scenario_for_update,
+)
 from app.services._governed_mutations.fixed_policy import (
     ALLOWED_APPROVER_ROLES,
     SCENARIO_KEY,
@@ -48,6 +53,8 @@ async def update_approval_scenario(
 ) -> ApprovalScenarioRead:
     if key == SCENARIO_KEY:
         scenario = await load_fixed_process_scenario_for_update(db)
+    elif key == ASSET_SCENARIO_KEY:
+        scenario = await load_fixed_asset_scenario_for_update(db)
     else:
         result = await db.execute(
             select(ApprovalScenario)
@@ -60,12 +67,13 @@ async def update_approval_scenario(
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Approval scenario '{key}' not found")
 
-    if key == SCENARIO_KEY and data.approver_roles is not None:
+    if key in {SCENARIO_KEY, ASSET_SCENARIO_KEY} and data.approver_roles is not None:
         roles = {str(role) for role in data.approver_roles}
-        if not roles or not roles.issubset(ALLOWED_APPROVER_ROLES):
+        allowed_roles = ASSET_ALLOWED_APPROVER_ROLES if key == ASSET_SCENARIO_KEY else ALLOWED_APPROVER_ROLES
+        if not roles or not roles.issubset(allowed_roles):
             raise HTTPException(
                 status_code=422,
-                detail="Protected Process changes may only be approved by Risk Manager or CRO roles",
+                detail="Protected Process or Asset changes may only be approved by Risk Manager or CRO roles",
             )
 
     changes = apply_approval_scenario_changes(scenario, key=key, data=data)

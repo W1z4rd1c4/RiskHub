@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.asset import (
+    AssetArchiveRequest,
     AssetAssetLinkCreate,
     AssetAssetLinkRead,
     AssetVendorLinkCreate,
@@ -122,6 +123,7 @@ async def list_asset_asset_links_route(
     "/{asset_id}/asset-links",
     response_model=AssetAssetLinkRead,
     status_code=status.HTTP_201_CREATED,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
 )
 async def create_asset_asset_link(
     asset_id: int,
@@ -132,15 +134,25 @@ async def create_asset_asset_link(
     return await add_asset_asset_link(db, asset_id=asset_id, payload=payload, current_user=current_user)
 
 
-@router.delete("/{asset_id}/asset-links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{asset_id}/asset-links/{link_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
+)
 async def delete_asset_asset_link(
     asset_id: int,
     link_id: int,
+    payload: AssetArchiveRequest = Body(default_factory=AssetArchiveRequest),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await remove_asset_asset_link(db, asset_id=asset_id, link_id=link_id, current_user=current_user)
-    return None
+    return await remove_asset_asset_link(
+        db,
+        asset_id=asset_id,
+        link_id=link_id,
+        request_reason=payload.request_reason,
+        current_user=current_user,
+    )
 
 
 @router.get("/{asset_id}/vendor-links", response_model=list[AssetVendorLinkRead])
@@ -156,6 +168,7 @@ async def list_asset_vendor_links_route(
     "/{asset_id}/vendor-links",
     response_model=AssetVendorLinkRead,
     status_code=status.HTTP_201_CREATED,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
 )
 async def create_asset_vendor_link(
     asset_id: int,
@@ -166,12 +179,22 @@ async def create_asset_vendor_link(
     return await add_asset_vendor_link(db, asset_id=asset_id, payload=payload, current_user=current_user)
 
 
-@router.delete("/{asset_id}/vendor-links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{asset_id}/vendor-links/{link_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
+)
 async def delete_asset_vendor_link(
     asset_id: int,
     link_id: int,
+    payload: AssetArchiveRequest = Body(default_factory=AssetArchiveRequest),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await remove_asset_vendor_link(db, asset_id=asset_id, link_id=link_id, current_user=current_user)
-    return None
+    return await remove_asset_vendor_link(
+        db,
+        asset_id=asset_id,
+        link_id=link_id,
+        request_reason=payload.request_reason,
+        current_user=current_user,
+    )

@@ -95,8 +95,8 @@ export interface ApprovalScenario {
 }
 
 export interface ApprovalScenarioFixedPolicyDefinition {
-    threshold: 'current_or_proposed_cif_yes';
-    covered_actions: 'edit'[];
+    threshold: 'current_or_proposed_cif_yes' | 'current_or_proposed_cif_yes_or_resulting_criticality_critical';
+    covered_actions: ('create' | 'edit' | 'link' | 'archive')[];
     allow_self_approval: false;
 }
 

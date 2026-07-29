@@ -70,6 +70,18 @@ def _extended_governed_approval(kind: str) -> SimpleNamespace:
             "key": "protected_process_edit",
             "requires_approval": True,
             "approver_roles": ["cro"],
+            "triggered_policies": [
+                {
+                    "key": "protected_process_edit",
+                    "enabled": True,
+                    "policy_version": 1,
+                    "configured_roles": ["cro"],
+                    "invariants": {
+                        "independent": True,
+                        "allow_self_approval": False,
+                    },
+                }
+            ],
         },
         "requested_by_id": 7,
         "created_at": created_at,
@@ -114,6 +126,7 @@ def _extended_governed_approval(kind: str) -> SimpleNamespace:
             "proposed_changes": {
                 "before": {"is_archived": False},
                 "after": {"is_archived": True},
+                "triggered_scenarios": ["protected_process_edit"],
             },
             "impacted_resources_snapshot": [
                 {
@@ -154,7 +167,10 @@ def _extended_governed_approval(kind: str) -> SimpleNamespace:
                     }
                 ]
             },
-            "proposed_changes": {"operation": operation},
+            "proposed_changes": {
+                "operation": operation,
+                "triggered_scenarios": ["protected_process_edit"],
+            },
             "impacted_resources_snapshot": [
                 {
                     "resource_type": "process",
@@ -165,7 +181,10 @@ def _extended_governed_approval(kind: str) -> SimpleNamespace:
             ],
         }
     pending_changes = (
-        {field: {"old": None, "new": specific["after_snapshot"][field]} for field in sorted(specific["after_snapshot"])}
+        {
+            field: {"old": None, "new": specific["after_snapshot"][field]}
+            for field in sorted(specific["after_snapshot"])
+        }
         if kind == "process.create"
         else (
             {"is_archived": {"old": False, "new": True}}
@@ -206,14 +225,21 @@ def _extended_governed_approval(kind: str) -> SimpleNamespace:
     return SimpleNamespace(governed_mutation_proposal=proposal)
 
 
-@pytest.mark.parametrize("kind", ["process.create", "process.archive", "process.link.risk.add"])
+@pytest.mark.parametrize(
+    "kind", ["process.create", "process.archive", "process.link.risk.add"]
+)
 def test_extended_notification_identity_dispatches_all_supported_kinds(
     kind: str,
 ) -> None:
-    assert approval_handlers._proposal_dispatch_kind(_extended_governed_approval(kind)) == "governed"
+    assert (
+        approval_handlers._proposal_dispatch_kind(_extended_governed_approval(kind))
+        == "governed"
+    )
 
 
-@pytest.mark.parametrize("kind", ["process.create", "process.archive", "process.link.risk.add"])
+@pytest.mark.parametrize(
+    "kind", ["process.create", "process.archive", "process.link.risk.add"]
+)
 def test_extended_notification_fixture_models_exact_persisted_envelope(
     kind: str,
 ) -> None:
@@ -226,7 +252,10 @@ def test_extended_notification_fixture_models_exact_persisted_envelope(
     }[kind]
     resource_id = None if kind == "process.create" else 23
     expected_pending_changes = (
-        {field: {"old": None, "new": proposal.after_snapshot[field]} for field in sorted(proposal.after_snapshot)}
+        {
+            field: {"old": None, "new": proposal.after_snapshot[field]}
+            for field in sorted(proposal.after_snapshot)
+        }
         if kind == "process.create"
         else (
             {"is_archived": {"old": False, "new": True}}
@@ -264,6 +293,18 @@ def test_extended_notification_fixture_models_exact_persisted_envelope(
             "key": "protected_process_edit",
             "requires_approval": True,
             "approver_roles": ["cro"],
+            "triggered_policies": [
+                {
+                    "key": "protected_process_edit",
+                    "enabled": True,
+                    "policy_version": 1,
+                    "configured_roles": ["cro"],
+                    "invariants": {
+                        "independent": True,
+                        "allow_self_approval": False,
+                    },
+                }
+            ],
         },
         "requested_by_id": 7,
     }
@@ -282,7 +323,9 @@ def test_extended_notification_fixture_models_exact_persisted_envelope(
             for field, value in expected_raw_after.items()
             if field not in {"process_owner_user_id", "owning_department_id"}
         }
-        expected_safe_after.update({"process_owner": "Process Owner", "owning_department": "Operations"})
+        expected_safe_after.update(
+            {"process_owner": "Process Owner", "owning_department": "Operations"}
+        )
         assert {
             "base_versions": proposal.base_versions,
             "before_snapshot": proposal.before_snapshot,
@@ -320,6 +363,7 @@ def test_extended_notification_fixture_models_exact_persisted_envelope(
             "proposed_changes": {
                 "before": {"is_archived": False},
                 "after": {"is_archived": True},
+                "triggered_scenarios": ["protected_process_edit"],
             },
             "impacted_resources_snapshot": [
                 {
@@ -375,7 +419,10 @@ def test_extended_notification_fixture_models_exact_persisted_envelope(
                     }
                 ]
             },
-            "proposed_changes": {"operation": expected_operation},
+            "proposed_changes": {
+                "operation": expected_operation,
+                "triggered_scenarios": ["protected_process_edit"],
+            },
             "impacted_resources_snapshot": expected_impact,
         }
     assert {
@@ -435,7 +482,9 @@ def test_extended_notification_identity_excludes_malformed_legacy_envelope() -> 
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("kind", ["process.create", "process.archive", "process.link.risk.add"])
+@pytest.mark.parametrize(
+    "kind", ["process.create", "process.archive", "process.link.risk.add"]
+)
 @pytest.mark.parametrize(
     ("handler", "payload", "method", "kwargs"),
     [
@@ -475,7 +524,9 @@ async def test_extended_events_route_governed_notifications(
     monkeypatch, kind: str, handler, payload, method: str, kwargs: dict
 ) -> None:
     approval = _extended_governed_approval(kind)
-    monkeypatch.setattr(approval_handlers, "_load_approval", AsyncMock(return_value=approval))
+    monkeypatch.setattr(
+        approval_handlers, "_load_approval", AsyncMock(return_value=approval)
+    )
     notify_action = AsyncMock(return_value=[])
     notify_update = AsyncMock(return_value=None)
     monkeypatch.setattr(
@@ -492,14 +543,18 @@ async def test_extended_events_route_governed_notifications(
     db = AsyncMock()
     await handler(db, payload)
 
-    notify = notify_action if method == "notify_governed_action_required" else notify_update
+    notify = (
+        notify_action if method == "notify_governed_action_required" else notify_update
+    )
     notify.assert_awaited_once_with(db, approval, strict_errors=True, **kwargs)
 
 
 @pytest.mark.asyncio
 async def test_created_event_routes_to_governed_action_preference(monkeypatch) -> None:
     approval = _governed_approval()
-    monkeypatch.setattr(approval_handlers, "_load_approval", AsyncMock(return_value=approval))
+    monkeypatch.setattr(
+        approval_handlers, "_load_approval", AsyncMock(return_value=approval)
+    )
     notify = AsyncMock(return_value=[])
     monkeypatch.setattr(
         approval_handlers.NotificationService,
@@ -508,7 +563,9 @@ async def test_created_event_routes_to_governed_action_preference(monkeypatch) -
     )
 
     db = AsyncMock()
-    await approval_handlers.handle_approval_request_created(db, ApprovalRequestCreatedPayload(approval_id=41))
+    await approval_handlers.handle_approval_request_created(
+        db, ApprovalRequestCreatedPayload(approval_id=41)
+    )
 
     notify.assert_awaited_once_with(
         db,
@@ -523,9 +580,13 @@ async def test_created_event_routes_to_governed_action_preference(monkeypatch) -
     ("approved", "outcome"),
     [(True, "approved"), (False, "rejected")],
 )
-async def test_resolved_event_routes_to_governed_request_update(monkeypatch, approved: bool, outcome: str) -> None:
+async def test_resolved_event_routes_to_governed_request_update(
+    monkeypatch, approved: bool, outcome: str
+) -> None:
     approval = _governed_approval()
-    monkeypatch.setattr(approval_handlers, "_load_approval", AsyncMock(return_value=approval))
+    monkeypatch.setattr(
+        approval_handlers, "_load_approval", AsyncMock(return_value=approval)
+    )
     notify = AsyncMock(return_value=None)
     monkeypatch.setattr(
         approval_handlers.NotificationService,
@@ -569,7 +630,9 @@ async def test_terminal_event_notifies_approvers_and_requester(
     monkeypatch, handler, payload, event: str, outcome: str
 ) -> None:
     approval = _governed_approval()
-    monkeypatch.setattr(approval_handlers, "_load_approval", AsyncMock(return_value=approval))
+    monkeypatch.setattr(
+        approval_handlers, "_load_approval", AsyncMock(return_value=approval)
+    )
     notify_action = AsyncMock(return_value=[])
     notify_requester = AsyncMock(return_value=None)
     monkeypatch.setattr(
@@ -601,5 +664,11 @@ async def test_terminal_event_notifies_approvers_and_requester(
 
 
 def test_expired_event_has_typed_payload_and_registered_handler() -> None:
-    assert get_outbox_payload_model("approval.request_expired") is ApprovalRequestExpiredPayload
-    assert OUTBOX_EVENT_HANDLERS["approval.request_expired"] is approval_handlers.handle_approval_request_expired
+    assert (
+        get_outbox_payload_model("approval.request_expired")
+        is ApprovalRequestExpiredPayload
+    )
+    assert (
+        OUTBOX_EVENT_HANDLERS["approval.request_expired"]
+        is approval_handlers.handle_approval_request_expired
+    )

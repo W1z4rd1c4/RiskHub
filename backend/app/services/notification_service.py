@@ -298,16 +298,26 @@ class NotificationService:
         strict_errors: bool = False,
     ) -> list[Notification]:
         """Deliver governed-proposal work events without owning queue visibility."""
-        identity = _strict_governed_notification_identity(approval)
+        try:
+            identity = _strict_governed_notification_identity(approval)
+        except EXPECTED_NOTIFICATION_DELIVERY_ERRORS:
+            if strict_errors:
+                raise
+            logger.warning(
+                "governed_notification_identity_excluded",
+                extra={"approval_id": approval.id, "operation": "notify_governed_action_required"},
+            )
+            return []
         recipients, skipped = await eligible_approval_notification_recipients(
             db,
             approval,
             exclude_user_id=identity.requested_by_id,
         )
+        resource_label = "Asset" if identity.mutation_kind.startswith("asset.") else "Process"
         titles = {
-            "submitted": "Protected Process change requires review",
-            "cancelled": "Protected Process request cancelled",
-            "expired": "Protected Process request expired",
+            "submitted": f"Protected {resource_label} change requires review",
+            "cancelled": f"Protected {resource_label} request cancelled",
+            "expired": f"Protected {resource_label} request expired",
         }
         notifications: list[Notification] = []
         for approver in recipients:
@@ -321,7 +331,9 @@ class NotificationService:
                     user_id=approver.id,
                     notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
                     title=titles[event],
-                    message=(f"Protected Process request for " f"'{identity.primary_resource_name}' was {event}."),
+                    message=(
+                        f"Protected {resource_label} request for " f"'{identity.primary_resource_name}' was {event}."
+                    ),
                     resource_type="approval",
                     resource_id=approval.id,
                 )
@@ -364,12 +376,13 @@ class NotificationService:
     ) -> Notification | None:
         """Deliver a governed proposal outcome to its requester."""
         identity = _strict_governed_notification_identity(approval)
+        resource_label = "Asset" if identity.mutation_kind.startswith("asset.") else "Process"
         try:
             return await NotificationService.create_notification_once(
                 db=db,
                 user_id=identity.requested_by_id,
                 notification_type=NotificationType.GOVERNED_APPROVAL_REQUEST_UPDATES,
-                title=f"Protected Process request {outcome}",
+                title=f"Protected {resource_label} request {outcome}",
                 message=(f"Your request for '{identity.primary_resource_name}' " f"was {outcome}."),
                 resource_type="approval",
                 resource_id=approval.id,

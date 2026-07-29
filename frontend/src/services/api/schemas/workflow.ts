@@ -55,6 +55,11 @@ const governedDerivedStateSchema = z.strictObject({
     criticality_class: z.string().nullable(),
 });
 
+const governedAssetDerivedStateSchema = z.strictObject({
+    cif: z.string(),
+    resulting_criticality: z.string().nullable(),
+});
+
 const governedEditDerivedImpactSchema = z.strictObject({
     before: governedDerivedStateSchema,
     after: governedDerivedStateSchema,
@@ -70,12 +75,32 @@ const governedRelationshipDerivedImpactSchema = z.strictObject({
         resource_name: z.string(),
         before: governedDerivedStateSchema,
         after: governedDerivedStateSchema,
-    })),
+    })).optional(),
+    assets: z.array(z.strictObject({
+        resource_name: z.string(),
+        before: governedAssetDerivedStateSchema,
+        after: governedAssetDerivedStateSchema,
+    })).optional(),
+}).refine(
+    (impact) => impact.processes !== undefined || impact.assets !== undefined,
+    { message: 'Composite governed impact must contain Process or Asset rows' },
+);
+
+const governedAssetEditDerivedImpactSchema = z.strictObject({
+    before: governedAssetDerivedStateSchema,
+    after: governedAssetDerivedStateSchema,
+});
+
+const governedAssetCreateDerivedImpactSchema = z.strictObject({
+    before: z.null(),
+    after: governedAssetDerivedStateSchema,
 });
 
 export const governedDerivedImpactSchema: z.ZodType<GovernedDerivedImpact> = z.union([
     governedEditDerivedImpactSchema,
     governedCreateDerivedImpactSchema,
+    governedAssetEditDerivedImpactSchema,
+    governedAssetCreateDerivedImpactSchema,
     governedRelationshipDerivedImpactSchema,
 ]);
 
@@ -93,12 +118,17 @@ const governedRelationshipSnapshotSchema = z.record(
     { message: 'Relationship display snapshots cannot contain identifiers' },
 );
 
-const governedRelationshipChangeSchema = z.strictObject({
+export const governedRelationshipChangeSchema = z.strictObject({
     target_resource_type: z.enum(['risk', 'asset', 'vendor']),
     target_resource_name: z.string(),
     action: z.enum(['add', 'update', 'remove']),
     before: governedRelationshipSnapshotSchema,
     after: governedRelationshipSnapshotSchema,
+});
+
+export const governedImpactedResourceSchema = z.strictObject({
+    resource_type: z.enum(['process', 'asset']),
+    resource_name: z.string(),
 });
 
 const governedRelationshipContract = {
@@ -109,6 +139,12 @@ const governedRelationshipContract = {
     'process.link.asset.remove': ['asset', 'remove'],
     'process.link.vendor.add': ['vendor', 'add'],
     'process.link.vendor.remove': ['vendor', 'remove'],
+    'asset.link.asset.add': ['asset', 'add'],
+    'asset.link.asset.remove': ['asset', 'remove'],
+    'asset.link.vendor.add': ['vendor', 'add'],
+    'asset.link.vendor.remove': ['vendor', 'remove'],
+    'asset.link.risk.add': ['risk', 'add'],
+    'asset.link.risk.remove': ['risk', 'remove'],
 } as const;
 
 export const governedMutationReadSchema: z.ZodType<GovernedMutationRead> = z.strictObject({
@@ -118,26 +154,25 @@ export const governedMutationReadSchema: z.ZodType<GovernedMutationRead> = z.str
     before: unknownRecordSchema,
     after: unknownRecordSchema,
     derived_impact: governedDerivedImpactSchema,
-    impacted_resources: z.array(z.strictObject({
-        resource_type: z.literal('process'),
-        resource_name: z.string(),
-    })),
+    impacted_resources: z.array(governedImpactedResourceSchema),
     relationship_change: governedRelationshipChangeSchema.nullable(),
 }).superRefine((value, context) => {
     const relationshipContract = governedRelationshipContract[
         value.mutation_kind as keyof typeof governedRelationshipContract
     ];
-    const hasRelationshipImpact = 'processes' in value.derived_impact;
+    const hasCompositeImpact = 'processes' in value.derived_impact || 'assets' in value.derived_impact;
 
     if (relationshipContract === undefined) {
-        if (value.relationship_change != null || hasRelationshipImpact) {
+        if (value.relationship_change != null) {
             context.addIssue({
                 code: 'custom',
                 message: 'Non-relationship governed mutations cannot expose relationship data',
             });
         }
-        const isCreationImpact = value.derived_impact.before === null;
-        if ((value.mutation_kind === 'process.create') !== isCreationImpact) {
+        const isCreationImpact = !hasCompositeImpact && value.derived_impact.before === null;
+        const isCreationKind = value.mutation_kind === 'process.create'
+            || value.mutation_kind === 'asset.create';
+        if (isCreationKind !== isCreationImpact) {
             context.addIssue({
                 code: 'custom',
                 message: 'Governed mutation kind does not match its derived impact',
@@ -151,7 +186,7 @@ export const governedMutationReadSchema: z.ZodType<GovernedMutationRead> = z.str
         value.relationship_change == null
         || value.relationship_change.target_resource_type !== expectedResourceType
         || value.relationship_change.action !== expectedAction
-        || !hasRelationshipImpact
+        || !hasCompositeImpact
     ) {
         context.addIssue({
             code: 'custom',
@@ -185,7 +220,7 @@ export const activityLogListResponseSchema: z.ZodType<ActivityLogListResponse> =
 
 export const approvalRequestSchema: z.ZodType<ApprovalRequest> = passthroughObject({
     id: z.number(),
-    resource_type: z.enum(['risk', 'control', 'kri', 'process']),
+    resource_type: z.enum(['risk', 'control', 'kri', 'process', 'asset']),
     resource_id: z.number().nullable(),
     resource_name: z.string(),
     action_type: z.enum(['delete', 'edit', 'create', 'archive']),
@@ -241,6 +276,8 @@ export const notificationSchema: z.ZodType<Notification> = passthroughObject({
         'approval_pending',
         'approval_resolved',
         'approval_cancelled',
+        'governed_approval_action_required',
+        'governed_approval_request_updates',
         'kri_due_soon',
         'kri_due_tomorrow',
         'kri_overdue',

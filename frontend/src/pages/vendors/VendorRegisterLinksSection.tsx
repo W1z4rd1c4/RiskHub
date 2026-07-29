@@ -53,6 +53,9 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
     const [pendingProcessAction, setPendingProcessAction] = useState<
         { kind: 'add' } | { kind: 'remove'; processId: number; linkId: number } | null
     >(null);
+    const [pendingAssetAction, setPendingAssetAction] = useState<
+        { kind: 'add' } | { kind: 'remove'; assetId: number; linkId: number } | null
+    >(null);
 
     const [assetToLink, setAssetToLink] = useState('');
     const [assetLinkServiceCode, setAssetLinkServiceCode] = useState('');
@@ -132,13 +135,19 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
     };
 
     const addAssetLink = useMutation({
-        mutationFn: () =>
+        mutationFn: (reason: string) =>
             assetApi.addVendorLink(Number(assetToLink), {
                 vendor_id: vendorId,
                 ict_service_code: assetLinkServiceCode,
+                request_reason: reason,
             }),
-        onSuccess: async () => {
+        onSuccess: async (result) => {
             setSectionError(null);
+            setPendingAssetAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             setAssetToLink('');
             setAssetLinkServiceCode('');
             await refreshLinks();
@@ -147,10 +156,15 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
     });
 
     const removeAssetLink = useMutation({
-        mutationFn: ({ assetId, linkId }: { assetId: number; linkId: number }) =>
-            assetApi.removeVendorLink(assetId, linkId),
-        onSuccess: async () => {
+        mutationFn: ({ assetId, linkId, reason }: { assetId: number; linkId: number; reason: string }) =>
+            assetApi.removeVendorLink(assetId, linkId, reason),
+        onSuccess: async (result) => {
             setSectionError(null);
+            setPendingAssetAction(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             await refreshLinks();
         },
         onError: handleMutationError,
@@ -274,7 +288,8 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                             type="button"
                                             data-testid={`vendor-asset-link-remove-${row.link.id}`}
                                             onClick={() =>
-                                                removeAssetLink.mutate({
+                                                setPendingAssetAction({
+                                                    kind: 'remove',
                                                     assetId: row.link.asset_id,
                                                     linkId: row.link.id,
                                                 })
@@ -316,7 +331,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                 type="button"
                                 data-testid="vendor-asset-link-add"
                                 disabled={!assetToLink || !assetLinkServiceCode || addAssetLink.isPending}
-                                onClick={() => addAssetLink.mutate()}
+                                onClick={() => setPendingAssetAction({ kind: 'add' })}
                                 className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
                             >
                                 <Plus className="h-4 w-4" />
@@ -419,6 +434,20 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                     if (pendingProcessAction?.kind === 'add') addProcessLink.mutate(reason);
                     if (pendingProcessAction?.kind === 'remove') {
                         removeProcessLink.mutate({ ...pendingProcessAction, reason });
+                    }
+                }}
+            />
+            <GovernedMutationReasonDialog
+                isOpen={pendingAssetAction !== null}
+                reasonRequired
+                kind={pendingAssetAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
+                isLoading={addAssetLink.isPending || removeAssetLink.isPending}
+                onClose={() => setPendingAssetAction(null)}
+                onConfirm={(reason) => {
+                    if (pendingAssetAction?.kind === 'add') {
+                        addAssetLink.mutate(reason);
+                    } else if (pendingAssetAction?.kind === 'remove') {
+                        removeAssetLink.mutate({ ...pendingAssetAction, reason });
                     }
                 }}
             />

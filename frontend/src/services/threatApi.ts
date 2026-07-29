@@ -202,15 +202,26 @@ export const riskRegisterLinksApi = {
         return apiClient.get(`/risks/${riskId}/asset-links`, { schema: riskAssetLinkListSchema });
     },
 
-    async addAssetLink(riskId: number, assetId: number): Promise<RiskAssetLink> {
+    async addAssetLink(
+        riskId: number,
+        assetId: number,
+        requestReason: string,
+    ): Promise<RiskAssetLink | ProcessApprovalQueuedResponse> {
         return apiClient.post(
             `/risks/${riskId}/asset-links`,
-            { asset_id: assetId },
-            { schema: riskAssetLinkSchema }
+            { asset_id: assetId, request_reason: requestReason },
+            { schema: riskAssetLinkSchema.or(processApprovalQueuedResponseSchema) }
         );
     },
 
-    async removeAssetLink(riskId: number, linkId: number): Promise<void> {
-        return apiClient.delete(`/risks/${riskId}/asset-links/${linkId}`, { schema: voidSchema });
+    async removeAssetLink(
+        riskId: number,
+        linkId: number,
+        requestReason: string,
+    ): Promise<void | ProcessApprovalQueuedResponse> {
+        return apiClient.delete(`/risks/${riskId}/asset-links/${linkId}`, {
+            body: JSON.stringify({ request_reason: requestReason }),
+            schema: voidSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 };

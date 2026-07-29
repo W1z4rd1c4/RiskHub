@@ -20,6 +20,7 @@ from app.core.permissions import (
 from app.models import (
     ApprovalRequest,
     ApprovalResourceType,
+    Asset,
     GovernedMutationProposal,
     Process,
     User,
@@ -34,6 +35,7 @@ from app.services._governed_mutations.process_identity import (
     strict_governed_process_identity,
     valid_governed_process_proposal_exists_clause,
 )
+from app.services._ict_register_lifecycle.asset_policy import can_read_asset_record
 from app.services._ict_register_lifecycle.policy import (
     can_read_process_record,
     process_visibility_clause,
@@ -336,6 +338,30 @@ async def governed_process_response_policy(
     proposal = approval.governed_mutation_proposal
     if proposal is None:
         return None
+    from app.services._governed_mutations.asset_mutations import (
+        is_asset_governed_kind,
+        valid_asset_governed_envelope,
+    )
+
+    if is_asset_governed_kind(proposal.mutation_kind):
+        if not valid_asset_governed_envelope(proposal):
+            raise ValueError("Malformed governed Asset approval envelope")
+        from app.services._governed_mutations.fixed_asset_policy import (
+            can_live_resolve_asset_proposal,
+        )
+
+        resolver = await can_live_resolve_asset_proposal(
+            db,
+            user=user,
+            proposal=proposal,
+        )
+        can_access = proposal.requested_by_id == user.id or resolver
+        return GovernedProcessResponsePolicy(
+            requested_by_id=proposal.requested_by_id,
+            can_access=can_access,
+            can_view_snapshot=proposal.requested_by_id == user.id or resolver,
+            can_resolve=resolver,
+        )
     evaluation = await _evaluate_governed_process_policy(
         db,
         proposal=proposal,
@@ -566,6 +592,21 @@ async def can_resolve_scenario_approval(
         except (InvalidGovernedProcessIdentity, ValueError):
             return False
         return bool(evaluation is not None and evaluation.can_resolve)
+    asset_proposal = approval.governed_mutation_proposal
+    if asset_proposal is not None:
+        from app.services._governed_mutations.asset_mutations import valid_asset_governed_envelope
+
+        if not valid_asset_governed_envelope(asset_proposal):
+            return False
+        from app.services._governed_mutations.fixed_asset_policy import (
+            can_live_resolve_asset_proposal,
+        )
+
+        return await can_live_resolve_asset_proposal(
+            db,
+            user=user,
+            proposal=asset_proposal,
+        )
     if user_matches_approval_scenario_role(approval, user) is not True:
         return False
     return can_resolve_approvals(user) or await can_view_approval_resource(db, user, approval)
@@ -582,6 +623,9 @@ async def can_view_approval_resource(db: AsyncSession, user: User, approval: App
     if approval.resource_type == ApprovalResourceType.PROCESS:
         process = await db.get(Process, approval.resource_id)
         return process is not None and can_read_process_record(user, process)
+    if approval.resource_type == ApprovalResourceType.ASSET:
+        asset = await db.get(Asset, approval.resource_id) if approval.resource_id else None
+        return asset is not None and can_read_asset_record(user, asset)
     return False
 
 

@@ -6,15 +6,19 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
 import { assetApi } from '@/services/assetApi';
+import { approvalsApi } from '@/services/approvalsApi';
 import type { Asset } from '@/types/asset';
+import { isProcessApprovalQueuedResponse } from '@/types/process';
 
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { AssetForm } from './assets/AssetForm';
 import { AssetLinkSections } from './assets/AssetLinkSections';
+import { AssetPendingChangePanel } from './assets/AssetPendingChangePanel';
 import {
     assetCompletenessFieldLabel,
     assetDepartmentDisplay,
@@ -72,12 +76,13 @@ function DerivedPillField({
 
 export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
     const navigate = useNavigate();
-    const { t } = useTranslation('assets');
+    const { t, i18n } = useTranslation('assets');
     const { t: tCommon } = useTranslation('common');
     const authz = useAuthz();
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
+    const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
 
     const {
         asset,
@@ -98,13 +103,17 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         logMessage: 'Failed to load asset create capabilities.',
     });
 
-    const archiveAsset = async () => {
+    const archiveAsset = async (requestReason?: string) => {
         if (!asset) {
             return;
         }
         try {
             setIsArchiving(true);
-            await assetApi.archiveAsset(asset.id);
+            const result = await assetApi.archiveAsset(asset.id, requestReason?.trim() ?? '');
+            if (isProcessApprovalQueuedResponse(result)) {
+                void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
+                return;
+            }
             void navigate('/assets');
         } catch (archiveError) {
             logError('Failed to archive asset:', archiveError);
@@ -112,6 +121,21 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         } finally {
             setIsArchiving(false);
             setIsArchiveDialogOpen(false);
+        }
+    };
+
+    const cancelPendingChange = async () => {
+        if (!asset?.pending_change?.approval_id) return;
+        try {
+            setIsCancellingPendingChange(true);
+            setActionError(null);
+            await approvalsApi.cancel(asset.pending_change.approval_id);
+            await fetchAsset();
+        } catch (cancelError) {
+            logError('Failed to cancel pending Asset change:', cancelError);
+            setActionError(t('pending_change.cancel_failed'));
+        } finally {
+            setIsCancellingPendingChange(false);
         }
     };
 
@@ -137,6 +161,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 </div>
                 <AssetForm
                     onSaved={(saved: Asset) => navigate(`/assets/${saved.id}`)}
+                    onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
                     onCancel={() => navigate('/assets')}
                 />
             </div>
@@ -172,10 +197,25 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
     }
 
     if (mode === 'edit') {
+        if (resolveCapabilityFlag(asset.capabilities, 'business_edit_blocked')) {
+            return (
+                <div className="space-y-8">
+                    <button type="button" onClick={() => navigate(`/assets/${asset.id}`)} aria-label={t('actions.back_to_register')} className="p-2.5 glass rounded-xl text-slate-400 hover:text-white"><ArrowLeft className="h-4 w-4" aria-hidden="true" /></button>
+                    {asset.pending_change ? (
+                        <AssetPendingChangePanel
+                            pendingChange={asset.pending_change}
+                            locale={i18n.language}
+                            cancelling={isCancellingPendingChange}
+                            onCancel={resolveCapabilityFlag(asset.pending_change.capabilities, 'can_cancel') ? () => void cancelPendingChange() : undefined}
+                        />
+                    ) : null}
+                </div>
+            );
+        }
         if (asset.ownership_status === 'pending_governance') {
             return (
                 <div className="space-y-8">
-                    <button type="button" onClick={() => navigate(`/assets/${asset.id}`)} className="p-2.5 glass rounded-xl text-slate-400 hover:text-white"><ArrowLeft className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => navigate(`/assets/${asset.id}`)} aria-label={t('actions.back_to_register')} className="p-2.5 glass rounded-xl text-slate-400 hover:text-white"><ArrowLeft className="h-4 w-4" aria-hidden="true" /></button>
                     <div role="alert" data-testid="asset-orphan-edit-blocked" className="glass-card flex items-center justify-between gap-4 border border-amber-400/30 text-amber-200">
                         <p className="text-sm font-medium">{t('detail.ownership_pending')}</p>
                         {authz.canViewGovernance ? <button type="button" onClick={() => navigate('/governance?type=asset')} className="rounded-xl bg-amber-400/10 px-4 py-2 text-sm font-bold">{t('detail.resolve_in_governance')}</button> : null}
@@ -209,6 +249,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         setAsset(saved);
                         void navigate(`/assets/${saved.id}`);
                     }}
+                    onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
                     onCancel={() => navigate(`/assets/${asset.id}`)}
                 />
             </div>
@@ -224,6 +265,14 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{actionError}</p>
                 </div>
+            ) : null}
+            {asset.pending_change ? (
+                <AssetPendingChangePanel
+                    pendingChange={asset.pending_change}
+                    locale={i18n.language}
+                    cancelling={isCancellingPendingChange}
+                    onCancel={resolveCapabilityFlag(asset.pending_change.capabilities, 'can_cancel') ? () => void cancelPendingChange() : undefined}
+                />
             ) : null}
             {asset.ownership_status === 'pending_governance' ? (
                 <div role="alert" className="glass-card flex items-center justify-between gap-4 border border-amber-400/30 text-amber-200">
@@ -273,7 +322,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             {t('actions.restore')}
                         </button>
                     )}
-                    {canEdit && asset.ownership_status !== 'pending_governance' && (
+                    {canEdit && !resolveCapabilityFlag(asset.capabilities, 'business_edit_blocked') && asset.ownership_status !== 'pending_governance' && (
                         <button
                             type="button"
                             onClick={() => navigate(`/assets/${asset.id}/edit`)}
@@ -284,7 +333,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             {t('actions.edit')}
                         </button>
                     )}
-                    {canArchive && (
+                    {canArchive && !resolveCapabilityFlag(asset.capabilities, 'business_edit_blocked') && (
                         <button
                             type="button"
                             onClick={() => setIsArchiveDialogOpen(true)}
@@ -540,7 +589,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
 
             <AssetLinkSections
                 asset={asset}
-                canManageLinks={canEdit === true}
+                canManageLinks={canEdit === true && !resolveCapabilityFlag(asset.capabilities, 'business_edit_blocked')}
                 onLinksChanged={() => fetchAsset()}
             />
 
@@ -553,6 +602,10 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 confirmLabel={tCommon('actions.archive')}
                 variant="danger"
                 isLoading={isArchiving}
+                showInput
+                inputRequired
+                inputLabel={t('form.request_reason')}
+                inputPlaceholder={t('form.request_reason_help')}
             />
         </div>
     );

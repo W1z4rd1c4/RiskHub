@@ -111,8 +111,11 @@ class GlobalConfigUpdate(BaseModel):
 class ApprovalScenarioFixedPolicyRead(BaseModel):
     """Read-only definition of a system-enforced approval policy."""
 
-    threshold: Literal["current_or_proposed_cif_yes"]
-    covered_actions: list[Literal["edit"]]
+    threshold: Literal[
+        "current_or_proposed_cif_yes",
+        "current_or_proposed_cif_yes_or_resulting_criticality_critical",
+    ]
+    covered_actions: list[Literal["create", "edit", "link", "archive"]]
     allow_self_approval: Literal[False]
 
 

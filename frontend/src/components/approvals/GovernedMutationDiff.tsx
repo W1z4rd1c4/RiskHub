@@ -10,6 +10,7 @@ import {
 } from '@/pages/processes/processesPagePresentation';
 import type {
     GovernedDerivedImpact,
+    GovernedAssetDerivedState,
     GovernedDerivedState,
     GovernedImpactedResource,
     GovernedMutationKind,
@@ -32,8 +33,25 @@ function valuesEqual(before: unknown, after: unknown): boolean {
 
 function isRelationshipImpact(
     impact: GovernedDerivedImpact,
-): impact is Extract<GovernedDerivedImpact, { processes: unknown }> {
-    return 'processes' in impact;
+): impact is Extract<GovernedDerivedImpact, { processes?: unknown; assets?: unknown }> {
+    return 'processes' in impact || 'assets' in impact;
+}
+
+function assetDerivedStateLabel(
+    t: (key: string, options?: Record<string, unknown>) => string,
+    state: GovernedAssetDerivedState,
+    field: 'cif' | 'resulting_criticality',
+): string {
+    if (field === 'cif') return processDerivedCifLabel(t, state.cif);
+    return processDerivedCriticalityLabel(t, state.resulting_criticality);
+}
+
+function nullableAssetDerivedStateLabel(
+    t: (key: string, options?: Record<string, unknown>) => string,
+    state: GovernedAssetDerivedState | null,
+    field: 'cif' | 'resulting_criticality',
+): string | null {
+    return state === null ? null : assetDerivedStateLabel(t, state, field);
 }
 
 function derivedStateLabel(
@@ -47,13 +65,87 @@ function derivedStateLabel(
         : processDerivedCriticalityLabel(t, state.criticality_class);
 }
 
-type GovernedFieldKind = 'boolean' | 'controlled' | 'date' | 'number' | 'safe_label' | 'text';
+type AssetControlledField =
+    | 'ai_relevance'
+    | 'asset_level'
+    | 'asset_type'
+    | 'data_classification'
+    | 'deployment_model'
+    | 'gdpr_relevance'
+    | 'internet_exposed'
+    | 'lifecycle_state'
+    | 'preliminary_criticality'
+    | 'review_state';
+
+type GovernedFieldKind = 'asset_controlled' | 'boolean' | 'controlled' | 'date' | 'number' | 'safe_label' | 'text';
 
 interface GovernedFieldSpec {
     labelKey: string;
     kind: GovernedFieldKind;
     controlledField?: ProcessControlledField;
+    assetControlledField?: AssetControlledField;
 }
+
+const ASSET_CONTROLLED_VALUES: Record<AssetControlledField, readonly string[]> = {
+    asset_type: ['application', 'database', 'infrastructure', 'network_component', 'hardware', 'cloud_service', 'data_storage', 'information_asset', 'security_asset', 'bcm_dr_asset', 'other'],
+    asset_level: ['primary', 'supporting', 'infrastructure'],
+    deployment_model: ['on_premise', 'cloud', 'saas', 'paas', 'iaas', 'hybrid', 'externally_hosted', 'not_assessed', 'not_applicable'],
+    gdpr_relevance: ['yes', 'no', 'undetermined'],
+    ai_relevance: ['yes', 'no', 'undetermined'],
+    data_classification: ['no_data_not_applicable', 'public', 'internal', 'confidential', 'highly_confidential_regulated', 'not_assessed'],
+    internet_exposed: ['yes', 'no'],
+    preliminary_criticality: ['low', 'medium', 'high', 'critical'],
+    lifecycle_state: ['operational', 'in_development', 'being_decommissioned', 'legacy', 'retired'],
+    review_state: ['review_required', 'reviewed'],
+};
+
+const GOVERNED_ASSET_FIELDS: Record<string, GovernedFieldSpec> = {
+    name: { labelKey: 'assets:form.name', kind: 'text' },
+    description: { labelKey: 'assets:form.description', kind: 'text' },
+    asset_type: { labelKey: 'assets:form.asset_type', kind: 'asset_controlled', assetControlledField: 'asset_type' },
+    asset_level: { labelKey: 'assets:form.asset_level', kind: 'asset_controlled', assetControlledField: 'asset_level' },
+    physical_location: { labelKey: 'assets:form.physical_location', kind: 'text' },
+    deployment_model: { labelKey: 'assets:form.deployment_model', kind: 'asset_controlled', assetControlledField: 'deployment_model' },
+    alternative_names: { labelKey: 'assets:form.alternative_names', kind: 'text' },
+    business_owner_user_id: { labelKey: 'assets:form.business_owner', kind: 'safe_label' },
+    business_owner: { labelKey: 'assets:form.business_owner', kind: 'safe_label' },
+    ict_owner_user_id: { labelKey: 'assets:form.ict_owner', kind: 'safe_label' },
+    ict_owner: { labelKey: 'assets:form.ict_owner', kind: 'safe_label' },
+    owning_department_id: { labelKey: 'assets:form.owner_department', kind: 'safe_label' },
+    gdpr_relevance: { labelKey: 'assets:form.gdpr_relevance', kind: 'asset_controlled', assetControlledField: 'gdpr_relevance' },
+    ai_relevance: { labelKey: 'assets:form.ai_relevance', kind: 'asset_controlled', assetControlledField: 'ai_relevance' },
+    data_classification: { labelKey: 'assets:form.data_classification', kind: 'asset_controlled', assetControlledField: 'data_classification' },
+    confidentiality_rating: { labelKey: 'assets:form.confidentiality_rating', kind: 'number' },
+    integrity_rating: { labelKey: 'assets:form.integrity_rating', kind: 'number' },
+    availability_rating: { labelKey: 'assets:form.availability_rating', kind: 'number' },
+    authenticity_rating: { labelKey: 'assets:form.authenticity_rating', kind: 'number' },
+    substitutability_rating: { labelKey: 'assets:form.substitutability_rating', kind: 'number' },
+    vendor_dependency_rating: { labelKey: 'assets:form.vendor_dependency_rating', kind: 'number' },
+    internet_exposed: { labelKey: 'assets:form.internet_exposed', kind: 'asset_controlled', assetControlledField: 'internet_exposed' },
+    lifecycle_state: { labelKey: 'assets:form.lifecycle_state', kind: 'asset_controlled', assetControlledField: 'lifecycle_state' },
+    standard_support_end_date: { labelKey: 'assets:form.standard_support_end_date', kind: 'date' },
+    extended_support_end_date: { labelKey: 'assets:form.extended_support_end_date', kind: 'date' },
+    custom_support_end_date: { labelKey: 'assets:form.custom_support_end_date', kind: 'date' },
+    last_legacy_risk_assessment_date: { labelKey: 'assets:form.last_legacy_risk_assessment_date', kind: 'date' },
+    review_state: { labelKey: 'assets:form.review_state', kind: 'asset_controlled', assetControlledField: 'review_state' },
+    preliminary_criticality: { labelKey: 'assets:form.preliminary_criticality', kind: 'asset_controlled', assetControlledField: 'preliminary_criticality' },
+    impact_client: { labelKey: 'assets:form.impact_client', kind: 'number' },
+    impact_regulatory: { labelKey: 'assets:form.impact_regulatory', kind: 'number' },
+    notes: { labelKey: 'assets:form.notes', kind: 'text' },
+    is_archived: { labelKey: 'approvals:governed.link_fields.archived', kind: 'boolean' },
+    linked: { labelKey: 'approvals:governed.link_fields.linked', kind: 'boolean' },
+    related_resource_name: { labelKey: 'approvals:governed.link_fields.related_resource', kind: 'safe_label' },
+    significance: { labelKey: 'approvals:governed.link_fields.significance', kind: 'safe_label' },
+    spof: { labelKey: 'approvals:governed.link_fields.spof', kind: 'safe_label' },
+    is_primary: { labelKey: 'approvals:governed.link_fields.is_primary', kind: 'boolean' },
+    note: { labelKey: 'approvals:governed.link_fields.note', kind: 'text' },
+    direct_service_description: { labelKey: 'approvals:governed.link_fields.direct_service_description', kind: 'text' },
+    dependency_type: { labelKey: 'approvals:governed.link_fields.dependency_type', kind: 'text' },
+    vendor_role: { labelKey: 'approvals:governed.link_fields.vendor_role', kind: 'text' },
+    ict_service_code: { labelKey: 'approvals:governed.link_fields.ict_service_code', kind: 'text' },
+    contract_reference: { labelKey: 'approvals:governed.link_fields.contract_reference', kind: 'text' },
+    reliance: { labelKey: 'approvals:governed.link_fields.reliance', kind: 'text' },
+};
 
 const GOVERNED_PROCESS_FIELDS: Record<string, GovernedFieldSpec> = {
     l0_area: { labelKey: 'processes:form.l0_area', kind: 'text' },
@@ -69,11 +161,6 @@ const GOVERNED_PROCESS_FIELDS: Record<string, GovernedFieldSpec> = {
     impact_financial: { labelKey: 'processes:form.impact_financial', kind: 'number' },
     impact_reputational: { labelKey: 'processes:form.impact_reputational', kind: 'number' },
     mtpd_hours: { labelKey: 'processes:form.mtpd_hours', kind: 'number' },
-    preliminary_criticality: {
-        labelKey: 'processes:form.preliminary_criticality',
-        kind: 'controlled',
-        controlledField: 'preliminary_criticality',
-    },
     cif_override: {
         labelKey: 'processes:form.cif_override',
         kind: 'controlled',
@@ -153,6 +240,13 @@ function displayGovernedValue(
         }
         return formatDateValue(value, locale) || t('approvals:governed.redacted_value');
     }
+    if (spec.kind === 'asset_controlled') {
+        const field = spec.assetControlledField;
+        if (typeof value !== 'string' || field === undefined || !ASSET_CONTROLLED_VALUES[field].includes(value)) {
+            return t('approvals:governed.redacted_value');
+        }
+        return t(`assets:values.${field}.${value}`);
+    }
     if (typeof value !== 'string' || spec.controlledField === undefined) {
         return t('approvals:governed.redacted_value');
     }
@@ -170,16 +264,32 @@ export function GovernedMutationDiff({
     testId,
 }: GovernedMutationDiffProps) {
     const { t, i18n } = useTranslation(['approvals', 'processes']);
+    const locale = i18n?.language ?? 'en';
     const displayedBefore = relationshipChange?.before ?? before;
     const displayedAfter = relationshipChange?.after ?? after;
     const changedFields = [...new Set([...Object.keys(displayedBefore), ...Object.keys(displayedAfter)])]
         .filter((field) => !valuesEqual(displayedBefore[field], displayedAfter[field]));
-    const visibleChangedFields = changedFields.filter((field) => GOVERNED_PROCESS_FIELDS[field] !== undefined);
+    const assetPointMutation = mutationKind?.startsWith('asset.') === true;
+    const governedFields = assetPointMutation ? GOVERNED_ASSET_FIELDS : GOVERNED_PROCESS_FIELDS;
+    const visibleChangedFields = changedFields.filter((field) => governedFields[field] !== undefined);
     const visibleFields = visibleChangedFields;
     const hasRestrictedChanges = visibleChangedFields.length !== changedFields.length;
     const pointDerivedRows = isRelationshipImpact(derivedImpact)
         ? []
-        : ([
+        : assetPointMutation
+            ? ([
+                [
+                    'approvals:governed.derived.cif',
+                    nullableAssetDerivedStateLabel(t, derivedImpact.before as GovernedAssetDerivedState | null, 'cif'),
+                    nullableAssetDerivedStateLabel(t, derivedImpact.after as GovernedAssetDerivedState | null, 'cif'),
+                ],
+                [
+                    'approvals:governed.derived.resulting_criticality',
+                    nullableAssetDerivedStateLabel(t, derivedImpact.before as GovernedAssetDerivedState | null, 'resulting_criticality'),
+                    nullableAssetDerivedStateLabel(t, derivedImpact.after as GovernedAssetDerivedState | null, 'resulting_criticality'),
+                ],
+            ] as const)
+            : ([
             [
                 'approvals:governed.derived.cif',
                 derivedStateLabel(t, derivedImpact.before, 'cif'),
@@ -190,7 +300,7 @@ export function GovernedMutationDiff({
                 derivedStateLabel(t, derivedImpact.before, 'criticality_class'),
                 derivedStateLabel(t, derivedImpact.after, 'criticality_class'),
             ],
-        ] as const);
+            ] as const);
     const readableImpactedResources = impactedResources.filter(
         (resource) => isSafeBusinessLabel(resource.resource_name),
     );
@@ -256,7 +366,7 @@ export function GovernedMutationDiff({
                 ) : (
                     <dl className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                         {visibleFields.map((field) => {
-                            const spec = GOVERNED_PROCESS_FIELDS[field];
+                            const spec = governedFields[field];
                             const unchangedContext = valuesEqual(displayedBefore[field], displayedAfter[field]);
                             return (
                                 <div key={field} className="rounded-lg border border-white/5 bg-black/20 p-3">
@@ -265,16 +375,16 @@ export function GovernedMutationDiff({
                                     </dt>
                                     {unchangedContext ? (
                                         <dd className="break-words text-xs font-bold text-slate-300">
-                                            {displayGovernedValue(displayedAfter[field], spec, t, i18n.language)}
+                                            {displayGovernedValue(displayedAfter[field], spec, t, locale)}
                                         </dd>
                                     ) : (
                                         <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
                                             <span className="break-words text-rose-300">
-                                                {displayGovernedValue(displayedBefore[field], spec, t, i18n.language)}
+                                                {displayGovernedValue(displayedBefore[field], spec, t, locale)}
                                             </span>
                                             <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
                                             <span className="break-words font-bold text-emerald-300">
-                                                {displayGovernedValue(displayedAfter[field], spec, t, i18n.language)}
+                                                {displayGovernedValue(displayedAfter[field], spec, t, locale)}
                                             </span>
                                         </dd>
                                     )}
@@ -304,7 +414,7 @@ export function GovernedMutationDiff({
                 </h5>
                 {isRelationshipImpact(derivedImpact) ? (
                     <div className="space-y-3">
-                        {derivedImpact.processes.map((processImpact, index) => (
+                        {(derivedImpact.processes ?? []).map((processImpact, index) => (
                             <div
                                 key={`${processImpact.resource_name}-${index}`}
                                 className="rounded-lg border border-white/5 bg-black/20 p-3"
@@ -329,6 +439,36 @@ export function GovernedMutationDiff({
                                                 <span className="font-bold text-emerald-300">
                                                     {derivedStateLabel(t, processImpact.after, field)
                                                         ?? t('approvals:governed.not_set')}
+                                                </span>
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </div>
+                        ))}
+                        {(derivedImpact.assets ?? []).map((assetImpact, index) => (
+                            <div
+                                key={`${assetImpact.resource_name}-${index}`}
+                                className="rounded-lg border border-white/5 bg-black/20 p-3"
+                            >
+                                <p className="mb-3 text-xs font-bold text-slate-200">
+                                    {isSafeBusinessLabel(assetImpact.resource_name)
+                                        ? assetImpact.resource_name.trim()
+                                        : t('approvals:governed.redacted_value')}
+                                </p>
+                                <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    {(['cif', 'resulting_criticality'] as const).map((field) => (
+                                        <div key={field}>
+                                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                                                {t(`approvals:governed.derived.${field}`)}
+                                            </dt>
+                                            <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
+                                                <span className="text-rose-300">
+                                                    {assetDerivedStateLabel(t, assetImpact.before, field)}
+                                                </span>
+                                                <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
+                                                <span className="font-bold text-emerald-300">
+                                                    {assetDerivedStateLabel(t, assetImpact.after, field)}
                                                 </span>
                                             </dd>
                                         </div>

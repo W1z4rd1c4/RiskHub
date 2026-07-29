@@ -12,6 +12,7 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.asset import Asset
 from app.models.control import Control
 from app.models.department import Department
+from app.models.governed_mutation import GovernedMutationImpactLock
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.orphaned_item import OrphanedItem
 from app.models.process import Process
@@ -141,11 +142,7 @@ async def validate_resolution_context(
                 .where(User.id == new_owner.id)
             )
         ).one()
-        if (
-            not steward_state.user_is_active
-            or not steward_state.role_is_active
-            or steward_state.name != RoleType.CISO
-        ):
+        if not steward_state.user_is_active or not steward_state.role_is_active or steward_state.name != RoleType.CISO:
             raise ValueError("Threat steward must be an active CISO")
         if department_id is not None or target_risk is not None:
             raise ValueError("Threat reassignment does not accept department_id or target_risk_id")
@@ -156,16 +153,10 @@ async def validate_resolution_context(
             raise ValueError("new_owner_id is required to resolve orphaned processes")
         if target_risk is not None:
             raise ValueError("target_risk_id is not supported for orphaned processes")
-        process = (
-            await db.execute(select(Process).where(Process.id == orphan.item_id))
-        ).scalar_one_or_none()
+        process = (await db.execute(select(Process).where(Process.id == orphan.item_id))).scalar_one_or_none()
         if process is None:
             raise ValueError(f"Process {orphan.item_id} no longer exists")
-        target_department_id = (
-            department_id
-            if department_id is not None
-            else process.owning_department_id
-        )
+        target_department_id = department_id if department_id is not None else process.owning_department_id
         if target_department_id is None:
             raise ValueError("department_id is required for orphaned processes")
         department_is_active = await db.scalar(
@@ -219,9 +210,7 @@ async def validate_resolution_context(
         if orphan.responsibility_role != "outsourcing_owner":
             raise ValueError("Vendor orphan responsibility_role is invalid")
         if department_id is not None or target_risk is not None:
-            raise ValueError(
-                "Vendor reassignment does not accept department_id or target_risk_id"
-            )
+            raise ValueError("Vendor reassignment does not accept department_id or target_risk_id")
         vendor = await db.get(Vendor, orphan.item_id)
         if vendor is None:
             raise ValueError(f"Vendor {orphan.item_id} no longer exists")
@@ -255,9 +244,7 @@ async def resolve_orphan(
     Raises:
         ValueError: If orphan not found or already resolved
     """
-    orphan_type = await db.scalar(
-        select(OrphanedItem.item_type).where(OrphanedItem.id == orphan_id)
-    )
+    orphan_type = await db.scalar(select(OrphanedItem.item_type).where(OrphanedItem.id == orphan_id))
     if orphan_type == "process":
         return await _resolve_process_orphan(
             db,
@@ -486,9 +473,7 @@ async def _resolve_process_orphan(
 
     process_snapshot = (
         await db.execute(
-            select(Process.process_owner_user_id, Process.owning_department_id).where(
-                Process.id == preview.item_id
-            )
+            select(Process.process_owner_user_id, Process.owning_department_id).where(Process.id == preview.item_id)
         )
     ).one_or_none()
     if process_snapshot is None:
@@ -588,9 +573,7 @@ async def _resolve_vendor_orphan(
     if new_owner_id is None:
         raise ValueError("new_owner_id is required to resolve orphaned Vendors")
     if department_id is not None or target_risk_id is not None:
-        raise ValueError(
-            "Vendor reassignment does not accept department_id or target_risk_id"
-        )
+        raise ValueError("Vendor reassignment does not accept department_id or target_risk_id")
 
     preview = (
         await db.execute(
@@ -612,9 +595,7 @@ async def _resolve_vendor_orphan(
     if preview.responsibility_role != "outsourcing_owner":
         raise ValueError("Vendor orphan responsibility_role is invalid")
 
-    expected_owner_id = await db.scalar(
-        select(Vendor.outsourcing_owner_user_id).where(Vendor.id == preview.item_id)
-    )
+    expected_owner_id = await db.scalar(select(Vendor.outsourcing_owner_user_id).where(Vendor.id == preview.item_id))
     if expected_owner_id is None:
         raise ValueError(f"Vendor {preview.item_id} no longer exists")
     vendor = await lock_vendor_for_owner_mutation(
@@ -627,11 +608,7 @@ async def _resolve_vendor_orphan(
         raise ValueError(f"Vendor {preview.item_id} no longer exists")
 
     orphan = (
-        await db.execute(
-            select(OrphanedItem)
-            .where(OrphanedItem.id == orphan_id)
-            .with_for_update()
-        )
+        await db.execute(select(OrphanedItem).where(OrphanedItem.id == orphan_id).with_for_update())
     ).scalar_one_or_none()
     if orphan is None:
         raise ValueError(f"Orphaned item {orphan_id} not found")
@@ -645,9 +622,7 @@ async def _resolve_vendor_orphan(
         raise ConflictError("Orphaned Vendor responsibility changed concurrently; retry")
 
     new_owner = (
-        await db.execute(
-            select(User).where(User.id == new_owner_id, User.is_active.is_(True))
-        )
+        await db.execute(select(User).where(User.id == new_owner_id, User.is_active.is_(True)))
     ).scalar_one_or_none()
     if new_owner is None:
         raise ValueError("Vendor owner must be an active user")
@@ -742,6 +717,23 @@ async def _resolve_asset_orphan(
     if asset is None:
         raise ValueError(f"Asset {preview.item_id} no longer exists")
 
+    active_impact_lock = (
+        await db.execute(
+            select(GovernedMutationImpactLock.id)
+            .where(
+                GovernedMutationImpactLock.resource_type == "asset",
+                GovernedMutationImpactLock.resource_id == asset.id,
+                GovernedMutationImpactLock.released_at.is_(None),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if active_impact_lock is not None:
+        raise ConflictError(
+            "A governed Asset change is pending; resolve it before reassigning ownership",
+            code="asset_pending_mutation",
+        )
+
     orphan = (
         await db.execute(
             select(OrphanedItem)
@@ -796,6 +788,7 @@ async def _resolve_asset_orphan(
         asset.ict_owner_user_id = new_owner_id
     asset.owning_department = owning_department
     asset.owning_department_id = target_department_id
+    asset.governance_version += 1
 
     resolving_user = await db.get(User, resolved_by_id)
     await log_activity(
@@ -808,10 +801,7 @@ async def _resolve_asset_orphan(
         actor=resolving_user,
         department_id=target_department_id,
         changes=changes,
-        description=(
-            "Resolved orphaned Asset "
-            f"{orphan.responsibility_role} via governance workflow #{orphan.id}"
-        ),
+        description=("Resolved orphaned Asset " f"{orphan.responsibility_role} via governance workflow #{orphan.id}"),
     )
 
     orphan.status = "resolved"

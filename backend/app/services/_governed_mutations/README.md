@@ -17,11 +17,15 @@ mutations defined by [ADR-016](../../../../docs/adr/ADR-016-governed-mutation-pr
   row, F-code, or impact lock until approval; links lock every impacted Process.
 - A pending impact lock blocks overlapping Process business edits until the
   proposal is applied, rejected, cancelled, or expires as stale.
-- Ticket #85's relationship operation plan and immutable impact descriptors
-  lock Process resources only. Ticket #86 owns the extension that simulates
-  Process-to-Asset consequences and queues one downstream Composite approval;
-  this package preserves that descriptor seam without pre-classifying
-  downstream Asset or Vendor protection here.
+- `asset_mutations.py` owns the fixed `protected_asset_edit` workflow. Current
+  or proposed CIF Yes and resulting criticality Critical protect Asset
+  create/edit/link/archive. Existing-row proposals lock every affected Asset;
+  creation remains rowless.
+- Ticket #86 extends ticket #85's immutable Process relationship plan with
+  Process-to-Asset simulation. One Composite approval locks Process and Asset
+  impacts, rederives the full graph at resolution, and applies all effects or
+  none. Vendor governance beyond Asset-managed link consequences remains later
+  scope.
 - When the fixed scenario is disabled, the ordinary Process lifecycle remains
   the transaction owner and applies the authorized mutation directly. Restore
   remains a direct delete-authorized lifecycle action.

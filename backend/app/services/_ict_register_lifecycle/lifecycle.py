@@ -17,6 +17,9 @@ from app.services._governed_mutations import (
     submit_process_creation_if_required,
     submit_process_mutation_if_required,
 )
+from app.services._governed_mutations.process_updates import (
+    increment_process_downstream_asset_versions,
+)
 from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
 from app.services.transaction_boundary import commit_service_boundary
 
@@ -179,6 +182,7 @@ async def update_process_detail(
     if new_department is not None:
         process.owning_department = new_department
     process.governance_version += 1
+    await increment_process_downstream_asset_versions(db, process_id=process.id)
 
     await apply_update_lifecycle(
         db=db,
@@ -216,6 +220,7 @@ async def archive_process_detail(
     if queued is not None:
         return queued
     process.governance_version += 1
+    await increment_process_downstream_asset_versions(db, process_id=process.id)
     await apply_archive_lifecycle(
         db=db,
         entity=process,
@@ -241,6 +246,7 @@ async def restore_process_detail(
     )
     await assert_no_pending_process_mutation(db, process_id=process.id)
     process.governance_version += 1
+    await increment_process_downstream_asset_versions(db, process_id=process.id)
     await apply_archive_lifecycle(
         db=db,
         entity=process,

@@ -44,6 +44,7 @@ from .asset_policy import (
     assert_asset_ordinary_mutation_allowed,
     assert_asset_readable,
     assert_asset_update_allowed,
+    assert_locked_asset_ordinary_mutation_allowed,
     can_read_asset_record,
     load_asset,
 )
@@ -139,6 +140,29 @@ async def _require_asset_link_access(
         asset_id=asset_id,
         current_user=current_user,
     )
+
+
+async def _lock_asset_link_targets(
+    db: AsyncSession,
+    *,
+    asset_ids: set[int],
+) -> dict[int, Asset]:
+    """Acquire the complete Asset-link row set in one canonical order."""
+    ordered_ids = sorted(asset_ids)
+    locked = list(
+        (
+            await db.execute(
+                select(Asset)
+                .where(Asset.id.in_(ordered_ids))
+                .order_by(Asset.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalars()
+    )
+    if [asset.id for asset in locked] != ordered_ids:
+        raise ConflictError("An Asset link target changed concurrently; retry")
+    return {asset.id: asset for asset in locked}
 
 
 async def _load_process_asset_link(db: AsyncSession, *, asset_id: int, process_id: int) -> ProcessAssetLink | None:
@@ -341,6 +365,7 @@ async def add_asset_process_link(
     await _flush_guarding_primary_designation(db)
     for impacted_process in impacted.values():
         impacted_process.governance_version += 1
+    asset.governance_version += 1
 
     await audit_asset.asset_link_created(
         db,
@@ -491,6 +516,7 @@ async def update_asset_process_link(
     await _flush_guarding_primary_designation(db)
     for impacted_process in impacted.values():
         impacted_process.governance_version += 1
+    asset.governance_version += 1
 
     await audit_asset.asset_link_updated(
         db,
@@ -565,6 +591,7 @@ async def remove_asset_process_link(
     await db.delete(link)
     await db.flush()
     process.governance_version += 1
+    asset.governance_version += 1
 
     await audit_asset.asset_link_deleted(
         db,
@@ -612,7 +639,11 @@ async def add_asset_asset_link(
     payload: AssetAssetLinkCreate,
     current_user: User,
 ) -> AssetAssetLinkRead:
-    asset = await _require_asset_link_access(db, asset_id=asset_id, current_user=current_user, require_write=True)
+    asset = await assert_asset_readable(
+        db,
+        asset_id=asset_id,
+        current_user=current_user,
+    )
 
     if asset_id not in (payload.dependent_asset_id, payload.supporting_asset_id):
         raise ValidationError("The link must involve this asset")
@@ -626,6 +657,20 @@ async def add_asset_asset_link(
     if other.is_archived:
         raise ConflictError("Cannot link archived asset")
 
+    locked_assets = await _lock_asset_link_targets(
+        db,
+        asset_ids={asset.id, other.id},
+    )
+    asset = locked_assets[asset.id]
+    other = locked_assets[other.id]
+    await assert_locked_asset_ordinary_mutation_allowed(
+        db,
+        asset=asset,
+        current_user=current_user,
+    )
+    if asset.is_archived or other.is_archived:
+        raise ConflictError("Cannot link archived asset")
+
     existing = await db.execute(
         select(AssetAssetLink).where(
             AssetAssetLink.dependent_asset_id == payload.dependent_asset_id,
@@ -635,13 +680,30 @@ async def add_asset_asset_link(
     if existing.scalar_one_or_none():
         raise ValidationError("Link already exists")
 
-    link = AssetAssetLink(
-        dependent_asset_id=payload.dependent_asset_id,
-        supporting_asset_id=payload.supporting_asset_id,
-        dependency_type=payload.dependency_type,
-        spof=payload.spof,
-        note=payload.note,
+    from app.services._governed_mutations.asset_mutations import (
+        submit_asset_link_mutation_if_required,
     )
+
+    link_values = payload.model_dump(exclude={"request_reason"})
+    queued = await submit_asset_link_mutation_if_required(
+        db=db,
+        asset=asset,
+        impacted_assets=[asset, other],
+        operation={
+            "relationship_type": "asset",
+            "action": "add",
+            "before": None,
+            "after": link_values,
+        },
+        current_user=current_user,
+        request_reason=payload.request_reason,
+    )
+    if queued is not None:
+        return queued
+
+    asset.governance_version += 1
+    other.governance_version += 1
+    link = AssetAssetLink(**link_values)
     db.add(link)
     await db.flush()
 
@@ -663,9 +725,14 @@ async def remove_asset_asset_link(
     *,
     asset_id: int,
     link_id: int,
+    request_reason: str | None,
     current_user: User,
 ) -> None:
-    asset = await _require_asset_link_access(db, asset_id=asset_id, current_user=current_user, require_write=True)
+    asset = await assert_asset_readable(
+        db,
+        asset_id=asset_id,
+        current_user=current_user,
+    )
 
     result = await db.execute(select(AssetAssetLink).where(AssetAssetLink.id == link_id))
     link = result.scalar_one_or_none()
@@ -673,8 +740,48 @@ async def remove_asset_asset_link(
         raise NotFoundError("Link not found")
 
     other_id = link.supporting_asset_id if link.dependent_asset_id == asset_id else link.dependent_asset_id
-    other = await load_asset(db, other_id)
+    locked_assets = await _lock_asset_link_targets(
+        db,
+        asset_ids={asset.id, other_id},
+    )
+    asset = locked_assets[asset.id]
+    other = locked_assets[other_id]
+    await assert_locked_asset_ordinary_mutation_allowed(
+        db,
+        asset=asset,
+        current_user=current_user,
+    )
+    link = (
+        await db.execute(select(AssetAssetLink).where(AssetAssetLink.id == link_id).with_for_update())
+    ).scalar_one_or_none()
+    if not link or asset_id not in (link.dependent_asset_id, link.supporting_asset_id):
+        raise ConflictError("Asset link changed concurrently; retry")
     target_label = other.name if other is not None and can_read_asset_record(current_user, other) else "Unknown asset"
+    if other is not None:
+        from app.services._governed_mutations.asset_mutations import (
+            submit_asset_link_mutation_if_required,
+        )
+
+        before = {
+            "id": link.id,
+            "dependent_asset_id": link.dependent_asset_id,
+            "supporting_asset_id": link.supporting_asset_id,
+            "dependency_type": link.dependency_type,
+            "spof": link.spof,
+            "note": link.note,
+        }
+        queued = await submit_asset_link_mutation_if_required(
+            db=db,
+            asset=asset,
+            impacted_assets=[asset, other],
+            operation={"relationship_type": "asset", "action": "remove", "before": before, "after": None},
+            current_user=current_user,
+            request_reason=request_reason,
+        )
+        if queued is not None:
+            return queued
+        asset.governance_version += 1
+        other.governance_version += 1
     await db.delete(link)
     await db.flush()
 

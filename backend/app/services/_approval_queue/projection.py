@@ -7,10 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.approval_display import approval_resource_label
 from app.core.permissions import visible_risk_ids, visible_vendor_ids
-from app.models import ApprovalRequest, Asset, Process
+from app.models import ApprovalRequest, Asset, Process, Risk, Vendor
 from app.models.user import User
 from app.schemas.approval_request import ApprovalRequestCapabilities, ApprovalRequestRead
 from app.services._governed_mutations.process_identity import (
+    GovernedProcessIdentity,
     InvalidGovernedProcessIdentity,
     strict_governed_process_identity,
 )
@@ -23,7 +24,7 @@ from app.services._governed_mutations.projection import (
     actor_safe_pending_changes,
     actor_safe_process_snapshots,
 )
-from app.services._ict_register_lifecycle.asset_policy import can_read_asset_record
+from app.services._ict_register_lifecycle.asset_policy import asset_visibility_clause
 from app.services._ict_register_lifecycle.policy import can_read_process_record
 from app.services.approval_scenario_policy import (
     can_resolve_extended_process_approval,
@@ -62,6 +63,7 @@ APPROVAL_QUEUE_PROJECTION_SKIPPED_TOTAL = (
 @dataclass(frozen=True, slots=True)
 class ActorSafeExtendedLabels:
     process_labels: dict[int, str]
+    asset_labels: dict[int, str]
     relationship_target_label: str | None
 
 
@@ -71,11 +73,62 @@ def _strict_process_identity(proposal):
     return strict_governed_process_identity(proposal)
 
 
+def _actor_safe_asset_value(value):
+    """Remove persistence/replay identifiers from an Asset-facing snapshot."""
+    if isinstance(value, dict):
+        return {
+            str(key): _actor_safe_asset_value(item)
+            for key, item in value.items()
+            if isinstance(key, str) and key != "id" and not key.endswith("_id")
+        }
+    if isinstance(value, list):
+        return [_actor_safe_asset_value(item) for item in value]
+    return value
+
+
+def _safe_asset_derived_impact(
+    value: object,
+    labels: ActorSafeExtendedLabels | None,
+) -> dict:
+    """Replace replay Asset ids with live authorization-filtered labels."""
+    if not isinstance(value, dict):
+        return {}
+    asset_rows = value.get("assets")
+    if not isinstance(asset_rows, list):
+        safe = _actor_safe_asset_value(value)
+        return safe if isinstance(safe, dict) else {}
+    return {
+        **{
+            str(key): _actor_safe_asset_value(item)
+            for key, item in value.items()
+            if isinstance(key, str) and key != "assets"
+        },
+        "assets": [
+            {
+                "resource_name": (
+                    labels.asset_labels.get(row.get("resource_id"), "Restricted Asset")
+                    if labels is not None and type(row.get("resource_id")) is int
+                    else "Restricted Asset"
+                ),
+                "before": _actor_safe_asset_value(row.get("before")),
+                "after": _actor_safe_asset_value(row.get("after")),
+            }
+            for row in asset_rows
+            if isinstance(row, dict)
+        ],
+    }
+
+
 def _safe_process_impact_label(
-    identity: ExtendedProcessMutationIdentity,
+    identity: GovernedProcessIdentity | ExtendedProcessMutationIdentity,
+    resource_type: object,
     resource_id: object,
     labels: ActorSafeExtendedLabels | None,
 ) -> str:
+    if resource_type == "asset":
+        if type(resource_id) is int and labels is not None:
+            return labels.asset_labels.get(resource_id, "Restricted Asset")
+        return "Restricted Asset"
     if resource_id == identity.primary_resource_id:
         return identity.primary_resource_name
     if type(resource_id) is int and labels is not None:
@@ -85,7 +138,7 @@ def _safe_process_impact_label(
 
 def _safe_extended_derived_impact(
     proposal,
-    identity: ExtendedProcessMutationIdentity,
+    identity: GovernedProcessIdentity | ExtendedProcessMutationIdentity,
     labels: ActorSafeExtendedLabels | None,
 ) -> dict:
     """Remove replay identifiers from the actor-facing impact projection."""
@@ -100,6 +153,7 @@ def _safe_extended_derived_impact(
             {
                 "resource_name": _safe_process_impact_label(
                     identity,
+                    "process",
                     item.get("resource_id"),
                     labels,
                 ),
@@ -108,7 +162,20 @@ def _safe_extended_derived_impact(
             }
             for item in processes
             if isinstance(item, dict)
-        ]
+        ],
+        "assets": [
+            {
+                "resource_name": (
+                    labels.asset_labels.get(item.get("resource_id"), "Restricted Asset")
+                    if labels is not None
+                    else "Restricted Asset"
+                ),
+                "before": item.get("before"),
+                "after": item.get("after"),
+            }
+            for item in value.get("assets", [])
+            if isinstance(item, dict)
+        ],
     }
 
 
@@ -159,9 +226,16 @@ def build_approval_read(
 ) -> ApprovalRequestRead:
     proposal = approval.governed_mutation_proposal
     identity = _strict_process_identity(proposal)
+    from app.services._governed_mutations.asset_mutations import valid_asset_governed_envelope
+
+    asset_identity = valid_asset_governed_envelope(proposal)
     extended_identity = identity if isinstance(identity, ExtendedProcessMutationIdentity) else None
-    if proposal is not None and identity is None:
-        raise InvalidGovernedProcessIdentity("Unsupported governed mutation proposal")
+    malformed_terminal = False
+    if proposal is not None and identity is None and not asset_identity:
+        if approval.status.value in {"approved", "rejected", "cancelled", "expired"}:
+            malformed_terminal = True
+        else:
+            raise InvalidGovernedProcessIdentity("Unsupported governed mutation proposal")
     capabilities = capabilities or approval_capabilities(
         approval=approval,
         current_user=current_user,
@@ -169,15 +243,22 @@ def build_approval_read(
         governed_resolver=governed_resolver,
     )
     can_expose_snapshot = bool(
-        identity is not None and can_view_governed_snapshot and capabilities.can_view_pending_changes
+        (identity is not None or asset_identity)
+        and can_view_governed_snapshot
+        and capabilities.can_view_pending_changes
     )
-    if identity is not None and not can_expose_snapshot:
+    if (identity is not None or asset_identity) and not can_expose_snapshot:
         capabilities = capabilities.model_copy(update={"can_view_pending_changes": False})
-    pending_changes = approval.pending_changes if identity is None else None
+    pending_changes = (
+        None if malformed_terminal or asset_identity else approval.pending_changes if identity is None else None
+    )
     governed_mutation = None
     if can_expose_snapshot:
         assert proposal is not None
-        if extended_identity is None:
+        if asset_identity:
+            before = _actor_safe_asset_value(proposal.before_snapshot)
+            after = _actor_safe_asset_value(proposal.after_snapshot)
+        elif extended_identity is None:
             before, after = actor_safe_process_snapshots(
                 proposal,
                 can_view_proposed_references=can_view_governed_references,
@@ -186,7 +267,7 @@ def build_approval_read(
             before = dict(proposal.before_snapshot)
             after = dict(proposal.after_snapshot)
         pending_changes = actor_safe_pending_changes(
-            identity.pending_changes,
+            identity.pending_changes if identity is not None else approval.pending_changes,
             before=before,
             after=after,
         )
@@ -197,11 +278,14 @@ def build_approval_read(
             "before": before,
             "after": after,
             "derived_impact": (
-                proposal.derived_impact_snapshot
-                if extended_identity is None
+                _safe_asset_derived_impact(
+                    proposal.derived_impact_snapshot,
+                    actor_safe_extended_labels,
+                )
+                if asset_identity
                 else _safe_extended_derived_impact(
                     proposal,
-                    extended_identity,
+                    identity,
                     actor_safe_extended_labels,
                 )
             ),
@@ -210,14 +294,19 @@ def build_approval_read(
                     "resource_type": str(resource.get("resource_type") or "resource"),
                     "resource_name": (
                         _safe_process_impact_label(
-                            extended_identity,
+                            identity,
+                            resource.get("resource_type"),
                             resource.get("resource_id"),
                             actor_safe_extended_labels,
                         )
-                        if extended_identity is not None
+                        if identity is not None
                         else (
-                            str(resource.get("resource_name") or "").strip()
-                            or f"Unknown {str(resource.get('resource_type') or 'resource')}"
+                            actor_safe_extended_labels.asset_labels.get(
+                                resource.get("resource_id"),
+                                "Restricted Asset",
+                            )
+                            if asset_identity and actor_safe_extended_labels is not None
+                            else f"Restricted {str(resource.get('resource_type') or 'resource').title()}"
                         )
                     ),
                 }
@@ -231,11 +320,26 @@ def build_approval_read(
                     actor_safe_extended_labels,
                 )
                 if extended_identity is not None
-                else None
+                else (
+                    {
+                        "target_resource_type": proposal.mutation_kind.split(".")[2],
+                        "target_resource_name": (
+                            actor_safe_extended_labels.relationship_target_label
+                            if actor_safe_extended_labels is not None
+                            and actor_safe_extended_labels.relationship_target_label is not None
+                            else f"Restricted {proposal.mutation_kind.split('.')[2].title()}"
+                        ),
+                        "action": proposal.mutation_kind.rsplit(".", 1)[-1],
+                        "before": before.get("relationship", {}),
+                        "after": after.get("relationship", {}),
+                    }
+                    if asset_identity and proposal.mutation_kind.startswith("asset.link.")
+                    else None
+                )
             ),
         }
 
-    requester = proposal.requested_by if identity is not None else approval.requested_by
+    requester = proposal.requested_by if identity is not None or asset_identity else approval.requested_by
     resource_type = (
         "process"
         if extended_identity is not None
@@ -300,9 +404,9 @@ def build_malformed_governed_terminal_read(
     return ApprovalRequestRead.model_validate(
         {
             "id": approval.id,
-            "resource_type": "process",
+            "resource_type": approval.resource_type.value,
             "resource_id": approval.resource_id,
-            "resource_name": "Governed Process mutation",
+            "resource_name": f"Governed {approval.resource_type.value.title()} mutation",
             "action_type": approval.action_type.value,
             "pending_changes": None,
             "status": approval.status.value.lower(),
@@ -330,27 +434,49 @@ async def governed_process_actor_safe_labels(
     current_user: User,
 ) -> dict[int, ActorSafeExtendedLabels]:
     """Authorize every relationship and secondary-Process label per viewer."""
-    candidates: list[tuple[ApprovalRequest, ExtendedProcessMutationIdentity, dict]] = []
+    from app.services._governed_mutations.asset_identity import valid_asset_governed_envelope
+
+    candidates: list[tuple[ApprovalRequest, object, dict, int | None]] = []
     relationship_ids: dict[str, set[int]] = {
         "risk": set(),
         "asset": set(),
         "vendor": set(),
     }
     process_ids: set[int] = set()
+    impacted_asset_ids: set[int] = set()
     for approval in approvals:
         proposal = approval.governed_mutation_proposal
-        if proposal is None or not is_extended_process_kind(proposal.mutation_kind):
+        if proposal is None:
             continue
         try:
-            identity = strict_extended_process_identity(proposal)
-        except ValueError:
+            identity = _strict_process_identity(proposal)
+        except (InvalidGovernedProcessIdentity, ValueError):
             continue
-        if identity is None:
+        asset_identity = valid_asset_governed_envelope(proposal)
+        if identity is None and not asset_identity:
             continue
         operation = proposal.proposed_changes.get("operation")
+        related_id: int | None = None
         if isinstance(operation, dict):
             relationship_type = operation.get("relationship_type")
-            related_id = operation.get("related_resource_id")
+            raw_related_id = operation.get("related_resource_id")
+            if type(raw_related_id) is int:
+                related_id = raw_related_id
+            elif asset_identity and relationship_type == "vendor":
+                values = operation.get("after") or operation.get("before")
+                vendor_id = values.get("vendor_id") if isinstance(values, dict) else None
+                related_id = vendor_id if type(vendor_id) is int else None
+            elif asset_identity and relationship_type == "asset":
+                related_id = next(
+                    (
+                        item.get("resource_id")
+                        for item in proposal.impacted_resources_snapshot
+                        if isinstance(item, dict)
+                        and item.get("resource_id") != proposal.primary_resource_id
+                        and type(item.get("resource_id")) is int
+                    ),
+                    None,
+                )
             if relationship_type in relationship_ids and type(related_id) is int:
                 relationship_ids[relationship_type].add(related_id)
         process_ids.update(
@@ -360,23 +486,34 @@ async def governed_process_actor_safe_labels(
             and item.get("resource_type") == "process"
             and type(item.get("resource_id")) is int
         )
-        candidates.append((approval, identity, operation if isinstance(operation, dict) else {}))
+        impacted_asset_ids.update(
+            item["resource_id"]
+            for item in proposal.impacted_resources_snapshot
+            if isinstance(item, dict) and item.get("resource_type") == "asset" and type(item.get("resource_id")) is int
+        )
+        candidates.append((approval, identity, operation if isinstance(operation, dict) else {}, related_id))
 
     visible_risks = await visible_risk_ids(db, current_user, relationship_ids["risk"])
     visible_vendors = await visible_vendor_ids(db, current_user, relationship_ids["vendor"])
-    assets = {
-        asset.id: asset
-        for asset in (await db.execute(select(Asset).where(Asset.id.in_(relationship_ids["asset"])))).scalars()
+    risks = {risk.id: risk for risk in (await db.execute(select(Risk).where(Risk.id.in_(visible_risks)))).scalars()}
+    vendors = {
+        vendor.id: vendor
+        for vendor in (await db.execute(select(Vendor).where(Vendor.id.in_(visible_vendors)))).scalars()
     }
+    asset_query = select(Asset).where(Asset.id.in_(relationship_ids["asset"] | impacted_asset_ids))
+    asset_clause = asset_visibility_clause(current_user)
+    if asset_clause is not None:
+        asset_query = asset_query.where(asset_clause)
+    assets = {asset.id: asset for asset in (await db.execute(asset_query)).scalars()}
     processes = {
         process.id: process
         for process in (await db.execute(select(Process).where(Process.id.in_(process_ids)))).scalars()
     }
 
     result: dict[int, ActorSafeExtendedLabels] = {}
-    for approval, identity, operation in candidates:
+    for approval, identity, operation, related_id in candidates:
         process_labels = {
-            item["resource_id"]: str(item["resource_name"])
+            item["resource_id"]: f"{process.f_code} — {process.l1_process}"[:255]
             for item in approval.governed_mutation_proposal.impacted_resources_snapshot
             if isinstance(item, dict)
             and item.get("resource_type") == "process"
@@ -384,22 +521,27 @@ async def governed_process_actor_safe_labels(
             and (process := processes.get(item["resource_id"])) is not None
             and can_read_process_record(current_user, process)
         }
+        asset_labels = {
+            item["resource_id"]: assets[item["resource_id"]].name
+            for item in approval.governed_mutation_proposal.impacted_resources_snapshot
+            if isinstance(item, dict) and item.get("resource_type") == "asset" and item.get("resource_id") in assets
+        }
         relationship_label = None
         relationship_type = operation.get("relationship_type")
-        related_id = operation.get("related_resource_id")
         can_view_relationship = bool(
             (relationship_type == "risk" and related_id in visible_risks)
-            or (
-                relationship_type == "asset"
-                and (asset := assets.get(related_id)) is not None
-                and can_read_asset_record(current_user, asset)
-            )
+            or (relationship_type == "asset" and related_id in assets)
             or (relationship_type == "vendor" and related_id in visible_vendors)
         )
         if can_view_relationship:
-            relationship_label = str(operation["related_resource_name"])
+            relationship_label = (
+                risks[related_id].name
+                if relationship_type == "risk"
+                else (vendors[related_id].name if relationship_type == "vendor" else assets[related_id].name)
+            )
         result[approval.id] = ActorSafeExtendedLabels(
             process_labels=process_labels,
+            asset_labels=asset_labels,
             relationship_target_label=relationship_label,
         )
     return result
@@ -411,6 +553,25 @@ async def governed_process_snapshot_access_ids(
     approvals: list[ApprovalRequest],
     current_user: User,
 ) -> set[int]:
+    from app.services._governed_mutations.asset_identity import (
+        valid_asset_governed_envelope,
+    )
+    from app.services._governed_mutations.fixed_asset_policy import (
+        is_live_eligible_asset_resolver,
+        load_fixed_asset_scenario,
+    )
+
+    asset_scenario = await load_fixed_asset_scenario(db)
+    asset_access_ids = {
+        approval.id
+        for approval in approvals
+        if (proposal := approval.governed_mutation_proposal) is not None
+        and valid_asset_governed_envelope(proposal)
+        and (
+            proposal.requested_by_id == current_user.id
+            or is_live_eligible_asset_resolver(current_user, proposal, asset_scenario)
+        )
+    }
     identities = []
     for approval in approvals:
         try:
@@ -426,7 +587,7 @@ async def governed_process_snapshot_access_ids(
         process.id: process
         for process in (await db.execute(select(Process).where(Process.id.in_(process_ids)))).scalars().all()
     }
-    access_ids: set[int] = set()
+    access_ids: set[int] = set(asset_access_ids)
     for approval, identity in identities:
         if isinstance(identity, ExtendedProcessMutationIdentity):
             process = processes.get(identity.primary_resource_id)
@@ -457,6 +618,15 @@ async def governed_process_resolver_ids(
     approvals: list[ApprovalRequest],
     current_user: User,
 ) -> set[int]:
+    from app.services._governed_mutations.asset_identity import (
+        valid_asset_governed_envelope,
+    )
+    from app.services._governed_mutations.fixed_asset_policy import (
+        is_live_eligible_asset_resolver,
+        load_fixed_asset_scenario,
+    )
+
+    asset_scenario = await load_fixed_asset_scenario(db)
     identities = []
     for approval in approvals:
         try:
@@ -472,7 +642,13 @@ async def governed_process_resolver_ids(
         process.id: process
         for process in (await db.execute(select(Process).where(Process.id.in_(process_ids)))).scalars().all()
     }
-    result: set[int] = set()
+    result: set[int] = {
+        approval.id
+        for approval in approvals
+        if (proposal := approval.governed_mutation_proposal) is not None
+        and valid_asset_governed_envelope(proposal)
+        and is_live_eligible_asset_resolver(current_user, proposal, asset_scenario)
+    }
     for approval, identity in identities:
         if isinstance(identity, ExtendedProcessMutationIdentity):
             if can_resolve_extended_process_approval(

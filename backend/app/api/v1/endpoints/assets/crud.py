@@ -10,6 +10,7 @@ from app.api.v1.endpoints._collection import build_list_context
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.asset import AssetCreate, AssetListResponse, AssetRead, AssetUpdate
 from app.schemas.collection import SortDirection
 from app.services._ict_register_lifecycle.asset_lifecycle import (
@@ -140,7 +141,12 @@ async def export_assets(
     return render_asset_register_csv(result.matching_items, locale=locale)
 
 
-@router.post("", response_model=AssetRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=AssetRead,
+    status_code=status.HTTP_201_CREATED,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
+)
 async def create_asset(
     payload: AssetCreate,
     db: AsyncSession = Depends(get_db),
@@ -158,7 +164,11 @@ async def get_asset(
     return await read_asset_detail(db=db, asset_id=asset_id, current_user=current_user)
 
 
-@router.patch("/{asset_id}", response_model=AssetRead)
+@router.patch(
+    "/{asset_id}",
+    response_model=AssetRead,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
+)
 async def update_asset(
     asset_id: int,
     payload: AssetUpdate,

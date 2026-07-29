@@ -34,6 +34,7 @@ class ApprovalResourceType(str, PyEnum):
     CONTROL = "control"
     KRI = "kri"
     PROCESS = "process"
+    ASSET = "asset"
 
 
 class ApprovalActionType(str, PyEnum):
@@ -132,9 +133,9 @@ class ApprovalRequest(Base):
     # not declaratively (SQLAlchemy doesn't support partial indexes well)
     __table_args__ = (
         CheckConstraint(
-            "(resource_id IS NULL AND resource_type = 'PROCESS' AND action_type = 'CREATE') "
+            "(resource_id IS NULL AND resource_type IN ('PROCESS', 'ASSET') AND action_type = 'CREATE') "
             "OR (resource_id IS NOT NULL AND NOT "
-            "(resource_type = 'PROCESS' AND action_type = 'CREATE'))",
+            "(resource_type IN ('PROCESS', 'ASSET') AND action_type = 'CREATE'))",
             name="ck_approval_requests_process_create_resource_identity",
         ),
         Index("ix_approval_resource", "resource_type", "resource_id"),

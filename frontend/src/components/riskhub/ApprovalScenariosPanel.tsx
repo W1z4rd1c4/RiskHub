@@ -21,8 +21,8 @@ import { useRiskHubConfigResource } from './useRiskHubConfigResource';
 // Special dynamic role entry for risk owner (not a system role in roles table)
 const SPECIAL_ROLE_VALUES = ['risk_owner'] as const;
 const APPROVER_ROLE_CODES = new Set<string>(APPROVAL_SCENARIO_APPROVER_ROLES);
-const PROTECTED_PROCESS_SCENARIO_KEY = 'protected_process_edit';
-const PROTECTED_PROCESS_APPROVER_ROLES = new Set<string>(['risk_manager', 'cro']);
+const FIXED_PROTECTED_SCENARIO_KEYS = new Set(['protected_process_edit', 'protected_asset_edit']);
+const FIXED_PROTECTED_APPROVER_ROLES = new Set<string>(['risk_manager', 'cro']);
 const LEGACY_PROTECTED_PROCESS_FIXED_POLICY: ApprovalScenarioFixedPolicyDefinition = {
     threshold: 'current_or_proposed_cif_yes',
     covered_actions: ['edit'],
@@ -54,20 +54,20 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
     const [saving, setSaving] = useState(false);
     const [showRoleDropdown, setShowRoleDropdown] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
-    const isProtectedProcessScenario = scenario?.key === PROTECTED_PROCESS_SCENARIO_KEY;
-    const fixedPolicyDefinition = isProtectedProcessScenario && scenario?.fixed_policy
+    const isFixedProtectedScenario = scenario != null && FIXED_PROTECTED_SCENARIO_KEYS.has(scenario.key);
+    const fixedPolicyDefinition = isFixedProtectedScenario && scenario?.fixed_policy
         ? scenario.fixed_policy_definition ?? LEGACY_PROTECTED_PROCESS_FIXED_POLICY
         : null;
-    const selectableRoles = isProtectedProcessScenario
-        ? availableRoles.filter((role) => PROTECTED_PROCESS_APPROVER_ROLES.has(role.value))
+    const selectableRoles = isFixedProtectedScenario
+        ? availableRoles.filter((role) => FIXED_PROTECTED_APPROVER_ROLES.has(role.value))
         : availableRoles;
 
     useEffect(() => {
         if (isOpen && scenario) {
             setRequiresApproval(scenario.requires_approval);
             setSelectedRoles(
-                scenario.key === PROTECTED_PROCESS_SCENARIO_KEY
-                    ? scenario.approver_roles.filter((role) => PROTECTED_PROCESS_APPROVER_ROLES.has(role))
+                FIXED_PROTECTED_SCENARIO_KEYS.has(scenario.key)
+                    ? scenario.approver_roles.filter((role) => FIXED_PROTECTED_APPROVER_ROLES.has(role))
                     : scenario.approver_roles,
             );
             setShowRoleDropdown(false);
@@ -92,7 +92,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                 requires_approval: requiresApproval,
                 approver_roles: selectedRoles
                     .filter(isApprovalScenarioApproverRole)
-                    .filter((role) => !isProtectedProcessScenario || PROTECTED_PROCESS_APPROVER_ROLES.has(role)),
+                    .filter((role) => !isFixedProtectedScenario || FIXED_PROTECTED_APPROVER_ROLES.has(role)),
             });
             onClose();
         } catch (error: unknown) {
@@ -256,7 +256,7 @@ export function ApprovalScenariosPanel() {
     const canUpdateScenarios = riskHubCapabilityEnabled(riskHubCapabilities?.approval_scenarios, 'can_update');
 
     const fixedPolicySummary = (scenario: ApprovalScenario): string | null => {
-        if (scenario.key !== PROTECTED_PROCESS_SCENARIO_KEY || !scenario.fixed_policy) return null;
+        if (!scenario.fixed_policy) return null;
         const policy = scenario.fixed_policy_definition ?? LEGACY_PROTECTED_PROCESS_FIXED_POLICY;
         return [
             t(`admin:approval_scenarios.fixed_policy.triggers.${policy.threshold}`),

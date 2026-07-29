@@ -133,6 +133,7 @@ async def list_risk_asset_links_route(
     "/{risk_id}/asset-links",
     response_model=RiskAssetLinkRead,
     status_code=status.HTTP_201_CREATED,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
 )
 async def create_risk_asset_link(
     risk_id: int,
@@ -143,12 +144,22 @@ async def create_risk_asset_link(
     return await add_risk_asset_link(db, risk_id=risk_id, payload=payload, current_user=current_user)
 
 
-@router.delete("/{risk_id}/asset-links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{risk_id}/asset-links/{link_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
+)
 async def delete_risk_asset_link(
     risk_id: int,
     link_id: int,
+    payload: ProcessRelationshipMutationRequest = Body(default_factory=ProcessRelationshipMutationRequest),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "write")),
 ):
-    await remove_risk_asset_link(db, risk_id=risk_id, link_id=link_id, current_user=current_user)
-    return None
+    return await remove_risk_asset_link(
+        db,
+        risk_id=risk_id,
+        link_id=link_id,
+        request_reason=payload.request_reason,
+        current_user=current_user,
+    )

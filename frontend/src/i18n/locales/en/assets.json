@@ -29,6 +29,17 @@
         "lifecycle_state": "Lifecycle",
         "status": "Status"
     },
+    "pending_change": {
+        "title": "Proposed Asset change",
+        "badge": "Pending change",
+        "requested_by_at": "Requested by {{requester}} on {{date}} at {{time}}",
+        "unknown_requester": "Unknown user",
+        "cancel": "Cancel request",
+        "cancel_failed": "Failed to cancel the pending Asset change.",
+        "before": "Current values",
+        "after": "Proposed values",
+        "diff_restricted": "The proposed values are hidden by your permission scope."
+    },
     "form": {
         "sections": {
             "identity": "Identification",
@@ -67,6 +78,8 @@
         "last_legacy_risk_assessment_date": "Last legacy risk assessment",
         "review_state": "Review state",
         "notes": "Notes",
+        "request_reason": "Request reason",
+        "request_reason_help": "Protected Asset changes are submitted for independent approval. Explain why this change is needed.",
         "not_set": "Not set",
         "ratings_note": "The asset value (CIAA) is derived as the maximum of the four ratings.",
         "business_owner_placeholder": "Select a Business Owner...",

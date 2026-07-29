@@ -64,8 +64,7 @@ def can_update_asset_record(current_user: User, asset: Asset) -> bool:
         return False
     return bool(
         has_permission(current_user, "assets", "write")
-        or current_user.id
-        in {asset.business_owner_user_id, asset.ict_owner_user_id}
+        or current_user.id in {asset.business_owner_user_id, asset.ict_owner_user_id}
         or _is_owning_department_head(current_user, asset)
     )
 
@@ -76,9 +75,7 @@ def asset_visibility_clause(current_user: User):
         Asset.ict_owner_user_id == current_user.id,
     )
     role_name = current_user.role.name if current_user.role is not None else None
-    active_department_clause = Asset.owning_department.has(
-        Department.is_active.is_(True)
-    )
+    active_department_clause = Asset.owning_department.has(Department.is_active.is_(True))
     if role_name == RoleType.DEPARTMENT_HEAD:
         department_head_clause = (
             and_(
@@ -88,11 +85,7 @@ def asset_visibility_clause(current_user: User):
             if current_user.department_id is not None
             else None
         )
-        return (
-            or_(owner_clause, department_head_clause)
-            if department_head_clause is not None
-            else owner_clause
-        )
+        return or_(owner_clause, department_head_clause) if department_head_clause is not None else owner_clause
     if not has_permission(current_user, "assets", "read"):
         return owner_clause
     department_ids = get_user_department_ids(current_user)
@@ -120,10 +113,7 @@ def editable_asset_visibility_clause(current_user: User):
             editable_clauses.append(readable_clause)
 
     role_name = current_user.role.name if current_user.role is not None else None
-    if (
-        role_name == RoleType.DEPARTMENT_HEAD
-        and current_user.department_id is not None
-    ):
+    if role_name == RoleType.DEPARTMENT_HEAD and current_user.department_id is not None:
         editable_clauses.append(
             and_(
                 Asset.owning_department_id == current_user.department_id,
@@ -153,11 +143,7 @@ async def has_editable_asset_record(
     current_user: User,
 ) -> bool:
     """Return only an existence fact; never project an unreadable Asset row."""
-    asset_id = await db.scalar(
-        select(Asset.id)
-        .where(editable_asset_visibility_clause(current_user))
-        .limit(1)
-    )
+    asset_id = await db.scalar(select(Asset.id).where(editable_asset_visibility_clause(current_user)).limit(1))
     return asset_id is not None
 
 
@@ -168,9 +154,7 @@ async def assert_asset_assignment_lookup_allowed(
 ) -> None:
     if has_permission(current_user, "assets", "write"):
         return
-    editable_id = await db.scalar(
-        select(Asset.id).where(editable_asset_visibility_clause(current_user)).limit(1)
-    )
+    editable_id = await db.scalar(select(Asset.id).where(editable_asset_visibility_clause(current_user)).limit(1))
     if editable_id is None:
         raise AuthorizationError("Permission denied: Asset assignment lookup")
 
@@ -202,9 +186,7 @@ async def assert_active_asset_department(
 ) -> Department:
     department = (
         await db.execute(
-            select(Department)
-            .where(Department.id == department_id, Department.is_active.is_(True))
-            .with_for_update()
+            select(Department).where(Department.id == department_id, Department.is_active.is_(True)).with_for_update()
         )
     ).scalar_one_or_none()
     if department is None:
@@ -257,11 +239,25 @@ async def assert_asset_ordinary_mutation_allowed(
     )
     if asset is None:
         raise NotFoundError("Asset not found")
+    await assert_locked_asset_ordinary_mutation_allowed(
+        db,
+        asset=asset,
+        current_user=current_user,
+    )
+    return asset
+
+
+async def assert_locked_asset_ordinary_mutation_allowed(
+    db: AsyncSession,
+    *,
+    asset: Asset,
+    current_user: User,
+) -> None:
+    """Validate an Asset row already held by a caller-owned lock plan."""
     if asset.is_archived:
         raise ConflictError("Cannot update archived asset")
     if not can_update_asset_record(current_user, asset):
         raise AuthorizationError("Permission denied: assets:write")
-
     pending_orphan_id = await db.scalar(
         select(OrphanedItem.id)
         .where(
@@ -272,10 +268,7 @@ async def assert_asset_ordinary_mutation_allowed(
         .limit(1)
     )
     if pending_orphan_id is not None:
-        raise ConflictError(
-            "Orphaned Asset responsibility must be reassigned through the governance workflow"
-        )
-    return asset
+        raise ConflictError("Orphaned Asset responsibility must be reassigned through the governance workflow")
 
 
 async def _assert_asset_delete_allowed(db: AsyncSession, *, asset_id: int, current_user: User) -> Asset:

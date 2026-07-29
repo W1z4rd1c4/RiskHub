@@ -9,6 +9,10 @@ from app.schemas.riskhub import (
     ApprovalScenarioUpdate,
 )
 from app.services._authorization_capabilities import approval_scenario_capabilities
+from app.services._governed_mutations.fixed_asset_policy import (
+    ASSET_SCENARIO_KEY,
+    FIXED_ASSET_POLICY,
+)
 from app.services._governed_mutations.fixed_policy import FIXED_PROCESS_POLICY, SCENARIO_KEY
 from app.services.approval_scenario_policy import normalize_approval_scenario_roles
 
@@ -39,14 +43,22 @@ def approval_scenario_to_read(
         updated_at=scenario.updated_at.isoformat(),
         updated_by_name=resolved_updated_by_name,
         capabilities=approval_scenario_capabilities(),
-        fixed_policy=scenario.key == SCENARIO_KEY,
+        fixed_policy=scenario.key in {SCENARIO_KEY, ASSET_SCENARIO_KEY},
         fixed_policy_definition=(
             ApprovalScenarioFixedPolicyRead(
-                threshold=FIXED_PROCESS_POLICY.threshold,
-                covered_actions=list(FIXED_PROCESS_POLICY.covered_actions),
-                allow_self_approval=FIXED_PROCESS_POLICY.allow_self_approval,
+                threshold=(
+                    FIXED_ASSET_POLICY.threshold
+                    if scenario.key == ASSET_SCENARIO_KEY
+                    else FIXED_PROCESS_POLICY.threshold
+                ),
+                covered_actions=list(
+                    FIXED_ASSET_POLICY.covered_actions
+                    if scenario.key == ASSET_SCENARIO_KEY
+                    else FIXED_PROCESS_POLICY.covered_actions
+                ),
+                allow_self_approval=False,
             )
-            if scenario.key == SCENARIO_KEY
+            if scenario.key in {SCENARIO_KEY, ASSET_SCENARIO_KEY}
             else None
         ),
     )

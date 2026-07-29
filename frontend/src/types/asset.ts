@@ -1,10 +1,37 @@
 import type { CollectionGroup } from './collection';
+import type {
+    GovernedDerivedImpact,
+    GovernedImpactedResource,
+    GovernedMutationKind,
+    GovernedRelationshipChange,
+} from './approval';
 
 export interface AssetCapabilities {
     can_read: boolean;
     can_update: boolean;
     can_archive: boolean;
     can_restore: boolean;
+    has_pending_change?: boolean;
+    business_edit_blocked?: boolean;
+    can_cancel_pending_change?: boolean;
+}
+
+export interface AssetPendingChangeRead {
+    approval_id: number | null;
+    proposal_id: string | null;
+    proposal_version: number | null;
+    status: 'pending';
+    requested_at: string;
+    requested_by_name: string | null;
+    reason: string;
+    generic_label: 'protected_asset_change';
+    mutation_kind: GovernedMutationKind | null;
+    before: Record<string, unknown>;
+    after: Record<string, unknown>;
+    derived_impact: GovernedDerivedImpact;
+    impacted_resources: GovernedImpactedResource[];
+    relationship_change: GovernedRelationshipChange | null;
+    capabilities: { can_view_diff: boolean; can_cancel: boolean };
 }
 
 export interface AssetListCapabilities {
@@ -181,11 +208,13 @@ export interface Asset {
     archived_at?: string | null;
     archived_by_id?: number | null;
     capabilities?: AssetCapabilities | null;
+    pending_change?: AssetPendingChangeRead | null;
     created_at: string;
     updated_at: string;
 }
 
 export interface AssetWritePayload {
+    request_reason?: string;
     name?: string;
     asset_type?: string | null;
     asset_level?: string | null;
@@ -327,6 +356,7 @@ export interface AssetAssetLinkCreatePayload {
     dependency_type?: string | null;
     spof?: string | null;
     note?: string | null;
+    request_reason?: string;
 }
 
 export interface AssetVendorLinkCapabilities {
@@ -357,5 +387,6 @@ export interface AssetVendorLinkCreatePayload {
     ict_service_code: string;
     contract_reference?: string | null;
     reliance?: string | null;
+    request_reason?: string;
     note?: string | null;
 }

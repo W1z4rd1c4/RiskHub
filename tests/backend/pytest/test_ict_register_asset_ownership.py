@@ -1,18 +1,27 @@
 from __future__ import annotations
 
 import asyncio
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
+from app.core.datetime_utils import utc_now
+from app.core.exceptions import ConflictError
 from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_keys
 from app.models import (
     Asset,
     AssetAssetLink,
     AssetVendorLink,
+    ApprovalActionType,
+    ApprovalRequest,
+    ApprovalResourceType,
+    ApprovalStatus,
     Department,
+    GovernedMutationImpactLock,
+    GovernedMutationProposal,
     OrphanedItem,
     Permission,
     Process,
@@ -199,18 +208,12 @@ async def test_scoped_asset_creator_can_use_cross_department_assignment_lookups(
         )
 
     assert owner_lookup.status_code == 200, owner_lookup.text
-    assert [row["id"] for row in owner_lookup.json()] == [
-        cross_department_owner.id
-    ]
+    assert [row["id"] for row in owner_lookup.json()] == [cross_department_owner.id]
     assert department_lookup.status_code == 200, department_lookup.text
-    assert [row["id"] for row in department_lookup.json()] == [
-        other_department.id
-    ]
+    assert [row["id"] for row in department_lookup.json()] == [other_department.id]
 
     async with client_factory(user=test_user_employee) as client:
-        denied_owner_lookup = await client.get(
-            "/api/v1/users/lookup/asset-owners"
-        )
+        denied_owner_lookup = await client.get("/api/v1/users/lookup/asset-owners")
         denied_department_lookup = await client.get(
             "/api/v1/departments/lookup/asset-owners"
         )
@@ -257,6 +260,9 @@ async def test_asset_owner_and_owning_department_head_get_update_not_archive(
             "can_update": True,
             "can_archive": False,
             "can_restore": False,
+            "has_pending_change": False,
+            "business_edit_blocked": False,
+            "can_cancel_pending_change": False,
         }
         assert updated.status_code == 200, updated.text
         assert updated.json()["name"] == name
@@ -293,6 +299,10 @@ async def test_asset_dual_role_orphans_resolve_independently_and_block_edits(
     assert counterpart.status_code == 201, counterpart.text
     asset_id = created.json()["id"]
     counterpart_id = counterpart.json()["id"]
+    created_asset = await db_session.get(Asset, asset_id)
+    assert created_asset is not None
+    initial_governance_version = created_asset.governance_version
+    former_owner_id = test_user_employee.id
 
     test_user_employee.is_active = False
     await db_session.flush()
@@ -329,9 +339,7 @@ async def test_asset_dual_role_orphans_resolve_independently_and_block_edits(
     assert detail.json()["ownership_status"] == "pending_governance"
     assert detail.json()["capabilities"]["can_update"] is False
     assert governance.status_code == 200, governance.text
-    governance_rows = [
-        row for row in governance.json() if row["item_id"] == asset_id
-    ]
+    governance_rows = [row for row in governance.json() if row["item_id"] == asset_id]
     assert len(governance_rows) == 2
     assert {row["item_name"] for row in governance_rows} == {
         "Canonical ownership asset"
@@ -349,33 +357,100 @@ async def test_asset_dual_role_orphans_resolve_independently_and_block_edits(
         orphan for orphan in asset_orphans if orphan.responsibility_role == "ict_owner"
     )
     cro_id = test_user_cro.id
+    governance_department_id = test_department.id
+    business_orphan_id = business_orphan.id
+    ict_orphan_id = ict_orphan.id
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.ASSET,
+        resource_id=asset_id,
+        resource_name="Canonical ownership asset",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"name": {"old": "a", "new": "b"}},
+        requested_by_id=cro_id,
+        reason="Lock orphan reassignment",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.flush()
+    proposal = GovernedMutationProposal(
+        proposal_id=str(uuid4()),
+        proposal_version=1,
+        schema_version=1,
+        approval_request_id=approval.id,
+        mutation_kind="asset.edit",
+        primary_resource_type="asset",
+        primary_resource_id=asset_id,
+        primary_resource_name="Canonical ownership asset",
+        scenario_snapshot={},
+        base_versions={"asset": initial_governance_version},
+        before_snapshot={},
+        after_snapshot={},
+        derived_impact_snapshot={},
+        proposed_changes={},
+        impacted_resources_snapshot=[],
+        requested_by_id=cro_id,
+    )
+    db_session.add(proposal)
+    await db_session.flush()
+    impact_lock = GovernedMutationImpactLock(
+        proposal_id=proposal.id,
+        resource_type="asset",
+        resource_id=asset_id,
+        base_governance_version=initial_governance_version,
+    )
+    db_session.add(impact_lock)
+    await db_session.commit()
+    impact_lock_id = impact_lock.id
+    approval_id = approval.id
+    with pytest.raises(ConflictError, match="governed Asset change is pending"):
+        await resolve_orphan(
+            db_session,
+            business_orphan_id,
+            resolved_by_id=cro_id,
+            new_owner_id=cro_id,
+            department_id=governance_department_id,
+        )
+    await db_session.rollback()
+    impact_lock = await db_session.get(GovernedMutationImpactLock, impact_lock_id)
+    assert impact_lock is not None
+    impact_lock.released_at = utc_now()
+    impact_lock.release_reason = "test_continue_orphan_resolution"
+    approval = await db_session.get(ApprovalRequest, approval_id)
+    assert approval is not None
+    approval.status = ApprovalStatus.CANCELLED
+    await db_session.commit()
     await resolve_orphan(
         db_session,
-        business_orphan.id,
+        business_orphan_id,
         resolved_by_id=cro_id,
         new_owner_id=cro_id,
-        department_id=test_department.id,
+        department_id=governance_department_id,
     )
     asset = await db_session.get(Asset, asset_id)
     assert asset is not None
     assert asset.business_owner_user_id == cro_id
-    assert asset.ict_owner_user_id == test_user_employee.id
-    assert await db_session.scalar(
-        select(OrphanedItem.status).where(OrphanedItem.id == ict_orphan.id)
-    ) == "pending"
+    assert asset.ict_owner_user_id == former_owner_id
+    assert asset.governance_version == initial_governance_version + 1
+    assert (
+        await db_session.scalar(
+            select(OrphanedItem.status).where(OrphanedItem.id == ict_orphan_id)
+        )
+        == "pending"
+    )
 
     await resolve_orphan(
         db_session,
-        ict_orphan.id,
+        ict_orphan_id,
         resolved_by_id=cro_id,
         new_owner_id=cro_id,
-        department_id=test_department.id,
+        department_id=governance_department_id,
     )
     db_session.expire_all()
     asset = await db_session.get(Asset, asset_id)
     assert asset is not None
     assert asset.business_owner_user_id == cro_id
     assert asset.ict_owner_user_id == cro_id
+    assert asset.governance_version == initial_governance_version + 2
 
 
 @pytest.mark.asyncio
@@ -513,9 +588,7 @@ async def test_asset_vendor_links_compose_asset_authority_with_vendor_visibility
         department_id=other_department.id,
         owner_id=test_user_cro.id,
     )
-    db_session.add_all(
-        [visible_vendor, addable_vendor, archived_vendor, hidden_vendor]
-    )
+    db_session.add_all([visible_vendor, addable_vendor, archived_vendor, hidden_vendor])
     await db_session.commit()
 
     async with client_factory(user=test_user_cro) as client:
@@ -583,13 +656,9 @@ async def test_asset_vendor_links_compose_asset_authority_with_vendor_visibility
     assert added.status_code == 201, added.text
     assert added.json()["capabilities"]["can_delete"] is True
     assert archived_vendor_detail.status_code == 200, archived_vendor_detail.text
+    assert archived_vendor_detail.json()["capabilities"]["can_view_asset_links"] is True
     assert (
-        archived_vendor_detail.json()["capabilities"]["can_view_asset_links"]
-        is True
-    )
-    assert (
-        archived_vendor_detail.json()["capabilities"]["can_manage_asset_links"]
-        is False
+        archived_vendor_detail.json()["capabilities"]["can_manage_asset_links"] is False
     )
     assert archived_vendor_links.status_code == 200, archived_vendor_links.text
     assert [row["id"] for row in archived_vendor_links.json()] == [links[1].id]
@@ -600,23 +669,15 @@ async def test_asset_vendor_links_compose_asset_authority_with_vendor_visibility
     assert owner_vendor.json()["capabilities"]["can_manage_asset_links"] is True
 
     async with client_factory(user=unrelated_user) as client:
-        unrelated_list = await client.get(
-            f"/api/v1/assets/{asset_id}/vendor-links"
-        )
-        unrelated_vendor = await client.get(
-            f"/api/v1/vendors/{visible_vendor.id}"
-        )
+        unrelated_list = await client.get(f"/api/v1/assets/{asset_id}/vendor-links")
+        unrelated_vendor = await client.get(f"/api/v1/vendors/{visible_vendor.id}")
     assert unrelated_list.status_code == 200, unrelated_list.text
     assert all(
-        row["capabilities"]["can_delete"] is False
-        for row in unrelated_list.json()
+        row["capabilities"]["can_delete"] is False for row in unrelated_list.json()
     )
     assert unrelated_vendor.status_code == 200, unrelated_vendor.text
     assert unrelated_vendor.json()["capabilities"]["can_view_asset_links"] is True
-    assert (
-        unrelated_vendor.json()["capabilities"]["can_manage_asset_links"]
-        is False
-    )
+    assert unrelated_vendor.json()["capabilities"]["can_manage_asset_links"] is False
 
     async with client_factory(user=test_user_department_head) as client:
         head_list = await client.get(f"/api/v1/assets/{asset_id}/vendor-links")
@@ -634,9 +695,7 @@ async def test_asset_vendor_links_compose_asset_authority_with_vendor_visibility
     async with client_factory(user=test_user_cro) as client:
         global_list = await client.get(f"/api/v1/assets/{asset_id}/vendor-links")
     assert global_list.status_code == 200, global_list.text
-    assert hidden_vendor.name in {
-        row["vendor_name"] for row in global_list.json()
-    }
+    assert hidden_vendor.name in {row["vendor_name"] for row in global_list.json()}
     assert all(row["capabilities"]["can_delete"] for row in global_list.json())
 
     db_session.add(
@@ -657,8 +716,7 @@ async def test_asset_vendor_links_compose_asset_authority_with_vendor_visibility
         )
     assert pending_list.status_code == 200, pending_list.text
     assert all(
-        row["capabilities"]["can_delete"] is False
-        for row in pending_list.json()
+        row["capabilities"]["can_delete"] is False for row in pending_list.json()
     )
     assert pending_vendor.status_code == 200, pending_vendor.text
     assert pending_vendor.json()["capabilities"]["can_view_asset_links"] is True
@@ -974,7 +1032,9 @@ async def test_asset_projection_canonicalizes_and_redacts_unreadable_linked_cont
         assert visible_low.json()["total"] == 1
         assert visible_low.json()["items"][0]["id"] == filter_asset_id
         assert visible_low.json()["items"][0]["derived"]["linked_process_count"] == 0
-        assert visible_low.json()["items"][0]["derived"]["resulting_criticality"] == "low"
+        assert (
+            visible_low.json()["items"][0]["derived"]["resulting_criticality"] == "low"
+        )
         assert hidden_critical.status_code == 200, hidden_critical.text
         assert hidden_critical.json()["total"] == 0
 
@@ -1003,7 +1063,10 @@ async def test_asset_projection_canonicalizes_and_redacts_unreadable_linked_cont
     assert cro_full_graph.json()["total"] == 1
     assert cro_full_graph.json()["items"][0]["id"] == filter_asset_id
     assert cro_full_graph.json()["items"][0]["derived"]["linked_process_count"] == 1
-    assert cro_full_graph.json()["items"][0]["derived"]["resulting_criticality"] == "critical"
+    assert (
+        cro_full_graph.json()["items"][0]["derived"]["resulting_criticality"]
+        == "critical"
+    )
 
 
 @pytest.mark.asyncio

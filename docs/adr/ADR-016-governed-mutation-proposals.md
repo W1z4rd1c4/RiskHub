@@ -14,8 +14,9 @@ approval must never apply a stale or only partially valid change.
 
 The first complete tracer was a Process business-data edit where the Process's
 current or proposed derived CIF is `Ano` (Yes). The contract now also covers
-protected Process creation, Process relationship mutations, and archive while
-leaving room for later Asset, Vendor, accountability, and Composite cascades.
+protected Process creation, Process relationship mutations, and archive. Ticket
+#86 extends the same contract to protected Asset create/edit/link/archive and
+Composite Process-to-Asset consequences; Vendor governance remains later scope.
 
 ## Decision
 
@@ -56,17 +57,21 @@ SQLite enum value), makes `approval_requests.resource_id` and
 then narrows those nulls with two named database checks:
 
 - `ck_approval_requests_process_create_resource_identity` permits a null
-  `resource_id` exactly when `resource_type = 'PROCESS'` and
-  `action_type = 'CREATE'`; every other envelope must have a resource ID.
+  `resource_id` exactly for Process or Asset `CREATE`; every other envelope
+  must have a resource ID.
 - `ck_governed_mutation_process_create_resource_identity` permits a null
-  `primary_resource_id` exactly when `primary_resource_type = 'process'` and
-  `mutation_kind = 'process.create'`; every other proposal must have a primary
-  resource ID.
+  `primary_resource_id` exactly for `process.create` or `asset.create`; every
+  other proposal must have a primary resource ID.
 
 The migration is forward-only under ADR-010. PostgreSQL release evidence must
 include both a blank-database zero-to-head rehearsal and a representative
 `m3n4o5p6q7r8`-to-head rehearsal; application test startup is not a substitute
 for either migration proof.
+
+Revision `o5p6q7r8s9t0` extends the same fixed envelope to Asset create, edit,
+archive, and typed relationship mutations. Its ADR-010 evidence is automated
+in `tests/backend/pytest/migrations/test_governed_asset_migration_rehearsal.py`
+for both blank zero-to-head and `n4o5p6q7r8s9`-to-head PostgreSQL lanes.
 
 ### Resource versions and impacted-resource locks
 
@@ -95,6 +100,14 @@ downstream Process-to-Asset derivation/Composite approval, including Asset
 impacts and locks. Later resource tickets add Vendor cascade governance. Those
 extensions add resource descriptors and rederivation to the same operation-plan
 seam; they do not reinterpret or weaken the exact #85 Process-link identity.
+
+The fixed Asset scenario is `protected_asset_edit`. An Asset is protected when
+current or proposed CIF is Yes, or current or proposed resulting criticality is
+Critical. Protected Asset create/edit/archive and Asset-managed Asset/Vendor
+link changes use one immutable proposal and deterministic Asset locks. A
+Process-to-Asset operation whose Process or Asset consequence is protected uses
+one Composite proposal, locks both resource types, rederives the full graph at
+approval, and applies all effects or none.
 
 ### Protection and submission rules
 
@@ -200,8 +213,9 @@ Existing-row Process-governance paths use one deterministic lock order: approval
 envelope, proposal, impact locks ordered by resource identity, Process-owner
 advisory identities ordered by User ID, User rows ordered by ID, the distinct
 requester, resolver, and proposed-owner Role rows ordered by Role ID, Department
-rows ordered by ID, Process row, workbook-parameter rows ordered by config key,
-then the fixed approval-scenario row. Rowless creation follows the same prefix
+rows ordered by ID, Process rows ordered by ID, downstream Asset rows ordered by
+ID, workbook-parameter rows ordered by config key, then fixed approval-scenario
+rows ordered by key. Rowless creation follows the same prefix
 and reference-row order but omits impact-lock and Process-row locks because
 neither exists. The locked Role rows serialize current permission
 revalidation with role configuration updates; RolePermission and Permission
@@ -371,6 +385,8 @@ direct Process edits only after a consistency check confirms no active lock.
   `m3n4o5p6q7r8`-to-head PostgreSQL rehearsals for `n4o5p6q7r8s9`, including
   the `CREATE` enum label, both nullable columns, both named checks, zero check
   violations, and the final Alembic head.
+- The governed Asset migration rehearsal independently proves zero-to-head and
+  `n4o5p6q7r8s9`-to-`o5p6q7r8s9t0` on disposable PostgreSQL databases.
 - Authz contract tests bind service enforcement, Process/approval capability
   schemas, frontend gates, and documentation.
 - Timezone tests require UTC-aware proposal, resolution, and lock timestamps.

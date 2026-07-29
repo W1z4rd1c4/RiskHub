@@ -762,6 +762,8 @@ const approvalScenarioFixture = {
     description: 'Approve risk updates',
     requires_approval: true,
     approver_roles: ['risk_owner'],
+    fixed_policy: false,
+    fixed_policy_definition: null,
     updated_at: '2026-04-01T00:00:00Z',
     updated_by_name: null,
     capabilities: { can_update: true },
