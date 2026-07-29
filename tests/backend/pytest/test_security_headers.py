@@ -85,7 +85,8 @@ async def test_security_headers_in_production_mode():
 
     csp = _csp_directives(response.headers["content-security-policy"])
     assert csp["script-src"] == "script-src 'self'"
-    assert csp["style-src"] == "style-src 'self' https://fonts.googleapis.com"
+    assert csp["style-src"] == "style-src 'self'"
+    assert csp["font-src"] == "font-src 'self'"
     assert "'unsafe-inline'" not in csp["style-src"]
     assert all("'unsafe-eval'" not in directive for directive in csp.values())
     assert "upgrade-insecure-requests" in csp
