@@ -1,0 +1,18 @@
+{
+  "manifest_version": 1,
+  "source_version": "v6-2026-07-13",
+  "files": {
+    "builder/seed.py": {
+      "size": 38833,
+      "sha256": "9b635405b06668a45253a9bd5e977158a81ea23e6b391b94c048af89fd086110"
+    },
+    "builder/source_data.json": {
+      "size": 903334,
+      "sha256": "0508dcd986d4780965ca3ea0f2f2b6fe97e58412c439ced8bbccffdd9f2c0d91"
+    },
+    "builder/build_expected.json": {
+      "size": 1228,
+      "sha256": "58d66b14227ee5dbb39e036c9ebce0a5a675826ca717bb394c993453284ab242"
+    }
+  }
+}

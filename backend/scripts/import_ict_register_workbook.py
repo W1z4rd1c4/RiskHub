@@ -34,11 +34,16 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import importlib.util
 import json
 import os
+import stat
 import sys
+import tempfile
 import types
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -149,6 +154,12 @@ SCALED_PARAMETER_NAMES = ("P_RizStr", "P_RizVys", "P_RizKrit", "P_Tolerance")
 DOMAIN_ERRORS = (AuthorizationError, ConflictError, NotFoundError, ValidationError)
 
 CHECK_IDS = tuple(f"DQ-{n:02d}" for n in range(1, 53))
+SOURCE_MANIFEST_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "docs"
+    / "dora-ict-register"
+    / "cutover-manifest.json"
+)
 
 
 @dataclass
@@ -183,6 +194,93 @@ class ImportReport:
 # ---------------------------------------------------------------------------
 # Builder source loading (machine-readable data module, never the xlsx).
 # ---------------------------------------------------------------------------
+
+
+def verify_source_integrity(source_dir: Path) -> dict[str, bytes]:
+    """Read and verify all importer inputs against the cutover manifest."""
+    manifest = json.loads(SOURCE_MANIFEST_PATH.read_text(encoding="utf-8"))
+    if manifest.get("manifest_version") != 1:
+        raise SystemExit("Source integrity manifest has an unsupported version")
+
+    open_flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    directory_flags = open_flags | os.O_DIRECTORY
+    file_flags = open_flags | os.O_NONBLOCK
+    verified: dict[str, bytes] = {}
+    source_root = Path(os.path.abspath(source_dir))
+    root_fd = os.open("/", directory_flags)
+    try:
+        for part in source_root.parts[1:]:
+            next_fd = os.open(part, directory_flags, dir_fd=root_fd)
+            os.close(root_fd)
+            root_fd = next_fd
+    except FileNotFoundError as exc:
+        os.close(root_fd)
+        raise SystemExit(
+            f"Source integrity check failed: missing source root {source_dir}"
+        ) from exc
+    except OSError as exc:
+        os.close(root_fd)
+        raise SystemExit(
+            "Source integrity check failed: symlink/path escape for source root"
+        ) from exc
+
+    try:
+        for relative_name, expected in manifest["files"].items():
+            parts = Path(relative_name).parts
+            directory_fd = os.dup(root_fd)
+            try:
+                for part in parts[:-1]:
+                    next_fd = os.open(part, directory_flags, dir_fd=directory_fd)
+                    os.close(directory_fd)
+                    directory_fd = next_fd
+                source_fd = os.open(parts[-1], file_flags, dir_fd=directory_fd)
+            except FileNotFoundError as exc:
+                raise SystemExit(
+                    f"Source integrity check failed: missing {relative_name}"
+                ) from exc
+            except OSError as exc:
+                raise SystemExit(
+                    f"Source integrity check failed: symlink/path escape for {relative_name}"
+                ) from exc
+            finally:
+                os.close(directory_fd)
+
+            source_stat = os.fstat(source_fd)
+            if not stat.S_ISREG(source_stat.st_mode):
+                os.close(source_fd)
+                raise SystemExit(
+                    f"Source integrity check failed: non-regular file {relative_name}"
+                )
+            with os.fdopen(source_fd, "rb") as source_file:
+                if source_stat.st_size != expected["size"]:
+                    raise SystemExit(
+                        f"Source integrity check failed: size mismatch for {relative_name}"
+                    )
+                contents = source_file.read()
+            if (
+                len(contents) != expected["size"]
+                or hashlib.sha256(contents).hexdigest() != expected["sha256"]
+            ):
+                raise SystemExit(
+                    f"Source integrity check failed: SHA-256 mismatch for {relative_name}"
+                )
+            verified[relative_name] = contents
+    finally:
+        os.close(root_fd)
+    return verified
+
+
+@contextmanager
+def verified_source_snapshot(source_dir: Path) -> Iterator[Path]:
+    """Materialize only manifest-verified bytes for the existing builder loader."""
+    verified = verify_source_integrity(source_dir)
+    with tempfile.TemporaryDirectory(prefix="riskhub-ict-register-import-") as temp_dir:
+        snapshot_root = Path(temp_dir)
+        for relative_name, contents in verified.items():
+            snapshot_path = snapshot_root / relative_name
+            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            snapshot_path.write_bytes(contents)
+        yield snapshot_root
 
 
 def load_builder_seed(source_dir: Path) -> ModuleType:
@@ -1385,12 +1483,12 @@ async def import_risks(
 # ---------------------------------------------------------------------------
 
 
-async def run_import(source_dir: Path) -> int:
+async def run_import(source_dir: Path, *, source_label: Path | None = None) -> int:
     seed = load_builder_seed(source_dir)
     report = ImportReport()
     print("=" * 78)
     print("ICT REGISTER CUTOVER IMPORT — workbook builder data through the service layer")
-    print(f"Source: {source_dir}")
+    print(f"Source: {source_label or source_dir}")
     print("=" * 78)
     async with session_context(get_settings()) as db:
         user = await load_import_user(db)
@@ -1421,7 +1519,12 @@ async def run_import(source_dir: Path) -> int:
     return 0
 
 
-async def run_verify(source_dir: Path, expected_path: Path) -> int:
+async def run_verify(
+    source_dir: Path,
+    expected_path: Path,
+    *,
+    source_label: Path | None = None,
+) -> int:
     """Post-import fidelity characterization: the workbook's documented profile, engine-asserted."""
     seed = load_builder_seed(source_dir)
     expected = json.loads(expected_path.read_text(encoding="utf-8"))
@@ -1435,7 +1538,10 @@ async def run_verify(source_dir: Path, expected_path: Path) -> int:
 
     print("=" * 78)
     print("ICT REGISTER FIDELITY CHARACTERIZATION (--verify, read-only)")
-    print(f"Source: {source_dir}; expected profile: {expected_path}")
+    print(
+        f"Source: {source_label or source_dir}; "
+        f"expected profile: {(source_label or source_dir) / 'builder' / 'build_expected.json'}"
+    )
     print("=" * 78)
     async with session_context(get_settings()) as db:
         parameters = await load_ict_workbook_parameter_set(db)
@@ -1552,21 +1658,30 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not os.environ.get("DATABASE_URL"):
+    source_dir = Path(os.path.abspath(args.source.expanduser()))
+    pinned_expected_path = source_dir / "builder" / "build_expected.json"
+    if (
+        args.expected is not None
+        and Path(os.path.abspath(args.expected.expanduser())) != pinned_expected_path
+    ):
         raise SystemExit(
-            "DATABASE_URL must be set explicitly — the cutover import refuses to guess a database."
+            "Source integrity check failed: --expected must identify the manifest-pinned profile"
         )
-    source_dir = args.source.expanduser().resolve()
-    if not source_dir.is_dir():
-        raise SystemExit(f"Source directory not found: {source_dir}")
 
-    if args.verify:
-        expected_path = args.expected or (source_dir / "builder" / "build_expected.json")
-        if not expected_path.is_file():
-            raise SystemExit(f"Expected-profile JSON not found: {expected_path}")
-        exit_code = asyncio.run(run_verify(source_dir, expected_path))
-    else:
-        exit_code = asyncio.run(run_import(source_dir))
+    with verified_source_snapshot(source_dir) as snapshot_dir:
+        if not os.environ.get("DATABASE_URL"):
+            raise SystemExit(
+                "DATABASE_URL must be set explicitly — the cutover import refuses to guess a database."
+            )
+        if args.verify:
+            expected_path = snapshot_dir / "builder" / "build_expected.json"
+            exit_code = asyncio.run(
+                run_verify(snapshot_dir, expected_path, source_label=source_dir)
+            )
+        else:
+            exit_code = asyncio.run(
+                run_import(snapshot_dir, source_label=source_dir)
+            )
     raise SystemExit(exit_code)
 
 

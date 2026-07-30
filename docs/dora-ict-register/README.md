@@ -36,6 +36,8 @@ behind it.
   build is and the destination decisions.
 - [`cutover-record.md`](./cutover-record.md): Cutover record for retiring the workbook as the
   system of record.
+- [`cutover-manifest.json`](./cutover-manifest.json): Repository-trusted sizes and SHA-256
+  digests for every executable/data input accepted by the one-time production importer.
 - [`FRONTEND-UX-AUDIT-2026-07-11.md`](./FRONTEND-UX-AUDIT-2026-07-11.md): Frontend design/UX
   audit findings ledger (finding IDs, severities, `file:line`, target phases).
 - [`FRONTEND-UX-REMEDIATION-CAPTURE.md`](./FRONTEND-UX-REMEDIATION-CAPTURE.md): grill-with-docs

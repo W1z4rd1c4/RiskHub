@@ -238,6 +238,13 @@ DATABASE_URL=... SECRET_KEY=... ./venv/bin/python -m scripts.import_ict_register
 
 Prerequisites: `alembic upgrade head` and `python -m app.db.seed` (the import
 aborts if the risk-manager user or a diverging parameter default is found).
+Before reading `DATABASE_URL`, importing `builder/seed.py`, or opening a database
+connection, the command verifies `builder/seed.py`, `builder/source_data.json`, and
+`builder/build_expected.json` against the repository-owned
+[`cutover-manifest.json`](./cutover-manifest.json). Missing inputs, symlinks, path
+escapes, non-regular files, size/hash mismatches, and external `--expected`
+overrides are rejected. A source directory is accepted only when it contains the
+exact manifest-pinned cutover artifacts.
 The scratch rehearsal recorded here used PostgreSQL 16.13 at 127.0.0.1:5433,
 `alembic upgrade head` → `python -m app.db.seed` → import → import (created=0)
 → `--verify`, full logs captured during the run of 2026-07-10.
