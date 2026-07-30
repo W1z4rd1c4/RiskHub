@@ -54,4 +54,11 @@ describe('AssetRegisterFilterBar', () => {
         fireEvent.change(select!, { target: { value: '' } });
         expect(onFilterChange).toHaveBeenCalledWith('cif', null);
     });
+
+    it('locks lifecycle to all while the removable Committee population chip is active', () => {
+        render(<AssetRegisterFilterBar facets={{}} filters={EMPTY_ASSET_REGISTER_FILTERS} isLifecycleLocked isLoading={false}
+            onClearAll={vi.fn()} onFilterChange={vi.fn()} onRefresh={vi.fn()} onSearchChange={vi.fn()} search="" />);
+        expect(screen.getByTestId('assets-status-filter-trigger')).toBeDisabled();
+        expect(screen.getByTestId('assets-status-filter-trigger')).toHaveTextContent(/all/i);
+    });
 });

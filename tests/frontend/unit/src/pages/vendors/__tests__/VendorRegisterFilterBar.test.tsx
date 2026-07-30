@@ -79,4 +79,12 @@ describe('VendorRegisterFilterBar', () => {
         });
         expect(onFilterChange).toHaveBeenCalledWith('has_sub_outsourcing', false);
     });
+
+    it('locks lifecycle to all while the removable Committee population chip is active', () => {
+        render(<VendorRegisterFilterBar facets={{}} filters={EMPTY_VENDOR_REGISTER_FILTERS} isLifecycleLocked
+            isLoading={false} onClearAll={vi.fn()} onFilterChange={vi.fn()} onRefresh={vi.fn()}
+            onSearchChange={vi.fn()} search="" />);
+        expect(screen.getByTestId('vendors-status-filter-trigger')).toBeDisabled();
+        expect(screen.getByTestId('vendors-status-filter-trigger')).toHaveTextContent(/all/i);
+    });
 });

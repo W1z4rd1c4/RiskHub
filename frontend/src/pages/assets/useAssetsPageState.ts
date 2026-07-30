@@ -70,10 +70,11 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
 
     const effectiveFilters = useMemo<AssetRegisterFilters>(() => ({
         ...filters,
+        lifecycle: semanticFilters.committee_scope === true ? 'all' : filters.lifecycle,
         criticality: semanticFilters.criticality
             ? [canonicalAssetCriticality(semanticFilters.criticality) ?? semanticFilters.criticality]
             : filters.criticality,
-    }), [filters, semanticFilters.criticality]);
+    }), [filters, semanticFilters.committee_scope, semanticFilters.criticality]);
     const listParams = useMemo(() => ({
         ...buildAssetRegisterListParams({ currentPage, filters: effectiveFilters, groupValue, limit: DEFAULT_LIST_PAGE_SIZE, search: debouncedSearch, sort, view: viewMode }),
         has_process_link: semanticFilters.has_process_link,

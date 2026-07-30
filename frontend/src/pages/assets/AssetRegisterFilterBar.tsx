@@ -122,12 +122,12 @@ function FacetMultiFilter({ definition, label, onChange, options, selected }: {
 }
 
 interface Props {
-    facets: AssetFacets; filters: AssetRegisterFilters; isLoading: boolean; onClearAll: () => void;
+    facets: AssetFacets; filters: AssetRegisterFilters; isLifecycleLocked?: boolean; isLoading: boolean; onClearAll: () => void;
     onFilterChange: <K extends keyof AssetRegisterFilters>(key: K, value: AssetRegisterFilters[K]) => void;
     onRefresh: () => void; onSearchChange: (value: string) => void; search: string;
 }
 
-export function AssetRegisterFilterBar({ facets, filters, isLoading, onClearAll, onFilterChange, onRefresh, onSearchChange, search }: Props) {
+export function AssetRegisterFilterBar({ facets, filters, isLifecycleLocked = false, isLoading, onClearAll, onFilterChange, onRefresh, onSearchChange, search }: Props) {
     const { t } = useTranslation(['assets', 'common']);
     const selectedFromUrl = useMemo(() => ASSET_REGISTER_CONFIG.filters.filter(({ key }) => hasValue(filters, key)).map(({ key }) => key), [filters]);
     const [activeKeys, setActiveKeys] = useState<AssetFilterKey[]>(selectedFromUrl);
@@ -176,7 +176,7 @@ export function AssetRegisterFilterBar({ facets, filters, isLoading, onClearAll,
         availableFilters={ASSET_REGISTER_CONFIG.filters.filter(({ key }) => !activeKeys.includes(key)).map(({ key }) => ({ value: key, label: labels[key] }))}
         chips={chips} clearAllLabel={t('register.filters.clear_all')} filterCountLabel={t('register.filters.active_count', { count: chips.length })}
         filtersLabel={t('register.filters.add')} isLoading={isLoading}
-        lifecycleControl={<ThemedSelect value={filters.lifecycle} onValueChange={(value) => onFilterChange('lifecycle', value as AssetLifecycleFilter)} triggerTestId="assets-status-filter-trigger" contentTestId="assets-status-filter-content" optionTestIdPrefix="assets-status-filter-option"
+        lifecycleControl={<ThemedSelect value={isLifecycleLocked ? 'all' : filters.lifecycle} disabled={isLifecycleLocked} onValueChange={(value) => onFilterChange('lifecycle', value as AssetLifecycleFilter)} triggerTestId="assets-status-filter-trigger" contentTestId="assets-status-filter-content" optionTestIdPrefix="assets-status-filter-option"
             options={['active', 'archived', 'all'].map((value) => ({ value, label: t(`register.lifecycle.${value}`), disabled: value === 'all' ? false : Boolean(facets.lifecycle?.find((item) => item.value === value)?.disabled && filters.lifecycle !== value) }))} />}
         onAddFilter={(key) => setActiveKeys((current) => [...new Set([...current, key as AssetFilterKey])])}
         onClearAll={() => { setActiveKeys([]); onClearAll(); }} onRefresh={onRefresh} onRemoveFilter={removeFilter}

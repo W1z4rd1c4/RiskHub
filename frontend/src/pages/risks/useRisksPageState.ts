@@ -73,18 +73,22 @@ export function useRisksPageState(
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
     const listParams = useMemo(() => {
+        const { committee_scope: committeeScope, ...apiSemanticFilters } = semanticFilters;
+        const effectiveFilters = committeeScope === true
+            ? { ...filters, lifecycle: 'all' as const, status: '' as const }
+            : filters;
         return {
             ...buildRiskRegisterListParams({
                 criticalMinNetScore: thresholds.critical,
                 currentPage,
-                filters,
+                filters: effectiveFilters,
                 groupValue,
                 limit: DEFAULT_LIST_PAGE_SIZE,
                 search: debouncedSearch,
                 sort,
                 view: viewMode,
             }),
-            ...semanticFilters,
+            ...apiSemanticFilters,
         };
     }, [currentPage, debouncedSearch, filters, groupValue, semanticFilters, sort, thresholds.critical, viewMode]);
 

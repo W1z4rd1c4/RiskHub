@@ -508,6 +508,7 @@
     "filtered_by": "Filtrováno podle",
     "remove": "Odebrat filtr {{key}}",
     "keys": {
+      "committee_scope": "Populace Výboru pro ICT",
       "cif": "Kritická nebo důležitá funkce",
       "has_process_link": "Propojeno s procesem",
       "criticality": "Kritičnost",

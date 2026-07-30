@@ -25,6 +25,7 @@ interface Props {
     onRefresh: () => void;
     onSearchChange: (value: string) => void;
     search: string;
+    isPopulationLocked?: boolean;
 }
 
 function booleanControl({
@@ -59,6 +60,7 @@ function booleanControl({
 
 export function RiskRegisterFilterBar({
     facets, filters, isLoading, onClearAll, onFilterChange, onRefresh, onSearchChange, search,
+    isPopulationLocked = false,
 }: Props) {
     const { t } = useTranslation(['risks', 'common']);
     const { riskTypes } = useRiskTypes();
@@ -107,7 +109,7 @@ export function RiskRegisterFilterBar({
             filterCountLabel={t('register.filters.active_count', { count: chips.length })}
             filtersLabel={t('register.filters.add')}
             isLoading={isLoading}
-            lifecycleControl={<ThemedSelect value={filters.lifecycle} onValueChange={(value) => onFilterChange('lifecycle', value as RiskLifecycleFilter)} triggerTestId="risks-lifecycle-filter-trigger" contentTestId="risks-lifecycle-filter-content" optionTestIdPrefix="risks-lifecycle-filter-option" options={['active', 'archived', 'all'].map((value) => ({ value, label: t(`register.lifecycle.${value}`) }))} />}
+            lifecycleControl={<ThemedSelect value={isPopulationLocked ? 'all' : filters.lifecycle} disabled={isPopulationLocked} onValueChange={(value) => onFilterChange('lifecycle', value as RiskLifecycleFilter)} triggerTestId="risks-lifecycle-filter-trigger" contentTestId="risks-lifecycle-filter-content" optionTestIdPrefix="risks-lifecycle-filter-option" options={['active', 'archived', 'all'].map((value) => ({ value, label: t(`register.lifecycle.${value}`) }))} />}
             onAddFilter={(key) => setActiveKeys((current) => [...new Set([...current, key as OptionalRiskFilter])])}
             onClearAll={() => { setActiveKeys([]); onClearAll(); }}
             onRefresh={onRefresh}
@@ -119,7 +121,7 @@ export function RiskRegisterFilterBar({
             searchPlaceholder={t('filters.search_placeholder')}
             testIdPrefix="risks"
         >
-            <ThemedSelect value={filters.status} onValueChange={(value) => onFilterChange('status', value as RiskRegisterFilters['status'])} allowEmpty emptyLabel={t('filters.all_statuses')} triggerAriaLabel={t('fields.status')} triggerTestId="risks-status-filter-trigger" contentTestId="risks-status-filter-content" optionTestIdPrefix="risks-status-filter-option" options={(facets.status ?? [
+            <ThemedSelect value={isPopulationLocked ? '' : filters.status} disabled={isPopulationLocked} onValueChange={(value) => onFilterChange('status', value as RiskRegisterFilters['status'])} allowEmpty emptyLabel={t('filters.all_statuses')} triggerAriaLabel={t('fields.status')} triggerTestId="risks-status-filter-trigger" contentTestId="risks-status-filter-content" optionTestIdPrefix="risks-status-filter-option" options={(facets.status ?? [
                 { value: 'active', label: t('status.active'), count: 0, selected: false, disabled: false },
                 { value: 'emerging', label: t('status.emerging'), count: 0, selected: false, disabled: false },
             ]).filter((option) => option.value !== 'archived').map((option) => facetOption(option, t(`status.${option.value}`, option.label)))} />

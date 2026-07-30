@@ -1,14 +1,16 @@
+type CommitteePopulationFilter = { committee_scope?: boolean };
+
 export type ProcessSemanticFilters = { cif?: boolean };
 export type AssetSemanticFilters = {
     has_process_link?: boolean;
     criticality?: string;
-};
+} & CommitteePopulationFilter;
 export type VendorSemanticFilters = {
     has_direct_process_link?: boolean;
     has_roi_contract?: boolean;
     has_sub_outsourcing?: boolean;
     tier?: string;
-};
+} & CommitteePopulationFilter;
 export type RiskSemanticFilters = {
     ict_linked?: boolean;
     above_tolerance?: boolean;
@@ -17,7 +19,7 @@ export type RiskSemanticFilters = {
     gross_impact?: number;
     gross_band?: string;
     net_band?: string;
-};
+} & CommitteePopulationFilter;
 
 function trueValue(params: URLSearchParams, key: string): boolean | undefined {
     return params.get(key) === 'true' ? true : undefined;
@@ -60,6 +62,7 @@ export function parseProcessSemanticFilters(params: URLSearchParams): ProcessSem
 
 export function parseAssetSemanticFilters(params: URLSearchParams): AssetSemanticFilters {
     return {
+        committee_scope: trueValue(params, 'committee_scope'),
         has_process_link: trueValue(params, 'has_process_link'),
         criticality: canonicalAssetCriticality(textValue(params, 'criticality')),
     };
@@ -67,6 +70,7 @@ export function parseAssetSemanticFilters(params: URLSearchParams): AssetSemanti
 
 export function parseVendorSemanticFilters(params: URLSearchParams): VendorSemanticFilters {
     return {
+        committee_scope: trueValue(params, 'committee_scope'),
         has_direct_process_link: trueValue(params, 'has_direct_process_link'),
         has_roi_contract: trueValue(params, 'has_roi_contract'),
         has_sub_outsourcing: trueValue(params, 'has_sub_outsourcing'),
@@ -76,6 +80,7 @@ export function parseVendorSemanticFilters(params: URLSearchParams): VendorSeman
 
 export function parseRiskSemanticFilters(params: URLSearchParams): RiskSemanticFilters {
     return {
+        committee_scope: trueValue(params, 'committee_scope'),
         ict_linked: trueValue(params, 'ict_linked'),
         above_tolerance: trueValue(params, 'above_tolerance'),
         response: params.get('response') === 'acceptance' ? 'acceptance' : undefined,

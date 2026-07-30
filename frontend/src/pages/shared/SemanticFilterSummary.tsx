@@ -8,6 +8,7 @@ interface SemanticFilterSummaryProps {
 }
 
 const FILTER_LABEL_KEYS: Record<string, string> = {
+    committee_scope: 'semantic_filters.keys.committee_scope',
     cif: 'semantic_filters.keys.cif',
     has_process_link: 'semantic_filters.keys.has_process_link',
     criticality: 'semantic_filters.keys.criticality',

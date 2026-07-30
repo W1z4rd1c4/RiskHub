@@ -118,6 +118,7 @@ export function VendorsPage() {
                     <VendorRegisterFilterBar
                         facets={state.facets}
                         filters={state.filters}
+                        isLifecycleLocked={semanticFilters.committee_scope === true}
                         isLoading={state.isLoading}
                         onClearAll={state.clearFilters}
                         onFilterChange={state.updateFilter}

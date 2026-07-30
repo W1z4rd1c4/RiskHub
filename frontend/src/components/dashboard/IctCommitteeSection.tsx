@@ -955,12 +955,23 @@ export function IctCommitteeSection() {
                                                 <DrilldownBarShape
                                                     {...props}
                                                     hrefForBand={assetCriticalityDrilldownPath}
-                                                    testIdPrefix="committee-asset-bar"
+                                                    testIdPrefix="committee-asset-bar-shape"
                                                 />
                                             )}
                                         />
                                     </BarChart>
                                 </ResponsiveContainer>
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                    {data.cro.assets_by_criticality
+                                        .filter((entry) => entry.count > 0)
+                                        .map((entry) => (
+                                            <Link key={entry.band} to={assetCriticalityDrilldownPath(entry.band)}
+                                                data-testid={`committee-asset-bar-${entry.band}`}
+                                                className="rounded-lg bg-white/5 px-2 py-1 text-xs text-slate-300 hover:text-accent">
+                                                {entry.band}: {entry.count}
+                                            </Link>
+                                        ))}
+                                </div>
                             </div>
                             <div className="glass-card" data-testid="committee-chart-risk-bands">
                                 <h3 className="text-white font-bold mb-3">{t('cro.risk_bands_chart_title')}</h3>
@@ -1013,7 +1024,7 @@ export function IctCommitteeSection() {
                                                 <DrilldownBarShape
                                                     {...props}
                                                     hrefForBand={(band) => riskBandDrilldownPath(band, 'gross')}
-                                                    testIdPrefix="committee-risk-bar-gross"
+                                                    testIdPrefix="committee-risk-bar-shape-gross"
                                                 />
                                             )}
                                         />
@@ -1025,12 +1036,26 @@ export function IctCommitteeSection() {
                                                 <DrilldownBarShape
                                                     {...props}
                                                     hrefForBand={(band) => riskBandDrilldownPath(band, 'net')}
-                                                    testIdPrefix="committee-risk-bar-net"
+                                                    testIdPrefix="committee-risk-bar-shape-net"
                                                 />
                                             )}
                                         />
                                     </BarChart>
                                 </ResponsiveContainer>
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                    {riskBandChartRows(data.cro.risks_by_band).flatMap((entry) =>
+                                        (['gross', 'net'] as const)
+                                            .filter((score) => entry[score] > 0)
+                                            .map((score) => (
+                                                <Link key={`${entry.band}-${score}`}
+                                                    to={riskBandDrilldownPath(entry.band, score)}
+                                                    data-testid={`committee-risk-bar-${score}-${entry.band}`}
+                                                    className="rounded-lg bg-white/5 px-2 py-1 text-xs text-slate-300 hover:text-accent">
+                                                    {entry.band} · {t(`cro.risk_bands_${score}`)}: {entry[score]}
+                                                </Link>
+                                            )),
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </section>

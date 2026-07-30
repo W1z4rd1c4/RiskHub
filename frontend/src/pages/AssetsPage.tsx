@@ -69,7 +69,7 @@ export function AssetsPage() {
         testIdPrefix="assets"
         toolbar={<div className="space-y-4">
             <SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} />
-            <AssetRegisterFilterBar facets={state.facets} filters={state.filters} isLoading={state.isLoading}
+            <AssetRegisterFilterBar facets={state.facets} filters={state.filters} isLifecycleLocked={semanticFilters.committee_scope === true} isLoading={state.isLoading}
                 onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchAssets()}
                 onSearchChange={state.updateSearch} search={state.search} />
         </div>}

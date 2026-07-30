@@ -66,7 +66,7 @@ export function RisksPage() {
                 }),
         }}
         testIdPrefix="risks"
-        toolbar={<div className="space-y-4"><SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} /><RiskRegisterFilterBar facets={state.facets} filters={state.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchRisks()} onSearchChange={state.updateSearch} search={state.search} /></div>}
+        toolbar={<div className="space-y-4"><SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} /><RiskRegisterFilterBar facets={state.facets} filters={state.filters} isPopulationLocked={semanticFilters.committee_scope === true} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchRisks()} onSearchChange={state.updateSearch} search={state.search} /></div>}
     />;
 }
 

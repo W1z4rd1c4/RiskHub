@@ -170,6 +170,7 @@ function FacetMultiFilter({
 interface Props {
     facets: VendorFacets;
     filters: VendorRegisterFilters;
+    isLifecycleLocked?: boolean;
     isLoading: boolean;
     onClearAll: () => void;
     onFilterChange: <K extends keyof VendorRegisterFilters>(key: K, value: VendorRegisterFilters[K]) => void;
@@ -181,6 +182,7 @@ interface Props {
 export function VendorRegisterFilterBar({
     facets,
     filters,
+    isLifecycleLocked = false,
     isLoading,
     onClearAll,
     onFilterChange,
@@ -301,8 +303,9 @@ export function VendorRegisterFilterBar({
             isLoading={isLoading}
             lifecycleControl={(
                 <ThemedSelect
-                    value={filters.lifecycle}
+                    value={isLifecycleLocked ? 'all' : filters.lifecycle}
                     onValueChange={(value) => onFilterChange('lifecycle', value as VendorLifecycleFilter)}
+                    disabled={isLifecycleLocked}
                     triggerTestId="vendors-status-filter-trigger"
                     contentTestId="vendors-status-filter-content"
                     optionTestIdPrefix="vendors-status-filter-option"

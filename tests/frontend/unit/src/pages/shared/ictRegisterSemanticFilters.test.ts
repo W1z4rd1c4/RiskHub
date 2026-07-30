@@ -67,4 +67,17 @@ describe('ICT register semantic query filters', () => {
         );
         expect(presentSemanticFilters(parsed)).toEqual({});
     });
+
+    it('keeps the removable Committee population chip on Asset, Vendor, and Risk register links', () => {
+        expect(parseAssetSemanticFilters(new URLSearchParams('committee_scope=true'))).toMatchObject({
+            committee_scope: true,
+        });
+        expect(parseVendorSemanticFilters(new URLSearchParams('committee_scope=true'))).toMatchObject({
+            committee_scope: true,
+        });
+        expect(parseRiskSemanticFilters(new URLSearchParams('committee_scope=true'))).toMatchObject({
+            committee_scope: true,
+        });
+        expect(presentSemanticFilters({ committee_scope: true })).toEqual({ committee_scope: true });
+    });
 });

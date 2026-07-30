@@ -155,7 +155,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
         const cases = [
             {
                 source: 'committee-kpi-risk_count',
-                href: '/risks?ict_linked=true',
+                href: '/risks?committee_scope=true&ict_linked=true',
                 summary: 'ICT-linked: Yes',
             },
             {
@@ -165,17 +165,17 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
             },
             {
                 source: 'committee-state-process_asset_link_count',
-                href: '/assets?has_process_link=true',
+                href: '/assets?committee_scope=true&has_process_link=true',
                 summary: 'Linked to a process: Yes',
             },
             {
                 source: 'committee-state-direct_process_vendor_link_count',
-                href: '/vendors?has_direct_process_link=true',
+                href: '/vendors?committee_scope=true&has_direct_process_link=true',
                 summary: 'Direct process link: Yes',
             },
             {
                 source: `committee-migration-link-${BAND_CRITICAL}-${BAND_CRITICAL}`,
-                href: '/risks?gross_band=Kritick%C3%A9&net_band=Kritick%C3%A9',
+                href: '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9&net_band=Kritick%C3%A9',
                 summary: 'Gross band: Kritické',
             },
         ] as const;
@@ -195,6 +195,20 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
                 await expect(riskManagerPage.getByTestId('semantic-filter-summary')).toContainText(entry.summary);
             });
         }
+    });
+
+    test('a chart value is a keyboard-accessible scoped register link', async ({ riskManagerPage }) => {
+        await riskManagerPage.goto(COMMITTEE_PAGE);
+        await waitForDataLoad(riskManagerPage);
+        const link = riskManagerPage.getByTestId('committee-asset-bar-Kritická');
+        await expect(link).toHaveAttribute('href', '/assets?committee_scope=true&criticality=critical');
+        await link.focus();
+        await expect(link).toBeFocused();
+        await riskManagerPage.keyboard.press('Enter');
+        await expect(riskManagerPage).toHaveURL(/\/assets\?committee_scope=true&criticality=critical$/);
+        await expect(riskManagerPage.getByTestId('assets-status-filter-trigger')).toBeDisabled();
+        await riskManagerPage.getByTestId('semantic-filter-remove-committee_scope').click();
+        await expect(riskManagerPage.getByTestId('assets-status-filter-trigger')).toBeEnabled();
     });
 
     test('the Materiální KPI shows the muted "not yet measurable" state', async ({ riskManagerPage }) => {

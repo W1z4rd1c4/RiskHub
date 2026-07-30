@@ -95,13 +95,14 @@ export function useVendorsPageState(
 
     const effectiveFilters = useMemo<VendorRegisterFilters>(() => ({
         ...filters,
-        lifecycle: filters.lifecycle,
+        lifecycle: semanticFilters.committee_scope === true ? 'all' : filters.lifecycle,
         tiers: semanticFilters.tier ? [semanticFilters.tier] : filters.tiers,
         has_roi_contract: semanticFilters.has_roi_contract ?? filters.has_roi_contract,
         has_sub_outsourcing: semanticFilters.has_sub_outsourcing ?? filters.has_sub_outsourcing,
         has_direct_process_link: semanticFilters.has_direct_process_link ?? filters.has_direct_process_link,
     }), [
         filters,
+        semanticFilters.committee_scope,
         semanticFilters.has_direct_process_link,
         semanticFilters.has_roi_contract,
         semanticFilters.has_sub_outsourcing,

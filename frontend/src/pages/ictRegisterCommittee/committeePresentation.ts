@@ -129,6 +129,17 @@ function filteredRegisterPath(path: string, filters: Record<string, string | num
     ).toString()}`;
 }
 
+function committeeRegisterPath(
+    path: '/assets' | '/vendors',
+    filters: Record<string, string | number | boolean> = {},
+): string {
+    return filteredRegisterPath(path, { committee_scope: true, ...filters });
+}
+
+function committeeRiskPath(filters: Record<string, string | number | boolean> = {}): string {
+    return filteredRegisterPath('/risks', { committee_scope: true, ict_linked: true, ...filters });
+}
+
 export function dqCheckPath(checkId: string): string {
     return `${DQ_PAGE}?check=${checkId}`;
 }
@@ -137,13 +148,13 @@ export const DQ_FINDINGS_PATH = `${DQ_PAGE}?status=findings`;
 
 const STATE_TILE_PATHS: Record<keyof IctCommitteeRegisterState, string> = {
     process_count: '/processes',
-    asset_count: '/assets',
-    process_asset_link_count: filteredRegisterPath('/assets', { has_process_link: true }),
-    vendor_count: '/vendors',
+    asset_count: committeeRegisterPath('/assets'),
+    process_asset_link_count: committeeRegisterPath('/assets', { has_process_link: true }),
+    vendor_count: committeeRegisterPath('/vendors'),
     assets_pending_review_count: dqCheckPath('DQ-09'),
-    direct_process_vendor_link_count: filteredRegisterPath('/vendors', { has_direct_process_link: true }),
-    contracts_in_roi_scope_count: filteredRegisterPath('/vendors', { has_roi_contract: true }),
-    sub_outsourcing_link_count: filteredRegisterPath('/vendors', { has_sub_outsourcing: true }),
+    direct_process_vendor_link_count: committeeRegisterPath('/vendors', { has_direct_process_link: true }),
+    contracts_in_roi_scope_count: committeeRegisterPath('/vendors', { has_roi_contract: true }),
+    sub_outsourcing_link_count: committeeRegisterPath('/vendors', { has_sub_outsourcing: true }),
     assets_without_data_classification_count: dqCheckPath('DQ-46'),
     top_tier_vendors_without_orderly_exit_count: dqCheckPath('DQ-49'),
 };
@@ -151,9 +162,9 @@ const STATE_TILE_PATHS: Record<keyof IctCommitteeRegisterState, string> = {
 const METRIC_PATHS: Record<keyof IctCommitteeKeyMetrics, string> = {
     cif_process_count: filteredRegisterPath('/processes', { cif: true }),
     processes_without_impact_assessment_count: dqCheckPath('DQ-04'),
-    critical_asset_count: filteredRegisterPath('/assets', { criticality: 'critical' }),
-    critical_vendor_count: filteredRegisterPath('/vendors', { tier: 'critical' }),
-    risks_above_tolerance_count: filteredRegisterPath('/risks', { above_tolerance: true }),
+    critical_asset_count: committeeRegisterPath('/assets', { criticality: 'critical' }),
+    critical_vendor_count: committeeRegisterPath('/vendors', { tier: 'critical' }),
+    risks_above_tolerance_count: committeeRiskPath({ above_tolerance: true }),
     open_dq_finding_count: DQ_FINDINGS_PATH,
 };
 
@@ -170,10 +181,10 @@ export type CommitteeKpiKey = keyof Pick<
 >;
 
 const KPI_PATHS: Record<CommitteeKpiKey, string> = {
-    risk_count: filteredRegisterPath('/risks', { ict_linked: true }),
-    material_risk_count: '/risks',
-    risks_above_tolerance_count: filteredRegisterPath('/risks', { above_tolerance: true }),
-    accepted_above_tolerance_count: filteredRegisterPath('/risks', {
+    risk_count: committeeRiskPath(),
+    material_risk_count: committeeRiskPath(),
+    risks_above_tolerance_count: committeeRiskPath({ above_tolerance: true }),
+    accepted_above_tolerance_count: committeeRiskPath({
         above_tolerance: true,
         response: 'acceptance',
     }),
@@ -194,22 +205,22 @@ export function kpiDrilldownPath(key: CommitteeKpiKey): string {
 }
 
 export function heatmapDrilldownPath(probability: number, grossImpact: number): string {
-    return filteredRegisterPath('/risks', {
+    return committeeRiskPath({
         gross_probability: probability,
         gross_impact: grossImpact,
     });
 }
 
 export function migrationDrilldownPath(grossBand: string, netBand: string): string {
-    return filteredRegisterPath('/risks', { gross_band: grossBand, net_band: netBand });
+    return committeeRiskPath({ gross_band: grossBand, net_band: netBand });
 }
 
 export function assetCriticalityDrilldownPath(band: string): string {
-    return filteredRegisterPath('/assets', { criticality: canonicalAssetCriticality(band) ?? band });
+    return committeeRegisterPath('/assets', { criticality: canonicalAssetCriticality(band) ?? band });
 }
 
 export function riskBandDrilldownPath(band: string, score: 'gross' | 'net'): string {
-    return filteredRegisterPath('/risks', { [`${score}_band`]: band });
+    return committeeRiskPath({ [`${score}_band`]: band });
 }
 
 // RoI gap rows anchor on a routable register detail page, the DQ route shape

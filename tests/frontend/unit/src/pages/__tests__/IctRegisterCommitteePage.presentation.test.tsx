@@ -275,14 +275,14 @@ describe('ICT Risk Committee presentation helpers', () => {
     it('drills every dashboard tile down to the register view behind it', () => {
         // Plain register counts land on the register pages...
         expect(stateTileDrilldownPath('process_count')).toBe('/processes');
-        expect(stateTileDrilldownPath('asset_count')).toBe('/assets');
-        expect(stateTileDrilldownPath('process_asset_link_count')).toBe('/assets?has_process_link=true');
-        expect(stateTileDrilldownPath('vendor_count')).toBe('/vendors');
+        expect(stateTileDrilldownPath('asset_count')).toBe('/assets?committee_scope=true');
+        expect(stateTileDrilldownPath('process_asset_link_count')).toBe('/assets?committee_scope=true&has_process_link=true');
+        expect(stateTileDrilldownPath('vendor_count')).toBe('/vendors?committee_scope=true');
         expect(stateTileDrilldownPath('direct_process_vendor_link_count')).toBe(
-            '/vendors?has_direct_process_link=true',
+            '/vendors?committee_scope=true&has_direct_process_link=true',
         );
-        expect(stateTileDrilldownPath('contracts_in_roi_scope_count')).toBe('/vendors?has_roi_contract=true');
-        expect(stateTileDrilldownPath('sub_outsourcing_link_count')).toBe('/vendors?has_sub_outsourcing=true');
+        expect(stateTileDrilldownPath('contracts_in_roi_scope_count')).toBe('/vendors?committee_scope=true&has_roi_contract=true');
+        expect(stateTileDrilldownPath('sub_outsourcing_link_count')).toBe('/vendors?committee_scope=true&has_sub_outsourcing=true');
         // ...and the DQ-equivalent tiles land on the DQ page filtered to their check.
         expect(stateTileDrilldownPath('assets_pending_review_count')).toBe('/ict-register/data-quality?check=DQ-09');
         expect(stateTileDrilldownPath('assets_without_data_classification_count')).toBe(
@@ -296,33 +296,33 @@ describe('ICT Risk Committee presentation helpers', () => {
         expect(metricDrilldownPath('processes_without_impact_assessment_count')).toBe(
             '/ict-register/data-quality?check=DQ-04',
         );
-        expect(metricDrilldownPath('critical_asset_count')).toBe('/assets?criticality=critical');
-        expect(metricDrilldownPath('critical_vendor_count')).toBe('/vendors?tier=critical');
-        expect(metricDrilldownPath('risks_above_tolerance_count')).toBe('/risks?above_tolerance=true');
+        expect(metricDrilldownPath('critical_asset_count')).toBe('/assets?committee_scope=true&criticality=critical');
+        expect(metricDrilldownPath('critical_vendor_count')).toBe('/vendors?committee_scope=true&tier=critical');
+        expect(metricDrilldownPath('risks_above_tolerance_count')).toBe('/risks?committee_scope=true&ict_linked=true&above_tolerance=true');
         expect(metricDrilldownPath('open_dq_finding_count')).toBe('/ict-register/data-quality?status=findings');
     });
 
     it('drills every CRO KPI tile down to the surface behind it', () => {
         // The DQ-equivalent tiles land on the DQ page (I7 ≡ DQ-05; K7 = the
         // findings tally); the risk-fed tiles land on the risk register.
-        expect(kpiDrilldownPath('risk_count')).toBe('/risks?ict_linked=true');
-        expect(kpiDrilldownPath('material_risk_count')).toBe('/risks');
-        expect(kpiDrilldownPath('risks_above_tolerance_count')).toBe('/risks?above_tolerance=true');
+        expect(kpiDrilldownPath('risk_count')).toBe('/risks?committee_scope=true&ict_linked=true');
+        expect(kpiDrilldownPath('material_risk_count')).toBe('/risks?committee_scope=true&ict_linked=true');
+        expect(kpiDrilldownPath('risks_above_tolerance_count')).toBe('/risks?committee_scope=true&ict_linked=true&above_tolerance=true');
         expect(kpiDrilldownPath('accepted_above_tolerance_count')).toBe(
-            '/risks?above_tolerance=true&response=acceptance',
+            '/risks?committee_scope=true&ict_linked=true&above_tolerance=true&response=acceptance',
         );
         expect(kpiDrilldownPath('cif_without_bcm_count')).toBe('/ict-register/data-quality?check=DQ-05');
         expect(kpiDrilldownPath('open_dq_finding_count')).toBe('/ict-register/data-quality?status=findings');
     });
 
     it('maps every matrix coordinate and chart bar to its semantic register filter', () => {
-        expect(heatmapDrilldownPath(5, 3)).toBe('/risks?gross_probability=5&gross_impact=3');
+        expect(heatmapDrilldownPath(5, 3)).toBe('/risks?committee_scope=true&ict_linked=true&gross_probability=5&gross_impact=3');
         expect(migrationDrilldownPath('Vysoké', 'Střední')).toBe(
-            '/risks?gross_band=Vysok%C3%A9&net_band=St%C5%99edn%C3%AD',
+            '/risks?committee_scope=true&ict_linked=true&gross_band=Vysok%C3%A9&net_band=St%C5%99edn%C3%AD',
         );
-        expect(assetCriticalityDrilldownPath('Kritická')).toBe('/assets?criticality=critical');
-        expect(riskBandDrilldownPath('Kritické', 'gross')).toBe('/risks?gross_band=Kritick%C3%A9');
-        expect(riskBandDrilldownPath('Nízké', 'net')).toBe('/risks?net_band=N%C3%ADzk%C3%A9');
+        expect(assetCriticalityDrilldownPath('Kritická')).toBe('/assets?committee_scope=true&criticality=critical');
+        expect(riskBandDrilldownPath('Kritické', 'gross')).toBe('/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9');
+        expect(riskBandDrilldownPath('Nízké', 'net')).toBe('/risks?committee_scope=true&ict_linked=true&net_band=N%C3%ADzk%C3%A9');
     });
 
     it('feeds metric and chart Asset drilldowns into the canonical backend filter vocabulary', () => {
@@ -485,6 +485,18 @@ describe('IctRegisterCommitteePage', () => {
         // The two aggregate charts are staged.
         expect(screen.getByTestId('committee-chart-assets')).toBeInTheDocument();
         expect(screen.getByTestId('committee-chart-risk-bands')).toBeInTheDocument();
+        expect(screen.getByTestId('committee-asset-bar-Kritická')).toHaveAttribute(
+            'href',
+            '/assets?committee_scope=true&criticality=critical',
+        );
+        expect(screen.getByTestId('committee-risk-bar-gross-Kritické')).toHaveAttribute(
+            'href',
+            '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+        );
+        expect(screen.getByTestId('committee-risk-bar-net-Nízké')).toHaveAttribute(
+            'href',
+            '/risks?committee_scope=true&ict_linked=true&net_band=N%C3%ADzk%C3%A9',
+        );
 
         // The workbook's nav-link chrome maps to in-app navigation.
         expect(screen.getByTestId('committee-nav-dq')).toHaveAttribute('href', '/ict-register/data-quality');

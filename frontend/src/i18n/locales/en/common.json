@@ -508,6 +508,7 @@
     "filtered_by": "Filtered by",
     "remove": "Remove {{key}} filter",
     "keys": {
+      "committee_scope": "ICT Committee population",
       "cif": "Critical or important function",
       "has_process_link": "Linked to a process",
       "criticality": "Criticality",
