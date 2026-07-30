@@ -328,6 +328,7 @@ describe('RBAC UI gating', () => {
             can_view_access_users: false,
             can_view_department_access_users: false,
             can_view_users_route: false,
+            can_view_approvals: true,
             can_manage_access: false,
             can_view_department_access: false,
             can_view_admin_console: false,

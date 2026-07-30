@@ -273,12 +273,16 @@ def build_approval_read(
     proposal = approval.governed_mutation_proposal
     identity = _strict_process_identity(proposal)
     from app.services._governed_mutations.asset_mutations import valid_asset_governed_envelope
+    from app.services._governed_mutations.threat_identity import (
+        strict_threat_mutation_kind,
+    )
     from app.services._governed_mutations.vendor_identity import (
         strict_vendor_mutation_kind,
     )
 
     asset_identity = valid_asset_governed_envelope(proposal)
     vendor_identity = strict_vendor_mutation_kind(proposal) is not None
+    threat_identity = strict_threat_mutation_kind(proposal) is not None
     extended_identity = identity if isinstance(identity, ExtendedProcessMutationIdentity) else None
     malformed_terminal = False
     if (
@@ -286,6 +290,7 @@ def build_approval_read(
         and identity is None
         and not asset_identity
         and not vendor_identity
+        and not threat_identity
     ):
         if approval.status.value in {"approved", "rejected", "cancelled", "expired"}:
             malformed_terminal = True
@@ -298,17 +303,17 @@ def build_approval_read(
         governed_resolver=governed_resolver,
     )
     can_expose_snapshot = bool(
-        (identity is not None or asset_identity or vendor_identity)
+        (identity is not None or asset_identity or vendor_identity or threat_identity)
         and can_view_governed_snapshot
         and capabilities.can_view_pending_changes
     )
     if (
-        identity is not None or asset_identity or vendor_identity
+        identity is not None or asset_identity or vendor_identity or threat_identity
     ) and not can_expose_snapshot:
         capabilities = capabilities.model_copy(update={"can_view_pending_changes": False})
     pending_changes = (
         None
-        if malformed_terminal or asset_identity or vendor_identity
+        if malformed_terminal or asset_identity or vendor_identity or threat_identity
         else approval.pending_changes
         if identity is None
         else None
@@ -316,7 +321,7 @@ def build_approval_read(
     governed_mutation = None
     if can_expose_snapshot:
         assert proposal is not None
-        if asset_identity or vendor_identity:
+        if asset_identity or vendor_identity or threat_identity:
             before = _actor_safe_asset_value(proposal.before_snapshot)
             after = _actor_safe_asset_value(proposal.after_snapshot)
         elif extended_identity is None:
@@ -343,7 +348,7 @@ def build_approval_read(
                     proposal.derived_impact_snapshot,
                     actor_safe_extended_labels,
                 )
-                if asset_identity or vendor_identity
+                if asset_identity or vendor_identity or threat_identity
                 else _safe_extended_derived_impact(
                     proposal,
                     identity,
@@ -428,7 +433,7 @@ def build_approval_read(
 
     requester = (
         proposal.requested_by
-        if identity is not None or asset_identity or vendor_identity
+        if identity is not None or asset_identity or vendor_identity or threat_identity
         else approval.requested_by
     )
     resource_type = (
@@ -708,6 +713,10 @@ async def governed_process_snapshot_access_ids(
     from app.services._governed_mutations.asset_identity import (
         valid_asset_governed_envelope,
     )
+    from app.services._governed_mutations.fixed_accountability_policy import (
+        is_live_eligible_accountability_resolver,
+        load_fixed_accountability_scenario,
+    )
     from app.services._governed_mutations.fixed_asset_policy import (
         is_live_eligible_asset_resolver,
         load_fixed_asset_scenario,
@@ -716,12 +725,16 @@ async def governed_process_snapshot_access_ids(
         is_live_eligible_vendor_resolver,
         load_fixed_vendor_scenario,
     )
+    from app.services._governed_mutations.threat_identity import (
+        strict_threat_mutation_kind,
+    )
     from app.services._governed_mutations.vendor_identity import (
         strict_vendor_mutation_kind,
     )
 
     asset_scenario = await load_fixed_asset_scenario(db)
     vendor_scenario = await load_fixed_vendor_scenario(db)
+    accountability_scenario = await load_fixed_accountability_scenario(db)
     asset_access_ids = {
         approval.id
         for approval in approvals
@@ -746,6 +759,20 @@ async def governed_process_snapshot_access_ids(
             )
         )
     }
+    threat_access_ids = {
+        approval.id
+        for approval in approvals
+        if (proposal := approval.governed_mutation_proposal) is not None
+        and strict_threat_mutation_kind(proposal) is not None
+        and (
+            proposal.requested_by_id == current_user.id
+            or is_live_eligible_accountability_resolver(
+                current_user,
+                proposal,
+                accountability_scenario,
+            )
+        )
+    }
     identities = []
     for approval in approvals:
         try:
@@ -761,7 +788,11 @@ async def governed_process_snapshot_access_ids(
         process.id: process
         for process in (await db.execute(select(Process).where(Process.id.in_(process_ids)))).scalars().all()
     }
-    access_ids: set[int] = {*asset_access_ids, *vendor_access_ids}
+    access_ids: set[int] = {
+        *asset_access_ids,
+        *vendor_access_ids,
+        *threat_access_ids,
+    }
     for approval, identity in identities:
         if isinstance(identity, ExtendedProcessMutationIdentity):
             process = processes.get(identity.primary_resource_id)
@@ -795,6 +826,10 @@ async def governed_process_resolver_ids(
     from app.services._governed_mutations.asset_identity import (
         valid_asset_governed_envelope,
     )
+    from app.services._governed_mutations.fixed_accountability_policy import (
+        is_live_eligible_accountability_resolver,
+        load_fixed_accountability_scenario,
+    )
     from app.services._governed_mutations.fixed_asset_policy import (
         is_live_eligible_asset_resolver,
         load_fixed_asset_scenario,
@@ -803,12 +838,16 @@ async def governed_process_resolver_ids(
         is_live_eligible_vendor_resolver,
         load_fixed_vendor_scenario,
     )
+    from app.services._governed_mutations.threat_identity import (
+        strict_threat_mutation_kind,
+    )
     from app.services._governed_mutations.vendor_identity import (
         strict_vendor_mutation_kind,
     )
 
     asset_scenario = await load_fixed_asset_scenario(db)
     vendor_scenario = await load_fixed_vendor_scenario(db)
+    accountability_scenario = await load_fixed_accountability_scenario(db)
     identities = []
     for approval in approvals:
         try:
@@ -840,6 +879,17 @@ async def governed_process_resolver_ids(
             current_user,
             proposal,
             vendor_scenario,
+        )
+    )
+    result.update(
+        approval.id
+        for approval in approvals
+        if (proposal := approval.governed_mutation_proposal) is not None
+        and strict_threat_mutation_kind(proposal) is not None
+        and is_live_eligible_accountability_resolver(
+            current_user,
+            proposal,
+            accountability_scenario,
         )
     )
     for approval, identity in identities:

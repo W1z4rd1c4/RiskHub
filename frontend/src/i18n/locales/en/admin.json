@@ -431,6 +431,8 @@
     "title": "Governance Oversight",
     "subtitle": "Manage orphaned risks, controls, KRIs, Threats, Processes, Assets, and Vendors that require governed reassignment.",
     "loading": "Loading Governance Data...",
+    "load_failed": "Governance data could not be loaded",
+    "load_failed_help": "Reassignment is disabled until the authoritative orphan list is available. Refresh to try again.",
     "refresh": "Refresh Data",
     "live_status": "Live System Status",
     "pending_orphans": "Pending Orphans",
@@ -523,7 +525,11 @@
       "department_selection_required": "Owning Department Selection Required",
       "risk_linkage_required": "Risk Linkage Required",
       "verified_ready": "Verified Ready",
+      "request_reason": "Reassignment reason",
+      "request_reason_required": "A reason is required for this governed reassignment.",
       "resolving": "Resolving...",
+      "submitting_for_approval": "Submitting...",
+      "submit_for_approval": "Submit for approval",
       "link_risk": "Link Risk",
       "resolve_item": "Resolve Item"
     }
@@ -723,12 +729,14 @@
       "roles_selected": "{{count}} role(s) selected"
     },
     "fixed_policy": {
-      "title": "Fixed protected Process policy",
+      "title": "Fixed approval policy",
       "immutable_help": "These protection rules are enforced by the system and cannot be changed.",
       "threshold": "Protection threshold",
       "triggers": {
         "current_or_proposed_cif_yes": "Current or proposed CIF is Yes",
-        "current_or_proposed_cif_yes_or_resulting_criticality_critical": "Current or proposed CIF is Yes, or resulting criticality is Critical"
+        "current_or_proposed_cif_yes_or_resulting_criticality_critical": "Current or proposed CIF is Yes, or resulting criticality is Critical",
+        "current_or_proposed_tier_critical_or_significant": "Current or proposed tier is Critical or Significant",
+        "accountable_user_or_owning_department_change": "Any accountable user or Owning Department changes"
       },
       "actions": "Covered actions",
       "covered_action_values": {

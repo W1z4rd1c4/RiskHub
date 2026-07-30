@@ -31,6 +31,15 @@ from app.services._vendor_governance.projection import load_vendor_derived_block
 from app.services.outbox import OutboxService
 from app.services.transaction_boundary import commit_service_boundary
 
+from .composite_policy import (
+    effective_triggered_policy_roles,
+    triggered_policy_snapshot,
+)
+from .fixed_accountability_policy import (
+    ACCOUNTABILITY_SCENARIO_KEY,
+    load_fixed_accountability_scenario_for_update,
+    validated_fixed_accountability_roles,
+)
 from .fixed_vendor_policy import (
     VENDOR_SCENARIO_KEY,
     load_fixed_vendor_scenario_for_update,
@@ -380,6 +389,7 @@ async def submit_vendor_edit_if_required(
     payload: VendorUpdate,
     current_user: User,
     updates: dict[str, object],
+    orphan_resolution: tuple[int, int] | None = None,
 ) -> object | None:
     await assert_no_pending_vendor_mutation(db, vendor_id=vendor.id)
     current_impact, proposed_impact = await _existing_vendor_impacts(
@@ -387,13 +397,35 @@ async def submit_vendor_edit_if_required(
         vendor=vendor,
         updates=updates,
     )
-    if not _is_protected(current_impact, proposed_impact):
-        return None
-    scenario = await load_fixed_vendor_scenario_for_update(db)
-    if not scenario.requires_approval:
+    triggered_scenarios: list[str] = []
+    triggered_policies: list[dict[str, object]] = []
+    if _is_protected(current_impact, proposed_impact):
+        vendor_scenario = await load_fixed_vendor_scenario_for_update(db)
+        if vendor_scenario.requires_approval:
+            vendor_roles = validated_fixed_vendor_roles(vendor_scenario)
+            triggered_scenarios.append(VENDOR_SCENARIO_KEY)
+            triggered_policies.append(
+                triggered_policy_snapshot(VENDOR_SCENARIO_KEY, vendor_roles)
+            )
+    if "outsourcing_owner_user_id" in updates:
+        accountability_scenario = (
+            await load_fixed_accountability_scenario_for_update(db)
+        )
+        if accountability_scenario.requires_approval:
+            accountability_roles = validated_fixed_accountability_roles(
+                accountability_scenario
+            )
+            triggered_scenarios.append(ACCOUNTABILITY_SCENARIO_KEY)
+            triggered_policies.append(
+                triggered_policy_snapshot(
+                    ACCOUNTABILITY_SCENARIO_KEY,
+                    accountability_roles,
+                )
+            )
+    if not triggered_scenarios:
         return None
     reason = _required_reason(payload.request_reason)
-    roles = validated_fixed_vendor_roles(scenario)
+    roles = effective_triggered_policy_roles(triggered_policies)
     if not await _has_independent_approver(
         db,
         requester_id=current_user.id,
@@ -423,7 +455,7 @@ async def submit_vendor_edit_if_required(
         resource_name=vendor.name,
         action_type=ApprovalActionType.EDIT,
         pending_changes=pending,
-        scenario_key=VENDOR_SCENARIO_KEY,
+        scenario_key=triggered_scenarios[0],
         scenario_approver_roles=roles,
         requested_by_id=current_user.id,
         reason=reason,
@@ -438,6 +470,13 @@ async def submit_vendor_edit_if_required(
         "resource_name": vendor.name,
         "base_governance_version": vendor.governance_version,
     }
+    scenario_snapshot: dict[str, object] = {
+        "key": triggered_scenarios[0],
+        "requires_approval": True,
+        "approver_roles": roles,
+    }
+    if ACCOUNTABILITY_SCENARIO_KEY in triggered_scenarios:
+        scenario_snapshot["triggered_policies"] = triggered_policies
     proposal = GovernedMutationProposal(
         proposal_id=str(uuid4()),
         proposal_version=1,
@@ -447,11 +486,7 @@ async def submit_vendor_edit_if_required(
         primary_resource_type="vendor",
         primary_resource_id=vendor.id,
         primary_resource_name=vendor.name,
-        scenario_snapshot={
-            "key": VENDOR_SCENARIO_KEY,
-            "requires_approval": True,
-            "approver_roles": roles,
-        },
+        scenario_snapshot=scenario_snapshot,
         base_versions={"vendor": vendor.governance_version},
         before_snapshot=before,
         after_snapshot=after,
@@ -471,6 +506,16 @@ async def submit_vendor_edit_if_required(
             base_governance_version=vendor.governance_version,
         )
     )
+    if orphan_resolution is not None:
+        orphan_id, previous_owner_id = orphan_resolution
+        db.add(
+            GovernedMutationImpactLock(
+                proposal_id=proposal.id,
+                resource_type="orphaned_item",
+                resource_id=orphan_id,
+                base_governance_version=previous_owner_id,
+            )
+        )
     await _enqueue(
         db,
         approval=approval,

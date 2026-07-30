@@ -7,6 +7,15 @@ const mockGetClosedLists = vi.fn();
 const mockGetProcessOwners = vi.fn();
 const mockGetProcessDepartments = vi.fn();
 const mockUpdateProcess = vi.fn();
+const accountabilityScenario = vi.hoisted(() => ({ enabled: true, error: false, loading: false }));
+
+vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
+    useAccountabilityReassignmentScenario: () => ({
+        isEnabled: accountabilityScenario.enabled,
+        isError: accountabilityScenario.error,
+        isLoading: accountabilityScenario.loading,
+    }),
+}));
 
 vi.mock('@/services/processApi', () => ({
     processApi: {
@@ -132,7 +141,27 @@ function renderForm(process: Process = protectedProcess) {
     return { onSaved, onApprovalQueued };
 }
 
-describe('ProcessForm protected edit workflow', () => {
+const nonProtectedProcess: Process = {
+    ...protectedProcess,
+    id: 89,
+    derived: {
+        ...protectedProcess.derived!,
+        cif: 'no',
+        criticality_class: 'low',
+    },
+    capabilities: {
+        ...protectedProcess.capabilities!,
+        protected_change_requires_approval: false,
+        can_request_change: true,
+    },
+};
+
+describe('ProcessForm governed edit workflow', () => {
+    beforeEach(() => {
+        accountabilityScenario.enabled = true;
+        accountabilityScenario.error = false;
+        accountabilityScenario.loading = false;
+    });
     beforeEach(() => {
         vi.clearAllMocks();
         mockGetClosedLists.mockResolvedValue({});
@@ -177,6 +206,173 @@ describe('ProcessForm protected edit workflow', () => {
         ));
         expect(onApprovalQueued).toHaveBeenCalledWith(expect.objectContaining({ approval_id: 41 }));
         expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            label: 'Process owner',
+            testId: 'process-form-owner',
+            nextValue: '8',
+            configureLookups: () => {
+                mockGetProcessOwners.mockResolvedValue([{
+                    id: 8,
+                    name: 'Bob Owner',
+                    email: 'bob@example.test',
+                    role_name: 'user',
+                    department_id: 10,
+                    department_name: 'Finance',
+                }]);
+            },
+        },
+        {
+            label: 'Owning Department',
+            testId: 'process-form-owner-department',
+            nextValue: '10',
+            configureLookups: () => {
+                mockGetProcessDepartments.mockResolvedValue([{
+                    id: 10,
+                    name: 'Finance',
+                    code: 'FIN',
+                }]);
+            },
+        },
+    ])('requires and focuses a localized reason for a non-protected $label reassignment', async ({
+        testId,
+        nextValue,
+        configureLookups,
+    }) => {
+        configureLookups();
+        renderForm(nonProtectedProcess);
+
+        await waitFor(() => expect(screen.getByTestId(testId)).toHaveTextContent(
+            testId === 'process-form-owner' ? 'Bob Owner' : 'Finance',
+        ));
+        fireEvent.change(screen.getByTestId(testId), { target: { value: nextValue } });
+        expect(screen.getByTestId('process-form-submit')).toHaveTextContent('Submit for approval');
+        fireEvent.click(screen.getByTestId('process-form-submit'));
+
+        const reason = screen.getByTestId('process-form-request-reason');
+        expect(reason).toHaveAttribute('aria-invalid', 'true');
+        expect(reason).toHaveFocus();
+        expect(screen.getByText(
+            'A request reason is required for this governed Process change.',
+        )).toBeInTheDocument();
+        expect(mockUpdateProcess).not.toHaveBeenCalled();
+    });
+
+    it('hands an owner-reassignment 202 response to My Requests without treating it as a direct save', async () => {
+        mockGetProcessOwners.mockResolvedValue([{
+            id: 8,
+            name: 'Bob Owner',
+            email: 'bob@example.test',
+            role_name: 'user',
+            department_id: 10,
+            department_name: 'Finance',
+        }]);
+        mockUpdateProcess.mockResolvedValue(processApprovalQueuedResponseSchema.parse({
+            status: 'approval_required',
+            message: 'Submitted',
+            approval_id: 88,
+            action_type: 'edit',
+            pending_fields: ['process_owner_user_id'],
+            proposal_id: 'proposal-accountability-88',
+            proposal_version: 1,
+        }));
+        const { onSaved, onApprovalQueued } = renderForm(nonProtectedProcess);
+
+        await waitFor(() => expect(screen.getByTestId('process-form-owner')).toHaveTextContent('Bob Owner'));
+        fireEvent.change(screen.getByTestId('process-form-owner'), { target: { value: '8' } });
+        fireEvent.change(screen.getByTestId('process-form-request-reason'), {
+            target: { value: 'Move accountability to the service owner' },
+        });
+        fireEvent.click(screen.getByTestId('process-form-submit'));
+
+        await waitFor(() => expect(mockUpdateProcess).toHaveBeenCalledWith(
+            89,
+            expect.objectContaining({
+                process_owner_user_id: 8,
+                request_reason: 'Move accountability to the service owner',
+            }),
+        ));
+        expect(onApprovalQueued).toHaveBeenCalledWith(expect.objectContaining({
+            approval_id: 88,
+            proposal_id: 'proposal-accountability-88',
+        }));
+        expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it('saves an accountability reassignment directly without a reason when the live scenario is disabled', async () => {
+        accountabilityScenario.enabled = false;
+        mockGetProcessOwners.mockResolvedValue([{
+            id: 8,
+            name: 'Bob Owner',
+            email: 'bob@example.test',
+            role_name: 'user',
+            department_id: 10,
+            department_name: 'Finance',
+        }]);
+        mockUpdateProcess.mockResolvedValue({ ...nonProtectedProcess, process_owner_user_id: 8 });
+        const { onSaved } = renderForm(nonProtectedProcess);
+
+        await waitFor(() => expect(screen.getByTestId('process-form-owner')).toHaveTextContent('Bob Owner'));
+        fireEvent.change(screen.getByTestId('process-form-owner'), { target: { value: '8' } });
+        expect(screen.getByTestId('process-form-submit')).toHaveTextContent('Save');
+        fireEvent.click(screen.getByTestId('process-form-submit'));
+
+        await waitFor(() => expect(mockUpdateProcess).toHaveBeenCalledWith(
+            89,
+            expect.not.objectContaining({ request_reason: expect.anything() }),
+        ));
+        expect(onSaved).toHaveBeenCalled();
+    });
+
+    it.each([
+        ['loading', true, false],
+        ['error', false, true],
+    ])('blocks accountability submission while the live scenario is %s', async (_state, loading, error) => {
+        accountabilityScenario.enabled = false;
+        accountabilityScenario.loading = loading;
+        accountabilityScenario.error = error;
+        mockGetProcessOwners.mockResolvedValue([{
+            id: 8,
+            name: 'Bob Owner',
+            email: 'bob@example.test',
+            role_name: 'user',
+            department_id: 10,
+            department_name: 'Finance',
+        }]);
+        renderForm(nonProtectedProcess);
+
+        await waitFor(() => expect(screen.getByTestId('process-form-owner')).toHaveTextContent('Bob Owner'));
+        fireEvent.change(screen.getByTestId('process-form-owner'), { target: { value: '8' } });
+        expect(screen.getByTestId('process-form-submit')).toBeDisabled();
+        expect(screen.getByTestId('process-form-submit')).toHaveTextContent('Save');
+    });
+
+    it('keeps same-value accountability fields and unrelated non-protected edits on the direct-save path', async () => {
+        mockUpdateProcess.mockResolvedValue({
+            ...nonProtectedProcess,
+            notes: 'Updated without reassignment',
+        });
+        const { onSaved, onApprovalQueued } = renderForm(nonProtectedProcess);
+
+        expect(screen.getByTestId('process-form-owner')).toHaveValue('7');
+        expect(screen.getByTestId('process-form-owner-department')).toHaveValue('9');
+        expect(screen.getByTestId('process-form-request-reason')).not.toHaveAttribute('aria-required', 'true');
+        fireEvent.change(screen.getByTestId('process-form-notes'), {
+            target: { value: 'Updated without reassignment' },
+        });
+        expect(screen.getByTestId('process-form-submit')).toHaveTextContent('Save');
+        fireEvent.click(screen.getByTestId('process-form-submit'));
+
+        await waitFor(() => expect(mockUpdateProcess).toHaveBeenCalledWith(
+            89,
+            expect.not.objectContaining({ request_reason: expect.anything() }),
+        ));
+        expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+            notes: 'Updated without reassignment',
+        }));
+        expect(onApprovalQueued).not.toHaveBeenCalled();
     });
 
     it('allows a current CIF Process to save directly when the protected scenario is disabled', async () => {
@@ -345,7 +541,7 @@ describe('ProcessForm protected edit workflow', () => {
         fireEvent.click(screen.getByTestId('process-form-submit'));
 
         expect(await screen.findByText(
-            'A request reason is required for a protected Process change.',
+            'A request reason is required for this governed Process change.',
         )).toBeInTheDocument();
         const reason = screen.getByTestId('process-form-request-reason');
         expect(reason).toHaveAttribute('aria-invalid', 'true');

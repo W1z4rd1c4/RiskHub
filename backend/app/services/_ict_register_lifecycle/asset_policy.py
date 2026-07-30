@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
-from app.core.permissions import get_user_department_ids, has_permission
+from app.core.permissions import (
+    can_manage_users,
+    get_user_department_ids,
+    has_permission,
+    is_platform_admin,
+)
 from app.core.security import check_permission
 from app.models import Asset, Department, OrphanedItem, User
 from app.models.role import RoleType
@@ -152,7 +157,9 @@ async def assert_asset_assignment_lookup_allowed(
     *,
     current_user: User,
 ) -> None:
-    if has_permission(current_user, "assets", "write"):
+    if has_permission(current_user, "assets", "write") or (
+        not is_platform_admin(current_user) and can_manage_users(current_user)
+    ):
         return
     editable_id = await db.scalar(select(Asset.id).where(editable_asset_visibility_clause(current_user)).limit(1))
     if editable_id is None:

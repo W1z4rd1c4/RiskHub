@@ -52,6 +52,7 @@ class ThreatCreate(ThreatBase):
 
 
 class ThreatUpdate(ThreatWriteValidators):
+    request_reason: str | None = Field(None, max_length=1000)
     name: str | None = Field(None, min_length=1, max_length=255)
     threat_steward_user_id: int | None = Field(None, ge=1)
     category: str | None = Field(None, max_length=50)
@@ -60,12 +61,46 @@ class ThreatUpdate(ThreatWriteValidators):
     relevant_subject: str | None = Field(None, max_length=255)
     notes: str | None = None
 
+    @field_validator("threat_steward_user_id")
+    @classmethod
+    def _require_threat_steward(cls, value: int | None) -> int:
+        if value is None:
+            raise ValueError("Threat Steward is required")
+        return value
+
 
 class ThreatCapabilities(BaseModel):
     can_read: bool
     can_update: bool
     can_archive: bool
     can_restore: bool
+    has_pending_change: bool = False
+    business_edit_blocked: bool = False
+    can_cancel_pending_change: bool = False
+
+
+class ThreatPendingChangeCapabilities(BaseModel):
+    can_view_diff: bool
+    can_cancel: bool
+
+
+class ThreatPendingChange(BaseModel):
+    approval_id: int | None
+    proposal_id: str | None
+    proposal_version: int | None
+    status: Literal["pending"] = "pending"
+    requested_at: UtcAwareDatetime
+    requested_by_name: str | None = None
+    reason: str
+    generic_label: Literal["accountability_reassignment"] = (
+        "accountability_reassignment"
+    )
+    mutation_kind: Literal["threat.edit"] | None
+    before: dict[str, object]
+    after: dict[str, object]
+    derived_impact: dict[str, object]
+    impacted_resources: list[dict[str, str]]
+    capabilities: ThreatPendingChangeCapabilities
 
 
 class ThreatStewardRead(BaseModel):
@@ -79,6 +114,7 @@ class ThreatStewardRead(BaseModel):
 
 class ThreatRead(BaseModel):
     id: int
+    governance_version: int = 1
     threat_steward_user_id: int | None = None
     threat_steward: ThreatStewardRead | None = None
     steward_orphaned: bool = False
@@ -99,6 +135,7 @@ class ThreatRead(BaseModel):
     archived_at: UtcAwareDatetime | None = None
     archived_by_id: int | None = None
     capabilities: ThreatCapabilities | None = None
+    pending_change: ThreatPendingChange | None = None
     created_at: UtcAwareDatetime
     updated_at: UtcAwareDatetime
 

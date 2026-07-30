@@ -12,6 +12,7 @@ from sqlalchemy.orm.attributes import set_committed_value
 from app.core.audit import vendor as audit_vendor
 from app.core.audit import vendor_contract as audit_vendor_contract
 from app.core.audit import vendor_sub_outsourcing as audit_vendor_sub_outsourcing
+from app.core.datetime_utils import utc_now
 from app.core.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -24,6 +25,7 @@ from app.models import (
     ApprovalStatus,
     GovernedMutationImpactLock,
     GovernedMutationProposal,
+    OrphanedItem,
     Permission,
     Role,
     RolePermission,
@@ -32,6 +34,7 @@ from app.models import (
     VendorContract,
     VendorSubOutsourcing,
 )
+from app.models.approval_scenario import ApprovalScenario
 from app.schemas.vendor import VendorCreate, VendorUpdate
 from app.schemas.vendor_contract import VendorContractCreate, VendorContractUpdate
 from app.schemas.vendor_sub_outsourcing import (
@@ -54,9 +57,13 @@ from app.services._vendor_governance.sub_outsourcing_policy import (
 )
 from app.services.transaction_boundary import commit_service_boundary
 
+from .composite_policy import effective_triggered_policy_roles
+from .fixed_accountability_policy import (
+    validated_fixed_accountability_roles,
+)
 from .fixed_vendor_policy import (
-    is_live_eligible_vendor_resolver,
-    load_fixed_vendor_scenario_for_update,
+    VENDOR_SCENARIO_KEY,
+    is_fixed_vendor_resolution_authority,
     validated_fixed_vendor_roles,
 )
 from .terminal_transitions import finalize_governed_terminal_transition
@@ -67,6 +74,7 @@ from .vendor_identity import (
     VENDOR_EDIT_KIND,
     VENDOR_RELATIONSHIP_KINDS,
     valid_vendor_governed_envelope,
+    vendor_triggered_scenarios,
 )
 from .vendor_mutations import (
     _creation_impact,
@@ -234,23 +242,87 @@ async def _live_policy(
             )
         ).scalar_one_or_none()
     await load_ict_workbook_parameter_set_for_update(db)
-    scenario = await load_fixed_vendor_scenario_for_update(db)
-    roles = validated_fixed_vendor_roles(scenario)
-    if not is_live_eligible_vendor_resolver(resolver, proposal, scenario):
+    scenario_keys = (
+        vendor_triggered_scenarios(proposal)
+        if envelope_valid
+        else (VENDOR_SCENARIO_KEY,)
+    )
+    scenarios = list(
+        (
+            await db.execute(
+                select(ApprovalScenario)
+                .where(ApprovalScenario.key.in_(sorted(set(scenario_keys))))
+                .order_by(ApprovalScenario.key)
+                .with_for_update()
+            )
+        ).scalars()
+    )
+    scenarios_by_key = {scenario.key: scenario for scenario in scenarios}
+    if set(scenarios_by_key) != set(scenario_keys):
+        raise ConflictError("Governed Vendor approval scenario is missing")
+    live_policies: list[dict[str, object]] = []
+    for scenario_key in scenario_keys:
+        scenario = scenarios_by_key[scenario_key]
+        if not scenario.requires_approval:
+            return (
+                resolver,
+                requester,
+                vendor,
+                "A triggering governed Vendor scenario was disabled after submission",
+            )
+        roles = (
+            validated_fixed_vendor_roles(scenario)
+            if scenario_key == VENDOR_SCENARIO_KEY
+            else validated_fixed_accountability_roles(scenario)
+        )
+        live_policies.append({"configured_roles": roles})
+    live_roles = effective_triggered_policy_roles(live_policies)
+    resolver_role = getattr(getattr(resolver, "role", None), "name", None)
+    snapshot_roles = (
+        proposal.scenario_snapshot.get("approver_roles")
+        if isinstance(proposal.scenario_snapshot, dict)
+        else None
+    )
+    if not (
+        is_fixed_vendor_resolution_authority(resolver, proposal)
+        and resolver_role in live_roles
+        and isinstance(snapshot_roles, list)
+        and resolver_role in snapshot_roles
+        and resolver_role in proposal.approval_request.scenario_approver_roles
+    ):
         raise AuthorizationError(
             "Only an independent active Risk Manager or CRO may resolve this Vendor request"
         )
     if not envelope_valid:
         return resolver, requester, vendor, "Governed Vendor approval envelope is malformed"
-    if proposal.scenario_snapshot != {
-        "key": "protected_vendor_edit",
-        "requires_approval": True,
-        "approver_roles": roles,
-    }:
-        return resolver, requester, vendor, "Protected Vendor scenario changed after submission"
-    if approval_roles := proposal.approval_request.scenario_approver_roles:
-        if approval_roles != roles:
-            return resolver, requester, vendor, "Protected Vendor roles changed after submission"
+    if proposal.mutation_kind == VENDOR_EDIT_KIND:
+        raw_after = proposal.proposed_changes["after"]
+        proposed_owner_id = raw_after.get("outsourcing_owner_user_id")
+        if type(proposed_owner_id) is int:
+            proposed_owner = actors_by_id.get(proposed_owner_id)
+            if proposed_owner is None or not proposed_owner.is_active:
+                return (
+                    resolver,
+                    requester,
+                    vendor,
+                    "The proposed Vendor Outsourcing Owner is no longer eligible",
+                )
+    policy_snapshots = proposal.scenario_snapshot.get("triggered_policies")
+    if policy_snapshots is None:
+        snapshot_role_lists = [proposal.scenario_snapshot["approver_roles"]]
+    else:
+        snapshot_role_lists = [
+            policy["configured_roles"] for policy in policy_snapshots
+        ]
+    if [
+        policy["configured_roles"] for policy in live_policies
+    ] != snapshot_role_lists:
+        return resolver, requester, vendor, "Governed Vendor roles changed after submission"
+    if (
+        proposal.scenario_snapshot["approver_roles"] != live_roles
+        or proposal.approval_request.scenario_approver_roles != live_roles
+    ):
+        return resolver, requester, vendor, "Governed Vendor roles changed after submission"
     if not requester.is_active:
         return resolver, requester, vendor, "The governed Vendor requester is no longer authorized"
     if proposal.mutation_kind in VENDOR_CHILD_KINDS and not (
@@ -418,7 +490,11 @@ async def approve_vendor_mutation(
         )
     elif proposal.mutation_kind == VENDOR_EDIT_KIND:
         vendor = locked_vendor
-        lock = locks[0] if len(locks) == 1 else None
+        vendor_locks = [lock for lock in locks if lock.resource_type == "vendor"]
+        orphan_locks = [
+            lock for lock in locks if lock.resource_type == "orphaned_item"
+        ]
+        lock = vendor_locks[0] if len(vendor_locks) == 1 else None
         if (
             vendor is None
             or lock is None
@@ -493,6 +569,62 @@ async def approve_vendor_mutation(
                 reason="Governed Vendor edit payload is stale",
                 department_id=vendor.department_id,
             )
+        governed_orphan: OrphanedItem | None = None
+        if orphan_locks:
+            orphan_lock = orphan_locks[0] if len(orphan_locks) == 1 else None
+            governed_orphan = (
+                await db.execute(
+                    select(OrphanedItem)
+                    .where(
+                        OrphanedItem.id
+                        == (orphan_lock.resource_id if orphan_lock else -1)
+                    )
+                    .with_for_update()
+                )
+            ).scalar_one_or_none()
+            if (
+                orphan_lock is None
+                or governed_orphan is None
+                or governed_orphan.item_type != "vendor"
+                or governed_orphan.item_id != vendor.id
+                or governed_orphan.status != "pending"
+                or governed_orphan.responsibility_role != "outsourcing_owner"
+                or governed_orphan.previous_owner_id
+                != orphan_lock.base_governance_version
+                or raw_before.get("outsourcing_owner_user_id")
+                != orphan_lock.base_governance_version
+                or "outsourcing_owner_user_id" not in updates
+            ):
+                return await _expire(
+                    db,
+                    approval=approval,
+                    proposal=proposal,
+                    locks=locks,
+                    actor=resolver,
+                    reason="Orphaned Vendor evidence changed after submission",
+                    department_id=vendor.department_id,
+                )
+        elif (
+            raw_before.get("outsourcing_owner_user_id")
+            != updates.get("outsourcing_owner_user_id")
+        ):
+            governed_orphan = (
+                await db.execute(
+                    select(OrphanedItem)
+                    .where(
+                        OrphanedItem.item_type == "vendor",
+                        OrphanedItem.item_id == vendor.id,
+                        OrphanedItem.status == "pending",
+                        OrphanedItem.responsibility_role
+                        == "outsourcing_owner",
+                        OrphanedItem.previous_owner_id
+                        == raw_before.get("outsourcing_owner_user_id"),
+                    )
+                    .order_by(OrphanedItem.id)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalars().first()
         await assert_vendor_governance_update_allowed(
             db,
             current_user=requester,
@@ -521,6 +653,11 @@ async def approve_vendor_mutation(
         for field, value in updates.items():
             setattr(vendor, field, value.value if hasattr(value, "value") else value)
         vendor.governance_version += 1
+        if governed_orphan is not None:
+            governed_orphan.status = "resolved"
+            governed_orphan.resolved_at = utc_now()
+            governed_orphan.resolved_by_id = resolver.id
+            governed_orphan.new_owner_id = int(updates["outsourcing_owner_user_id"])
         await audit_vendor.vendor_updated(
             db,
             actor=resolver,

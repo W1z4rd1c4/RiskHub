@@ -6,6 +6,7 @@
         "edit": "Upravit hrozbu",
         "create": "Vytvořit hrozbu",
         "save": "Uložit změny",
+        "submit_for_approval": "Odeslat ke schválení",
         "cancel": "Zrušit",
         "restore": "Obnovit",
         "retry": "Zkusit znovu",
@@ -40,6 +41,15 @@
     "linked_risks": "Propojená rizika",
     "status": "Stav"
     },
+    "pending_change": {
+        "title": "Navrhovaná změna správce hrozby",
+        "badge": "Čeká na schválení",
+        "requested_by_at": "Požadavek od {{requester}} dne {{date}} v {{time}}",
+        "unknown_requester": "Neznámý žadatel",
+        "cancel": "Zrušit žádost",
+        "cancel_failed": "Čekající žádost o změnu správce hrozby se nepodařilo zrušit.",
+        "diff_restricted": "Navrhovaná změna správce je skryta kvůli rozsahu vašich oprávnění."
+    },
     "form": {
         "sections": {
             "identity": "Identifikace",
@@ -54,10 +64,13 @@
         "typical_weaknesses": "Typické zranitelnosti",
         "relevant_subject": "Relevantní subjekt",
         "notes": "Poznámka",
+        "request_reason": "Důvod žádosti",
+        "request_reason_help": "Všechny změny správce hrozby se odesílají k nezávislému schválení. Vysvětlete důvod změny.",
         "not_set": "Nevyplněno",
         "errors": {
             "name_required": "Název hrozby je povinný.",
             "steward_required": "Je vyžadován aktivní CISO jako správce hrozby.",
+            "request_reason_required": "U této řízené změny hrozby je důvod žádosti povinný.",
             "save_failed": "Uložení hrozby se nezdařilo. Zkuste to prosím znovu.",
             "fix_fields": "Opravte prosím zvýrazněná pole.",
             "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."

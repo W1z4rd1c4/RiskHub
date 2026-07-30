@@ -352,8 +352,10 @@ Rules:
 
 Orphaned item governance uses backend workflow helpers:
 - Orphan list/detail payloads are scoped from the current target entity department, not only orphan metadata.
+- Responses include backend-authoritative `request_reason_required` on every orphan list/detail row without requiring separate read authority for the target resource. It is true when the live accountability policy can govern the reassignment or when an enabled fixed Process, Asset, or Vendor policy protects the target or its complete applicable downstream cascade (Process to Asset/Vendor; Asset to Vendor). Threat reassignment uses the accountability policy only.
 - Responses may include additive `capabilities` metadata for resolve/detail visibility and required resolution fields.
 - Resolution locks the orphan row and target entity, validates the orphan is still pending, and rejects stale resolutions with conflict semantics instead of overwriting a target that has already been reassigned.
+- Resolution revalidates the canonical live policy and derived cascade under its existing locks; the read projection does not replace that authority.
 - Admin batch orphan fixes use the same validation and resolution helper as the business Governance endpoint.
 
 > [!NOTE]
@@ -618,6 +620,24 @@ Approvals and My Requests, and notification preferences suppress delivery only,
 not queue visibility or approval state.
 
 ---
+
+### 5.10 Governed Accountability Reassignments
+
+The fixed `accountability_reassignment` scenario applies whenever an authorized
+edit actually changes a Process Owner/Owning Department, Asset Business
+Owner/ICT Owner/Owning Department, Vendor Outsourcing Owner, or Threat Steward.
+The requester must give a reason. RiskHub creates one immutable pending
+proposal, keeps approved accountability unchanged, and exposes the request in
+My Requests. A configured Risk Manager or CRO other than the requester must
+approve or reject it.
+
+Approval applies the full delta atomically. Cancellation, rejection, stale
+expiry, and failed revalidation preserve the prior approved values. Orphan
+reassignment follows the same rule: the Governance row and business-edit lock
+remain until approval succeeds. Disabling the scenario permits the typed direct
+response but does not weaken RBAC or resource validation. CISO can request and
+read its own Threat-stewardship proposals, but receives no approval-resolution
+authority from that role.
 
 ## 6. Sensitive Field Rules
 

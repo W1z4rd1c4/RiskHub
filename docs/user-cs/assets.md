@@ -64,7 +64,10 @@ Archivace/obnovení jsou privilegované. Vlastnictví ani vedení útvaru tuto p
 
 ## Schvalování a notifikace
 
-Změny odpovědnosti a lifecycle se auditují. Tato verze používá explicitní Governance reassignment, nikoli samostatnou approval frontu. Původní vazba zůstane dohledatelná do úspěšného resolution.
+Změny odpovědnosti a lifecycle se auditují. Změny odpovědnosti Aktiva a
+explicitní přeřazení v Governance používají při zapnutém scénáři schválení.
+Původní vazba zůstává schválená a dohledatelná do nezávislého schválení celé
+změny.
 
 V Activity Logu ověřujte autora vytvoření, změny, archivace, obnovení, vazby nebo přeřazení. Governance resolution je řízená oprava, ne obcházení běžných oprávnění. Pokud upozornění vidíte, ale Governance otevřít nemůžete, požádejte oprávněného Risk Managera nebo CRO.
 
@@ -95,6 +98,13 @@ Chybějící volba obvykle znamená neaktivního uživatele nebo útvar. Při ch
 Při chybném překladu poznamenejte jazyk, pole, uložený kód, pokud je dostupný supportu, a zobrazený popisek; nenahrazujte kód českou workbook hodnotou. Pokud chybí akce vazby, zkontrolujte stav aktiva, Governance warning, viditelnost protistrany a capabilities řádku. Pokud aktivum nelze najít, vymažte hledání, ověřte aktivní/archivovanou populaci a aktuálnost owner/Department vazby.
 
 Při opakované chybě si připravte čas, název aktiva, použitou roli, očekávanou akci a přesný text upozornění. Support tak rozliší neaktivní adresářovou položku, omezený scope, čekající Governance workflow a chybnou řízenou hodnotu bez požadavku na interní číselná ID.
+
+## Změna odpovědnosti
+
+Změna Business Ownera, ICT Ownera nebo vlastnícího útvaru vyžaduje důvod a při
+zapnutém pevném scénáři vytvoří jednu žádost. Schválené Aktivum i stav osiřelé
+položky zůstanou beze změny do nezávislého schválení Risk Managerem nebo CRO.
+Zrušení, zamítnutí či zastarání zachová původní hodnoty.
 
 ## Související manuály
 

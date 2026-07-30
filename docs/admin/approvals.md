@@ -276,6 +276,15 @@ Handoff package:
 - timestamps + request IDs (if available)
 - what you verified and what remains unknown
 
+### Accountability reassignment remains pending
+
+Confirm the `accountability_reassignment` scenario has an active independent
+Risk Manager or CRO. The requester should see exactly one My Requests row and
+the approved resource values must remain unchanged. For orphan resolution, the
+Governance row and ordinary-edit lock also remain until approval. Cancel,
+reject, or stale expiry preserves current truth; do not clear the orphan or
+write the proposed owner directly.
+
 ## Related Documentation
 
 - Evidence exports and audit context: [Reports and Evidence Exports](./reports.md)

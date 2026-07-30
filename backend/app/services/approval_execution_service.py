@@ -103,6 +103,17 @@ async def approve_request_workflow(
             current_user=current_user,
             resolution_notes=resolution_notes,
         )
+    if dispatch_kind == "fixed_threat":
+        from app.services._governed_mutations.threat_resolution import (
+            approve_threat_mutation,
+        )
+
+        return await approve_threat_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
     if dispatch_kind == "unsupported":
         raise ValidationError(
             "Unsupported governed mutation proposal",
@@ -177,6 +188,17 @@ async def reject_request_workflow(
         )
 
         return await reject_vendor_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "fixed_threat":
+        from app.services._governed_mutations.threat_resolution import (
+            reject_threat_mutation,
+        )
+
+        return await reject_threat_mutation(
             db,
             approval_id=approval_id,
             current_user=current_user,
@@ -261,6 +283,16 @@ async def cancel_request_workflow(
         )
 
         return await cancel_vendor_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+        )
+    if dispatch_kind == "fixed_threat":
+        from app.services._governed_mutations.threat_resolution import (
+            cancel_threat_mutation,
+        )
+
+        return await cancel_threat_mutation(
             db,
             approval_id=approval_id,
             current_user=current_user,

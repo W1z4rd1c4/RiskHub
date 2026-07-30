@@ -1667,6 +1667,13 @@ async def test_postgres_vendor_orphan_and_link_approval_serialize_in_both_orders
                 requires_approval=True,
                 approver_roles=["risk_manager", "cro"],
             ),
+            ApprovalScenario(
+                key="protected_vendor_edit",
+                display_name="Protected Vendor mutations",
+                description="Independent approval for protected Vendor mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
         ]
     )
     await db_session.commit()

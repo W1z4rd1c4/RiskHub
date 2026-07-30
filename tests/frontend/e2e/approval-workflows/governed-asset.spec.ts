@@ -4,14 +4,33 @@ import type { Locator, Page, Response } from '@playwright/test';
 
 import { expect, test } from '../fixtures/auth.fixture';
 import { E2E_ASSETS } from '../fixtures/e2e-data';
+import { getApiBaseUrl, getDemoToken } from '../helpers/api-auth';
 import { assertZeroAxeFindings, toFindings, WCAG_TAGS } from '../helpers/axeBaseline';
 import {
+    createAssetViaApi,
     createProcessViaApi,
+    ensureAssetArchived,
     getAssetByName,
 } from '../helpers/ict-register';
 import { waitForDataLoad } from '../helpers/wait';
+import { ApprovalsPage } from '../pages/ApprovalsPage';
 
 const APPROVAL_CARD = '.space-y-4 .glass-card';
+
+async function getAssetBusinessOwnerId(assetId: number): Promise<number> {
+    const token = await getDemoToken({
+        email: 'risk.manager@riskhub.local',
+        fallbackUserIds: [3],
+    });
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/assets/${assetId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to load Asset ${assetId}: ${response.status}`);
+    }
+    const asset = await response.json() as { business_owner_user_id: number };
+    return asset.business_owner_user_id;
+}
 
 async function requestCard(page: Page, reason: string): Promise<Locator> {
     const card = page.locator(APPROVAL_CARD).filter({ hasText: reason }).first();
@@ -50,6 +69,60 @@ async function submitGovernedDialog(
 
 test.describe('Governed protected Asset workflow (#86)', () => {
     test.describe.configure({ mode: 'serial' });
+
+    test('accountability reassignment requires a reason and applies only after independent approval', async ({
+        riskManagerPage,
+        croPage,
+    }) => {
+        const assetName = `E2E-ACCOUNTABILITY-ASSET-${Date.now()}`;
+        const reason = `Transfer Asset accountability ${assetName}`;
+        const asset = await createAssetViaApi({ name: assetName });
+
+        try {
+            const originalBusinessOwnerId = await getAssetBusinessOwnerId(asset.id);
+
+            await riskManagerPage.goto(`/assets/${asset.id}/edit`);
+            await waitForDataLoad(riskManagerPage);
+            await riskManagerPage.getByTestId('asset-form-business-owner').click();
+            await riskManagerPage.getByRole('option')
+                .filter({ hasText: 'ops.analyst@riskhub.local' })
+                .first()
+                .click();
+            await riskManagerPage.getByTestId('asset-form-submit').click();
+            await expect(riskManagerPage.getByTestId('asset-form-request-reason'))
+                .toHaveAttribute('aria-invalid', 'true');
+            await riskManagerPage.getByTestId('asset-form-request-reason').fill(reason);
+            const queued = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'PATCH'
+                && new URL(response.url()).pathname === `/api/v1/assets/${asset.id}`
+            ));
+            await riskManagerPage.getByTestId('asset-form-submit').click();
+            expect((await queued).status()).toBe(202);
+
+            const requesterApprovals = new ApprovalsPage(riskManagerPage);
+            await requesterApprovals.navigate();
+            await requesterApprovals.selectMyRequests();
+            await expect(requesterApprovals.approvalCards.filter({ hasText: reason })).toHaveCount(1);
+            expect(await getAssetBusinessOwnerId(asset.id)).toBe(originalBusinessOwnerId);
+
+            await riskManagerPage.goto(`/assets/${asset.id}`);
+            const pending = riskManagerPage.getByTestId('asset-pending-change');
+            await expect(pending).toBeVisible();
+            await expect(pending.getByTestId('asset-pending-change-diff')).toContainText('Jana Horáková');
+
+            const resolverApprovals = new ApprovalsPage(croPage);
+            await resolverApprovals.navigate();
+            const requestIndex = await resolverApprovals.findCardByReason(reason);
+            await resolverApprovals.clickApprove(requestIndex);
+            await resolverApprovals.submitResolution(`Approve ${reason}`, 'approve');
+
+            await expect.poll(
+                () => getAssetBusinessOwnerId(asset.id),
+            ).not.toBe(originalBusinessOwnerId);
+        } finally {
+            await ensureAssetArchived(assetName, true).catch(() => undefined);
+        }
+    });
 
     test('rowless creation, immutable edit, and archive activate only after approval', async ({
         riskManagerPage,

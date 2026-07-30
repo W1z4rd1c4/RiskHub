@@ -27,6 +27,7 @@ from app.services._ict_register_lifecycle.threat_lifecycle import (
 )
 from app.services._ict_register_lifecycle.threat_projection import (
     build_threat_collection_capabilities,
+    load_pending_threat_changes,
     serialize_threat_detail,
 )
 from app.services._ict_register_reference import THREAT_CATEGORY_CODES
@@ -247,12 +248,18 @@ async def build_threat_listing(
         threat_ids=threat_ids,
     )
     pending_ids = await _pending_stewardship_orphan_ids(db, threat_ids=list(threat_ids))
+    pending_changes = await load_pending_threat_changes(
+        db,
+        threat_ids=list(threat_ids),
+        current_user=current_user,
+    )
     all_items = []
     for threat in threats:
         projected = serialize_threat_detail(
             threat,
             current_user=current_user,
             stewardship_pending=threat.id in pending_ids,
+            pending_change=pending_changes.get(threat.id),
         )
         all_items.append(
             ThreatListItem.model_validate(

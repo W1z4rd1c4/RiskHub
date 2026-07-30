@@ -258,6 +258,14 @@ Balíček pro předání:
 - co jste ověřil/a a co jste změnil/a
 - jaké rozhodnutí je potřeba a kdo je owner
 
+## Pevný scénář změny odpovědnosti
+
+`accountability_reassignment` je čtvrtý pevný scénář. Spouští se při skutečné
+změně odpovědného uživatele nebo vlastnícího útvaru u procesu, aktiva, dodavatele
+či hrozby, včetně řešení osiřelé položky. CRO může scénář zapnout/vypnout a
+zvolit neprázdnou podmnožinu rolí Risk Manager/CRO. Spouštěč, akce Edit a zákaz
+vlastního schválení jsou pouze pro čtení.
+
 ## Související dokumentace
 
 - Opravy přístupů: [Správa uživatelů a přístupů](./user-management.md)

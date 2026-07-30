@@ -96,6 +96,21 @@ async def fixed_protected_process_scenario(db_session: AsyncSession):
 
 
 @pytest_asyncio.fixture
+async def enabled_accountability_scenario(db_session: AsyncSession):
+    """Install the production-enabled accountability reassignment scenario."""
+    db_session.add(
+        ApprovalScenario(
+            key="accountability_reassignment",
+            display_name="Accountability reassignments",
+            description="Independent approval for accountability reassignments",
+            requires_approval=True,
+            approver_roles=["risk_manager", "cro"],
+        )
+    )
+    await db_session.commit()
+
+
+@pytest_asyncio.fixture
 async def test_user_seeded_risk_manager(db_session: AsyncSession) -> User:
     """Risk manager holding exactly the canonical RBAC seed permissions.
 
@@ -1613,6 +1628,7 @@ async def test_proposed_cif_yes_triggers_governed_process_submission(
 async def test_governed_process_snapshots_use_business_safe_owner_and_department_labels(
     client_factory,
     db_session: AsyncSession,
+    enabled_accountability_scenario,
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
     test_user_employee: User,
@@ -1684,6 +1700,7 @@ async def test_governed_process_snapshots_use_business_safe_owner_and_department
 async def test_governed_snapshot_changed_references_follow_actor_process_assignment_scope(
     client_factory,
     db_session: AsyncSession,
+    enabled_accountability_scenario,
     test_department: Department,
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
@@ -2853,6 +2870,7 @@ async def test_proposed_owner_role_change_before_approval_expires_proposal(
     db_session: AsyncSession,
     async_engine,
     monkeypatch,
+    enabled_accountability_scenario,
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
     test_user_employee: User,
@@ -2940,6 +2958,7 @@ async def test_approval_before_proposed_owner_role_change_uses_locked_eligibilit
     db_session: AsyncSession,
     async_engine,
     monkeypatch,
+    enabled_accountability_scenario,
     test_user_seeded_risk_manager: User,
     test_user_cro: User,
     test_user_employee: User,

@@ -173,6 +173,13 @@ Pokud vyhledání vlastníka nebo navázaného záznamu selže, zopakujte chrán
 
 Všechna tlačítka pohledů, filtry, čipy, karty skupin, řaditelné hlavičky, stránkování, opakování načtení a ovládací prvky exportního dialogu lze ovládat klávesnicí a mají přístupný název. Pokud se ztratí fokus nebo ovládací prvek nemá čitelný název, při hlášení uveďte cestu, aktivní filtry, prohlížeč a jazyk.
 
+## Změna odpovědnosti
+
+Změna Outsourcing Ownera se řídí samostatně bez ohledu na stupeň ochrany
+dodavatele. Uveďte důvod a ověřte jednu žádost v části Moje žádosti. Schválený
+vlastník zůstane beze změny do nezávislého schválení Risk Managerem nebo CRO.
+Osiřelá položka zůstává viditelná a dodavatel uzamčený do schválení.
+
 ## Související manuály
 
 Začněte s [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md), [Dashboard](./dashboard.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

@@ -6,18 +6,18 @@ expires_at = "2026-09-01"
 
 [[allowlist]]
 file = "backend/app/services/_vendor_governance/lifecycle.py"
-line = 130
+line = 137
 rationale = "Public Vendor update service owns the atomic direct-update, governance-version, and audit transaction; governed submissions commit separately."
 expires_at = "2026-09-01"
 
 [[allowlist]]
 file = "backend/app/services/_vendor_governance/lifecycle.py"
-line = 170
+line = 177
 rationale = "Public Vendor archive service owns the atomic direct-archive, governance-version, and audit transaction; governed submissions commit separately."
 expires_at = "2026-09-01"
 
 [[allowlist]]
 file = "backend/app/services/_vendor_governance/lifecycle.py"
-line = 190
+line = 197
 rationale = "Public Vendor restore service owns the atomic restore, governance-version, and audit transaction."
 expires_at = "2026-09-01"

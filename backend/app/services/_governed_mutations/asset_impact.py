@@ -34,6 +34,13 @@ def impact_from_derived(derived) -> dict[str, object]:
     }
 
 
+def asset_impact_is_protected(impact: dict[str, object]) -> bool:
+    return bool(
+        impact.get("cif") == "yes"
+        or impact.get("resulting_criticality") == "critical"
+    )
+
+
 async def process_point_asset_impacts(
     db: AsyncSession,
     *,
@@ -192,6 +199,7 @@ async def existing_asset_impacts(
 
 
 __all__ = [
+    "asset_impact_is_protected",
     "existing_asset_impacts",
     "impact_from_derived",
     "process_asset_composite_impact",

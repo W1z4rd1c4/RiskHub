@@ -3,6 +3,7 @@ import { ArchiveRestore } from 'lucide-react';
 
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import type { Column } from '@/components/tables/SortableTable';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { Asset } from '@/types/asset';
 
 import { assetDepartmentDisplay, assetDerivedBooleanLabel, assetDerivedCriticalityLabel, assetOwnerDisplayName, getAssetDisplayStatus, type AssetDisplayStatus } from './assetsPagePresentation';
@@ -96,11 +97,21 @@ export function buildAssetColumns({
                 const status = getAssetDisplayStatus(asset);
                 return (
                     <div className="flex items-center gap-2">
-                        <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getAssetStatusColor(status)}`}
-                        >
-                            {t(`assets:status.${status}`)}
-                        </span>
+                        <div className="flex flex-col items-start gap-1">
+                            <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getAssetStatusColor(status)}`}
+                            >
+                                {t(`assets:status.${status}`)}
+                            </span>
+                            {resolveCapabilityFlag(asset.capabilities, 'has_pending_change') ? (
+                                <span
+                                    data-testid={`asset-pending-change-${asset.id}`}
+                                    className="inline-flex items-center rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-200"
+                                >
+                                    {t('assets:pending_change.badge')}
+                                </span>
+                            ) : null}
+                        </div>
                         {status === 'archived' && canRestoreAsset(asset) ? (
                             <button
                                 type="button"

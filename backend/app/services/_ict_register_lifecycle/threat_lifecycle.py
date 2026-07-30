@@ -14,7 +14,6 @@ from app.services.transaction_boundary import commit_service_boundary
 
 from .lifecycle_adapters import (
     apply_archive_lifecycle,
-    apply_update_lifecycle,
     extract_updates,
     load_register_page,
 )
@@ -26,7 +25,11 @@ from .threat_policy import (
     assert_threat_restore_allowed,
     assert_threat_update_allowed,
 )
-from .threat_projection import serialize_threat_detail, serialize_threat_list
+from .threat_projection import (
+    load_pending_threat_changes,
+    serialize_threat_detail,
+    serialize_threat_list,
+)
 
 _SORT_COLUMNS = {
     "name": Threat.name,
@@ -97,10 +100,16 @@ async def read_threat_detail(
 ) -> ThreatRead:
     threat = await assert_threat_readable(db, threat_id=threat_id, current_user=current_user)
     pending_ids = await _pending_stewardship_orphan_ids(db, threat_ids=[threat.id])
+    pending_changes = await load_pending_threat_changes(
+        db,
+        threat_ids=[threat.id],
+        current_user=current_user,
+    )
     return serialize_threat_detail(
         threat,
         current_user=current_user,
         stewardship_pending=threat.id in pending_ids,
+        pending_change=pending_changes.get(threat.id),
     )
 
 
@@ -110,12 +119,13 @@ async def update_threat_detail(
     threat_id: int,
     payload: ThreatUpdate,
     current_user: User,
-) -> ThreatRead:
+) -> object:
     # Use a savepoint for lock/authority preflight. A handled domain error does
     # not always reach a dependency override's rollback branch, while rolling
     # back the whole shared session would expire unrelated identity objects.
     # The savepoint releases locks and restores only this request's state.
     threat: Threat | None = None
+    new_steward: User | None = None
     try:
         async with db.begin_nested():
             # Establish the current steward under a row lock before selecting
@@ -132,6 +142,12 @@ async def update_threat_detail(
                 payload,
                 non_nullable_fields=("name", "threat_steward_user_id"),
             )
+            updates.pop("request_reason", None)
+            updates = {
+                field: value
+                for field, value in updates.items()
+                if getattr(threat, field) != value
+            }
             if "threat_steward_user_id" in updates:
                 new_steward_id = int(updates["threat_steward_user_id"])
                 await acquire_threat_steward_identity_locks(
@@ -145,7 +161,7 @@ async def update_threat_detail(
             # orphan record.
             await _assert_no_pending_stewardship_orphan(db, threat=threat)
             if "threat_steward_user_id" in updates:
-                threat.threat_steward = await assert_active_ciso_steward(
+                new_steward = await assert_active_ciso_steward(
                     db,
                     user_id=new_steward_id,
                     acquire_identity_lock=False,
@@ -159,16 +175,40 @@ async def update_threat_detail(
     if not updates:
         return serialize_threat_detail(threat, current_user=current_user)
 
-    await apply_update_lifecycle(
-        db=db,
-        entity=threat,
-        updates=updates,
-        changes_factory=audit_threat.threat_update_changes,
-        audit=lambda changes: audit_threat.threat_updated(
-            db, actor=current_user, threat=threat, changes=changes
-        ),
-        boundary="ict_register_threat_update",
+    from app.services._governed_mutations.threat_mutations import (
+        assert_no_pending_threat_mutation,
     )
+
+    await assert_no_pending_threat_mutation(db, threat_id=threat.id)
+    if new_steward is not None:
+        from app.services._governed_mutations.threat_mutations import (
+            submit_threat_steward_edit_if_required,
+        )
+
+        queued = await submit_threat_steward_edit_if_required(
+            db=db,
+            threat=threat,
+            current_user=current_user,
+            new_steward=new_steward,
+            request_reason=payload.request_reason,
+        )
+        if queued is not None:
+            return queued
+
+    changes = audit_threat.threat_update_changes(threat, updates)
+    for field, value in updates.items():
+        setattr(threat, field, value)
+    if new_steward is not None:
+        threat.threat_steward = new_steward
+    threat.governance_version += 1
+    await audit_threat.threat_updated(
+        db,
+        actor=current_user,
+        threat=threat,
+        changes=changes,
+    )
+    await commit_service_boundary(db, boundary="ict_register_threat_update")
+    await db.refresh(threat)
     return serialize_threat_detail(threat, current_user=current_user)
 
 
@@ -179,6 +219,12 @@ async def archive_threat_detail(
     current_user: User,
 ) -> None:
     threat = await assert_threat_archive_allowed(db, threat_id=threat_id, current_user=current_user)
+    from app.services._governed_mutations.threat_mutations import (
+        assert_no_pending_threat_mutation,
+    )
+
+    await assert_no_pending_threat_mutation(db, threat_id=threat.id)
+    threat.governance_version += 1
     await apply_archive_lifecycle(
         db=db,
         entity=threat,
@@ -198,6 +244,12 @@ async def restore_threat_detail(
     current_user: User,
 ) -> ThreatRead:
     threat = await assert_threat_restore_allowed(db, threat_id=threat_id, current_user=current_user)
+    from app.services._governed_mutations.threat_mutations import (
+        assert_no_pending_threat_mutation,
+    )
+
+    await assert_no_pending_threat_mutation(db, threat_id=threat.id)
+    threat.governance_version += 1
     await apply_archive_lifecycle(
         db=db,
         entity=threat,
@@ -255,6 +307,11 @@ async def list_threat_register(
         db,
         threat_ids=[threat.id for threat in threats],
     )
+    pending_changes = await load_pending_threat_changes(
+        db,
+        threat_ids=[threat.id for threat in threats],
+        current_user=current_user,
+    )
     return serialize_threat_list(
         threats,
         current_user=current_user,
@@ -262,4 +319,5 @@ async def list_threat_register(
         offset=offset,
         limit=limit,
         pending_stewardship_orphan_ids=pending_ids,
+        pending_changes=pending_changes,
     )

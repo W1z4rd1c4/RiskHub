@@ -21,6 +21,7 @@ from app.models import (
     AssetAssetLink,
     AssetVendorLink,
     Department,
+    OrphanedItem,
     Risk,
     RiskAssetLink,
     User,
@@ -298,6 +299,11 @@ async def approve_asset_mutation(
     if proposal.mutation_kind == ASSET_EDIT_KIND:
         asset_locks = [lock for lock in locks if lock.resource_type == "asset"]
         vendor_locks = [lock for lock in locks if lock.resource_type == "vendor"]
+        orphan_locks = [
+            lock for lock in locks if lock.resource_type == "orphaned_item"
+        ]
+        governed_orphan = None
+        governed_orphans: list[OrphanedItem] = []
         if proposal.primary_resource_id is None or len(asset_locks) != 1:
             raise ValidationError("Governed Asset edit identity is stale")
         asset = (
@@ -366,6 +372,64 @@ async def approve_asset_mutation(
                     proposed_updates = normalized_updates
                 except (TypeError, ValueError):
                     malformed = True
+            role_to_field = {
+                "business_owner": "business_owner_user_id",
+                "ict_owner": "ict_owner_user_id",
+            }
+            if not malformed and orphan_locks:
+                if len(orphan_locks) == 1:
+                    governed_orphan = (
+                        await db.execute(
+                            select(OrphanedItem)
+                            .where(OrphanedItem.id == orphan_locks[0].resource_id)
+                            .with_for_update()
+                            .execution_options(populate_existing=True)
+                        )
+                    ).scalar_one_or_none()
+                orphan_owner_field = role_to_field.get(
+                    getattr(governed_orphan, "responsibility_role", None)
+                )
+                malformed = bool(
+                    len(orphan_locks) != 1
+                    or governed_orphan is None
+                    or governed_orphan.item_type != "asset"
+                    or governed_orphan.item_id != asset.id
+                    or governed_orphan.status != "pending"
+                    or governed_orphan.previous_owner_id
+                    != orphan_locks[0].base_governance_version
+                    or orphan_owner_field is None
+                    or expected_before.get(orphan_owner_field)
+                    != orphan_locks[0].base_governance_version
+                    or orphan_owner_field not in proposed_updates
+                )
+                if not malformed and governed_orphan is not None:
+                    governed_orphans.append(governed_orphan)
+            if not malformed and not governed_orphans:
+                changed_roles = [
+                    (role, field)
+                    for role, field in role_to_field.items()
+                    if field in proposed_updates
+                    and expected_before.get(field) != proposed_updates.get(field)
+                ]
+                for role, field in changed_roles:
+                    late_orphan = (
+                        await db.execute(
+                            select(OrphanedItem)
+                            .where(
+                                OrphanedItem.item_type == "asset",
+                                OrphanedItem.item_id == asset.id,
+                                OrphanedItem.status == "pending",
+                                OrphanedItem.responsibility_role == role,
+                                OrphanedItem.previous_owner_id
+                                == expected_before.get(field),
+                            )
+                            .order_by(OrphanedItem.id)
+                            .with_for_update()
+                            .execution_options(populate_existing=True)
+                        )
+                    ).scalars().first()
+                    if late_orphan is not None:
+                        governed_orphans.append(late_orphan)
             if malformed:
                 await finalize_governed_terminal_transition(
                     db,
@@ -463,6 +527,13 @@ async def approve_asset_mutation(
                     asset.governance_version += 1
                     for vendor in vendors.values():
                         vendor.governance_version += 1
+                    for orphan in governed_orphans:
+                        orphan.status = "resolved"
+                        orphan.resolved_at = utc_now()
+                        orphan.resolved_by_id = current_user.id
+                        orphan.new_owner_id = proposed_updates[
+                            f"{orphan.responsibility_role}_user_id"
+                        ]
                     await finalize_governed_terminal_transition(
                         db,
                         approval=approval,

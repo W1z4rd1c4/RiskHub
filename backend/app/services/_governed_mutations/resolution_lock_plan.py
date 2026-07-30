@@ -16,6 +16,7 @@ from app.services._ict_register_reference.parameters import (
     load_ict_workbook_parameter_set_for_update,
 )
 
+from .fixed_accountability_policy import ACCOUNTABILITY_SCENARIO_KEY
 from .fixed_asset_policy import ASSET_SCENARIO_KEY
 from .fixed_policy import SCENARIO_KEY
 from .fixed_vendor_policy import VENDOR_SCENARIO_KEY
@@ -132,7 +133,12 @@ async def lock_governed_process_resolution_suffix(
     requested_scenario_keys = tuple(scenario_keys)
     ordered_scenario_keys = sorted(set(requested_scenario_keys))
     if not ordered_scenario_keys or not set(ordered_scenario_keys).issubset(
-        {SCENARIO_KEY, ASSET_SCENARIO_KEY, VENDOR_SCENARIO_KEY}
+        {
+            SCENARIO_KEY,
+            ASSET_SCENARIO_KEY,
+            VENDOR_SCENARIO_KEY,
+            ACCOUNTABILITY_SCENARIO_KEY,
+        }
     ):
         raise ConflictError("Governed mutation scenario plan is invalid")
     scenarios = list(

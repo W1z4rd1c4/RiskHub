@@ -6,6 +6,7 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { ictRegisterKeys } from '@/lib/queryKeys';
@@ -127,6 +128,7 @@ export function ProcessForm({
     const [ownerSearch, setOwnerSearch] = useState('');
     const [departmentSearch, setDepartmentSearch] = useState('');
     const [serverRequiredRoutingSignature, setServerRequiredRoutingSignature] = useState<string | null>(null);
+    const accountabilityScenario = useAccountabilityReassignmentScenario();
     const protectedChangeRequiresApproval = resolveCapabilityFlag(
         initialData?.capabilities,
         'protected_change_requires_approval',
@@ -146,6 +148,8 @@ export function ProcessForm({
         fields.impact_market_operations,
         fields.impact_regulatory,
         fields.impact_financial,
+        fields.process_owner_user_id,
+        fields.owning_department_id,
     ].join('|');
     const protectionRoutingSignatureRef = useRef(protectionRoutingSignature);
     protectionRoutingSignatureRef.current = protectionRoutingSignature;
@@ -160,8 +164,20 @@ export function ProcessForm({
     }, [protectionRoutingSignature]);
 
     const serverRequiresApproval = serverRequiredRoutingSignature === protectionRoutingSignature;
+    const accountabilityChanged = Boolean(
+        isEdit
+        && initialData !== undefined
+        && (
+            fields.process_owner_user_id !== toFieldValue(initialData.process_owner_user_id)
+            || fields.owning_department_id !== toFieldValue(initialData.owning_department_id)
+        )
+    );
+    const accountabilityChangeRequiresApproval = accountabilityScenario.isEnabled && accountabilityChanged;
+    const accountabilityScenarioUnavailable = accountabilityChanged
+        && (accountabilityScenario.isLoading || accountabilityScenario.isError);
     const requestReasonRequired = Boolean(
         serverRequiresApproval
+        || accountabilityChangeRequiresApproval
         || (
             isEdit
             && initialData !== undefined
@@ -302,6 +318,7 @@ export function ProcessForm({
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
+        if (accountabilityScenarioUnavailable) return;
         const validationErrors = validate();
         setFieldErrors(validationErrors);
         const firstInvalid = requiredFields.find((field) => validationErrors[field]);
@@ -623,7 +640,7 @@ export function ProcessForm({
                 ) : null}
                 <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || accountabilityScenarioUnavailable}
                     data-testid="process-form-submit"
                     className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
                 >

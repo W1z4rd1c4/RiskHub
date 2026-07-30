@@ -36,6 +36,7 @@ class ApprovalResourceType(str, PyEnum):
     PROCESS = "process"
     ASSET = "asset"
     VENDOR = "vendor"
+    THREAT = "threat"
 
 
 class ApprovalActionType(str, PyEnum):

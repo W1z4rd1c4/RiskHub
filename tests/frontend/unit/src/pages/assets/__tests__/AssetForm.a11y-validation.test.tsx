@@ -18,6 +18,25 @@ const mockCreateAsset = vi.fn();
 const mockUpdateAsset = vi.fn();
 const mockGetAssetOwners = vi.fn();
 const mockGetAssetDepartments = vi.fn();
+const accountabilityScenario = vi.hoisted(() => ({
+    enabled: true,
+    error: false,
+    loading: false,
+    protectedAssetEnabled: false,
+}));
+
+vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
+    useAccountabilityReassignmentScenario: () => ({
+        isEnabled: accountabilityScenario.enabled,
+        isError: accountabilityScenario.error,
+        isLoading: accountabilityScenario.loading,
+        requiresApproval: (key: string) => (
+            key === 'accountability_reassignment'
+                ? accountabilityScenario.enabled
+                : key === 'protected_asset_edit' && accountabilityScenario.protectedAssetEnabled
+        ),
+    }),
+}));
 
 vi.mock('@/services/assetApi', () => ({
     assetApi: {
@@ -36,6 +55,8 @@ vi.mock('@/services/lookupApi', () => ({
 
 import { AssetForm } from '@/pages/assets/AssetForm';
 import i18n from '@/i18n';
+import { processApprovalQueuedResponseSchema } from '@/services/api/schemas';
+import type { Asset } from '@/types/asset';
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -48,15 +69,21 @@ async function expectNoAxeViolations(node: Element): Promise<void> {
     expect(summary, summary).toBe('');
 }
 
-async function renderForm() {
+async function renderForm(initialData?: Asset) {
     const onSaved = vi.fn();
+    const onApprovalQueued = vi.fn();
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     const utils = render(
         <QueryClientProvider client={client}>
             <MemoryRouter>
-                <AssetForm onSaved={onSaved} />
+                <AssetForm
+                    initialData={initialData}
+                    isEdit={initialData !== undefined}
+                    onApprovalQueued={onApprovalQueued}
+                    onSaved={onSaved}
+                />
             </MemoryRouter>
         </QueryClientProvider>,
     );
@@ -65,13 +92,17 @@ async function renderForm() {
         expect(mockGetAssetOwners).toHaveBeenCalledTimes(2);
         expect(mockGetAssetDepartments).toHaveBeenCalledTimes(1);
     });
-    return { onSaved, ...utils };
+    return { onApprovalQueued, onSaved, ...utils };
 }
 
 const nameLabel = () => i18n.t('assets:form.name');
 
 beforeEach(() => {
     vi.clearAllMocks();
+    accountabilityScenario.enabled = true;
+    accountabilityScenario.error = false;
+    accountabilityScenario.loading = false;
+    accountabilityScenario.protectedAssetEnabled = false;
     mockGetClosedLists.mockResolvedValue({});
     mockGetAssetOwners.mockResolvedValue([{
         id: 11, name: 'Alex Owner', email: 'alex@example.test', role_name: 'business_owner',
@@ -258,5 +289,258 @@ describe('AssetForm — ownership acceptance (#75)', () => {
             ict_owner_user_id: 33,
             owning_department_id: 8,
         }));
+    });
+});
+
+const nonProtectedAsset: Asset = {
+    id: 88,
+    name: 'Payments platform',
+    business_owner_user_id: 11,
+    business_owner: {
+        name: 'Alex Owner',
+        role_name: 'business_owner',
+        department_name: 'Operations',
+    },
+    ict_owner_user_id: 22,
+    ict_owner: {
+        name: 'Taylor Owner',
+        role_name: 'ict_owner',
+        department_name: 'IT',
+    },
+    owning_department_id: 4,
+    owning_department: { name: 'Operations', code: 'OPS' },
+    business_owner_orphaned: false,
+    ict_owner_orphaned: false,
+    ownership_status: 'assigned',
+    notes: 'Existing note',
+    derived: {
+        h_rank: 1,
+        article8_classification: 'other',
+        cif: 'no',
+        cif_process_count: 0,
+        cif_process_names: [],
+        spof: 'no',
+        external_dependency: 'no',
+        legacy: 'no',
+        linked_process_count: 0,
+        linked_vendor_count: 0,
+        linked_asset_names: [],
+        vendor_names: [],
+        ict_service_codes: [],
+        contract_references: [],
+        is_complete: true,
+        inputs: {
+            reference_date: '2026-07-30',
+            threshold_low_score: 4,
+            threshold_medium_score: 8,
+            threshold_high_score: 12,
+            rank_primary_process_criticality: 0,
+            rank_score_criticality: 1,
+            rank_preliminary_criticality: 0,
+            rank_business_criticality: 0,
+            rank_cif_floor: 0,
+            missing_for_completeness: [],
+        },
+    },
+    is_archived: false,
+    capabilities: {
+        can_read: true,
+        can_update: true,
+        can_archive: true,
+        can_restore: false,
+        has_pending_change: false,
+        business_edit_blocked: false,
+        can_cancel_pending_change: false,
+    },
+    created_at: '2026-07-01T00:00:00Z',
+    updated_at: '2026-07-01T00:00:00Z',
+};
+const protectedAsset = {
+    ...nonProtectedAsset,
+    derived: {
+        ...nonProtectedAsset.derived,
+        resulting_criticality: 'critical',
+    },
+} as Asset;
+
+describe('AssetForm — governed accountability edits (#88)', () => {
+    beforeEach(() => {
+        mockGetAssetOwners.mockResolvedValue([
+            {
+                id: 11, name: 'Alex Owner', email: 'alex@example.test', role_name: 'business_owner',
+                department_id: 4, department_name: 'Operations',
+            },
+            {
+                id: 22, name: 'Taylor Owner', email: 'taylor@example.test', role_name: 'ict_owner',
+                department_id: 9, department_name: 'IT',
+            },
+            {
+                id: 33, name: 'Casey Owner', email: 'casey@example.test', role_name: 'asset_owner',
+                department_id: 8, department_name: 'Finance',
+            },
+        ]);
+        mockGetAssetDepartments.mockResolvedValue([
+            { id: 4, name: 'Operations', code: 'OPS' },
+            { id: 8, name: 'Finance', code: 'FIN' },
+            { id: 9, name: 'IT', code: 'IT' },
+        ]);
+    });
+
+    it.each([
+        {
+            label: 'Business Owner',
+            testId: 'asset-form-business-owner',
+            option: /Casey Owner.*Finance/,
+        },
+        {
+            label: 'ICT Owner',
+            testId: 'asset-form-ict-owner',
+            option: /Casey Owner.*Finance/,
+        },
+        {
+            label: 'Owning Department',
+            testId: 'asset-form-owner-department',
+            option: 'Finance (FIN)',
+        },
+    ])('requires and focuses a localized reason for an actual $label delta', async ({
+        testId,
+        option,
+    }) => {
+        const user = userEvent.setup();
+        const { container } = await renderForm(nonProtectedAsset);
+
+        await user.click(screen.getByTestId(testId));
+        await user.click(await screen.findByRole('option', { name: option }));
+        expect(screen.getByTestId('asset-form-submit')).toHaveTextContent(
+            i18n.t('assets:actions.submit_for_approval'),
+        );
+        await user.click(screen.getByTestId('asset-form-submit'));
+
+        const reason = screen.getByTestId('asset-form-request-reason');
+        expect(reason).toHaveAttribute('aria-invalid', 'true');
+        expect(reason).toHaveFocus();
+        expect(screen.getByText(i18n.t('assets:form.errors.request_reason_required'))).toBeInTheDocument();
+        expect(mockUpdateAsset).not.toHaveBeenCalled();
+        await expectNoAxeViolations(container);
+    });
+
+    it('hands a typed Business Owner reassignment 202 to the existing approval callback', async () => {
+        const user = userEvent.setup();
+        mockUpdateAsset.mockResolvedValue(processApprovalQueuedResponseSchema.parse({
+            status: 'approval_required',
+            message: 'Submitted',
+            approval_id: 88,
+            action_type: 'edit',
+            pending_fields: ['business_owner_user_id'],
+            proposal_id: 'proposal-asset-accountability-88',
+            proposal_version: 1,
+        }));
+        const { onApprovalQueued, onSaved } = await renderForm(nonProtectedAsset);
+
+        await user.click(screen.getByTestId('asset-form-business-owner'));
+        await user.click(await screen.findByRole('option', { name: /Casey Owner.*Finance/ }));
+        await user.type(
+            screen.getByTestId('asset-form-request-reason'),
+            'Transfer accountability to the service owner',
+        );
+        await user.click(screen.getByTestId('asset-form-submit'));
+
+        await waitFor(() => expect(mockUpdateAsset).toHaveBeenCalledWith(
+            88,
+            expect.objectContaining({
+                business_owner_user_id: 33,
+                request_reason: 'Transfer accountability to the service owner',
+            }),
+        ));
+        expect(onApprovalQueued).toHaveBeenCalledWith(expect.objectContaining({
+            approval_id: 88,
+            proposal_id: 'proposal-asset-accountability-88',
+        }));
+        expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it('requires approval when protected Asset governance is enabled but accountability governance is disabled', async () => {
+        accountabilityScenario.enabled = false;
+        accountabilityScenario.protectedAssetEnabled = true;
+        const user = userEvent.setup();
+        await renderForm(protectedAsset);
+
+        await user.click(screen.getByTestId('asset-form-business-owner'));
+        await user.click(await screen.findByRole('option', { name: /Casey Owner.*Finance/ }));
+
+        expect(screen.getByTestId('asset-form-submit')).toHaveTextContent(
+            i18n.t('assets:actions.submit_for_approval'),
+        );
+        expect(screen.getByTestId('asset-form-request-reason')).toHaveAttribute('aria-required', 'true');
+        await user.click(screen.getByTestId('asset-form-submit'));
+        expect(mockUpdateAsset).not.toHaveBeenCalled();
+    });
+
+    it('keeps same-value accountability fields and an unrelated non-protected edit direct', async () => {
+        const user = userEvent.setup();
+        mockUpdateAsset.mockResolvedValue({
+            ...nonProtectedAsset,
+            notes: 'Updated without reassignment',
+        });
+        const { onApprovalQueued, onSaved } = await renderForm(nonProtectedAsset);
+
+        expect(screen.getByTestId('asset-form-business-owner')).toHaveTextContent('Alex Owner');
+        expect(screen.getByTestId('asset-form-ict-owner')).toHaveTextContent('Taylor Owner');
+        expect(screen.getByTestId('asset-form-owner-department')).toHaveTextContent('Operations (OPS)');
+        expect(screen.getByTestId('asset-form-request-reason')).not.toHaveAttribute('aria-required', 'true');
+        await user.clear(screen.getByTestId('asset-form-notes'));
+        await user.type(screen.getByTestId('asset-form-notes'), 'Updated without reassignment');
+        expect(screen.getByTestId('asset-form-submit')).toHaveTextContent(i18n.t('assets:actions.save'));
+        await user.click(screen.getByTestId('asset-form-submit'));
+
+        await waitFor(() => expect(mockUpdateAsset).toHaveBeenCalledWith(
+            88,
+            expect.not.objectContaining({ request_reason: expect.anything() }),
+        ));
+        expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+            notes: 'Updated without reassignment',
+        }));
+        expect(onApprovalQueued).not.toHaveBeenCalled();
+    });
+
+    it('saves a protected Asset accountability reassignment without reason only when both scenarios are disabled', async () => {
+        accountabilityScenario.enabled = false;
+        accountabilityScenario.protectedAssetEnabled = false;
+        const user = userEvent.setup();
+        mockUpdateAsset.mockResolvedValue({ ...protectedAsset, business_owner_user_id: 33 });
+        const { onSaved } = await renderForm(protectedAsset);
+
+        await user.click(screen.getByTestId('asset-form-business-owner'));
+        await user.click(await screen.findByRole('option', { name: /Casey Owner.*Finance/ }));
+        expect(screen.getByTestId('asset-form-submit')).toHaveTextContent(i18n.t('assets:actions.save'));
+        await user.click(screen.getByTestId('asset-form-submit'));
+
+        await waitFor(() => expect(mockUpdateAsset).toHaveBeenCalledWith(
+            88,
+            expect.not.objectContaining({ request_reason: expect.anything() }),
+        ));
+        expect(onSaved).toHaveBeenCalled();
+    });
+
+    it.each([
+        ['loading', true, false],
+        ['error', false, true],
+    ])('fails closed while relevant approval scenarios are %s', async (
+        _state,
+        loading,
+        error,
+    ) => {
+        accountabilityScenario.enabled = false;
+        accountabilityScenario.protectedAssetEnabled = false;
+        accountabilityScenario.loading = loading;
+        accountabilityScenario.error = error;
+        const user = userEvent.setup();
+        await renderForm(protectedAsset);
+
+        await user.click(screen.getByTestId('asset-form-business-owner'));
+        await user.click(await screen.findByRole('option', { name: /Casey Owner.*Finance/ }));
+
+        expect(screen.getByTestId('asset-form-submit')).toBeDisabled();
+        expect(mockUpdateAsset).not.toHaveBeenCalled();
     });
 });

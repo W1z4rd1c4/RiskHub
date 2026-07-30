@@ -58,6 +58,58 @@ def test_vendor_model_carries_governance_version() -> None:
 
 
 @pytest.mark.asyncio
+async def test_protected_vendor_scenario_exposes_and_preserves_fixed_policy(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+) -> None:
+    await _scenario(db_session)
+
+    async with client_factory(user=test_user_cro) as client:
+        listed = await client.get("/api/v1/riskhub/approval-scenarios")
+        updated = await client.patch(
+            "/api/v1/riskhub/approval-scenarios/protected_vendor_edit",
+            json={"approver_roles": ["cro"]},
+        )
+        rejected_empty = await client.patch(
+            "/api/v1/riskhub/approval-scenarios/protected_vendor_edit",
+            json={"approver_roles": []},
+        )
+        rejected_unsupported = await client.patch(
+            "/api/v1/riskhub/approval-scenarios/protected_vendor_edit",
+            json={"approver_roles": ["risk_owner"]},
+        )
+        rejected_rewrite = await client.patch(
+            "/api/v1/riskhub/approval-scenarios/protected_vendor_edit",
+            json={
+                "fixed_policy_definition": {
+                    "threshold": "current_or_proposed_cif_yes",
+                    "covered_actions": ["edit"],
+                    "allow_self_approval": True,
+                }
+            },
+        )
+
+    definition = {
+        "threshold": "current_or_proposed_tier_critical_or_significant",
+        "covered_actions": ["create", "edit", "link", "archive"],
+        "allow_self_approval": False,
+    }
+    assert listed.status_code == 200, listed.text
+    listed_scenario = next(
+        row for row in listed.json() if row["key"] == "protected_vendor_edit"
+    )
+    assert listed_scenario["fixed_policy"] is True
+    assert listed_scenario["fixed_policy_definition"] == definition
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["approver_roles"] == ["cro"]
+    assert updated.json()["fixed_policy_definition"] == definition
+    assert rejected_empty.status_code == 422, rejected_empty.text
+    assert rejected_unsupported.status_code == 422, rejected_unsupported.text
+    assert rejected_rewrite.status_code == 422, rejected_rewrite.text
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("target", "field", "value"),
     [

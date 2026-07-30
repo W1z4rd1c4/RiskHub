@@ -59,6 +59,7 @@ def build_me_capabilities(user: User) -> MeCapabilities:
         can_view_access_users=can_view_access_users,
         can_view_department_access_users=can_view_department_access_users,
         can_view_users_route=can_view_users_route,
+        can_view_approvals=not is_platform_admin,
         can_manage_access=can_manage_access,
         can_view_department_access=can_view_department_access,
         can_view_admin_console=is_platform_admin,

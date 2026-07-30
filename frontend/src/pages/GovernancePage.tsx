@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateTimeValue } from '@/i18n/formatters';
 import {
@@ -18,6 +18,7 @@ import {
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
+import type { ApprovalCreatedResponse } from '@/types/approval';
 import { OrphanedItemsTable, ResolveOrphanModal, OrphanQuickViewModal } from '@/components/governance';
 import { GOVERNANCE_POLL_MS } from '@/config/constants';
 import { governanceKeys } from '@/lib/queryKeys';
@@ -40,6 +41,7 @@ const item = {
 
 function GovernancePageInner() {
     const { t, i18n } = useTranslation('admin');
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedOrphan, setSelectedOrphan] = useState<OrphanedItem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -83,6 +85,10 @@ function GovernancePageInner() {
         void overviewQuery.refresh();
     };
 
+    const handleApprovalQueued = (response: ApprovalCreatedResponse) => {
+        void navigate(`/approvals?tab=mine&approvalId=${String(response.approval_id)}`);
+    };
+
     if (overviewQuery.isLoading && !stats) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -90,6 +96,32 @@ function GovernancePageInner() {
                     <RefreshCw className="h-8 w-8 text-accent animate-spin" />
                     <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('governance.loading')}</p>
                 </div>
+            </div>
+        );
+    }
+
+    if (overviewQuery.isError && !stats) {
+        return (
+            <div
+                role="alert"
+                className="glass-card mx-auto flex min-h-[18rem] max-w-2xl flex-col items-center justify-center gap-4 p-8 text-center"
+            >
+                <ShieldAlert className="h-10 w-10 text-rose-400" aria-hidden="true" />
+                <h2 className="text-lg font-bold text-white">{t('governance.load_failed')}</h2>
+                <p className="text-sm text-slate-400">{t('governance.load_failed_help')}</p>
+                <button
+                    type="button"
+                    onClick={() => { void overviewQuery.refresh(); }}
+                    disabled={overviewQuery.isFetching}
+                    className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
+                    aria-label={t('governance.refresh')}
+                >
+                    <RefreshCw
+                        className={`h-4 w-4 ${overviewQuery.isFetching ? 'animate-spin' : ''}`}
+                        aria-hidden="true"
+                    />
+                    {t('governance.refresh')}
+                </button>
             </div>
         );
     }
@@ -312,6 +344,7 @@ function GovernancePageInner() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 orphan={selectedOrphan}
+                onApprovalQueued={handleApprovalQueued}
                 onResolved={handleResolved}
             />
 

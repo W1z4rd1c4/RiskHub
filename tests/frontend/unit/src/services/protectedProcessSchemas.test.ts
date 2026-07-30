@@ -440,6 +440,27 @@ describe('protected Process API schemas', () => {
             updated_at: '2026-07-19T00:00:00Z',
             updated_by_name: null,
         }).fixed_policy_definition?.covered_actions).toEqual(['create', 'edit', 'link', 'archive']);
+
+        expect(approvalScenarioSchema.parse({
+            id: 88,
+            key: 'accountability_reassignment',
+            display_name: 'Accountability reassignments',
+            description: 'Independent approval for accountability reassignments',
+            requires_approval: true,
+            approver_roles: ['risk_manager', 'cro'],
+            fixed_policy: true,
+            fixed_policy_definition: {
+                threshold: 'accountable_user_or_owning_department_change',
+                covered_actions: ['edit'],
+                allow_self_approval: false,
+            },
+            updated_at: '2026-07-30T08:00:00Z',
+            updated_by_name: null,
+        }).fixed_policy_definition).toEqual({
+            threshold: 'accountable_user_or_owning_department_change',
+            covered_actions: ['edit'],
+            allow_self_approval: false,
+        });
     });
 
     it('accepts the safe relationship projection and rejects replay identifiers', () => {

@@ -6,6 +6,7 @@
         "edit": "Edit Threat",
         "create": "Create Threat",
         "save": "Save Changes",
+        "submit_for_approval": "Submit for approval",
         "cancel": "Cancel",
         "restore": "Restore",
         "retry": "Retry",
@@ -40,6 +41,15 @@
     "linked_risks": "Linked Risks",
     "status": "Status"
     },
+    "pending_change": {
+        "title": "Proposed Threat Steward change",
+        "badge": "Pending approval",
+        "requested_by_at": "Requested by {{requester}} on {{date}} at {{time}}",
+        "unknown_requester": "Unknown requester",
+        "cancel": "Cancel request",
+        "cancel_failed": "The pending Threat Steward request could not be cancelled.",
+        "diff_restricted": "The proposed Steward change is hidden by your permission scope."
+    },
     "form": {
         "sections": {
             "identity": "Identification",
@@ -54,10 +64,13 @@
         "typical_weaknesses": "Typical weaknesses",
         "relevant_subject": "Relevant subject",
         "notes": "Notes",
+        "request_reason": "Request reason",
+        "request_reason_help": "All Threat Steward changes are submitted for independent approval. Explain why this change is needed.",
         "not_set": "Not set",
         "errors": {
             "name_required": "The threat name is required.",
             "steward_required": "An active CISO Threat Steward is required.",
+            "request_reason_required": "A request reason is required for this governed Threat change.",
             "save_failed": "Saving the threat failed. Please try again.",
             "fix_fields": "Please correct the highlighted fields.",
             "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."

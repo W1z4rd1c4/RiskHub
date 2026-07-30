@@ -32,7 +32,8 @@
         "risk": "Risk",
         "control": "Control",
         "kri": "KRI",
-        "process": "Process"
+        "process": "Process",
+        "threat": "Threat"
     },
     "fields": {
         "request_type": "Request Type",
@@ -166,7 +167,8 @@
             "vendor_link_control_add": "Add Vendor and Control link",
             "vendor_link_control_remove": "Remove Vendor and Control link",
             "vendor_link_kri_add": "Add Vendor and KRI link",
-            "vendor_link_kri_remove": "Remove Vendor and KRI link"
+            "vendor_link_kri_remove": "Remove Vendor and KRI link",
+            "threat_edit": "Protected Threat Steward update"
         },
         "link_fields": {
             "linked": "Linked",

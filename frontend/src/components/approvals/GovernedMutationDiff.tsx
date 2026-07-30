@@ -215,6 +215,10 @@ const GOVERNED_PROCESS_FIELDS: Record<string, GovernedFieldSpec> = {
     },
 };
 
+const GOVERNED_THREAT_FIELDS: Record<string, GovernedFieldSpec> = {
+    threat_steward: { labelKey: 'threats:form.steward', kind: 'safe_label' },
+};
+
 const GOVERNED_VENDOR_FIELDS: Record<string, GovernedFieldSpec> = {
     name: { labelKey: 'vendors:form.name', kind: 'text' },
     legal_name: { labelKey: 'vendors:form.legal_name', kind: 'text' },
@@ -393,7 +397,7 @@ export function GovernedMutationDiff({
     mutationKind,
     testId,
 }: GovernedMutationDiffProps) {
-    const { t, i18n } = useTranslation(['approvals', 'processes', 'assets', 'vendors']);
+    const { t, i18n } = useTranslation(['approvals', 'processes', 'assets', 'vendors', 'threats']);
     const locale = i18n?.language ?? 'en';
     const vendorContractMutation = mutationKind?.startsWith('vendor.contract.') === true;
     const vendorSubOutsourcingMutation = mutationKind?.startsWith('vendor.sub_outsourcing.') === true;
@@ -405,6 +409,7 @@ export function GovernedMutationDiff({
     const changedFields = [...new Set([...Object.keys(displayedBefore), ...Object.keys(displayedAfter)])]
         .filter((field) => !valuesEqual(displayedBefore[field], displayedAfter[field]));
     const assetPointMutation = mutationKind?.startsWith('asset.') === true;
+    const threatPointMutation = mutationKind === 'threat.edit';
     const vendorPointMutation = mutationKind?.startsWith('vendor.') === true;
     let governedFields = GOVERNED_PROCESS_FIELDS;
     if (vendorContractMutation) {
@@ -415,13 +420,17 @@ export function GovernedMutationDiff({
         governedFields = GOVERNED_VENDOR_FIELDS;
     } else if (assetPointMutation) {
         governedFields = GOVERNED_ASSET_FIELDS;
+    } else if (threatPointMutation) {
+        governedFields = GOVERNED_THREAT_FIELDS;
     }
     const visibleChangedFields = changedFields.filter((field) => governedFields[field] !== undefined);
     const visibleFields = visibleChangedFields;
     const hasRestrictedChanges = visibleChangedFields.length !== changedFields.length;
     let pointDerivedRows: ReadonlyArray<readonly [string, string | null, string | null]> = [];
     if (!isRelationshipImpact(derivedImpact)) {
-        if (vendorPointMutation) {
+        if (threatPointMutation) {
+            pointDerivedRows = [];
+        } else if (vendorPointMutation) {
             pointDerivedRows = [[
                 'approvals:governed.derived.vendor_tier',
                 vendorDerivedStateLabel(t, derivedImpact.before as GovernedVendorDerivedState | null),

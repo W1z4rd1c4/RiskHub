@@ -50,6 +50,8 @@ def _governed_resource_label(mutation_kind: str) -> str:
         return "Asset"
     if mutation_kind.startswith("vendor."):
         return "Vendor"
+    if mutation_kind.startswith("threat."):
+        return "Threat"
     return "Process"
 
 

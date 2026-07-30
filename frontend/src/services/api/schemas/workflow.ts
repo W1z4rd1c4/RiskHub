@@ -17,6 +17,8 @@ import type {
     OrphanedItem,
     OrphanedItemsOverview,
     OrphanStats,
+    ResolveOrphanDirectResponse,
+    ResolveOrphanResponse,
 } from '@/types/orphanedItem';
 import type {
     RiskQuestionnaireClarification,
@@ -119,6 +121,11 @@ const governedVendorCreateDerivedImpactSchema = z.strictObject({
     after: governedVendorDerivedStateSchema,
 });
 
+const governedThreatEditDerivedImpactSchema = z.strictObject({
+    before: z.strictObject({}),
+    after: z.strictObject({}),
+});
+
 export const governedDerivedImpactSchema: z.ZodType<GovernedDerivedImpact> = z.union([
     governedEditDerivedImpactSchema,
     governedCreateDerivedImpactSchema,
@@ -126,6 +133,7 @@ export const governedDerivedImpactSchema: z.ZodType<GovernedDerivedImpact> = z.u
     governedAssetCreateDerivedImpactSchema,
     governedVendorEditDerivedImpactSchema,
     governedVendorCreateDerivedImpactSchema,
+    governedThreatEditDerivedImpactSchema,
     governedRelationshipDerivedImpactSchema,
 ]);
 
@@ -152,7 +160,7 @@ export const governedRelationshipChangeSchema = z.strictObject({
 });
 
 export const governedImpactedResourceSchema = z.strictObject({
-    resource_type: z.enum(['process', 'asset', 'vendor']),
+    resource_type: z.enum(['process', 'asset', 'vendor', 'threat']),
     resource_name: z.string(),
 });
 
@@ -256,7 +264,7 @@ export const activityLogListResponseSchema: z.ZodType<ActivityLogListResponse> =
 
 export const approvalRequestSchema: z.ZodType<ApprovalRequest> = passthroughObject({
     id: z.number(),
-    resource_type: z.enum(['risk', 'control', 'kri', 'process', 'asset', 'vendor']),
+    resource_type: z.enum(['risk', 'control', 'kri', 'process', 'asset', 'vendor', 'threat']),
     resource_id: z.number().nullable(),
     resource_name: z.string(),
     action_type: z.enum(['delete', 'edit', 'create', 'archive']),
@@ -378,6 +386,7 @@ export const orphanedItemSchema: z.ZodType<OrphanedItem> = passthroughObject({
     previous_owner_email: z.string(),
     orphaned_at: z.string(),
     status: z.enum(['pending', 'resolved']),
+    request_reason_required: z.boolean(),
     capabilities: passthroughObject({
         can_resolve: z.boolean(),
         can_view_detail: z.boolean(),
@@ -407,11 +416,13 @@ export const orphanedItemsOverviewSchema: z.ZodType<OrphanedItemsOverview> =
 export const orphanScanResponseSchema = passthroughObject({
     flagged: z.number(),
 });
-export const resolveOrphanResponseSchema = passthroughObject({
-    status: z.string(),
+const resolveOrphanDirectResponseSchema: z.ZodType<ResolveOrphanDirectResponse> = passthroughObject({
+    status: z.literal('resolved'),
     orphan_id: z.number(),
     new_owner_id: z.number().nullable().optional(),
 });
+export const resolveOrphanResponseSchema: z.ZodType<ResolveOrphanResponse> =
+    resolveOrphanDirectResponseSchema.or(approvalCreatedResponseSchema);
 
 export const riskQuestionnairePreviousSubmissionSchema: z.ZodType<RiskQuestionnairePreviousSubmission> =
     passthroughObject({

@@ -174,6 +174,15 @@ If owner or linked-record search fails, retry the protected lookup; do not subst
 
 All view buttons, filter controls, chips, group cards, sortable headers, pagination, retry actions, and export-dialog controls are keyboard-operable and labelled. If focus disappears or a control has no accessible name, record the route, active filters, browser, and language when reporting the problem.
 
+## Accountability reassignment
+
+An Outsourcing Owner change is governed independently of the Vendor protection
+tier. Give a reason, verify the single request in My Requests, and expect the
+approved owner to remain unchanged until an independent Risk Manager or CRO
+approves. A Governance orphan remains visible and the Vendor stays edit-locked
+until that approval applies; cancellation, rejection, and stale expiry preserve
+the former-owner evidence.
+
 ## Related Manuals
 
 Start with [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md), [Dashboard](./dashboard.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

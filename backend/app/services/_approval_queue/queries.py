@@ -39,6 +39,7 @@ from .projection import (
     governed_process_resolver_ids,
     governed_process_snapshot_access_ids,
 )
+from .threat import live_threat_resolver_approval_ids, valid_threat_approvals
 from .vendor import live_vendor_resolver_approval_ids, valid_vendor_approvals
 
 
@@ -128,6 +129,11 @@ async def list_approval_queue_page(
         approval_statuses=candidate_statuses,
     )
     valid_vendor_ids = frozenset(valid_vendor_proposals)
+    valid_threat_proposals = await valid_threat_approvals(
+        db,
+        approval_statuses=candidate_statuses,
+    )
+    valid_threat_ids = frozenset(valid_threat_proposals)
     asset_governed = ApprovalRequest.id.in_(tuple(valid_asset_ids)) if valid_asset_ids else false()
     asset_requester = and_(
         asset_governed,
@@ -158,6 +164,25 @@ async def list_approval_queue_page(
         if live_vendor_resolver_ids
         else false()
     )
+    threat_governed = (
+        ApprovalRequest.id.in_(tuple(valid_threat_ids))
+        if valid_threat_ids
+        else false()
+    )
+    threat_requester = and_(
+        threat_governed,
+        ApprovalRequest.requested_by_id == current_user.id,
+    )
+    live_threat_resolver_ids = await live_threat_resolver_approval_ids(
+        db,
+        current_user=current_user,
+        proposals=valid_threat_proposals,
+    )
+    threat_resolver = (
+        ApprovalRequest.id.in_(tuple(live_threat_resolver_ids))
+        if live_threat_resolver_ids
+        else false()
+    )
     queue_logger.info(
         (
             f"List approvals: user={current_user.id} can_resolve={tier.is_privileged} "
@@ -178,6 +203,7 @@ async def list_approval_queue_page(
                 governed_process_requester_clause(current_user.id, valid_extended_ids),
                 asset_requester,
                 vendor_requester,
+                threat_requester,
             )
         )
     elif status_filter != ApprovalStatusEnum.pending:
@@ -193,6 +219,8 @@ async def list_approval_queue_page(
                     asset_resolver,
                     vendor_requester,
                     vendor_resolver,
+                    threat_requester,
+                    threat_resolver,
                 )
             )
         else:
@@ -213,6 +241,8 @@ async def list_approval_queue_page(
                     asset_resolver,
                     vendor_requester,
                     vendor_resolver,
+                    threat_requester,
+                    threat_resolver,
                 )
             )
 
@@ -251,6 +281,7 @@ async def list_approval_queue_page(
                 ),
                 and_(resource_type.value == "asset", asset_governed),
                 and_(resource_type.value == "vendor", vendor_governed),
+                and_(resource_type.value == "threat", threat_governed),
             )
         )
 

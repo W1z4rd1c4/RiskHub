@@ -9,7 +9,11 @@ from .reads import (
     get_pending_orphans,
     get_pending_orphans_with_details,
 )
-from .resolution import _get_fallback_owner_id, resolve_orphan
+from .resolution import (
+    _get_fallback_owner_id,
+    resolve_orphan,
+    submit_orphan_reassignment,
+)
 from .stats import get_orphan_stats
 
 __all__ = [
@@ -20,6 +24,7 @@ __all__ = [
     "get_pending_orphans",
     "get_pending_orphans_with_details",
     "resolve_orphan",
+    "submit_orphan_reassignment",
     "scan_uncategorised_items",
     "_get_fallback_owner_id",
 ]

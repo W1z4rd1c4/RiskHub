@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
+from app.core.exceptions import AuthorizationError
 from app.core.pagination import MAX_LOOKUP_SIZE
+from app.core.permissions import can_manage_users, has_permission, is_platform_admin
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Role, User
@@ -199,7 +201,11 @@ async def lookup_vendor_owners(
     db: AsyncSession = Depends(get_db),
 ):
     """Return active Users eligible for cross-Department Vendor ownership."""
-    await assert_vendor_assignment_lookup_allowed(db, current_user=current_user)
+    await assert_vendor_assignment_lookup_allowed(
+        db,
+        current_user=current_user,
+        allow_orphan_operator=True,
+    )
     query = (
         select(User)
         .options(selectinload(User.role), selectinload(User.department))
@@ -317,7 +323,7 @@ async def lookup_asset_owners(
 async def lookup_threat_stewards(
     q: str | None = None,
     limit: int = Query(50, ge=1, le=200),
-    _current_user: User = Depends(require_permission("threats", "write")),
+    current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Return active canonical CISO identities for the Threat Steward picker.
@@ -326,6 +332,14 @@ async def lookup_threat_stewards(
     visibility because Threat stewardship is a cross-department governance
     assignment. It exposes only the identity fields needed by the picker.
     """
+    if not (
+        has_permission(current_user, "threats", "write")
+        or (
+            not is_platform_admin(current_user)
+            and can_manage_users(current_user)
+        )
+    ):
+        raise AuthorizationError("Permission denied: Threat Steward assignment lookup")
     query = (
         select(User)
         .join(Role, User.role_id == Role.id)

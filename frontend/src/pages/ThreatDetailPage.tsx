@@ -5,7 +5,9 @@ import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-r
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
+import { approvalsApi } from '@/services/approvalsApi';
 import { threatApi } from '@/services/threatApi';
 import type { Threat } from '@/types/threat';
 
@@ -13,6 +15,7 @@ import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ThreatForm } from './threats/ThreatForm';
+import { ThreatPendingChangePanel } from './threats/ThreatPendingChangePanel';
 import { ThreatRiskLinksSection } from './threats/ThreatRiskLinksSection';
 import { getThreatDisplayStatus, threatCategoryLabel } from './threats/threatsPagePresentation';
 import { getThreatStatusColor } from './threats/threatColumns';
@@ -79,11 +82,12 @@ function StewardshipAlert({
 export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     const navigate = useNavigate();
     const authz = useAuthz();
-    const { t } = useTranslation('threats');
+    const { t, i18n } = useTranslation('threats');
     const { t: tCommon } = useTranslation('common');
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
+    const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
 
     const {
         canArchive,
@@ -118,6 +122,21 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         } finally {
             setIsArchiving(false);
             setIsArchiveDialogOpen(false);
+        }
+    };
+
+    const cancelPendingChange = async () => {
+        if (!threat?.pending_change?.approval_id) return;
+        try {
+            setIsCancellingPendingChange(true);
+            setActionError(null);
+            await approvalsApi.cancel(threat.pending_change.approval_id);
+            await fetchThreat();
+        } catch (cancelError) {
+            logError('Failed to cancel pending Threat change:', cancelError);
+            setActionError(t('pending_change.cancel_failed'));
+        } finally {
+            setIsCancellingPendingChange(false);
         }
     };
 
@@ -178,6 +197,30 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     }
 
     if (mode === 'edit') {
+        if (resolveCapabilityFlag(threat.capabilities, 'business_edit_blocked')) {
+            return (
+                <div className="space-y-8">
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/threats/${threat.id}`)}
+                        aria-label={t('actions.back_to_register')}
+                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white"
+                    >
+                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    {threat.pending_change ? (
+                        <ThreatPendingChangePanel
+                            pendingChange={threat.pending_change}
+                            locale={i18n.language}
+                            cancelling={isCancellingPendingChange}
+                            onCancel={resolveCapabilityFlag(threat.pending_change.capabilities, 'can_cancel')
+                                ? () => void cancelPendingChange()
+                                : undefined}
+                        />
+                    ) : null}
+                </div>
+            );
+        }
         if (threat.stewardship_status === 'pending_governance') {
             return (
                 <div className="space-y-8">
@@ -238,6 +281,9 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                         ? { ...threat, threat_steward_user_id: null }
                         : threat}
                     isEdit
+                    onApprovalQueued={(queued) => {
+                        void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`);
+                    }}
                     onSaved={(saved: Threat) => {
                         // The edit and view routes share the same detail-query
                         // key. Replace its cached pre-edit snapshot before
@@ -261,6 +307,16 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{actionError}</p>
                 </div>
+            ) : null}
+            {threat.pending_change ? (
+                <ThreatPendingChangePanel
+                    pendingChange={threat.pending_change}
+                    locale={i18n.language}
+                    cancelling={isCancellingPendingChange}
+                    onCancel={resolveCapabilityFlag(threat.pending_change.capabilities, 'can_cancel')
+                        ? () => void cancelPendingChange()
+                        : undefined}
+                />
             ) : null}
             {threat.stewardship_status === 'pending_governance' ? (
                 <StewardshipAlert
@@ -320,7 +376,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                             {t('actions.restore')}
                         </button>
                     )}
-                    {canEdit && threat.stewardship_status !== 'pending_governance' && (
+                    {canEdit && !threat.pending_change && threat.stewardship_status !== 'pending_governance' && (
                         <button
                             type="button"
                             onClick={() => navigate(`/threats/${threat.id}/edit`)}
@@ -372,7 +428,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
 
             <ThreatRiskLinksSection
                 threat={threat}
-                canManageLinks={canEdit === true}
+                canManageLinks={canEdit === true && !threat.pending_change}
                 onLinksChanged={() => fetchThreat()}
             />
 

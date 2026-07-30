@@ -6,6 +6,7 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
@@ -130,9 +131,45 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
     const [businessOwnerSearch, setBusinessOwnerSearch] = useState('');
     const [ictOwnerSearch, setIctOwnerSearch] = useState('');
     const [departmentSearch, setDepartmentSearch] = useState('');
+    const accountabilityScenario = useAccountabilityReassignmentScenario();
+
+    const accountabilityChanged = Boolean(
+        isEdit
+        && initialData
+        && (
+            fields.business_owner_user_id !== toFieldValue(initialData.business_owner_user_id)
+            || fields.ict_owner_user_id !== toFieldValue(initialData.ict_owner_user_id)
+            || fields.owning_department_id !== toFieldValue(initialData.owning_department_id)
+        ),
+    );
+    const protectedAssetEditApplies = Boolean(
+        initialData?.derived?.cif === 'yes'
+        || initialData?.derived?.resulting_criticality === 'critical',
+    );
+    const accountabilityChangeRequiresApproval = accountabilityChanged && (
+        accountabilityScenario.isEnabled
+        || (
+            protectedAssetEditApplies
+            && accountabilityScenario.requiresApproval('protected_asset_edit')
+        )
+    );
+    const accountabilityScenarioUnavailable = accountabilityChanged
+        && (accountabilityScenario.isLoading || accountabilityScenario.isError);
+    let submitLabel = t('actions.create');
+    if (accountabilityChangeRequiresApproval) {
+        submitLabel = t('actions.submit_for_approval');
+    } else if (isEdit) {
+        submitLabel = t('actions.save');
+    }
 
     // Required fields in DOM order — drives focus-first-invalid (N12).
-    const REQUIRED_FIELDS: Array<keyof FormFields> = ['name', 'business_owner_user_id', 'ict_owner_user_id', 'owning_department_id'];
+    const requiredFields: Array<keyof FormFields> = [
+        'name',
+        'business_owner_user_id',
+        'ict_owner_user_id',
+        'owning_department_id',
+        ...(accountabilityChangeRequiresApproval ? ['request_reason' as const] : []),
+    ];
     const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLElement | null>>>({});
     const registerFieldRef = (field: keyof FormFields) => (element: HTMLElement | null) => {
         fieldRefs.current[field] = element;
@@ -222,14 +259,18 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
         if (!fields.business_owner_user_id) nextErrors.business_owner_user_id = t('form.errors.business_owner_required');
         if (!fields.ict_owner_user_id) nextErrors.ict_owner_user_id = t('form.errors.ict_owner_required');
         if (!fields.owning_department_id) nextErrors.owning_department_id = t('form.errors.owning_department_required');
+        if (accountabilityChangeRequiresApproval && !fields.request_reason.trim()) {
+            nextErrors.request_reason = t('form.errors.request_reason_required');
+        }
         return nextErrors;
     };
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
+        if (accountabilityScenarioUnavailable) return;
         const validationErrors = validate();
         setFieldErrors(validationErrors);
-        const firstInvalid = REQUIRED_FIELDS.find((field) => validationErrors[field]);
+        const firstInvalid = requiredFields.find((field) => validationErrors[field]);
         if (firstInvalid) {
             fieldRefs.current[firstInvalid]?.focus();
             return;
@@ -470,22 +511,25 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                         />
                     )}
                 </Field>
-                <Field label={t('form.request_reason')} labelClassName={labelClassName}>
+                <Field
+                    label={t('form.request_reason')}
+                    required={accountabilityChangeRequiresApproval}
+                    error={fieldErrors.request_reason}
+                    help={t('form.request_reason_help')}
+                    labelClassName={labelClassName}
+                >
                     {(control) => (
                         <textarea
                             {...control}
+                            ref={registerFieldRef('request_reason')}
                             data-testid="asset-form-request-reason"
                             value={fields.request_reason}
                             onChange={(event) => setField('request_reason', event.target.value)}
-                            aria-describedby="asset-form-request-reason-help"
                             rows={3}
                             className={TEXTAREA_CLASS}
                         />
                     )}
                 </Field>
-                <p id="asset-form-request-reason-help" className="text-xs text-slate-500">
-                    {t('form.request_reason_help')}
-                </p>
             </section>
 
             <div className="flex items-center justify-end gap-3">
@@ -501,12 +545,12 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                 ) : null}
                 <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || accountabilityScenarioUnavailable}
                     data-testid="asset-form-submit"
                     className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
                 >
                     <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
-                    {isEdit ? t('actions.save') : t('actions.create')}
+                    {submitLabel}
                 </button>
             </div>
         </form>

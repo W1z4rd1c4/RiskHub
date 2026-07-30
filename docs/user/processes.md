@@ -104,6 +104,16 @@ If the list looks unexpectedly narrow, inspect the active filter chips, selected
 
 If a localized label looks wrong, note the active language, field, and displayed value. If a derived value looks wrong, capture the entered impacts, MTPD, preliminary class, and the explanation inputs shown in the derived section.
 
+## Accountability reassignment
+
+An actual Process Owner or Owning Department change requires a reason and,
+while the fixed scenario is enabled, creates one request in My Requests.
+Approved Process values stay unchanged until an independent Risk Manager or CRO
+approves. Cancel, reject, or stale expiry preserves the original values.
+Governance orphan reassignment follows the same rule and remains in the queue
+until approval; disabling the scenario permits a direct result without
+weakening authorization or validation.
+
 ## Related Manuals
 
 See [Departments](./departments.md), [Governance](./governance.md), [Risks](./risks.md), [Vendors](./vendors.md), and [Activity Log](./activity-log.md).

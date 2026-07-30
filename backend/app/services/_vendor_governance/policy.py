@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
-from app.core.permissions import can_read_vendor, is_vendor_owner
+from app.core.permissions import (
+    can_manage_users,
+    can_read_vendor,
+    is_platform_admin,
+    is_vendor_owner,
+)
 from app.core.security import check_permission
 from app.models import OrphanedItem, User, Vendor
 from app.services._vendor_owner_lock import lock_vendor_for_owner_mutation
@@ -41,9 +46,17 @@ async def assert_vendor_assignment_lookup_allowed(
     db: AsyncSession,
     *,
     current_user: User,
+    allow_orphan_operator: bool = False,
 ) -> None:
     del db  # The permission itself is authoritative; assignment is validated on write.
-    if not check_permission(current_user, "vendors", "write"):
+    if not (
+        check_permission(current_user, "vendors", "write")
+        or (
+            allow_orphan_operator
+            and not is_platform_admin(current_user)
+            and can_manage_users(current_user)
+        )
+    ):
         raise AuthorizationError("Permission denied: Vendor assignment lookup")
 
 

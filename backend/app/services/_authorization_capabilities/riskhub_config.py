@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from app.core.policy import IMMUTABLE_SYSTEM_ROLES, PROTECTED_SYSTEM_ROLES
 from app.models import RiskTypeConfig
 from app.models.department import Department
-from app.models.role import Role
+from app.models.role import Role, RoleType
 from app.schemas.riskhub import (
     ApprovalScenarioCapabilities,
     DepartmentHubCapabilities,
@@ -14,6 +14,7 @@ from app.schemas.riskhub import (
 )
 
 if TYPE_CHECKING:
+    from app.models import User
     from app.services._riskhub_config.departments import DepartmentDependencyCounts
 
 
@@ -52,5 +53,9 @@ def risk_type_capabilities(risk_type: RiskTypeConfig | None = None) -> RiskTypeC
     )
 
 
-def approval_scenario_capabilities() -> ApprovalScenarioCapabilities:
-    return ApprovalScenarioCapabilities(can_update=True)
+def approval_scenario_capabilities(current_user: User) -> ApprovalScenarioCapabilities:
+    return ApprovalScenarioCapabilities(
+        can_update=bool(
+            current_user.role and current_user.role.name == RoleType.CRO
+        )
+    )

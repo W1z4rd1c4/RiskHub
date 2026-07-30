@@ -71,6 +71,20 @@ It creates disposable databases for both zero-to-head and recorded previous
 head `n4o5p6q7r8s9`-to-head lanes, asserts the final revision is
 `o5p6q7r8s9t0 (head)`, and drops each database after the run.
 
+### Accountability and governed Threat extension rehearsal evidence
+
+Revisions `r7s8t9u0v1w2` and `s8t9u0v1w2x3` are exercised together by the
+PostgreSQL-only automated rehearsal in
+`tests/backend/pytest/migrations/test_governed_threat_migration_rehearsal.py`.
+It creates disposable databases for both zero-to-head and recorded previous
+head `p6q7r8s9t0u1`-to-head lanes. The previous-head lane seeds a representative
+Threat and an existing deployment-specific accountability scenario before
+upgrading, then verifies that the row is preserved with `governance_version=1`
+and the scenario is not overwritten. Both lanes verify the exact
+`approval_resource_type` enum, including one `THREAT` label, the
+`accountability_reassignment` scenario and its JSONB role array, and the final
+single Alembic head `s8t9u0v1w2x3`.
+
 ## Rollback Strategy
 
 Production rollback is restoring the pre-upgrade database snapshot. Alembic `downgrade()` for these revisions raises `NotImplementedError` and points here.
@@ -82,6 +96,9 @@ Production rollback is restoring the pre-upgrade database snapshot. Alembic `dow
   head `m3n4o5p6q7r8`, with the evidence listed above.
 - `o5p6q7r8s9t0` applies cleanly both zero-to-head and from recorded previous
   head `n4o5p6q7r8s9` via the automated PostgreSQL rehearsal.
+- `r7s8t9u0v1w2` and `s8t9u0v1w2x3` apply cleanly together both zero-to-head
+  and from recorded previous head `p6q7r8s9t0u1` via the automated PostgreSQL
+  rehearsal.
 - Archive-state row counts after backfill match the preflight targets.
 - The `set_approval_scenario_roles` helper assigns a list and does not JSON-string encode.
 - Lock monitoring is attached to the staging rehearsal record.

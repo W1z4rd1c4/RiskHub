@@ -70,6 +70,11 @@ from .composite_policy import (
     effective_triggered_policy_roles,
     triggered_policy_snapshot,
 )
+from .fixed_accountability_policy import (
+    ACCOUNTABILITY_SCENARIO_KEY,
+    load_fixed_accountability_scenario_for_update,
+    validated_fixed_accountability_roles,
+)
 from .fixed_asset_policy import (
     ASSET_SCENARIO_KEY,
     load_fixed_asset_scenario_for_update,
@@ -309,17 +314,29 @@ async def assert_no_pending_asset_mutation(db: AsyncSession, *, asset_id: int) -
         )
 
 
-def _safe_asset_snapshot(asset: Asset) -> dict[str, object]:
+async def _safe_asset_snapshot(
+    db: AsyncSession,
+    asset: Asset,
+) -> dict[str, object]:
     fields = set(AssetCreate.model_fields) - {"request_reason"}
     snapshot = {field: jsonable_encoder(getattr(asset, field)) for field in fields}
     snapshot.pop("business_owner_user_id", None)
     snapshot.pop("ict_owner_user_id", None)
     snapshot.pop("owning_department_id", None)
+    business_owner = await db.get(User, asset.business_owner_user_id)
+    ict_owner = await db.get(User, asset.ict_owner_user_id)
+    owning_department = await db.get(Department, asset.owning_department_id)
     snapshot.update(
         {
-            "business_owner": asset.business_owner.name if asset.business_owner else "Unknown user",
-            "ict_owner": asset.ict_owner.name if asset.ict_owner else "Unknown user",
-            "owning_department": (asset.owning_department.name if asset.owning_department else "Unknown department"),
+            "business_owner": (
+                business_owner.name if business_owner is not None else "Unknown user"
+            ),
+            "ict_owner": ict_owner.name if ict_owner is not None else "Unknown user",
+            "owning_department": (
+                owning_department.name
+                if owning_department is not None
+                else "Unknown department"
+            ),
         }
     )
     return snapshot
@@ -332,6 +349,7 @@ async def submit_asset_edit_if_required(
     payload: AssetUpdate,
     current_user: User,
     updates: dict[str, object],
+    orphan_resolution: tuple[int, int] | None = None,
 ):
     await assert_no_pending_asset_mutation(db, asset_id=asset.id)
     current_impact, proposed_impact = await _existing_asset_impacts(db, asset=asset, updates=updates)
@@ -351,15 +369,24 @@ async def submit_asset_edit_if_required(
         or current_impact["resulting_criticality"] == "critical"
         or proposed_impact["resulting_criticality"] == "critical"
     )
-    if not protected:
-        return None
-    scenario = await load_fixed_asset_scenario_for_update(db)
-    if not scenario.requires_approval:
-        return None
-    reason = _required_reason(payload.request_reason)
-    asset_roles = validated_fixed_asset_roles(scenario)
-    triggered_scenarios = [ASSET_SCENARIO_KEY]
-    triggered_policies = [triggered_policy_snapshot(ASSET_SCENARIO_KEY, asset_roles)]
+    accountability_changed = bool(
+        set(updates)
+        & {
+            "business_owner_user_id",
+            "ict_owner_user_id",
+            "owning_department_id",
+        }
+    )
+    triggered_scenarios: list[str] = []
+    triggered_policies: list[dict[str, object]] = []
+    if protected:
+        scenario = await load_fixed_asset_scenario_for_update(db)
+        if scenario.requires_approval:
+            asset_roles = validated_fixed_asset_roles(scenario)
+            triggered_scenarios.append(ASSET_SCENARIO_KEY)
+            triggered_policies.append(
+                triggered_policy_snapshot(ASSET_SCENARIO_KEY, asset_roles)
+            )
     if vendor_protected:
         vendor_scenario = await load_fixed_vendor_scenario_for_update(db)
         if vendor_scenario.requires_approval:
@@ -368,13 +395,31 @@ async def submit_asset_edit_if_required(
             triggered_policies.append(
                 triggered_policy_snapshot(VENDOR_SCENARIO_KEY, vendor_roles)
             )
+    if accountability_changed:
+        accountability_scenario = (
+            await load_fixed_accountability_scenario_for_update(db)
+        )
+        if accountability_scenario.requires_approval:
+            accountability_roles = validated_fixed_accountability_roles(
+                accountability_scenario
+            )
+            triggered_scenarios.append(ACCOUNTABILITY_SCENARIO_KEY)
+            triggered_policies.append(
+                triggered_policy_snapshot(
+                    ACCOUNTABILITY_SCENARIO_KEY,
+                    accountability_roles,
+                )
+            )
+    if not triggered_scenarios:
+        return None
+    reason = _required_reason(payload.request_reason)
     roles = effective_triggered_policy_roles(triggered_policies)
     if not await _has_independent_approver(db, requester_id=current_user.id, roles=roles):
         raise ValidationError(
             "No independent configured Risk Manager or CRO is available",
             code="governed_mutation_independent_approver_required",
         )
-    before = _safe_asset_snapshot(asset)
+    before = await _safe_asset_snapshot(db, asset)
     proposed_values = dict(updates)
     raw_before = {field: jsonable_encoder(getattr(asset, field)) for field in updates}
     after = dict(before)
@@ -404,7 +449,7 @@ async def submit_asset_edit_if_required(
         resource_name=asset.name,
         action_type=ApprovalActionType.EDIT,
         pending_changes=pending_changes,
-        scenario_key=ASSET_SCENARIO_KEY,
+        scenario_key=triggered_scenarios[0],
         scenario_approver_roles=roles,
         requested_by_id=current_user.id,
         reason=reason,
@@ -429,12 +474,12 @@ async def submit_asset_edit_if_required(
         primary_resource_id=asset.id,
         primary_resource_name=asset.name,
         scenario_snapshot={
-            "key": ASSET_SCENARIO_KEY,
+            "key": triggered_scenarios[0],
             "requires_approval": True,
             "approver_roles": roles,
             **(
                 {"triggered_policies": triggered_policies}
-                if len(triggered_scenarios) > 1
+                if triggered_scenarios != [ASSET_SCENARIO_KEY]
                 else {}
             ),
         },
@@ -458,7 +503,7 @@ async def submit_asset_edit_if_required(
                 ],
                 "vendors": vendor_rows,
             }
-            if len(triggered_scenarios) > 1
+            if VENDOR_SCENARIO_KEY in triggered_scenarios
             else {"before": current_impact, "after": proposed_impact}
         ),
         proposed_changes={
@@ -466,7 +511,7 @@ async def submit_asset_edit_if_required(
             "after": jsonable_encoder(proposed_values),
             **(
                 {"triggered_scenarios": triggered_scenarios}
-                if len(triggered_scenarios) > 1
+                if triggered_scenarios != [ASSET_SCENARIO_KEY]
                 else {}
             ),
         },
@@ -495,6 +540,16 @@ async def submit_asset_edit_if_required(
             base_governance_version=asset.governance_version,
         )
     )
+    if orphan_resolution is not None:
+        orphan_id, previous_owner_id = orphan_resolution
+        db.add(
+            GovernedMutationImpactLock(
+                proposal_id=proposal.id,
+                resource_type="orphaned_item",
+                resource_id=orphan_id,
+                base_governance_version=previous_owner_id,
+            )
+        )
     for vendor in impacted_vendors:
         db.add(
             GovernedMutationImpactLock(

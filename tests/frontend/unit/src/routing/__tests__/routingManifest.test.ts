@@ -62,6 +62,7 @@ function meCapabilities(overrides: Partial<MeCapabilities> = {}): MeCapabilities
     can_view_access_users: false,
     can_view_department_access_users: false,
     can_view_users_route: false,
+    can_view_approvals: true,
     can_manage_access: false,
     can_view_department_access: false,
     can_view_admin_console: false,
@@ -92,6 +93,27 @@ function expectRouteElementGuard(
 }
 
 describe('routing manifest parity', () => {
+  it('shows Approvals to a CISO from backend shell authority without resolver permission', () => {
+    const capabilities = meCapabilities({
+      can_view_approvals: true,
+      resource_permissions: {
+        'approvals:write': false,
+      },
+    });
+    const user: AuthUser = {
+      role: 'ciso',
+      access_scope: 'global',
+      me_capabilities: capabilities,
+    };
+    const authz = buildAuthz(user, () => false, capabilities, true);
+    const hrefs = getSidebarNavRoutes({ authz, hasPermission: () => false }).map(
+      (route) => route.nav.href,
+    );
+
+    expect(hrefs).toContain('/approvals');
+    expect(authz.can('write', 'approvals')).toBe(false);
+  });
+
   it('maps every sidebar href to a concrete protected route', () => {
     const protectedHrefs = new Set(
       protectedAppRoutes.flatMap((route) => {
@@ -192,7 +214,7 @@ describe('routing manifest parity', () => {
     ]);
   });
 
-  it('keeps CISO Threat stewardship out of approval and User administration navigation', () => {
+  it('shows requester-scoped Approvals to CISO without User administration navigation', () => {
     const hrefs = visibleSidebarHrefs(
       { role: 'ciso', access_scope: 'global' },
       [
@@ -210,7 +232,7 @@ describe('routing manifest parity', () => {
     );
 
     expect(hrefs).toContain('/threats');
-    expect(hrefs).not.toContain('/approvals');
+    expect(hrefs).toContain('/approvals');
     expect(hrefs).not.toContain('/users');
     expect(hrefs).not.toContain('/admin');
   });

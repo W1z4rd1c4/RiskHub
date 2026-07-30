@@ -68,8 +68,9 @@ export const businessRoutes: AppRouteDef[] = [
       icon: ClipboardCheck,
       group: 'overview',
       // Approval queue reads are identity-scoped (requester/primary/scenario),
-      // while approvals:write represents resolver authority. CISO Threat
-      // stewardship participates in neither approval workflow.
+      // while approvals:write represents resolver authority. The backend shell
+      // capability allows requesters such as a CISO to reach My Requests
+      // without granting approval-decision authority.
       isVisible: ({ authz }) => authz.canViewApprovals,
       order: 20,
       badgeKey: 'workflow',

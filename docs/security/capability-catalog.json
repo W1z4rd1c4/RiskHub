@@ -27,6 +27,7 @@
     "can_view_access_users",
     "can_view_department_access_users",
     "can_view_users_route",
+    "can_view_approvals",
     "can_manage_access",
     "can_view_department_access",
     "can_view_admin_console",
@@ -484,7 +485,25 @@
     "can_read",
     "can_update",
     "can_archive",
-    "can_restore"
+    "can_restore",
+    "has_pending_change",
+    "business_edit_blocked",
+    "can_cancel_pending_change"
+   ]
+  },
+  {
+   "id": "threat_pending_change",
+   "backend": {
+    "path": "backend/app/schemas/threat.py",
+    "class": "ThreatPendingChangeCapabilities"
+   },
+   "frontend": {
+    "path": "frontend/src/services/api/schemas/entities/threats.ts",
+    "schema": "threatPendingChangeCapabilitiesSchema"
+   },
+   "fields": [
+    "can_view_diff",
+    "can_cancel"
    ]
   },
   {

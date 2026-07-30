@@ -17,6 +17,8 @@ from app.models import (
     GovernedMutationProposal,
 )
 
+from .composite_policy import strict_triggered_policy_snapshots
+from .fixed_accountability_policy import ACCOUNTABILITY_SCENARIO_KEY
 from .fixed_asset_policy import ASSET_SCENARIO_KEY
 from .fixed_vendor_policy import VENDOR_SCENARIO_KEY
 
@@ -209,18 +211,33 @@ def valid_asset_governed_envelope(
     ):
         return False
     roles = scenario.get("approver_roles") if isinstance(scenario, dict) else None
-    triggered_scenarios = (
+    raw_triggered_scenarios = (
         proposal.proposed_changes.get("triggered_scenarios")
         if isinstance(proposal.proposed_changes, dict)
         else None
     )
-    vendor_composite = triggered_scenarios == [
+    has_trigger_metadata = raw_triggered_scenarios is not None
+    if raw_triggered_scenarios is None:
+        triggered_scenarios = [ASSET_SCENARIO_KEY]
+    elif isinstance(raw_triggered_scenarios, list):
+        triggered_scenarios = raw_triggered_scenarios
+    else:
+        return False
+    allowed_scenarios = {
         ASSET_SCENARIO_KEY,
         VENDOR_SCENARIO_KEY,
-    ]
-    vendor_triggered = bool(
-        isinstance(triggered_scenarios, list)
-        and VENDOR_SCENARIO_KEY in triggered_scenarios
+        ACCOUNTABILITY_SCENARIO_KEY,
+    }
+    if not (
+        triggered_scenarios
+        and all(isinstance(key, str) for key in triggered_scenarios)
+        and len(triggered_scenarios) == len(set(triggered_scenarios))
+        and set(triggered_scenarios).issubset(allowed_scenarios)
+    ):
+        return False
+    vendor_triggered = VENDOR_SCENARIO_KEY in triggered_scenarios
+    accountability_triggered = (
+        ACCOUNTABILITY_SCENARIO_KEY in triggered_scenarios
     )
     if not (
         isinstance(roles, list)
@@ -230,6 +247,17 @@ def valid_asset_governed_envelope(
         and set(roles).issubset({"risk_manager", "cro"})
     ):
         return False
+    if has_trigger_metadata:
+        try:
+            strict_triggered_policy_snapshots(
+                scenario.get("triggered_policies")
+                if isinstance(scenario, dict)
+                else None,
+                scenario_keys=triggered_scenarios,
+                effective_roles=roles,
+            )
+        except ValueError:
+            return False
     expected_action = {
         ASSET_CREATE_KIND: ApprovalActionType.CREATE,
         ASSET_EDIT_KIND: ApprovalActionType.EDIT,
@@ -372,7 +400,11 @@ def valid_asset_governed_envelope(
         version = proposal.base_versions.get("asset")
         action_valid = bool(
             set(proposal.proposed_changes)
-            == ({"before", "after", "triggered_scenarios"} if vendor_composite else {"before", "after"})
+            == (
+                {"before", "after", "triggered_scenarios"}
+                if has_trigger_metadata
+                else {"before", "after"}
+            )
             and isinstance(raw_before, dict)
             and isinstance(raw_after, dict)
             and bool(raw_after)
@@ -381,7 +413,7 @@ def valid_asset_governed_envelope(
                 _valid_vendor_composite_impacts(
                     proposal=proposal,
                 )
-                if vendor_composite
+                if vendor_triggered
                 else (
                     _valid_single_asset_impact(
                         proposal.impacted_resources_snapshot,
@@ -406,13 +438,13 @@ def valid_asset_governed_envelope(
                 "after": {"is_archived": True},
                 **(
                     {"triggered_scenarios": triggered_scenarios}
-                    if vendor_composite
+                    if has_trigger_metadata
                     else {}
                 ),
             }
             and (
                 _valid_vendor_composite_impacts(proposal=proposal)
-                if vendor_composite
+                if vendor_triggered
                 else (
                     _valid_single_asset_impact(
                         proposal.impacted_resources_snapshot,
@@ -436,19 +468,19 @@ def valid_asset_governed_envelope(
         and set(scenario)
         == (
             {"key", "requires_approval", "approver_roles", "triggered_policies"}
-            if vendor_triggered
+            if has_trigger_metadata
             else {"key", "requires_approval", "approver_roles"}
         )
         and scenario.get("key")
         == (
             triggered_scenarios[0]
-            if vendor_triggered
+            if has_trigger_metadata
             else ASSET_SCENARIO_KEY
         )
         and scenario.get("requires_approval") is True
         and scenario.get("approver_roles") == roles
         and (
-            not vendor_triggered
+            not has_trigger_metadata
             or (
                 isinstance(scenario.get("triggered_policies"), list)
                 and [item.get("key") for item in scenario["triggered_policies"]]
@@ -478,7 +510,7 @@ def valid_asset_governed_envelope(
                 and type(proposal.primary_resource_id) is int
                 and proposal.primary_resource_id > 0
                 and (
-                    vendor_composite
+                    vendor_triggered
                     or proposal.base_versions == {"asset": proposal.base_versions.get("asset")}
                 )
                 and type(proposal.base_versions.get("asset")) is int
@@ -486,6 +518,31 @@ def valid_asset_governed_envelope(
             )
         )
         and relationship_valid
+        and (
+            not accountability_triggered
+            or (
+                proposal.mutation_kind == ASSET_EDIT_KIND
+                and bool(
+                    set(proposal.proposed_changes.get("after", {}))
+                    & {
+                        "business_owner_user_id",
+                        "ict_owner_user_id",
+                        "owning_department_id",
+                    }
+                )
+                and bool(proposal.proposed_changes.get("after"))
+                and (
+                    ASSET_SCENARIO_KEY in triggered_scenarios
+                    or set(proposal.proposed_changes.get("after", {})).issubset(
+                        {
+                            "business_owner_user_id",
+                            "ict_owner_user_id",
+                            "owning_department_id",
+                        }
+                    )
+                )
+            )
+        )
     )
 
 

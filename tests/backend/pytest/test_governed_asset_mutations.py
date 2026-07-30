@@ -69,6 +69,13 @@ async def _scenario(db: AsyncSession) -> None:
                 requires_approval=True,
                 approver_roles=["risk_manager", "cro"],
             ),
+            ApprovalScenario(
+                key="accountability_reassignment",
+                display_name="Accountability reassignments",
+                description="Independent approval for accountability reassignments",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
         ]
     )
     await db.commit()

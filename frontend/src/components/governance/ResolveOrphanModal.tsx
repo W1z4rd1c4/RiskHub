@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { useTranslation } from '@/i18n/hooks';
 import { DialogShell } from '@/components/DialogShell';
+import { Field } from '@/components/ui/field';
+import type { ApprovalCreatedResponse } from '@/types/approval';
 
 import { ResolveOrphanDepartmentSelection } from './ResolveOrphanDepartmentSelection';
 import { ResolveOrphanFooter } from './ResolveOrphanFooter';
@@ -16,13 +18,29 @@ interface ResolveOrphanModalProps {
     isOpen: boolean;
     onClose: () => void;
     orphan: OrphanedItem | null;
+    onApprovalQueued?: (response: ApprovalCreatedResponse) => void;
     onResolved: () => void;
 }
 
-export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: ResolveOrphanModalProps) {
+const REASON_TEXTAREA_CLASS =
+    'flex min-h-[4.5rem] w-full resize-y rounded-xl border border-input bg-input/40 px-4 py-2.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive';
+
+export function ResolveOrphanModal({
+    isOpen,
+    onApprovalQueued,
+    onClose,
+    orphan,
+    onResolved,
+}: ResolveOrphanModalProps) {
     const { i18n } = useTranslation('common');
     const { t: tAdmin } = useTranslation('admin');
-    const workflow = useResolveOrphanWorkflow({ isOpen, onClose, onResolved, orphan });
+    const workflow = useResolveOrphanWorkflow({
+        isOpen,
+        onApprovalQueued,
+        onClose,
+        onResolved,
+        orphan,
+    });
     const titleId = useId();
     const descriptionId = useId();
 
@@ -125,6 +143,28 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                     setSelectedDepartmentId={workflow.setSelectedDepartmentId}
                                 />
                             )}
+
+                            {workflow.requestReasonRequired ? (
+                                <Field
+                                    label={tAdmin('governance.resolve_modal.request_reason')}
+                                    required
+                                    error={workflow.requestReasonInvalid
+                                        ? tAdmin('governance.resolve_modal.request_reason_required')
+                                        : undefined}
+                                >
+                                    {(control) => (
+                                        <textarea
+                                            {...control}
+                                            ref={workflow.requestReasonRef}
+                                            data-testid="resolve-orphan-request-reason"
+                                            value={workflow.requestReason}
+                                            onChange={(event) => workflow.handleRequestReasonChange(event.target.value)}
+                                            rows={3}
+                                            className={REASON_TEXTAREA_CLASS}
+                                        />
+                                    )}
+                                </Field>
+                            ) : null}
                         </div>
                     </motion.div>
                 )}
@@ -135,11 +175,16 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                 errorKey={workflow.errorKey}
                 isKri={isKri}
                 isSubmitting={workflow.isSubmitting}
+                isProcessReassignment={workflow.requestReasonRequired}
                 onClose={onClose}
                 onSubmit={workflow.handleSubmit}
                 selectedRiskId={workflow.selectedRiskId}
                 selectedDepartmentId={workflow.selectedDepartmentId}
                 selectedUserId={workflow.selectedUserId}
+                requestReasonMissing={
+                    workflow.requestReasonRequired
+                    && !workflow.requestReason.trim()
+                }
                 shouldShowOwner={shouldShowOwner}
                 shouldShowRisk={shouldShowRisk}
                 shouldShowDepartment={shouldShowDepartment}

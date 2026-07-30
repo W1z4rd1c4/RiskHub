@@ -64,7 +64,10 @@ Archive/restore remain privileged actions. Being an owner or Department Head is 
 
 ## Approvals and Notifications
 
-Responsibility and lifecycle changes are audited. This release uses explicit Governance reassignment rather than a separate Asset approval queue. The former owner relationship remains auditable until resolution succeeds.
+Responsibility and lifecycle changes are audited. Asset accountability and
+explicit Governance reassignment use the fixed accountability approval
+scenario when enabled. The former relationship remains approved and auditable
+until independent approval applies the complete change.
 
 Use Activity Log when you need to establish who created, updated, archived, restored, linked, or reassigned an Asset. Governance resolution is a controlled corrective workflow, not a shortcut around normal permissions. If you can view the warning but cannot open Governance, ask an authorized Risk Manager or CRO to complete the reassignment.
 
@@ -93,6 +96,13 @@ Do not type owner names into notes, assume owners must share a Department, or ov
 Missing picker choices usually mean an inactive User or Department. If save fails, verify name, both owners, Department, canonical controlled values, and rating ranges. If Governance is pending, resolve the role-specific orphan instead of retrying ordinary edits.
 
 If a label looks incorrect after changing language, report the language, field, stored code if available to support, and the displayed label; do not replace the code with a Czech workbook phrase. If a link action is absent, check the Asset state, Governance warning, counterpart visibility, and per-row capability. If an Asset seems missing, clear search, verify the active/archived population, and ask whether your owner or Department relationship is current.
+
+## Accountability reassignment
+
+Changing the Business Owner, ICT Owner, or Owning Department requires a reason
+and queues one approval while the fixed scenario is enabled. The approved Asset
+and orphan state remain unchanged until an independent Risk Manager or CRO
+approves. Cancellation, rejection, or stale expiry preserves the prior values.
 
 ## Related Manuals
 

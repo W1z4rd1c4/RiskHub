@@ -21,8 +21,10 @@ interface UseVendorSubmitOptions {
     onSaved: (vendor: Vendor) => void;
     onApprovalQueued?: (queued: ProcessApprovalQueuedResponse) => void;
     requestReason: string;
-    onValidationError?: (field: VendorFormField) => void;
+    requestReasonRequired: boolean;
+    onValidationError?: (field: VendorFormField | 'request_reason') => void;
     setError: (value: string | null) => void;
+    setRequestReasonError: (value: string | null) => void;
     setIsSubmitting: (value: boolean) => void;
     t: SafeTFunction;
 }
@@ -34,19 +36,29 @@ export function useVendorSubmit({
     onSaved,
     onApprovalQueued,
     requestReason,
+    requestReasonRequired,
     onValidationError,
     setError,
+    setRequestReasonError,
     setIsSubmitting,
     t,
 }: UseVendorSubmitOptions) {
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         setError(null);
+        setRequestReasonError(null);
 
         const validation = validateVendorFormFields(formData, t);
         if (validation.message && validation.field) {
             setError(validation.message);
             onValidationError?.(validation.field);
+            return;
+        }
+        if (requestReasonRequired && !requestReason.trim()) {
+            const message = t('vendors:errors.request_reason_required');
+            setError(message);
+            setRequestReasonError(message);
+            onValidationError?.('request_reason');
             return;
         }
 

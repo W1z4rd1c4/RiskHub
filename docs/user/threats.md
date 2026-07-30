@@ -115,6 +115,14 @@ If a Risk cannot be found in the link picker, verify that it is active and withi
 
 If the register fails to load, use the keyboard-accessible **Retry** action. A server-declared access denial replaces the register rather than leaving stale rows, groups, filters, or counts on screen. If a grouped URL opens without its selected group, that group may no longer exist in your filtered and permission-scoped universe; return to the grouped view and choose a visible group. If an export fails, keep the URL and retry after connectivity is restored rather than weakening the filters.
 
+## Stewardship reassignment
+
+Changing the Threat Steward requires a reason and queues one request while the
+fixed accountability scenario is enabled. The approved Steward remains
+unchanged until an independent Risk Manager or CRO approves. A CISO can see and
+cancel its own request in My Requests but cannot approve or reject it solely
+because of the CISO role. Orphaned stewardship remains pending until approval.
+
 ## Related Manuals
 
 See [Risks](./risks.md), [Governance](./governance.md), [Activity Log](./activity-log.md), and [Access Management](./access-management.md).

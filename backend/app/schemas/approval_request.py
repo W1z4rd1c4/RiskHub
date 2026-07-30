@@ -28,6 +28,7 @@ class ApprovalResourceTypeEnum(str, Enum):
     process = "process"
     asset = "asset"
     vendor = "vendor"
+    threat = "threat"
 
 
 class ApprovalActionTypeEnum(str, Enum):

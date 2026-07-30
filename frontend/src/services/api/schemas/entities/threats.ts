@@ -4,6 +4,7 @@ import type {
     Threat,
     ThreatListItem,
     ThreatListResponse,
+    ThreatPendingChangeRead,
     ThreatRiskLink,
 } from '@/types/threat';
 
@@ -14,6 +15,9 @@ export const threatCapabilitiesSchema = passthroughObject({
     can_update: z.boolean(),
     can_archive: z.boolean(),
     can_restore: z.boolean(),
+    has_pending_change: z.boolean().default(false),
+    business_edit_blocked: z.boolean().default(false),
+    can_cancel_pending_change: z.boolean().default(false),
 });
 
 export const threatListCapabilitiesSchema = passthroughObject({
@@ -52,8 +56,61 @@ export const threatStewardSchema = passthroughObject({
     department_name: z.string().nullable().optional(),
 });
 
+const threatPendingChangeFields = {
+    status: z.literal('pending'),
+    requested_at: z.string(),
+    requested_by_name: z.string().nullable(),
+    generic_label: z.literal('accountability_reassignment'),
+} as const;
+
+export const threatPendingChangeCapabilitiesSchema = passthroughObject({
+    can_view_diff: z.boolean(),
+    can_cancel: z.boolean(),
+});
+
+export const threatPendingChangeSchema: z.ZodType<ThreatPendingChangeRead> = z.union([
+    z.strictObject({
+        ...threatPendingChangeFields,
+        approval_id: z.number(),
+        proposal_id: z.string(),
+        proposal_version: z.number(),
+        reason: z.string(),
+        mutation_kind: z.literal('threat.edit'),
+        before: z.strictObject({ threat_steward: z.string() }),
+        after: z.strictObject({ threat_steward: z.string() }),
+        derived_impact: z.strictObject({
+            before: z.strictObject({}),
+            after: z.strictObject({}),
+        }),
+        impacted_resources: z.tuple([z.strictObject({
+            resource_type: z.literal('threat'),
+            resource_name: z.literal('Restricted Threat'),
+        })]),
+        capabilities: threatPendingChangeCapabilitiesSchema.extend({
+            can_view_diff: z.literal(true),
+        }).strict(),
+    }),
+    z.strictObject({
+        ...threatPendingChangeFields,
+        approval_id: z.null(),
+        proposal_id: z.null(),
+        proposal_version: z.null(),
+        reason: z.literal(''),
+        mutation_kind: z.null(),
+        before: z.strictObject({}),
+        after: z.strictObject({}),
+        derived_impact: z.strictObject({}),
+        impacted_resources: z.tuple([]),
+        capabilities: threatPendingChangeCapabilitiesSchema.extend({
+            can_view_diff: z.literal(false),
+            can_cancel: z.literal(false),
+        }).strict(),
+    }),
+]);
+
 export const threatSchema: z.ZodType<Threat> = passthroughObject({
     id: z.number(),
+    governance_version: z.number().default(1),
 
     name: z.string(),
     threat_steward_user_id: z.number().nullable().optional(),
@@ -74,6 +131,7 @@ export const threatSchema: z.ZodType<Threat> = passthroughObject({
     archived_at: z.string().nullable().optional(),
     archived_by_id: z.number().nullable().optional(),
     capabilities: threatCapabilitiesSchema.nullable().optional(),
+    pending_change: threatPendingChangeSchema.nullable().optional(),
     created_at: z.string(),
     updated_at: z.string(),
 });

@@ -150,6 +150,17 @@ async def update_asset_detail(
         return await serialize_asset_detail_with_primary(db, asset, current_user=current_user)
 
     updates.pop("request_reason", None)
+    updates = {
+        field: value
+        for field, value in updates.items()
+        if getattr(asset, field) != value
+    }
+    if not updates:
+        return await serialize_asset_detail_with_primary(
+            db,
+            asset,
+            current_user=current_user,
+        )
 
     proposed_business_owner_id = (
         int(updates["business_owner_user_id"]) if "business_owner_user_id" in updates else asset.business_owner_user_id

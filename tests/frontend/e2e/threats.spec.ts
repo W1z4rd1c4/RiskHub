@@ -14,6 +14,7 @@
  */
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ICT_REGISTER_RISK, E2E_THREATS } from './fixtures/e2e-data';
+import { getApiBaseUrl, getDemoToken } from './helpers/api-auth';
 import {
     createThreatViaApi,
     getRiskByCode,
@@ -22,6 +23,7 @@ import {
     listThreatRiskLinks,
 } from './helpers/ict-register';
 import { waitForDataLoad } from './helpers/wait';
+import { ApprovalsPage } from './pages/ApprovalsPage';
 
 // Canonical storage codes are rendered as localized English labels.
 const THREAT_CATEGORY_LABELS = [
@@ -54,8 +56,55 @@ async function requireIctRisk(): Promise<{ id: number; name: string }> {
     return risk;
 }
 
+async function ensureBackupCiso(): Promise<{ id: number; email: string; name: string }> {
+    const email = 'e2e.backup-ciso@example.com';
+    const token = await getDemoToken({ email: 'admin@riskhub.local', fallbackUserIds: [1] });
+    const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    const usersResponse = await fetch(`${getApiBaseUrl()}/api/v1/users?limit=100`, { headers });
+    const users = await usersResponse.json() as Array<{
+        id: number;
+        email: string;
+        name: string;
+        is_active: boolean;
+        role: { id: number; name: string };
+        department_id: number | null;
+    }>;
+    const existing = users.find((user) => user.email === email);
+    if (existing) {
+        if (!existing.is_active) {
+            await fetch(`${getApiBaseUrl()}/api/v1/users/${existing.id}`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ is_active: true }),
+            });
+        }
+        return existing;
+    }
+    const template = users.find((user) => user.role.name === 'ciso');
+    if (!template) throw new Error('CISO template user was not found');
+    const createdResponse = await fetch(`${getApiBaseUrl()}/api/v1/users`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            email,
+            name: 'E2E Backup CISO',
+            password: `E2E-${crypto.randomUUID()}-Aa1!`,
+            role_id: template.role.id,
+            department_id: template.department_id,
+            is_active: true,
+        }),
+    });
+    if (!createdResponse.ok) {
+        throw new Error(`Backup CISO creation failed: ${createdResponse.status}`);
+    }
+    return await createdResponse.json() as { id: number; email: string; name: string };
+}
+
 test.describe('ICT Register — Threats (Deterministic)', () => {
-    test('CISO can steward Threats without User or approval administration', async ({ cisoPage }) => {
+    test('CISO stewardship change queues in My Requests and applies only after independent approval', async ({
+        cisoPage,
+        riskManagerPage,
+    }) => {
         const risk = await requireIctRisk();
         const riskOptionLabel = `${E2E_ICT_REGISTER_RISK.code}: ${risk.name}`;
 
@@ -63,7 +112,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         await waitForDataLoad(cisoPage);
         await expect(cisoPage.getByTestId('threat-form-name')).toBeVisible();
         await expect(cisoPage.locator('nav a[href="/users"]')).toHaveCount(0);
-        await expect(cisoPage.locator('nav a[href="/approvals"]')).toHaveCount(0);
+        await expect(cisoPage.locator('nav a[href="/approvals"]')).toBeVisible();
 
         const uniqueName = `E2E-CISO-THREAT ${Date.now()}`;
         await cisoPage.getByTestId('threat-form-name').fill(uniqueName);
@@ -88,6 +137,42 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         await cisoPage.waitForURL(new RegExp(`/threats/${createdId}$`));
         await expect(cisoPage.getByTestId('threat-detail-category')).toHaveText('Integrity');
         await expect(cisoPage.getByText('CISO-owned ICT service').first()).toBeVisible();
+
+        const backupCiso = await ensureBackupCiso();
+        const reason = `Transfer Threat stewardship ${uniqueName}`;
+        await cisoPage.getByTestId('threat-detail-edit').click();
+        await cisoPage.getByTestId('threat-form-steward-search').fill(backupCiso.email);
+        await cisoPage.getByTestId('threat-form-steward').click();
+        await cisoPage.getByRole('option', { name: new RegExp(backupCiso.name) }).click();
+        await cisoPage.getByTestId('threat-form-submit').click();
+        await expect(cisoPage.getByTestId('threat-form-request-reason'))
+            .toHaveAttribute('aria-invalid', 'true');
+        await cisoPage.getByTestId('threat-form-request-reason').fill(reason);
+        const queued = cisoPage.waitForResponse((response) => (
+            response.request().method() === 'PATCH'
+            && new URL(response.url()).pathname === `/api/v1/threats/${createdId}`
+        ));
+        await cisoPage.getByTestId('threat-form-submit').click();
+        expect((await queued).status()).toBe(202);
+
+        const requesterApprovals = new ApprovalsPage(cisoPage);
+        await requesterApprovals.navigate();
+        await requesterApprovals.selectMyRequests();
+        await expect(requesterApprovals.approvalCards.filter({ hasText: reason })).toHaveCount(1);
+        expect((await getThreatByName(uniqueName))!.threat_steward_user_id).not.toBe(backupCiso.id);
+
+        const resolverApprovals = new ApprovalsPage(riskManagerPage);
+        await resolverApprovals.navigate();
+        const requestIndex = await resolverApprovals.findCardByReason(reason);
+        await resolverApprovals.clickApprove(requestIndex);
+        await resolverApprovals.submitResolution(`Approve ${reason}`, 'approve');
+        await expect.poll(async () => (
+            await getThreatByName(uniqueName)
+        )?.threat_steward_user_id).toBe(backupCiso.id);
+
+        await cisoPage.goto(`/threats/${createdId}`);
+        await waitForDataLoad(cisoPage);
+        await expect(cisoPage.getByTestId('threat-detail-steward')).toContainText(backupCiso.name);
 
         // CISO can maintain the Threat-Risk relation.
         await cisoPage.getByTestId('threat-risk-link-select-search').fill(E2E_ICT_REGISTER_RISK.code);

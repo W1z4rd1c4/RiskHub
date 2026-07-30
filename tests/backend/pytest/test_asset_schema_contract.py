@@ -213,6 +213,7 @@ def test_asset_orphan_contract_preserves_roles_independently_and_deduplicates_pe
                 "previous_owner_id": 12,
                 "orphaned_at": "2026-07-15T12:00:00Z",
                 "status": "pending",
+                "request_reason_required": True,
             }
         )
         assert read.responsibility_role == responsibility_role

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
 from app.models import (
+    ApprovalScenario,
     Department,
     OrphanedItem,
     Permission,
@@ -44,6 +45,16 @@ def _vendor(*, name: str, owner_id: int, department_id: int) -> Vendor:
         dora_relevant=False,
         is_significant_vendor=False,
         has_alternative_providers=False,
+    )
+
+
+def _accountability_scenario(*, requires_approval: bool) -> ApprovalScenario:
+    return ApprovalScenario(
+        key="accountability_reassignment",
+        display_name="Accountability reassignments",
+        description="Independent approval for accountability reassignments",
+        requires_approval=requires_approval,
+        approver_roles=["risk_manager", "cro"],
     )
 
 
@@ -461,7 +472,13 @@ async def test_vendor_owner_deactivation_surfaces_orphan_locks_mutation_and_reso
         status="active",
         is_priority=False,
     )
-    db_session.add_all([vendor, risk])
+    db_session.add_all(
+        [
+            _accountability_scenario(requires_approval=False),
+            vendor,
+            risk,
+        ]
+    )
     await db_session.commit()
     vendor_id = vendor.id
     vendor_name = vendor.name

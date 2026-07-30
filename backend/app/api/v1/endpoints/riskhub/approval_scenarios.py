@@ -1,26 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.deps import get_current_user
 from app.core.activity_logger import log_activity
 from app.db.session import get_db
 from app.models import ApprovalScenario, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import ApprovalScenarioRead, ApprovalScenarioUpdate
-from app.services._governed_mutations.fixed_asset_policy import (
-    ASSET_ALLOWED_APPROVER_ROLES,
-    ASSET_SCENARIO_KEY,
-    load_fixed_asset_scenario_for_update,
-)
-from app.services._governed_mutations.fixed_policy import (
-    ALLOWED_APPROVER_ROLES,
-    SCENARIO_KEY,
-    load_fixed_process_scenario_for_update,
-)
 from app.services._riskhub_config.approval_scenarios import (
     apply_approval_scenario_changes,
     approval_scenario_to_read,
+    load_approval_scenario_for_update,
+    validate_fixed_approval_scenario_update,
 )
 from app.services._riskhub_config.lifecycle import build_config_audit_plan, run_config_noop_update, run_config_update
 
@@ -32,7 +25,7 @@ router = APIRouter()
 @router.get("/approval-scenarios", response_model=list[ApprovalScenarioRead])
 async def list_approval_scenarios(
     db: AsyncSession = Depends(get_db),
-    cro_user: User = Depends(get_cro_user),
+    current_user: User = Depends(get_current_user),
 ) -> list[ApprovalScenarioRead]:
     result = await db.execute(
         select(ApprovalScenario)
@@ -41,7 +34,7 @@ async def list_approval_scenarios(
     )
     scenarios = result.scalars().all()
 
-    return [approval_scenario_to_read(s) for s in scenarios]
+    return [approval_scenario_to_read(s, viewer=current_user) for s in scenarios]
 
 
 @router.patch("/approval-scenarios/{key}", response_model=ApprovalScenarioRead)
@@ -51,30 +44,8 @@ async def update_approval_scenario(
     db: AsyncSession = Depends(get_db),
     cro_user: User = Depends(get_cro_user),
 ) -> ApprovalScenarioRead:
-    if key == SCENARIO_KEY:
-        scenario = await load_fixed_process_scenario_for_update(db)
-    elif key == ASSET_SCENARIO_KEY:
-        scenario = await load_fixed_asset_scenario_for_update(db)
-    else:
-        result = await db.execute(
-            select(ApprovalScenario)
-            .options(selectinload(ApprovalScenario.updated_by))
-            .where(ApprovalScenario.key == key)
-            .with_for_update()
-        )
-        scenario = result.scalar_one_or_none()
-
-    if not scenario:
-        raise HTTPException(status_code=404, detail=f"Approval scenario '{key}' not found")
-
-    if key in {SCENARIO_KEY, ASSET_SCENARIO_KEY} and data.approver_roles is not None:
-        roles = {str(role) for role in data.approver_roles}
-        allowed_roles = ASSET_ALLOWED_APPROVER_ROLES if key == ASSET_SCENARIO_KEY else ALLOWED_APPROVER_ROLES
-        if not roles or not roles.issubset(allowed_roles):
-            raise HTTPException(
-                status_code=422,
-                detail="Protected Process or Asset changes may only be approved by Risk Manager or CRO roles",
-            )
+    scenario = await load_approval_scenario_for_update(db, key)
+    validate_fixed_approval_scenario_update(scenario, key=key, data=data)
 
     changes = apply_approval_scenario_changes(scenario, key=key, data=data)
 
@@ -103,4 +74,8 @@ async def update_approval_scenario(
     else:
         await run_config_noop_update(db=db, entity=scenario, refresh_entity=True)
 
-    return approval_scenario_to_read(scenario, updated_by_name=cro_user.name)
+    return approval_scenario_to_read(
+        scenario,
+        viewer=cro_user,
+        updated_by_name=cro_user.name,
+    )

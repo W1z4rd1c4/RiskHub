@@ -5,6 +5,7 @@ import {
     riskProcessLinkListSchema,
     riskProcessLinkSchema,
     processApprovalQueuedResponseSchema,
+    approvalCreatedResponseSchema,
     threatListResponseSchema,
     threatLookupOptionSchema,
     threatRiskLinkListSchema,
@@ -22,6 +23,7 @@ import type {
     ThreatRiskLink,
     ThreatWritePayload,
 } from '@/types/threat';
+import type { ApprovalCreatedResponse } from '@/types/approval';
 import type { ProcessApprovalQueuedResponse } from '@/types/process';
 
 type ThreatLookupKind = 'stewards' | 'risks' | 'risk-departments';
@@ -123,8 +125,10 @@ export const threatApi = {
         return apiClient.post('/threats', data, { schema: threatSchema });
     },
 
-    async updateThreat(id: number, data: ThreatWritePayload): Promise<Threat> {
-        return apiClient.patch(`/threats/${id}`, data, { schema: threatSchema });
+    async updateThreat(id: number, data: ThreatWritePayload): Promise<Threat | ApprovalCreatedResponse> {
+        return apiClient.patch(`/threats/${id}`, data, {
+            schema: threatSchema.or(approvalCreatedResponseSchema),
+        });
     },
 
     async archiveThreat(id: number): Promise<void> {

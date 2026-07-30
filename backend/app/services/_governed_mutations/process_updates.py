@@ -32,6 +32,11 @@ from app.services.transaction_boundary import commit_service_boundary
 
 from .asset_mutations import process_point_asset_impacts
 from .composite_policy import effective_triggered_policy_roles, triggered_policy_snapshot
+from .fixed_accountability_policy import (
+    ACCOUNTABILITY_SCENARIO_KEY,
+    load_fixed_accountability_scenario_for_update,
+    validated_fixed_accountability_roles,
+)
 from .fixed_asset_policy import (
     ASSET_SCENARIO_KEY,
     load_fixed_asset_scenario_for_update,
@@ -127,7 +132,8 @@ async def active_governed_process_mutation_ids(
     return set(rows.scalars().all())
 
 
-def _change_snapshots(
+async def _change_snapshots(
+    db: AsyncSession,
     process: Process,
     updates: dict[str, object],
     *,
@@ -139,10 +145,17 @@ def _change_snapshots(
     before = dict(raw_before)
     after = dict(raw_after)
     if "process_owner_user_id" in updates:
-        before["process_owner_user_id"] = safe_process_user_label(process.process_owner)
+        current_owner = await db.get(User, process.process_owner_user_id)
+        before["process_owner_user_id"] = safe_process_user_label(current_owner)
         after["process_owner_user_id"] = safe_process_user_label(proposed_owner)
     if "owning_department_id" in updates:
-        before["owning_department_id"] = safe_process_department_label(process.owning_department)
+        current_department = await db.get(
+            Department,
+            process.owning_department_id,
+        )
+        before["owning_department_id"] = safe_process_department_label(
+            current_department
+        )
         after["owning_department_id"] = safe_process_department_label(proposed_department)
     changes = {
         field: {"old": before[field], "new": after[field]}
@@ -161,9 +174,11 @@ async def submit_process_mutation_if_required(
     current_user: User,
     proposed_owner: User | None = None,
     proposed_department: Department | None = None,
+    orphan_resolution: tuple[int, int] | None = None,
 ) -> JSONResponse | None:
     """Queue a protected mutation, or return ``None`` for direct application."""
-    before, after, changes, raw_before, raw_after = _change_snapshots(
+    before, after, changes, raw_before, raw_after = await _change_snapshots(
+        db,
         process,
         updates,
         proposed_owner=proposed_owner,
@@ -220,6 +235,24 @@ async def submit_process_mutation_if_required(
             vendor_roles = validated_fixed_vendor_roles(vendor_scenario)
             triggered_policies.append(
                 triggered_policy_snapshot(VENDOR_SCENARIO_KEY, vendor_roles)
+            )
+    accountability_changed = bool(
+        set(changes) & {"process_owner_user_id", "owning_department_id"}
+    )
+    if accountability_changed:
+        accountability_scenario = (
+            await load_fixed_accountability_scenario_for_update(db)
+        )
+        if accountability_scenario.requires_approval:
+            triggered_scenarios.append(ACCOUNTABILITY_SCENARIO_KEY)
+            accountability_roles = validated_fixed_accountability_roles(
+                accountability_scenario
+            )
+            triggered_policies.append(
+                triggered_policy_snapshot(
+                    ACCOUNTABILITY_SCENARIO_KEY,
+                    accountability_roles,
+                )
             )
     if not triggered_scenarios:
         return None
@@ -327,6 +360,16 @@ async def submit_process_mutation_if_required(
                 base_governance_version=process.governance_version,
             )
         )
+        if orphan_resolution is not None:
+            orphan_id, previous_owner_id = orphan_resolution
+            db.add(
+                GovernedMutationImpactLock(
+                    proposal_id=proposal.id,
+                    resource_type="orphaned_item",
+                    resource_id=orphan_id,
+                    base_governance_version=previous_owner_id,
+                )
+            )
         for asset in impacted_assets:
             db.add(
                 GovernedMutationImpactLock(

@@ -22,6 +22,7 @@ from app.schemas.process import ProcessUpdate
 from app.services._ict_register_reference import PROCESS_CONTROLLED_CODES_BY_FIELD
 
 from .composite_policy import strict_triggered_policy_snapshots, triggered_policy_snapshot
+from .fixed_accountability_policy import ACCOUNTABILITY_SCENARIO_KEY
 from .fixed_asset_policy import ASSET_SCENARIO_KEY
 from .fixed_policy import ALLOWED_APPROVER_ROLES, SCENARIO_KEY
 from .fixed_vendor_policy import VENDOR_SCENARIO_KEY
@@ -270,7 +271,11 @@ def _canonical_json_equal(left: object, right: object) -> bool:
         return False
 
 
-def _valid_derived_impact_snapshot(value: object) -> bool:
+def _valid_derived_impact_snapshot(
+    value: object,
+    *,
+    require_protected: bool = True,
+) -> bool:
     if not isinstance(value, dict) or set(value) != {"before", "after"}:
         return False
     for block in value.values():
@@ -284,7 +289,9 @@ def _valid_derived_impact_snapshot(value: object) -> bool:
             not isinstance(criticality, str) or criticality not in _DERIVED_CRITICALITY_VALUES
         ):
             return False
-    return any(block["cif"] == "yes" for block in value.values())
+    return not require_protected or any(
+        block["cif"] == "yes" for block in value.values()
+    )
 
 
 def _valid_composite_point_impact(
@@ -409,6 +416,7 @@ def _strict_governed_process_identity(
             SCENARIO_KEY,
             ASSET_SCENARIO_KEY,
             VENDOR_SCENARIO_KEY,
+            ACCOUNTABILITY_SCENARIO_KEY,
         }
         and scenario.get("requires_approval") is True
         and isinstance(scenario.get("approver_roles"), list)
@@ -440,7 +448,12 @@ def _strict_governed_process_identity(
         and all(isinstance(key, str) for key in triggered_scenarios)
         and len(triggered_scenarios) == len(set(triggered_scenarios))
         and set(triggered_scenarios).issubset(
-            {SCENARIO_KEY, ASSET_SCENARIO_KEY, VENDOR_SCENARIO_KEY}
+            {
+                SCENARIO_KEY,
+                ASSET_SCENARIO_KEY,
+                VENDOR_SCENARIO_KEY,
+                ACCOUNTABILITY_SCENARIO_KEY,
+            }
         )
         and triggered_scenarios[0] == scenario.get("key")
     ):
@@ -575,7 +588,13 @@ def _strict_governed_process_identity(
             (
                 not extra_impacts
                 and set(base_versions or {}) == {"process"}
-                and _valid_derived_impact_snapshot(proposal.derived_impact_snapshot)
+                and _valid_derived_impact_snapshot(
+                    proposal.derived_impact_snapshot,
+                    require_protected=not (
+                        ACCOUNTABILITY_SCENARIO_KEY in triggered_scenarios
+                        and field_names.issubset(_SAFE_IDENTITY_FIELDS)
+                    ),
+                )
             )
             or composite_valid
         )
@@ -718,6 +737,11 @@ class _JsonOptionalTextFields(FunctionElement):
 
 
 class _JsonDerivedImpactValid(FunctionElement):
+    type = Boolean()
+    inherit_cache = True
+
+
+class _JsonDerivedImpactShapeValid(FunctionElement):
     type = Boolean()
     inherit_cache = True
 
@@ -1232,9 +1256,11 @@ def _compile_json_optional_text_fields_postgresql(element, compiler, **kw):
     return "(" + " AND ".join(conditions) + ")"
 
 
-@compiles(_JsonDerivedImpactValid, "sqlite")
-def _compile_json_derived_impact_valid_sqlite(element, compiler, **kw):
-    (document,) = _compiled_arguments(element, compiler, **kw)
+def _json_derived_impact_sqlite(
+    document: str,
+    *,
+    require_protected: bool,
+) -> str:
     block_conditions: list[str] = []
     for block in ("before", "after"):
         path = f"'$.{block}'"
@@ -1250,18 +1276,38 @@ def _compile_json_derived_impact_valid_sqlite(element, compiler, **kw):
             "IN ('low', 'medium', 'high', 'critical')) "
             "ELSE 0 END"
         )
+    protected = (
+        f" AND (json_extract({document}, '$.before.cif') = 'yes' "
+        f"OR json_extract({document}, '$.after.cif') = 'yes')"
+        if require_protected
+        else ""
+    )
     return (
         f"CASE WHEN json_type({document}) = 'object' THEN "
         f"(SELECT count(*) FROM json_each({document})) = 2 AND "
         + " AND ".join(block_conditions)
-        + f" AND (json_extract({document}, '$.before.cif') = 'yes' "
-        f"OR json_extract({document}, '$.after.cif') = 'yes')" + " ELSE 0 END"
+        + protected
+        + " ELSE 0 END"
     )
 
 
-@compiles(_JsonDerivedImpactValid, "postgresql")
-def _compile_json_derived_impact_valid_postgresql(element, compiler, **kw):
+@compiles(_JsonDerivedImpactValid, "sqlite")
+def _compile_json_derived_impact_valid_sqlite(element, compiler, **kw):
     (document,) = _compiled_arguments(element, compiler, **kw)
+    return _json_derived_impact_sqlite(document, require_protected=True)
+
+
+@compiles(_JsonDerivedImpactShapeValid, "sqlite")
+def _compile_json_derived_impact_shape_valid_sqlite(element, compiler, **kw):
+    (document,) = _compiled_arguments(element, compiler, **kw)
+    return _json_derived_impact_sqlite(document, require_protected=False)
+
+
+def _json_derived_impact_postgresql(
+    document: str,
+    *,
+    require_protected: bool,
+) -> str:
     block_conditions: list[str] = []
     for block in ("before", "after"):
         nested = f"({document} -> '{block}')"
@@ -1276,13 +1322,35 @@ def _compile_json_derived_impact_valid_postgresql(element, compiler, **kw):
             "IN ('low', 'medium', 'high', 'critical')) "
             "ELSE false END"
         )
+    protected = (
+        f" AND (({document} -> 'before' ->> 'cif') = 'yes' "
+        f"OR ({document} -> 'after' ->> 'cif') = 'yes')"
+        if require_protected
+        else ""
+    )
     return (
         f"CASE WHEN jsonb_typeof({document}) = 'object' THEN "
         f"(SELECT count(*) FROM jsonb_object_keys({document})) = 2 AND "
         + " AND ".join(block_conditions)
-        + f" AND (({document} -> 'before' ->> 'cif') = 'yes' "
-        f"OR ({document} -> 'after' ->> 'cif') = 'yes')" + " ELSE false END"
+        + protected
+        + " ELSE false END"
     )
+
+
+@compiles(_JsonDerivedImpactValid, "postgresql")
+def _compile_json_derived_impact_valid_postgresql(element, compiler, **kw):
+    (document,) = _compiled_arguments(element, compiler, **kw)
+    return _json_derived_impact_postgresql(document, require_protected=True)
+
+
+@compiles(_JsonDerivedImpactShapeValid, "postgresql")
+def _compile_json_derived_impact_shape_valid_postgresql(
+    element,
+    compiler,
+    **kw,
+):
+    (document,) = _compiled_arguments(element, compiler, **kw)
+    return _json_derived_impact_postgresql(document, require_protected=False)
 
 
 def exact_governed_process_proposal_exists_clause():
@@ -1337,7 +1405,11 @@ def _strict_sql_identity_predicate():
     first_trigger = _JsonFieldArrayText(proposed_changes, triggered_field, literal(0))
     second_trigger = _JsonFieldArrayText(proposed_changes, triggered_field, literal(1))
     scenario_key = _JsonFieldText(scenario, literal("key"))
-    allowed_scenarios = (SCENARIO_KEY, ASSET_SCENARIO_KEY)
+    allowed_scenarios = (
+        SCENARIO_KEY,
+        ASSET_SCENARIO_KEY,
+        ACCOUNTABILITY_SCENARIO_KEY,
+    )
     operation_before = _JsonFieldDocument(proposed_changes, literal("before"))
     operation_after = _JsonFieldDocument(proposed_changes, literal("after"))
     base_versions = GovernedMutationProposal.base_versions
@@ -1411,7 +1483,27 @@ def _strict_sql_identity_predicate():
             after_snapshot,
             *(literal(field) for field in sorted(_SAFE_IDENTITY_FIELDS)),
         ),
-        _JsonDerivedImpactValid(GovernedMutationProposal.derived_impact_snapshot),
+        or_(
+            _JsonDerivedImpactValid(
+                GovernedMutationProposal.derived_impact_snapshot
+            ),
+            and_(
+                or_(
+                    first_trigger == ACCOUNTABILITY_SCENARIO_KEY,
+                    second_trigger == ACCOUNTABILITY_SCENARIO_KEY,
+                ),
+                _JsonObjectKeysAllowed(
+                    operation_after,
+                    *(
+                        literal(field)
+                        for field in sorted(_SAFE_IDENTITY_FIELDS)
+                    ),
+                ),
+                _JsonDerivedImpactShapeValid(
+                    GovernedMutationProposal.derived_impact_snapshot
+                ),
+            ),
+        ),
         _JsonObjectKeySetEqual(operation_before, operation_after),
         _JsonObjectKeySetEqual(operation_before, before_snapshot),
         _JsonObjectKeySetEqual(operation_after, after_snapshot),

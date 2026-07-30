@@ -25,6 +25,7 @@ const FIXED_PROTECTED_SCENARIO_KEYS = new Set([
     'protected_process_edit',
     'protected_asset_edit',
     'protected_vendor_edit',
+    'accountability_reassignment',
 ]);
 const FIXED_PROTECTED_APPROVER_ROLES = new Set<string>(['risk_manager', 'cro']);
 const LEGACY_PROTECTED_PROCESS_FIXED_POLICY: ApprovalScenarioFixedPolicyDefinition = {
@@ -142,9 +143,13 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                     {fixedPolicyDefinition ? (
                         <div
                             className="rounded-xl border border-white/10 bg-white/5 p-4"
-                            data-testid={scenario.key === 'protected_vendor_edit'
-                                ? 'protected-vendor-fixed-policy'
-                                : 'protected-process-fixed-policy'}
+                            data-testid={
+                                scenario.key === 'accountability_reassignment'
+                                    ? 'accountability-reassignment-fixed-policy'
+                                    : scenario.key === 'protected_vendor_edit'
+                                        ? 'protected-vendor-fixed-policy'
+                                        : 'protected-process-fixed-policy'
+                            }
                         >
                             <h3 className="text-sm font-bold text-white">
                                 {t('admin:approval_scenarios.fixed_policy.title')}

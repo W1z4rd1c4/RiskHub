@@ -93,6 +93,7 @@ export interface MeCapabilities {
     can_view_access_users: boolean;
     can_view_department_access_users: boolean;
     can_view_users_route: boolean;
+    can_view_approvals: boolean;
     can_manage_access: boolean;
     can_view_department_access: boolean;
     can_view_admin_console: boolean;

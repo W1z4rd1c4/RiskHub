@@ -98,6 +98,14 @@ Při chybě uložení nejprve zkontrolujte L0, L1, vlastníka a vlastnický útv
 
 Pokud seznam vypadá nečekaně úzký, zkontrolujte aktivní filter chips, vybranou skupinu a lifecycle před vymazáním stavu. Zakázaná volba s nulovým počtem je platná hodnota bez výsledku v aktuálním čitelném scope, nikoli rozbitý lookup. Pokud export obsahuje méně řádků, než čekáte, porovnejte jej s celkovým počtem shod místo aktuální stránky a ověřte stejné filtry i skupinu.
 
+## Změna odpovědnosti
+
+Skutečná změna vlastníka procesu nebo vlastnícího útvaru vyžaduje důvod a při
+zapnutém pevném scénáři vytvoří jednu žádost v části Moje žádosti. Schválené
+hodnoty procesu zůstanou beze změny do nezávislého schválení Risk Managerem nebo
+CRO. Zrušení, zamítnutí či zastarání zachová původní hodnoty. Stejné pravidlo
+platí pro osiřelé položky v Governance, které zůstanou ve frontě do schválení.
+
 ## Související manuály
 
 Viz [Oddělení](./departments.md), [Governance](./governance.md), [Rizika](./risks.md), [Dodavatelé](./vendors.md) a [Activity Log](./activity-log.md).

@@ -9,10 +9,45 @@ from sqlalchemy.orm import selectinload
 from app.models.asset import Asset
 from app.models.control import Control
 from app.models.key_risk_indicator import KeyRiskIndicator
+from app.models.orphaned_item import OrphanedItem
 from app.models.process import Process
 from app.models.risk import Risk
 from app.models.threat import Threat
 from app.models.vendor import Vendor
+from app.services._governed_mutations.asset_impact import (
+    asset_impact_is_protected,
+)
+from app.services._governed_mutations.asset_impact import (
+    impact_from_derived as asset_impact_from_derived,
+)
+from app.services._governed_mutations.fixed_accountability_policy import (
+    load_fixed_accountability_scenario,
+)
+from app.services._governed_mutations.fixed_asset_policy import (
+    load_fixed_asset_scenario,
+)
+from app.services._governed_mutations.fixed_policy import (
+    load_fixed_process_scenario,
+)
+from app.services._governed_mutations.fixed_vendor_policy import (
+    load_fixed_vendor_scenario,
+)
+from app.services._governed_mutations.vendor_impact import (
+    impact_from_derived as vendor_impact_from_derived,
+)
+from app.services._governed_mutations.vendor_impact import (
+    vendor_impact_is_protected,
+)
+from app.services._ict_register_lifecycle.derivation import (
+    ANO,
+    derive_ict_register,
+)
+from app.services._ict_register_lifecycle.derivation_inputs import (
+    load_ict_register_graph,
+)
+from app.services._ict_register_reference.parameters import (
+    load_ict_workbook_parameter_set,
+)
 
 
 @dataclass(frozen=True)
@@ -137,6 +172,200 @@ def orphan_capability_flags(item_type: str, *, is_pending: bool) -> dict[str, bo
         "requires_risk": definition.requires_risk,
         "requires_department": definition.requires_department,
     }
+
+
+async def project_orphan_request_reason_requirements(
+    db: AsyncSession,
+    orphans: list[OrphanedItem],
+) -> dict[int, bool]:
+    """Project the live reason requirement without resource-domain authority."""
+    pending = [orphan for orphan in orphans if orphan.status == "pending"]
+    requirements = {orphan.id: False for orphan in orphans}
+    if not pending:
+        return requirements
+
+    accountability, process_scenario, asset_scenario, vendor_scenario = (
+        await load_fixed_accountability_scenario(db),
+        await load_fixed_process_scenario(db),
+        await load_fixed_asset_scenario(db),
+        await load_fixed_vendor_scenario(db),
+    )
+    accountability_enabled = bool(
+        accountability is not None and accountability.requires_approval
+    )
+    process_policy_enabled = bool(
+        process_scenario is not None and process_scenario.requires_approval
+    )
+    asset_policy_enabled = bool(
+        asset_scenario is not None and asset_scenario.requires_approval
+    )
+    vendor_policy_enabled = bool(
+        vendor_scenario is not None and vendor_scenario.requires_approval
+    )
+
+    process_ids = {
+        orphan.item_id for orphan in pending if orphan.item_type == "process"
+    }
+    asset_ids = {
+        orphan.item_id for orphan in pending if orphan.item_type == "asset"
+    }
+    vendor_ids = {
+        orphan.item_id for orphan in pending if orphan.item_type == "vendor"
+    }
+    threat_ids = {
+        orphan.item_id for orphan in pending if orphan.item_type == "threat"
+    }
+
+    processes = list(
+        (
+            await db.execute(select(Process).where(Process.id.in_(process_ids)))
+        ).scalars()
+    )
+    assets = list(
+        (await db.execute(select(Asset).where(Asset.id.in_(asset_ids)))).scalars()
+    )
+    vendors = list(
+        (await db.execute(select(Vendor).where(Vendor.id.in_(vendor_ids)))).scalars()
+    )
+    process_by_id = {process.id: process for process in processes}
+    asset_by_id = {asset.id: asset for asset in assets}
+    vendor_by_id = {vendor.id: vendor for vendor in vendors}
+    existing_threat_ids = set(
+        (
+            await db.execute(select(Threat.id).where(Threat.id.in_(threat_ids)))
+        ).scalars()
+    )
+
+    process_asset_ids: dict[int, set[int]] = {}
+    process_vendor_ids: dict[int, set[int]] = {}
+    asset_vendor_ids: dict[int, set[int]] = {}
+    derivation = None
+    if processes or assets or vendors:
+        graph = await load_ict_register_graph(
+            db,
+            processes=processes,
+            assets=assets,
+            vendors=vendors,
+        )
+        for link in graph.process_asset_links:
+            if link.process_id in process_ids:
+                process_asset_ids.setdefault(link.process_id, set()).add(link.asset_id)
+        asset_scope_ids = asset_ids | {
+            asset_id
+            for linked_asset_ids in process_asset_ids.values()
+            for asset_id in linked_asset_ids
+        }
+        for link in graph.asset_vendor_links:
+            if link.asset_id in asset_scope_ids:
+                asset_vendor_ids.setdefault(link.asset_id, set()).add(link.vendor_id)
+        for link in graph.process_vendor_links:
+            if link.process_id in process_ids:
+                process_vendor_ids.setdefault(link.process_id, set()).add(link.vendor_id)
+        for process_id, linked_asset_ids in process_asset_ids.items():
+            process_vendor_ids.setdefault(process_id, set()).update(
+                vendor_id
+                for asset_id in linked_asset_ids
+                for vendor_id in asset_vendor_ids.get(asset_id, ())
+            )
+        downstream_vendor_ids = {
+            vendor_id
+            for linked_vendor_ids in process_vendor_ids.values()
+            for vendor_id in linked_vendor_ids
+        } | {
+            vendor_id
+            for target_asset_id in asset_ids
+            for vendor_id in asset_vendor_ids.get(target_asset_id, ())
+        }
+        missing_vendors = downstream_vendor_ids - {vendor.id for vendor in vendors}
+        if missing_vendors:
+            vendors.extend(
+                (
+                    await db.execute(
+                        select(Vendor).where(Vendor.id.in_(missing_vendors))
+                    )
+                ).scalars()
+            )
+            graph = await load_ict_register_graph(
+                db,
+                processes=processes,
+                assets=assets,
+                vendors=vendors,
+            )
+        derivation = derive_ict_register(
+            graph,
+            await load_ict_workbook_parameter_set(db),
+        )
+
+    def protected_asset(asset_id: int) -> bool:
+        return bool(
+            derivation is not None
+            and asset_id in derivation.assets
+            and asset_impact_is_protected(
+                asset_impact_from_derived(derivation.assets[asset_id])
+            )
+        )
+
+    def protected_vendor(vendor_id: int) -> bool:
+        return bool(
+            derivation is not None
+            and vendor_id in derivation.vendors
+            and vendor_impact_is_protected(
+                vendor_impact_from_derived(derivation.vendors[vendor_id])
+            )
+        )
+
+    for orphan in pending:
+        if orphan.item_type == "process" and orphan.item_id in process_by_id:
+            requirements[orphan.id] = bool(
+                accountability_enabled
+                or (
+                    process_policy_enabled
+                    and derivation is not None
+                    and derivation.processes[orphan.item_id].cif == ANO
+                )
+                or (
+                    asset_policy_enabled
+                    and any(
+                        protected_asset(asset_id)
+                        for asset_id in process_asset_ids.get(orphan.item_id, ())
+                    )
+                )
+                or (
+                    vendor_policy_enabled
+                    and any(
+                        protected_vendor(vendor_id)
+                        for vendor_id in process_vendor_ids.get(orphan.item_id, ())
+                    )
+                )
+            )
+        elif orphan.item_type == "asset" and orphan.item_id in asset_by_id:
+            requirements[orphan.id] = bool(
+                accountability_enabled
+                or (
+                    asset_policy_enabled
+                    and protected_asset(orphan.item_id)
+                )
+                or (
+                    vendor_policy_enabled
+                    and any(
+                        protected_vendor(vendor_id)
+                        for vendor_id in asset_vendor_ids.get(orphan.item_id, ())
+                    )
+                )
+            )
+        elif orphan.item_type == "vendor" and orphan.item_id in vendor_by_id:
+            requirements[orphan.id] = bool(
+                accountability_enabled
+                or (
+                    vendor_policy_enabled
+                    and protected_vendor(orphan.item_id)
+                )
+            )
+        elif orphan.item_type == "threat":
+            requirements[orphan.id] = bool(
+                accountability_enabled and orphan.item_id in existing_threat_ids
+            )
+    return requirements
 
 
 async def load_orphan_display_projection(

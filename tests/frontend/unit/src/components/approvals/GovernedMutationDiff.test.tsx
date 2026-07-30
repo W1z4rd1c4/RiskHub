@@ -173,6 +173,42 @@ describe('GovernedMutationDiff', () => {
     });
 
     it.each([
+        ['en', 'Threat Steward'],
+        ['cs', 'Správce hrozby'],
+    ] as const)(
+        'renders only safe Threat Steward labels and no fabricated derived impact in %s',
+        async (locale, stewardLabel) => {
+            await changeLanguage(locale);
+            render(
+                <GovernedMutationDiff
+                    mutationKind="threat.edit"
+                    before={{
+                        threat_steward: 'Clara Security',
+                        threat_steward_user_id: 7315,
+                    }}
+                    after={{
+                        threat_steward: 'Diego Security',
+                        threat_steward_user_id: 8124,
+                    }}
+                    derivedImpact={{ before: {}, after: {} }}
+                    impactedResources={[{
+                        resource_type: 'threat',
+                        resource_name: 'Restricted Threat',
+                    }]}
+                />,
+            );
+
+            expect(screen.getByText(stewardLabel)).toBeInTheDocument();
+            expect(screen.getByText('Clara Security')).toBeInTheDocument();
+            expect(screen.getByText('Diego Security')).toBeInTheDocument();
+            expect(screen.queryByText('7315')).not.toBeInTheDocument();
+            expect(screen.queryByText('8124')).not.toBeInTheDocument();
+            expect(screen.queryByText('CIF')).not.toBeInTheDocument();
+            expect(screen.queryByText(/criticality|kritičnost/i)).not.toBeInTheDocument();
+        },
+    );
+
+    it.each([
         ['en', 'Vendor Type', 'ICT', 'Data sensitivity', 'High'],
         ['cs', 'Typ dodavatele', 'ICT', 'Citlivost dat', 'Vysoká'],
     ] as const)(

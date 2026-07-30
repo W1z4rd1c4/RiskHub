@@ -12,6 +12,8 @@ from app.models import (
     GovernedMutationProposal,
 )
 
+from .composite_policy import strict_triggered_policy_snapshots
+from .fixed_accountability_policy import ACCOUNTABILITY_SCENARIO_KEY
 from .fixed_vendor_policy import VENDOR_SCENARIO_KEY
 
 VENDOR_CREATE_KIND = "vendor.create"
@@ -258,6 +260,92 @@ def _valid_action_payload(proposal: GovernedMutationProposal) -> bool:
     return False
 
 
+def vendor_triggered_scenarios(
+    proposal: GovernedMutationProposal,
+) -> tuple[str, ...]:
+    """Return the validated policy-key order, or an empty tuple when malformed."""
+    scenario = proposal.scenario_snapshot
+    if not isinstance(scenario, dict):
+        return ()
+    roles = scenario.get("approver_roles")
+    if not (
+        isinstance(roles, list)
+        and roles
+        and all(isinstance(role, str) for role in roles)
+        and len(roles) == len(set(roles))
+        and set(roles).issubset({"risk_manager", "cro"})
+    ):
+        return ()
+    if set(scenario) == {"key", "requires_approval", "approver_roles"}:
+        return (
+            (VENDOR_SCENARIO_KEY,)
+            if scenario.get("key") == VENDOR_SCENARIO_KEY
+            and scenario.get("requires_approval") is True
+            else ()
+        )
+    if set(scenario) != {
+        "key",
+        "requires_approval",
+        "approver_roles",
+        "triggered_policies",
+    }:
+        return ()
+    policies = scenario.get("triggered_policies")
+    if not isinstance(policies, list):
+        return ()
+    keys = tuple(
+        policy.get("key")
+        for policy in policies
+        if isinstance(policy, dict) and isinstance(policy.get("key"), str)
+    )
+    if (
+        not keys
+        or len(keys) != len(policies)
+        or len(keys) != len(set(keys))
+        or not set(keys).issubset(
+            {VENDOR_SCENARIO_KEY, ACCOUNTABILITY_SCENARIO_KEY}
+        )
+        or keys[0] != scenario.get("key")
+        or scenario.get("requires_approval") is not True
+    ):
+        return ()
+    try:
+        strict_triggered_policy_snapshots(
+            policies,
+            scenario_keys=keys,
+            effective_roles=roles,
+        )
+    except ValueError:
+        return ()
+    return keys
+
+
+def _valid_accountability_payload(
+    proposal: GovernedMutationProposal,
+    scenario_keys: tuple[str, ...],
+) -> bool:
+    if ACCOUNTABILITY_SCENARIO_KEY not in scenario_keys:
+        return True
+    raw_before = proposal.proposed_changes.get("before")
+    raw_after = proposal.proposed_changes.get("after")
+    if not (
+        proposal.mutation_kind == VENDOR_EDIT_KIND
+        and isinstance(raw_before, dict)
+        and isinstance(raw_after, dict)
+        and "outsourcing_owner_user_id" in raw_before
+        and set(raw_before) == set(raw_after)
+        and _positive_int(raw_before["outsourcing_owner_user_id"])
+        and _positive_int(raw_after["outsourcing_owner_user_id"])
+        and raw_before["outsourcing_owner_user_id"]
+        != raw_after["outsourcing_owner_user_id"]
+    ):
+        return False
+    return bool(
+        VENDOR_SCENARIO_KEY in scenario_keys
+        or set(raw_after) == {"outsourcing_owner_user_id"}
+    )
+
+
 def strict_vendor_mutation_kind(
     proposal: GovernedMutationProposal | None,
 ) -> str | None:
@@ -266,6 +354,7 @@ def strict_vendor_mutation_kind(
         return None
     approval = proposal.approval_request
     scenario = proposal.scenario_snapshot
+    scenario_keys = vendor_triggered_scenarios(proposal)
     if not (
         approval is not None
         and _canonical_uuid4(proposal.proposal_id)
@@ -281,14 +370,7 @@ def strict_vendor_mutation_kind(
         and isinstance(proposal.derived_impact_snapshot, dict)
         and isinstance(proposal.impacted_resources_snapshot, list)
         and isinstance(scenario, dict)
-        and set(scenario) == {"key", "requires_approval", "approver_roles"}
-        and scenario.get("key") == VENDOR_SCENARIO_KEY
-        and scenario.get("requires_approval") is True
-        and isinstance(scenario.get("approver_roles"), list)
-        and bool(scenario["approver_roles"])
-        and all(isinstance(role, str) for role in scenario["approver_roles"])
-        and len(scenario["approver_roles"]) == len(set(scenario["approver_roles"]))
-        and set(scenario["approver_roles"]).issubset({"risk_manager", "cro"})
+        and scenario_keys
         and approval.resource_type == ApprovalResourceType.VENDOR
         and approval.resource_id == proposal.primary_resource_id
         and approval.resource_name == proposal.primary_resource_name
@@ -298,6 +380,7 @@ def strict_vendor_mutation_kind(
         and approval.scenario_approver_roles == scenario["approver_roles"]
         and approval.pending_changes == _expected_pending(proposal)
         and _valid_action_payload(proposal)
+        and _valid_accountability_payload(proposal, scenario_keys)
     ):
         return None
     return proposal.mutation_kind
@@ -322,13 +405,28 @@ def valid_vendor_governed_envelope(
         )
         for impact in proposal.impacted_resources_snapshot
     }
+    orphan_locks = [
+        lock for lock in impact_locks if lock.resource_type == "orphaned_item"
+    ]
+    resource_locks = [
+        lock for lock in impact_locks if lock.resource_type != "orphaned_item"
+    ]
     actual_locks = {
         (lock.resource_type, lock.resource_id, lock.base_governance_version)
-        for lock in impact_locks
+        for lock in resource_locks
     }
+    raw_before = proposal.proposed_changes.get("before")
+    orphan_lock_valid = not orphan_locks or bool(
+        len(orphan_locks) == 1
+        and orphan_locks[0].resource_id > 0
+        and isinstance(raw_before, dict)
+        and orphan_locks[0].base_governance_version
+        == raw_before.get("outsourcing_owner_user_id")
+    )
     return bool(
         actual_locks == expected_locks
-        and len(impact_locks) == len(expected_locks)
+        and len(resource_locks) == len(expected_locks)
+        and orphan_lock_valid
         and all(
             lock.proposal_id == proposal.id
             and lock.released_at is None
@@ -358,4 +456,5 @@ __all__ = [
     "is_vendor_governed_kind",
     "strict_vendor_mutation_kind",
     "valid_vendor_governed_envelope",
+    "vendor_triggered_scenarios",
 ]

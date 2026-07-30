@@ -12,7 +12,7 @@ from app.core.permissions import can_manage_users, ensure_business_view_access
 from app.core.scheduler_runtime import execute_tracked_job_with_session
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
-from app.models import User
+from app.models import OrphanedItem, User
 from app.models.scheduler_job_run import SchedulerJobRun
 from app.schemas.orphaned_item import (
     OrphanedItemDetail,
@@ -30,9 +30,7 @@ from app.services._orphaned_items import (
 from app.services._orphaned_items import (
     get_pending_orphans_with_details,
     scan_uncategorised_items,
-)
-from app.services._orphaned_items import (
-    resolve_orphan as resolve_orphan_record,
+    submit_orphan_reassignment,
 )
 from app.services._orphaned_items.workflow import OrphanResolutionConflict
 
@@ -196,19 +194,22 @@ async def resolve_orphan(
     _require_governance_operator(current_user)
 
     try:
-        orphan = await resolve_orphan_record(
+        result = await submit_orphan_reassignment(
             db=db,
             orphan_id=orphan_id,
             new_owner_id=body.new_owner_id,
             resolved_by_id=current_user.id,
             department_id=body.department_id,
             target_risk_id=body.target_risk_id,
+            request_reason=body.request_reason,
         )
         ORPHAN_OVERVIEW_CACHE.clear()
+        if not isinstance(result, OrphanedItem):
+            return result
 
         return {
             "status": "resolved",
-            "orphan_id": orphan.id,
+            "orphan_id": result.id,
             "new_owner_id": body.new_owner_id,
         }
 

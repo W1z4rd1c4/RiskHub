@@ -9,34 +9,58 @@
 import AxeBuilder from '@axe-core/playwright';
 
 import { expect, test } from '../fixtures/auth.fixture';
+import { getApiBaseUrl, getDemoToken } from '../helpers/api-auth';
 import { assertZeroAxeFindings, toFindings, WCAG_TAGS } from '../helpers/axeBaseline';
 import { createProcessViaApi, ensureProcessArchived } from '../helpers/ict-register';
 import { waitForDataLoad } from '../helpers/wait';
+import { ApprovalsPage } from '../pages/ApprovalsPage';
+
+async function getProcessOwnerId(processId: number): Promise<number> {
+    const token = await getDemoToken({
+        email: 'risk.manager@riskhub.local',
+        fallbackUserIds: [3],
+    });
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/processes/${processId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to load Process ${processId}: ${response.status}`);
+    }
+    const process = await response.json() as { process_owner_user_id: number };
+    return process.process_owner_user_id;
+}
 
 test.describe('Governed protected Process edit (#84)', () => {
-    test('requester sees immutable pending truth, accessible diff, lock, and cancellation', async ({
+    test('accountability delta requires a reason, queues once in My Requests, and cancellation preserves truth', async ({
         riskManagerPage,
     }) => {
         const processName = `E2E-GOV-PROC-${Date.now()}`;
-        const originalNotes = 'Approved baseline notes';
-        const proposedNotes = 'Proposed governed notes';
+        const reason = `Transfer Process accountability ${processName}`;
         const created = await createProcessViaApi({
             l0_area: 'Provoz a služby klientům',
             l1_process: processName,
-            cif_override: 'yes',
-            notes: originalNotes,
         });
 
         try {
+            const originalProcessOwnerId = await getProcessOwnerId(created.id);
+
             await riskManagerPage.goto(`/processes/${created.id}`);
             await waitForDataLoad(riskManagerPage);
             await riskManagerPage.getByTestId('process-detail-edit').click();
             await expect(riskManagerPage).toHaveURL(new RegExp(`/processes/${created.id}/edit$`));
 
-            await riskManagerPage.getByTestId('process-form-notes').fill(proposedNotes);
-            await riskManagerPage.getByTestId('process-form-request-reason').fill(
-                'Material protected Process change',
+            await riskManagerPage.getByTestId('process-form-owner-search').fill(
+                'it.analyst@riskhub.local',
             );
+            await riskManagerPage.getByTestId('process-form-owner').click();
+            await riskManagerPage
+                .getByRole('option', { name: /Barbora Němcová.*it\.analyst@riskhub\.local/ })
+                .click();
+            await riskManagerPage.getByTestId('process-form-submit').click();
+            await expect(riskManagerPage.getByTestId('process-form-request-reason'))
+                .toHaveAttribute('aria-invalid', 'true');
+
+            await riskManagerPage.getByTestId('process-form-request-reason').fill(reason);
             const submitted = riskManagerPage.waitForResponse((response) => (
                 response.request().method() === 'PATCH'
                 && new URL(response.url()).pathname === `/api/v1/processes/${created.id}`
@@ -44,13 +68,30 @@ test.describe('Governed protected Process edit (#84)', () => {
             await riskManagerPage.getByTestId('process-form-submit').click();
             expect((await submitted).status()).toBe(202);
 
-            await expect(riskManagerPage).toHaveURL(new RegExp(`/processes/${created.id}$`));
+            const approvalsPage = new ApprovalsPage(riskManagerPage);
+            await approvalsPage.navigate();
+            await approvalsPage.selectMyRequests();
+            await expect(approvalsPage.approvalCards.filter({ hasText: reason })).toHaveCount(1);
+            const requestIndex = await approvalsPage.findCardByReason(reason);
+            expect(requestIndex).toBeGreaterThanOrEqual(0);
+            await expect(approvalsPage.getCard(requestIndex).getByRole(
+                'button',
+                { name: /Approve|Schválit/ },
+            )).toHaveCount(0);
+
+            expect(await getProcessOwnerId(created.id)).toBe(originalProcessOwnerId);
+
+            await riskManagerPage.goto(`/processes/${created.id}`);
+            await waitForDataLoad(riskManagerPage);
             const panel = riskManagerPage.getByTestId('process-pending-change');
             await expect(panel).toBeVisible();
-            await expect(panel).toContainText('Material protected Process change');
-            await expect(panel.getByTestId('process-pending-change-diff')).toContainText('Notes');
-            await expect(panel.getByTestId('process-pending-change-diff')).toContainText(originalNotes);
-            await expect(panel.getByTestId('process-pending-change-diff')).toContainText(proposedNotes);
+            await expect(panel).toContainText(reason);
+            await expect(panel.getByTestId('process-pending-change-diff')).toContainText(
+                'Jana Horáková',
+            );
+            await expect(panel.getByTestId('process-pending-change-diff')).toContainText(
+                'Barbora Němcová',
+            );
             await expect(riskManagerPage.getByTestId('process-detail-edit')).toHaveCount(0);
 
             const analysis = await new AxeBuilder({ page: riskManagerPage })
@@ -71,11 +112,7 @@ test.describe('Governed protected Process edit (#84)', () => {
 
             await expect(panel).toHaveCount(0);
             await expect(riskManagerPage.getByTestId('process-detail-edit')).toBeVisible();
-            const detailResponse = await riskManagerPage.request.get(
-                `/api/v1/processes/${created.id}`,
-            );
-            expect(detailResponse.ok()).toBe(true);
-            expect((await detailResponse.json()).notes).toBe(originalNotes);
+            expect(await getProcessOwnerId(created.id)).toBe(originalProcessOwnerId);
         } finally {
             await ensureProcessArchived(processName, true).catch(() => undefined);
         }

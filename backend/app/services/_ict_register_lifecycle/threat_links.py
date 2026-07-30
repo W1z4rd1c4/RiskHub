@@ -30,6 +30,9 @@ from app.core.security import check_permission
 from app.models import Risk, Threat, ThreatRiskLink, User
 from app.schemas.threat import RiskThreatLinkCreate, ThreatRiskLinkCreate, ThreatRiskLinkRead
 from app.services._authorization_capabilities import threat_risk_link_capabilities
+from app.services._governed_mutations.threat_mutations import (
+    assert_no_pending_threat_mutation,
+)
 from app.services.transaction_boundary import commit_service_boundary
 
 from .threat_policy import load_threat
@@ -85,7 +88,7 @@ async def _require_threat_end_access(
     if not check_permission(current_user, "risks", "read"):
         raise AuthorizationError("Permission denied: risks:read")
 
-    threat = await load_threat(db, threat_id)
+    threat = await load_threat(db, threat_id, for_update=require_write)
     if not threat:
         raise NotFoundError("Threat not found")
 
@@ -93,6 +96,8 @@ async def _require_threat_end_access(
         raise AuthorizationError("Permission denied: threats:write")
     if require_write and threat.is_archived:
         raise ConflictError("Cannot mutate links for archived threat")
+    if require_write:
+        await assert_no_pending_threat_mutation(db, threat_id=threat.id)
 
     return threat
 
@@ -307,11 +312,12 @@ async def add_risk_threat_link(
         db, risk_id=risk_id, current_user=current_user, other_resource="threats", require_write=True
     )
 
-    threat = await load_threat(db, payload.threat_id)
+    threat = await load_threat(db, payload.threat_id, for_update=True)
     if not threat:
         raise NotFoundError("Threat not found")
     if threat.is_archived:
         raise ConflictError("Cannot link archived threat")
+    await assert_no_pending_threat_mutation(db, threat_id=threat.id)
 
     link = await _create_threat_risk_link_row(db, threat_id=payload.threat_id, risk_id=risk_id)
 
@@ -348,6 +354,10 @@ async def remove_risk_threat_link(
         raise NotFoundError("Link not found")
 
     threat_id = link.threat_id
+    threat = await load_threat(db, threat_id, for_update=True)
+    if threat is None:
+        raise NotFoundError("Threat not found")
+    await assert_no_pending_threat_mutation(db, threat_id=threat.id)
     await db.delete(link)
     await db.flush()
 

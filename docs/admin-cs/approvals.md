@@ -274,6 +274,14 @@ Balíček pro předání:
 - timestampy + request IDs (pokud jsou)
 - co jste ověřil/a a co zůstává neznámé
 
+### Změna odpovědnosti zůstává čekající
+
+Ověřte, že scénář `accountability_reassignment` má aktivního nezávislého Risk
+Managera nebo CRO. Žadatel má vidět právě jednu položku v Mých žádostech a
+schválené hodnoty zdroje se během čekání nesmějí změnit. U osiřelé položky
+zůstává řádek Governance i zámek běžných úprav do schválení. Neobcházejte
+workflow přímým zápisem vlastníka.
+
 ## Související dokumentace
 
 - Evidence exporty a audit kontext: [Reporty a evidence exporty](./reports.md)

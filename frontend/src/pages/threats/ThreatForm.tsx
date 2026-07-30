@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
 import { cn } from '@/lib/utils';
 import { lookupApi } from '@/services/lookupApi';
 import { threatApi } from '@/services/threatApi';
 import { logError } from '@/services/logger';
+import { isApprovalCreatedResponse, type ApprovalCreatedResponse } from '@/types/approval';
 import type { Threat } from '@/types/threat';
 
 import { buildThreatWritePayload, THREAT_CATEGORY_CODES } from './threatsPagePresentation';
@@ -25,6 +27,7 @@ interface ThreatFormProps {
     initialData?: Threat;
     isEdit?: boolean;
     onSaved: (threat: Threat) => void;
+    onApprovalQueued?: (response: ApprovalCreatedResponse) => void;
     onCancel?: () => void;
 }
 
@@ -36,6 +39,7 @@ type FormFields = {
     typical_weaknesses: string;
     relevant_subject: string;
     notes: string;
+    request_reason: string;
 };
 
 function toFieldValue(value: string | null | undefined): string {
@@ -51,19 +55,46 @@ function initialFields(threat?: Threat): FormFields {
         typical_weaknesses: toFieldValue(threat?.typical_weaknesses),
         relevant_subject: toFieldValue(threat?.relevant_subject),
         notes: toFieldValue(threat?.notes),
+        request_reason: '',
     };
 }
 
-export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: ThreatFormProps) {
+export function ThreatForm({
+    initialData,
+    isEdit = false,
+    onSaved,
+    onApprovalQueued,
+    onCancel,
+}: ThreatFormProps) {
     const { t } = useTranslation('threats');
     const [fields, setFields] = useState<FormFields>(() => initialFields(initialData));
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormFields, string>>>({});
     const [stewardSearch, setStewardSearch] = useState('');
+    const accountabilityScenario = useAccountabilityReassignmentScenario();
+
+    const stewardChanged = Boolean(
+        isEdit
+        && initialData
+        && fields.threat_steward_user_id !== (initialData.threat_steward_user_id?.toString() ?? ''),
+    );
+    const stewardChangeRequiresApproval = accountabilityScenario.isEnabled && stewardChanged;
+    const accountabilityScenarioUnavailable = stewardChanged
+        && (accountabilityScenario.isLoading || accountabilityScenario.isError);
+    let submitLabel = t('actions.create');
+    if (stewardChangeRequiresApproval) {
+        submitLabel = t('actions.submit_for_approval');
+    } else if (isEdit) {
+        submitLabel = t('actions.save');
+    }
 
     // Required fields in DOM order — drives focus-first-invalid (N12).
-    const REQUIRED_FIELDS: Array<keyof FormFields> = ['name', 'threat_steward_user_id'];
+    const requiredFields: Array<keyof FormFields> = [
+        'name',
+        'threat_steward_user_id',
+        ...(stewardChangeRequiresApproval ? ['request_reason' as const] : []),
+    ];
     const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLElement | null>>>({});
     const registerFieldRef = (field: keyof FormFields) => (element: HTMLElement | null) => {
         fieldRefs.current[field] = element;
@@ -99,14 +130,18 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
         if (!fields.threat_steward_user_id) {
             nextErrors.threat_steward_user_id = t('form.errors.steward_required');
         }
+        if (stewardChangeRequiresApproval && !fields.request_reason.trim()) {
+            nextErrors.request_reason = t('form.errors.request_reason_required');
+        }
         return nextErrors;
     };
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
+        if (accountabilityScenarioUnavailable) return;
         const validationErrors = validate();
         setFieldErrors(validationErrors);
-        const firstInvalid = REQUIRED_FIELDS.find((field) => validationErrors[field]);
+        const firstInvalid = requiredFields.find((field) => validationErrors[field]);
         if (firstInvalid) {
             fieldRefs.current[firstInvalid]?.focus();
             return;
@@ -122,6 +157,7 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
             notes: fields.notes,
             }),
             threat_steward_user_id: Number(fields.threat_steward_user_id),
+            ...(fields.request_reason.trim() ? { request_reason: fields.request_reason.trim() } : {}),
         };
 
         try {
@@ -130,7 +166,11 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
             const saved = isEdit && initialData
                 ? await threatApi.updateThreat(initialData.id, payload)
                 : await threatApi.createThreat(payload);
-            onSaved(saved);
+            if (isApprovalCreatedResponse(saved)) {
+                onApprovalQueued?.(saved);
+            } else {
+                onSaved(saved);
+            }
         } catch (submitError) {
             logError('Failed to save threat:', submitError);
             setError(t('form.errors.save_failed'));
@@ -263,6 +303,25 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
                     {textAreaField('description', t('form.description'), 'threat-form-description')}
                     {textAreaField('typical_weaknesses', t('form.typical_weaknesses'), 'threat-form-typical-weaknesses')}
                     {textAreaField('notes', t('form.notes'), 'threat-form-notes')}
+                    <Field
+                        label={t('form.request_reason')}
+                        required={stewardChangeRequiresApproval}
+                        error={fieldErrors.request_reason}
+                        help={t('form.request_reason_help')}
+                        labelClassName={labelClassName}
+                    >
+                        {(control) => (
+                            <textarea
+                                {...control}
+                                ref={registerFieldRef('request_reason')}
+                                data-testid="threat-form-request-reason"
+                                value={fields.request_reason}
+                                rows={3}
+                                onChange={(event) => setField('request_reason', event.target.value)}
+                                className={TEXTAREA_CLASS}
+                            />
+                        )}
+                    </Field>
                 </div>
             </section>
 
@@ -280,12 +339,12 @@ export function ThreatForm({ initialData, isEdit = false, onSaved, onCancel }: T
                 ) : null}
                 <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || accountabilityScenarioUnavailable}
                     data-testid="threat-form-submit"
                     className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2 text-sm"
                 >
                     <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
-                    {isEdit ? t('actions.save') : t('actions.create')}
+                    {submitLabel}
                 </button>
             </div>
         </form>

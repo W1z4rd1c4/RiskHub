@@ -16,6 +16,7 @@ from app.models import (
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
+    ApprovalScenario,
     ApprovalStatus,
     Control,
     Department,
@@ -324,8 +325,8 @@ async def test_inactive_ciso_role_is_hidden_and_rejected_for_threat_assignment(
     assert picker.json() == []
     assert created.status_code == 400
     assert created.json()["detail"] == "Threat steward must be an active CISO"
-    assert reassigned.status_code == 400
-    assert reassigned.json()["detail"] == "Threat steward must be an active CISO"
+    assert reassigned.status_code == 200
+    assert reassigned.json()["threat_steward_user_id"] == ciso_user.id
 
 
 @pytest.mark.asyncio
@@ -372,6 +373,11 @@ async def test_ciso_has_threat_lifecycle_but_no_approval_or_platform_authority(
         assert capability_body["can_view_access_users"] is False
         assert capability_body["can_view_users_route"] is False
         assert capability_body["can_manage_access"] is False
+        assert capability_body["can_view_approvals"] is True
+
+        me = await client.get("/api/v1/auth/me")
+        assert me.status_code == 200, me.text
+        assert me.json()["me_capabilities"]["can_view_approvals"] is True
 
         created = await client.post(
             "/api/v1/threats",
@@ -384,6 +390,9 @@ async def test_ciso_has_threat_lifecycle_but_no_approval_or_platform_authority(
             "can_update": True,
             "can_archive": True,
             "can_restore": False,
+            "has_pending_change": False,
+            "business_edit_blocked": False,
+            "can_cancel_pending_change": False,
         }
         assert (
             await client.patch(
@@ -739,8 +748,18 @@ async def test_legacy_null_steward_is_assignable_without_phantom_governance_orph
     client_factory,
     db_session: AsyncSession,
     test_user_cro: User,
+    test_user_risk_manager: User,
     ciso_user: User,
 ) -> None:
+    db_session.add(
+        ApprovalScenario(
+            key="accountability_reassignment",
+            display_name="Accountability reassignments",
+            description="Independent approval for accountability reassignments",
+            requires_approval=True,
+            approver_roles=["risk_manager", "cro"],
+        )
+    )
     legacy_threat = Threat(name="Migrated stewardship gap", threat_steward_user_id=None)
     db_session.add(legacy_threat)
     await db_session.commit()
@@ -750,7 +769,10 @@ async def test_legacy_null_steward_is_assignable_without_phantom_governance_orph
         listed = await client.get("/api/v1/threats?offset=0&limit=100")
         assigned = await client.patch(
             f"/api/v1/threats/{legacy_threat.id}",
-            json={"threat_steward_user_id": ciso_user.id},
+            json={
+                "threat_steward_user_id": ciso_user.id,
+                "request_reason": "Assign the legacy Threat Steward",
+            },
         )
 
     assert detail.status_code == 200, detail.text
@@ -771,9 +793,20 @@ async def test_legacy_null_steward_is_assignable_without_phantom_governance_orph
         )
     ).scalar_one_or_none()
     assert pending_orphan is None
-    assert assigned.status_code == 200, assigned.text
-    assert assigned.json()["stewardship_status"] == "assigned"
-    assert assigned.json()["threat_steward"]["email"] == ciso_user.email
+    assert assigned.status_code == 202, assigned.text
+    await db_session.refresh(legacy_threat)
+    assert legacy_threat.threat_steward_user_id is None
+
+    async with client_factory(user=test_user_risk_manager) as approver:
+        approved = await approver.post(
+            f"/api/v1/approvals/{assigned.json()['approval_id']}/approve",
+            json={"resolution_notes": "Legacy Threat Steward assignment approved"},
+        )
+
+    assert approved.status_code == 200, approved.text
+    await db_session.refresh(legacy_threat)
+    assert legacy_threat.threat_steward_user_id == ciso_user.id
+    assert legacy_threat.governance_version == 2
 
 
 @pytest.mark.asyncio
@@ -982,6 +1015,7 @@ async def test_postgres_reassignment_and_role_loss_cannot_leave_stale_orphan(
     db_session: AsyncSession,
     client_factory,
     test_user: User,
+    test_user_risk_manager: User,
     test_role_employee: Role,
     ciso_user: User,
 ) -> None:
@@ -999,7 +1033,19 @@ async def test_postgres_reassignment_and_role_loss_cannot_leave_stale_orphan(
         name="Concurrent steward reassignment",
         threat_steward_user_id=ciso_user.id,
     )
-    db_session.add_all([replacement, threat])
+    db_session.add_all(
+        [
+            replacement,
+            threat,
+            ApprovalScenario(
+                key="accountability_reassignment",
+                display_name="Accountability reassignments",
+                description="Independent approval for accountability reassignments",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
+    )
     await db_session.commit()
 
     session_maker = async_sessionmaker(
@@ -1025,7 +1071,10 @@ async def test_postgres_reassignment_and_role_loss_cannot_leave_stale_orphan(
         reassigned, role_lost = await asyncio.gather(
             client.patch(
                 f"/api/v1/threats/{threat.id}",
-                json={"threat_steward_user_id": replacement.id},
+                json={
+                    "threat_steward_user_id": replacement.id,
+                    "request_reason": "Exercise reassignment versus role loss",
+                },
             ),
             client.patch(
                 f"/api/v1/users/{ciso_user.id}",
@@ -1034,7 +1083,7 @@ async def test_postgres_reassignment_and_role_loss_cannot_leave_stale_orphan(
         )
 
     assert role_lost.status_code == 200, role_lost.text
-    assert reassigned.status_code in {200, 409}, reassigned.text
+    assert reassigned.status_code in {200, 202, 409}, reassigned.text
 
     async with session_maker() as session:
         persisted_threat = await session.get(Threat, threat.id)
@@ -1065,6 +1114,7 @@ async def test_postgres_overlapping_threat_reassignments_serialize_without_deadl
     client_factory,
     test_user: User,
     ciso_user: User,
+    test_user_risk_manager: User,
 ) -> None:
     if async_engine.dialect.name != "postgresql":
         pytest.skip("Requires PostgreSQL row and transaction-scoped advisory locks")
@@ -1087,7 +1137,21 @@ async def test_postgres_overlapping_threat_reassignments_serialize_without_deadl
         name="Overlapping steward reassignment",
         threat_steward_user_id=ciso_user.id,
     )
-    db_session.add_all([replacement_b, replacement_c, threat])
+    del test_user_risk_manager
+    db_session.add_all(
+        [
+            replacement_b,
+            replacement_c,
+            threat,
+            ApprovalScenario(
+                key="accountability_reassignment",
+                display_name="Accountability reassignments",
+                description="Independent approval for accountability reassignments",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
+    )
     await db_session.commit()
 
     session_maker = async_sessionmaker(
@@ -1114,21 +1178,27 @@ async def test_postgres_overlapping_threat_reassignments_serialize_without_deadl
             asyncio.gather(
                 client.patch(
                     f"/api/v1/threats/{threat.id}",
-                    json={"threat_steward_user_id": replacement_b.id},
+                    json={
+                        "threat_steward_user_id": replacement_b.id,
+                        "request_reason": "Concurrent Threat transfer B",
+                    },
                 ),
                 client.patch(
                     f"/api/v1/threats/{threat.id}",
-                    json={"threat_steward_user_id": replacement_c.id},
+                    json={
+                        "threat_steward_user_id": replacement_c.id,
+                        "request_reason": "Concurrent Threat transfer C",
+                    },
                 ),
             ),
             timeout=10,
         )
 
-    assert [response.status_code for response in responses] == [200, 200]
+    assert sorted(response.status_code for response in responses) == [202, 409]
     async with session_maker() as session:
         persisted = await session.get(Threat, threat.id)
         assert persisted is not None
-        assert persisted.threat_steward_user_id in {replacement_b.id, replacement_c.id}
+        assert persisted.threat_steward_user_id == ciso_user.id
         pending_orphan = (
             await session.execute(
                 select(OrphanedItem.id).where(

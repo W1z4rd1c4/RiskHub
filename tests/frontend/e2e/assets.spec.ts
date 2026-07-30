@@ -329,9 +329,6 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.goto(`/assets/${created.id}/edit`);
         await waitForDataLoad(riskManagerPage);
 
-        await riskManagerPage.getByTestId('asset-form-ict-owner-search').fill('it.analyst@riskhub.local');
-        await riskManagerPage.getByTestId('asset-form-ict-owner').click();
-        await riskManagerPage.getByRole('option', { name: /it\.analyst@riskhub\.local/i }).click();
         await riskManagerPage.getByTestId('asset-form-lifecycle-state').click();
         await riskManagerPage.getByRole('option', { name: 'Operational', exact: true }).click();
         await riskManagerPage.getByTestId('asset-form-submit').click();
@@ -340,7 +337,6 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         // A fresh document independently proves persistence as well as the edit cache update.
         await riskManagerPage.goto(`/assets/${created.id}`);
         await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.getByText('Barbora Němcová', { exact: true }).first()).toBeVisible();
         await expect(riskManagerPage.getByText('Operational', { exact: true }).first()).toBeVisible();
     });
 

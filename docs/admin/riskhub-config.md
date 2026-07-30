@@ -256,6 +256,16 @@ Handoff package:
 - what you verified and what you changed
 - what decision is required (if any) and who owns it
 
+## Fixed accountability scenario
+
+`accountability_reassignment` is the fourth fixed scenario. It triggers on any
+actual accountable-user or Owning Department change for Process, Asset, Vendor,
+or Threat, including Governance orphan resolution. A CRO may enable or disable
+it and choose a non-empty Risk Manager/CRO resolver subset. Trigger, covered
+edit action, and no-self-approval are read-only. Disabled mode permits the typed
+direct result but never bypasses RBAC, active-user, Department, or resource
+validation.
+
 ## Related Documentation
 
 - Access corrections: [User and Access Management](./user-management.md)

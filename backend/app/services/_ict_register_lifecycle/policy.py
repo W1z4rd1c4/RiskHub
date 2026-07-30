@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
-from app.core.permissions import get_user_department_ids, has_permission, is_platform_admin
+from app.core.permissions import (
+    can_manage_users,
+    get_user_department_ids,
+    has_permission,
+    is_platform_admin,
+)
 from app.models import Department, OrphanedItem, Process, User
 from app.models.role import RoleType
 from app.services._ict_register_lifecycle.lifecycle_adapters import RegisterLifecyclePolicy
@@ -140,6 +145,8 @@ async def can_use_process_assignment_lookup(
 ) -> bool:
     if is_platform_admin(current_user):
         return False
+    if can_manage_users(current_user):
+        return True
 
     department_ids = get_user_department_ids(current_user)
     if department_ids is None and has_permission(current_user, "processes", "write"):

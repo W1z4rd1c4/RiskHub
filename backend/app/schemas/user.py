@@ -97,6 +97,7 @@ class MeCapabilities(BaseModel):
     can_view_access_users: bool = False
     can_view_department_access_users: bool = False
     can_view_users_route: bool = False
+    can_view_approvals: bool = False
     can_manage_access: bool = False
     can_view_department_access: bool = False
     can_view_admin_console: bool = False

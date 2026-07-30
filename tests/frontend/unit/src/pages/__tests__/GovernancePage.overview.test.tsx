@@ -29,8 +29,34 @@ vi.mock('@/services/orphanedItemsApi', () => ({
 }));
 
 vi.mock('@/components/governance', () => ({
-    OrphanedItemsTable: ({ items }: { items: Array<{ item_name: string }> }) => <div>{items.map((item) => item.item_name).join(', ')}</div>,
-    ResolveOrphanModal: () => null,
+    OrphanedItemsTable: ({
+        items,
+        onResolve,
+    }: {
+        items: Array<{ item_name: string }>;
+        onResolve: (item: { item_name: string }) => void;
+    }) => (
+        <div>
+            {items.map((item) => item.item_name).join(', ')}
+            {items[0] ? (
+                <button type="button" onClick={() => onResolve(items[0])}>Open orphan resolution</button>
+            ) : null}
+        </div>
+    ),
+    ResolveOrphanModal: ({
+        isOpen,
+        onApprovalQueued,
+    }: {
+        isOpen: boolean;
+        onApprovalQueued?: (response: { approval_id: number }) => void;
+    }) => isOpen ? (
+        <button
+            type="button"
+            onClick={() => onApprovalQueued?.({ approval_id: 88 })}
+        >
+            Queue orphan approval
+        </button>
+    ) : null,
     OrphanQuickViewModal: () => null,
 }));
 
@@ -43,6 +69,7 @@ function GovernanceHarness() {
         <>
             <GovernancePage />
             <output data-testid="governance-location">{location.search}</output>
+            <output data-testid="governance-route">{location.pathname}{location.search}</output>
             <button type="button" onClick={() => navigate(-1)}>History back</button>
             <button type="button" onClick={() => navigate(1)}>History forward</button>
             <button type="button" onClick={() => navigate('/governance?type=threat')}>Set threat query</button>
@@ -102,6 +129,39 @@ describe('GovernancePage overview aggregation', () => {
         await waitFor(() => expect(screen.queryByText('governance.loading')).not.toBeInTheDocument());
         expect(scanOrphansMock).not.toHaveBeenCalled();
         expect(screen.getByText('Orphaned Risk')).toBeInTheDocument();
+    });
+
+    it('renders a visible fail-closed state when the authoritative orphan list cannot load', async () => {
+        getOverviewMock.mockRejectedValue(new Error('overview unavailable'));
+
+        render(
+            <MemoryRouter>
+                <GovernancePage />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('governance.load_failed');
+        expect(screen.getByText('governance.load_failed_help')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Open orphan resolution' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'governance.refresh' })).toBeEnabled();
+    });
+
+    it('navigates a queued orphan reassignment to the exact My Requests approval deep link', async () => {
+        const user = userEvent.setup();
+        render(
+            <MemoryRouter initialEntries={['/governance?type=risk']}>
+                <GovernanceHarness />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        await user.click(await screen.findByRole('button', { name: 'Open orphan resolution' }));
+        await user.click(screen.getByRole('button', { name: 'Queue orphan approval' }));
+
+        expect(screen.getByTestId('governance-route')).toHaveTextContent(
+            '/approvals?tab=mine&approvalId=88',
+        );
     });
 
     it('opens the Threat queue when linked from an orphaned Threat detail', async () => {

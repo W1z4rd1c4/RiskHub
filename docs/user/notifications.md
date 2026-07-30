@@ -142,6 +142,13 @@ If the page is empty, clear filters and search by a known record name. If the pa
 
 If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
+## Accountability request notifications
+
+Accountability proposals use the governed action-required and request-update
+notification families. Preferences may suppress delivery, but never remove the
+request from Approvals/My Requests, change its work count, or apply the
+reassignment. Treat the record detail and approval row as the source of truth.
+
 ## Related Manuals
 
 Start with [Activity Log](./activity-log.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

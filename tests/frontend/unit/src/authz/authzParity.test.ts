@@ -53,6 +53,7 @@ function backendMeCapabilities(user: MatrixUser, granted: ReadonlySet<string>): 
         can_view_access_users,
         can_view_department_access_users,
         can_view_users_route,
+        can_view_approvals: !isPlatformAdmin,
         can_manage_access: can_view_access_users && (roleName === 'admin' || roleName === 'cro'),
         can_view_department_access,
         can_view_admin_console: isPlatformAdmin,

@@ -86,6 +86,13 @@ async def update_vendor_detail(
     vendor = await assert_vendor_update_allowed(db, vendor_id=vendor_id, current_user=current_user)
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
     updates.pop("request_reason", None)
+    updates = {
+        field: value
+        for field, value in updates.items()
+        if getattr(vendor, field) != (
+            value.value if hasattr(value, "value") else value
+        )
+    }
     if not updates:
         return await serialize_vendor_detail_with_derived(db, vendor, current_user=current_user)
 

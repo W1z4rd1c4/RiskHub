@@ -197,6 +197,13 @@ class VendorUpdate(VendorRegisterWriteValidators, VendorRegisterExtension):
     replaceability: str | None = Field(None, max_length=50)
     has_alternative_providers: bool | None = None
 
+    @field_validator("outsourcing_owner_user_id")
+    @classmethod
+    def _require_outsourcing_owner(cls, value: int | None) -> int:
+        if value is None:
+            raise ValueError("Vendor Outsourcing Owner is required")
+        return value
+
 
 class VendorArchiveRequest(BaseModel):
     model_config = {"extra": "forbid"}

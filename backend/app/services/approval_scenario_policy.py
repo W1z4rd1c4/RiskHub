@@ -24,6 +24,7 @@ from app.models import (
     Asset,
     GovernedMutationProposal,
     Process,
+    Threat,
     User,
 )
 from app.models.approval_scenario import ApprovalScenario
@@ -388,6 +389,29 @@ async def governed_process_response_policy(
             can_view_snapshot=can_access,
             can_resolve=resolver,
         )
+    if proposal.mutation_kind == "threat.edit":
+        from app.services._governed_mutations.fixed_accountability_policy import (
+            is_live_eligible_accountability_resolver,
+            load_fixed_accountability_scenario,
+        )
+        from app.services._governed_mutations.threat_identity import (
+            strict_threat_mutation_kind,
+        )
+
+        if strict_threat_mutation_kind(proposal) is None:
+            raise ValueError("Malformed governed Threat approval envelope")
+        resolver = is_live_eligible_accountability_resolver(
+            user,
+            proposal,
+            await load_fixed_accountability_scenario(db),
+        )
+        can_access = proposal.requested_by_id == user.id or resolver
+        return GovernedProcessResponsePolicy(
+            requested_by_id=proposal.requested_by_id,
+            can_access=can_access,
+            can_view_snapshot=can_access,
+            can_resolve=resolver,
+        )
     evaluation = await _evaluate_governed_process_policy(
         db,
         proposal=proposal,
@@ -620,6 +644,22 @@ async def can_resolve_scenario_approval(
         return bool(evaluation is not None and evaluation.can_resolve)
     asset_proposal = approval.governed_mutation_proposal
     if asset_proposal is not None:
+        if asset_proposal.mutation_kind == "threat.edit":
+            from app.services._governed_mutations.fixed_accountability_policy import (
+                is_live_eligible_accountability_resolver,
+                load_fixed_accountability_scenario,
+            )
+            from app.services._governed_mutations.threat_identity import (
+                strict_threat_mutation_kind,
+            )
+
+            if strict_threat_mutation_kind(asset_proposal) is None:
+                return False
+            return is_live_eligible_accountability_resolver(
+                user,
+                asset_proposal,
+                await load_fixed_accountability_scenario(db),
+            )
         from app.services._governed_mutations.vendor_identity import (
             is_vendor_governed_kind,
             strict_vendor_mutation_kind,
@@ -674,6 +714,12 @@ async def can_view_approval_resource(db: AsyncSession, user: User, approval: App
         return bool(
             approval.resource_id
             and await can_read_vendor_id(db, user, approval.resource_id)
+        )
+    if approval.resource_type == ApprovalResourceType.THREAT:
+        return bool(
+            approval.resource_id
+            and await db.get(Threat, approval.resource_id) is not None
+            and has_permission(user, "threats", "read")
         )
     return False
 

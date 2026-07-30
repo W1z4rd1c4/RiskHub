@@ -431,6 +431,8 @@
     "title": "Dohled nad správou",
     "subtitle": "Správa osiřelých rizik, kontrol, KRI, hrozeb, procesů, aktiv a dodavatelů, které vyžadují řízené přeřazení.",
     "loading": "Načítání dat správy...",
+    "load_failed": "Data správy se nepodařilo načíst",
+    "load_failed_help": "Přeřazení je zakázáno, dokud není dostupný autoritativní seznam osiřelých položek. Zkuste data obnovit.",
     "refresh": "Obnovit data",
     "live_status": "Živý stav systému",
     "pending_orphans": "Čekající položky",
@@ -523,7 +525,11 @@
       "department_selection_required": "Je vyžadován výběr vlastnického útvaru",
       "risk_linkage_required": "Je vyžadováno propojení s rizikem",
       "verified_ready": "Ověřeno, připraveno",
+      "request_reason": "Důvod přeřazení",
+      "request_reason_required": "U tohoto řízeného přeřazení je důvod povinný.",
       "resolving": "Probíhá řešení...",
+      "submitting_for_approval": "Odesílání...",
+      "submit_for_approval": "Odeslat ke schválení",
       "link_risk": "Propojit riziko",
       "resolve_item": "Vyřešit položku"
     }
@@ -723,12 +729,14 @@
       "roles_selected": "Vybráno rolí: {{count}}"
     },
     "fixed_policy": {
-      "title": "Pevná pravidla chráněného Procesu",
+      "title": "Pevná pravidla schvalování",
       "immutable_help": "Tato pravidla ochrany vynucuje systém a nelze je změnit.",
       "threshold": "Práh ochrany",
       "triggers": {
         "current_or_proposed_cif_yes": "Současné nebo navrhované CIF je Ano",
-        "current_or_proposed_cif_yes_or_resulting_criticality_critical": "Současné nebo navrhované CIF je Ano, nebo výsledná kritičnost je Kritická"
+        "current_or_proposed_cif_yes_or_resulting_criticality_critical": "Současné nebo navrhované CIF je Ano, nebo výsledná kritičnost je Kritická",
+        "current_or_proposed_tier_critical_or_significant": "Současná nebo navrhovaná úroveň je Kritická nebo Významná",
+        "accountable_user_or_owning_department_change": "Změna odpovědného uživatele nebo vlastnícího oddělení"
       },
       "actions": "Pokryté akce",
       "covered_action_values": {

@@ -112,8 +112,10 @@ class ApprovalScenarioFixedPolicyRead(BaseModel):
     """Read-only definition of a system-enforced approval policy."""
 
     threshold: Literal[
+        "accountable_user_or_owning_department_change",
         "current_or_proposed_cif_yes",
         "current_or_proposed_cif_yes_or_resulting_criticality_critical",
+        "current_or_proposed_tier_critical_or_significant",
     ]
     covered_actions: list[Literal["create", "edit", "link", "archive"]]
     allow_self_approval: Literal[False]

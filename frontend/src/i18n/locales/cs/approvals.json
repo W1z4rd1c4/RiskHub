@@ -32,7 +32,8 @@
         "risk": "Riziko",
         "control": "Kontrola",
         "kri": "KRI",
-        "process": "Proces"
+        "process": "Proces",
+        "threat": "Hrozba"
     },
     "fields": {
         "request_type": "Typ žádosti",
@@ -166,7 +167,8 @@
             "vendor_link_control_add": "Přidání vazby Dodavatele a Kontroly",
             "vendor_link_control_remove": "Odebrání vazby Dodavatele a Kontroly",
             "vendor_link_kri_add": "Přidání vazby Dodavatele a KRI",
-            "vendor_link_kri_remove": "Odebrání vazby Dodavatele a KRI"
+            "vendor_link_kri_remove": "Odebrání vazby Dodavatele a KRI",
+            "threat_edit": "Aktualizace správce chráněné hrozby"
         },
         "link_fields": {
             "linked": "Propojeno",

@@ -115,6 +115,14 @@ Když v pickeru vazeb nenajdete riziko, zkontrolujte, že je aktivní a patří 
 
 Pokud se registr nenačte, použijte klávesnicí ovladatelnou akci **Opakovat**. Serverem potvrzené odepření přístupu nahradí registr a nenechá na obrazovce staré řádky, skupiny, filtry ani počty. Pokud se skupinová URL otevře bez vybrané skupiny, skupina už nemusí existovat ve vašem filtrovaném a oprávněném rozsahu; vraťte se ke skupinám a zvolte viditelnou kartu. Když selže export, ponechte URL a po obnovení připojení operaci zopakujte; neoslabujte kvůli tomu filtry.
 
+## Změna správce hrozby
+
+Změna Threat Stewarda vyžaduje důvod a při zapnutém scénáři vytvoří jednu
+žádost. Schválený správce se změní až po nezávislém schválení Risk Managerem
+nebo CRO. CISO vidí a může zrušit vlastní žádost v části Moje žádosti, ale role
+CISO sama nedává právo ji schválit ani zamítnout. Osiřelá správa zůstává
+nevyřešená do schválení.
+
 ## Související manuály
 
 Viz [Rizika](./risks.md), [Governance](./governance.md), [Activity Log](./activity-log.md) a [Správa přístupů](./access-management.md).

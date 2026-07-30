@@ -965,10 +965,13 @@ async def test_risk_manager_seed_grants_full_threat_maintenance(
         assert created.status_code == 201, created.text
         threat_id = created.json()["id"]
         assert created.json()["capabilities"] == {
+            "business_edit_blocked": False,
             "can_read": True,
             "can_update": True,
             "can_archive": True,
+            "can_cancel_pending_change": False,
             "can_restore": False,
+            "has_pending_change": False,
         }
 
         assert (
@@ -1017,10 +1020,13 @@ async def test_employee_reads_threats_but_cannot_maintain_them(
         detail = await client.get(f"/api/v1/threats/{seeded['id']}")
         assert detail.status_code == 200
         assert detail.json()["capabilities"] == {
+            "business_edit_blocked": False,
             "can_read": True,
             "can_update": False,
             "can_archive": False,
+            "can_cancel_pending_change": False,
             "can_restore": False,
+            "has_pending_change": False,
         }
 
         # Link rows are readable from the Threat end with the standard read set,

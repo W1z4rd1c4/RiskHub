@@ -90,7 +90,7 @@ function buildLegacyAuthz(user: AuthUser, hasPermission: PermissionChecker): Aut
     const canViewAccessUsers = hasGlobalScope && hasPermission('users', 'read');
     const canViewDepartmentAccessUsers = isDepartmentHead;
     const canViewUsersRoute = canViewAccessUsers || canViewDepartmentAccessUsers || canViewUserDirectory;
-    const canViewApprovals = !isPlatformAdmin && !isCISO;
+    const canViewApprovals = !isPlatformAdmin;
     const canManageAccess = canViewAccessUsers && (isPlatformAdmin || isCRO);
     const canViewDepartmentAccess = canViewDepartmentAccessUsers || canViewAccessUsers;
 
@@ -156,7 +156,7 @@ export function buildAuthz(
     const canViewAccessUsers = resolveCapabilityFlag(meCapabilities, 'can_view_access_users');
     const canViewDepartmentAccessUsers = resolveCapabilityFlag(meCapabilities, 'can_view_department_access_users');
     const canViewUsersRoute = canViewAccessUsers || canViewDepartmentAccessUsers || canViewUserDirectory;
-    const canViewApprovals = !isPlatformAdmin && !isCISO;
+    const canViewApprovals = resolveCapabilityFlag(meCapabilities, 'can_view_approvals');
     const canManageAccess = resolveCapabilityFlag(meCapabilities, 'can_manage_access');
     const canViewDepartmentAccess = resolveCapabilityFlag(meCapabilities, 'can_view_department_access');
     const canViewAdminConsole = resolveCapabilityFlag(meCapabilities, 'can_view_admin_console');

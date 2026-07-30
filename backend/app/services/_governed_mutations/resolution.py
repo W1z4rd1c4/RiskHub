@@ -12,7 +12,9 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.audit import process as audit_process
+from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
+from app.core.permissions import can_manage_users, is_platform_admin
 from app.models import (
     ApprovalRequest,
     ApprovalResourceType,
@@ -21,6 +23,7 @@ from app.models import (
     Department,
     GovernedMutationImpactLock,
     GovernedMutationProposal,
+    OrphanedItem,
     Process,
     Role,
     RolePermission,
@@ -41,6 +44,9 @@ from app.services._process_owner_lock import acquire_process_owner_identity_lock
 from app.services.approval_scenario_policy import can_resolve_process_approval
 from app.services.transaction_boundary import commit_service_boundary
 
+from .fixed_accountability_policy import (
+    validated_fixed_accountability_roles,
+)
 from .fixed_asset_policy import ASSET_SCENARIO_KEY, validated_fixed_asset_roles
 from .fixed_policy import SCENARIO_KEY, validated_fixed_process_roles
 from .fixed_vendor_policy import VENDOR_SCENARIO_KEY, validated_fixed_vendor_roles
@@ -124,8 +130,26 @@ def _governed_envelope_stale_reason(
         for item in proposal.impacted_resources_snapshot
         if isinstance(item, dict)
     }
-    actual_locks = {(lock.resource_type, lock.resource_id, lock.base_governance_version) for lock in impact_locks}
-    if actual_locks != expected_locks:
+    orphan_locks = [
+        lock for lock in impact_locks if lock.resource_type == "orphaned_item"
+    ]
+    actual_locks = {
+        (lock.resource_type, lock.resource_id, lock.base_governance_version)
+        for lock in impact_locks
+        if lock.resource_type != "orphaned_item"
+    }
+    raw_before = proposal.proposed_changes.get("before")
+    orphan_lock_is_valid = (
+        not orphan_locks
+        or (
+            len(orphan_locks) == 1
+            and isinstance(raw_before, dict)
+            and orphan_locks[0].resource_id > 0
+            and orphan_locks[0].base_governance_version
+            == raw_before.get("process_owner_user_id")
+        )
+    )
+    if actual_locks != expected_locks or not orphan_lock_is_valid:
         return _ENVELOPE_STALE_REASON
     if any(
         impact_lock.proposal_id != proposal.id
@@ -451,8 +475,10 @@ async def _live_scenario_stale_reason(
             live_roles = validated_fixed_process_roles(scenario)
         elif scenario_key == ASSET_SCENARIO_KEY:
             live_roles = validated_fixed_asset_roles(scenario)
-        else:
+        elif scenario_key == VENDOR_SCENARIO_KEY:
             live_roles = validated_fixed_vendor_roles(scenario)
+        else:
+            live_roles = validated_fixed_accountability_roles(scenario)
         if live_roles != policy_snapshot["configured_roles"]:
             return "Governed mutation approver roles changed after submission"
         live_role_lists.append(live_roles)
@@ -553,8 +579,20 @@ async def approve_governed_mutation(
         typed_updates.pop("request_reason", None)
 
     requester = context.requester
+    is_orphan_resolution = any(
+        lock.resource_type == "orphaned_item" for lock in impact_locks
+    )
     if stale_reason is None and (
-        requester is None or not requester.is_active or not can_update_process_record(requester, process)
+        requester is None
+        or not requester.is_active
+        or not (
+            can_update_process_record(requester, process)
+            or (
+                is_orphan_resolution
+                and not is_platform_admin(requester)
+                and can_manage_users(requester)
+            )
+        )
     ):
         stale_reason = "Requester is no longer eligible to edit the impacted Process"
     elif stale_reason is None and process.governance_version != int(proposal.base_versions["process"]):
@@ -588,6 +626,56 @@ async def approve_governed_mutation(
         department = context.proposed_department
         if department is None or not department.is_active:
             stale_reason = "Proposed owning department is no longer active"
+
+    orphan_lock = next(
+        (
+            lock
+            for lock in impact_locks
+            if lock.resource_type == "orphaned_item"
+        ),
+        None,
+    )
+    governed_orphan = None
+    if stale_reason is None and orphan_lock is not None:
+        governed_orphan = (
+            await db.execute(
+                select(OrphanedItem)
+                .where(OrphanedItem.id == orphan_lock.resource_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        if (
+            governed_orphan is None
+            or governed_orphan.item_type != "process"
+            or governed_orphan.item_id != process.id
+            or governed_orphan.status != "pending"
+            or governed_orphan.responsibility_role is not None
+            or governed_orphan.previous_owner_id
+            != orphan_lock.base_governance_version
+        ):
+            stale_reason = "Orphaned Process evidence changed after submission"
+    elif (
+        stale_reason is None
+        and approved_before.get("process_owner_user_id")
+        != proposed_after.get("process_owner_user_id")
+    ):
+        governed_orphan = (
+            await db.execute(
+                select(OrphanedItem)
+                .where(
+                    OrphanedItem.item_type == "process",
+                    OrphanedItem.item_id == process.id,
+                    OrphanedItem.status == "pending",
+                    OrphanedItem.responsibility_role.is_(None),
+                    OrphanedItem.previous_owner_id
+                    == approved_before.get("process_owner_user_id"),
+                )
+                .order_by(OrphanedItem.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalars().first()
 
     if stale_reason is None:
         current_block, proposed_block = await load_governed_process_derived_blocks(
@@ -686,6 +774,11 @@ async def approve_governed_mutation(
         asset.governance_version += 1
     for vendor in context.vendors.values():
         vendor.governance_version += 1
+    if governed_orphan is not None:
+        governed_orphan.status = "resolved"
+        governed_orphan.resolved_at = utc_now()
+        governed_orphan.resolved_by_id = current_user.id
+        governed_orphan.new_owner_id = process.process_owner_user_id
     await audit_process.process_updated(db, actor=current_user, process=process, changes=changes)
     await finalize_governed_terminal_transition(
         db,
@@ -894,4 +987,11 @@ async def governed_proposal_dispatch_kind(
         and is_vendor_governed_kind(proposal_identity.mutation_kind)
     ):
         return "fixed_vendor"
+    from .threat_identity import THREAT_EDIT_KIND
+
+    if (
+        proposal_identity.primary_resource_type == "threat"
+        and proposal_identity.mutation_kind == THREAT_EDIT_KIND
+    ):
+        return "fixed_threat"
     return "unsupported"

@@ -32,6 +32,10 @@ from app.models import (
 )
 from app.models.approval_request import ApprovalResourceType
 from app.models.vendor import Vendor
+from app.services._approval_queue.threat import (
+    live_threat_resolver_approval_ids,
+    valid_threat_approvals,
+)
 from app.services._governed_mutations.asset_identity import (
     ASSET_ARCHIVE_KIND,
     ASSET_EDIT_KIND,
@@ -946,6 +950,17 @@ async def visible_notification_clause(db: AsyncSession, current_user: User) -> C
         db,
         approval_ids=notification_approval_ids,
     )
+    valid_threat_proposals = await valid_threat_approvals(db)
+    valid_threat_proposals = {
+        approval_id: proposal
+        for approval_id, proposal in valid_threat_proposals.items()
+        if approval_id in notification_approval_ids
+    }
+    live_threat_resolver_ids = await live_threat_resolver_approval_ids(
+        db,
+        current_user=current_user,
+        proposals=valid_threat_proposals,
+    )
     resource_type = func.lower(Notification.resource_type)
 
     return and_(
@@ -968,6 +983,8 @@ async def visible_notification_clause(db: AsyncSession, current_user: User) -> C
                     kri_clause=kri_clause,
                     resource_id=Notification.resource_id,
                     valid_extended_approval_ids=valid_extended_ids,
+                    valid_threat_approval_ids=frozenset(valid_threat_proposals),
+                    live_threat_resolver_ids=live_threat_resolver_ids,
                 ),
             ),
         ),
@@ -1106,6 +1123,8 @@ def _approval_exists_clause(
     kri_clause: ColumnElement[bool] | None,
     resource_id: Any,
     valid_extended_approval_ids: frozenset[int],
+    valid_threat_approval_ids: frozenset[int],
+    live_threat_resolver_ids: frozenset[int],
 ) -> ColumnElement[bool]:
     any_proposal = any_governed_mutation_proposal_exists_clause()
     direct_clauses: list[ColumnElement[bool]] = [
@@ -1123,6 +1142,17 @@ def _approval_exists_clause(
             ),
             _vendor_approval_visibility_clause(
                 current_user,
+            ),
+            and_(
+                ApprovalRequest.id.in_(tuple(valid_threat_approval_ids))
+                if valid_threat_approval_ids
+                else false(),
+                or_(
+                    ApprovalRequest.requested_by_id == current_user.id,
+                    ApprovalRequest.id.in_(tuple(live_threat_resolver_ids))
+                    if live_threat_resolver_ids
+                    else false(),
+                ),
             ),
         ),
         process_approval_resolver_clause(

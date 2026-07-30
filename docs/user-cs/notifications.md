@@ -142,6 +142,13 @@ Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název zázna
 
 Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
+## Oznámení k žádostem o změnu odpovědnosti
+
+Žádosti používají oznámení o požadované akci a aktualizacích žádosti. Předvolby
+mohou potlačit doručení, ale neodstraní žádost ze Schválení/Mých žádostí,
+nezmění počet práce ani neprovedou změnu odpovědnosti. Zdrojem pravdy je detail
+záznamu a řádek schválení.
+
 ## Související manuály
 
 Začněte s [Activity Log](./activity-log.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

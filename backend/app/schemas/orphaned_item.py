@@ -28,6 +28,7 @@ class OrphanedItemRead(BaseModel):
     resolved_by_id: Optional[int] = None
     new_owner_id: Optional[int] = None
     status: str  # "pending" | "resolved"
+    request_reason_required: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -47,6 +48,7 @@ class OrphanedItemDetail(BaseModel):
     previous_owner_email: str
     orphaned_at: UtcAwareDatetime
     status: str
+    request_reason_required: bool
     capabilities: Optional[dict[str, bool]] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -58,6 +60,7 @@ class OrphanedItemResolve(BaseModel):
     new_owner_id: Optional[int] = None
     department_id: Optional[int] = None  # Optional explicit department override
     target_risk_id: Optional[int] = None  # For linking controls/kris to a specific risk
+    request_reason: Optional[str] = None
 
 
 class OrphanedItemStats(BaseModel):

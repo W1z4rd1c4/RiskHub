@@ -1,5 +1,5 @@
 export type ApprovalStatus = 'pending' | 'pending_privileged' | 'approved' | 'rejected' | 'cancelled' | 'expired';
-export type ApprovalResourceType = 'risk' | 'control' | 'kri' | 'process' | 'asset' | 'vendor';
+export type ApprovalResourceType = 'risk' | 'control' | 'kri' | 'process' | 'asset' | 'vendor' | 'threat';
 export type ApprovalActionType = 'delete' | 'edit' | 'create' | 'archive';
 
 export interface PendingChange {
@@ -75,6 +75,11 @@ export interface GovernedVendorCreateDerivedImpact {
     after: GovernedVendorDerivedState;
 }
 
+export interface GovernedThreatEditDerivedImpact {
+    before: Record<string, never>;
+    after: Record<string, never>;
+}
+
 export type GovernedDerivedImpact =
     | GovernedEditDerivedImpact
     | GovernedCreateDerivedImpact
@@ -82,6 +87,7 @@ export type GovernedDerivedImpact =
     | GovernedAssetCreateDerivedImpact
     | GovernedVendorEditDerivedImpact
     | GovernedVendorCreateDerivedImpact
+    | GovernedThreatEditDerivedImpact
     | GovernedRelationshipDerivedImpact;
 
 export type GovernedRelationshipSnapshotValue = string | boolean | null;
@@ -121,6 +127,7 @@ export const GOVERNED_MUTATION_KINDS = [
     'vendor.link.control.remove',
     'vendor.link.kri.add',
     'vendor.link.kri.remove',
+    'threat.edit',
 ] as const;
 
 export type GovernedMutationKind = typeof GOVERNED_MUTATION_KINDS[number];
@@ -128,10 +135,11 @@ export type GovernedPointMutationKind =
     | 'process.edit' | 'process.create' | 'process.archive'
     | 'asset.edit' | 'asset.create' | 'asset.archive'
     | 'vendor.edit' | 'vendor.create' | 'vendor.archive'
+    | 'threat.edit'
     | 'vendor.contract.create' | 'vendor.contract.edit' | 'vendor.contract.archive'
     | 'vendor.sub_outsourcing.create' | 'vendor.sub_outsourcing.edit' | 'vendor.sub_outsourcing.archive';
 export type GovernedRelationshipMutationKind = Exclude<GovernedMutationKind, GovernedPointMutationKind>;
-export type GovernedImpactResourceType = 'process' | 'asset' | 'vendor';
+export type GovernedImpactResourceType = 'process' | 'asset' | 'vendor' | 'threat';
 export type GovernedRelationshipResourceType = 'risk' | 'asset' | 'vendor' | 'control' | 'kri';
 
 export interface GovernedRelationshipChange {

@@ -266,8 +266,6 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await riskManagerPage.goto(`/processes/${created.id}/edit`);
         await waitForDataLoad(riskManagerPage);
 
-        await riskManagerPage.getByTestId('process-form-owner').click();
-        await riskManagerPage.getByRole('option', { name: /Lukáš Dvořák.*fin\.analyst@riskhub\.local/ }).click();
         await riskManagerPage.getByTestId('process-form-preliminary-criticality').click();
         await riskManagerPage.getByRole('option', { name: CRITICALITY_LABELS.medium }).click();
         await riskManagerPage.getByTestId('process-form-submit').click();
@@ -277,11 +275,6 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         // 30s (DETAIL_QUERY_STALE_TIME_MS); a fresh document proves persistence.
         await riskManagerPage.goto(`/processes/${created.id}`);
         await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.getByText('Lukáš Dvořák', { exact: true })).toBeVisible();
-        await expect(riskManagerPage.getByText(/Finance · employee/i)).toBeVisible();
-        await expect(riskManagerPage.getByText('fin.analyst@riskhub.local', { exact: true })).toHaveCount(0);
-        // Changing the owner does not overwrite an already-selected Department.
-        await expect(riskManagerPage.getByText('Operations (OPS)')).toBeVisible();
         await expect(riskManagerPage.getByText(CRITICALITY_LABELS.medium).first()).toBeVisible();
         // The stable F-code survives the edit untouched.
         await expect(riskManagerPage.getByText(created.f_code, { exact: true })).toBeVisible();

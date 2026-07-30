@@ -36,7 +36,13 @@ from app.services._ict_register_reference.parameters import (
 )
 
 from .asset_identity import ASSET_CREATE_KIND, valid_asset_governed_envelope
+from .fixed_accountability_policy import (
+    ACCOUNTABILITY_SCENARIO_KEY,
+    load_fixed_accountability_scenario_for_update,
+    validated_fixed_accountability_roles,
+)
 from .fixed_asset_policy import (
+    ASSET_SCENARIO_KEY,
     is_fixed_asset_resolution_authority,
     load_fixed_asset_scenario_for_update,
     validated_fixed_asset_roles,
@@ -291,43 +297,76 @@ async def load_live_asset_resolution_policy(
     stale_reason: str | None = None
     triggered_scenarios = proposal.proposed_changes.get(
         "triggered_scenarios",
-        ["protected_asset_edit"],
+        [ASSET_SCENARIO_KEY],
     )
-    live_roles = snapshot_roles
-    scenario = None
+    live_role_lists: list[list[str]] = []
     try:
         # Scenarios are deliberately the final locks in the Asset resolution plan.
-        if "protected_asset_edit" in triggered_scenarios:
-            scenario = await load_fixed_asset_scenario_for_update(db)
-            live_roles = validated_fixed_asset_roles(scenario)
-            if not scenario.requires_approval:
-                stale_reason = "Protected Asset approval scenario was disabled after submission"
-        if stale_reason is None and VENDOR_SCENARIO_KEY in triggered_scenarios:
-            vendor_scenario = await load_fixed_vendor_scenario_for_update(db)
-            vendor_roles = validated_fixed_vendor_roles(vendor_scenario)
-            triggered_policies = proposal.scenario_snapshot.get("triggered_policies", [])
-            vendor_snapshot = next(
+        triggered_policies = proposal.scenario_snapshot.get(
+            "triggered_policies",
+            [],
+        )
+        for scenario_key in triggered_scenarios:
+            if scenario_key == ASSET_SCENARIO_KEY:
+                live_scenario = await load_fixed_asset_scenario_for_update(db)
+                live_roles = validated_fixed_asset_roles(live_scenario)
+                scenario_label = "Protected Asset"
+            elif scenario_key == VENDOR_SCENARIO_KEY:
+                live_scenario = await load_fixed_vendor_scenario_for_update(db)
+                live_roles = validated_fixed_vendor_roles(live_scenario)
+                scenario_label = "Protected Vendor"
+            elif scenario_key == ACCOUNTABILITY_SCENARIO_KEY:
+                live_scenario = (
+                    await load_fixed_accountability_scenario_for_update(db)
+                )
+                live_roles = validated_fixed_accountability_roles(live_scenario)
+                scenario_label = "Accountability reassignment"
+            else:
+                stale_reason = "Governed Asset approval scenario is unavailable"
+                break
+            policy_snapshot = next(
                 (
                     item
                     for item in triggered_policies
-                    if isinstance(item, dict) and item.get("key") == VENDOR_SCENARIO_KEY
+                    if isinstance(item, dict)
+                    and item.get("key") == scenario_key
                 ),
                 None,
             )
-            if not vendor_scenario.requires_approval:
-                stale_reason = "Protected Vendor approval scenario was disabled after submission"
-            elif vendor_snapshot is None or vendor_snapshot.get("configured_roles") != vendor_roles:
-                stale_reason = "Protected Vendor approver roles changed after submission"
-            else:
-                live_roles = [role for role in live_roles if role in vendor_roles]
-        if stale_reason is None and live_roles != snapshot_roles:
+            expected_roles = (
+                policy_snapshot.get("configured_roles")
+                if policy_snapshot is not None
+                else snapshot_roles
+            )
+            if not live_scenario.requires_approval:
+                stale_reason = (
+                    f"{scenario_label} approval scenario was disabled "
+                    "after submission"
+                )
+                break
+            if expected_roles != live_roles:
+                stale_reason = (
+                    f"{scenario_label} approver roles changed after submission"
+                )
+                break
+            live_role_lists.append(live_roles)
+        effective_live_roles = (
+            [
+                role
+                for role in live_role_lists[0]
+                if all(role in roles for roles in live_role_lists[1:])
+            ]
+            if live_role_lists
+            else []
+        )
+        if stale_reason is None and effective_live_roles != snapshot_roles:
             stale_reason = "Composite approver roles changed after submission"
     except ApprovalScenarioConfigurationError:
-        stale_reason = "Protected Asset approval scenario is unavailable"
+        stale_reason = "Governed Asset approval scenario is unavailable"
     resolver_role = getattr(getattr(resolver, "role", None), "name", None)
     if stale_reason is None and (
         not is_fixed_asset_resolution_authority(resolver, proposal)
-        or resolver_role not in live_roles
+        or resolver_role not in effective_live_roles
     ):
         raise AuthorizationError("Only an independent configured Risk Manager or CRO may resolve this request")
     if requester is None or not requester.is_active:

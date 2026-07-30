@@ -47,6 +47,16 @@ async def load_fixed_process_scenario_for_update(
     return scenario
 
 
+async def load_fixed_process_scenario(
+    db: AsyncSession,
+) -> ApprovalScenario | None:
+    return (
+        await db.execute(
+            select(ApprovalScenario).where(ApprovalScenario.key == SCENARIO_KEY)
+        )
+    ).scalar_one_or_none()
+
+
 def validated_fixed_process_roles(scenario: ApprovalScenario) -> list[str]:
     """Return the fixed policy roles, rejecting unsafe live configuration."""
     roles = [str(role) for role in (scenario.approver_roles or [])]
@@ -66,6 +76,7 @@ __all__ = [
     "FIXED_PROCESS_POLICY",
     "FixedProcessPolicyDefinition",
     "SCENARIO_KEY",
+    "load_fixed_process_scenario",
     "load_fixed_process_scenario_for_update",
     "validated_fixed_process_roles",
 ]

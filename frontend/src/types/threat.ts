@@ -1,10 +1,37 @@
 import type { CollectionGroup } from './collection';
+import type {
+    GovernedImpactedResource,
+    GovernedThreatEditDerivedImpact,
+} from './approval';
 
 export interface ThreatCapabilities {
     can_read: boolean;
     can_update: boolean;
     can_archive: boolean;
     can_restore: boolean;
+    has_pending_change?: boolean;
+    business_edit_blocked?: boolean;
+    can_cancel_pending_change?: boolean;
+}
+
+export interface ThreatPendingChangeRead {
+    approval_id: number | null;
+    proposal_id: string | null;
+    proposal_version: number | null;
+    status: 'pending';
+    requested_at: string;
+    requested_by_name: string | null;
+    reason: string;
+    generic_label: 'accountability_reassignment';
+    mutation_kind: 'threat.edit' | null;
+    before: Record<string, unknown>;
+    after: Record<string, unknown>;
+    derived_impact: GovernedThreatEditDerivedImpact | Record<string, never>;
+    impacted_resources: GovernedImpactedResource[];
+    capabilities: {
+        can_view_diff: boolean;
+        can_cancel: boolean;
+    };
 }
 
 export interface ThreatListCapabilities {
@@ -53,6 +80,7 @@ export type ThreatStewardshipStatus =
 /** ICT Register Threat — the entered 12_Hrozby columns (issue #47). */
 export interface Threat {
     id: number;
+    governance_version?: number;
 
     name: string;
     threat_steward_user_id?: number | null;
@@ -68,6 +96,7 @@ export interface Threat {
     archived_at?: string | null;
     archived_by_id?: number | null;
     capabilities?: ThreatCapabilities | null;
+    pending_change?: ThreatPendingChangeRead | null;
     created_at: string;
     updated_at: string;
 }
@@ -84,6 +113,7 @@ export interface ThreatWritePayload {
     typical_weaknesses?: string | null;
     relevant_subject?: string | null;
     notes?: string | null;
+    request_reason?: string;
 }
 
 export interface ThreatListParams {

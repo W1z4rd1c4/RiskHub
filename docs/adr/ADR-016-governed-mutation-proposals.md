@@ -19,7 +19,10 @@ protected Process creation, Process relationship mutations, and archive. Ticket
 Composite Process-to-Asset consequences. Ticket #87 extends it to protected
 Vendor create/edit/archive, Contract and Sub-outsourcing child mutations,
 Vendor-managed Risk/Control/KRI links, and Composite Process/Asset-to-Vendor
-consequences.
+consequences. Ticket #88 adds a fourth fixed scenario,
+`accountability_reassignment`, for actual accountable-user or Owning Department
+deltas on Process, Asset, Vendor, and Threat records, including Governance
+orphan resolution.
 
 ## Decision
 
@@ -372,6 +375,31 @@ Risk Hub exposes `protected_vendor_edit` as fixed policy: enabled state and the
 non-empty `risk_manager`/`cro` role subset are editable; the
 current-or-proposed Critical/Significant threshold, covered Vendor/child/link
 actions, and no-self rule are read-only.
+
+## Public Accountability Reassignment Contract
+
+`accountability_reassignment` is a fixed, default-on scenario covering actual
+changes to Process Owner or Owning Department; Asset Business Owner, ICT Owner,
+or Owning Department; Vendor Outsourcing Owner; and Threat Steward. An
+unchanged-accountability edit does not trigger this scenario. A governed delta
+requires a localized, non-blank `request_reason`, returns the shared typed HTTP
+202 envelope, creates exactly one pending request, and leaves approved truth
+unchanged.
+
+The immutable proposal and impacted-resource lock use the existing ADR-016
+contract. Only an independent configured Risk Manager or CRO may approve or
+reject; the requester may view the proposal in My Requests and cancel it.
+Approval applies the complete accountability delta atomically. Rejection,
+cancellation, expiry, or stale revalidation preserves the original approved
+accountability.
+
+Governance orphan resolution uses the same contract. The orphan and ordinary
+edit lock remain until approval applies the replacement. If the scenario is
+disabled, the same endpoint may return the typed direct-resolution response;
+authorization, active-user, Department, and resource-specific validation still
+apply. CROs may change only enabled state and the non-empty Risk Manager/CRO
+resolver-role subset; trigger, covered edit action, and no-self-approval policy
+are immutable.
 
 ## Alternatives Rejected
 
