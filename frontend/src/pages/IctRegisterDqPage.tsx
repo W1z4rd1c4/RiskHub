@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, RefreshCw } from 'lucide-react';
 
+import { RegisterExportLink } from '@/components/ict-register/RegisterExportLink';
 import { TableErrorState, useTableErrorContract } from '@/components/tables/tableError';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient, isForbiddenApiError } from '@/services/apiClient';
 import { ictRegisterDqApi } from '@/services/ictRegisterDqApi';
-import type { IctDqCheck, IctRegisterDq } from '@/types/ictRegisterDq';
+import type { IctDqCheck, IctDqViolationsPage, IctRegisterDq } from '@/types/ictRegisterDq';
 
 import {
-    type DqStatusFilter,
+    DQ_DETAIL_PAGE_SIZE,
     dqAreaKey,
     dqSeverityKey,
     filterChecks,
@@ -22,7 +23,6 @@ import {
     violatingRowPath,
 } from './ictRegisterDq/dqPresentation';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
-import { RegisterExportLink } from '@/components/ict-register/RegisterExportLink';
 
 function StatusPill({ check }: { check: IctDqCheck }) {
     const { t } = useTranslation('ictRegisterDq');
@@ -78,51 +78,117 @@ function SeverityChip({ severity }: { severity: string }) {
     );
 }
 
-function ViolatingRows({ check }: { check: IctDqCheck }) {
+interface DqDetailState {
+    page: IctDqViolationsPage | null;
+    isLoading: boolean;
+    hasError: boolean;
+}
+
+function ViolatingRows({
+    check,
+    detail,
+    onRetry,
+    onPage,
+}: {
+    check: IctDqCheck;
+    detail: DqDetailState | undefined;
+    onRetry: () => void;
+    onPage: (offset: number) => void;
+}) {
     const { t } = useTranslation('ictRegisterDq');
     // S12 (FR-P5-5): the count badge is the global total, but `violating_rows`
     // may be RBAC-scoped to fewer rows — say "N of M shown" so the shorter list
     // never reads as a mismatch with the count.
-    const shown = check.violating_rows.length;
-    const isScoped = shown < check.count;
+    const visibleCount = check.visible_count ?? check.violating_rows.length;
+    const isScoped = visibleCount < check.count;
+    const rows = detail?.page?.items ?? check.violating_rows;
+    const page = detail?.page;
+    const showRows = !detail?.isLoading && !detail?.hasError;
     return (
-        <div
-            data-testid={`dq-rows-${check.check_id}`}
-            className="mt-3 border-t border-white/10 pt-3 space-y-1.5"
-        >
+        <div className="mt-3 border-t border-white/10 pt-3 space-y-1.5">
             {isScoped ? (
                 <p
                     data-testid={`dq-rows-scoped-${check.check_id}`}
                     className="text-slate-500 text-xs italic"
                 >
-                    {t('rows_scoped', { shown, count: check.count })}
+                    {t('rows_scoped', { shown: visibleCount, count: check.count })}
                 </p>
             ) : null}
-            {check.violating_rows.map((row, index) => {
-                const path = violatingRowPath(row);
-                const label = (
-                    <>
-                        <span className="text-slate-500 text-xs uppercase tracking-wide mr-2">
-                            {t(`entities.${row.entity_type}`, { defaultValue: row.entity_type })}
-                        </span>
-                        {localizeRegisterRowLabel(row.label, t)}
-                    </>
-                );
-                return (
-                    <div key={`${row.entity_type}-${row.entity_id}-${index}`} className="text-sm">
-                        {path ? (
-                            <Link
-                                to={path}
-                                className="text-slate-300 hover:text-accent transition-colors underline decoration-white/20 hover:decoration-accent"
-                            >
-                                {label}
-                            </Link>
-                        ) : (
-                            <span className="text-slate-300">{label}</span>
-                        )}
-                    </div>
-                );
-            })}
+            {detail?.isLoading ? (
+                <p role="status" className="text-slate-400 text-sm">
+                    {t('rows_loading')}
+                </p>
+            ) : null}
+            {detail?.hasError ? (
+                <div role="alert" className="flex items-center gap-3 text-sm text-red-300">
+                    <span>{t('rows_error')}</span>
+                    <button type="button" className="underline" onClick={onRetry}>
+                        {t('actions.retry_rows')}
+                    </button>
+                </div>
+            ) : null}
+            {showRows && rows.length === 0 ? (
+                <p className="text-slate-500 text-sm">{t('rows_empty')}</p>
+            ) : null}
+            {showRows
+                ? rows.map((row, index) => {
+                      const path = violatingRowPath(row);
+                      const label = (
+                          <>
+                              <span className="text-slate-500 text-xs uppercase tracking-wide mr-2">
+                                  {t(`entities.${row.entity_type}`, {
+                                      defaultValue: row.entity_type,
+                                  })}
+                              </span>
+                              {localizeRegisterRowLabel(row.label, t)}
+                          </>
+                      );
+                      return (
+                          <div
+                              key={`${row.entity_type}-${row.entity_id}-${index}`}
+                              className="text-sm"
+                          >
+                              {path ? (
+                                  <Link
+                                      to={path}
+                                      className="text-slate-300 hover:text-accent transition-colors underline decoration-white/20 hover:decoration-accent"
+                                  >
+                                      {label}
+                                  </Link>
+                              ) : (
+                                  <span className="text-slate-300">{label}</span>
+                              )}
+                          </div>
+                      );
+                  })
+                : null}
+            {page && page.total > page.limit ? (
+                <div className="flex items-center justify-between gap-3 pt-3">
+                    <button
+                        type="button"
+                        disabled={page.offset === 0 || detail?.isLoading}
+                        onClick={() => onPage(Math.max(0, page.offset - page.limit))}
+                        className="px-3 py-1.5 rounded-lg bg-white/5 disabled:opacity-40"
+                    >
+                        {t('actions.previous')}
+                    </button>
+                    <span className="text-xs text-slate-500">
+                        {t('rows_page', {
+                            from: page.offset + 1,
+                            to: Math.min(page.offset + page.items.length, page.total),
+                            total: page.total,
+                        })}
+                    </span>
+                    <button
+                        type="button"
+                        disabled={page.offset + page.limit >= page.total || detail?.isLoading}
+                        onClick={() => onPage(page.offset + page.limit)}
+                        className="px-3 py-1.5 rounded-lg bg-white/5 disabled:opacity-40"
+                    >
+                        {t('actions.next')}
+                    </button>
+                </div>
+            ) : null}
         </div>
     );
 }
@@ -131,16 +197,36 @@ export function IctRegisterDqPage() {
     const { t } = useTranslation('ictRegisterDq');
     // Committee drill-down deep links (#51): ?check= pre-expands the
     // producing check; ?status=findings pre-applies the findings filter.
-    const [searchParams] = useSearchParams();
-    const [initialQueryState] = useState(() => parseDqPageQueryParams(searchParams));
+    const [searchParams, setSearchParams] = useSearchParams();
+    const queryState = parseDqPageQueryParams(searchParams);
     const [data, setData] = useState<IctRegisterDq | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [isAccessDenied, setIsAccessDenied] = useState(false);
-    const [statusFilter, setStatusFilter] = useState<DqStatusFilter>(initialQueryState.statusFilter);
-    const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
-        initialQueryState.expandedCheckId ? { [initialQueryState.expandedCheckId]: true } : {}
-    );
+    const [details, setDetails] = useState<Record<string, DqDetailState>>({});
+    const activeDetail = useRef<{ checkId: string; offset: number } | null>(null);
+    const detailGeneration = useRef(0);
+    activeDetail.current = queryState.expandedCheckId
+        ? { checkId: queryState.expandedCheckId, offset: queryState.detailOffset }
+        : null;
+
+    useEffect(() => {
+        const rawOffset = searchParams.get('dq_offset');
+        if (
+            queryState.expandedCheckId &&
+            rawOffset !== null &&
+            rawOffset !== String(queryState.detailOffset)
+        ) {
+            const next = new URLSearchParams(searchParams);
+            next.set('dq_offset', String(queryState.detailOffset));
+            setSearchParams(next, { replace: true });
+        }
+    }, [
+        queryState.detailOffset,
+        queryState.expandedCheckId,
+        searchParams,
+        setSearchParams,
+    ]);
 
     const fetchDq = useCallback(async () => {
         setIsLoading(true);
@@ -162,6 +248,86 @@ export function IctRegisterDqPage() {
     useEffect(() => {
         void fetchDq();
     }, [fetchDq]);
+
+    const fetchViolations = useCallback(async (checkId: string, offset: number) => {
+        const generation = ++detailGeneration.current;
+        const isActiveRequest = () => {
+            const active = activeDetail.current;
+            return (
+                generation === detailGeneration.current &&
+                active?.checkId === checkId &&
+                active.offset === offset
+            );
+        };
+        setDetails((current) => ({
+            ...current,
+            [checkId]: {
+                page: current[checkId]?.page ?? null,
+                isLoading: true,
+                hasError: false,
+            },
+        }));
+        try {
+            const page = await ictRegisterDqApi.getViolations(checkId, {
+                offset,
+                limit: DQ_DETAIL_PAGE_SIZE,
+            });
+            if (!isActiveRequest()) {
+                return;
+            }
+            const lastOffset =
+                page.total === 0
+                    ? 0
+                    : Math.floor((page.total - 1) / DQ_DETAIL_PAGE_SIZE) *
+                      DQ_DETAIL_PAGE_SIZE;
+            if (offset > lastOffset) {
+                setSearchParams((current) => {
+                    const next = new URLSearchParams(current);
+                    next.set('dq_offset', String(lastOffset));
+                    return next;
+                }, { replace: true });
+                return;
+            }
+            setDetails((current) => ({
+                ...current,
+                [checkId]: { page, isLoading: false, hasError: false },
+            }));
+        } catch {
+            if (!isActiveRequest()) {
+                return;
+            }
+            setDetails((current) => ({
+                ...current,
+                [checkId]: {
+                    page: current[checkId]?.page ?? null,
+                    isLoading: false,
+                    hasError: true,
+                },
+            }));
+        }
+    }, [setSearchParams]);
+
+    useEffect(() => {
+        const checkId = queryState.expandedCheckId;
+        if (!data || !checkId) return;
+        const check = data.checks.find((entry) => entry.check_id === checkId);
+        const visibleCount = check?.visible_count ?? check?.violating_rows.length ?? 0;
+        if (visibleCount > 0) {
+            void fetchViolations(checkId, queryState.detailOffset);
+        }
+    }, [data, fetchViolations, queryState.detailOffset, queryState.expandedCheckId]);
+
+    const updateExpandedCheck = (checkId: string | null, offset = 0) => {
+        const next = new URLSearchParams(searchParams);
+        if (checkId) {
+            next.set('check', checkId);
+            next.set('dq_offset', String(offset));
+        } else {
+            next.delete('check');
+            next.delete('dq_offset');
+        }
+        setSearchParams(next);
+    };
 
     // FR-P3-4 (N17 / C3 / C4): the DQ screen does not consume SortableTable, so it
     // drives the shared table-error contract directly. `hasData` decides whether a
@@ -207,7 +373,7 @@ export function IctRegisterDqPage() {
 
     const checks = data?.checks ?? [];
     const summary = summarizeChecks(checks);
-    const visibleChecks = filterChecks(checks, statusFilter);
+    const visibleChecks = filterChecks(checks, queryState.statusFilter);
 
     return (
         <div className="space-y-8">
@@ -273,8 +439,16 @@ export function IctRegisterDqPage() {
             <div className="glass-card flex flex-col md:flex-row md:items-center gap-4">
                 <p className="text-slate-500 text-sm font-medium flex-1">{t('filters.label')}</p>
                 <ThemedSelect
-                    value={statusFilter}
-                    onValueChange={(value) => setStatusFilter(value as DqStatusFilter)}
+                    value={queryState.statusFilter}
+                    onValueChange={(value) => {
+                        const next = new URLSearchParams(searchParams);
+                        if (value === 'findings') {
+                            next.set('status', 'findings');
+                        } else {
+                            next.delete('status');
+                        }
+                        setSearchParams(next);
+                    }}
                     options={[
                         { value: 'all', label: t('filters.all') },
                         { value: 'findings', label: t('filters.findings') },
@@ -295,19 +469,21 @@ export function IctRegisterDqPage() {
 
             <div className="space-y-3" data-testid="dq-check-list">
                 {visibleChecks.map((check) => {
-                    const isExpandable = check.violating_rows.length > 0;
-                    const isExpanded = Boolean(expanded[check.check_id]);
+                    const isExpandable =
+                        (check.visible_count ?? check.violating_rows.length) > 0;
+                    const isExpanded = queryState.expandedCheckId === check.check_id;
                     return (
                         <div key={check.check_id} className="glass-card">
                             <button
                                 type="button"
                                 data-testid={`dq-check-${check.check_id}`}
+                                aria-expanded={isExpandable ? isExpanded : undefined}
+                                aria-controls={
+                                    isExpandable ? `dq-panel-${check.check_id}` : undefined
+                                }
                                 disabled={!isExpandable}
                                 onClick={() =>
-                                    setExpanded((current) => ({
-                                        ...current,
-                                        [check.check_id]: !current[check.check_id],
-                                    }))
+                                    updateExpandedCheck(isExpanded ? null : check.check_id)
                                 }
                                 className="w-full flex flex-col md:flex-row md:items-center gap-3 text-left disabled:cursor-default"
                             >
@@ -342,7 +518,29 @@ export function IctRegisterDqPage() {
                                     <StatusPill check={check} />
                                 </div>
                             </button>
-                            {isExpanded && isExpandable && <ViolatingRows check={check} />}
+                            {isExpandable ? (
+                                <div
+                                    id={`dq-panel-${check.check_id}`}
+                                    data-testid={`dq-rows-${check.check_id}`}
+                                    hidden={!isExpanded}
+                                >
+                                    {isExpanded ? (
+                                        <ViolatingRows
+                                            check={check}
+                                            detail={details[check.check_id]}
+                                            onRetry={() =>
+                                                void fetchViolations(
+                                                    check.check_id,
+                                                    queryState.detailOffset
+                                                )
+                                            }
+                                            onPage={(offset) =>
+                                                updateExpandedCheck(check.check_id, offset)
+                                            }
+                                        />
+                                    ) : null}
+                                </div>
+                            ) : null}
                         </div>
                     );
                 })}

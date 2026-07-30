@@ -106,6 +106,8 @@ class IctDqCheckRead(BaseModel):
     status: str
     production_inert: bool = False
     production_inert_reason: str | None = None
+    visible_count: int
+    violating_rows_truncated: bool
     violating_rows: list[IctDqViolatingRowRead]
 
 
@@ -114,6 +116,15 @@ class IctRegisterDqRead(BaseModel):
 
     checks: list[IctDqCheckRead]
     finding_count: int
+
+
+class IctDqViolationsPageRead(BaseModel):
+    """One viewer-scoped page of violating rows for a DQ check."""
+
+    items: list[IctDqViolatingRowRead]
+    total: int
+    offset: int
+    limit: int
 
 
 # ---------------------------------------------------------------------------

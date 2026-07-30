@@ -42,6 +42,15 @@ def test_rate_limit_policy_merges_settings_overrides() -> None:
     assert rules["default"] == (200, 60)
 
 
+def test_dq_endpoint_family_has_a_dedicated_principal_ip_rate_limit() -> None:
+    rules = resolve_rate_limit_rules(_settings())
+
+    assert get_limit_for_path(rules, "/api/v1/ict-register/dq") == (30, 60)
+    assert get_limit_for_path(
+        rules, "/api/v1/ict-register/dq/DQ-01/violations"
+    ) == (30, 60)
+
+
 def test_rate_limit_fail_closed_on_backend_error_defaults_true() -> None:
     settings = _settings()
 

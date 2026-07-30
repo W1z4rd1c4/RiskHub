@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_permission
@@ -40,6 +40,7 @@ from app.schemas.ict_register import (
     IctCountryCategoryRead,
     IctDqCheckRead,
     IctDqViolatingRowRead,
+    IctDqViolationsPageRead,
     IctRegisterDqRead,
     IctRoiGapRowRead,
     IctRoiMapCollectionRead,
@@ -57,9 +58,11 @@ from app.services._ict_register_lifecycle.committee import derive_ict_register_c
 from app.services._ict_register_lifecycle.derivation_inputs import (
     load_dq_viewer_scope,
     load_ict_register_committee_graph,
-    load_ict_register_dq_graph,
 )
-from app.services._ict_register_lifecycle.dq import derive_ict_register_dq, visible_dq_result
+from app.services._ict_register_lifecycle.dq import visible_dq_result
+from app.services._ict_register_lifecycle.dq_cache import (
+    get_cached_global_dq_result,
+)
 from app.services._ict_register_reference.closed_lists import CLOSED_LISTS, closed_list_values
 from app.services._ict_register_reference.country_categories import COUNTRY_CATEGORIES
 from app.services._ict_register_reference.ict_service_taxonomy import (
@@ -163,7 +166,7 @@ async def get_data_quality_checks(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("vendors", "read")),
 ) -> IctRegisterDqRead:
-    """Return all 52 workbook DQ checks with statuses and violating rows (#50).
+    """Return all 52 workbook DQ checks with bounded violation previews (#50).
 
     Computed on read over the whole register graph (compute-on-read, parent
     spec #38): threshold 0, OK/NÁLEZ status, and per-check drill-down to the
@@ -175,12 +178,12 @@ async def get_data_quality_checks(
     read predicate (permission gates; Vendor/Risk row visibility): a
     dept-scoped user sees that a check found N rows without learning
     anything a browse of that entity's own endpoints would not show them.
+    Each summary exposes at most 10 viewer-visible preview rows; the paginated
+    detail endpoint serves the remaining visible rows in pages of at most 100.
     Checks marked ``production_inert`` have no app column feeding their
     trigger (DQ-23) and read "not yet measurable" rather than a false OK.
     """
-    dq_graph = await load_ict_register_dq_graph(db)
-    parameter_set = await load_ict_workbook_parameter_set(db)
-    result = derive_ict_register_dq(dq_graph, parameter_set)
+    result = await get_cached_global_dq_result(db)
     viewer_scope = await load_dq_viewer_scope(db, current_user, result)
     result = visible_dq_result(result, viewer_scope)
     return IctRegisterDqRead(
@@ -195,6 +198,8 @@ async def get_data_quality_checks(
                 status=check.status,
                 production_inert=check.production_inert,
                 production_inert_reason=check.production_inert_reason,
+                visible_count=len(check.violating_rows),
+                violating_rows_truncated=len(check.violating_rows) > 10,
                 violating_rows=[
                     IctDqViolatingRowRead(
                         entity_type=row.entity_type,
@@ -203,12 +208,55 @@ async def get_data_quality_checks(
                         route_entity_type=row.route_entity_type,
                         route_entity_id=row.route_entity_id,
                     )
-                    for row in check.violating_rows
+                    for row in check.violating_rows[:10]
                 ],
             )
             for check in result.checks
         ],
         finding_count=result.finding_count,
+    )
+
+
+@router.get("/dq/{check_id}/violations", response_model=IctDqViolationsPageRead)
+async def get_data_quality_violations(
+    check_id: str,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctDqViolationsPageRead:
+    """Return one bounded page of viewer-visible rows for a DQ check."""
+    global_result = await get_cached_global_dq_result(db)
+    check = next(
+        (entry for entry in global_result.checks if entry.check_id == check_id),
+        None,
+    )
+    if check is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Data-quality check not found",
+        )
+
+    viewer_scope = await load_dq_viewer_scope(db, current_user, global_result)
+    visible_result = visible_dq_result(global_result, viewer_scope)
+    visible_check = next(
+        entry for entry in visible_result.checks if entry.check_id == check_id
+    )
+    rows = visible_check.violating_rows
+    return IctDqViolationsPageRead(
+        items=[
+            IctDqViolatingRowRead(
+                entity_type=row.entity_type,
+                entity_id=row.entity_id,
+                label=row.label,
+                route_entity_type=row.route_entity_type,
+                route_entity_id=row.route_entity_id,
+            )
+            for row in rows[offset : offset + limit]
+        ],
+        total=len(rows),
+        offset=offset,
+        limit=limit,
     )
 
 

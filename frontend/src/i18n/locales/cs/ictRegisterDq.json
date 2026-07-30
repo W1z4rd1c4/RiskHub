@@ -2,7 +2,10 @@
     "title": "ICT registr — Kvalita dat",
     "subtitle": "52 průběžných kontrol kvality dat z pracovního sešitu, počítaných živě nad registrem",
     "actions": {
-        "refresh": "Obnovit"
+        "refresh": "Obnovit",
+        "retry_rows": "Zkusit znovu",
+        "previous": "Předchozí",
+        "next": "Další"
     },
     "loading": "Načítání…",
     "summary": {
@@ -53,6 +56,10 @@
         "body": "Všech {{count}} kontrol prošlo. V registru nejsou žádné porušující řádky."
     },
     "rows_scoped": "Zobrazeno {{shown}} z {{count}} řádků (omezeno dle vašeho přístupu).",
+    "rows_loading": "Načítání detailů nálezů…",
+    "rows_error": "Detaily nálezů se nepodařilo načíst.",
+    "rows_empty": "Žádné viditelné řádky s nálezy.",
+    "rows_page": "Řádky {{from}}–{{to}} z {{total}}",
     "checks": {
         "DQ-01": "Proces bez vlastníka",
         "DQ-02": "GAP: RTO > MTPD",

@@ -2,7 +2,10 @@
     "title": "ICT Register — Data Quality",
     "subtitle": "The workbook's 52 continuous data-quality checks, computed live over the register",
     "actions": {
-        "refresh": "Refresh"
+        "refresh": "Refresh",
+        "retry_rows": "Retry",
+        "previous": "Previous",
+        "next": "Next"
     },
     "loading": "Loading…",
     "summary": {
@@ -53,6 +56,10 @@
         "body": "All {{count}} checks pass. No violating rows across the register."
     },
     "rows_scoped": "Showing {{shown}} of {{count}} rows (limited to your access).",
+    "rows_loading": "Loading violation details…",
+    "rows_error": "Violation details could not be loaded.",
+    "rows_empty": "No visible violating rows.",
+    "rows_page": "Rows {{from}}–{{to}} of {{total}}",
     "checks": {
         "DQ-01": "Process without an owner",
         "DQ-02": "GAP: RTO > MTPD",

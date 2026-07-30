@@ -24,10 +24,19 @@ export interface IctDqCheck {
      * quiet on production data — render "not yet measurable", not OK. */
     production_inert?: boolean;
     production_inert_reason?: string | null;
+    visible_count?: number;
+    violating_rows_truncated?: boolean;
     violating_rows: IctDqViolatingRow[];
 }
 
 export interface IctRegisterDq {
     checks: IctDqCheck[];
     finding_count: number;
+}
+
+export interface IctDqViolationsPage {
+    items: IctDqViolatingRow[];
+    total: number;
+    offset: number;
+    limit: number;
 }

@@ -66,6 +66,7 @@
 - Public local/demo install flows: `./scripts/install.sh demo`, `./scripts/install.sh demo --reset test`, and `./scripts/install.sh dev`
 - Public production install/lifecycle flows: `./scripts/install.sh production --target docker|linux`, `./scripts/install.sh upgrade --target docker|linux`, `./scripts/install.sh verify --mode production --target docker|linux --config PATH --secret-dir PATH`, `./scripts/install.sh status --mode production --target docker|linux [--json]`, `./scripts/install.sh logs --mode production --target docker|linux [--tail N] [--follow]`, and `./scripts/install.sh doctor --mode production --target docker|linux [--repair] [--deep] [--json]`
 - Backend tests: `make -f scripts/Makefile test` or `cd backend && pytest -v`
+- Backend ICT Register DQ bounded reads: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_ict_register_dq.py ../tests/backend/pytest/test_rate_limit_components.py ../tests/backend/pytest/test_rate_limit_redis_resilience.py`
 - Backend lint + suppression budget: `make -f scripts/Makefile lint-backend`
 - Backend suppression budget only: `make -f scripts/Makefile quality-suppression-budget`
 - Backend Postgres-sensitive tests: `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test make -f scripts/Makefile test-postgres-ci`

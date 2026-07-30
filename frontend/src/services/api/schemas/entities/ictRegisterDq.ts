@@ -1,4 +1,9 @@
-import type { IctDqCheck, IctDqViolatingRow, IctRegisterDq } from '@/types/ictRegisterDq';
+import type {
+    IctDqCheck,
+    IctDqViolatingRow,
+    IctDqViolationsPage,
+    IctRegisterDq,
+} from '@/types/ictRegisterDq';
 
 import { passthroughObject, z } from '../common';
 
@@ -22,7 +27,16 @@ export const ictDqCheckSchema: z.ZodType<IctDqCheck> = passthroughObject({
     status: z.string(),
     production_inert: z.boolean().optional(),
     production_inert_reason: z.string().nullable().optional(),
+    visible_count: z.number().optional(),
+    violating_rows_truncated: z.boolean().optional(),
     violating_rows: z.array(ictDqViolatingRowSchema),
+});
+
+export const ictDqViolationsPageSchema: z.ZodType<IctDqViolationsPage> = passthroughObject({
+    items: z.array(ictDqViolatingRowSchema),
+    total: z.number(),
+    offset: z.number(),
+    limit: z.number(),
 });
 
 export const ictRegisterDqSchema: z.ZodType<IctRegisterDq> = passthroughObject({

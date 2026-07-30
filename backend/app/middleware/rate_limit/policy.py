@@ -13,6 +13,7 @@ DEFAULT_RATE_LIMIT_RULES: dict[str, RateLimitRule] = {
     "/api/v1/auth/demo-login": (10, 60),
     "/api/v1/auth/refresh": (10, 60),
     "/api/v1/users": (100, 60),
+    "/api/v1/ict-register/dq": (30, 60),
     "default": (200, 60),
 }
 
@@ -49,3 +50,13 @@ def get_limit_for_path(limits: Mapping[str, RateLimitRule], path: str) -> RateLi
     if matches:
         return max(matches, key=lambda item: len(item[0]))[1]
     return limits.get("default", DEFAULT_RATE_LIMIT_RULES["default"])
+
+
+def get_bucket_for_path(limits: Mapping[str, RateLimitRule], path: str) -> str:
+    """Return the longest configured prefix for an endpoint-family bucket."""
+    patterns = [
+        pattern
+        for pattern in limits
+        if pattern != "default" and path.startswith(pattern)
+    ]
+    return max(patterns, key=len) if patterns else path

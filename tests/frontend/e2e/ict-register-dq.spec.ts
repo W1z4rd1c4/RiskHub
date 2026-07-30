@@ -44,6 +44,83 @@ const ACCESS_DENIED = /Access Denied|Přístup zamítnut/;
 const BROKEN_SUB_LABEL = 'E2E-SUB-BROKEN Cross-Contract Orphan';
 
 test.describe('ICT Register — Data Quality page (Deterministic)', () => {
+    test('paginates routed violation fixtures and restores the URL across loading, retry, and empty states', async ({
+        riskManagerPage,
+    }) => {
+        let secondPageAttempts = 0;
+        let releaseFailedPage: (() => void) | undefined;
+        const failedPageGate = new Promise<void>((resolve) => {
+            releaseFailedPage = resolve;
+        });
+        const row = (id: number, label: string) => ({
+            entity_type: 'vendor',
+            entity_id: id,
+            label,
+            route_entity_type: 'vendor',
+            route_entity_id: id,
+        });
+        const check = {
+            check_id: 'DQ-16',
+            area: 'Dodavatelé',
+            title_cs: 'Kritický/Významný dodavatel bez ID kódu',
+            severity: 'Vysoká',
+            threshold: 0,
+            count: 51,
+            status: 'NÁLEZ',
+            visible_count: 51,
+            violating_rows_truncated: true,
+            violating_rows: [row(1, 'Preview row')],
+        };
+
+        await riskManagerPage.route('**/api/v1/ict-register/dq**', async (route) => {
+            const url = new URL(route.request().url());
+            if (url.pathname.endsWith('/ict-register/dq')) {
+                await route.fulfill({ json: { checks: [check], finding_count: 1 } });
+                return;
+            }
+
+            const offset = Number(url.searchParams.get('offset') ?? '0');
+            if (offset === 50) {
+                secondPageAttempts += 1;
+                if (secondPageAttempts === 1) {
+                    await failedPageGate;
+                    await route.fulfill({
+                        status: 500,
+                        json: { detail: 'deterministic detail failure' },
+                    });
+                    return;
+                }
+                await route.fulfill({
+                    json: { items: [], total: 51, offset: 50, limit: 50 },
+                });
+                return;
+            }
+            await route.fulfill({
+                json: {
+                    items: [row(1, 'First detail page')],
+                    total: 51,
+                    offset: 0,
+                    limit: 50,
+                },
+            });
+        });
+
+        await riskManagerPage.goto(`${DQ_PAGE}?check=DQ-16`);
+        await expect(riskManagerPage.getByText('First detail page')).toBeVisible();
+
+        await riskManagerPage.getByRole('button', { name: /Next|Další/ }).click();
+        await expect(riskManagerPage).toHaveURL(/check=DQ-16.*dq_offset=50/);
+        await expect(riskManagerPage.getByRole('status')).toBeVisible();
+        releaseFailedPage?.();
+        await expect(riskManagerPage.getByRole('alert')).toBeVisible();
+
+        await riskManagerPage.getByRole('button', { name: /Retry|Zkusit znovu/ }).click();
+        await expect(riskManagerPage.getByText(/No visible violating rows|Žádné viditelné/)).toBeVisible();
+        await riskManagerPage.getByRole('button', { name: /Previous|Předchozí/ }).click();
+        await expect(riskManagerPage).toHaveURL(/check=DQ-16.*dq_offset=0/);
+        await expect(riskManagerPage.getByText('First detail page')).toBeVisible();
+    });
+
     test('renders the fixed 52-check catalog with the summary tiles', async ({ riskManagerPage }) => {
         await riskManagerPage.goto(DQ_PAGE);
         await waitForDataLoad(riskManagerPage);

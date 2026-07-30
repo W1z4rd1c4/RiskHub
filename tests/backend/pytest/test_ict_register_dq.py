@@ -27,10 +27,13 @@ acceptance trio becomes the workbook's response/status columns.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import date
 
 import pytest
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.models import Process, Risk, User
 from app.models.global_config import clear_config_cache
@@ -47,6 +50,7 @@ from app.services._ict_register_lifecycle.derivation import (
     VendorDerivationInput,
 )
 from app.services._ict_register_lifecycle.derivation_inputs import risk_dq_input
+from app.services._ict_register_lifecycle import dq_cache
 from app.services._ict_register_lifecycle.dq import (
     DQ_STATUS_FINDING,
     DQ_STATUS_OK,
@@ -2000,3 +2004,196 @@ async def test_dq_endpoint_scopes_rows_per_viewer_but_reports_global_counts(
     assert checks_by_id["DQ-23"]["production_inert"] is True
     assert checks_by_id["DQ-23"]["production_inert_reason"]
     assert checks_by_id["DQ-22"]["production_inert"] is False
+
+
+@pytest.mark.asyncio
+async def test_dq_summary_bounds_visible_previews_without_changing_global_counts(
+    client_factory, db_session, test_user_cro: User, test_department
+):
+    async with client_factory(user=test_user_cro) as client:
+        for number in range(12):
+            response = await client.post(
+                "/api/v1/processes",
+                json={
+                    "l0_area": "Provoz a služby klientům",
+                    "l1_process": f"Ownerless process {number:02d}",
+                    "process_owner_user_id": test_user_cro.id,
+                    "owning_department_id": test_department.id,
+                },
+            )
+            assert response.status_code == 201, response.text
+
+            stored_process = await db_session.get(Process, response.json()["id"])
+            assert stored_process is not None
+            stored_process.process_owner_user_id = None
+            stored_process.owning_department_id = None
+
+        await db_session.commit()
+        response = await client.get("/api/v1/ict-register/dq")
+
+    assert response.status_code == 200, response.text
+    dq01 = next(
+        check for check in response.json()["checks"] if check["check_id"] == "DQ-01"
+    )
+    assert dq01["count"] == 12
+    assert dq01["visible_count"] == 12
+    assert dq01["violating_rows_truncated"] is True
+    assert len(dq01["violating_rows"]) == 10
+
+
+@pytest.mark.asyncio
+async def test_dq_violations_endpoint_paginates_the_viewers_visible_rows(
+    client_factory, db_session, test_user_cro: User, test_department
+):
+    process_ids: list[int] = []
+    async with client_factory(user=test_user_cro) as client:
+        for number in range(12):
+            response = await client.post(
+                "/api/v1/processes",
+                json={
+                    "l0_area": "Provoz a služby klientům",
+                    "l1_process": f"Paginated process {number:02d}",
+                    "process_owner_user_id": test_user_cro.id,
+                    "owning_department_id": test_department.id,
+                },
+            )
+            assert response.status_code == 201, response.text
+            process_ids.append(response.json()["id"])
+
+            stored_process = await db_session.get(Process, response.json()["id"])
+            assert stored_process is not None
+            stored_process.process_owner_user_id = None
+            stored_process.owning_department_id = None
+
+        await db_session.commit()
+        response = await client.get(
+            "/api/v1/ict-register/dq/DQ-01/violations",
+            params={"offset": 5, "limit": 3},
+        )
+        missing = await client.get("/api/v1/ict-register/dq/DQ-99/violations")
+        oversized = await client.get(
+            "/api/v1/ict-register/dq/DQ-01/violations",
+            params={"limit": 101},
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "items": [
+            {
+                "entity_type": "process",
+                "entity_id": process_ids[number],
+                "label": f"Paginated process {number:02d}",
+                "route_entity_type": "process",
+                "route_entity_id": process_ids[number],
+            }
+            for number in range(5, 8)
+        ],
+        "total": 12,
+        "offset": 5,
+        "limit": 3,
+    }
+    assert missing.status_code == 404
+    assert oversized.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_dq_evaluation_is_single_flight_cached_and_invalidated_by_mutation(
+    client_factory, db_session, test_user_cro: User
+):
+    engine = db_session.bind
+    assert engine is not None
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def fresh_session():
+        async with session_factory() as session:
+            yield session
+
+    graph_process_selects = 0
+
+    def count_graph_process_selects(
+        _conn, _cursor, statement, _parameters, _context, _many
+    ):
+        nonlocal graph_process_selects
+        normalized = " ".join(statement.split())
+        if "FROM processes ORDER BY processes.id" in normalized:
+            graph_process_selects += 1
+
+    event.listen(
+        engine.sync_engine, "before_cursor_execute", count_graph_process_selects
+    )
+    try:
+        async with client_factory(
+            user=test_user_cro, db_override=fresh_session
+        ) as client:
+            cold_responses = await asyncio.gather(
+                *(client.get("/api/v1/ict-register/dq") for _ in range(4))
+            )
+            assert all(response.status_code == 200 for response in cold_responses)
+            assert graph_process_selects == 1
+
+            mutation = await client.post(
+                "/api/v1/processes",
+                json={
+                    "l0_area": "Provoz a služby klientům",
+                    "l1_process": "Revision invalidates the DQ cache",
+                    "process_owner_user_id": test_user_cro.id,
+                    "owning_department_id": test_user_cro.department_id,
+                },
+            )
+            assert mutation.status_code == 201, mutation.text
+
+            revised_responses = await asyncio.gather(
+                *(client.get("/api/v1/ict-register/dq") for _ in range(4))
+            )
+            assert all(response.status_code == 200 for response in revised_responses)
+            assert graph_process_selects == 2
+            assert all(
+                next(
+                    check
+                    for check in response.json()["checks"]
+                    if check["check_id"] == "DQ-04"
+                )["count"]
+                == 1
+                for response in revised_responses
+            )
+    finally:
+        event.remove(
+            engine.sync_engine, "before_cursor_execute", count_graph_process_selects
+        )
+
+
+@pytest.mark.asyncio
+async def test_dq_cache_ttl_starts_after_graph_evaluation_completes(monkeypatch):
+    clock = [100.0]
+    loads = 0
+    expected = run_dq()
+    key = (1, 1, "test", "catalog")
+
+    async def revision_key(_db):
+        return key, parameter_set()
+
+    async def load_graph(_db):
+        nonlocal loads
+        loads += 1
+        clock[0] += 10.0
+        return IctRegisterDqGraph()
+
+    monkeypatch.setattr(dq_cache, "_revision_key", revision_key)
+    monkeypatch.setattr(dq_cache, "load_ict_register_dq_graph", load_graph)
+    monkeypatch.setattr(dq_cache, "derive_ict_register_dq", lambda *_args: expected)
+    monkeypatch.setattr(dq_cache.time, "monotonic", lambda: clock[0])
+    dq_cache._cache.clear()
+    dq_cache._revision_locks.clear()
+
+    first = await dq_cache.get_cached_global_dq_result(object())
+    clock[0] = 124.9
+    within_full_ttl = await dq_cache.get_cached_global_dq_result(object())
+
+    assert first is expected
+    assert within_full_ttl is expected
+    assert loads == 1
+
+    clock[0] = 125.1
+    after_full_ttl = await dq_cache.get_cached_global_dq_result(object())
+    assert after_full_ttl is expected
+    assert loads == 2

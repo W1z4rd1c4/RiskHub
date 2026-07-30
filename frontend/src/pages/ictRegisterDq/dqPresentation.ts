@@ -103,14 +103,22 @@ export function summarizeChecks(checks: IctDqCheck[]): DqSummary {
 export interface DqPageQueryState {
     statusFilter: DqStatusFilter;
     expandedCheckId: string | null;
+    detailOffset: number;
 }
+
+export const DQ_DETAIL_PAGE_SIZE = 50;
 
 // Committee drill-down deep links (#51): ?check=DQ-nn pre-expands the
 // producing check; ?status=findings pre-applies the findings filter.
 export function parseDqPageQueryParams(searchParams: URLSearchParams): DqPageQueryState {
     const check = searchParams.get('check');
+    const parsedOffset = Number.parseInt(searchParams.get('dq_offset') ?? '0', 10);
+    const nonnegativeOffset =
+        Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
     return {
         statusFilter: searchParams.get('status') === 'findings' ? 'findings' : 'all',
-        expandedCheckId: check ? check : null,
+        expandedCheckId: check || null,
+        detailOffset:
+            Math.floor(nonnegativeOffset / DQ_DETAIL_PAGE_SIZE) * DQ_DETAIL_PAGE_SIZE,
     };
 }

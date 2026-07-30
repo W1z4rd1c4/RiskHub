@@ -7,6 +7,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.core.config import Settings
+from app.core.security import create_access_token
 from app.middleware.rate_limit import RateLimitMiddleware
 
 
@@ -15,7 +16,13 @@ class _FailingRedis:
         raise RuntimeError("redis unavailable")
 
 
-def _build_request(*, app, path: str, peer_ip: str = "198.51.100.10") -> Request:
+def _build_request(
+    *,
+    app,
+    path: str,
+    peer_ip: str = "198.51.100.10",
+    headers: list[tuple[bytes, bytes]] | None = None,
+) -> Request:
     scope = {
         "type": "http",
         "http_version": "1.1",
@@ -24,12 +31,59 @@ def _build_request(*, app, path: str, peer_ip: str = "198.51.100.10") -> Request
         "path": path,
         "raw_path": path.encode("utf-8"),
         "query_string": b"",
-        "headers": [],
+        "headers": headers or [],
         "client": (peer_ip, 12345),
         "server": ("testserver", 80),
         "app": app,
     }
     return Request(scope)
+
+
+@pytest.mark.asyncio
+async def test_dq_family_shares_one_bucket_per_authenticated_principal_and_ip():
+    settings = Settings(
+        debug=True, secret_key="test-secret-key-32-chars-minimum-value"
+    )
+    app = SimpleNamespace(state=SimpleNamespace(redis=None, settings=settings))
+    middleware = RateLimitMiddleware(
+        app,
+        enabled=True,
+        limits={"/api/v1/ict-register/dq": (1, 60), "default": (100, 60)},
+    )
+
+    async def call_next(_request):
+        return JSONResponse({"ok": True})
+
+    def bearer(user_id: int) -> list[tuple[bytes, bytes]]:
+        token = create_access_token({"sub": str(user_id)}, settings=settings)
+        return [(b"authorization", f"Bearer {token}".encode("ascii"))]
+
+    first = await middleware.dispatch(
+        _build_request(
+            app=app, path="/api/v1/ict-register/dq", headers=bearer(1)
+        ),
+        call_next,
+    )
+    same_principal_detail = await middleware.dispatch(
+        _build_request(
+            app=app,
+            path="/api/v1/ict-register/dq/DQ-01/violations",
+            headers=bearer(1),
+        ),
+        call_next,
+    )
+    other_principal = await middleware.dispatch(
+        _build_request(
+            app=app,
+            path="/api/v1/ict-register/dq/DQ-01/violations",
+            headers=bearer(2),
+        ),
+        call_next,
+    )
+
+    assert first.status_code == 200
+    assert same_principal_detail.status_code == 429
+    assert other_principal.status_code == 200
 
 
 @pytest.mark.asyncio
