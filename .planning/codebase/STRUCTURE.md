@@ -29,7 +29,7 @@
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 469 tracked test files (431 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - 470 tracked test files (432 Python) in the measured repository snapshot
 
 ## Frontend Tree (`frontend/`)
 
