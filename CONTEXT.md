@@ -38,6 +38,14 @@ _Avoid_: subcontracting, fourth party, subdodávka
 A source or cause that can give rise to a Risk; a first-class register with its own page.
 _Avoid_: hazard, hrozba, vulnerability
 
+**Threat Steward**:
+The Accountable owner responsible for maintaining a Threat record; the Steward must be an active User holding the CISO role, and stewardship does not imply ownership or control of the threat itself.
+_Avoid_: threat owner, threat assignee
+
+**CISO**:
+The Chief Information Security Officer role accountable for stewardship of the Threat register and oversight of ICT-security risk information.
+_Avoid_: security admin, threat owner
+
 **Risk**:
 An ICT risk — RiskHub's existing `Risk`, linked to the Processes, Assets, and Vendors it concerns.
 _Avoid_: issue, exposure
@@ -55,6 +63,10 @@ _Avoid_: asset owner (ambiguous), sponsor
 **ICT Owner**:
 The Asset responsibility role accountable for the technical lifecycle and operation of an Asset.
 _Avoid_: technical contact, administrator
+
+**Outsourcing Owner**:
+The Accountable owner for RiskHub's relationship and governance responsibilities concerning a Vendor.
+_Avoid_: vendor owner, supplier manager
 
 ### Criticality & derivation
 
@@ -129,6 +141,22 @@ _Avoid_: free-text owner, co-owner, participant, contributor, watcher
 **Owning Department**:
 The single organizational unit accountable for a Process, Asset, Risk, Control, or Vendor; it is distinct from the record's Accountable owner.
 _Avoid_: owner department text, team, business unit (unless it is the canonical Department)
+
+**Protected record**:
+A Process, Asset, or Vendor whose current or proposed derived classification crosses the governance threshold that requires approval for business-state mutations. The thresholds are Process CIF Yes; Asset CIF Yes or resulting criticality Critical; and Vendor tier Critical or Significant.
+_Avoid_: important record, sensitive record, high-risk record
+
+**Pending mutation**:
+An immutable, auditable proposal to create, change, link, archive, or reassign a governed record; it does not alter the effective operational state until an eligible independent approver accepts it.
+_Avoid_: draft edit, staged row, temporary record
+
+**Accountability reassignment**:
+An atomic change to an Accountable owner or Owning Department; it never temporarily clears a required responsibility and follows its configured approval scenario.
+_Avoid_: owner replacement, ownership transfer, reassignment without qualification
+
+**Composite approval**:
+One approval request that captures a primary mutation and every protected downstream impact produced by the Process-to-Asset-to-Vendor Criticality cascade, applied or rejected as one unit.
+_Avoid_: bulk approval, chained approvals, partial approval
 
 ---
 

@@ -42,6 +42,12 @@ behind it.
   audit findings ledger (finding IDs, severities, `file:line`, target phases).
 - [`FRONTEND-UX-REMEDIATION-CAPTURE.md`](./FRONTEND-UX-REMEDIATION-CAPTURE.md): grill-with-docs
   capture of the frontend design/UX remediation plan (15 locked decisions, phased execution).
+- [`REGISTER-UX-CONSISTENCY-GRILLING-CAPTURE.md`](./REGISTER-UX-CONSISTENCY-GRILLING-CAPTURE.md):
+  confirmed grill-with-docs capture for register filters, user-linked accountability,
+  localization, list-page consistency, Department views, and governed mutations.
+- [`REGISTER-UX-OWNERSHIP-APPROVAL-SPEC.md`](./REGISTER-UX-OWNERSHIP-APPROVAL-SPEC.md):
+  implementation specification for register consistency, accountability, CISO stewardship,
+  localization, approvals, notifications, verification, and bilingual documentation.
 - [`FRONTEND-UX-REMEDIATION-SPEC.md`](./FRONTEND-UX-REMEDIATION-SPEC.md): implementation- and
   ticket-ready specification formalizing the capture + ADRs (normative constraints, per-phase
   requirements with `FR-*` IDs, findings traceability, phase-dependency DAG for ticketing).
