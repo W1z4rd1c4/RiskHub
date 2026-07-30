@@ -588,6 +588,35 @@ capture. Governed approval notifications use correlated SQL visibility for the
 linked Asset approval and requester/live resolver rather than materializing a
 platform-wide Asset proposal or identifier set.
 
+### 5.9 Governed Protected Vendor Mutations
+
+The fixed `protected_vendor_edit` scenario protects a Vendor when its current
+or proposed derived tier is **Critical** or **Significant**. Protected Vendor
+create/edit/archive, Contract and Sub-outsourcing create/edit/archive, and
+Vendor-managed Risk/Control/KRI link add/remove requests require
+a non-blank reason and independent active Risk Manager/CRO approval. The
+requester cannot approve.
+
+Creation remains rowless. Existing Vendor proposals preserve approved Vendor,
+child, and link truth and hold one active impact lock per affected Vendor.
+Process/Asset changes whose derivation affects a protected Vendor create one
+Composite proposal with Process, Asset, and Vendor snapshots and deterministic
+locks. Approval revalidates scenario authority, resource versions, referenced
+rows, and the complete derived graph, then applies all effects atomically or
+expires without mutation. Reject/cancel also preserve approved truth and
+release locks. Asset-to-Vendor and Process-to-Vendor mutations preserve their
+Asset/Process composite identities; there are no parallel direct
+`vendor.link.asset.*` or `vendor.link.process.*` proposal kinds. Restore remains
+direct.
+
+Vendor detail exposes a pending banner. Only the requester and a currently
+eligible resolver may see the safe before/after, tier impact, affected business
+labels, requester, reason, or cancel action; other authorized Vendor readers
+receive the redacted banner. A pending proposal blocks overlapping Vendor,
+child, and link business mutations. The same safe proposal is available in
+Approvals and My Requests, and notification preferences suppress delivery only,
+not queue visibility or approval state.
+
 ---
 
 ## 6. Sensitive Field Rules
@@ -703,7 +732,7 @@ Non-privileged users can access resources **outside their department** if they a
 | Risk | `risks:delete` | Users with approval-resolution authority | Non-resolvers: creates ApprovalRequest |
 | Control | `controls:delete` | Users with approval-resolution authority | Non-resolvers: creates ApprovalRequest |
 | KRI | `risks:delete` | Users with approval-resolution authority | Non-resolvers: creates ApprovalRequest |
-| Vendor | `vendors:delete` | Immediate | No |
+| Vendor | `vendors:delete` | Direct only when unprotected or the fixed scenario is disabled | Yes when current tier is Critical/Significant |
 | Vendor SLA | `vendors:delete` | Immediate | No |
 
 > [!NOTE]

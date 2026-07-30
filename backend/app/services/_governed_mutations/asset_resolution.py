@@ -96,7 +96,10 @@ async def approve_asset_mutation(
     current_user = resolver
     if proposal.mutation_kind.startswith(ASSET_RELATIONSHIP_PREFIX):
         operation = proposal.proposed_changes.get("operation")
-        asset_ids = sorted(lock.resource_id for lock in locks if lock.resource_type == "asset")
+        asset_locks = [lock for lock in locks if lock.resource_type == "asset"]
+        vendor_locks = [lock for lock in locks if lock.resource_type == "vendor"]
+        asset_ids = sorted(lock.resource_id for lock in asset_locks)
+        vendor_ids = sorted(lock.resource_id for lock in vendor_locks)
         assets = {
             row.id: row
             for row in (
@@ -109,12 +112,44 @@ async def approve_asset_mutation(
                 )
             ).scalars()
         }
+        vendors = {
+            row.id: row
+            for row in (
+                await db.execute(
+                    select(Vendor)
+                    .where(Vendor.id.in_(vendor_ids))
+                    .order_by(Vendor.id)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalars()
+        }
         stale = bool(
             not isinstance(operation, dict)
             or not asset_ids
             or set(assets) != set(asset_ids)
-            or any(lock.base_governance_version != assets[lock.resource_id].governance_version for lock in locks)
-            or proposal.base_versions != {f"asset:{item.id}": item.governance_version for item in assets.values()}
+            or set(vendors) != set(vendor_ids)
+            or any(
+                lock.base_governance_version
+                != assets[lock.resource_id].governance_version
+                for lock in asset_locks
+            )
+            or any(
+                lock.base_governance_version
+                != vendors[lock.resource_id].governance_version
+                for lock in vendor_locks
+            )
+            or proposal.base_versions
+            != {
+                **{
+                    f"asset:{item.id}": item.governance_version
+                    for item in assets.values()
+                },
+                **{
+                    f"vendor:{item.id}": item.governance_version
+                    for item in vendors.values()
+                },
+            }
         )
         derived_rows = []
         risk: Risk | None = None
@@ -133,7 +168,32 @@ async def approve_asset_mutation(
             for item in assets.values():
                 block, _ = await _existing_asset_impacts(db, asset=item, updates={})
                 derived_rows.append({"resource_id": item.id, "before": block, "after": block})
-            stale = proposal.derived_impact_snapshot != {"assets": derived_rows}
+            expected_impact: dict[str, object] = {"assets": derived_rows}
+            if vendors:
+                from .vendor_impact import (
+                    asset_relationship_vendor_impacts,
+                    vendor_impact_is_protected,
+                )
+
+                _, vendor_rows = await asset_relationship_vendor_impacts(
+                    db,
+                    asset=assets[proposal.primary_resource_id],
+                    operation=operation,
+                    vendors=list(vendors.values()),
+                )
+                expected_impact["vendors"] = vendor_rows
+                vendor_protected = any(
+                    vendor_impact_is_protected(block)
+                    for row in vendor_rows
+                    for block in (row["before"], row["after"])
+                )
+            else:
+                vendor_protected = False
+            stale = proposal.derived_impact_snapshot != expected_impact or (
+                "protected_vendor_edit"
+                in proposal.proposed_changes.get("triggered_scenarios", [])
+                and not vendor_protected
+            )
         if not stale and isinstance(operation, dict) and operation.get("relationship_type") == "risk":
             risk_id = operation.get("related_resource_id")
             if type(risk_id) is not int:
@@ -220,6 +280,8 @@ async def approve_asset_mutation(
                 raise ValidationError("Unsupported governed Asset link operation")
             for item in assets.values():
                 item.governance_version += 1
+            for item in vendors.values():
+                item.governance_version += 1
             await finalize_governed_terminal_transition(
                 db,
                 approval=approval,
@@ -234,19 +296,46 @@ async def approve_asset_mutation(
         await _commit_asset_boundary(db, boundary="governed_mutation.asset.link.resolve")
         return await _reload_asset_approval(db, approval.id)
     if proposal.mutation_kind == ASSET_EDIT_KIND:
-        if proposal.primary_resource_id is None or len(locks) != 1:
+        asset_locks = [lock for lock in locks if lock.resource_type == "asset"]
+        vendor_locks = [lock for lock in locks if lock.resource_type == "vendor"]
+        if proposal.primary_resource_id is None or len(asset_locks) != 1:
             raise ValidationError("Governed Asset edit identity is stale")
         asset = (
             await db.execute(select(Asset).where(Asset.id == proposal.primary_resource_id).with_for_update())
         ).scalar_one_or_none()
-        lock = locks[0]
+        lock = asset_locks[0]
+        vendor_ids = sorted(lock.resource_id for lock in vendor_locks)
+        vendors = {
+            row.id: row
+            for row in (
+                await db.execute(
+                    select(Vendor)
+                    .where(Vendor.id.in_(vendor_ids))
+                    .order_by(Vendor.id)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalars()
+        }
+        expected_base_versions = {
+            "asset": asset.governance_version if asset is not None else None,
+            **{
+                f"vendor:{vendor.id}": vendor.governance_version
+                for vendor in vendors.values()
+            },
+        }
         if (
             asset is None
             or not can_update_asset_record(requester, asset)
             or lock.resource_type != "asset"
             or lock.resource_id != asset.id
             or lock.base_governance_version != asset.governance_version
-            or proposal.base_versions != {"asset": asset.governance_version}
+            or set(vendors) != set(vendor_ids)
+            or any(
+                item.base_governance_version != vendors[item.resource_id].governance_version
+                for item in vendor_locks
+            )
+            or proposal.base_versions != expected_base_versions
         ):
             await finalize_governed_terminal_transition(
                 db,
@@ -319,7 +408,45 @@ async def approve_asset_mutation(
                 current_impact, proposed_impact = await _existing_asset_impacts(
                     db, asset=asset, updates=proposed_updates
                 )
-                if {"before": current_impact, "after": proposed_impact} != proposal.derived_impact_snapshot:
+                expected_impact: dict[str, object]
+                if vendors:
+                    from .vendor_impact import (
+                        asset_point_vendor_impacts,
+                        vendor_impact_is_protected,
+                    )
+
+                    _, vendor_rows = await asset_point_vendor_impacts(
+                        db,
+                        asset=asset,
+                        updates=proposed_updates,
+                        vendors=list(vendors.values()),
+                    )
+                    expected_impact = {
+                        "assets": [
+                            {
+                                "resource_id": asset.id,
+                                "before": current_impact,
+                                "after": proposed_impact,
+                            }
+                        ],
+                        "vendors": vendor_rows,
+                    }
+                    vendor_protected = any(
+                        vendor_impact_is_protected(block)
+                        for row in vendor_rows
+                        for block in (row["before"], row["after"])
+                    )
+                else:
+                    expected_impact = {
+                        "before": current_impact,
+                        "after": proposed_impact,
+                    }
+                    vendor_protected = False
+                if expected_impact != proposal.derived_impact_snapshot or (
+                    "protected_vendor_edit"
+                    in proposal.proposed_changes.get("triggered_scenarios", [])
+                    and not vendor_protected
+                ):
                     await finalize_governed_terminal_transition(
                         db,
                         approval=approval,
@@ -334,6 +461,8 @@ async def approve_asset_mutation(
                     for field, value in proposed_updates.items():
                         setattr(asset, field, value)
                     asset.governance_version += 1
+                    for vendor in vendors.values():
+                        vendor.governance_version += 1
                     await finalize_governed_terminal_transition(
                         db,
                         approval=approval,
@@ -348,12 +477,27 @@ async def approve_asset_mutation(
         await _commit_asset_boundary(db, boundary="governed_mutation.asset.resolve")
         return await _reload_asset_approval(db, approval.id)
     if proposal.mutation_kind == ASSET_ARCHIVE_KIND:
-        if proposal.primary_resource_id is None or len(locks) != 1:
+        asset_locks = [lock for lock in locks if lock.resource_type == "asset"]
+        vendor_locks = [lock for lock in locks if lock.resource_type == "vendor"]
+        if proposal.primary_resource_id is None or len(asset_locks) != 1:
             raise ValidationError("Governed Asset archive identity is stale")
         asset = (
             await db.execute(select(Asset).where(Asset.id == proposal.primary_resource_id).with_for_update())
         ).scalar_one_or_none()
-        lock = locks[0]
+        lock = asset_locks[0]
+        vendor_ids = sorted(item.resource_id for item in vendor_locks)
+        vendors = {
+            row.id: row
+            for row in (
+                await db.execute(
+                    select(Vendor)
+                    .where(Vendor.id.in_(vendor_ids))
+                    .order_by(Vendor.id)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalars()
+        }
         stale = bool(
             asset is None
             or asset.is_archived
@@ -362,6 +506,19 @@ async def approve_asset_mutation(
             or lock.resource_type != "asset"
             or lock.resource_id != proposal.primary_resource_id
             or lock.base_governance_version != (asset.governance_version if asset else None)
+            or set(vendors) != set(vendor_ids)
+            or any(
+                item.base_governance_version != vendors[item.resource_id].governance_version
+                for item in vendor_locks
+            )
+            or proposal.base_versions
+            != {
+                "asset": asset.governance_version if asset else None,
+                **{
+                    f"vendor:{vendor.id}": vendor.governance_version
+                    for vendor in vendors.values()
+                },
+            }
         )
         if stale:
             await finalize_governed_terminal_transition(
@@ -377,7 +534,45 @@ async def approve_asset_mutation(
         else:
             assert asset is not None
             current_impact, _ = await _existing_asset_impacts(db, asset=asset, updates={})
-            if proposal.derived_impact_snapshot != {"before": current_impact, "after": current_impact}:
+            if vendors:
+                from .vendor_impact import (
+                    asset_point_vendor_impacts,
+                    vendor_impact_is_protected,
+                )
+
+                _, vendor_rows = await asset_point_vendor_impacts(
+                    db,
+                    asset=asset,
+                    updates={},
+                    archive=True,
+                    vendors=list(vendors.values()),
+                )
+                expected_impact = {
+                    "assets": [
+                        {
+                            "resource_id": asset.id,
+                            "before": current_impact,
+                            "after": current_impact,
+                        }
+                    ],
+                    "vendors": vendor_rows,
+                }
+                vendor_protected = any(
+                    vendor_impact_is_protected(block)
+                    for row in vendor_rows
+                    for block in (row["before"], row["after"])
+                )
+            else:
+                expected_impact = {
+                    "before": current_impact,
+                    "after": current_impact,
+                }
+                vendor_protected = False
+            if proposal.derived_impact_snapshot != expected_impact or (
+                "protected_vendor_edit"
+                in proposal.proposed_changes.get("triggered_scenarios", [])
+                and not vendor_protected
+            ):
                 await finalize_governed_terminal_transition(
                     db,
                     approval=approval,
@@ -393,6 +588,8 @@ async def approve_asset_mutation(
                 asset.archived_at = utc_now()
                 asset.archived_by_id = current_user.id
                 asset.governance_version += 1
+                for vendor in vendors.values():
+                    vendor.governance_version += 1
                 await finalize_governed_terminal_transition(
                     db,
                     approval=approval,

@@ -11,6 +11,7 @@ from app.api.v1.endpoints._collection import build_list_context
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import User
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.vendor import (
     VendorCreate,
     VendorListResponse,
@@ -185,7 +186,12 @@ async def export_vendors(
     return render_vendor_register_csv(response.items, locale=locale)
 
 
-@router.post("", response_model=VendorRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=VendorRead,
+    status_code=status.HTTP_201_CREATED,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
+)
 async def create_vendor(
     payload: VendorCreate,
     db: AsyncSession = Depends(get_db),
@@ -203,7 +209,11 @@ async def get_vendor(
     return await read_vendor_detail(db=db, vendor_id=vendor_id, current_user=current_user)
 
 
-@router.patch("/{vendor_id}", response_model=VendorRead)
+@router.patch(
+    "/{vendor_id}",
+    response_model=VendorRead,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
+)
 async def update_vendor(
     vendor_id: int,
     payload: VendorUpdate,

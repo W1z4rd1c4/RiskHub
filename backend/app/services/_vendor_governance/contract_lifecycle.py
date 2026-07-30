@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,10 +31,29 @@ async def create_vendor_contract_detail(
     current_user: User,
 ) -> VendorContractRead:
     vendor = await assert_contract_mutation_vendor(db, vendor_id=vendor_id, current_user=current_user)
+    from app.services._governed_mutations.vendor_mutations import (
+        submit_vendor_child_mutation_if_required,
+    )
 
-    contract = VendorContract(vendor_id=vendor.id, **payload.model_dump())
+    values = payload.model_dump(exclude={"request_reason"})
+    proposed = jsonable_encoder(values)
+    queued = await submit_vendor_child_mutation_if_required(
+        db=db,
+        vendor=vendor,
+        mutation_kind="vendor.contract.create",
+        child_id=None,
+        before=None,
+        after=proposed,
+        current_user=current_user,
+        request_reason=payload.request_reason,
+    )
+    if queued is not None:
+        return queued
+
+    contract = VendorContract(vendor_id=vendor.id, **values)
     db.add(contract)
     await db.flush()
+    vendor.governance_version += 1
 
     await audit_vendor_contract.vendor_contract_created(db, actor=current_user, contract=contract)
     await commit_service_boundary(db, boundary="vendor_contract_create")
@@ -72,14 +92,34 @@ async def update_vendor_contract_detail(
     )
     vendor = await assert_contract_vendor_readable(db, vendor_id=vendor_id, current_user=current_user)
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
+    updates.pop("request_reason", None)
     if not updates:
         return await serialize_contract_detail_with_derived(
             db, contract, current_user=current_user, vendor=vendor
         )
+    from app.services._governed_mutations.vendor_mutations import (
+        submit_vendor_child_mutation_if_required,
+    )
+
+    before = {field: jsonable_encoder(getattr(contract, field)) for field in updates}
+    after = jsonable_encoder(updates)
+    queued = await submit_vendor_child_mutation_if_required(
+        db=db,
+        vendor=vendor,
+        mutation_kind="vendor.contract.edit",
+        child_id=contract.id,
+        before=before,
+        after=after,
+        current_user=current_user,
+        request_reason=payload.request_reason,
+    )
+    if queued is not None:
+        return queued
 
     changes = audit_vendor_contract.vendor_contract_update_changes(contract, updates)
     for field, value in updates.items():
         setattr(contract, field, value)
+    vendor.governance_version += 1
 
     await audit_vendor_contract.vendor_contract_updated(
         db, actor=current_user, contract=contract, changes=changes
@@ -97,12 +137,33 @@ async def archive_vendor_contract_detail(
     vendor_id: int,
     contract_id: int,
     current_user: User,
-) -> None:
+    request_reason: str | None = None,
+) -> object | None:
     contract = await assert_contract_archive_allowed(
         db, vendor_id=vendor_id, contract_id=contract_id, current_user=current_user
     )
+    vendor = await assert_contract_vendor_readable(
+        db, vendor_id=vendor_id, current_user=current_user
+    )
+    from app.services._governed_mutations.vendor_mutations import (
+        submit_vendor_child_mutation_if_required,
+    )
+
+    queued = await submit_vendor_child_mutation_if_required(
+        db=db,
+        vendor=vendor,
+        mutation_kind="vendor.contract.archive",
+        child_id=contract.id,
+        before={"is_archived": False},
+        after={"is_archived": True},
+        current_user=current_user,
+        request_reason=request_reason,
+    )
+    if queued is not None:
+        return queued
     changes = audit_vendor_contract.vendor_contract_archive_changes(contract)
     contract.mark_archived(current_user)
+    vendor.governance_version += 1
 
     await audit_vendor_contract.vendor_contract_archived(
         db, actor=current_user, contract=contract, changes=changes
@@ -123,6 +184,7 @@ async def restore_vendor_contract_detail(
     vendor = await assert_contract_vendor_readable(db, vendor_id=vendor_id, current_user=current_user)
     changes = audit_vendor_contract.vendor_contract_restore_changes(contract)
     contract.mark_restored(current_user)
+    vendor.governance_version += 1
 
     await audit_vendor_contract.vendor_contract_restored(
         db, actor=current_user, contract=contract, changes=changes

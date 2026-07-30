@@ -24,6 +24,15 @@
   "messages": {
     "archive_confirm": "Archive vendor {{vendorName}}?"
   },
+  "pending_change": {
+    "title": "Pending approval",
+    "badge": "Protected change",
+    "requested_by_at": "Requested by {{requester}} on {{date}} at {{time}}",
+    "unknown_requester": "Unknown requester",
+    "cancel": "Cancel request",
+    "cancel_failed": "The pending Vendor request could not be cancelled.",
+    "diff_restricted": "Proposal details are restricted."
+  },
   "filters": {
     "search_placeholder": "Search vendors...",
     "all_statuses": "All statuses",
@@ -241,6 +250,8 @@
     "country": "Country",
     "website": "Website",
     "description": "Description",
+    "request_reason": "Request reason",
+    "request_reason_help": "Protected Vendor changes are submitted for independent approval. Explain why this change is needed.",
     "department": "Department",
     "department_placeholder": "Select department",
     "owner": "Outsourcing Owner",
@@ -252,6 +263,7 @@
     "subprocess": "Subprocess",
     "subprocess_placeholder": "Cloud Operations",
     "risk_score": "Risk Score (1–5)",
+    "materiality": "Maximum materiality impact (% of own funds)",
     "status": "Status",
     "flags": "Flags",
     "vendor_type": {

@@ -2,6 +2,7 @@ import type {
     Vendor,
     VendorType,
 } from '@/types/vendor';
+import type { ProcessApprovalQueuedResponse } from '@/types/process';
 
 export interface DepartmentLookup {
     id: number;
@@ -13,6 +14,7 @@ export interface VendorFormProps {
     initialData?: Vendor;
     isEdit?: boolean;
     onSaved: (vendor: Vendor) => void;
+    onApprovalQueued?: (queued: ProcessApprovalQueuedResponse) => void;
     onCancel?: () => void;
 }
 

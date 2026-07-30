@@ -170,10 +170,11 @@ class VendorBase(VendorRegisterExtension):
 
 
 class VendorCreate(VendorRegisterWriteValidators, VendorBase):
-    pass
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class VendorUpdate(VendorRegisterWriteValidators, VendorRegisterExtension):
+    request_reason: str | None = Field(None, max_length=1000)
     name: str | None = Field(None, max_length=255)
     legal_name: str | None = Field(None, max_length=255)
     registration_id: str | None = Field(None, max_length=100)
@@ -195,6 +196,12 @@ class VendorUpdate(VendorRegisterWriteValidators, VendorRegisterExtension):
     materiality_assessed_max_impact_pct_own_funds: Decimal | None = Field(None, ge=0)
     replaceability: str | None = Field(None, max_length=50)
     has_alternative_providers: bool | None = None
+
+
+class VendorArchiveRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class VendorLinkedRiskSummary(BaseModel):
@@ -305,6 +312,34 @@ class VendorCapabilities(BaseModel):
     can_view_asset_links: bool
     can_manage_asset_links: bool
     can_manage_process_links: bool
+    protected_change_requires_approval: bool = False
+    can_request_change: bool = False
+    can_cancel_pending_change: bool = False
+    has_pending_change: bool = False
+    business_edit_blocked: bool = False
+
+
+class VendorPendingChangeCapabilities(BaseModel):
+    can_view_diff: bool
+    can_cancel: bool
+
+
+class VendorPendingChange(BaseModel):
+    approval_id: int | None
+    proposal_id: str | None
+    proposal_version: int | None
+    status: Literal["pending"] = "pending"
+    requested_at: UtcAwareDatetime
+    requested_by_name: str | None = None
+    reason: str
+    generic_label: Literal["protected_vendor_change"] = "protected_vendor_change"
+    mutation_kind: str | None
+    before: dict[str, object]
+    after: dict[str, object]
+    derived_impact: dict[str, object]
+    impacted_resources: list[dict[str, str]]
+    relationship_change: dict[str, object] | None = None
+    capabilities: VendorPendingChangeCapabilities
 
 
 class VendorOwnerRead(BaseModel):
@@ -328,6 +363,7 @@ class VendorDepartmentLookup(BaseModel):
 
 class VendorRead(VendorBase):
     id: int
+    governance_version: int = 1
     is_archived: bool = False
     archived_at: UtcAwareDatetime | None = None
     archived_by_id: int | None = None
@@ -343,6 +379,7 @@ class VendorRead(VendorBase):
     ] = "legacy_unassigned"
     linked_risks: list[VendorLinkedRiskSummary] = Field(default_factory=list)
     capabilities: VendorCapabilities | None = None
+    pending_change: VendorPendingChange | None = None
     # Engine-derived block (ticket #49): populated by the vendor projection on
     # the detail surface, absent from the persistence model, rejected on write.
     derived: VendorDerived | None = None

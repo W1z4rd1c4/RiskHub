@@ -18,6 +18,10 @@ from app.models import (
     Risk,
     User,
 )
+from app.services._approval_queue.vendor import (
+    live_vendor_resolver_approval_ids,
+    valid_vendor_approvals,
+)
 from app.services._governed_mutations.asset_identity import (
     live_asset_resolver_approval_ids,
     valid_asset_approval_ids,
@@ -130,6 +134,11 @@ async def build_visible_pending_approvals_query(
         db,
         approval_statuses=PENDING_APPROVAL_STATUSES,
     )
+    valid_vendor_proposals = await valid_vendor_approvals(
+        db,
+        approval_statuses=PENDING_APPROVAL_STATUSES,
+    )
+    valid_vendor_ids = frozenset(valid_vendor_proposals)
     asset_governed = ApprovalRequest.id.in_(tuple(valid_asset_ids)) if valid_asset_ids else false()
     live_asset_resolver_ids = await live_asset_resolver_approval_ids(
         db,
@@ -137,6 +146,25 @@ async def build_visible_pending_approvals_query(
         approval_statuses=PENDING_APPROVAL_STATUSES,
     )
     asset_resolver = ApprovalRequest.id.in_(tuple(live_asset_resolver_ids)) if live_asset_resolver_ids else false()
+    vendor_governed = (
+        ApprovalRequest.id.in_(tuple(valid_vendor_ids))
+        if valid_vendor_ids
+        else false()
+    )
+    vendor_requester = and_(
+        vendor_governed,
+        ApprovalRequest.requested_by_id == current_user.id,
+    )
+    live_vendor_resolver_ids = await live_vendor_resolver_approval_ids(
+        db,
+        current_user=current_user,
+        proposals=valid_vendor_proposals,
+    )
+    vendor_resolver = (
+        ApprovalRequest.id.in_(tuple(live_vendor_resolver_ids))
+        if live_vendor_resolver_ids
+        else false()
+    )
     governed_process = governed_process_approval_exists_clause(valid_extended_ids)
     any_proposal = any_governed_mutation_proposal_exists_clause()
     legacy_candidate_clauses = [
@@ -169,6 +197,10 @@ async def build_visible_pending_approvals_query(
             asset_resolver,
         ),
         and_(
+            ApprovalRequest.status.in_(PENDING_APPROVAL_STATUSES),
+            vendor_resolver,
+        ),
+        and_(
             ~any_proposal,
             ApprovalRequest.status.in_(PENDING_APPROVAL_STATUSES),
             legacy_visibility,
@@ -185,6 +217,7 @@ async def build_visible_pending_approvals_query(
                     ),
                     governed_process_requester_clause(current_user.id, valid_extended_ids),
                     and_(asset_governed, ApprovalRequest.requested_by_id == current_user.id),
+                    vendor_requester,
                 ),
             )
         )
@@ -195,6 +228,7 @@ async def build_visible_pending_approvals_query(
             or_(
                 approval_resource_type_filter_clause(resource_type, valid_extended_ids),
                 and_(resource_type == ApprovalResourceType.ASSET, asset_governed),
+                and_(resource_type == ApprovalResourceType.VENDOR, vendor_governed),
             )
         )
     return query.order_by(ApprovalRequest.created_at.desc(), ApprovalRequest.id.desc())

@@ -18,6 +18,7 @@ from app.models import (
 )
 
 from .fixed_asset_policy import ASSET_SCENARIO_KEY
+from .fixed_vendor_policy import VENDOR_SCENARIO_KEY
 
 ASSET_CREATE_KIND = "asset.create"
 ASSET_EDIT_KIND = "asset.edit"
@@ -110,6 +111,73 @@ def _valid_single_asset_impact(
     )
 
 
+def _valid_vendor_composite_impacts(
+    *,
+    proposal: GovernedMutationProposal,
+) -> bool:
+    impacts = proposal.impacted_resources_snapshot
+    derived = proposal.derived_impact_snapshot
+    if not isinstance(impacts, list) or not isinstance(derived, dict):
+        return False
+    asset_impacts = [item for item in impacts if isinstance(item, dict) and item.get("resource_type") == "asset"]
+    vendor_impacts = [item for item in impacts if isinstance(item, dict) and item.get("resource_type") == "vendor"]
+    vendor_rows = derived.get("vendors")
+    asset_rows = derived.get("assets")
+    return bool(
+        len(asset_impacts) == 1
+        and asset_impacts[0].get("resource_id") == proposal.primary_resource_id
+        and asset_impacts[0].get("resource_name") == proposal.primary_resource_name
+        and asset_impacts[0].get("base_governance_version") == proposal.base_versions.get("asset")
+        and impacts == [*asset_impacts, *vendor_impacts]
+        and vendor_impacts
+        and [item.get("resource_id") for item in vendor_impacts]
+        == sorted({item.get("resource_id") for item in vendor_impacts})
+        and all(
+            set(item)
+            == {"resource_type", "resource_id", "resource_name", "base_governance_version"}
+            and type(item.get("resource_id")) is int
+            and item["resource_id"] > 0
+            and isinstance(item.get("resource_name"), str)
+            and bool(item["resource_name"].strip())
+            and type(item.get("base_governance_version")) is int
+            and item["base_governance_version"] > 0
+            and proposal.base_versions.get(f"vendor:{item['resource_id']}")
+            == item["base_governance_version"]
+            for item in vendor_impacts
+        )
+        and proposal.base_versions
+        == {
+            "asset": asset_impacts[0]["base_governance_version"],
+            **{
+                f"vendor:{item['resource_id']}": item["base_governance_version"]
+                for item in vendor_impacts
+            },
+        }
+        and set(derived) == {"assets", "vendors"}
+        and isinstance(asset_rows, list)
+        and len(asset_rows) == 1
+        and isinstance(asset_rows[0], dict)
+        and set(asset_rows[0]) == {"resource_id", "before", "after"}
+        and asset_rows[0].get("resource_id") == proposal.primary_resource_id
+        and _valid_impact_block(asset_rows[0].get("before"))
+        and _valid_impact_block(asset_rows[0].get("after"))
+        and isinstance(vendor_rows, list)
+        and len(vendor_rows) == len(vendor_impacts)
+        and all(
+            isinstance(row, dict)
+            and set(row) == {"resource_id", "before", "after"}
+            and row.get("resource_id") == impact.get("resource_id")
+            and all(
+                isinstance(block, dict)
+                and set(block) == {"tier"}
+                and block.get("tier") in {"critical", "significant", "standard"}
+                for block in (row.get("before"), row.get("after"))
+            )
+            for row, impact in zip(vendor_rows, vendor_impacts, strict=True)
+        )
+    )
+
+
 def valid_asset_governed_envelope(
     proposal: GovernedMutationProposal | None,
 ) -> bool:
@@ -141,6 +209,19 @@ def valid_asset_governed_envelope(
     ):
         return False
     roles = scenario.get("approver_roles") if isinstance(scenario, dict) else None
+    triggered_scenarios = (
+        proposal.proposed_changes.get("triggered_scenarios")
+        if isinstance(proposal.proposed_changes, dict)
+        else None
+    )
+    vendor_composite = triggered_scenarios == [
+        ASSET_SCENARIO_KEY,
+        VENDOR_SCENARIO_KEY,
+    ]
+    vendor_triggered = bool(
+        isinstance(triggered_scenarios, list)
+        and VENDOR_SCENARIO_KEY in triggered_scenarios
+    )
     if not (
         isinstance(roles, list)
         and bool(roles)
@@ -182,10 +263,35 @@ def valid_asset_governed_envelope(
             values = None
             empty_side = object()
         impacts = proposal.impacted_resources_snapshot
-        impact_ids = [item.get("resource_id") for item in impacts if isinstance(item, dict)]
+        asset_impacts = [
+            item
+            for item in impacts
+            if isinstance(item, dict) and item.get("resource_type") == "asset"
+        ]
+        vendor_impacts = [
+            item
+            for item in impacts
+            if isinstance(item, dict) and item.get("resource_type") == "vendor"
+        ]
+        impact_ids = [item.get("resource_id") for item in asset_impacts]
         derived_assets = proposal.derived_impact_snapshot.get("assets")
+        derived_vendors = proposal.derived_impact_snapshot.get("vendors", [])
         relationship_valid = bool(
             isinstance(operation, dict)
+            and set(proposal.proposed_changes)
+            == (
+                {"operation", "triggered_scenarios"}
+                if vendor_triggered
+                else {"operation"}
+            )
+            and (
+                not vendor_triggered
+                or triggered_scenarios
+                in (
+                    [ASSET_SCENARIO_KEY, VENDOR_SCENARIO_KEY],
+                    [VENDOR_SCENARIO_KEY],
+                )
+            )
             and set(operation) == expected_operation_keys
             and operation.get("relationship_type") == relationship_type
             and operation.get("action") == action
@@ -198,7 +304,7 @@ def valid_asset_governed_envelope(
             and all(
                 isinstance(item, dict)
                 and set(item) == {"resource_type", "resource_id", "resource_name", "base_governance_version"}
-                and item.get("resource_type") == "asset"
+                and item.get("resource_type") in {"asset", "vendor"}
                 and type(item.get("resource_id")) is int
                 and item["resource_id"] > 0
                 and type(item.get("base_governance_version")) is int
@@ -210,8 +316,12 @@ def valid_asset_governed_envelope(
             and impact_ids == sorted(set(impact_ids))
             and proposal.primary_resource_id in impact_ids
             and proposal.base_versions
-            == {f"asset:{item['resource_id']}": item["base_governance_version"] for item in impacts}
-            and set(proposal.derived_impact_snapshot) == {"assets"}
+            == {
+                f"{item['resource_type']}:{item['resource_id']}": item["base_governance_version"]
+                for item in impacts
+            }
+            and set(proposal.derived_impact_snapshot)
+            == ({"assets", "vendors"} if vendor_triggered else {"assets"})
             and isinstance(derived_assets, list)
             and [item.get("resource_id") for item in derived_assets if isinstance(item, dict)] == impact_ids
             and all(
@@ -219,6 +329,30 @@ def valid_asset_governed_envelope(
                 and set(item) == {"resource_id", "before", "after"}
                 and all(_valid_impact_block(block) for block in (item.get("before"), item.get("after")))
                 for item in derived_assets
+            )
+            and (
+                not vendor_triggered
+                or (
+                    vendor_impacts
+                    and isinstance(derived_vendors, list)
+                    and len(derived_vendors) == len(vendor_impacts)
+                    and all(
+                        isinstance(row, dict)
+                        and set(row) == {"resource_id", "before", "after"}
+                        and row.get("resource_id") == impact.get("resource_id")
+                        and all(
+                            isinstance(block, dict)
+                            and set(block) == {"tier"}
+                            and block.get("tier") in {"critical", "significant", "standard"}
+                            for block in (row.get("before"), row.get("after"))
+                        )
+                        for row, impact in zip(
+                            derived_vendors,
+                            vendor_impacts,
+                            strict=True,
+                        )
+                    )
+                )
             )
         )
     action_valid = relationship_valid
@@ -237,36 +371,61 @@ def valid_asset_governed_envelope(
         raw_after = proposal.proposed_changes.get("after")
         version = proposal.base_versions.get("asset")
         action_valid = bool(
-            set(proposal.proposed_changes) == {"before", "after"}
+            set(proposal.proposed_changes)
+            == ({"before", "after", "triggered_scenarios"} if vendor_composite else {"before", "after"})
             and isinstance(raw_before, dict)
             and isinstance(raw_after, dict)
             and bool(raw_after)
             and set(raw_before) == set(raw_after)
-            and _valid_single_asset_impact(
-                proposal.impacted_resources_snapshot,
-                resource_id=proposal.primary_resource_id,
-                resource_name=proposal.primary_resource_name,
-                base_version=version,
+            and (
+                _valid_vendor_composite_impacts(
+                    proposal=proposal,
+                )
+                if vendor_composite
+                else (
+                    _valid_single_asset_impact(
+                        proposal.impacted_resources_snapshot,
+                        resource_id=proposal.primary_resource_id,
+                        resource_name=proposal.primary_resource_name,
+                        base_version=version,
+                    )
+                    and set(proposal.derived_impact_snapshot) == {"before", "after"}
+                    and _valid_impact_block(proposal.derived_impact_snapshot.get("before"))
+                    and _valid_impact_block(proposal.derived_impact_snapshot.get("after"))
+                )
             )
-            and set(proposal.derived_impact_snapshot) == {"before", "after"}
-            and _valid_impact_block(proposal.derived_impact_snapshot.get("before"))
-            and _valid_impact_block(proposal.derived_impact_snapshot.get("after"))
         )
     elif proposal.mutation_kind == ASSET_ARCHIVE_KIND:
         version = proposal.base_versions.get("asset")
         action_valid = bool(
             proposal.before_snapshot == {"is_archived": False}
             and proposal.after_snapshot == {"is_archived": True}
-            and proposal.proposed_changes == {"before": {"is_archived": False}, "after": {"is_archived": True}}
-            and _valid_single_asset_impact(
-                proposal.impacted_resources_snapshot,
-                resource_id=proposal.primary_resource_id,
-                resource_name=proposal.primary_resource_name,
-                base_version=version,
+            and proposal.proposed_changes
+            == {
+                "before": {"is_archived": False},
+                "after": {"is_archived": True},
+                **(
+                    {"triggered_scenarios": triggered_scenarios}
+                    if vendor_composite
+                    else {}
+                ),
+            }
+            and (
+                _valid_vendor_composite_impacts(proposal=proposal)
+                if vendor_composite
+                else (
+                    _valid_single_asset_impact(
+                        proposal.impacted_resources_snapshot,
+                        resource_id=proposal.primary_resource_id,
+                        resource_name=proposal.primary_resource_name,
+                        base_version=version,
+                    )
+                    and set(proposal.derived_impact_snapshot) == {"before", "after"}
+                    and _valid_impact_block(proposal.derived_impact_snapshot.get("before"))
+                    and proposal.derived_impact_snapshot.get("after")
+                    == proposal.derived_impact_snapshot.get("before")
+                )
             )
-            and set(proposal.derived_impact_snapshot) == {"before", "after"}
-            and _valid_impact_block(proposal.derived_impact_snapshot.get("before"))
-            and proposal.derived_impact_snapshot.get("after") == proposal.derived_impact_snapshot.get("before")
         )
     return bool(
         _canonical_uuid4(proposal.proposal_id)
@@ -274,16 +433,34 @@ def valid_asset_governed_envelope(
         and proposal.proposal_version == 1
         and proposal.schema_version == 1
         and isinstance(scenario, dict)
-        and set(scenario) == {"key", "requires_approval", "approver_roles"}
-        and scenario.get("key") == ASSET_SCENARIO_KEY
+        and set(scenario)
+        == (
+            {"key", "requires_approval", "approver_roles", "triggered_policies"}
+            if vendor_triggered
+            else {"key", "requires_approval", "approver_roles"}
+        )
+        and scenario.get("key")
+        == (
+            triggered_scenarios[0]
+            if vendor_triggered
+            else ASSET_SCENARIO_KEY
+        )
         and scenario.get("requires_approval") is True
         and scenario.get("approver_roles") == roles
+        and (
+            not vendor_triggered
+            or (
+                isinstance(scenario.get("triggered_policies"), list)
+                and [item.get("key") for item in scenario["triggered_policies"]]
+                == triggered_scenarios
+            )
+        )
         and approval.resource_type == ApprovalResourceType.ASSET
         and approval.action_type == expected_action
         and approval.resource_id == proposal.primary_resource_id
         and approval.resource_name == proposal.primary_resource_name
         and approval.requested_by_id == proposal.requested_by_id
-        and approval.scenario_key == ASSET_SCENARIO_KEY
+        and approval.scenario_key == scenario["key"]
         and approval.scenario_approver_roles == scenario["approver_roles"]
         and approval.pending_changes == expected_pending
         and action_valid
@@ -300,7 +477,10 @@ def valid_asset_governed_envelope(
                 not create
                 and type(proposal.primary_resource_id) is int
                 and proposal.primary_resource_id > 0
-                and proposal.base_versions == {"asset": proposal.base_versions.get("asset")}
+                and (
+                    vendor_composite
+                    or proposal.base_versions == {"asset": proposal.base_versions.get("asset")}
+                )
                 and type(proposal.base_versions.get("asset")) is int
                 and proposal.base_versions["asset"] > 0
             )

@@ -135,6 +135,13 @@ Podpora rolí a oddělení:
 Podpora chráněného schvalování procesů:
 
 - `protected_process_edit` je pevný scénář v Risk Hubu. CRO jej může zapnout nebo vypnout a vybrat neprázdnou podmnožinu rolí Risk Manager a CRO.
+- `protected_vendor_edit` je rovněž pevný scénář. Pokrývá vytvoření, úpravu a
+  archivaci dodavatele s aktuální nebo navrženou kritickou či významnou úrovní,
+  změny smluv a sub-outsourcingu a vazby na rizika, kontroly a KRI spravované z
+  detailu dodavatele. Vazby Asset–Vendor a Process–Vendor používají vlastní
+  kompozitní schvalovací cestu Assetu nebo Procesu.
+  Upravit lze pouze zapnutí a neprázdnou podmnožinu rolí Risk Manager/CRO;
+  práh, pokryté akce a zákaz self-approval jsou jen pro čtení.
 - Pravidlo ochrany (aktuální nebo navrhovaný CIF je Ano), pokrytá editace a zákaz self-approval jsou neměnné. Pokus o jejich změnu je neplatný request, ne důvod pro admin override.
 - Zapnutý scénář není řešitelný, pokud neexistuje aktivní nezávislý uživatel v některé nakonfigurované roli. Odeslání musí fail-closed místo vytvoření neřešitelné fronty.
 - Vypnutí scénáře mění pouze to, zda se autorizovaná chráněná změna odešle nebo aplikuje přímo. Neuděluje přístup k procesům a neobchází validace polí, vlastníka, útvaru ani derivace.

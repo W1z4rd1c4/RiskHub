@@ -632,6 +632,10 @@ describe('protected Process API schemas', () => {
         expect(governedMutationReadSchema.safeParse({
             ...editMutation,
             impacted_resources: [{ resource_type: 'vendor', resource_name: 'Vendor' }],
+        }).success).toBe(true);
+        expect(governedMutationReadSchema.safeParse({
+            ...editMutation,
+            impacted_resources: [{ resource_type: 'control', resource_name: 'Control' }],
         }).success).toBe(false);
         expect(governedMutationReadSchema.safeParse({
             ...relationshipMutation,

@@ -1,5 +1,11 @@
 import type { CollectionListResponse } from '@/types/collection';
 import type { VendorControlledCode } from '@/lib/vendorValues';
+import type {
+    GovernedDerivedImpact,
+    GovernedImpactedResource,
+    GovernedMutationKind,
+    GovernedRelationshipChange,
+} from '@/types/approval';
 
 export type VendorType =
     | 'ict'
@@ -44,6 +50,29 @@ export interface VendorCapabilities {
     can_view_asset_links: boolean;
     can_manage_asset_links: boolean;
     can_manage_process_links: boolean;
+    protected_change_requires_approval?: boolean;
+    can_request_change?: boolean;
+    can_cancel_pending_change?: boolean;
+    has_pending_change?: boolean;
+    business_edit_blocked?: boolean;
+}
+
+export interface VendorPendingChangeRead {
+    approval_id: number | null;
+    proposal_id: string | null;
+    proposal_version: number | null;
+    status: 'pending';
+    requested_at: string;
+    requested_by_name: string | null;
+    reason: string;
+    generic_label: 'protected_vendor_change';
+    mutation_kind: GovernedMutationKind | null;
+    before: Record<string, unknown>;
+    after: Record<string, unknown>;
+    derived_impact: GovernedDerivedImpact;
+    impacted_resources: GovernedImpactedResource[];
+    relationship_change: GovernedRelationshipChange | null;
+    capabilities: { can_view_diff: boolean; can_cancel: boolean };
 }
 
 export interface VendorOwnerRead {
@@ -201,6 +230,8 @@ export interface Vendor {
 
     // Engine-derived block (ticket #49): read-only, rejected on write.
     derived?: VendorDerived | null;
+    governance_version?: number;
+    pending_change?: VendorPendingChangeRead | null;
 
     is_archived: boolean;
     archived_at?: string | null;
@@ -220,6 +251,8 @@ export type VendorCreate = Omit<
     | 'owner_orphaned'
     | 'ownership_status'
     | 'derived'
+    | 'governance_version'
+    | 'pending_change'
     | 'is_archived'
     | 'archived_at'
     | 'archived_by_id'

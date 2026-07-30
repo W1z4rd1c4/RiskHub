@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Body, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.vendor_sub_outsourcing import (
+    VendorSubOutsourcingArchiveRequest,
     VendorSubOutsourcingCreate,
     VendorSubOutsourcingRead,
     VendorSubOutsourcingUpdate,
@@ -38,6 +40,7 @@ async def list_vendor_sub_outsourcing(
     "/vendors/{vendor_id}/sub-outsourcing",
     response_model=VendorSubOutsourcingRead,
     status_code=status.HTTP_201_CREATED,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
 )
 async def create_vendor_sub_outsourcing(
     vendor_id: int,
@@ -51,7 +54,9 @@ async def create_vendor_sub_outsourcing(
 
 
 @router.patch(
-    "/vendors/{vendor_id}/sub-outsourcing/{entry_id}", response_model=VendorSubOutsourcingRead
+    "/vendors/{vendor_id}/sub-outsourcing/{entry_id}",
+    response_model=VendorSubOutsourcingRead,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
 )
 async def update_vendor_sub_outsourcing(
     vendor_id: int,
@@ -66,18 +71,24 @@ async def update_vendor_sub_outsourcing(
 
 
 @router.delete(
-    "/vendors/{vendor_id}/sub-outsourcing/{entry_id}", status_code=status.HTTP_204_NO_CONTENT
+    "/vendors/{vendor_id}/sub-outsourcing/{entry_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={status.HTTP_202_ACCEPTED: {"model": ApprovalQueuedResponse}},
 )
 async def archive_vendor_sub_outsourcing(
     vendor_id: int,
     entry_id: int,
+    payload: VendorSubOutsourcingArchiveRequest | None = Body(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("vendor_contracts", "write")),
 ):
-    await archive_vendor_sub_outsourcing_detail(
-        db=db, vendor_id=vendor_id, entry_id=entry_id, current_user=current_user
+    return await archive_vendor_sub_outsourcing_detail(
+        db=db,
+        vendor_id=vendor_id,
+        entry_id=entry_id,
+        current_user=current_user,
+        request_reason=payload.request_reason if payload is not None else None,
     )
-    return None
 
 
 @router.post(

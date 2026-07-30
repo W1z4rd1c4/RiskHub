@@ -174,6 +174,16 @@ Pokud rollback neumíte vysvětlit v jednom odstavci, zastavte se a eskalujte. I
 
 ## Troubleshooting
 
+### Chráněná žádost dodavatele zůstává čekající
+
+Ověřte, že je `protected_vendor_edit` zapnutý a obsahuje alespoň jednoho
+aktivního nezávislého Risk Managera nebo CRO, který není žadatelem. V
+Schvalování/Mých žádostech zkontrolujte neměnný návrh: přímé změny, smlouvy,
+sub-outsourcing, vazby a složené návrhy musí ukazovat bezpečné business popisky
+a dopad na úroveň dodavatele bez raw ID. Schválený dodavatel má během čekání
+zůstat beze změny. Žádost zrušte pomocí capability žadatele nebo ji vyřešte;
+impact lock neobcházejte přímým databázovým zásahem.
+
 ### Žádost “zamrzla” v `pending`
 
 Checks:

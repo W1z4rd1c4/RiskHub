@@ -67,6 +67,20 @@ export function getGovernedActionLabel(
     actionType: ApprovalActionType,
     mutationKind?: string | null,
 ): GovernedActionLabel {
+    if (mutationKind?.startsWith('vendor.link.')) {
+        if (mutationKind.endsWith('.add')) return 'link_add';
+        if (mutationKind.endsWith('.remove')) return 'link_remove';
+    }
+    if (
+        mutationKind === 'vendor.create'
+        || mutationKind === 'vendor.contract.create'
+        || mutationKind === 'vendor.sub_outsourcing.create'
+    ) return 'create';
+    if (
+        mutationKind === 'vendor.archive'
+        || mutationKind === 'vendor.contract.archive'
+        || mutationKind === 'vendor.sub_outsourcing.archive'
+    ) return 'archive';
     switch (mutationKind) {
         case 'process.create':
             return 'create';

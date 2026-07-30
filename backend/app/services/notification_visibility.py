@@ -18,6 +18,7 @@ from app.core.permissions import (
     vendor_visibility_clause,
 )
 from app.models import (
+    ApprovalActionType,
     ApprovalRequest,
     ApprovalScenario,
     Control,
@@ -37,7 +38,10 @@ from app.services._governed_mutations.asset_identity import (
     ASSET_RELATIONSHIP_KINDS,
 )
 from app.services._governed_mutations.fixed_asset_policy import ASSET_SCENARIO_KEY
+from app.services._governed_mutations.fixed_vendor_policy import VENDOR_SCENARIO_KEY
 from app.services._governed_mutations.process_identity import (
+    _IdentityTrim,
+    _JsonArrayLength,
     _JsonFieldArrayLength,
     _JsonFieldArrayText,
     _JsonFieldBoolean,
@@ -49,6 +53,13 @@ from app.services._governed_mutations.process_identity import (
 )
 from app.services._governed_mutations.process_mutations import (
     valid_extended_process_approval_ids,
+)
+from app.services._governed_mutations.vendor_identity import (
+    VENDOR_ARCHIVE_KIND,
+    VENDOR_CHILD_KINDS,
+    VENDOR_CREATE_KIND,
+    VENDOR_EDIT_KIND,
+    VENDOR_RELATIONSHIP_KINDS,
 )
 from app.services.approval_scenario_policy import (
     approval_privilege_tier,
@@ -75,6 +86,13 @@ class _JsonFieldArrayEquals(FunctionElement):
 
 class _StrictAssetSemanticEnvelope(FunctionElement):
     """Dialect-native, correlated equivalent of the strict Asset parser."""
+
+    type = Boolean()
+    inherit_cache = True
+
+
+class _StrictVendorSemanticEnvelope(FunctionElement):
+    """Dialect-native, correlated equivalent of strict_vendor_mutation_kind."""
 
     type = Boolean()
     inherit_cache = True
@@ -474,6 +492,436 @@ def _compile_strict_asset_semantics_postgresql(element, compiler, **kw):
     return f"(({create} OR {edit} OR {archive} OR {relationship}) AND {pending_exact})"
 
 
+def _compiled_vendor_semantic_arguments(element, compiler, **kw) -> list[str]:
+    return [compiler.process(value, **kw) for value in element.clauses]
+
+
+@compiles(_StrictVendorSemanticEnvelope, "sqlite")
+def _compile_strict_vendor_semantics_sqlite(element, compiler, **kw):
+    (
+        kind,
+        primary_id,
+        primary_name,
+        base,
+        before,
+        after,
+        derived,
+        proposed,
+        impacts,
+        approval_action,
+        approval_resource_id,
+        pending,
+    ) = _compiled_vendor_semantic_arguments(element, compiler, **kw)
+
+    def object_length(document: str) -> str:
+        return f"(SELECT count(*) FROM json_each({document}))"
+
+    def impact_block(document: str) -> str:
+        return (
+            f"(json_type({document}) = 'object' AND {object_length(document)} = 1 "
+            f"AND json_type({document}, '$.tier') = 'text' "
+            f"AND json_extract({document}, '$.tier') "
+            "IN ('critical', 'significant', 'standard'))"
+        )
+
+    def positive_integer(document: str) -> str:
+        return f"(json_type({document}) = 'integer' AND json_extract({document}) > 0)"
+
+    def same_keys(left: str, right: str) -> str:
+        return (
+            f"({object_length(left)} = {object_length(right)} "
+            f"AND NOT EXISTS (SELECT 1 FROM json_each({left}) item "
+            f"WHERE json_type({right}, '$.' || item.key) IS NULL))"
+        )
+
+    def raw_matches_safe(raw: str, safe: str) -> str:
+        safe_key = (
+            "CASE item.key "
+            "WHEN 'outsourcing_owner_user_id' THEN 'outsourcing_owner' "
+            "WHEN 'department_id' THEN 'owning_department' ELSE item.key END"
+        )
+        return (
+            f"(json_type({raw}) = 'object' AND json_type({safe}) = 'object' "
+            f"AND {object_length(raw)} = {object_length(safe)} "
+            f"AND NOT EXISTS (SELECT 1 FROM json_each({raw}) item "
+            f"WHERE json_type({safe}, '$.' || {safe_key}) IS NULL "
+            "OR (item.key NOT IN ('outsourcing_owner_user_id', 'department_id') "
+            f"AND (json_type({safe}, '$.' || item.key) IS NOT item.type "
+            f"OR json_extract({safe}, '$.' || item.key) IS NOT item.value))))"
+        )
+
+    base_version = f"json_extract({base}, '$.vendor')"
+    first_impact = f"json_extract({impacts}, '$[0]')"
+    before_impact = f"json_extract({derived}, '$.before')"
+    after_impact = f"json_extract({derived}, '$.after')"
+    proposed_before = f"json_extract({proposed}, '$.before')"
+    proposed_after = f"json_extract({proposed}, '$.after')"
+    operation = f"json_extract({proposed}, '$.operation')"
+    single_base = (
+        f"json_type({base}) = 'object' AND {object_length(base)} = 1 "
+        f"AND json_type({base}, '$.vendor') = 'integer' AND {base_version} > 0"
+    )
+    single_impact = (
+        f"json_type({impacts}) = 'array' AND json_array_length({impacts}) = 1 "
+        f"AND json_type({first_impact}) = 'object' "
+        f"AND {object_length(first_impact)} = 4 "
+        f"AND json_extract({first_impact}, '$.resource_type') = 'vendor' "
+        f"AND json_extract({first_impact}, '$.resource_id') IS {primary_id} "
+        f"AND json_extract({first_impact}, '$.resource_name') IS {primary_name} "
+        f"AND json_extract({first_impact}, '$.base_governance_version') "
+        f"IS {base_version}"
+    )
+    existing = (
+        f"{primary_id} IS {approval_resource_id} AND {primary_id} > 0 "
+        f"AND {single_base} AND {single_impact}"
+    )
+    derived_pair = (
+        f"json_type({derived}) = 'object' AND {object_length(derived)} = 2 "
+        f"AND {impact_block(before_impact)} AND {impact_block(after_impact)}"
+    )
+    pending_exact = (
+        f"json_type({pending}) = 'object' "
+        f"AND NOT EXISTS (SELECT 1 FROM json_each({pending}) delta "
+        f"WHERE json_type(delta.value) != 'object' "
+        f"OR {object_length('delta.value')} != 2 "
+        f"OR NOT EXISTS (SELECT 1 FROM json_each(delta.value) WHERE key = 'old') "
+        f"OR NOT EXISTS (SELECT 1 FROM json_each(delta.value) WHERE key = 'new') "
+        f"OR (SELECT type FROM json_each(delta.value) WHERE key = 'old') "
+        f"IS NOT coalesce((SELECT type FROM json_each({before}) "
+        "WHERE key = delta.key), 'null') "
+        f"OR (SELECT value FROM json_each(delta.value) WHERE key = 'old') "
+        f"IS NOT (SELECT value FROM json_each({before}) WHERE key = delta.key) "
+        f"OR (SELECT type FROM json_each(delta.value) WHERE key = 'new') "
+        f"IS NOT coalesce((SELECT type FROM json_each({after}) "
+        "WHERE key = delta.key), 'null') "
+        f"OR (SELECT value FROM json_each(delta.value) WHERE key = 'new') "
+        f"IS NOT (SELECT value FROM json_each({after}) WHERE key = delta.key)) "
+        f"AND {object_length(pending)} = "
+        f"(SELECT count(*) FROM (SELECT key FROM json_each({before}) "
+        f"UNION SELECT key FROM json_each({after})) keys "
+        f"WHERE (SELECT type FROM json_each({before}) WHERE key = keys.key) "
+        f"IS NOT (SELECT type FROM json_each({after}) WHERE key = keys.key) "
+        f"OR (SELECT value FROM json_each({before}) WHERE key = keys.key) "
+        f"IS NOT (SELECT value FROM json_each({after}) WHERE key = keys.key))"
+    )
+    create = (
+        f"({kind} = 'vendor.create' "
+        f"AND lower(CAST({approval_action} AS TEXT)) = 'create' "
+        f"AND {primary_id} IS NULL AND {approval_resource_id} IS NULL "
+        f"AND json_type({base}) = 'object' AND {object_length(base)} = 0 "
+        f"AND json_type({before}) = 'object' AND {object_length(before)} = 0 "
+        f"AND json_type({impacts}) = 'array' AND json_array_length({impacts}) = 0 "
+        f"AND json_type({after}) = 'object' AND {object_length(after)} > 0 "
+        f"AND json_type({proposed}) = 'object' AND {object_length(proposed)} = 1 "
+        f"AND {raw_matches_safe(proposed_after, after)} "
+        f"AND json_type({derived}) = 'object' AND {object_length(derived)} = 2 "
+        f"AND json_type({derived}, '$.before') = 'null' "
+        f"AND {impact_block(after_impact)})"
+    )
+    edit = (
+        f"({kind} = 'vendor.edit' "
+        f"AND lower(CAST({approval_action} AS TEXT)) = 'edit' AND {existing} "
+        f"AND json_type({proposed}) = 'object' AND {object_length(proposed)} = 2 "
+        f"AND json_type({proposed_before}) = 'object' "
+        f"AND json_type({proposed_after}) = 'object' "
+        f"AND {object_length(proposed_after)} > 0 "
+        f"AND {same_keys(proposed_before, proposed_after)} "
+        f"AND json_type({before}) = 'object' AND {object_length(before)} > 0 "
+        f"AND {same_keys(before, after)} "
+        f"AND {raw_matches_safe(proposed_before, before)} "
+        f"AND {raw_matches_safe(proposed_after, after)} AND {derived_pair})"
+    )
+    archive = (
+        f"({kind} = 'vendor.archive' "
+        f"AND lower(CAST({approval_action} AS TEXT)) = 'delete' AND {existing} "
+        f"AND json({before}) = json('{{\"is_archived\":false}}') "
+        f"AND json({after}) = json('{{\"is_archived\":true}}') "
+        f"AND json({proposed}) = "
+        f"json('{{\"before\":{{\"is_archived\":false}},"
+        f"\"after\":{{\"is_archived\":true}}}}') "
+        f"AND {derived_pair} "
+        f"AND json_extract({before_impact}, '$.tier') "
+        f"IS json_extract({after_impact}, '$.tier'))"
+    )
+    relationship_variants: list[str] = []
+    for resource in ("risk", "control", "kri"):
+        for action in ("add", "remove"):
+            adding = action == "add"
+            relationship_variants.append(
+                f"({kind} = 'vendor.link.{resource}.{action}' "
+                f"AND json_type({before}, '$.linked_{resource}') = "
+                f"'{'false' if adding else 'true'}' "
+                f"AND json_type({after}, '$.linked_{resource}') = "
+                f"'{'true' if adding else 'false'}' "
+                f"AND json_type({before}, '$.relationship_target') = "
+                f"'{'null' if adding else 'text'}' "
+                f"AND json_type({after}, '$.relationship_target') = "
+                f"'{'text' if adding else 'null'}' "
+                + (
+                    f"AND json_extract({after}, '$.relationship_target') "
+                    f"IS json_extract({operation}, '$.entity_name')"
+                    if adding
+                    else f"AND json_extract({before}, '$.relationship_target') "
+                    f"IS json_extract({operation}, '$.entity_name')"
+                )
+                + ")"
+            )
+    entity_id_path = f"{operation}, '$.entity_id'"
+    relationship = (
+        f"(({ ' OR '.join(relationship_variants) }) "
+        f"AND lower(CAST({approval_action} AS TEXT)) = 'edit' AND {existing} "
+        f"AND json_type({proposed}) = 'object' AND {object_length(proposed)} = 1 "
+        f"AND json_type({operation}) = 'object' AND {object_length(operation)} = 2 "
+        f"AND {positive_integer(entity_id_path)} "
+        f"AND json_type({operation}, '$.entity_name') = 'text' "
+        f"AND trim(json_extract({operation}, '$.entity_name')) != '' "
+        f"AND json_type({before}) = 'object' AND {object_length(before)} = 2 "
+        f"AND json_type({after}) = 'object' AND {object_length(after)} = 2 "
+        f"AND {derived_pair} "
+        f"AND json_extract({before_impact}, '$.tier') "
+        f"IS json_extract({after_impact}, '$.tier'))"
+    )
+    child_kinds = ", ".join(f"'{value}'" for value in sorted(VENDOR_CHILD_KINDS))
+    child_id = f"{operation}, '$.child_id'"
+    child_before = f"json_extract({operation}, '$.before')"
+    child_after = f"json_extract({operation}, '$.after')"
+    child = (
+        f"({kind} IN ({child_kinds}) "
+        f"AND lower(CAST({approval_action} AS TEXT)) = 'edit' AND {existing} "
+        f"AND json_type({proposed}) = 'object' AND {object_length(proposed)} = 1 "
+        f"AND json_type({operation}) = 'object' AND {object_length(operation)} = 3 "
+        f"AND json_type({before}) = 'object' AND {object_length(before)} = 1 "
+        f"AND json_type({after}) = 'object' AND {object_length(after)} = 1 "
+        f"AND json_extract({before}, '$.child_mutation') IS {child_before} "
+        f"AND json_extract({after}, '$.child_mutation') IS {child_after} "
+        f"AND {derived_pair} "
+        f"AND json_extract({before_impact}, '$.tier') "
+        f"IS json_extract({after_impact}, '$.tier') "
+        f"AND (({kind} LIKE '%.create' AND json_type({child_id}) = 'null' "
+        f"AND json_type({operation}, '$.before') = 'null' "
+        f"AND json_type({operation}, '$.after') = 'object' "
+        f"AND {object_length(child_after)} > 0) "
+        f"OR ({kind} LIKE '%.edit' AND {positive_integer(child_id)} "
+        f"AND json_type({operation}, '$.before') = 'object' "
+        f"AND json_type({operation}, '$.after') = 'object' "
+        f"AND {object_length(child_after)} > 0) "
+        f"OR ({kind} LIKE '%.archive' AND {positive_integer(child_id)} "
+        f"AND json({child_before}) = json('{{\"is_archived\":false}}') "
+        f"AND json({child_after}) = json('{{\"is_archived\":true}}'))))"
+    )
+    return f"(({create} OR {edit} OR {archive} OR {relationship} OR {child}) " f"AND {pending_exact})"
+
+
+@compiles(_StrictVendorSemanticEnvelope, "postgresql")
+def _compile_strict_vendor_semantics_postgresql(element, compiler, **kw):
+    (
+        kind,
+        primary_id,
+        primary_name,
+        base,
+        before,
+        after,
+        derived,
+        proposed,
+        impacts,
+        approval_action,
+        approval_resource_id,
+        pending,
+    ) = _compiled_vendor_semantic_arguments(element, compiler, **kw)
+    pending_jsonb = f"({pending})::jsonb"
+
+    def object_length(document: str) -> str:
+        return f"(SELECT count(*) FROM jsonb_object_keys({document}))"
+
+    def impact_block(document: str) -> str:
+        return (
+            f"(jsonb_typeof({document}) = 'object' "
+            f"AND {object_length(document)} = 1 "
+            f"AND {document}->>'tier' IN ('critical', 'significant', 'standard'))"
+        )
+
+    def positive_json_integer(document: str) -> tuple[str, str]:
+        lexical = f"(({document})#>>'{{}}')"
+        in_bigint_range = (
+            f"(length({lexical}) < 19 OR "
+            f"(length({lexical}) = 19 "
+            f"AND {lexical} <= '9223372036854775807'))"
+        )
+        guard = (
+            f"jsonb_typeof({document}) = 'number' "
+            f"AND {lexical} ~ '^[1-9][0-9]*$' AND {in_bigint_range}"
+        )
+        return guard, f"CASE WHEN {guard} THEN {lexical}::bigint END"
+
+    def same_keys(left: str, right: str) -> str:
+        return (
+            f"({object_length(left)} = {object_length(right)} "
+            f"AND NOT EXISTS (SELECT 1 FROM jsonb_object_keys({left}) key "
+            f"WHERE NOT ({right} ? key)))"
+        )
+
+    def raw_matches_safe(raw: str, safe: str) -> str:
+        safe_key = (
+            "CASE item.key "
+            "WHEN 'outsourcing_owner_user_id' THEN 'outsourcing_owner' "
+            "WHEN 'department_id' THEN 'owning_department' ELSE item.key END"
+        )
+        return (
+            f"(jsonb_typeof({raw}) = 'object' AND jsonb_typeof({safe}) = 'object' "
+            f"AND {object_length(raw)} = {object_length(safe)} "
+            f"AND NOT EXISTS (SELECT 1 FROM jsonb_each({raw}) item "
+            f"WHERE NOT ({safe} ? ({safe_key})) "
+            "OR (item.key NOT IN ('outsourcing_owner_user_id', 'department_id') "
+            f"AND {safe}->item.key IS DISTINCT FROM item.value)))"
+        )
+
+    base_version = f"{base}->'vendor'"
+    first_impact = f"{impacts}->0"
+    before_impact = f"{derived}->'before'"
+    after_impact = f"{derived}->'after'"
+    proposed_before = f"{proposed}->'before'"
+    proposed_after = f"{proposed}->'after'"
+    operation = f"{proposed}->'operation'"
+    base_guard, _base_value = positive_json_integer(base_version)
+    impact_id_guard, impact_id = positive_json_integer(
+        f"{first_impact}->'resource_id'"
+    )
+    single_base = (
+        f"jsonb_typeof({base}) = 'object' AND {object_length(base)} = 1 "
+        f"AND {base_guard}"
+    )
+    single_impact = (
+        f"jsonb_typeof({impacts}) = 'array' AND jsonb_array_length({impacts}) = 1 "
+        f"AND jsonb_typeof({first_impact}) = 'object' "
+        f"AND {object_length(first_impact)} = 4 "
+        f"AND {first_impact}->>'resource_type' = 'vendor' "
+        f"AND {impact_id_guard} AND {impact_id} = {primary_id} "
+        f"AND {first_impact}->>'resource_name' = {primary_name} "
+        f"AND {first_impact}->'base_governance_version' = {base_version}"
+    )
+    existing = (
+        f"{primary_id} = {approval_resource_id} AND {primary_id} > 0 "
+        f"AND {single_base} AND {single_impact}"
+    )
+    derived_pair = (
+        f"jsonb_typeof({derived}) = 'object' AND {object_length(derived)} = 2 "
+        f"AND {impact_block(before_impact)} AND {impact_block(after_impact)}"
+    )
+    pending_exact = (
+        f"jsonb_typeof({pending_jsonb}) = 'object' "
+        f"AND NOT EXISTS (SELECT 1 FROM jsonb_each({pending_jsonb}) delta "
+        f"WHERE jsonb_typeof(delta.value) != 'object' "
+        f"OR {object_length('delta.value')} != 2 "
+        "OR NOT (delta.value ?& ARRAY['old','new']) "
+        f"OR delta.value->'old' IS DISTINCT FROM "
+        f"coalesce({before}->delta.key, 'null'::jsonb) "
+        f"OR delta.value->'new' IS DISTINCT FROM "
+        f"coalesce({after}->delta.key, 'null'::jsonb)) "
+        f"AND {object_length(pending_jsonb)} = "
+        f"(SELECT count(*) FROM (SELECT jsonb_object_keys({before}) AS key "
+        f"UNION SELECT jsonb_object_keys({after}) AS key) keys "
+        f"WHERE {before}->keys.key IS DISTINCT FROM {after}->keys.key)"
+    )
+    create = (
+        f"({kind} = 'vendor.create' AND lower({approval_action}::text) = 'create' "
+        f"AND {primary_id} IS NULL AND {approval_resource_id} IS NULL "
+        f"AND {base} = '{{}}'::jsonb AND {before} = '{{}}'::jsonb "
+        f"AND {impacts} = '[]'::jsonb "
+        f"AND jsonb_typeof({after}) = 'object' AND {object_length(after)} > 0 "
+        f"AND jsonb_typeof({proposed}) = 'object' "
+        f"AND {object_length(proposed)} = 1 "
+        f"AND {raw_matches_safe(proposed_after, after)} "
+        f"AND jsonb_typeof({derived}) = 'object' "
+        f"AND {object_length(derived)} = 2 "
+        f"AND {before_impact} = 'null'::jsonb AND {impact_block(after_impact)})"
+    )
+    edit = (
+        f"({kind} = 'vendor.edit' AND lower({approval_action}::text) = 'edit' "
+        f"AND {existing} AND jsonb_typeof({proposed}) = 'object' "
+        f"AND {object_length(proposed)} = 2 "
+        f"AND jsonb_typeof({proposed_before}) = 'object' "
+        f"AND jsonb_typeof({proposed_after}) = 'object' "
+        f"AND {object_length(proposed_after)} > 0 "
+        f"AND {same_keys(proposed_before, proposed_after)} "
+        f"AND jsonb_typeof({before}) = 'object' AND {object_length(before)} > 0 "
+        f"AND {same_keys(before, after)} "
+        f"AND {raw_matches_safe(proposed_before, before)} "
+        f"AND {raw_matches_safe(proposed_after, after)} AND {derived_pair})"
+    )
+    archive = (
+        f"({kind} = 'vendor.archive' "
+        f"AND lower({approval_action}::text) = 'delete' AND {existing} "
+        f"AND {before} = '{{\"is_archived\":false}}'::jsonb "
+        f"AND {after} = '{{\"is_archived\":true}}'::jsonb "
+        f"AND {proposed} = "
+        f"'{{\"before\":{{\"is_archived\":false}},"
+        f"\"after\":{{\"is_archived\":true}}}}'::jsonb "
+        f"AND {derived_pair} AND {before_impact} = {after_impact})"
+    )
+    entity_id_guard, _entity_id = positive_json_integer(
+        f"{operation}->'entity_id'"
+    )
+    relationship_variants: list[str] = []
+    for resource in ("risk", "control", "kri"):
+        for action in ("add", "remove"):
+            adding = action == "add"
+            before_linked = "false" if adding else "true"
+            after_linked = "true" if adding else "false"
+            before_target = (
+                "'null'::jsonb" if adding else f"{operation}->'entity_name'"
+            )
+            after_target = (
+                f"{operation}->'entity_name'" if adding else "'null'::jsonb"
+            )
+            relationship_variants.append(
+                f"({kind} = 'vendor.link.{resource}.{action}' "
+                f"AND {before} = jsonb_build_object("
+                f"'linked_{resource}', {before_linked}, "
+                f"'relationship_target', {before_target}) "
+                f"AND {after} = jsonb_build_object("
+                f"'linked_{resource}', {after_linked}, "
+                f"'relationship_target', {after_target}))"
+            )
+    relationship = (
+        f"(({ ' OR '.join(relationship_variants) }) "
+        f"AND lower({approval_action}::text) = 'edit' AND {existing} "
+        f"AND jsonb_typeof({proposed}) = 'object' "
+        f"AND {object_length(proposed)} = 1 "
+        f"AND jsonb_typeof({operation}) = 'object' "
+        f"AND {object_length(operation)} = 2 AND {entity_id_guard} "
+        f"AND coalesce(btrim({operation}->>'entity_name'), '') != '' "
+        f"AND {derived_pair} AND {before_impact} = {after_impact})"
+    )
+    child_kinds = ", ".join(f"'{value}'" for value in sorted(VENDOR_CHILD_KINDS))
+    child_id_guard, _child_id = positive_json_integer(
+        f"{operation}->'child_id'"
+    )
+    child_before = f"{operation}->'before'"
+    child_after = f"{operation}->'after'"
+    child = (
+        f"({kind} IN ({child_kinds}) AND lower({approval_action}::text) = 'edit' "
+        f"AND {existing} AND jsonb_typeof({proposed}) = 'object' "
+        f"AND {object_length(proposed)} = 1 "
+        f"AND jsonb_typeof({operation}) = 'object' "
+        f"AND {object_length(operation)} = 3 "
+        f"AND {before} = jsonb_build_object('child_mutation', {child_before}) "
+        f"AND {after} = jsonb_build_object('child_mutation', {child_after}) "
+        f"AND {derived_pair} AND {before_impact} = {after_impact} "
+        f"AND (({kind} LIKE '%.create' AND {operation}->'child_id' = 'null'::jsonb "
+        f"AND {child_before} = 'null'::jsonb "
+        f"AND jsonb_typeof({child_after}) = 'object' "
+        f"AND {object_length(child_after)} > 0) "
+        f"OR ({kind} LIKE '%.edit' AND {child_id_guard} "
+        f"AND jsonb_typeof({child_before}) = 'object' "
+        f"AND jsonb_typeof({child_after}) = 'object' "
+        f"AND {object_length(child_after)} > 0) "
+        f"OR ({kind} LIKE '%.archive' AND {child_id_guard} "
+        f"AND {child_before} = '{{\"is_archived\":false}}'::jsonb "
+        f"AND {child_after} = '{{\"is_archived\":true}}'::jsonb)))"
+    )
+    return f"(({create} OR {edit} OR {archive} OR {relationship} OR {child}) " f"AND {pending_exact})"
+
+
 async def visible_notification_clause(db: AsyncSession, current_user: User) -> ColumnElement[bool]:
     """Build the bounded SQL predicate for notifications visible to the current actor."""
     risk_clause = await risk_visibility_clause(db, current_user)
@@ -673,6 +1121,9 @@ def _approval_exists_clause(
             _asset_approval_visibility_clause(
                 current_user,
             ),
+            _vendor_approval_visibility_clause(
+                current_user,
+            ),
         ),
         process_approval_resolver_clause(
             current_user,
@@ -784,6 +1235,188 @@ def _asset_approval_visibility_clause(
         ApprovalRequest.scenario_key == ASSET_SCENARIO_KEY,
         proposal_exists,
         or_(ApprovalRequest.requested_by_id == current_user.id, live_resolver),
+    )
+
+
+def _vendor_approval_visibility_clause(
+    current_user: User,
+) -> ColumnElement[bool]:
+    """Correlate one strict linked Vendor approval for every inbox operation."""
+    vendor_kinds = (
+        VENDOR_CREATE_KIND,
+        VENDOR_EDIT_KIND,
+        VENDOR_ARCHIVE_KIND,
+        *sorted(VENDOR_CHILD_KINDS),
+        *sorted(VENDOR_RELATIONSHIP_KINDS),
+    )
+    existing_kinds = tuple(
+        kind for kind in vendor_kinds if kind != VENDOR_CREATE_KIND
+    )
+    proposal_exists = (
+        select(GovernedMutationProposal.id)
+        .where(
+            GovernedMutationProposal.approval_request_id == ApprovalRequest.id,
+            GovernedMutationProposal.primary_resource_type == "vendor",
+            GovernedMutationProposal.proposal_version == 1,
+            GovernedMutationProposal.schema_version == 1,
+            GovernedMutationProposal.requested_by_id
+            == ApprovalRequest.requested_by_id,
+            GovernedMutationProposal.primary_resource_name
+            == ApprovalRequest.resource_name,
+            GovernedMutationProposal.mutation_kind.in_(vendor_kinds),
+            _strict_vendor_proposal_shape_clause(),
+            _StrictVendorSemanticEnvelope(
+                GovernedMutationProposal.mutation_kind,
+                GovernedMutationProposal.primary_resource_id,
+                GovernedMutationProposal.primary_resource_name,
+                GovernedMutationProposal.base_versions,
+                GovernedMutationProposal.before_snapshot,
+                GovernedMutationProposal.after_snapshot,
+                GovernedMutationProposal.derived_impact_snapshot,
+                GovernedMutationProposal.proposed_changes,
+                GovernedMutationProposal.impacted_resources_snapshot,
+                ApprovalRequest.action_type,
+                ApprovalRequest.resource_id,
+                ApprovalRequest.pending_changes,
+            ),
+            or_(
+                and_(
+                    GovernedMutationProposal.mutation_kind == VENDOR_CREATE_KIND,
+                    ApprovalRequest.action_type == ApprovalActionType.CREATE,
+                    GovernedMutationProposal.primary_resource_id.is_(None),
+                    ApprovalRequest.resource_id.is_(None),
+                    _JsonObjectLength(
+                        GovernedMutationProposal.base_versions
+                    )
+                    == 0,
+                    _JsonObjectLength(
+                        GovernedMutationProposal.before_snapshot
+                    )
+                    == 0,
+                    _JsonFieldType(
+                        GovernedMutationProposal.proposed_changes,
+                        literal("after"),
+                    )
+                    == "object",
+                    _JsonFieldType(
+                        GovernedMutationProposal.derived_impact_snapshot,
+                        literal("before"),
+                    )
+                    == "null",
+                    _JsonFieldType(
+                        GovernedMutationProposal.derived_impact_snapshot,
+                        literal("after"),
+                    )
+                    == "object",
+                    _JsonArrayLength(
+                        GovernedMutationProposal.impacted_resources_snapshot
+                    )
+                    == 0,
+                ),
+                and_(
+                    GovernedMutationProposal.mutation_kind.in_(existing_kinds),
+                    GovernedMutationProposal.primary_resource_id
+                    == ApprovalRequest.resource_id,
+                    ApprovalRequest.resource_id.is_not(None),
+                    or_(
+                        and_(
+                            GovernedMutationProposal.mutation_kind
+                            == VENDOR_ARCHIVE_KIND,
+                            ApprovalRequest.action_type
+                            == ApprovalActionType.DELETE,
+                        ),
+                        and_(
+                            GovernedMutationProposal.mutation_kind
+                            != VENDOR_ARCHIVE_KIND,
+                            ApprovalRequest.action_type
+                            == ApprovalActionType.EDIT,
+                        ),
+                    ),
+                ),
+            ),
+        )
+        .correlate(ApprovalRequest)
+        .exists()
+    )
+    role_name = getattr(getattr(current_user, "role", None), "name", None)
+    live_resolver: ColumnElement[bool] = false()
+    if (
+        current_user.is_active
+        and role_name in {"risk_manager", "cro"}
+        and approval_privilege_tier(current_user).is_privileged
+    ):
+        live_resolver = and_(
+            ApprovalRequest.requested_by_id != current_user.id,
+            cast(ApprovalRequest.scenario_approver_roles, String).contains(
+                f'"{role_name}"'
+            ),
+            select(ApprovalScenario.id)
+            .where(
+                ApprovalScenario.key == VENDOR_SCENARIO_KEY,
+                ApprovalScenario.requires_approval.is_(True),
+                cast(ApprovalScenario.approver_roles, String).contains(
+                    f'"{role_name}"'
+                ),
+            )
+            .exists(),
+        )
+    return and_(
+        ApprovalRequest.resource_type == ApprovalResourceType.VENDOR,
+        ApprovalRequest.scenario_key == VENDOR_SCENARIO_KEY,
+        proposal_exists,
+        or_(
+            ApprovalRequest.requested_by_id == current_user.id,
+            live_resolver,
+        ),
+    )
+
+
+def _strict_vendor_proposal_shape_clause() -> ColumnElement[bool]:
+    scenario = GovernedMutationProposal.scenario_snapshot
+    roles_length = _JsonFieldArrayLength(scenario, literal("approver_roles"))
+    first_role = _JsonFieldArrayText(
+        scenario,
+        literal("approver_roles"),
+        literal(0),
+    )
+    second_role = _JsonFieldArrayText(
+        scenario,
+        literal("approver_roles"),
+        literal(1),
+    )
+    return and_(
+        _CanonicalUuid4(GovernedMutationProposal.proposal_id),
+        _IdentityTrim(GovernedMutationProposal.primary_resource_name) != "",
+        _JsonType(scenario) == "object",
+        _JsonObjectLength(scenario) == 3,
+        _JsonFieldText(scenario, literal("key")) == VENDOR_SCENARIO_KEY,
+        _JsonFieldBoolean(scenario, literal("requires_approval")) == "true",
+        _JsonFieldType(scenario, literal("approver_roles")) == "array",
+        roles_length.in_((1, 2)),
+        first_role.in_(("risk_manager", "cro")),
+        or_(roles_length == 1, second_role.in_(("risk_manager", "cro"))),
+        or_(roles_length == 1, second_role != first_role),
+        _JsonFieldArrayEquals(
+            scenario,
+            literal("approver_roles"),
+            ApprovalRequest.scenario_approver_roles,
+        ),
+        _JsonType(GovernedMutationProposal.base_versions) == "object",
+        _JsonType(GovernedMutationProposal.before_snapshot) == "object",
+        _JsonType(GovernedMutationProposal.after_snapshot) == "object",
+        _JsonType(GovernedMutationProposal.derived_impact_snapshot) == "object",
+        _JsonType(GovernedMutationProposal.proposed_changes) == "object",
+        _JsonType(GovernedMutationProposal.impacted_resources_snapshot)
+        == "array",
+        _JsonBoundedShape(GovernedMutationProposal.scenario_snapshot),
+        _JsonBoundedShape(GovernedMutationProposal.base_versions),
+        _JsonBoundedShape(GovernedMutationProposal.before_snapshot),
+        _JsonBoundedShape(GovernedMutationProposal.after_snapshot),
+        _JsonBoundedShape(GovernedMutationProposal.derived_impact_snapshot),
+        _JsonBoundedShape(GovernedMutationProposal.proposed_changes),
+        _JsonBoundedShape(
+            GovernedMutationProposal.impacted_resources_snapshot
+        ),
     )
 
 

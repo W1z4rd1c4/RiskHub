@@ -176,6 +176,16 @@ If you cannot explain the rollback in one paragraph, stop and escalate. Improvis
 
 ## Troubleshooting
 
+### Protected Vendor request remains pending
+
+Confirm that `protected_vendor_edit` is enabled and retains at least one active
+independent Risk Manager or CRO who is not the requester. Inspect the immutable
+Vendor proposal in Approvals/My Requests: direct, Contract, Sub-outsourcing,
+link, and Composite requests must show safe business labels and the Vendor tier
+impact without raw IDs. The approved Vendor is expected to remain unchanged
+while pending. Cancel through the requester capability or resolve the request;
+do not bypass the impact lock with a direct database update.
+
 ### Request appears frozen in `pending`
 
 Checks:

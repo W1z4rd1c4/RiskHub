@@ -6,13 +6,17 @@ import { AlertCircle, ArrowUpRight, TriangleAlert, XCircle } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { VendorInlineMessage } from '@/components/vendors/vendorRouteUi';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { approvalsApi } from '@/services/approvalsApi';
 import { vendorApi } from '@/services/vendorApi';
+import { isProcessApprovalQueuedResponse } from '@/types/process';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { VendorOverviewTab } from './vendors/VendorOverviewTab';
 import { VendorDetailHeader } from './vendors/VendorDetailHeader';
 import { VendorFormView } from './vendors/VendorFormView';
+import { VendorPendingChangePanel } from './vendors/VendorPendingChangePanel';
 import { useVendorDetailState } from './vendors/useVendorDetailState';
 import { logError } from '@/services/logger';
 import {
@@ -62,7 +66,7 @@ function VendorOwnershipPendingMessage({ canViewGovernance }: VendorOwnershipPen
 export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const navigate = useNavigate();
     const location = useLocation();
-    const { t } = useTranslation('vendors');
+    const { t, i18n } = useTranslation('vendors');
     const authz = useAuthz();
 
     const {
@@ -78,6 +82,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         canRestore,
         closeIssueModal,
         error,
+        fetchVendor,
         isAccessDenied,
         isIssueModalOpen,
         isLoading,
@@ -91,6 +96,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const { t: tCommon } = useTranslation('common');
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
     const { actionMessage, dismissActionMessage, setActionMessage } = useVendorFlashMessage(location, navigate);
     useNormalizeLegacyVendorDetailSearch(location, navigate);
     useVendorDeepLinkScroll(location);
@@ -100,13 +106,17 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         logMessage: 'Failed to load vendor create capabilities.',
     });
 
-    const archiveVendor = async () => {
+    const archiveVendor = async (requestReason?: string) => {
         if (!vendor) {
             return;
         }
         try {
             setIsDeleting(true);
-            await vendorApi.deleteVendor(vendor.id);
+            const result = await vendorApi.archiveVendor(vendor.id, requestReason?.trim() ?? '');
+            if (isProcessApprovalQueuedResponse(result)) {
+                void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
+                return;
+            }
             void navigate('/vendors');
         } catch (error) {
             logError('Failed to archive vendor:', error);
@@ -120,6 +130,23 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         }
     };
 
+    const cancelPendingChange = async () => {
+        if (!vendor?.pending_change?.approval_id) return;
+        try {
+            setIsCancellingPendingChange(true);
+            await approvalsApi.cancel(vendor.pending_change.approval_id);
+            await fetchVendor();
+        } catch (cancelError) {
+            logError('Failed to cancel pending Vendor change:', cancelError);
+            setActionMessage({
+                tone: 'danger',
+                message: t('pending_change.cancel_failed'),
+            });
+        } finally {
+            setIsCancellingPendingChange(false);
+        }
+    };
+
     if (mode === 'new') {
         if (createGateState !== 'allowed') {
             return <FormCapabilityGateState state={createGateState} />;
@@ -130,6 +157,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                 mode="new"
                 onBack={() => navigate('/vendors')}
                 onSaved={(saved) => navigate(`/vendors/${saved.id}`)}
+                onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
                 onCancel={() => navigate('/vendors')}
             />
         );
@@ -148,6 +176,27 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     }
 
     if (mode === 'edit') {
+        if (resolveCapabilityFlag(vendor.capabilities, 'business_edit_blocked')) {
+            return (
+                <div className="vendor-route">
+                    <div className="vendor-page space-y-8">
+                        {vendor.pending_change ? (
+                            <VendorPendingChangePanel
+                                pendingChange={vendor.pending_change}
+                                locale={i18n.language}
+                                cancelling={isCancellingPendingChange}
+                                onCancel={resolveCapabilityFlag(vendor.pending_change.capabilities, 'can_cancel')
+                                    ? () => void cancelPendingChange()
+                                    : undefined}
+                            />
+                        ) : null}
+                        <button type="button" onClick={() => navigate(`/vendors/${vendor.id}`)} className="text-sm font-bold text-accent">
+                            {t('actions.back_to_register')}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
         if (vendor.owner_orphaned) {
             return (
                 <div className="vendor-route">
@@ -170,6 +219,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                 vendor={vendor}
                 onBack={() => navigate(`/vendors/${vendor.id}`)}
                 onSaved={(saved) => navigate(`/vendors/${saved.id}`)}
+                onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
                 onCancel={() => navigate(`/vendors/${vendor.id}`)}
             />
         );
@@ -211,6 +261,17 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
 
                 {vendor.owner_orphaned ? (
                     <VendorOwnershipPendingMessage canViewGovernance={authz.canViewGovernance} />
+                ) : null}
+
+                {vendor.pending_change ? (
+                    <VendorPendingChangePanel
+                        pendingChange={vendor.pending_change}
+                        locale={i18n.language}
+                        cancelling={isCancellingPendingChange}
+                        onCancel={resolveCapabilityFlag(vendor.pending_change.capabilities, 'can_cancel')
+                            ? () => void cancelPendingChange()
+                            : undefined}
+                    />
                 ) : null}
 
                 <VendorDetailHeader
@@ -260,6 +321,10 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     confirmLabel={tCommon('actions.archive')}
                     variant="danger"
                     isLoading={isDeleting}
+                    showInput
+                    inputRequired
+                    inputLabel={t('form.request_reason')}
+                    inputPlaceholder={t('form.request_reason_help')}
                 />
             </div>
         </div>

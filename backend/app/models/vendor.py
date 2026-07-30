@@ -44,6 +44,8 @@ class Vendor(ArchivableMixin, Base):
         super().__init__(**kwargs)
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Monotonic token for governed business-state mutation revalidation.
+    governance_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
     # Identity
     name: Mapped[str] = mapped_column(String(255), index=True)

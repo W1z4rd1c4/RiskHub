@@ -213,12 +213,17 @@
     "can_create_issue",
     "can_view_contracts",
     "can_manage_contracts",
-        "can_view_sub_outsourcing",
-        "can_manage_sub_outsourcing",
-        "can_view_asset_links",
-        "can_manage_asset_links",
-        "can_manage_process_links"
-      ]
+    "can_view_sub_outsourcing",
+    "can_manage_sub_outsourcing",
+    "can_view_asset_links",
+    "can_manage_asset_links",
+    "can_manage_process_links",
+    "protected_change_requires_approval",
+    "can_request_change",
+    "can_cancel_pending_change",
+    "has_pending_change",
+    "business_edit_blocked"
+   ]
   },
   {
    "id": "vendor_contract",
@@ -344,6 +349,21 @@
     "can_export",
     "can_create",
     "can_view_risk_contexts"
+   ]
+  },
+  {
+   "id": "vendor_pending_change",
+   "backend": {
+    "path": "backend/app/schemas/vendor.py",
+    "class": "VendorPendingChangeCapabilities"
+   },
+   "frontend": {
+    "path": "frontend/src/services/api/schemas/entities/vendors.ts",
+    "schema": "vendorPendingChangeCapabilitiesSchema"
+   },
+   "fields": [
+    "can_view_diff",
+    "can_cancel"
    ]
   },
   {

@@ -24,6 +24,15 @@
   "messages": {
     "archive_confirm": "Archivovat dodavatele {{vendorName}}?"
   },
+  "pending_change": {
+    "title": "Čeká na schválení",
+    "badge": "Chráněná změna",
+    "requested_by_at": "Požadavek od {{requester}} dne {{date}} v {{time}}",
+    "unknown_requester": "Neznámý žadatel",
+    "cancel": "Zrušit žádost",
+    "cancel_failed": "Čekající žádost o změnu Dodavatele se nepodařilo zrušit.",
+    "diff_restricted": "Podrobnosti návrhu jsou omezené."
+  },
   "filters": {
     "search_placeholder": "Hledat dodavatele...",
     "all_statuses": "Všechny stavy",
@@ -241,6 +250,8 @@
     "country": "Země",
     "website": "Web",
     "description": "Popis",
+    "request_reason": "Důvod žádosti",
+    "request_reason_help": "Změny chráněného Dodavatele se odesílají k nezávislému schválení. Vysvětlete, proč je změna nutná.",
     "department": "Oddělení",
     "department_placeholder": "Vyberte oddělení",
     "owner": "Vlastník outsourcingu",
@@ -252,6 +263,7 @@
     "subprocess": "Podproces",
     "subprocess_placeholder": "Cloud Operations",
     "risk_score": "Skóre rizika (1–5)",
+    "materiality": "Maximální dopad významnosti (% vlastních zdrojů)",
     "status": "Stav",
     "flags": "Příznaky",
     "vendor_type": {

@@ -43,8 +43,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_keys
-from app.models import Department, Permission, Role, RolePermission, User
+from app.models import ApprovalScenario, Department, Permission, Role, RolePermission, User
 from app.models.user import AccessScope
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def fixed_protected_vendor_scenario(db_session: AsyncSession) -> None:
+    """Install the production-fixed scenario disabled for legacy direct-write tests."""
+    db_session.add(
+        ApprovalScenario(
+            key="protected_vendor_edit",
+            display_name="Protected Vendor mutations",
+            description="Independent approval for protected Vendor mutations",
+            requires_approval=False,
+            approver_roles=["risk_manager", "cro"],
+        )
+    )
+    await db_session.commit()
 
 
 @pytest_asyncio.fixture

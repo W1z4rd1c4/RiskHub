@@ -5,10 +5,12 @@ import {
     vendorListResponseSchema,
     vendorLookupOptionSchema,
     vendorSchema,
+    processApprovalQueuedResponseSchema,
     voidSchema,
 } from '@/services/api/schemas';
 import type { AssetVendorLink } from '@/types/asset';
 import type { ProcessVendorLink } from '@/types/process';
+import type { ProcessApprovalQueuedResponse } from '@/types/process';
 import type {
     Vendor,
     VendorCreate,
@@ -155,16 +157,33 @@ export const vendorApi = {
         return apiClient.get(`/vendors/${id}`, { schema: vendorSchema });
     },
 
-    async createVendor(data: VendorCreate): Promise<Vendor> {
-        return apiClient.post('/vendors', data, { schema: vendorSchema });
+    async createVendor(data: VendorCreate): Promise<Vendor | ProcessApprovalQueuedResponse> {
+        return apiClient.post('/vendors', data, {
+            schema: vendorSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
-    async updateVendor(id: number, data: VendorUpdate): Promise<Vendor> {
-        return apiClient.patch(`/vendors/${id}`, data, { schema: vendorSchema });
+    async updateVendor(
+        id: number,
+        data: VendorUpdate & { request_reason?: string },
+    ): Promise<Vendor | ProcessApprovalQueuedResponse> {
+        return apiClient.patch(`/vendors/${id}`, data, {
+            schema: vendorSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     async deleteVendor(id: number): Promise<void> {
         return apiClient.delete(`/vendors/${id}`, { schema: voidSchema });
+    },
+
+    async archiveVendor(
+        id: number,
+        requestReason: string,
+    ): Promise<void | ProcessApprovalQueuedResponse> {
+        return apiClient.delete(`/vendors/${id}`, {
+            body: JSON.stringify({ request_reason: requestReason }),
+            schema: voidSchema.or(processApprovalQueuedResponseSchema),
+        });
     },
 
     async restoreVendor(id: number): Promise<Vendor> {

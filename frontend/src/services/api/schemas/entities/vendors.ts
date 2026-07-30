@@ -3,8 +3,14 @@ import type { VendorContract } from '@/types/vendorContract';
 import type { LinkedVendorSummary } from '@/types/vendorLink';
 import type { VendorSubOutsourcing } from '@/types/vendorSubOutsourcing';
 import { VENDOR_CONTROLLED_CODES } from '@/lib/vendorValues';
+import { GOVERNED_MUTATION_KINDS } from '@/types/approval';
 
 import { collectionPaginationSchema, passthroughObject, z } from '../common';
+import {
+    governedDerivedImpactSchema,
+    governedImpactedResourceSchema,
+    governedRelationshipChangeSchema,
+} from '../workflow';
 
 export const linkedVendorSummarySchema: z.ZodType<LinkedVendorSummary> = passthroughObject({
     id: z.number(),
@@ -43,7 +49,54 @@ const vendorCapabilitiesSchema = passthroughObject({
     can_view_asset_links: z.boolean(),
     can_manage_asset_links: z.boolean(),
     can_manage_process_links: z.boolean(),
+    protected_change_requires_approval: z.boolean().default(false),
+    can_request_change: z.boolean().default(false),
+    can_cancel_pending_change: z.boolean().default(false),
+    has_pending_change: z.boolean().default(false),
+    business_edit_blocked: z.boolean().default(false),
 });
+
+const vendorPendingChangeFields = {
+    approval_id: z.number().nullable(),
+    proposal_id: z.string().nullable(),
+    proposal_version: z.number().nullable(),
+    status: z.literal('pending'),
+    requested_at: z.string(),
+    requested_by_name: z.string().nullable(),
+    reason: z.string(),
+    generic_label: z.literal('protected_vendor_change'),
+    mutation_kind: z.enum(GOVERNED_MUTATION_KINDS).nullable(),
+} as const;
+
+export const vendorPendingChangeCapabilitiesSchema = passthroughObject({
+    can_view_diff: z.boolean(),
+    can_cancel: z.boolean(),
+});
+
+export const vendorPendingChangeSchema = z.union([
+    z.strictObject({
+        ...vendorPendingChangeFields,
+        before: z.record(z.string(), z.unknown()),
+        after: z.record(z.string(), z.unknown()),
+        derived_impact: governedDerivedImpactSchema,
+        impacted_resources: z.array(governedImpactedResourceSchema),
+        relationship_change: governedRelationshipChangeSchema.nullable(),
+        capabilities: vendorPendingChangeCapabilitiesSchema.extend({
+            can_view_diff: z.literal(true),
+        }).strict(),
+    }),
+    z.strictObject({
+        ...vendorPendingChangeFields,
+        before: z.record(z.string(), z.unknown()).refine((value) => Object.keys(value).length === 0),
+        after: z.record(z.string(), z.unknown()).refine((value) => Object.keys(value).length === 0),
+        derived_impact: z.strictObject({}),
+        impacted_resources: z.array(z.never()).length(0),
+        relationship_change: z.null(),
+        capabilities: vendorPendingChangeCapabilitiesSchema.extend({
+            can_view_diff: z.literal(false),
+        }).strict(),
+    }),
+]);
 
 const vendorOwnerSchema = passthroughObject({
     name: z.string(),
@@ -267,6 +320,8 @@ export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
     reference_occurrence_count: z.number().nullable().optional(),
     reference_process_count: z.number().nullable().optional(),
     derived: vendorDerivedSchema.nullable().optional(),
+    governance_version: z.number().default(1),
+    pending_change: vendorPendingChangeSchema.nullable().optional(),
     is_archived: z.boolean(),
     archived_at: z.string().nullable().optional(),
     archived_by_id: z.number().nullable().optional(),

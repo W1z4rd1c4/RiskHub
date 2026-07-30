@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError
-from app.models import Asset, Department, Process
+from app.models import Asset, Department, Process, Vendor
 from app.models.approval_scenario import ApprovalScenario
 from app.services._ict_register_reference.parameters import (
     IctWorkbookParameterSet,
@@ -18,6 +18,7 @@ from app.services._ict_register_reference.parameters import (
 
 from .fixed_asset_policy import ASSET_SCENARIO_KEY
 from .fixed_policy import SCENARIO_KEY
+from .fixed_vendor_policy import VENDOR_SCENARIO_KEY
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +26,7 @@ class GovernedProcessResolutionLocks:
     departments: dict[int, Department]
     processes: dict[int, Process]
     assets: dict[int, Asset]
+    vendors: dict[int, Vendor]
     parameters: IctWorkbookParameterSet
     scenario: ApprovalScenario
     scenarios: dict[str, ApprovalScenario]
@@ -54,11 +56,12 @@ async def lock_governed_process_resolution_suffix(
     *,
     process_ids: Iterable[int],
     asset_ids: Iterable[int] = (),
+    vendor_ids: Iterable[int] = (),
     additional_department_ids: Iterable[int] = (),
     process_options: tuple[Any, ...] = (),
     scenario_keys: Iterable[str] = (SCENARIO_KEY,),
 ) -> GovernedProcessResolutionLocks:
-    """Lock Department -> Process -> Asset -> parameters -> scenario exactly once.
+    """Lock Department -> Process -> Asset -> Vendor -> parameters -> scenario exactly once.
 
     Actor, Role, approval-envelope, proposal, and impact locks are acquired by
     callers before entering this shared suffix. Department snapshots are
@@ -113,11 +116,24 @@ async def lock_governed_process_resolution_suffix(
         db,
         asset_ids=asset_ids,
     )
+    vendors = list(
+        (
+            await db.execute(
+                select(Vendor)
+                .where(Vendor.id.in_(sorted(set(vendor_ids))))
+                .order_by(Vendor.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalars()
+    )
 
     parameters = await load_ict_workbook_parameter_set_for_update(db)
     requested_scenario_keys = tuple(scenario_keys)
     ordered_scenario_keys = sorted(set(requested_scenario_keys))
-    if not ordered_scenario_keys or not set(ordered_scenario_keys).issubset({SCENARIO_KEY, ASSET_SCENARIO_KEY}):
+    if not ordered_scenario_keys or not set(ordered_scenario_keys).issubset(
+        {SCENARIO_KEY, ASSET_SCENARIO_KEY, VENDOR_SCENARIO_KEY}
+    ):
         raise ConflictError("Governed mutation scenario plan is invalid")
     scenarios = list(
         (
@@ -136,6 +152,7 @@ async def lock_governed_process_resolution_suffix(
         departments={department.id: department for department in departments},
         processes={process.id: process for process in processes},
         assets={asset.id: asset for asset in assets},
+        vendors={vendor.id: vendor for vendor in vendors},
         parameters=parameters,
         scenario=scenarios_by_key[requested_scenario_keys[0]],
         scenarios=scenarios_by_key,

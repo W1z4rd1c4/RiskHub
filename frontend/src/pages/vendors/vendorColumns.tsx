@@ -93,9 +93,19 @@ export function buildVendorColumns({ onRestore, t }: BuildVendorColumnsOptions):
             render: (vendor) => {
                 const displayStatus = getVendorDisplayStatus(vendor);
                 return (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase text-slate-300 bg-white/5 border border-white/10">
-                        {t(`vendors:status.${displayStatus}`, displayStatus)}
-                    </span>
+                    <div className="flex flex-col items-start gap-1">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase text-slate-300 bg-white/5 border border-white/10">
+                            {t(`vendors:status.${displayStatus}`, displayStatus)}
+                        </span>
+                        {resolveCapabilityFlag(vendor.capabilities, 'has_pending_change') ? (
+                            <span
+                                data-testid={`vendor-pending-change-${vendor.id}`}
+                                className="inline-flex items-center rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-200"
+                            >
+                                {t('vendors:pending_change.badge')}
+                            </span>
+                        ) : null}
+                    </div>
                 );
             },
         },

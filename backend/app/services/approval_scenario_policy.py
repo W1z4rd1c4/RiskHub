@@ -12,6 +12,7 @@ from app.core.permissions import (
     can_read_control_id,
     can_read_kri_id,
     can_read_risk_id,
+    can_read_vendor_id,
     can_resolve_approvals,
     get_user_department_ids,
     has_permission,
@@ -362,6 +363,31 @@ async def governed_process_response_policy(
             can_view_snapshot=proposal.requested_by_id == user.id or resolver,
             can_resolve=resolver,
         )
+    from app.services._governed_mutations.vendor_identity import (
+        is_vendor_governed_kind,
+        strict_vendor_mutation_kind,
+    )
+
+    if is_vendor_governed_kind(proposal.mutation_kind):
+        if strict_vendor_mutation_kind(proposal) is None:
+            raise ValueError("Malformed governed Vendor approval envelope")
+        from app.services._governed_mutations.fixed_vendor_policy import (
+            is_live_eligible_vendor_resolver,
+            load_fixed_vendor_scenario,
+        )
+
+        resolver = is_live_eligible_vendor_resolver(
+            user,
+            proposal,
+            await load_fixed_vendor_scenario(db),
+        )
+        can_access = proposal.requested_by_id == user.id or resolver
+        return GovernedProcessResponsePolicy(
+            requested_by_id=proposal.requested_by_id,
+            can_access=can_access,
+            can_view_snapshot=can_access,
+            can_resolve=resolver,
+        )
     evaluation = await _evaluate_governed_process_policy(
         db,
         proposal=proposal,
@@ -594,6 +620,24 @@ async def can_resolve_scenario_approval(
         return bool(evaluation is not None and evaluation.can_resolve)
     asset_proposal = approval.governed_mutation_proposal
     if asset_proposal is not None:
+        from app.services._governed_mutations.vendor_identity import (
+            is_vendor_governed_kind,
+            strict_vendor_mutation_kind,
+        )
+
+        if is_vendor_governed_kind(asset_proposal.mutation_kind):
+            if strict_vendor_mutation_kind(asset_proposal) is None:
+                return False
+            from app.services._governed_mutations.fixed_vendor_policy import (
+                is_live_eligible_vendor_resolver,
+                load_fixed_vendor_scenario,
+            )
+
+            return is_live_eligible_vendor_resolver(
+                user,
+                asset_proposal,
+                await load_fixed_vendor_scenario(db),
+            )
         from app.services._governed_mutations.asset_mutations import valid_asset_governed_envelope
 
         if not valid_asset_governed_envelope(asset_proposal):
@@ -626,6 +670,11 @@ async def can_view_approval_resource(db: AsyncSession, user: User, approval: App
     if approval.resource_type == ApprovalResourceType.ASSET:
         asset = await db.get(Asset, approval.resource_id) if approval.resource_id else None
         return asset is not None and can_read_asset_record(user, asset)
+    if approval.resource_type == ApprovalResourceType.VENDOR:
+        return bool(
+            approval.resource_id
+            and await can_read_vendor_id(db, user, approval.resource_id)
+        )
     return False
 
 

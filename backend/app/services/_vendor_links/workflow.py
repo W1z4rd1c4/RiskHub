@@ -10,6 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.activity_logger import log_activity
+from app.core.audit.control import control_display_name
+from app.core.audit.kri import kri_display_name
+from app.core.audit.risk import risk_display_name
 from app.core.audit.types import AuditLogActivity
 from app.core.audit.vendor import vendor_link_created, vendor_link_deleted
 from app.core.datetime_utils import utc_now
@@ -97,7 +100,7 @@ async def _ensure_visible_target(
     entity_id: int,
     *,
     require_live: bool = False,
-) -> None:
+) -> Risk | Control | KeyRiskIndicator:
     if target.kind == "risk":
         risk_result = await db.execute(select(Risk).where(Risk.id == entity_id))
         entity: Risk | Control | KeyRiskIndicator | None = risk_result.scalar_one_or_none()
@@ -118,6 +121,35 @@ async def _ensure_visible_target(
 
     if require_live and entity.is_archived:
         raise ConflictError(f"Cannot link archived {target.kind}")
+    return entity
+
+
+def vendor_link_entity_label(
+    entity: Risk | Control | KeyRiskIndicator,
+) -> str:
+    if isinstance(entity, Risk):
+        return risk_display_name(entity)
+    if isinstance(entity, Control):
+        return control_display_name(entity)
+    return kri_display_name(entity)
+
+
+async def visible_vendor_link_target_label(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    target: VendorLinkTarget,
+    entity_id: int,
+    require_live: bool = False,
+) -> str:
+    entity = await _ensure_visible_target(
+        db,
+        current_user,
+        target,
+        entity_id,
+        require_live=require_live,
+    )
+    return vendor_link_entity_label(entity)
 
 
 async def _prepare_vendor_link_mutation(
@@ -128,7 +160,7 @@ async def _prepare_vendor_link_mutation(
     kind: VendorLinkKind,
     entity_id: int,
     require_live_target: bool = False,
-) -> tuple[VendorLinkTarget, Vendor]:
+) -> tuple[VendorLinkTarget, Vendor, str]:
     target = vendor_link_target(kind)
     vendor = await require_vendor_access(
         db,
@@ -137,8 +169,14 @@ async def _prepare_vendor_link_mutation(
         entity_permission=target.entity_permission,
         require_write=True,
     )
-    await _ensure_visible_target(db, current_user, target, entity_id, require_live=require_live_target)
-    return target, vendor
+    entity_name = await visible_vendor_link_target_label(
+        db,
+        current_user=current_user,
+        target=target,
+        entity_id=entity_id,
+        require_live=require_live_target,
+    )
+    return target, vendor, entity_name
 
 
 async def list_vendor_linked_risks(
@@ -294,9 +332,10 @@ async def link_vendor_target(
     current_user: User,
     kind: VendorLinkKind,
     entity_id: int,
+    request_reason: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> dict[str, str]:
-    target, vendor = await _prepare_vendor_link_mutation(
+    target, vendor, entity_name = await _prepare_vendor_link_mutation(
         db,
         vendor_id=vendor_id,
         current_user=current_user,
@@ -305,6 +344,21 @@ async def link_vendor_target(
         require_live_target=True,
     )
     try:
+        from app.services._governed_mutations.vendor_mutations import (
+            submit_vendor_relationship_mutation_if_required,
+        )
+
+        queued = await submit_vendor_relationship_mutation_if_required(
+            db=db,
+            vendor=vendor,
+            mutation_kind=f"vendor.link.{kind}.add",
+            entity_id=entity_id,
+            entity_name=entity_name,
+            current_user=current_user,
+            request_reason=request_reason,
+        )
+        if queued is not None:
+            return queued
         result = await _link_vendor_target_prepared_no_commit(
             db,
             vendor_id=vendor_id,
@@ -313,8 +367,10 @@ async def link_vendor_target(
             entity_id=entity_id,
             target=target,
             vendor=vendor,
+            entity_name=entity_name,
             log_activity_func=log_activity_func,
         )
+        vendor.governance_version += 1
         await db.commit()
         return result
     except Exception:
@@ -328,11 +384,12 @@ async def link_vendor_target_no_commit(
     *,
     vendor_id: int,
     current_user: User,
+    audit_actor: User | None = None,
     kind: VendorLinkKind,
     entity_id: int,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> dict[str, str]:
-    target, vendor = await _prepare_vendor_link_mutation(
+    target, vendor, entity_name = await _prepare_vendor_link_mutation(
         db,
         vendor_id=vendor_id,
         current_user=current_user,
@@ -343,11 +400,12 @@ async def link_vendor_target_no_commit(
     return await _link_vendor_target_prepared_no_commit(
         db,
         vendor_id=vendor_id,
-        current_user=current_user,
+        current_user=audit_actor or current_user,
         kind=kind,
         entity_id=entity_id,
         target=target,
         vendor=vendor,
+        entity_name=entity_name,
         log_activity_func=log_activity_func,
     )
 
@@ -361,6 +419,7 @@ async def _link_vendor_target_prepared_no_commit(
     entity_id: int,
     target: VendorLinkTarget,
     vendor: Vendor,
+    entity_name: str,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> dict[str, str]:
     result = await create_vendor_link(db, target.link_model, vendor_id, target.entity_field, entity_id)
@@ -369,7 +428,7 @@ async def _link_vendor_target_prepared_no_commit(
         actor=current_user,
         vendor=vendor,
         link_kind=kind,
-        target_id=entity_id,
+        target_label=entity_name,
         log_activity_func=log_activity_func,
     )
     return result
@@ -382,9 +441,10 @@ async def unlink_vendor_target(
     current_user: User,
     kind: VendorLinkKind,
     entity_id: int,
+    request_reason: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    target, vendor = await _prepare_vendor_link_mutation(
+    target, vendor, entity_name = await _prepare_vendor_link_mutation(
         db,
         vendor_id=vendor_id,
         current_user=current_user,
@@ -392,6 +452,21 @@ async def unlink_vendor_target(
         entity_id=entity_id,
     )
     try:
+        from app.services._governed_mutations.vendor_mutations import (
+            submit_vendor_relationship_mutation_if_required,
+        )
+
+        queued = await submit_vendor_relationship_mutation_if_required(
+            db=db,
+            vendor=vendor,
+            mutation_kind=f"vendor.link.{kind}.remove",
+            entity_id=entity_id,
+            entity_name=entity_name,
+            current_user=current_user,
+            request_reason=request_reason,
+        )
+        if queued is not None:
+            return queued
         await _unlink_vendor_target_prepared_no_commit(
             db,
             vendor_id=vendor_id,
@@ -400,8 +475,10 @@ async def unlink_vendor_target(
             entity_id=entity_id,
             target=target,
             vendor=vendor,
+            entity_name=entity_name,
             log_activity_func=log_activity_func,
         )
+        vendor.governance_version += 1
         await db.commit()
     except Exception:
         # Keep the relationship mutation and the audit record atomic.
@@ -414,11 +491,12 @@ async def unlink_vendor_target_no_commit(
     *,
     vendor_id: int,
     current_user: User,
+    audit_actor: User | None = None,
     kind: VendorLinkKind,
     entity_id: int,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    target, vendor = await _prepare_vendor_link_mutation(
+    target, vendor, entity_name = await _prepare_vendor_link_mutation(
         db,
         vendor_id=vendor_id,
         current_user=current_user,
@@ -428,11 +506,12 @@ async def unlink_vendor_target_no_commit(
     await _unlink_vendor_target_prepared_no_commit(
         db,
         vendor_id=vendor_id,
-        current_user=current_user,
+        current_user=audit_actor or current_user,
         kind=kind,
         entity_id=entity_id,
         target=target,
         vendor=vendor,
+        entity_name=entity_name,
         log_activity_func=log_activity_func,
     )
 
@@ -446,6 +525,7 @@ async def _unlink_vendor_target_prepared_no_commit(
     entity_id: int,
     target: VendorLinkTarget,
     vendor: Vendor,
+    entity_name: str,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     await delete_vendor_link(db, target.link_model, vendor_id, target.entity_field, entity_id)
@@ -454,6 +534,6 @@ async def _unlink_vendor_target_prepared_no_commit(
         actor=current_user,
         vendor=vendor,
         link_kind=kind,
-        target_id=entity_id,
+        target_label=entity_name,
         log_activity_func=log_activity_func,
     )

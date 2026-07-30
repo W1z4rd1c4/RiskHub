@@ -29,12 +29,14 @@ export function VendorFormContainer({
     initialData,
     isEdit = false,
     onSaved,
+    onApprovalQueued,
     onCancel,
 }: VendorFormProps) {
     const { t } = useTranslation('vendors');
     const { totalAssets } = useTotalAssetsValue();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [requestReason, setRequestReason] = useState('');
     const canManageAccountability = !isEdit
         || resolveCapabilityFlag(initialData?.capabilities, 'can_manage_accountability');
 
@@ -48,6 +50,8 @@ export function VendorFormContainer({
         initialData,
         isEdit,
         onSaved,
+        onApprovalQueued,
+        requestReason,
         onValidationError: (field) => {
             const testIdByField: Partial<Record<typeof field, string>> = {
                 name: 'vendor-form-name',
@@ -151,6 +155,20 @@ export function VendorFormContainer({
             />
             <VendorResilienceSection formData={formData} onChange={handleChange} />
             <VendorRegisterSection formData={formData} onChange={handleChange} />
+
+            <div className="vendor-field">
+                <label className="vendor-label" htmlFor="vendor-request-reason">
+                    {t('form.request_reason')}
+                </label>
+                <textarea
+                    id="vendor-request-reason"
+                    className="vendor-input min-h-24"
+                    value={requestReason}
+                    onChange={(event) => setRequestReason(event.target.value)}
+                    placeholder={t('form.request_reason_help')}
+                />
+                <p className="text-xs vendor-muted">{t('form.request_reason_help')}</p>
+            </div>
 
             <div className="flex items-center justify-end gap-3">
                 {onCancel ? (

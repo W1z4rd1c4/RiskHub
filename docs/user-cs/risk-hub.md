@@ -99,6 +99,12 @@ Při nastavování pravidel, rolí, oddělení nebo dotazníků vybírejte změn
 
 Změny v Risk Hubu mohou ovlivnit mnoho lidí. Dělejte soustředěné úpravy, kontrolujte viditelný dopad a sledujte Schvalování nebo Notifikace u citlivých změn.
 
+Scénáře chráněného procesu, aktiva a dodavatele jsou pevné politiky. U
+dodavatele je práh aktuální nebo navržená kritická/významná úroveň; pokryté
+akce nad dodavatelem, child záznamy a vazbami ani zákaz self-approval nelze
+měnit. Oprávněný správce může změnit pouze zapnutí a neprázdnou podmnožinu rolí
+Risk Manager/CRO.
+
 Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; Risk Hub panely a Activity Log ukazují aktuální kontext.
 
 Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Otevřete relevantní Risk Hub panel, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.

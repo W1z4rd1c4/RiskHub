@@ -133,6 +133,13 @@ Role/department-specific support:
 Protected Process approval support:
 
 - `protected_process_edit` is a fixed Risk Hub scenario. The CRO may enable or disable it and select a non-empty subset of Risk Manager and CRO approver roles.
+- `protected_vendor_edit` is also fixed. It covers current-or-proposed Critical
+  or Significant Vendor create/edit/archive, Contract and Sub-outsourcing
+  mutations, and Vendor-managed Risk/Control/KRI links. Asset-to-Vendor and
+  Process-to-Vendor changes keep their Asset/Process composite approval paths.
+  Only enabled state and a non-empty
+  subset of Risk Manager/CRO approver roles are editable; threshold, covered
+  actions, and no-self approval are read-only.
 - The protection rule (current or proposed CIF is Yes), covered edit action, and no-self-approval rule are immutable. Treat attempts to patch them as invalid requests, not as a missing admin override.
 - Enabling the scenario is unsafe when no active independent User exists in a configured approver role. Submission must fail closed instead of creating unresolvable queue work.
 - Disabling the scenario affects only whether an authorized protected edit is submitted or applied directly. It does not grant Process access or bypass field, owner, Department, or derivation validation.

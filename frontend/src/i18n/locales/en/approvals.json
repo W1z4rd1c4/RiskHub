@@ -106,7 +106,8 @@
     "derived": {
       "cif": "CIF",
       "criticality_class": "Criticality class",
-      "resulting_criticality": "Resulting criticality"
+      "resulting_criticality": "Resulting criticality",
+      "vendor_tier": "Vendor tier"
     },
     "relationship": {
       "title": "Relationship change",
@@ -116,7 +117,10 @@
       "resource_type": {
         "risk": "Risk",
         "asset": "Asset",
-        "vendor": "Vendor"
+        "vendor": "Vendor",
+        "process": "Process",
+        "control": "Control",
+        "kri": "KRI"
       },
       "action": {
         "add": "Add relationship",
@@ -143,7 +147,26 @@
             "asset_link_vendor_add": "Add Asset and Vendor link",
             "asset_link_vendor_remove": "Remove Asset and Vendor link",
             "asset_link_risk_add": "Add Asset and Risk link",
-            "asset_link_risk_remove": "Remove Asset and Risk link"
+            "asset_link_risk_remove": "Remove Asset and Risk link",
+            "vendor_create": "Protected Vendor creation",
+            "vendor_edit": "Protected Vendor update",
+            "vendor_archive": "Protected Vendor archive",
+            "vendor_contract_create": "Create Vendor contract",
+            "vendor_contract_edit": "Update Vendor contract",
+            "vendor_contract_archive": "Archive Vendor contract",
+            "vendor_sub_outsourcing_create": "Create Vendor sub-outsourcing",
+            "vendor_sub_outsourcing_edit": "Update Vendor sub-outsourcing",
+            "vendor_sub_outsourcing_archive": "Archive Vendor sub-outsourcing",
+            "vendor_link_asset_add": "Add Vendor and Asset link",
+            "vendor_link_asset_remove": "Remove Vendor and Asset link",
+            "vendor_link_process_add": "Add Vendor and Process link",
+            "vendor_link_process_remove": "Remove Vendor and Process link",
+            "vendor_link_risk_add": "Add Vendor and Risk link",
+            "vendor_link_risk_remove": "Remove Vendor and Risk link",
+            "vendor_link_control_add": "Add Vendor and Control link",
+            "vendor_link_control_remove": "Remove Vendor and Control link",
+            "vendor_link_kri_add": "Add Vendor and KRI link",
+            "vendor_link_kri_remove": "Remove Vendor and KRI link"
         },
         "link_fields": {
             "linked": "Linked",

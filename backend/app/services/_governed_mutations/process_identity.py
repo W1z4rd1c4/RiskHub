@@ -24,6 +24,7 @@ from app.services._ict_register_reference import PROCESS_CONTROLLED_CODES_BY_FIE
 from .composite_policy import strict_triggered_policy_snapshots, triggered_policy_snapshot
 from .fixed_asset_policy import ASSET_SCENARIO_KEY
 from .fixed_policy import ALLOWED_APPROVER_ROLES, SCENARIO_KEY
+from .fixed_vendor_policy import VENDOR_SCENARIO_KEY
 
 PROCESS_MUTATION_KIND = "process.edit"
 PROCESS_RESOURCE_TYPE = "process"
@@ -111,6 +112,7 @@ def new_governed_process_proposal(
     raw_after: dict[str, Any],
     derived_impact_snapshot: dict[str, Any],
     asset_impacts: list[dict[str, Any]] | None = None,
+    vendor_impacts: list[dict[str, Any]] | None = None,
     scenario_key: str = SCENARIO_KEY,
     triggered_scenarios: list[str] | None = None,
     triggered_policies: list[dict[str, Any]] | None = None,
@@ -134,6 +136,10 @@ def new_governed_process_proposal(
         base_versions={
             "process": base_governance_version,
             **{f"asset:{item['resource_id']}": item["base_governance_version"] for item in (asset_impacts or [])},
+            **{
+                f"vendor:{item['resource_id']}": item["base_governance_version"]
+                for item in (vendor_impacts or [])
+            },
         },
         before_snapshot=dict(before_snapshot),
         after_snapshot=dict(after_snapshot),
@@ -145,6 +151,7 @@ def new_governed_process_proposal(
         },
         impacted_resources_snapshot=[
             *(asset_impacts or []),
+            *(vendor_impacts or []),
             {
                 "resource_type": PROCESS_RESOURCE_TYPE,
                 "resource_id": process_id,
@@ -280,12 +287,29 @@ def _valid_derived_impact_snapshot(value: object) -> bool:
     return any(block["cif"] == "yes" for block in value.values())
 
 
-def _valid_composite_point_impact(value: object, *, process_id: int, asset_ids: set[int]) -> bool:
-    if not isinstance(value, dict) or set(value) != {"processes", "assets"}:
+def _valid_composite_point_impact(
+    value: object,
+    *,
+    process_id: int,
+    asset_ids: set[int],
+    vendor_ids: set[int],
+) -> bool:
+    expected_keys = {
+        "processes",
+        *(("assets",) if asset_ids else ()),
+        *(("vendors",) if vendor_ids else ()),
+    }
+    if not isinstance(value, dict) or set(value) != expected_keys:
         return False
     processes = value.get("processes")
-    assets = value.get("assets")
-    if not isinstance(processes, list) or len(processes) != 1 or not isinstance(assets, list):
+    assets = value.get("assets", [])
+    vendors = value.get("vendors", [])
+    if (
+        not isinstance(processes, list)
+        or len(processes) != 1
+        or not isinstance(assets, list)
+        or not isinstance(vendors, list)
+    ):
         return False
     process_row = processes[0]
     if (
@@ -321,15 +345,51 @@ def _valid_composite_point_impact(value: object, *, process_id: int, asset_ids: 
             return False
         asset_row_ids.append(row["resource_id"])
     valid_assets = asset_row_ids == sorted(asset_ids) and len(asset_row_ids) == len(asset_ids)
-    protected = any(
-        isinstance(row, dict)
-        and any(
-            isinstance(block, dict) and (block.get("cif") == "yes" or block.get("resulting_criticality") == "critical")
-            for block in (row.get("before"), row.get("after"))
-        )
-        for row in assets
+    vendor_row_ids: list[int] = []
+    for row in vendors:
+        if not (
+            isinstance(row, dict)
+            and set(row) == {"resource_id", "before", "after"}
+            and type(row.get("resource_id")) is int
+            and row["resource_id"] > 0
+            and all(
+                isinstance(block, dict)
+                and set(block) == {"tier"}
+                and block.get("tier") in {"critical", "significant", "standard"}
+                for block in (row.get("before"), row.get("after"))
+            )
+        ):
+            return False
+        vendor_row_ids.append(row["resource_id"])
+    valid_vendors = (
+        vendor_row_ids == sorted(vendor_ids)
+        and len(vendor_row_ids) == len(vendor_ids)
     )
-    return valid_assets and protected
+    protected = (
+        any(
+            isinstance(row, dict)
+            and any(
+                isinstance(block, dict)
+                and (
+                    block.get("cif") == "yes"
+                    or block.get("resulting_criticality") == "critical"
+                )
+                for block in (row.get("before"), row.get("after"))
+            )
+            for row in assets
+        )
+        or any(
+            isinstance(row, dict)
+            and any(
+                isinstance(block, dict)
+                and block.get("tier") in {"critical", "significant"}
+                for block in (row.get("before"), row.get("after"))
+            )
+            for row in vendors
+        )
+        or any(block.get("cif") == "yes" for block in process_blocks.values())
+    )
+    return valid_assets and valid_vendors and protected
 
 
 def _strict_governed_process_identity(
@@ -345,7 +405,11 @@ def _strict_governed_process_identity(
     if (
         isinstance(scenario, dict)
         and set(scenario) == {"key", "requires_approval", "approver_roles", "triggered_policies"}
-        and scenario.get("key") in {SCENARIO_KEY, ASSET_SCENARIO_KEY}
+        and scenario.get("key") in {
+            SCENARIO_KEY,
+            ASSET_SCENARIO_KEY,
+            VENDOR_SCENARIO_KEY,
+        }
         and scenario.get("requires_approval") is True
         and isinstance(scenario.get("approver_roles"), list)
     ):
@@ -375,7 +439,9 @@ def _strict_governed_process_identity(
         and triggered_scenarios
         and all(isinstance(key, str) for key in triggered_scenarios)
         and len(triggered_scenarios) == len(set(triggered_scenarios))
-        and set(triggered_scenarios).issubset({SCENARIO_KEY, ASSET_SCENARIO_KEY})
+        and set(triggered_scenarios).issubset(
+            {SCENARIO_KEY, ASSET_SCENARIO_KEY, VENDOR_SCENARIO_KEY}
+        )
         and triggered_scenarios[0] == scenario.get("key")
     ):
         raise InvalidGovernedProcessIdentity("Governed Process policy snapshot is malformed")
@@ -441,6 +507,11 @@ def _strict_governed_process_identity(
         for item in extra_impacts
         if isinstance(item, dict) and item.get("resource_type") == "asset"
     }
+    vendor_ids = {
+        item.get("resource_id")
+        for item in extra_impacts
+        if isinstance(item, dict) and item.get("resource_type") == "vendor"
+    }
     composite_valid = bool(
         extra_impacts
         and all(
@@ -452,21 +523,38 @@ def _strict_governed_process_identity(
                 "resource_name",
                 "base_governance_version",
             }
-            and item.get("resource_type") == "asset"
+            and item.get("resource_type") in {"asset", "vendor"}
             and _positive_int(item.get("resource_id"))
             and _positive_int(item.get("base_governance_version"))
             and _canonical_identity_text(item.get("resource_name"))
             for item in extra_impacts
         )
-        and [item["resource_id"] for item in extra_impacts] == sorted(asset_ids)
-        and set(base_versions or {}) == {"process", *(f"asset:{asset_id}" for asset_id in asset_ids)}
+        and [
+            (item["resource_type"], item["resource_id"])
+            for item in extra_impacts
+        ]
+        == sorted(
+            [
+                *(("asset", asset_id) for asset_id in asset_ids),
+                *(("vendor", vendor_id) for vendor_id in vendor_ids),
+            ]
+        )
+        and set(base_versions or {})
+        == {
+            "process",
+            *(f"asset:{asset_id}" for asset_id in asset_ids),
+            *(f"vendor:{vendor_id}" for vendor_id in vendor_ids),
+        }
         and all(
-            base_versions[f"asset:{item['resource_id']}"] == item["base_governance_version"] for item in extra_impacts
+            base_versions[f"{item['resource_type']}:{item['resource_id']}"]
+            == item["base_governance_version"]
+            for item in extra_impacts
         )
         and _valid_composite_point_impact(
             proposal.derived_impact_snapshot,
             process_id=primary_resource_id or 0,
             asset_ids=asset_ids,
+            vendor_ids=vendor_ids,
         )
     )
     if (

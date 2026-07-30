@@ -72,10 +72,12 @@ class VendorSubOutsourcingBase(VendorSubOutsourcingWriteValidators):
 
 class VendorSubOutsourcingCreate(VendorSubOutsourcingBase):
     contract_id: int
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class VendorSubOutsourcingUpdate(VendorSubOutsourcingBase):
     contract_id: int | None = None
+    request_reason: str | None = Field(None, max_length=1000)
 
     @field_validator("contract_id")
     @classmethod
@@ -85,6 +87,12 @@ class VendorSubOutsourcingUpdate(VendorSubOutsourcingBase):
         if value is None:
             raise ValueError("Sub-outsourcing entries always hang off a Contract")
         return value
+
+
+class VendorSubOutsourcingArchiveRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class VendorSubOutsourcingCapabilities(BaseModel):

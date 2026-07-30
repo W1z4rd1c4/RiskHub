@@ -1,23 +1,23 @@
 [[allowlist]]
 file = "backend/app/services/_vendor_governance/lifecycle.py"
-line = 47
-rationale = "Vendor create lifecycle is currently a terminal service entrypoint that commits creation state and audit together."
+line = 60
+rationale = "Public Vendor create service owns the atomic direct-create and audit transaction; governed submissions commit in the governed mutation service instead."
 expires_at = "2026-09-01"
 
 [[allowlist]]
 file = "backend/app/services/_vendor_governance/lifecycle.py"
-line = 102
-rationale = "Vendor update lifecycle is currently a terminal service entrypoint that commits update state and audit together."
+line = 130
+rationale = "Public Vendor update service owns the atomic direct-update, governance-version, and audit transaction; governed submissions commit separately."
 expires_at = "2026-09-01"
 
 [[allowlist]]
 file = "backend/app/services/_vendor_governance/lifecycle.py"
-line = 128
-rationale = "Vendor archive lifecycle is currently a terminal service entrypoint that commits archive state and audit together."
+line = 170
+rationale = "Public Vendor archive service owns the atomic direct-archive, governance-version, and audit transaction; governed submissions commit separately."
 expires_at = "2026-09-01"
 
 [[allowlist]]
 file = "backend/app/services/_vendor_governance/lifecycle.py"
-line = 147
-rationale = "Vendor restore lifecycle is currently a terminal service entrypoint that commits restore state and audit together."
+line = 190
+rationale = "Public Vendor restore service owns the atomic restore, governance-version, and audit transaction."
 expires_at = "2026-09-01"

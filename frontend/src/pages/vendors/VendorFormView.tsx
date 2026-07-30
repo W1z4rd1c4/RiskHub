@@ -4,6 +4,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { VendorForm } from '@/components/VendorForm';
 import { VendorActionButton, VendorSurface } from '@/components/vendors/vendorRouteUi';
 import type { Vendor } from '@/types/vendor';
+import type { ProcessApprovalQueuedResponse } from '@/types/process';
 
 import type { VendorDetailMode } from './vendorDetailPresentation';
 
@@ -12,6 +13,7 @@ interface VendorFormViewProps {
     onBack: () => void;
     onCancel: () => void;
     onSaved: (vendor: Vendor) => void;
+    onApprovalQueued?: (queued: ProcessApprovalQueuedResponse) => void;
     vendor?: Vendor;
 }
 
@@ -20,6 +22,7 @@ export function VendorFormView({
     onBack,
     onCancel,
     onSaved,
+    onApprovalQueued,
     vendor,
 }: VendorFormViewProps) {
     const { t } = useTranslation('vendors');
@@ -47,6 +50,7 @@ export function VendorFormView({
                     initialData={mode === 'edit' ? vendor : undefined}
                     isEdit={mode === 'edit'}
                     onSaved={onSaved}
+                    onApprovalQueued={onApprovalQueued}
                     onCancel={onCancel}
                 />
             </div>

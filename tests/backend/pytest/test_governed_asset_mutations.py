@@ -53,14 +53,23 @@ from sqlalchemy.orm.attributes import set_committed_value
 
 
 async def _scenario(db: AsyncSession) -> None:
-    db.add(
-        ApprovalScenario(
-            key="protected_asset_edit",
-            display_name="Protected Asset mutations",
-            description="Independent approval for protected Asset mutations",
-            requires_approval=True,
-            approver_roles=["risk_manager", "cro"],
-        )
+    db.add_all(
+        [
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutations",
+                description="Independent approval for protected Asset mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+            ApprovalScenario(
+                key="protected_vendor_edit",
+                display_name="Protected Vendor mutations",
+                description="Independent approval for protected Vendor mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
     )
     await db.commit()
 

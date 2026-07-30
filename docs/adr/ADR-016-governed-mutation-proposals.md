@@ -16,7 +16,10 @@ The first complete tracer was a Process business-data edit where the Process's
 current or proposed derived CIF is `Ano` (Yes). The contract now also covers
 protected Process creation, Process relationship mutations, and archive. Ticket
 #86 extends the same contract to protected Asset create/edit/link/archive and
-Composite Process-to-Asset consequences; Vendor governance remains later scope.
+Composite Process-to-Asset consequences. Ticket #87 extends it to protected
+Vendor create/edit/archive, Contract and Sub-outsourcing child mutations,
+Vendor-managed Risk/Control/KRI links, and Composite Process/Asset-to-Vendor
+consequences.
 
 ## Decision
 
@@ -57,10 +60,11 @@ SQLite enum value), makes `approval_requests.resource_id` and
 then narrows those nulls with two named database checks:
 
 - `ck_approval_requests_process_create_resource_identity` permits a null
-  `resource_id` exactly for Process or Asset `CREATE`; every other envelope
+  `resource_id` exactly for Process, Asset, or Vendor `CREATE`; every other envelope
   must have a resource ID.
 - `ck_governed_mutation_process_create_resource_identity` permits a null
-  `primary_resource_id` exactly for `process.create` or `asset.create`; every
+  `primary_resource_id` exactly for `process.create`, `asset.create`, or
+  `vendor.create`; every
   other proposal must have a primary resource ID.
 
 The migration is forward-only under ADR-010. PostgreSQL release evidence must
@@ -72,6 +76,12 @@ Revision `o5p6q7r8s9t0` extends the same fixed envelope to Asset create, edit,
 archive, and typed relationship mutations. Its ADR-010 evidence is automated
 in `tests/backend/pytest/migrations/test_governed_asset_migration_rehearsal.py`
 for both blank zero-to-head and `n4o5p6q7r8s9`-to-head PostgreSQL lanes.
+
+Revision `p6q7r8s9t0u1` adds Vendor as an approval resource, gives Vendor rows a
+monotonic `governance_version`, permits rowless `vendor.create`, and seeds the
+fixed `protected_vendor_edit` scenario. Its forward-only PostgreSQL rehearsal
+lives in
+`tests/backend/pytest/migrations/test_governed_vendor_migration_rehearsal.py`.
 
 ### Resource versions and impacted-resource locks
 
@@ -97,8 +107,8 @@ or primary designation changes, and the corresponding Process impact locks and
 versions. It deliberately does not classify the counterpart Asset or Vendor as
 a governed resource. Ticket #86 adds protected Asset mutation policy and the
 downstream Process-to-Asset derivation/Composite approval, including Asset
-impacts and locks. Later resource tickets add Vendor cascade governance. Those
-extensions add resource descriptors and rederivation to the same operation-plan
+impacts and locks. Ticket #87 adds Vendor cascade governance, Vendor impacts,
+and Vendor locks. These extensions add resource descriptors and rederivation to the same operation-plan
 seam; they do not reinterpret or weaken the exact #85 Process-link identity.
 
 The fixed Asset scenario is `protected_asset_edit`. An Asset is protected when
@@ -108,6 +118,17 @@ link changes use one immutable proposal and deterministic Asset locks. A
 Process-to-Asset operation whose Process or Asset consequence is protected uses
 one Composite proposal, locks both resource types, rederives the full graph at
 approval, and applies all effects or none.
+
+The fixed Vendor scenario is `protected_vendor_edit`. A Vendor is protected
+when its current or proposed derived tier is Critical or Significant. Protected
+Vendor create/edit/archive, Contract and Sub-outsourcing create/edit/archive,
+and Vendor-managed Risk/Control/KRI link add/remove operations
+use the same immutable proposal envelope. Existing Vendor changes lock the
+Vendor; rowless creation does not create a Vendor record until approval.
+Composite Process/Asset changes include every affected Vendor tier snapshot
+and lock, then rederive and apply the whole graph atomically. Asset-to-Vendor
+and Process-to-Vendor relationship changes retain their governed
+`asset.link.vendor.*` and `process.link.vendor.*` composite identities.
 
 ### Protection and submission rules
 
@@ -328,6 +349,29 @@ Risk Hub continues to use `GET /api/v1/riskhub/approval-scenarios` and
 `protected_process_edit`, only enabled state and the non-empty subset of
 `risk_manager`/`cro` approver roles are editable. The threshold, covered edit
 action, and no-self rule are returned as fixed policy and cannot be patched.
+
+## Public Vendor Contract
+
+Vendor create and update accept `request_reason`; Vendor archive accepts the
+reason in the DELETE body. Direct operations return the ordinary Vendor/empty
+response. Protected operations return HTTP 202 with the shared
+`approval_required` envelope and leave approved Vendor truth unchanged.
+Contract, Sub-outsourcing, and Vendor-managed link endpoints use the same
+typed 202 envelope when their Vendor impact is protected. Restore remains
+direct.
+
+`VendorRead` carries `governance_version` and a permission-scoped nullable
+`pending_change`. Vendor capabilities expose whether the current operation
+requires approval, whether the actor can request/cancel it, whether a proposal
+is pending, and whether business edits are blocked. The requester and an
+eligible independent resolver see localized safe-label diffs in Vendor detail,
+Approvals, and My Requests; other Vendor readers receive only the redacted
+pending banner contract. No raw database identifier is a display fallback.
+
+Risk Hub exposes `protected_vendor_edit` as fixed policy: enabled state and the
+non-empty `risk_manager`/`cro` role subset are editable; the
+current-or-proposed Critical/Significant threshold, covered Vendor/child/link
+actions, and no-self rule are read-only.
 
 ## Alternatives Rejected
 

@@ -66,10 +66,24 @@ from .asset_impact import (
 from .asset_impact import (
     process_point_asset_impacts as process_point_asset_impacts,
 )
+from .composite_policy import (
+    effective_triggered_policy_roles,
+    triggered_policy_snapshot,
+)
 from .fixed_asset_policy import (
     ASSET_SCENARIO_KEY,
     load_fixed_asset_scenario_for_update,
     validated_fixed_asset_roles,
+)
+from .fixed_vendor_policy import (
+    VENDOR_SCENARIO_KEY,
+    load_fixed_vendor_scenario_for_update,
+    validated_fixed_vendor_roles,
+)
+from .vendor_impact import (
+    asset_point_vendor_impacts,
+    asset_relationship_vendor_impacts,
+    vendor_impact_is_protected,
 )
 
 
@@ -321,6 +335,16 @@ async def submit_asset_edit_if_required(
 ):
     await assert_no_pending_asset_mutation(db, asset_id=asset.id)
     current_impact, proposed_impact = await _existing_asset_impacts(db, asset=asset, updates=updates)
+    impacted_vendors, vendor_rows = await asset_point_vendor_impacts(
+        db,
+        asset=asset,
+        updates=updates,
+    )
+    vendor_protected = any(
+        vendor_impact_is_protected(block)
+        for row in vendor_rows
+        for block in (row["before"], row["after"])
+    )
     protected = (
         current_impact["cif"] == "yes"
         or proposed_impact["cif"] == "yes"
@@ -333,7 +357,18 @@ async def submit_asset_edit_if_required(
     if not scenario.requires_approval:
         return None
     reason = _required_reason(payload.request_reason)
-    roles = validated_fixed_asset_roles(scenario)
+    asset_roles = validated_fixed_asset_roles(scenario)
+    triggered_scenarios = [ASSET_SCENARIO_KEY]
+    triggered_policies = [triggered_policy_snapshot(ASSET_SCENARIO_KEY, asset_roles)]
+    if vendor_protected:
+        vendor_scenario = await load_fixed_vendor_scenario_for_update(db)
+        if vendor_scenario.requires_approval:
+            vendor_roles = validated_fixed_vendor_roles(vendor_scenario)
+            triggered_scenarios.append(VENDOR_SCENARIO_KEY)
+            triggered_policies.append(
+                triggered_policy_snapshot(VENDOR_SCENARIO_KEY, vendor_roles)
+            )
+    roles = effective_triggered_policy_roles(triggered_policies)
     if not await _has_independent_approver(db, requester_id=current_user.id, roles=roles):
         raise ValidationError(
             "No independent configured Risk Manager or CRO is available",
@@ -397,13 +432,56 @@ async def submit_asset_edit_if_required(
             "key": ASSET_SCENARIO_KEY,
             "requires_approval": True,
             "approver_roles": roles,
+            **(
+                {"triggered_policies": triggered_policies}
+                if len(triggered_scenarios) > 1
+                else {}
+            ),
         },
-        base_versions={"asset": asset.governance_version},
+        base_versions={
+            "asset": asset.governance_version,
+            **{
+                f"vendor:{vendor.id}": vendor.governance_version
+                for vendor in impacted_vendors
+            },
+        },
         before_snapshot=before,
         after_snapshot=after,
-        derived_impact_snapshot={"before": current_impact, "after": proposed_impact},
-        proposed_changes={"before": raw_before, "after": jsonable_encoder(proposed_values)},
-        impacted_resources_snapshot=[impact_resource],
+        derived_impact_snapshot=(
+            {
+                "assets": [
+                    {
+                        "resource_id": asset.id,
+                        "before": current_impact,
+                        "after": proposed_impact,
+                    }
+                ],
+                "vendors": vendor_rows,
+            }
+            if len(triggered_scenarios) > 1
+            else {"before": current_impact, "after": proposed_impact}
+        ),
+        proposed_changes={
+            "before": raw_before,
+            "after": jsonable_encoder(proposed_values),
+            **(
+                {"triggered_scenarios": triggered_scenarios}
+                if len(triggered_scenarios) > 1
+                else {}
+            ),
+        },
+        impacted_resources_snapshot=[
+            impact_resource,
+            *[
+                {
+                    "resource_type": "vendor",
+                    "resource_id": vendor.id,
+                    "resource_name": vendor.name,
+                    "base_governance_version": vendor.governance_version,
+                }
+                for vendor in impacted_vendors
+            ],
+        ],
         requested_by_id=current_user.id,
     )
     proposal.approval_request = approval
@@ -417,6 +495,15 @@ async def submit_asset_edit_if_required(
             base_governance_version=asset.governance_version,
         )
     )
+    for vendor in impacted_vendors:
+        db.add(
+            GovernedMutationImpactLock(
+                proposal_id=proposal.id,
+                resource_type="vendor",
+                resource_id=vendor.id,
+                base_governance_version=vendor.governance_version,
+            )
+        )
     await audit_governed.proposal_submitted(
         db,
         actor=current_user,
@@ -452,6 +539,17 @@ async def submit_asset_archive_if_required(
     asset = locked_assets[asset.id]
     await assert_no_pending_asset_mutation(db, asset_id=asset.id)
     current_impact, _ = await _existing_asset_impacts(db, asset=asset, updates={})
+    impacted_vendors, vendor_rows = await asset_point_vendor_impacts(
+        db,
+        asset=asset,
+        updates={},
+        archive=True,
+    )
+    vendor_protected = any(
+        vendor_impact_is_protected(block)
+        for row in vendor_rows
+        for block in (row["before"], row["after"])
+    )
     protected = current_impact["cif"] == "yes" or current_impact["resulting_criticality"] == "critical"
     if not protected:
         return None
@@ -459,7 +557,18 @@ async def submit_asset_archive_if_required(
     if not scenario.requires_approval:
         return None
     reason = _required_reason(request_reason)
-    roles = validated_fixed_asset_roles(scenario)
+    asset_roles = validated_fixed_asset_roles(scenario)
+    triggered_scenarios = [ASSET_SCENARIO_KEY]
+    triggered_policies = [triggered_policy_snapshot(ASSET_SCENARIO_KEY, asset_roles)]
+    if vendor_protected:
+        vendor_scenario = await load_fixed_vendor_scenario_for_update(db)
+        if vendor_scenario.requires_approval:
+            vendor_roles = validated_fixed_vendor_roles(vendor_scenario)
+            triggered_scenarios.append(VENDOR_SCENARIO_KEY)
+            triggered_policies.append(
+                triggered_policy_snapshot(VENDOR_SCENARIO_KEY, vendor_roles)
+            )
+    roles = effective_triggered_policy_roles(triggered_policies)
     if not await _has_independent_approver(db, requester_id=current_user.id, roles=roles):
         raise ValidationError(
             "No independent configured Risk Manager or CRO is available",
@@ -500,13 +609,56 @@ async def submit_asset_archive_if_required(
             "key": ASSET_SCENARIO_KEY,
             "requires_approval": True,
             "approver_roles": roles,
+            **(
+                {"triggered_policies": triggered_policies}
+                if len(triggered_scenarios) > 1
+                else {}
+            ),
         },
-        base_versions={"asset": asset.governance_version},
+        base_versions={
+            "asset": asset.governance_version,
+            **{
+                f"vendor:{vendor.id}": vendor.governance_version
+                for vendor in impacted_vendors
+            },
+        },
         before_snapshot={"is_archived": False},
         after_snapshot={"is_archived": True},
-        derived_impact_snapshot={"before": current_impact, "after": current_impact},
-        proposed_changes={"before": {"is_archived": False}, "after": {"is_archived": True}},
-        impacted_resources_snapshot=[impact_resource],
+        derived_impact_snapshot=(
+            {
+                "assets": [
+                    {
+                        "resource_id": asset.id,
+                        "before": current_impact,
+                        "after": current_impact,
+                    }
+                ],
+                "vendors": vendor_rows,
+            }
+            if len(triggered_scenarios) > 1
+            else {"before": current_impact, "after": current_impact}
+        ),
+        proposed_changes={
+            "before": {"is_archived": False},
+            "after": {"is_archived": True},
+            **(
+                {"triggered_scenarios": triggered_scenarios}
+                if len(triggered_scenarios) > 1
+                else {}
+            ),
+        },
+        impacted_resources_snapshot=[
+            impact_resource,
+            *[
+                {
+                    "resource_type": "vendor",
+                    "resource_id": vendor.id,
+                    "resource_name": vendor.name,
+                    "base_governance_version": vendor.governance_version,
+                }
+                for vendor in impacted_vendors
+            ],
+        ],
         requested_by_id=current_user.id,
     )
     proposal.approval_request = approval
@@ -520,6 +672,15 @@ async def submit_asset_archive_if_required(
             base_governance_version=asset.governance_version,
         )
     )
+    for vendor in impacted_vendors:
+        db.add(
+            GovernedMutationImpactLock(
+                proposal_id=proposal.id,
+                resource_type="vendor",
+                resource_id=vendor.id,
+                base_governance_version=vendor.governance_version,
+            )
+        )
     await audit_governed.proposal_submitted(
         db,
         actor=current_user,
@@ -585,13 +746,41 @@ async def submit_asset_link_mutation_if_required(
         block, _ = await _existing_asset_impacts(db, asset=impacted, updates={})
         protected = protected or block["cif"] == "yes" or block["resulting_criticality"] == "critical"
         derived_rows.append({"resource_id": impacted.id, "before": block, "after": block})
-    if not protected:
+    impacted_vendors, vendor_rows = await asset_relationship_vendor_impacts(
+        db,
+        asset=asset,
+        operation=operation,
+    )
+    vendor_protected = any(
+        vendor_impact_is_protected(block)
+        for row in vendor_rows
+        for block in (row["before"], row["after"])
+    )
+    triggered_scenarios: list[str] = []
+    triggered_policies: list[dict[str, object]] = []
+    if protected:
+        scenario = await load_fixed_asset_scenario_for_update(db)
+        if scenario.requires_approval:
+            asset_roles = validated_fixed_asset_roles(scenario)
+            triggered_scenarios.append(ASSET_SCENARIO_KEY)
+            triggered_policies.append(
+                triggered_policy_snapshot(ASSET_SCENARIO_KEY, asset_roles)
+            )
+    if vendor_protected:
+        vendor_scenario = await load_fixed_vendor_scenario_for_update(db)
+        if vendor_scenario.requires_approval:
+            vendor_roles = validated_fixed_vendor_roles(vendor_scenario)
+            triggered_scenarios.append(VENDOR_SCENARIO_KEY)
+            triggered_policies.append(
+                triggered_policy_snapshot(VENDOR_SCENARIO_KEY, vendor_roles)
+            )
+    if not triggered_scenarios:
         return None
-    scenario = await load_fixed_asset_scenario_for_update(db)
-    if not scenario.requires_approval:
-        return None
+    if VENDOR_SCENARIO_KEY not in triggered_scenarios:
+        impacted_vendors = []
+        vendor_rows = []
     reason = _required_reason(request_reason)
-    roles = validated_fixed_asset_roles(scenario)
+    roles = effective_triggered_policy_roles(triggered_policies)
     if not await _has_independent_approver(db, requester_id=current_user.id, roles=roles):
         raise ValidationError(
             "No independent configured Risk Manager or CRO is available",
@@ -605,7 +794,7 @@ async def submit_asset_link_mutation_if_required(
         resource_name=asset.name,
         action_type=ApprovalActionType.EDIT,
         pending_changes=pending,
-        scenario_key=ASSET_SCENARIO_KEY,
+        scenario_key=triggered_scenarios[0],
         scenario_approver_roles=roles,
         requested_by_id=current_user.id,
         reason=reason,
@@ -632,13 +821,52 @@ async def submit_asset_link_mutation_if_required(
         primary_resource_type="asset",
         primary_resource_id=asset.id,
         primary_resource_name=asset.name,
-        scenario_snapshot={"key": ASSET_SCENARIO_KEY, "requires_approval": True, "approver_roles": roles},
-        base_versions={f"asset:{item.id}": item.governance_version for item in unique_assets.values()},
+        scenario_snapshot={
+            "key": triggered_scenarios[0],
+            "requires_approval": True,
+            "approver_roles": roles,
+            **(
+                {"triggered_policies": triggered_policies}
+                if VENDOR_SCENARIO_KEY in triggered_scenarios
+                else {}
+            ),
+        },
+        base_versions={
+            **{
+                f"asset:{item.id}": item.governance_version
+                for item in unique_assets.values()
+            },
+            **{
+                f"vendor:{vendor.id}": vendor.governance_version
+                for vendor in impacted_vendors
+            },
+        },
         before_snapshot={"relationship": operation.get("before")},
         after_snapshot={"relationship": operation.get("after")},
-        derived_impact_snapshot={"assets": derived_rows},
-        proposed_changes={"operation": jsonable_encoder(operation)},
-        impacted_resources_snapshot=impacts,
+        derived_impact_snapshot={
+            "assets": derived_rows,
+            **({"vendors": vendor_rows} if vendor_rows else {}),
+        },
+        proposed_changes={
+            "operation": jsonable_encoder(operation),
+            **(
+                {"triggered_scenarios": triggered_scenarios}
+                if VENDOR_SCENARIO_KEY in triggered_scenarios
+                else {}
+            ),
+        },
+        impacted_resources_snapshot=[
+            *impacts,
+            *[
+                {
+                    "resource_type": "vendor",
+                    "resource_id": vendor.id,
+                    "resource_name": vendor.name,
+                    "base_governance_version": vendor.governance_version,
+                }
+                for vendor in impacted_vendors
+            ],
+        ],
         requested_by_id=current_user.id,
     )
     proposal.approval_request = approval
@@ -651,6 +879,15 @@ async def submit_asset_link_mutation_if_required(
                 resource_type="asset",
                 resource_id=item.id,
                 base_governance_version=item.governance_version,
+            )
+        )
+    for vendor in impacted_vendors:
+        db.add(
+            GovernedMutationImpactLock(
+                proposal_id=proposal.id,
+                resource_type="vendor",
+                resource_id=vendor.id,
+                base_governance_version=vendor.governance_version,
             )
         )
     await audit_governed.proposal_submitted(

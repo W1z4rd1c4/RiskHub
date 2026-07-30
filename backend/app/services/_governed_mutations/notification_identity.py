@@ -36,10 +36,27 @@ def strict_governed_process_notification_identity(
     # which imports the outbox registry that imports notification handlers.
     from .asset_mutations import is_asset_governed_kind, valid_asset_governed_envelope
     from .process_mutations import is_extended_process_kind, strict_extended_process_identity
+    from .vendor_identity import (
+        is_vendor_governed_kind,
+        strict_vendor_mutation_kind,
+    )
 
     if is_asset_governed_kind(proposal.mutation_kind):
         if not valid_asset_governed_envelope(proposal):
             raise InvalidGovernedProcessNotificationIdentity("Malformed governed Asset notification identity")
+        scenario = proposal.scenario_snapshot
+        return GovernedProcessNotificationIdentity(
+            requested_by_id=proposal.requested_by_id,
+            approver_roles=tuple(scenario["approver_roles"]),
+            mutation_kind=proposal.mutation_kind,
+            primary_resource_name=proposal.primary_resource_name,
+        )
+
+    if is_vendor_governed_kind(proposal.mutation_kind):
+        if strict_vendor_mutation_kind(proposal) is None:
+            raise InvalidGovernedProcessNotificationIdentity(
+                "Malformed governed Vendor notification identity"
+            )
         scenario = proposal.scenario_snapshot
         return GovernedProcessNotificationIdentity(
             requested_by_id=proposal.requested_by_id,

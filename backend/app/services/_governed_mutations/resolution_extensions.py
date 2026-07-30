@@ -28,6 +28,7 @@ from app.models import (
     Role,
     RolePermission,
     User,
+    Vendor,
 )
 from app.models.approval_scenario import ApprovalScenario
 from app.schemas.process import ProcessCreate
@@ -46,6 +47,7 @@ from app.services.transaction_boundary import commit_service_boundary
 
 from .fixed_asset_policy import ASSET_SCENARIO_KEY, validated_fixed_asset_roles
 from .fixed_policy import SCENARIO_KEY, validated_fixed_process_roles
+from .fixed_vendor_policy import VENDOR_SCENARIO_KEY, validated_fixed_vendor_roles
 from .process_mutation_policy import safe_process_department_label, safe_process_user_label
 from .process_mutations import (
     PROCESS_ARCHIVE_KIND,
@@ -313,11 +315,12 @@ async def _live_policy_stale_reason(
         scenario = scenarios.get(scenario_key)
         if scenario is None or not scenario.requires_approval:
             return "A triggering governed mutation scenario was disabled after submission"
-        live_roles = (
-            validated_fixed_process_roles(scenario)
-            if scenario_key == SCENARIO_KEY
-            else validated_fixed_asset_roles(scenario)
-        )
+        if scenario_key == SCENARIO_KEY:
+            live_roles = validated_fixed_process_roles(scenario)
+        elif scenario_key == ASSET_SCENARIO_KEY:
+            live_roles = validated_fixed_asset_roles(scenario)
+        else:
+            live_roles = validated_fixed_vendor_roles(scenario)
         if live_roles != policy_snapshot["configured_roles"]:
             return "Governed mutation approver roles changed after submission"
         live_role_lists.append(live_roles)
@@ -373,6 +376,16 @@ def _impacted_asset_ids(proposal: GovernedMutationProposal) -> list[int]:
     )
 
 
+def _impacted_vendor_ids(proposal: GovernedMutationProposal) -> list[int]:
+    return sorted(
+        {
+            int(item["resource_id"])
+            for item in proposal.impacted_resources_snapshot
+            if item.get("resource_type") == "vendor"
+        }
+    )
+
+
 async def _lock_extended_resolution_suffix(
     db: AsyncSession,
     *,
@@ -390,6 +403,7 @@ async def _lock_extended_resolution_suffix(
         db,
         process_ids=_impacted_process_ids(proposal),
         asset_ids=_impacted_asset_ids(proposal),
+        vendor_ids=_impacted_vendor_ids(proposal),
         additional_department_ids=(*additional_department_ids, *creation_department_ids),
         scenario_keys=identity.triggered_scenarios,
     )
@@ -399,6 +413,7 @@ def _version_stale_reason(
     proposal: GovernedMutationProposal,
     processes: dict[int, Process],
     assets: dict[int, Asset] | None = None,
+    vendors: dict[int, Vendor] | None = None,
 ) -> str | None:
     for item in proposal.impacted_resources_snapshot:
         if item.get("resource_type") == "process":
@@ -413,6 +428,12 @@ def _version_stale_reason(
                 return "An impacted Asset no longer exists"
             if asset.governance_version != item["base_governance_version"]:
                 return "An impacted Asset governance version changed after submission"
+        elif item.get("resource_type") == "vendor":
+            vendor = (vendors or {}).get(item["resource_id"])
+            if vendor is None:
+                return "An impacted Vendor no longer exists"
+            if vendor.governance_version != item["base_governance_version"]:
+                return "An impacted Vendor governance version changed after submission"
     return None
 
 
@@ -522,6 +543,8 @@ async def approve_extended_process_mutation(
     processes = locked_suffix.processes
     point_assets = list(locked_suffix.assets.values())
     point_assets_by_id = {asset.id: asset for asset in point_assets}
+    point_vendors = list(locked_suffix.vendors.values())
+    point_vendors_by_id = {vendor.id: vendor for vendor in point_vendors}
     primary = processes.get(identity.primary_resource_id) if identity.primary_resource_id else None
     _assert_resolver(identity, resolver, proposal=proposal, process=primary)
     department_id = (
@@ -531,7 +554,12 @@ async def approve_extended_process_mutation(
     )
     stale = _envelope_stale_reason(approval, proposal, identity, locks)
     if stale is None:
-        stale = _version_stale_reason(proposal, processes, point_assets_by_id)
+        stale = _version_stale_reason(
+            proposal,
+            processes,
+            point_assets_by_id,
+            point_vendors_by_id,
+        )
     if stale is None:
         stale = await _live_policy_stale_reason(identity, resolver, locked_suffix.scenarios)
 
@@ -601,6 +629,25 @@ async def approve_extended_process_mutation(
                 }
             else:
                 expected = process_impact
+            if point_vendors:
+                from app.services._governed_mutations.vendor_impact import (
+                    process_point_vendor_impacts,
+                    vendor_impact_is_protected,
+                )
+
+                _, vendor_rows = await process_point_vendor_impacts(
+                    db,
+                    process=primary,
+                    updates={},
+                    archive=True,
+                    vendors=point_vendors,
+                    parameters=locked_suffix.parameters,
+                )
+                if "processes" not in expected:
+                    expected = {
+                        "processes": [{"resource_id": primary.id, **process_impact}],
+                    }
+                expected["vendors"] = vendor_rows
             if (
                 SCENARIO_KEY in identity.triggered_scenarios and current.cif != "yes"
             ) or proposal.derived_impact_snapshot != expected:
@@ -611,6 +658,12 @@ async def approve_extended_process_mutation(
                 for block in (row["before"], row["after"])
             ):
                 stale = "Downstream Assets are no longer protected by the current policy"
+            elif VENDOR_SCENARIO_KEY in identity.triggered_scenarios and not any(
+                vendor_impact_is_protected(block)
+                for row in vendor_rows
+                for block in (row["before"], row["after"])
+            ):
+                stale = "Downstream Vendors are no longer protected by the current policy"
         if stale is None:
             assert primary is not None
             primary.is_archived = True
@@ -619,6 +672,8 @@ async def approve_extended_process_mutation(
             primary.governance_version += 1
             for asset in point_assets:
                 asset.governance_version += 1
+            for vendor in point_vendors:
+                vendor.governance_version += 1
             await audit_process.process_archived(db, actor=resolver, process=primary, changes=changes)
     elif identity.mutation_kind.startswith(PROCESS_RELATIONSHIP_PREFIX):
         assert relationship_snapshot is not None
@@ -680,6 +735,31 @@ async def approve_extended_process_mutation(
                     protected = protected or asset_protected
                 except (ConflictError, NotFoundError, ValidationError) as exc:
                     stale = str(exc)
+            if stale is None and proposal.derived_impact_snapshot.get("vendors"):
+                from app.services._governed_mutations.vendor_impact import (
+                    process_relationship_vendor_impacts,
+                    vendor_impact_is_protected,
+                )
+
+                try:
+                    _, vendor_rows = await process_relationship_vendor_impacts(
+                        db,
+                        process=primary,
+                        operation=proposal.proposed_changes["operation"],
+                        vendors=point_vendors,
+                        parameters=locked_suffix.parameters,
+                    )
+                    expected_impact["vendors"] = vendor_rows
+                    vendor_protected = any(
+                        vendor_impact_is_protected(block)
+                        for row in vendor_rows
+                        for block in (row["before"], row["after"])
+                    )
+                    protected = protected or vendor_protected
+                    if VENDOR_SCENARIO_KEY in identity.triggered_scenarios and not vendor_protected:
+                        stale = "Downstream Vendors are no longer protected by the current policy"
+                except (ConflictError, NotFoundError, ValidationError) as exc:
+                    stale = str(exc)
             if stale is None and (not protected or proposal.derived_impact_snapshot != expected_impact):
                 stale = "Impacted Process relationship derivation changed after submission"
         if stale is None:
@@ -700,6 +780,8 @@ async def approve_extended_process_mutation(
                     )
                     for impacted_asset in locked_composite_assets.values():
                         impacted_asset.governance_version += 1
+                    for impacted_vendor in point_vendors:
+                        impacted_vendor.governance_version += 1
                 except (AuthorizationError, ConflictError, NotFoundError, ValidationError) as exc:
                     stale = str(exc)
     else:  # pragma: no cover - the strict parser makes this unreachable

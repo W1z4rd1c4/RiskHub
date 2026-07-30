@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -48,10 +49,29 @@ async def create_vendor_sub_outsourcing_detail(
             contract_id=payload.contract_id,
             predecessor_id=payload.predecessor_id,
         )
+    from app.services._governed_mutations.vendor_mutations import (
+        submit_vendor_child_mutation_if_required,
+    )
 
-    entry = VendorSubOutsourcing(vendor_id=vendor.id, **payload.model_dump())
+    values = payload.model_dump(exclude={"request_reason"})
+    proposed = jsonable_encoder(values)
+    queued = await submit_vendor_child_mutation_if_required(
+        db=db,
+        vendor=vendor,
+        mutation_kind="vendor.sub_outsourcing.create",
+        child_id=None,
+        before=None,
+        after=proposed,
+        current_user=current_user,
+        request_reason=payload.request_reason,
+    )
+    if queued is not None:
+        return queued
+
+    entry = VendorSubOutsourcing(vendor_id=vendor.id, **values)
     db.add(entry)
     await db.flush()
+    vendor.governance_version += 1
 
     await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_created(db, actor=current_user, entry=entry)
     await commit_service_boundary(db, boundary="vendor_sub_outsourcing_create")
@@ -95,6 +115,7 @@ async def update_vendor_sub_outsourcing_detail(
         db, vendor_id=vendor_id, current_user=current_user
     )
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
+    updates.pop("request_reason", None)
     if not updates:
         return await serialize_sub_outsourcing_detail_with_derived(
             db, entry, current_user=current_user, vendor=vendor
@@ -113,10 +134,29 @@ async def update_vendor_sub_outsourcing_detail(
             predecessor_id=new_predecessor_id,
             entry_id=entry.id,
         )
+    from app.services._governed_mutations.vendor_mutations import (
+        submit_vendor_child_mutation_if_required,
+    )
+
+    before = {field: jsonable_encoder(getattr(entry, field)) for field in updates}
+    after = jsonable_encoder(updates)
+    queued = await submit_vendor_child_mutation_if_required(
+        db=db,
+        vendor=vendor,
+        mutation_kind="vendor.sub_outsourcing.edit",
+        child_id=entry.id,
+        before=before,
+        after=after,
+        current_user=current_user,
+        request_reason=payload.request_reason,
+    )
+    if queued is not None:
+        return queued
 
     changes = audit_vendor_sub_outsourcing.vendor_sub_outsourcing_update_changes(entry, updates)
     for field, value in updates.items():
         setattr(entry, field, value)
+    vendor.governance_version += 1
 
     await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_updated(
         db, actor=current_user, entry=entry, changes=changes
@@ -134,12 +174,34 @@ async def archive_vendor_sub_outsourcing_detail(
     vendor_id: int,
     entry_id: int,
     current_user: User,
-) -> None:
+    request_reason: str | None = None,
+) -> object | None:
+    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     entry = await assert_sub_outsourcing_archive_allowed(
         db, vendor_id=vendor_id, entry_id=entry_id, current_user=current_user
     )
+    vendor = await assert_sub_outsourcing_vendor_readable(
+        db, vendor_id=vendor_id, current_user=current_user
+    )
+    from app.services._governed_mutations.vendor_mutations import (
+        submit_vendor_child_mutation_if_required,
+    )
+
+    queued = await submit_vendor_child_mutation_if_required(
+        db=db,
+        vendor=vendor,
+        mutation_kind="vendor.sub_outsourcing.archive",
+        child_id=entry.id,
+        before={"is_archived": False},
+        after={"is_archived": True},
+        current_user=current_user,
+        request_reason=request_reason,
+    )
+    if queued is not None:
+        return queued
     changes = audit_vendor_sub_outsourcing.vendor_sub_outsourcing_archive_changes(entry)
     entry.mark_archived(current_user)
+    vendor.governance_version += 1
 
     await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_archived(
         db, actor=current_user, entry=entry, changes=changes
@@ -154,6 +216,7 @@ async def restore_vendor_sub_outsourcing_detail(
     entry_id: int,
     current_user: User,
 ) -> VendorSubOutsourcingRead:
+    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     entry = await assert_sub_outsourcing_restore_allowed(
         db, vendor_id=vendor_id, entry_id=entry_id, current_user=current_user
     )
@@ -162,6 +225,7 @@ async def restore_vendor_sub_outsourcing_detail(
     )
     changes = audit_vendor_sub_outsourcing.vendor_sub_outsourcing_restore_changes(entry)
     entry.mark_restored(current_user)
+    vendor.governance_version += 1
 
     await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_restored(
         db, actor=current_user, entry=entry, changes=changes

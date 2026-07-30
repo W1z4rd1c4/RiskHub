@@ -1,5 +1,5 @@
 export type ApprovalStatus = 'pending' | 'pending_privileged' | 'approved' | 'rejected' | 'cancelled' | 'expired';
-export type ApprovalResourceType = 'risk' | 'control' | 'kri' | 'process' | 'asset';
+export type ApprovalResourceType = 'risk' | 'control' | 'kri' | 'process' | 'asset' | 'vendor';
 export type ApprovalActionType = 'delete' | 'edit' | 'create' | 'archive';
 
 export interface PendingChange {
@@ -15,6 +15,10 @@ export interface GovernedDerivedState {
 export interface GovernedAssetDerivedState {
     cif: string;
     resulting_criticality: string | null;
+}
+
+export interface GovernedVendorDerivedState {
+    tier: string | null;
 }
 
 export interface GovernedEditDerivedImpact {
@@ -39,9 +43,16 @@ export interface GovernedRelationshipAssetImpact {
     after: GovernedAssetDerivedState;
 }
 
+export interface GovernedRelationshipVendorImpact {
+    resource_name: string;
+    before: GovernedVendorDerivedState;
+    after: GovernedVendorDerivedState;
+}
+
 export interface GovernedRelationshipDerivedImpact {
     processes?: GovernedRelationshipProcessImpact[];
     assets?: GovernedRelationshipAssetImpact[];
+    vendors?: GovernedRelationshipVendorImpact[];
 }
 
 export interface GovernedAssetEditDerivedImpact {
@@ -54,11 +65,23 @@ export interface GovernedAssetCreateDerivedImpact {
     after: GovernedAssetDerivedState;
 }
 
+export interface GovernedVendorEditDerivedImpact {
+    before: GovernedVendorDerivedState;
+    after: GovernedVendorDerivedState;
+}
+
+export interface GovernedVendorCreateDerivedImpact {
+    before: null;
+    after: GovernedVendorDerivedState;
+}
+
 export type GovernedDerivedImpact =
     | GovernedEditDerivedImpact
     | GovernedCreateDerivedImpact
     | GovernedAssetEditDerivedImpact
     | GovernedAssetCreateDerivedImpact
+    | GovernedVendorEditDerivedImpact
+    | GovernedVendorCreateDerivedImpact
     | GovernedRelationshipDerivedImpact;
 
 export type GovernedRelationshipSnapshotValue = string | boolean | null;
@@ -83,15 +106,33 @@ export const GOVERNED_MUTATION_KINDS = [
     'asset.link.vendor.remove',
     'asset.link.risk.add',
     'asset.link.risk.remove',
+    'vendor.create',
+    'vendor.edit',
+    'vendor.archive',
+    'vendor.contract.create',
+    'vendor.contract.edit',
+    'vendor.contract.archive',
+    'vendor.sub_outsourcing.create',
+    'vendor.sub_outsourcing.edit',
+    'vendor.sub_outsourcing.archive',
+    'vendor.link.risk.add',
+    'vendor.link.risk.remove',
+    'vendor.link.control.add',
+    'vendor.link.control.remove',
+    'vendor.link.kri.add',
+    'vendor.link.kri.remove',
 ] as const;
 
 export type GovernedMutationKind = typeof GOVERNED_MUTATION_KINDS[number];
 export type GovernedPointMutationKind =
     | 'process.edit' | 'process.create' | 'process.archive'
-    | 'asset.edit' | 'asset.create' | 'asset.archive';
+    | 'asset.edit' | 'asset.create' | 'asset.archive'
+    | 'vendor.edit' | 'vendor.create' | 'vendor.archive'
+    | 'vendor.contract.create' | 'vendor.contract.edit' | 'vendor.contract.archive'
+    | 'vendor.sub_outsourcing.create' | 'vendor.sub_outsourcing.edit' | 'vendor.sub_outsourcing.archive';
 export type GovernedRelationshipMutationKind = Exclude<GovernedMutationKind, GovernedPointMutationKind>;
-export type GovernedImpactResourceType = 'process' | 'asset';
-export type GovernedRelationshipResourceType = 'risk' | 'asset' | 'vendor';
+export type GovernedImpactResourceType = 'process' | 'asset' | 'vendor';
+export type GovernedRelationshipResourceType = 'risk' | 'asset' | 'vendor' | 'control' | 'kri';
 
 export interface GovernedRelationshipChange {
     target_resource_type: GovernedRelationshipResourceType;

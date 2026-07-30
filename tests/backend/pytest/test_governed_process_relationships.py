@@ -734,6 +734,13 @@ async def test_all_process_link_rows_project_authoritative_pending_lock_state(
                 requires_approval=True,
                 approver_roles=["risk_manager", "cro"],
             ),
+            ApprovalScenario(
+                key="protected_vendor_edit",
+                display_name="Protected Vendor mutation",
+                description="Independent approval for protected Vendor mutations",
+                requires_approval=True,
+                approver_roles=["risk_manager", "cro"],
+            ),
         ]
     )
     await db_session.commit()

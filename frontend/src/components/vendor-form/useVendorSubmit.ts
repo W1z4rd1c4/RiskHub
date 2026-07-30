@@ -2,6 +2,10 @@ import type { SafeTFunction } from '@/i18n/hooks';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 import type { VendorCreate } from '@/types/vendor';
+import {
+    isProcessApprovalQueuedResponse,
+    type ProcessApprovalQueuedResponse,
+} from '@/types/process';
 
 import {
     buildVendorPayload,
@@ -15,6 +19,8 @@ interface UseVendorSubmitOptions {
     initialData?: Vendor;
     isEdit: boolean;
     onSaved: (vendor: Vendor) => void;
+    onApprovalQueued?: (queued: ProcessApprovalQueuedResponse) => void;
+    requestReason: string;
     onValidationError?: (field: VendorFormField) => void;
     setError: (value: string | null) => void;
     setIsSubmitting: (value: boolean) => void;
@@ -26,6 +32,8 @@ export function useVendorSubmit({
     initialData,
     isEdit,
     onSaved,
+    onApprovalQueued,
+    requestReason,
     onValidationError,
     setError,
     setIsSubmitting,
@@ -44,13 +52,26 @@ export function useVendorSubmit({
 
         try {
             setIsSubmitting(true);
+            const requestReasonPayload = requestReason.trim()
+                ? { request_reason: requestReason.trim() }
+                : {};
             const saved =
                 isEdit && initialData
                     ? await vendorApi.updateVendor(
                         initialData.id,
-                        buildVendorUpdatePayload(formData, initialData),
+                        {
+                            ...buildVendorUpdatePayload(formData, initialData),
+                            ...requestReasonPayload,
+                        },
                     )
-                    : await vendorApi.createVendor(buildVendorPayload(formData) as VendorCreate);
+                    : await vendorApi.createVendor({
+                        ...(buildVendorPayload(formData) as VendorCreate),
+                        ...requestReasonPayload,
+                    });
+            if (isProcessApprovalQueuedResponse(saved)) {
+                onApprovalQueued?.(saved);
+                return;
+            }
             onSaved(saved);
         } catch {
             setError(t('errors.save_failed'));

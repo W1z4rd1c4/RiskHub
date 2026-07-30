@@ -15,6 +15,7 @@ import type {
     GovernedImpactedResource,
     GovernedMutationKind,
     GovernedRelationshipChange,
+    GovernedVendorDerivedState,
 } from '@/types/approval';
 
 interface GovernedMutationDiffProps {
@@ -33,8 +34,8 @@ function valuesEqual(before: unknown, after: unknown): boolean {
 
 function isRelationshipImpact(
     impact: GovernedDerivedImpact,
-): impact is Extract<GovernedDerivedImpact, { processes?: unknown; assets?: unknown }> {
-    return 'processes' in impact || 'assets' in impact;
+): impact is Extract<GovernedDerivedImpact, { processes?: unknown; assets?: unknown; vendors?: unknown }> {
+    return 'processes' in impact || 'assets' in impact || 'vendors' in impact;
 }
 
 function assetDerivedStateLabel(
@@ -65,6 +66,16 @@ function derivedStateLabel(
         : processDerivedCriticalityLabel(t, state.criticality_class);
 }
 
+function vendorDerivedStateLabel(
+    t: (key: string, options?: Record<string, unknown>) => string,
+    state: GovernedVendorDerivedState | null,
+): string | null {
+    if (state?.tier === null || state?.tier === undefined) return null;
+    return t(`vendors:values.tier.${state.tier}`, {
+        defaultValue: t('vendors:values.unknown'),
+    });
+}
+
 type AssetControlledField =
     | 'ai_relevance'
     | 'asset_level'
@@ -77,13 +88,14 @@ type AssetControlledField =
     | 'preliminary_criticality'
     | 'review_state';
 
-type GovernedFieldKind = 'asset_controlled' | 'boolean' | 'controlled' | 'date' | 'number' | 'safe_label' | 'text';
+type GovernedFieldKind = 'asset_controlled' | 'boolean' | 'controlled' | 'date' | 'number' | 'safe_label' | 'text' | 'vendor_controlled';
 
 interface GovernedFieldSpec {
     labelKey: string;
     kind: GovernedFieldKind;
     controlledField?: ProcessControlledField;
     assetControlledField?: AssetControlledField;
+    vendorValueKey?: string;
 }
 
 const ASSET_CONTROLLED_VALUES: Record<AssetControlledField, readonly string[]> = {
@@ -203,6 +215,116 @@ const GOVERNED_PROCESS_FIELDS: Record<string, GovernedFieldSpec> = {
     },
 };
 
+const GOVERNED_VENDOR_FIELDS: Record<string, GovernedFieldSpec> = {
+    name: { labelKey: 'vendors:form.name', kind: 'text' },
+    legal_name: { labelKey: 'vendors:form.legal_name', kind: 'text' },
+    registration_id: { labelKey: 'vendors:form.registration_id', kind: 'text' },
+    country: { labelKey: 'vendors:form.country', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.country' },
+    website: { labelKey: 'vendors:form.website', kind: 'text' },
+    description: { labelKey: 'vendors:form.description', kind: 'text' },
+    process: { labelKey: 'vendors:form.process', kind: 'text' },
+    subprocess: { labelKey: 'vendors:form.subprocess', kind: 'text' },
+    department_id: { labelKey: 'vendors:form.department', kind: 'safe_label' },
+    department_name: { labelKey: 'vendors:form.department', kind: 'safe_label' },
+    owning_department: { labelKey: 'vendors:form.department', kind: 'safe_label' },
+    outsourcing_owner_user_id: { labelKey: 'vendors:form.owner', kind: 'safe_label' },
+    outsourcing_owner_name: { labelKey: 'vendors:form.owner', kind: 'safe_label' },
+    outsourcing_owner: { labelKey: 'vendors:form.owner', kind: 'safe_label' },
+    vendor_type: { labelKey: 'vendors:form.vendor_type.label', kind: 'vendor_controlled', vendorValueKey: 'vendors:form.vendor_type' },
+    risk_score_1_5: { labelKey: 'vendors:form.risk_score', kind: 'number' },
+    supports_important_core_insurance_function: { labelKey: 'vendors:flags.supports_core_function', kind: 'boolean' },
+    dora_relevant: { labelKey: 'vendors:flags.dora_relevant', kind: 'boolean' },
+    is_significant_vendor: { labelKey: 'vendors:flags.significant_vendor', kind: 'boolean' },
+    materiality_assessed_max_impact_pct_own_funds: { labelKey: 'vendors:form.materiality', kind: 'number' },
+    replaceability: { labelKey: 'vendors:form.replaceability.label', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.replaceability' },
+    has_alternative_providers: { labelKey: 'vendors:flags.has_alternatives', kind: 'boolean' },
+    latin_name: { labelKey: 'vendors:form.register.fields.latin_name', kind: 'text' },
+    person_type: { labelKey: 'vendors:form.register.fields.person_type', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.person_type' },
+    identifier_type: { labelKey: 'vendors:form.register.fields.identifier_type', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.identifier_type' },
+    identifier_value: { labelKey: 'vendors:form.register.fields.identifier_value', kind: 'text' },
+    address: { labelKey: 'vendors:form.register.fields.address', kind: 'text' },
+    contact_person: { labelKey: 'vendors:form.register.fields.contact_person', kind: 'text' },
+    contact: { labelKey: 'vendors:form.register.fields.contact', kind: 'text' },
+    ultimate_parent_name: { labelKey: 'vendors:form.register.fields.ultimate_parent_name', kind: 'text' },
+    ultimate_parent_lei: { labelKey: 'vendors:form.register.fields.ultimate_parent_lei', kind: 'text' },
+    data_storage: { labelKey: 'vendors:form.register.fields.data_storage', kind: 'text' },
+    service_country: { labelKey: 'vendors:form.register.fields.service_country', kind: 'text' },
+    data_location: { labelKey: 'vendors:form.register.fields.data_location', kind: 'text' },
+    processing_location: { labelKey: 'vendors:form.register.fields.processing_location', kind: 'text' },
+    data_sensitivity: { labelKey: 'vendors:form.register.fields.data_sensitivity', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.data_sensitivity' },
+    substitutability_reason: { labelKey: 'vendors:form.register.fields.substitutability_reason', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.substitutability_reason' },
+    last_audit_date: { labelKey: 'vendors:form.register.fields.last_audit_date', kind: 'date' },
+    exit_plan_state: { labelKey: 'vendors:form.register.fields.exit_plan_state', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.exit_plan_state' },
+    reintegration: { labelKey: 'vendors:form.register.fields.reintegration', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.reintegration' },
+    service_disruption_impact: { labelKey: 'vendors:form.register.fields.service_disruption_impact', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.service_disruption_impact' },
+    alternative_providers: { labelKey: 'vendors:form.register.fields.alternative_providers', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.alternative_providers' },
+    alternative_providers_names: { labelKey: 'vendors:form.register.fields.alternative_providers_names', kind: 'text' },
+    ctpp_designation: { labelKey: 'vendors:form.register.fields.ctpp_designation', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.ctpp_designation' },
+    ex_ante_operational: { labelKey: 'vendors:form.register.fields.ex_ante_operational', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.ex_ante_operational' },
+    ex_ante_legal: { labelKey: 'vendors:form.register.fields.ex_ante_legal', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.ex_ante_legal' },
+    ex_ante_ict: { labelKey: 'vendors:form.register.fields.ex_ante_ict', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.ex_ante_ict' },
+    ex_ante_reputational: { labelKey: 'vendors:form.register.fields.ex_ante_reputational', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.ex_ante_reputational' },
+    ex_ante_data_confidentiality: { labelKey: 'vendors:form.register.fields.ex_ante_data_confidentiality', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.ex_ante_data_confidentiality' },
+    ex_ante_data_availability: { labelKey: 'vendors:form.register.fields.ex_ante_data_availability', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.ex_ante_data_availability' },
+    ex_ante_data_location: { labelKey: 'vendors:form.register.fields.ex_ante_data_location', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.ex_ante_data_location' },
+    ex_ante_provider_location: { labelKey: 'vendors:form.register.fields.ex_ante_provider_location', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.ex_ante_provider_location' },
+    ex_ante_ict_concentration: { labelKey: 'vendors:form.register.fields.ex_ante_ict_concentration', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.ex_ante_ict_concentration' },
+    ex_ante_assessment_date: { labelKey: 'vendors:form.register.fields.ex_ante_assessment_date', kind: 'date' },
+    assessment_phase: { labelKey: 'vendors:form.register.fields.assessment_phase', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.assessment_phase' },
+    due_diligence_state: { labelKey: 'vendors:form.register.fields.due_diligence_state', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.due_diligence_state' },
+    last_monitoring_date: { labelKey: 'vendors:form.register.fields.last_monitoring_date', kind: 'date' },
+    significance_authorization_conditions: { labelKey: 'vendors:form.register.fields.significance_authorization_conditions', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.significance_authorization_conditions' },
+    significance_regulatory_requirements: { labelKey: 'vendors:form.register.fields.significance_regulatory_requirements', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.significance_regulatory_requirements' },
+    significance_service_quality: { labelKey: 'vendors:form.register.fields.significance_service_quality', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.significance_service_quality' },
+    significance_financial_impact: { labelKey: 'vendors:form.register.fields.significance_financial_impact', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.significance_financial_impact' },
+    significance_reputation_continuity: { labelKey: 'vendors:form.register.fields.significance_reputation_continuity', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.significance_reputation_continuity' },
+    significance_cumulative_impact: { labelKey: 'vendors:form.register.fields.significance_cumulative_impact', kind: 'vendor_controlled', vendorValueKey: 'vendors:values.significance_cumulative_impact' },
+    significance_justification: { labelKey: 'vendors:form.register.fields.significance_justification', kind: 'text' },
+    note: { labelKey: 'vendors:form.register.fields.note', kind: 'text' },
+    reference_occurrence_count: { labelKey: 'vendors:form.register.fields.reference_occurrence_count', kind: 'number' },
+    reference_process_count: { labelKey: 'vendors:form.register.fields.reference_process_count', kind: 'number' },
+    is_archived: { labelKey: 'approvals:governed.link_fields.archived', kind: 'boolean' },
+    linked: { labelKey: 'approvals:governed.link_fields.linked', kind: 'boolean' },
+    related_resource_name: { labelKey: 'approvals:governed.link_fields.related_resource', kind: 'safe_label' },
+};
+
+const GOVERNED_VENDOR_CONTRACT_FIELDS: Record<string, GovernedFieldSpec> = {
+    contract_reference: { labelKey: 'vendors:contracts.form.contract_reference', kind: 'text' },
+    internal_contract_number: { labelKey: 'vendors:contracts.form.internal_contract_number', kind: 'text' },
+    records_system: { labelKey: 'vendors:contracts.form.records_system', kind: 'text' },
+    arrangement_type: { labelKey: 'vendors:contracts.form.arrangement_type', kind: 'text' },
+    main_contract: { labelKey: 'vendors:contracts.form.main_contract', kind: 'text' },
+    overarching_arrangement_reference: { labelKey: 'vendors:contracts.form.overarching_arrangement_reference', kind: 'text' },
+    description: { labelKey: 'vendors:contracts.form.description', kind: 'text' },
+    roi_scope: { labelKey: 'vendors:contracts.form.roi_scope', kind: 'text' },
+    start_date: { labelKey: 'vendors:contracts.form.start_date', kind: 'date' },
+    end_date: { labelKey: 'vendors:contracts.form.end_date', kind: 'date' },
+    notice_period_entity_days: { labelKey: 'vendors:contracts.form.notice_period_entity_days', kind: 'number' },
+    notice_period_provider_days: { labelKey: 'vendors:contracts.form.notice_period_provider_days', kind: 'number' },
+    governing_law_country: { labelKey: 'vendors:contracts.form.governing_law_country', kind: 'text' },
+    annual_cost: { labelKey: 'vendors:contracts.form.annual_cost', kind: 'number' },
+    currency: { labelKey: 'vendors:contracts.form.currency', kind: 'text' },
+    note: { labelKey: 'vendors:contracts.form.note', kind: 'text' },
+    is_archived: { labelKey: 'approvals:governed.link_fields.archived', kind: 'boolean' },
+};
+
+const GOVERNED_VENDOR_SUB_OUTSOURCING_FIELDS: Record<string, GovernedFieldSpec> = {
+    sub_provider_name: { labelKey: 'vendors:sub_outsourcing.form.sub_provider_name', kind: 'text' },
+    person_type: { labelKey: 'vendors:sub_outsourcing.form.person_type', kind: 'text' },
+    identifier_type: { labelKey: 'vendors:sub_outsourcing.form.identifier_type', kind: 'text' },
+    identifier_value: { labelKey: 'vendors:sub_outsourcing.form.identifier_value', kind: 'text' },
+    country: { labelKey: 'vendors:sub_outsourcing.form.country', kind: 'text' },
+    ict_service_code: { labelKey: 'vendors:sub_outsourcing.form.ict_service', kind: 'text' },
+    note: { labelKey: 'vendors:sub_outsourcing.form.note', kind: 'text' },
+    is_archived: { labelKey: 'approvals:governed.link_fields.archived', kind: 'boolean' },
+};
+
+function objectValue(value: unknown): Record<string, unknown> | null {
+    return value !== null && typeof value === 'object' && !Array.isArray(value)
+        ? value as Record<string, unknown>
+        : null;
+}
+
 function isSafeBusinessLabel(value: unknown): value is string {
     if (typeof value !== 'string') return false;
     const label = value.trim();
@@ -247,6 +369,14 @@ function displayGovernedValue(
         }
         return t(`assets:values.${field}.${value}`);
     }
+    if (spec.kind === 'vendor_controlled') {
+        if (typeof value !== 'string' || spec.vendorValueKey === undefined) {
+            return t('approvals:governed.redacted_value');
+        }
+        return t(`${spec.vendorValueKey}.${value}`, {
+            defaultValue: t('approvals:governed.redacted_value'),
+        });
+    }
     if (typeof value !== 'string' || spec.controlledField === undefined) {
         return t('approvals:governed.redacted_value');
     }
@@ -263,21 +393,42 @@ export function GovernedMutationDiff({
     mutationKind,
     testId,
 }: GovernedMutationDiffProps) {
-    const { t, i18n } = useTranslation(['approvals', 'processes']);
+    const { t, i18n } = useTranslation(['approvals', 'processes', 'assets', 'vendors']);
     const locale = i18n?.language ?? 'en';
-    const displayedBefore = relationshipChange?.before ?? before;
-    const displayedAfter = relationshipChange?.after ?? after;
+    const vendorContractMutation = mutationKind?.startsWith('vendor.contract.') === true;
+    const vendorSubOutsourcingMutation = mutationKind?.startsWith('vendor.sub_outsourcing.') === true;
+    const childMutation = vendorContractMutation || vendorSubOutsourcingMutation;
+    const displayedBefore = relationshipChange?.before
+        ?? (childMutation ? objectValue(before.child_mutation) ?? {} : before);
+    const displayedAfter = relationshipChange?.after
+        ?? (childMutation ? objectValue(after.child_mutation) ?? {} : after);
     const changedFields = [...new Set([...Object.keys(displayedBefore), ...Object.keys(displayedAfter)])]
         .filter((field) => !valuesEqual(displayedBefore[field], displayedAfter[field]));
     const assetPointMutation = mutationKind?.startsWith('asset.') === true;
-    const governedFields = assetPointMutation ? GOVERNED_ASSET_FIELDS : GOVERNED_PROCESS_FIELDS;
+    const vendorPointMutation = mutationKind?.startsWith('vendor.') === true;
+    let governedFields = GOVERNED_PROCESS_FIELDS;
+    if (vendorContractMutation) {
+        governedFields = GOVERNED_VENDOR_CONTRACT_FIELDS;
+    } else if (vendorSubOutsourcingMutation) {
+        governedFields = GOVERNED_VENDOR_SUB_OUTSOURCING_FIELDS;
+    } else if (vendorPointMutation) {
+        governedFields = GOVERNED_VENDOR_FIELDS;
+    } else if (assetPointMutation) {
+        governedFields = GOVERNED_ASSET_FIELDS;
+    }
     const visibleChangedFields = changedFields.filter((field) => governedFields[field] !== undefined);
     const visibleFields = visibleChangedFields;
     const hasRestrictedChanges = visibleChangedFields.length !== changedFields.length;
-    const pointDerivedRows = isRelationshipImpact(derivedImpact)
-        ? []
-        : assetPointMutation
-            ? ([
+    let pointDerivedRows: ReadonlyArray<readonly [string, string | null, string | null]> = [];
+    if (!isRelationshipImpact(derivedImpact)) {
+        if (vendorPointMutation) {
+            pointDerivedRows = [[
+                'approvals:governed.derived.vendor_tier',
+                vendorDerivedStateLabel(t, derivedImpact.before as GovernedVendorDerivedState | null),
+                vendorDerivedStateLabel(t, derivedImpact.after as GovernedVendorDerivedState | null),
+            ]];
+        } else if (assetPointMutation) {
+            pointDerivedRows = [
                 [
                     'approvals:governed.derived.cif',
                     nullableAssetDerivedStateLabel(t, derivedImpact.before as GovernedAssetDerivedState | null, 'cif'),
@@ -288,8 +439,9 @@ export function GovernedMutationDiff({
                     nullableAssetDerivedStateLabel(t, derivedImpact.before as GovernedAssetDerivedState | null, 'resulting_criticality'),
                     nullableAssetDerivedStateLabel(t, derivedImpact.after as GovernedAssetDerivedState | null, 'resulting_criticality'),
                 ],
-            ] as const)
-            : ([
+            ];
+        } else {
+            pointDerivedRows = [
             [
                 'approvals:governed.derived.cif',
                 derivedStateLabel(t, derivedImpact.before, 'cif'),
@@ -300,7 +452,9 @@ export function GovernedMutationDiff({
                 derivedStateLabel(t, derivedImpact.before, 'criticality_class'),
                 derivedStateLabel(t, derivedImpact.after, 'criticality_class'),
             ],
-            ] as const);
+            ];
+        }
+    }
     const readableImpactedResources = impactedResources.filter(
         (resource) => isSafeBusinessLabel(resource.resource_name),
     );
@@ -473,6 +627,36 @@ export function GovernedMutationDiff({
                                             </dd>
                                         </div>
                                     ))}
+                                </dl>
+                            </div>
+                        ))}
+                        {(derivedImpact.vendors ?? []).map((vendorImpact, index) => (
+                            <div
+                                key={`${vendorImpact.resource_name}-${index}`}
+                                className="rounded-lg border border-white/5 bg-black/20 p-3"
+                            >
+                                <p className="mb-3 text-xs font-bold text-slate-200">
+                                    {isSafeBusinessLabel(vendorImpact.resource_name)
+                                        ? vendorImpact.resource_name.trim()
+                                        : t('approvals:governed.redacted_value')}
+                                </p>
+                                <dl>
+                                    <div>
+                                        <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                                            {t('approvals:governed.derived.vendor_tier')}
+                                        </dt>
+                                        <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
+                                            <span className="text-rose-300">
+                                                {vendorDerivedStateLabel(t, vendorImpact.before)
+                                                    ?? t('approvals:governed.not_set')}
+                                            </span>
+                                            <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
+                                            <span className="font-bold text-emerald-300">
+                                                {vendorDerivedStateLabel(t, vendorImpact.after)
+                                                    ?? t('approvals:governed.not_set')}
+                                            </span>
+                                        </dd>
+                                    </div>
                                 </dl>
                             </div>
                         ))}

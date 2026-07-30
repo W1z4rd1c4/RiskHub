@@ -101,12 +101,19 @@ If you receive a stale or rejected approval, do not immediately resubmit the sam
 
 Protected Process edits show an immutable proposal with approved **before** values, proposed **after** values, and the derived CIF impact. The approved Process remains operational while the proposal is pending. Only one configured Risk Manager or CRO who is not the requester may decide it; there is no senior-role self-approval bypass. Rejection requires a reason, and stale proposals expire without applying their values.
 
+Protected Vendor rows use the same queue and **My Requests** workflow. The
+expanded row shows permission-safe Vendor before/after values, derived tier,
+and readable affected records for direct, Contract, Sub-outsourcing, link, and
+Composite requests. A reader without proposal authority sees no restricted
+detail. Cancellation is available to the requester when the backend capability
+permits it; the approved Vendor remains unchanged until approval.
+
 The two governed-approval preferences are default-on:
 
 - **Approval requests requiring my action** controls event delivery for submissions, cancellations, and stale expiry relevant to an eligible approver.
 - **Updates to my approval requests** controls outcome delivery to the requester for approval, rejection, cancellation, and stale expiry.
 
-Disabling either preference affects notifications only. It never removes queue rows, My Requests rows, capabilities, or work counts. Protected Process approvals have no due date, SLA, reminder, overdue label, automatic decision, or time-based escalation.
+Disabling either preference affects notifications only. It never removes queue rows, My Requests rows, capabilities, or work counts. Protected Process, Asset, and Vendor approvals have no due date, SLA, reminder, overdue label, automatic decision, or time-based escalation.
 
 ## Finding, Filtering, and Evidence
 

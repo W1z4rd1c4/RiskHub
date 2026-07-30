@@ -106,7 +106,8 @@
     "derived": {
       "cif": "CIF",
       "criticality_class": "Třída kritičnosti",
-      "resulting_criticality": "Výsledná kritičnost"
+      "resulting_criticality": "Výsledná kritičnost",
+      "vendor_tier": "Úroveň dodavatele"
     },
     "relationship": {
       "title": "Změna vazby",
@@ -116,7 +117,10 @@
       "resource_type": {
         "risk": "Riziko",
         "asset": "Aktivum",
-        "vendor": "Dodavatel"
+        "vendor": "Dodavatel",
+        "process": "Proces",
+        "control": "Kontrola",
+        "kri": "KRI"
       },
       "action": {
         "add": "Přidat vazbu",
@@ -143,7 +147,26 @@
             "asset_link_vendor_add": "Přidání vazby Aktiva a Dodavatele",
             "asset_link_vendor_remove": "Odebrání vazby Aktiva a Dodavatele",
             "asset_link_risk_add": "Přidání vazby Aktiva a Rizika",
-            "asset_link_risk_remove": "Odebrání vazby Aktiva a Rizika"
+            "asset_link_risk_remove": "Odebrání vazby Aktiva a Rizika",
+            "vendor_create": "Vytvoření chráněného Dodavatele",
+            "vendor_edit": "Aktualizace chráněného Dodavatele",
+            "vendor_archive": "Archivace chráněného Dodavatele",
+            "vendor_contract_create": "Vytvoření smlouvy Dodavatele",
+            "vendor_contract_edit": "Aktualizace smlouvy Dodavatele",
+            "vendor_contract_archive": "Archivace smlouvy Dodavatele",
+            "vendor_sub_outsourcing_create": "Vytvoření sub-outsourcingu Dodavatele",
+            "vendor_sub_outsourcing_edit": "Aktualizace sub-outsourcingu Dodavatele",
+            "vendor_sub_outsourcing_archive": "Archivace sub-outsourcingu Dodavatele",
+            "vendor_link_asset_add": "Přidání vazby Dodavatele a Aktiva",
+            "vendor_link_asset_remove": "Odebrání vazby Dodavatele a Aktiva",
+            "vendor_link_process_add": "Přidání vazby Dodavatele a Procesu",
+            "vendor_link_process_remove": "Odebrání vazby Dodavatele a Procesu",
+            "vendor_link_risk_add": "Přidání vazby Dodavatele a Rizika",
+            "vendor_link_risk_remove": "Odebrání vazby Dodavatele a Rizika",
+            "vendor_link_control_add": "Přidání vazby Dodavatele a Kontroly",
+            "vendor_link_control_remove": "Odebrání vazby Dodavatele a Kontroly",
+            "vendor_link_kri_add": "Přidání vazby Dodavatele a KRI",
+            "vendor_link_kri_remove": "Odebrání vazby Dodavatele a KRI"
         },
         "link_fields": {
             "linked": "Propojeno",

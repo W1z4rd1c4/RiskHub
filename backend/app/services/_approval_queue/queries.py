@@ -39,6 +39,7 @@ from .projection import (
     governed_process_resolver_ids,
     governed_process_snapshot_access_ids,
 )
+from .vendor import live_vendor_resolver_approval_ids, valid_vendor_approvals
 
 
 def _projection_load_options():
@@ -122,6 +123,11 @@ async def list_approval_queue_page(
         db,
         approval_statuses=candidate_statuses,
     )
+    valid_vendor_proposals = await valid_vendor_approvals(
+        db,
+        approval_statuses=candidate_statuses,
+    )
+    valid_vendor_ids = frozenset(valid_vendor_proposals)
     asset_governed = ApprovalRequest.id.in_(tuple(valid_asset_ids)) if valid_asset_ids else false()
     asset_requester = and_(
         asset_governed,
@@ -133,6 +139,25 @@ async def list_approval_queue_page(
         approval_statuses=candidate_statuses,
     )
     asset_resolver = ApprovalRequest.id.in_(tuple(live_asset_resolver_ids)) if live_asset_resolver_ids else false()
+    vendor_governed = (
+        ApprovalRequest.id.in_(tuple(valid_vendor_ids))
+        if valid_vendor_ids
+        else false()
+    )
+    vendor_requester = and_(
+        vendor_governed,
+        ApprovalRequest.requested_by_id == current_user.id,
+    )
+    live_vendor_resolver_ids = await live_vendor_resolver_approval_ids(
+        db,
+        current_user=current_user,
+        proposals=valid_vendor_proposals,
+    )
+    vendor_resolver = (
+        ApprovalRequest.id.in_(tuple(live_vendor_resolver_ids))
+        if live_vendor_resolver_ids
+        else false()
+    )
     queue_logger.info(
         (
             f"List approvals: user={current_user.id} can_resolve={tier.is_privileged} "
@@ -152,6 +177,7 @@ async def list_approval_queue_page(
                 ),
                 governed_process_requester_clause(current_user.id, valid_extended_ids),
                 asset_requester,
+                vendor_requester,
             )
         )
     elif status_filter != ApprovalStatusEnum.pending:
@@ -165,6 +191,8 @@ async def list_approval_queue_page(
                     process_approval_resolver_clause(current_user, valid_extended_ids),
                     asset_requester,
                     asset_resolver,
+                    vendor_requester,
+                    vendor_resolver,
                 )
             )
         else:
@@ -183,6 +211,8 @@ async def list_approval_queue_page(
                     ),
                     asset_requester,
                     asset_resolver,
+                    vendor_requester,
+                    vendor_resolver,
                 )
             )
 
@@ -220,6 +250,7 @@ async def list_approval_queue_page(
                     valid_extended_ids,
                 ),
                 and_(resource_type.value == "asset", asset_governed),
+                and_(resource_type.value == "vendor", vendor_governed),
             )
         )
 

@@ -256,6 +256,23 @@ def test_resolve_approval_privilege_tier_canonical() -> None:
     assert hasattr(policy, "ApprovalPrivilegeTier")
 
 
+def test_fixed_vendor_policy_uses_canonical_approval_authority() -> None:
+    """Vendor governance must not create a second direct permission seam."""
+    import ast
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[3]
+        / "backend/app/services/_governed_mutations/fixed_vendor_policy.py"
+    )
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    referenced_names = {
+        node.id for node in ast.walk(tree) if isinstance(node, ast.Name)
+    }
+    assert "can_resolve_approvals" not in referenced_names
+    assert "approval_privilege_tier" in referenced_names
+
+
 def test_control_execution_split_modules_own_link_governance() -> None:
     assert {
         "load_control_for_link",

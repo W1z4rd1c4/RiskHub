@@ -25,6 +25,7 @@ from app.models import (
     Role,
     RolePermission,
     User,
+    Vendor,
 )
 from app.models.approval_scenario import ApprovalScenario
 from app.schemas.process import ProcessUpdate
@@ -42,6 +43,7 @@ from app.services.transaction_boundary import commit_service_boundary
 
 from .fixed_asset_policy import ASSET_SCENARIO_KEY, validated_fixed_asset_roles
 from .fixed_policy import SCENARIO_KEY, validated_fixed_process_roles
+from .fixed_vendor_policy import VENDOR_SCENARIO_KEY, validated_fixed_vendor_roles
 from .process_identity import (
     GovernedProcessIdentity,
     InvalidGovernedProcessIdentity,
@@ -62,6 +64,7 @@ class _GovernedResolutionContext:
     impact_locks: list[GovernedMutationImpactLock]
     process: Process
     assets: dict[int, Asset]
+    vendors: dict[int, Vendor]
     requester: User | None
     resolver: User
     resolver_is_active: bool
@@ -330,10 +333,14 @@ async def _load_governed_resolution(
     asset_ids = sorted(
         {item["resource_id"] for item in proposal.impacted_resources_snapshot if item.get("resource_type") == "asset"}
     )
+    vendor_ids = sorted(
+        {item["resource_id"] for item in proposal.impacted_resources_snapshot if item.get("resource_type") == "vendor"}
+    )
     locked_suffix = await lock_governed_process_resolution_suffix(
         db,
         process_ids=(process_id,),
         asset_ids=asset_ids,
+        vendor_ids=vendor_ids,
         additional_department_ids=department_ids,
         process_options=(
             selectinload(Process.process_owner)
@@ -363,6 +370,7 @@ async def _load_governed_resolution(
         impact_locks=impact_locks,
         process=process,
         assets={asset.id: asset for asset in assets},
+        vendors=locked_suffix.vendors,
         requester=users_by_id.get(identity.requested_by_id),
         resolver=resolver,
         resolver_is_active=bool(resolver_state.is_active),
@@ -439,11 +447,12 @@ async def _live_scenario_stale_reason(
         scenario = scenarios.get(scenario_key)
         if scenario is None or not scenario.requires_approval:
             return "A triggering governed mutation scenario was disabled after submission"
-        live_roles = (
-            validated_fixed_process_roles(scenario)
-            if scenario_key == SCENARIO_KEY
-            else validated_fixed_asset_roles(scenario)
-        )
+        if scenario_key == SCENARIO_KEY:
+            live_roles = validated_fixed_process_roles(scenario)
+        elif scenario_key == ASSET_SCENARIO_KEY:
+            live_roles = validated_fixed_asset_roles(scenario)
+        else:
+            live_roles = validated_fixed_vendor_roles(scenario)
         if live_roles != policy_snapshot["configured_roles"]:
             return "Governed mutation approver roles changed after submission"
         live_role_lists.append(live_roles)
@@ -558,6 +567,13 @@ async def approve_governed_mutation(
     ):
         stale_reason = "Downstream Asset governance version changed after submission"
     elif stale_reason is None and any(
+        context.vendors.get(item["resource_id"]) is None
+        or context.vendors[item["resource_id"]].governance_version != item["base_governance_version"]
+        for item in proposal.impacted_resources_snapshot
+        if item.get("resource_type") == "vendor"
+    ):
+        stale_reason = "Downstream Vendor governance version changed after submission"
+    elif stale_reason is None and any(
         jsonable_encoder(getattr(process, field, object())) != value for field, value in approved_before.items()
     ):
         stale_reason = "Process business state changed after submission"
@@ -606,7 +622,7 @@ async def approve_governed_mutation(
                 assets=list(context.assets.values()),
                 parameters=context.parameters,
             )
-            expected_impact = {
+            expected_impact: dict[str, Any] = {
                 "processes": [{"resource_id": process.id, **process_impact}],
                 "assets": asset_rows,
             }
@@ -618,6 +634,27 @@ async def approve_governed_mutation(
                 stale_reason = "Downstream Assets are no longer protected by the current policy"
         else:
             expected_impact = process_impact
+        if context.vendors:
+            from .vendor_impact import process_point_vendor_impacts, vendor_impact_is_protected
+
+            _, vendor_rows = await process_point_vendor_impacts(
+                db,
+                process=process,
+                updates=typed_updates,
+                vendors=list(context.vendors.values()),
+                parameters=context.parameters,
+            )
+            if "processes" not in expected_impact:
+                expected_impact = {
+                    "processes": [{"resource_id": process.id, **process_impact}],
+                }
+            expected_impact["vendors"] = vendor_rows
+            if VENDOR_SCENARIO_KEY in context.identity.triggered_scenarios and not any(
+                vendor_impact_is_protected(block)
+                for row in vendor_rows
+                for block in (row["before"], row["after"])
+            ):
+                stale_reason = "Downstream Vendors are no longer protected by the current policy"
         if proposal.derived_impact_snapshot != expected_impact:
             stale_reason = "Derived Process impact changed after submission"
 
@@ -647,6 +684,8 @@ async def approve_governed_mutation(
     process.governance_version += 1
     for asset in context.assets.values():
         asset.governance_version += 1
+    for vendor in context.vendors.values():
+        vendor.governance_version += 1
     await audit_process.process_updated(db, actor=current_user, process=process, changes=changes)
     await finalize_governed_terminal_transition(
         db,
@@ -848,4 +887,11 @@ async def governed_proposal_dispatch_kind(
         # Route malformed/unknown Asset-family kinds through the bounded Asset
         # resolver so they expire and release locks instead of becoming a 400.
         return "fixed_asset"
+    from .vendor_identity import is_vendor_governed_kind
+
+    if (
+        proposal_identity.primary_resource_type == "vendor"
+        and is_vendor_governed_kind(proposal_identity.mutation_kind)
+    ):
+        return "fixed_vendor"
     return "unsupported"

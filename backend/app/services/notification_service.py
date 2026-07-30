@@ -45,6 +45,14 @@ def _strict_governed_notification_identity(approval: ApprovalRequest):
     return identity
 
 
+def _governed_resource_label(mutation_kind: str) -> str:
+    if mutation_kind.startswith("asset."):
+        return "Asset"
+    if mutation_kind.startswith("vendor."):
+        return "Vendor"
+    return "Process"
+
+
 def _notification_failure_extra(
     *,
     operation: str,
@@ -313,7 +321,7 @@ class NotificationService:
             approval,
             exclude_user_id=identity.requested_by_id,
         )
-        resource_label = "Asset" if identity.mutation_kind.startswith("asset.") else "Process"
+        resource_label = _governed_resource_label(identity.mutation_kind)
         titles = {
             "submitted": f"Protected {resource_label} change requires review",
             "cancelled": f"Protected {resource_label} request cancelled",
@@ -376,7 +384,7 @@ class NotificationService:
     ) -> Notification | None:
         """Deliver a governed proposal outcome to its requester."""
         identity = _strict_governed_notification_identity(approval)
-        resource_label = "Asset" if identity.mutation_kind.startswith("asset.") else "Process"
+        resource_label = _governed_resource_label(identity.mutation_kind)
         try:
             return await NotificationService.create_notification_once(
                 db=db,

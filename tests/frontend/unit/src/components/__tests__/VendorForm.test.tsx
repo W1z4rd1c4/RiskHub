@@ -229,4 +229,58 @@ describe('VendorForm', () => {
         await waitFor(() => expect(updateVendorMock).toHaveBeenCalledTimes(1));
         expect(updateVendorMock).toHaveBeenCalledWith(42, { name: 'Renamed Vendor' });
     });
+
+    it('submits the business reason and routes a protected edit to the queued callback', async () => {
+        const onSaved = vi.fn();
+        const onApprovalQueued = vi.fn();
+        updateVendorMock.mockResolvedValue({
+            status: 'approval_required',
+            approval_id: 87,
+            proposal_id: 55,
+            proposal_version: 1,
+        });
+        const initialData = {
+            id: 42,
+            name: 'Protected Vendor',
+            process: 'Claims',
+            department_id: 99,
+            department_name: 'Operations',
+            outsourcing_owner_user_id: 7,
+            vendor_type: 'ict',
+            risk_score_1_5: 5,
+            supports_important_core_insurance_function: true,
+            dora_relevant: true,
+            is_significant_vendor: true,
+            has_alternative_providers: false,
+            capabilities: {
+                can_update: true,
+                protected_change_requires_approval: true,
+            },
+        } as Vendor;
+
+        renderWithQueryClient(
+            <VendorForm
+                initialData={initialData}
+                isEdit
+                onSaved={onSaved}
+                onApprovalQueued={onApprovalQueued}
+            />,
+        );
+
+        fireEvent.change(screen.getByTestId('vendor-form-name'), {
+            target: { value: 'Protected Vendor v2' },
+        });
+        fireEvent.change(screen.getByLabelText('form.request_reason'), {
+            target: { value: 'Material service change' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'actions.save' }));
+
+        await waitFor(() => expect(updateVendorMock).toHaveBeenCalledTimes(1));
+        expect(updateVendorMock).toHaveBeenCalledWith(42, {
+            name: 'Protected Vendor v2',
+            request_reason: 'Material service change',
+        });
+        expect(onApprovalQueued).toHaveBeenCalledWith(expect.objectContaining({ approval_id: 87 }));
+        expect(onSaved).not.toHaveBeenCalled();
+    });
 });

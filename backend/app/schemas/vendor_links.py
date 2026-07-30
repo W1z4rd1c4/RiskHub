@@ -11,14 +11,21 @@ from app.schemas.risk import RiskStatusEnum
 
 class VendorRiskLinkCreate(BaseModel):
     risk_id: int
+    request_reason: str | None = None
 
 
 class VendorControlLinkCreate(BaseModel):
     control_id: int
+    request_reason: str | None = None
 
 
 class VendorKRILinkCreate(BaseModel):
     kri_id: int
+    request_reason: str | None = None
+
+
+class VendorLinkMutationRequest(BaseModel):
+    request_reason: str | None = None
 
 
 class LinkedRiskRead(BaseModel):

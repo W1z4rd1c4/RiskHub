@@ -42,6 +42,11 @@ from .fixed_policy import (
     load_fixed_process_scenario_for_update,
     validated_fixed_process_roles,
 )
+from .fixed_vendor_policy import (
+    VENDOR_SCENARIO_KEY,
+    load_fixed_vendor_scenario_for_update,
+    validated_fixed_vendor_roles,
+)
 from .process_identity import (
     canonical_process_display_name,
     new_governed_process_proposal,
@@ -51,6 +56,7 @@ from .process_mutation_policy import (
     safe_process_department_label,
     safe_process_user_label,
 )
+from .vendor_impact import process_point_vendor_impacts, vendor_impact_is_protected
 
 
 async def increment_process_downstream_asset_versions(
@@ -171,6 +177,11 @@ async def submit_process_mutation_if_required(
         process=process,
         updates=updates,
     )
+    impacted_vendors, vendor_derived_rows = await process_point_vendor_impacts(
+        db,
+        process=process,
+        updates=updates,
+    )
     current_block, proposed_block = await load_governed_process_derived_blocks(
         db,
         process,
@@ -181,6 +192,11 @@ async def submit_process_mutation_if_required(
     asset_protected = any(
         block["cif"] == "yes" or block["resulting_criticality"] == "critical"
         for row in asset_derived_rows
+        for block in (row["before"], row["after"])
+    )
+    vendor_protected = any(
+        vendor_impact_is_protected(block)
+        for row in vendor_derived_rows
         for block in (row["before"], row["after"])
     )
     triggered_scenarios: list[str] = []
@@ -197,6 +213,14 @@ async def submit_process_mutation_if_required(
             triggered_scenarios.append(ASSET_SCENARIO_KEY)
             asset_roles = validated_fixed_asset_roles(asset_scenario)
             triggered_policies.append(triggered_policy_snapshot(ASSET_SCENARIO_KEY, asset_roles))
+    if vendor_protected:
+        vendor_scenario = await load_fixed_vendor_scenario_for_update(db)
+        if vendor_scenario.requires_approval:
+            triggered_scenarios.append(VENDOR_SCENARIO_KEY)
+            vendor_roles = validated_fixed_vendor_roles(vendor_scenario)
+            triggered_policies.append(
+                triggered_policy_snapshot(VENDOR_SCENARIO_KEY, vendor_roles)
+            )
     if not triggered_scenarios:
         return None
     roles = effective_triggered_policy_roles(triggered_policies)
@@ -258,6 +282,15 @@ async def submit_process_mutation_if_required(
             }
             for asset in impacted_assets
         ]
+        vendor_impacts = [
+            {
+                "resource_type": "vendor",
+                "resource_id": vendor.id,
+                "resource_name": vendor.name,
+                "base_governance_version": vendor.governance_version,
+            }
+            for vendor in impacted_vendors
+        ]
         proposal = new_governed_process_proposal(
             approval_request_id=approval.id,
             requested_by_id=current_user.id,
@@ -272,12 +305,14 @@ async def submit_process_mutation_if_required(
             derived_impact_snapshot=(
                 {
                     "processes": [{"resource_id": process.id, **process_derived}],
-                    "assets": asset_derived_rows,
+                    **({"assets": asset_derived_rows} if asset_derived_rows else {}),
+                    **({"vendors": vendor_derived_rows} if vendor_derived_rows else {}),
                 }
-                if asset_impacts
+                if asset_impacts or vendor_impacts
                 else process_derived
             ),
             asset_impacts=asset_impacts,
+            vendor_impacts=vendor_impacts,
             scenario_key=triggered_scenarios[0],
             triggered_scenarios=triggered_scenarios,
             triggered_policies=triggered_policies,
@@ -299,6 +334,15 @@ async def submit_process_mutation_if_required(
                     resource_type="asset",
                     resource_id=asset.id,
                     base_governance_version=asset.governance_version,
+                )
+            )
+        for vendor in impacted_vendors:
+            db.add(
+                GovernedMutationImpactLock(
+                    proposal_id=proposal.id,
+                    resource_type="vendor",
+                    resource_id=vendor.id,
+                    base_governance_version=vendor.governance_version,
                 )
             )
         await db.flush()

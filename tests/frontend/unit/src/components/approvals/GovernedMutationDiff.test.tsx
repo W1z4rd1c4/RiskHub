@@ -173,6 +173,51 @@ describe('GovernedMutationDiff', () => {
     });
 
     it.each([
+        ['en', 'Vendor Type', 'ICT', 'Data sensitivity', 'High'],
+        ['cs', 'Typ dodavatele', 'ICT', 'Citlivost dat', 'Vysoká'],
+    ] as const)(
+        'renders localized governed Vendor fields and controlled values in %s',
+        async (locale, vendorTypeLabel, vendorType, sensitivityLabel, sensitivity) => {
+            await changeLanguage(locale);
+            render(
+                <GovernedMutationDiff
+                    mutationKind="vendor.edit"
+                    before={{ vendor_type: 'outsourcing', data_sensitivity: 'low' }}
+                    after={{ vendor_type: 'ict', data_sensitivity: 'high' }}
+                    derivedImpact={{
+                        before: { tier: 'standard' },
+                        after: { tier: 'critical' },
+                    }}
+                />,
+            );
+
+            expect(screen.getByText(vendorTypeLabel)).toBeInTheDocument();
+            expect(screen.getByText(vendorType)).toBeInTheDocument();
+            expect(screen.getByText(sensitivityLabel)).toBeInTheDocument();
+            expect(screen.getByText(sensitivity)).toBeInTheDocument();
+        },
+    );
+
+    it('renders the safe nested Contract snapshot without exposing child identifiers', () => {
+        render(
+            <GovernedMutationDiff
+                mutationKind="vendor.contract.edit"
+                before={{ child_mutation: { contract_reference: 'CTR-OLD', internal_contract_number: '7315' } }}
+                after={{ child_mutation: { contract_reference: 'CTR-NEW', internal_contract_number: '8124' } }}
+                derivedImpact={{
+                    before: { tier: 'critical' },
+                    after: { tier: 'critical' },
+                }}
+            />,
+        );
+
+        expect(screen.getByText('Contract reference (RoI)')).toBeInTheDocument();
+        expect(screen.getByText('CTR-OLD')).toBeInTheDocument();
+        expect(screen.getByText('CTR-NEW')).toBeInTheDocument();
+        expect(screen.queryByText('Restricted change')).not.toBeInTheDocument();
+    });
+
+    it.each([
         ['en', 'Application', 'Cloud', 'Confidential', 'Operational'],
         ['cs', 'Aplikace', 'Cloud', 'Důvěrná data', 'V provozu'],
     ] as const)(

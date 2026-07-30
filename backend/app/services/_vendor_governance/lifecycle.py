@@ -27,14 +27,27 @@ async def create_vendor_detail(
     payload: VendorCreate,
     current_user: User,
 ) -> VendorRead:
+    from app.services._governed_mutations.vendor_mutations import (
+        acquire_vendor_creation_name_lock,
+        submit_vendor_creation_if_required,
+    )
+
+    await acquire_vendor_creation_name_lock(db, vendor_name=payload.name)
     await assert_vendor_create_allowed(
         db,
         current_user=current_user,
         department_id=payload.department_id,
         owner_user_id=payload.outsourcing_owner_user_id,
     )
+    queued = await submit_vendor_creation_if_required(
+        db=db,
+        payload=payload,
+        current_user=current_user,
+    )
+    if queued is not None:
+        return queued
 
-    vendor = Vendor(**payload.model_dump())
+    vendor = Vendor(**payload.model_dump(exclude={"request_reason"}))
     db.add(vendor)
     await db.flush()
 
@@ -72,6 +85,7 @@ async def update_vendor_detail(
 ) -> VendorRead:
     vendor = await assert_vendor_update_allowed(db, vendor_id=vendor_id, current_user=current_user)
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
+    updates.pop("request_reason", None)
     if not updates:
         return await serialize_vendor_detail_with_derived(db, vendor, current_user=current_user)
 
@@ -86,11 +100,25 @@ async def update_vendor_detail(
         additional_owner_user_ids=(proposed_owner_id,),
     )
     await assert_vendor_governance_update_allowed(db, current_user=current_user, vendor=vendor, updates=updates)
+    from app.services._governed_mutations.vendor_mutations import (
+        submit_vendor_edit_if_required,
+    )
+
+    queued = await submit_vendor_edit_if_required(
+        db=db,
+        vendor=vendor,
+        payload=payload,
+        current_user=current_user,
+        updates=updates,
+    )
+    if queued is not None:
+        return queued
     changes = audit_vendor.vendor_update_changes(vendor, updates)
     for field, value in updates.items():
         if hasattr(value, "value"):
             value = value.value
         setattr(vendor, field, value)
+    vendor.governance_version += 1
 
     await audit_vendor.vendor_updated(
         db,
@@ -113,10 +141,24 @@ async def archive_vendor_detail(
     db: AsyncSession,
     vendor_id: int,
     current_user: User,
-) -> None:
+    request_reason: str | None = None,
+) -> object | None:
     vendor = await assert_vendor_archive_allowed(db, vendor_id=vendor_id, current_user=current_user)
+    from app.services._governed_mutations.vendor_mutations import (
+        submit_vendor_archive_if_required,
+    )
+
+    queued = await submit_vendor_archive_if_required(
+        db=db,
+        vendor=vendor,
+        current_user=current_user,
+        request_reason=request_reason,
+    )
+    if queued is not None:
+        return queued
     changes = audit_vendor.vendor_archive_changes(vendor)
     vendor.mark_archived(current_user)
+    vendor.governance_version += 1
 
     await audit_vendor.vendor_archived(
         db,
@@ -137,6 +179,7 @@ async def restore_vendor_detail(
     vendor = await assert_vendor_restore_allowed(db, vendor_id=vendor_id, current_user=current_user)
     changes = audit_vendor.vendor_restore_changes(vendor)
     vendor.mark_restored(current_user)
+    vendor.governance_version += 1
     await audit_vendor.vendor_restored(
         db,
         actor=current_user,

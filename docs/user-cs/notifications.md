@@ -101,12 +101,19 @@ Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu zn
 
 Chráněná úprava procesu ukazuje neměnný návrh se schválenými hodnotami **před**, navrhovanými hodnotami **po** a dopadem na odvozený CIF. Schválený proces zůstává během čekání provozním stavem. Rozhodnout smí jeden nakonfigurovaný Risk Manager nebo CRO, který není žadatelem; seniorní role nemají výjimku pro vlastní návrh. Zamítnutí vyžaduje důvod a stale návrh expiruje bez aplikace hodnot.
 
+Chráněné změny dodavatele používají stejnou frontu a **Mé žádosti**. Rozbalený
+řádek ukazuje bezpečné hodnoty před/po, odvozenou úroveň a čitelné ovlivněné
+záznamy pro přímé změny, smlouvy, sub-outsourcing, vazby i složené návrhy.
+Uživatel bez oprávnění k návrhu omezený detail neuvidí. Žadatel může žádost
+zrušit, pokud to dovolí capability backendu; schválený dodavatel se do
+rozhodnutí nemění.
+
 Dvě preference governed schvalování jsou výchozím způsobem zapnuté:
 
 - **Žádosti o schválení vyžadující mou akci** řídí doručení při odeslání, zrušení a stale expiraci relevantní pro oprávněného schvalovatele.
 - **Aktualizace mých žádostí o schválení** řídí doručení výsledku žadateli při schválení, zamítnutí, zrušení a stale expiraci.
 
-Vypnutí preference ovlivní pouze notifikace. Nikdy neodstraní řádky ve frontě, Moje žádosti, capabilities ani počty práce. Chráněné schvalování procesů nemá termín, SLA, reminder, overdue štítek, automatické rozhodnutí ani časovou eskalaci.
+Vypnutí preference ovlivní pouze notifikace. Nikdy neodstraní řádky ve frontě, Moje žádosti, capabilities ani počty práce. Chráněné schvalování procesů, aktiv a dodavatelů nemá termín, SLA, reminder, overdue štítek, automatické rozhodnutí ani časovou eskalaci.
 
 ## Vyhledávání, filtrování a evidence
 

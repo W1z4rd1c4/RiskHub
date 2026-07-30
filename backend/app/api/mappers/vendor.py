@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.models import User, Vendor
 from app.schemas.vendor import (
+    VendorCapabilities,
     VendorLinkedRiskSummary,
     VendorListCapabilities,
     VendorListResponse,
@@ -9,6 +10,28 @@ from app.schemas.vendor import (
     VendorRead,
 )
 from app.services.authorization_capabilities import vendor_capabilities
+
+
+def _block_vendor_business_capabilities(capabilities: VendorCapabilities) -> VendorCapabilities:
+    return capabilities.model_copy(
+        update={
+            "can_update": False,
+            "can_manage_accountability": False,
+            "can_archive": False,
+            "can_create_linked_risk": False,
+            "can_create_linked_control": False,
+            "can_create_linked_kri": False,
+            "can_link_risk": False,
+            "can_link_control": False,
+            "can_link_kri": False,
+            "can_manage_contracts": False,
+            "can_manage_sub_outsourcing": False,
+            "can_manage_asset_links": False,
+            "can_manage_process_links": False,
+            "has_pending_change": True,
+            "business_edit_blocked": True,
+        }
+    )
 
 
 def vendor_to_read(
@@ -19,6 +42,7 @@ def vendor_to_read(
     can_manage_asset_links: bool = False,
     can_manage_process_links: bool = False,
     ownership_pending: bool = False,
+    has_pending_change: bool = False,
 ) -> VendorRead:
     base = VendorRead.model_validate(
         {column.name: getattr(vendor, column.name) for column in Vendor.__table__.columns}
@@ -53,6 +77,8 @@ def vendor_to_read(
         if current_user is not None
         else None
     )
+    if capabilities is not None and has_pending_change:
+        capabilities = _block_vendor_business_capabilities(capabilities)
     return base.model_copy(
         update={
             "department_name": vendor.department.name if vendor.department else None,
@@ -78,8 +104,10 @@ def vendor_list_response(
     can_manage_asset_links: bool = False,
     can_manage_process_links: bool = False,
     pending_vendor_ids: set[int] | None = None,
+    governed_pending_vendor_ids: set[int] | None = None,
 ) -> VendorListResponse:
     pending_vendor_ids = pending_vendor_ids or set()
+    governed_pending_vendor_ids = governed_pending_vendor_ids or set()
     return VendorListResponse(
         items=[
             vendor_to_read(
@@ -89,6 +117,7 @@ def vendor_list_response(
                 can_manage_asset_links=can_manage_asset_links,
                 can_manage_process_links=can_manage_process_links,
                 ownership_pending=v.id in pending_vendor_ids,
+                has_pending_change=v.id in governed_pending_vendor_ids,
             )
             for v in vendors
         ],

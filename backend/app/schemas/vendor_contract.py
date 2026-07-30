@@ -64,11 +64,17 @@ class VendorContractBase(VendorContractWriteValidators):
 
 
 class VendorContractCreate(VendorContractBase):
-    pass
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class VendorContractUpdate(VendorContractBase):
-    pass
+    request_reason: str | None = Field(None, max_length=1000)
+
+
+class VendorContractArchiveRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    request_reason: str | None = Field(None, max_length=1000)
 
 
 class VendorContractCapabilities(BaseModel):

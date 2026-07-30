@@ -110,6 +110,18 @@ When linking records, choose only relationships that are useful to another revie
 
 Vendor edits may be reviewed when they affect accountability, a protected Critical or Significant Vendor, archive state, or linked governance work. Link actions appear only when your current access allows both the Vendor action and the target context. A Pending change badge is not an archive state: the approved Vendor remains the operational record until the governed change is resolved.
 
+For a Critical or Significant Vendor, creation, ordinary edits, archive,
+Contract and Sub-outsourcing changes, and Vendor-managed Risk, Control, or KRI
+links may open an independent approval instead of changing the register
+immediately. Asset and Process links use their respective composite approval
+paths when they affect a protected Vendor. Enter a specific **Request reason**
+before submitting. RiskHub then opens **My Requests** for the queued item. The
+Vendor detail shows the pending banner and
+blocks another overlapping business change. If you are the requester and the
+Cancel action is available, cancel from that banner; otherwise wait for an
+eligible Risk Manager or CRO. Readers who are not the requester or an eligible
+resolver see only the restricted pending banner, not the proposal contents.
+
 Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the record detail remains the best place to understand the full context.
 
 If you receive a stale or rejected approval, do not immediately resubmit the same change. Open the record, compare the current state with your intended update, and submit a new focused change only if it is still needed.
@@ -152,6 +164,11 @@ Common mistakes are usually caused by stale filters, unclear ownership, duplicat
 If the page is empty, inspect the lifecycle selection, remove filter chips, and search by a known trading name or registration identifier. Use **Retry** after a temporary load failure. If the backend denies access, RiskHub removes stale rows and shows Access denied; filters cannot broaden authority. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
 If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
+
+If a protected Vendor save appears to leave the record unchanged, check **My
+Requests** and the pending banner before retrying. That is the expected
+two-person workflow: approved values remain effective until approval. Do not
+submit the same change again while the banner is present.
 
 If owner or linked-record search fails, retry the protected lookup; do not substitute a numeric ID. If the Vendor says reassignment is pending, resolve it in Governance before editing or changing links. If the By Risk view is absent, confirm that your role has Risk read access. If export labels use the wrong language, switch the UI language and start a new standard export.
 

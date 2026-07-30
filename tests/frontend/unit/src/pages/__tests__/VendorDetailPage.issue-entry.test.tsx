@@ -6,6 +6,8 @@ import { renderWithQueryClient as render } from '@test/render';
 
 const mockNavigate = vi.fn();
 const mockGetVendor = vi.fn();
+const mockArchiveVendor = vi.fn();
+const mockCancelApproval = vi.fn();
 let canIssueWrite = true;
 let mockLocation = { pathname: '/vendors/31', search: '', state: null as null | object };
 
@@ -36,8 +38,15 @@ vi.mock('@/contexts/AuthContext', () => ({
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
         deleteVendor: vi.fn(),
+        archiveVendor: (...args: unknown[]) => mockArchiveVendor(...args),
         getVendor: (...args: unknown[]) => mockGetVendor(...args),
         restoreVendor: vi.fn(),
+    },
+}));
+
+vi.mock('@/services/approvalsApi', () => ({
+    approvalsApi: {
+        cancel: (...args: unknown[]) => mockCancelApproval(...args),
     },
 }));
 
@@ -162,6 +171,68 @@ describe('VendorDetailPage issue entry', () => {
         await screen.findByText('Atlas Cloud Services');
         expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Unarchive' })).toBeInTheDocument();
+    });
+
+    it('shows and cancels a pending protected Vendor proposal', async () => {
+        const baseVendor = await mockGetVendor();
+        mockGetVendor.mockClear();
+        mockGetVendor.mockResolvedValue({
+            ...baseVendor,
+            capabilities: {
+                can_archive: false,
+                can_update: false,
+                has_pending_change: true,
+                business_edit_blocked: true,
+            },
+            pending_change: {
+                approval_id: 87,
+                mutation_kind: 'vendor.edit',
+                reason: 'Material service change',
+                requested_by_name: 'Alice Requester',
+                requested_at: '2026-07-30T08:30:00Z',
+                before: { name: 'Atlas Cloud Services' },
+                after: { name: 'Atlas Critical Cloud' },
+                derived_impact: {
+                    before: { tier: 'standard' },
+                    after: { tier: 'critical' },
+                },
+                impacted_resources: [],
+                relationship_change: null,
+                capabilities: {
+                    can_view_diff: true,
+                    can_cancel: true,
+                },
+            },
+        });
+
+        render(<VendorDetailPage />);
+
+        await screen.findByTestId('vendor-pending-change');
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel request' }));
+
+        await waitFor(() => expect(mockCancelApproval).toHaveBeenCalledWith(87));
+        expect(mockGetVendor).toHaveBeenCalledTimes(2);
+    });
+
+    it('submits an archive reason and routes a queued Vendor archive to My Requests', async () => {
+        mockArchiveVendor.mockResolvedValue({
+            status: 'approval_required',
+            approval_id: 87,
+            proposal_id: 55,
+            proposal_version: 1,
+        });
+
+        render(<VendorDetailPage />);
+
+        await screen.findByText('Atlas Cloud Services');
+        fireEvent.click(screen.getAllByRole('button', { name: 'Archive' }).at(-1)!);
+        fireEvent.change(screen.getByLabelText(/Request reason/), {
+            target: { value: 'Contract termination' },
+        });
+        fireEvent.click(screen.getAllByRole('button', { name: 'Archive' }).at(-1)!);
+
+        await waitFor(() => expect(mockArchiveVendor).toHaveBeenCalledWith(31, 'Contract termination'));
+        expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=87');
     });
 
     it('re-runs deep-link scrolling when only the vendor pathname changes', async () => {

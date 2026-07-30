@@ -21,7 +21,11 @@ import { useRiskHubConfigResource } from './useRiskHubConfigResource';
 // Special dynamic role entry for risk owner (not a system role in roles table)
 const SPECIAL_ROLE_VALUES = ['risk_owner'] as const;
 const APPROVER_ROLE_CODES = new Set<string>(APPROVAL_SCENARIO_APPROVER_ROLES);
-const FIXED_PROTECTED_SCENARIO_KEYS = new Set(['protected_process_edit', 'protected_asset_edit']);
+const FIXED_PROTECTED_SCENARIO_KEYS = new Set([
+    'protected_process_edit',
+    'protected_asset_edit',
+    'protected_vendor_edit',
+]);
 const FIXED_PROTECTED_APPROVER_ROLES = new Set<string>(['risk_manager', 'cro']);
 const LEGACY_PROTECTED_PROCESS_FIXED_POLICY: ApprovalScenarioFixedPolicyDefinition = {
     threshold: 'current_or_proposed_cif_yes',
@@ -136,7 +140,12 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                     </div>
 
                     {fixedPolicyDefinition ? (
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-4" data-testid="protected-process-fixed-policy">
+                        <div
+                            className="rounded-xl border border-white/10 bg-white/5 p-4"
+                            data-testid={scenario.key === 'protected_vendor_edit'
+                                ? 'protected-vendor-fixed-policy'
+                                : 'protected-process-fixed-policy'}
+                        >
                             <h3 className="text-sm font-bold text-white">
                                 {t('admin:approval_scenarios.fixed_policy.title')}
                             </h3>

@@ -110,6 +110,17 @@ Při propojování záznamů vybírejte jen vazby, které dávají smysl další
 
 Úpravy dodavatele mohou čekat na kontrolu, pokud mění odpovědnost, chráněného kritického nebo významného dodavatele, archivaci či navázanou governance práci. Akce pro vazby se zobrazí jen tehdy, když je povolena jak akce nad dodavatelem, tak cílový kontext. Odznak Čekající změna není stav archivace: až do rozhodnutí zůstává provozním záznamem schválený dodavatel.
 
+U kritického nebo významného dodavatele může vytvoření, běžná úprava,
+archivace, změna smlouvy či sub-outsourcingu a změna vazby na riziko, kontrolu
+nebo KRI vytvořit nezávislé schválení místo okamžité změny registru. Vazby na
+Assety a Procesy používají příslušnou kompozitní schvalovací cestu, pokud
+ovlivňují chráněného dodavatele. Před odesláním vyplňte konkrétní
+**Důvod žádosti**. RiskHub poté otevře položku v **Mých žádostech**. Detail
+dodavatele zobrazí čekající banner a zablokuje další překrývající se business
+změnu. Jste-li žadatel a je-li dostupná akce Zrušit, můžete žádost zrušit přímo
+v banneru; jinak počkejte na oprávněného Risk Managera nebo CRO. Ostatní
+čtenáři vidí pouze omezený banner bez obsahu návrhu.
+
 Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; detail záznamu zůstává nejlepším místem pro celý kontext.
 
 Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Otevřete záznam, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
@@ -152,6 +163,11 @@ Pro spolehlivou evidenci začněte dost široce, abyste ověřili existenci doda
 Pokud je stránka prázdná, zkontrolujte stav životního cyklu, odstraňte čipy filtrů a hledejte podle známého obchodního názvu nebo registračního identifikátoru. Po dočasné chybě načtení použijte **Zkusit znovu**. Když backend přístup odmítne, RiskHub odstraní staré řádky a zobrazí Přístup odepřen; filtry nikdy nerozšiřují oprávnění. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
 Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
+
+Pokud po odeslání chráněné změny zůstane dodavatel beze změny, zkontrolujte
+**Mé žádosti** a čekající banner dříve, než akci zopakujete. Jde o očekávaný
+princip čtyř očí: schválené hodnoty platí až do rozhodnutí. Stejnou změnu
+neodesílejte znovu, dokud je banner přítomen.
 
 Pokud vyhledání vlastníka nebo navázaného záznamu selže, zopakujte chráněné vyhledání; nenahrazujte ho číselným ID. Pokud dodavatel čeká na přeřazení, vyřešte vlastnictví v Governance před úpravou nebo změnou vazeb. Pokud chybí pohled Podle rizika, ověřte oprávnění ke čtení rizik. Pokud export používá nesprávný jazyk, přepněte jazyk UI a spusťte nový standardní export.
 

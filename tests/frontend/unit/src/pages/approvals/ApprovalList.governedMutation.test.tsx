@@ -153,6 +153,12 @@ describe('ApprovalList governed Process mutation', () => {
         ['process.link.vendor.add', 'edit', 'request_types.link_add'],
         ['process.link.asset.update', 'edit', 'request_types.link_update'],
         ['process.link.asset.remove', 'edit', 'request_types.link_remove'],
+        ['vendor.create', 'create', 'request_types.create'],
+        ['vendor.archive', 'archive', 'request_types.archive'],
+        ['vendor.contract.create', 'create', 'request_types.create'],
+        ['vendor.contract.archive', 'archive', 'request_types.archive'],
+        ['vendor.link.control.add', 'edit', 'request_types.link_add'],
+        ['vendor.link.kri.remove', 'edit', 'request_types.link_remove'],
     ] as const)('labels governed %s requests by mutation intent', (mutationKind, actionType, expectedLabel) => {
         const approval = governedApproval(true);
         approval.action_type = actionType;

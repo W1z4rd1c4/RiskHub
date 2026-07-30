@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
+    ApprovalScenario,
     AssetAssetLink,
     AssetVendorLink,
     Department,
@@ -19,6 +20,22 @@ from app.models import (
     User,
     Vendor,
 )
+
+
+async def _disable_asset_approval_for_register_setup(
+    db: AsyncSession,
+) -> None:
+    """Keep register-framework fixtures on the direct lifecycle seam."""
+    db.add(
+        ApprovalScenario(
+            key="protected_asset_edit",
+            display_name="Protected Asset mutations",
+            description="Disabled for Asset register framework setup",
+            requires_approval=False,
+            approver_roles=["risk_manager", "cro"],
+        )
+    )
+    await db.commit()
 
 
 def _asset_payload(
@@ -89,10 +106,12 @@ def _process_fixture(*, f_code: str, owner_id: int, department_id: int) -> Proce
 @pytest.mark.asyncio
 async def test_asset_collection_query_contract_sort_precedence_and_pagination(
     client_factory,
+    db_session: AsyncSession,
     test_user_cro: User,
     test_user_employee: User,
     test_department: Department,
 ):
+    await _disable_asset_approval_for_register_setup(db_session)
     async with client_factory(user=test_user_cro) as client:
         application = (
             await client.post(
@@ -189,6 +208,7 @@ async def test_asset_shared_filters_facets_groups_search_lifecycle_and_export(
     test_user_employee: User,
     test_department: Department,
 ):
+    await _disable_asset_approval_for_register_setup(db_session)
     other_department = Department(name="Technology", code="TECH", is_active=True)
     db_session.add(other_department)
     await db_session.flush()
@@ -393,6 +413,7 @@ async def test_asset_lookup_and_link_filters_do_not_leak_hidden_counterparts(
     test_user_employee: User,
     test_department: Department,
 ):
+    await _disable_asset_approval_for_register_setup(db_session)
     hidden_department = Department(name="Hidden Counterpart Department", code="HIDDEN-CP")
     db_session.add(hidden_department)
     await db_session.flush()

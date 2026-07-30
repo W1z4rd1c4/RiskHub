@@ -123,6 +123,7 @@ SAFE_CHANGESET_ALLOWLIST_BY_ENTITY = {
     "risk_link": {"relationship_target", "relationship_type"},
     "role": {"display_name"},
     "process_link": {"relationship_target", "relationship_type"},
+    "vendor_link": {"relationship_target", "relationship_type"},
     "user": {
         "password_changed",
         "entra_business_role",
