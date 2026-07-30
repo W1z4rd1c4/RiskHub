@@ -20,9 +20,21 @@ def validate_test_database(database_url: str, *, explicitly_marked: bool) -> str
 
 
 async def reset_database(database_url: str) -> None:
+    expected_database = validate_test_database(database_url, explicitly_marked=True)
     engine = create_async_engine(database_url, isolation_level="AUTOCOMMIT")
     try:
         async with engine.connect() as connection:
+            connected_database = (
+                await connection.execute(text("SELECT current_database()"))
+            ).scalar_one()
+            if not connected_database.endswith("_test"):
+                raise ValueError(
+                    "E2E database reset requires the connected database name to end in _test"
+                )
+            if connected_database != expected_database:
+                raise ValueError(
+                    "E2E database reset connected database does not match the DATABASE_URL name"
+                )
             await connection.execute(
                 text(
                     "SELECT pg_terminate_backend(pid) "

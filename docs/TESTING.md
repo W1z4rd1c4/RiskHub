@@ -90,6 +90,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - Installer regression coverage is anchored to the public `./scripts/install.sh` contract even though the implementation now routes through `scripts/install_cli.py` and `scripts/install_lib/`.
 - Schema-sensitive changes should keep the dedicated Postgres pytest lane green; do not rely on browser E2E as the only Postgres signal.
 - When the Docker app stack is using the live `riskhub` database, point Postgres marker runs at a sibling `riskhub_test` database instead; Postgres-mode truncates tables between tests.
+- The E2E reset CLI requires `RISKHUB_E2E_TEST_DATABASE=1`, a URL database ending in `_test`, and an exact `SELECT current_database()` match inside the destructive connection before terminating sessions or recreating the schema.
 - Advisory-lock coverage is only valid in Postgres mode. Do not treat SQLite-only passes as sufficient for scheduler ownership enforcement.
 - SQLite/non-Postgres outbox dispatch is intentionally single-worker only; if scheduler ownership is enabled with `API_WORKERS>1`, the runtime must fail fast instead of pretending it has Postgres claim semantics.
 - Trusted proxy ranges that cover broad private networks now fail closed in production unless `ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true` is set deliberately.
