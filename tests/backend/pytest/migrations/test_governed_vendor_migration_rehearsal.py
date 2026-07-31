@@ -5,9 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -15,7 +15,7 @@ from sqlalchemy.engine import make_url
 
 ROOT = Path(__file__).resolve().parents[4]
 BACKEND = ROOT / "backend"
-TARGET_REVISION = "p6q7r8s9t0u1"
+TARGET_REVISION = "s8t9u0v1w2x3"
 PREVIOUS_HEAD = "o5p6q7r8s9t0"
 
 
@@ -99,7 +99,15 @@ async def _assert_head(url: str, *, marker: str, user_id: int, vendor_id: int) -
                 "WHERE t.typname = 'approval_resource_type' ORDER BY e.enumsortorder"
             )
         ]
-        assert labels == ["RISK", "CONTROL", "KRI", "PROCESS", "ASSET", "VENDOR"]
+        assert labels == [
+            "RISK",
+            "CONTROL",
+            "KRI",
+            "PROCESS",
+            "ASSET",
+            "VENDOR",
+            "THREAT",
+        ]
         column = await connection.fetchrow(
             "SELECT data_type, is_nullable, column_default "
             "FROM information_schema.columns "

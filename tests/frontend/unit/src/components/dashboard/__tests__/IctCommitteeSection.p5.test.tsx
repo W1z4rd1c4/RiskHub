@@ -194,14 +194,23 @@ describe('IctCommitteeSection — semantic drill-downs', () => {
         getCommittee.mockResolvedValue(makeCommittee());
         renderSection();
 
-        expect(await screen.findByTestId('committee-heatmap-link-5-3')).toHaveAttribute(
-            'href',
-            '/risks?gross_probability=5&gross_impact=3',
-        );
-        expect(screen.getByTestId('committee-migration-link-Vysoké-Střední')).toHaveAttribute(
-            'href',
-            '/risks?gross_band=Vysok%C3%A9&net_band=St%C5%99edn%C3%AD',
-        );
+        const expectRiskHref = (link: HTMLElement, expectedParams: Record<string, string>) => {
+            const url = new URL(link.getAttribute('href') ?? '', 'http://localhost');
+            expect(url.pathname).toBe('/risks');
+            expect(Object.fromEntries(url.searchParams)).toEqual(expectedParams);
+        };
+        expectRiskHref(await screen.findByTestId('committee-heatmap-link-5-3'), {
+            committee_scope: 'true',
+            ict_linked: 'true',
+            gross_probability: '5',
+            gross_impact: '3',
+        });
+        expectRiskHref(screen.getByTestId('committee-migration-link-Vysoké-Střední'), {
+            committee_scope: 'true',
+            ict_linked: 'true',
+            gross_band: 'Vysoké',
+            net_band: 'Střední',
+        });
     });
 
     it('renders a production-inert material-risk KPI without an interactive link', async () => {

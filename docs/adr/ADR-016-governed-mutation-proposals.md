@@ -458,7 +458,8 @@ direct Process edits only after a consistency check confirms no active lock.
   the `CREATE` enum label, both nullable columns, both named checks, zero check
   violations, and the final Alembic head.
 - The governed Asset migration rehearsal independently proves zero-to-head and
-  `n4o5p6q7r8s9`-to-`o5p6q7r8s9t0` on disposable PostgreSQL databases.
+  `n4o5p6q7r8s9`-to-head, with final head `s8t9u0v1w2x3`, on disposable
+  PostgreSQL databases.
 - Authz contract tests bind service enforcement, Process/approval capability
   schemas, frontend gates, and documentation.
 - Timezone tests require UTC-aware proposal, resolution, and lock timestamps.

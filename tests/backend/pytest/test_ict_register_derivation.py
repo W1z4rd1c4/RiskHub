@@ -35,7 +35,7 @@ from datetime import date
 
 import pytest
 
-from app.models import Process, ProcessAssetLink, User
+from app.models import ApprovalScenario, Process, ProcessAssetLink, User
 from app.models.global_config import clear_config_cache
 from app.services._ict_register_lifecycle.derivation import (
     AssetAssetLinkInput,
@@ -1076,6 +1076,16 @@ async def test_process_reputational_impact_stays_outside_score_and_cif(client_fa
 async def test_asset_read_payloads_carry_the_derived_block_with_explain(
     client_factory, db_session, test_user_cro: User
 ):
+    db_session.add(
+        ApprovalScenario(
+            key="protected_asset_edit",
+            display_name="Protected Asset mutation",
+            description="Disabled for the derivation read-model fixture",
+            requires_approval=False,
+            approver_roles=["risk_manager", "cro"],
+        )
+    )
+    await db_session.commit()
     async with client_factory(user=test_user_cro) as client:
         cif_process = await _seed_process(
             db_session,

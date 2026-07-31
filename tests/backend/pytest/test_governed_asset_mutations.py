@@ -9,6 +9,10 @@ from copy import deepcopy
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import delete, func, select, text, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm.attributes import set_committed_value
+
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
@@ -47,9 +51,6 @@ from app.services._governed_mutations.process_mutations import (
     strict_extended_process_identity,
 )
 from app.services.notification_service import NotificationService
-from sqlalchemy import delete, func, select, text, update
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from sqlalchemy.orm.attributes import set_committed_value
 
 
 async def _scenario(db: AsyncSession) -> None:
@@ -2892,6 +2893,46 @@ async def test_non_cif_process_point_mutation_is_governed_by_enabled_asset_polic
         resolver_asset = await approver.get(f"/api/v1/assets/{assets[0].id}")
         assert resolver_asset.status_code == 200, resolver_asset.text
         assert resolver_asset.json()["pending_change"] is not None
+    asset_scenario = await db_session.scalar(
+        select(ApprovalScenario).where(
+            ApprovalScenario.key == "protected_asset_edit"
+        )
+    )
+    assert asset_scenario is not None
+    asset_scenario.requires_approval = False
+    await db_session.commit()
+    async with client_factory(user=test_user_risk_manager) as stale_resolver:
+        disabled_projection = await stale_resolver.get(
+            f"/api/v1/assets/{assets[0].id}"
+        )
+    assert disabled_projection.status_code == 200, disabled_projection.text
+    assert disabled_projection.json()["pending_change"]["capabilities"] == {
+        "can_view_diff": False,
+        "can_cancel": False,
+    }
+    asset_scenario.requires_approval = True
+    asset_scenario.approver_roles = ["cro"]
+    await db_session.commit()
+    async with client_factory(user=test_user_risk_manager) as stale_resolver:
+        role_drift_projection = await stale_resolver.get(
+            f"/api/v1/assets/{assets[0].id}"
+        )
+    assert role_drift_projection.status_code == 200, role_drift_projection.text
+    assert role_drift_projection.json()["pending_change"]["capabilities"] == {
+        "can_view_diff": False,
+        "can_cancel": False,
+    }
+    async with client_factory(user=test_user_cro) as requester:
+        requester_after_drift = await requester.get(
+            f"/api/v1/assets/{assets[0].id}"
+        )
+    assert requester_after_drift.status_code == 200, requester_after_drift.text
+    assert requester_after_drift.json()["pending_change"]["capabilities"] == {
+        "can_view_diff": True,
+        "can_cancel": True,
+    }
+    asset_scenario.approver_roles = ["risk_manager", "cro"]
+    await db_session.commit()
     test_user_risk_manager.access_scope = AccessScope.DEPARTMENT
     await db_session.commit()
     async with client_factory(user=test_user_risk_manager) as stale_resolver:

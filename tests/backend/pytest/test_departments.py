@@ -1168,20 +1168,20 @@ async def test_department_detail_control_stats_exclude_archived_normalized_contr
 
 
 @pytest.mark.asyncio
-async def test_list_department_controls_normalizes_legacy_semi_annual_frequency(
+async def test_list_department_controls_preserves_semi_annually_frequency(
     auth_client: AsyncClient,
     db_session: AsyncSession,
     test_department: Department,
     test_user: User,
 ):
-    """Department controls endpoint should normalize legacy semi-annual frequency aliases."""
+    """Department controls endpoint should preserve the canonical frequency."""
     control = Control(
         name="Department Legacy Frequency Control",
         description="Control with legacy frequency alias",
         department_id=test_department.id,
         control_owner_id=test_user.id,
         control_form="manual",
-        frequency="semi-annual",
+        frequency="semi-annually",
         risk_level=3,
         status="active",
     )

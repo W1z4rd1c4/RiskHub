@@ -6,18 +6,17 @@ import asyncio
 import inspect
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.engine import make_url
 
-
 ROOT = Path(__file__).resolve().parents[4]
 BACKEND = ROOT / "backend"
-TARGET_REVISION = "o5p6q7r8s9t0"
+TARGET_REVISION = "s8t9u0v1w2x3"
 PREVIOUS_HEAD = "n4o5p6q7r8s9"
 
 
@@ -109,6 +108,8 @@ async def _assert_governed_asset_head_contract(
             "KRI",
             "PROCESS",
             "ASSET",
+            "VENDOR",
+            "THREAT",
         ]
 
         column = await connection.fetchrow(

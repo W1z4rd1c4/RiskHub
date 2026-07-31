@@ -1067,8 +1067,28 @@ async def test_committee_endpoint_over_an_api_seeded_register(
     consistency with the #50 surface."""
     from datetime import date
 
-    from app.models import GlobalConfig, Process, ProcessAssetLink, RiskProcessLink
+    from app.models import ApprovalScenario, GlobalConfig, Process, ProcessAssetLink, RiskProcessLink
     from app.models.global_config import clear_config_cache
+
+    db_session.add_all(
+        [
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Disabled for the committee read-model fixture",
+                requires_approval=False,
+                approver_roles=["risk_manager", "cro"],
+            ),
+            ApprovalScenario(
+                key="protected_vendor_edit",
+                display_name="Protected Vendor mutation",
+                description="Disabled for the committee read-model fixture",
+                requires_approval=False,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
+    )
+    await db_session.commit()
 
     ciso_role = Role(name="ciso", display_name="Chief Information Security Officer")
     db_session.add(ciso_role)

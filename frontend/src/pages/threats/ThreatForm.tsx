@@ -8,6 +8,7 @@ import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
+import { ictRegisterKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { lookupApi } from '@/services/lookupApi';
 import { threatApi } from '@/services/threatApi';
@@ -101,7 +102,7 @@ export function ThreatForm({
     };
 
     const cisoQuery = useQuery({
-        queryKey: ['threat-steward-lookup', stewardSearch],
+        queryKey: ictRegisterKeys.threatStewardLookup(stewardSearch),
         queryFn: () => lookupApi.getThreatStewards({ q: stewardSearch || undefined, limit: 50 }),
         staleTime: 5 * 60_000,
     });

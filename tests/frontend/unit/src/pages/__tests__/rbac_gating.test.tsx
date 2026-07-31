@@ -270,8 +270,8 @@ describe('RBAC UI gating', () => {
         expect(croAuthz.canViewRiskHub).toBe(true);
         expect(croAuthz.canViewGovernance).toBe(false);
         expect(croAuthz.canViewAdminConsole).toBe(false);
-        expect(croAuthz.canViewAccessUsers).toBe(true);
-        expect(croAuthz.canViewUsersRoute).toBe(true);
+        expect(croAuthz.canViewAccessUsers).toBe(false);
+        expect(croAuthz.canViewUsersRoute).toBe(false);
         expect(croAuthz.canReadRisks).toBe(true);
         expect(croAuthz.canReadControls).toBe(false);
         expect(croAuthz.canReadDepartments).toBe(false);

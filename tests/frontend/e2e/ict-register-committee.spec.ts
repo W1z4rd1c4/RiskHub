@@ -191,7 +191,14 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
                     link = (await descendant.count()) > 0 ? descendant : source.locator('xpath=ancestor::a[1]');
                 }
                 await link.click();
-                await expect(riskManagerPage).toHaveURL(new RegExp(`${entry.href.replace(/[?]/g, '\\?')}$`));
+                await expect(riskManagerPage).toHaveURL((url) => {
+                    const expectedUrl = new URL(entry.href, url.origin);
+                    return url.pathname === expectedUrl.pathname
+                        && url.searchParams.size === expectedUrl.searchParams.size
+                        && [...expectedUrl.searchParams].every(
+                            ([key, value]) => url.searchParams.get(key) === value,
+                        );
+                });
                 await expect(riskManagerPage.getByTestId('semantic-filter-summary')).toContainText(entry.summary);
             });
         }

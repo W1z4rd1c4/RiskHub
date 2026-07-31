@@ -12,9 +12,12 @@ from app.models import (
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
+    ApprovalScenario,
     ApprovalStatus,
+    GovernedMutationImpactLock,
     Notification,
     NotificationType,
+    Process,
     User,
 )
 from app.services._governed_mutations.process_identity import (
@@ -52,10 +55,28 @@ async def _unsupported_approval(
     requester: User,
     unsupported_axis: str,
 ) -> tuple[ApprovalRequest, Notification]:
+    process = Process(
+        f_code="F9101",
+        l0_area="Operations",
+        l1_process="Unsupported proposal isolation",
+        process_owner_user_id=requester.id,
+        owning_department_id=requester.department_id,
+        cif_override="yes",
+    )
+    scenario = ApprovalScenario(
+        key="protected_process_edit",
+        display_name="Protected Process edit",
+        description="Independent approval for protected Process edits",
+        requires_approval=True,
+        approver_roles=["risk_manager", "cro"],
+    )
+    db_session.add_all([process, scenario])
+    await db_session.flush()
+    process_name = f"{process.f_code} — {process.l1_process}"
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.PROCESS,
-        resource_id=910_001,
-        resource_name="Mutable envelope must not authorize",
+        resource_id=process.id,
+        resource_name=process_name,
         action_type=ApprovalActionType.EDIT,
         pending_changes={"notes": {"old": "old", "new": "new"}},
         requested_by_id=requester.id,
@@ -71,8 +92,8 @@ async def _unsupported_approval(
     proposal = new_governed_process_proposal(
         approval_request_id=approval.id,
         requested_by_id=requester.id,
-        process_id=910_001,
-        process_name="Immutable unsupported proposal",
+        process_id=process.id,
+        process_name=process_name,
         approver_roles=["cro"],
         base_governance_version=1,
         before_snapshot={"notes": "old"},
@@ -110,6 +131,16 @@ async def _unsupported_approval(
         proposal.derived_impact_snapshot["after"]["cif"] = malformed_values[value_kind]
     else:  # pragma: no cover - parametrization is exhaustive
         raise AssertionError(unsupported_axis)
+    db_session.add(proposal)
+    await db_session.flush()
+    db_session.add(
+        GovernedMutationImpactLock(
+            proposal_id=proposal.id,
+            resource_type="process",
+            resource_id=process.id,
+            base_governance_version=process.governance_version,
+        )
+    )
     notification = Notification(
         user_id=requester.id,
         type=NotificationType.APPROVAL_PENDING,
@@ -119,7 +150,7 @@ async def _unsupported_approval(
         resource_id=approval.id,
         is_read=False,
     )
-    db_session.add_all([proposal, notification])
+    db_session.add(notification)
     await db_session.commit()
     return approval, notification
 
@@ -130,6 +161,7 @@ async def test_unsupported_proposal_is_excluded_from_queue_and_notification_surf
     client_factory,
     db_session: AsyncSession,
     test_user_employee: User,
+    test_user_cro: User,
     unsupported_axis: str,
 ) -> None:
     approval, notification = await _unsupported_approval(
@@ -175,6 +207,7 @@ async def test_unsupported_proposal_is_excluded_from_queue_and_notification_surf
 async def test_unsupported_proposal_is_rejected_before_legacy_execution(
     db_session: AsyncSession,
     test_user_employee: User,
+    test_user_cro: User,
     unsupported_axis: str,
     operation: str,
 ) -> None:
@@ -185,12 +218,26 @@ async def test_unsupported_proposal_is_rejected_before_legacy_execution(
     )
     approval_id = approval.id
 
+    if operation == "approve" and unsupported_axis not in {
+        "kind",
+        "relationship_kind",
+        "type",
+    }:
+        result = await approve_request_workflow(
+            db_session,
+            approval_id,
+            test_user_cro,
+            "Expire malformed immutable envelope",
+        )
+        assert result.status == ApprovalStatus.EXPIRED
+        return
+
     with pytest.raises(ValidationError) as exc_info:
         if operation == "approve":
             await approve_request_workflow(
                 db_session,
                 approval_id,
-                test_user_employee,
+                test_user_cro,
                 "Must not execute as legacy",
             )
         elif operation == "reject":

@@ -12,16 +12,9 @@ from app.models import (
     ApprovalScenario,
     ApprovalStatus,
     Department,
-    GovernedMutationImpactLock,
     Process,
     Risk,
     User,
-)
-from app.services._governed_mutations.process_identity import (
-    new_governed_process_proposal,
-)
-from app.services._ict_register_lifecycle.projection import (
-    load_governed_process_derived_blocks,
 )
 
 pytestmark = pytest.mark.contract
@@ -76,6 +69,7 @@ async def _create_pending_approval(
 async def _create_pending_governed_process_approval(
     db_session: AsyncSession,
     *,
+    client_factory,
     requester: User,
     department: Department,
 ) -> ApprovalRequest:
@@ -101,64 +95,20 @@ async def _create_pending_governed_process_approval(
         approver_roles=["risk_manager"],
     )
     db_session.add_all([process, scenario])
-    await db_session.flush()
-
-    process_name = f"{process.f_code} — {process.l1_process}"
-    pending_changes = {"notes": {"old": "Before review", "new": "After independent review"}}
-    approval = ApprovalRequest(
-        resource_type=ApprovalResourceType.PROCESS,
-        resource_id=process.id,
-        resource_name=process_name,
-        action_type=ApprovalActionType.EDIT,
-        pending_changes=pending_changes,
-        scenario_key="protected_process_edit",
-        scenario_approver_roles=["risk_manager"],
-        requested_by_id=requester.id,
-        reason="Governed response parity approval",
-        status=ApprovalStatus.PENDING,
-        requires_privileged_approval=False,
-    )
-    db_session.add(approval)
-    await db_session.flush()
-
-    current_impact, proposed_impact = await load_governed_process_derived_blocks(
-        db_session,
-        process,
-        updates={"notes": "After independent review"},
-    )
-    proposal = new_governed_process_proposal(
-        approval_request_id=approval.id,
-        requested_by_id=requester.id,
-        process_id=process.id,
-        process_name=process_name,
-        approver_roles=["risk_manager"],
-        base_governance_version=process.governance_version,
-        before_snapshot={"notes": "Before review"},
-        after_snapshot={"notes": "After independent review"},
-        raw_before={"notes": "Before review"},
-        raw_after={"notes": "After independent review"},
-        derived_impact_snapshot={
-            "before": {
-                "cif": current_impact.cif,
-                "criticality_class": current_impact.criticality_class,
-            },
-            "after": {
-                "cif": proposed_impact.cif,
-                "criticality_class": proposed_impact.criticality_class,
-            },
-        },
-    )
-    db_session.add(proposal)
-    await db_session.flush()
-    db_session.add(
-        GovernedMutationImpactLock(
-            proposal_id=proposal.id,
-            resource_type="process",
-            resource_id=process.id,
-            base_governance_version=process.governance_version,
-        )
-    )
     await db_session.commit()
+
+    async with client_factory(user=requester) as client:
+        submitted = await client.patch(
+            f"/api/v1/processes/{process.id}",
+            json={
+                "notes": "After independent review",
+                "request_reason": "Governed response parity approval",
+            },
+        )
+
+    assert submitted.status_code == 202, submitted.text
+    approval = await db_session.get(ApprovalRequest, submitted.json()["approval_id"])
+    assert approval is not None
     await db_session.refresh(approval)
     return approval
 
@@ -286,6 +236,7 @@ async def test_governed_approval_endpoints_return_same_safe_read_shape(
 ) -> None:
     approval = await _create_pending_governed_process_approval(
         db_session,
+        client_factory=client_factory,
         requester=test_user_cro,
         department=test_department,
     )

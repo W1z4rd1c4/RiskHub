@@ -44,7 +44,7 @@ from datetime import date
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Process, ProcessAssetLink, ProcessVendorLink, User
+from app.models import ApprovalScenario, Process, ProcessAssetLink, ProcessVendorLink, User
 from app.models.global_config import clear_config_cache
 from app.services._ict_register_lifecycle.derivation import (
     AssetDerivationInput,
@@ -977,6 +977,25 @@ async def test_vendor_domain_read_payloads_carry_the_derived_blocks(
     the asset feeds the vendor, the contract propagates CIF down a 2-deep
     chain — and all three vendor-domain Read payloads expose their engine
     blocks, plus the Process dod_n flip and the Asset hotovo."""
+    db_session.add_all(
+        [
+            ApprovalScenario(
+                key="protected_asset_edit",
+                display_name="Protected Asset mutation",
+                description="Disabled for the vendor derivation fixture",
+                requires_approval=False,
+                approver_roles=["risk_manager", "cro"],
+            ),
+            ApprovalScenario(
+                key="protected_vendor_edit",
+                display_name="Protected Vendor mutation",
+                description="Disabled for the vendor derivation fixture",
+                requires_approval=False,
+                approver_roles=["risk_manager", "cro"],
+            ),
+        ]
+    )
+    await db_session.commit()
     async with client_factory(user=test_user_cro) as client:
         process = await _seed_cif_process(
             db_session,

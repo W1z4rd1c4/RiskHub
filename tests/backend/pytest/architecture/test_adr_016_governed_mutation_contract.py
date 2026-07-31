@@ -31,6 +31,9 @@ DETAIL_PATH = ROOT / "backend/app/api/v1/endpoints/approvals/detail.py"
 RESOLVE_PATH = ROOT / "backend/app/api/v1/endpoints/approvals/resolve.py"
 NOTIFICATION_VISIBILITY_PATH = ROOT / "backend/app/services/notification_visibility.py"
 NOTIFICATION_INBOX_PATH = ROOT / "backend/app/services/_notification_inbox/lifecycle.py"
+ASSET_PROJECTION_PATH = (
+    ROOT / "backend/app/services/_ict_register_lifecycle/asset_projection.py"
+)
 
 
 def test_adr_016_is_indexed_and_accepted_before_implementation() -> None:
@@ -126,6 +129,7 @@ def test_adr_016_pins_queue_detail_and_notification_policy_parity() -> None:
     resolve = RESOLVE_PATH.read_text(encoding="utf-8")
     notification_visibility = NOTIFICATION_VISIBILITY_PATH.read_text(encoding="utf-8")
     notification_inbox = NOTIFICATION_INBOX_PATH.read_text(encoding="utf-8")
+    asset_projection = ASSET_PROJECTION_PATH.read_text(encoding="utf-8")
 
     assert "immutable `GovernedMutationProposal`" in adr
     assert "def governed_process_approval_exists_clause(" in policy
@@ -158,6 +162,8 @@ def test_adr_016_pins_queue_detail_and_notification_policy_parity() -> None:
         assert "governed_process_response_policy(" in endpoint
         assert "strict_governed_process_identity" not in endpoint
         assert "strict_extended_process_identity" not in endpoint
+    assert "governed_process_response_policy(" in asset_projection
+    assert "from app.core.permissions import can_resolve_approvals" not in asset_projection
     assert "_can_view_approval_notification" not in notification_visibility
     assert "visible_notification_clause" in notification_inbox
 

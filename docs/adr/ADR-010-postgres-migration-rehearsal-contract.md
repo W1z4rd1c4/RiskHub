@@ -68,8 +68,8 @@ snapshot restore.
 `o5p6q7r8s9t0` is exercised by the PostgreSQL-only automated rehearsal in
 `tests/backend/pytest/migrations/test_governed_asset_migration_rehearsal.py`.
 It creates disposable databases for both zero-to-head and recorded previous
-head `n4o5p6q7r8s9`-to-head lanes, asserts the final revision is
-`o5p6q7r8s9t0 (head)`, and drops each database after the run.
+head `n4o5p6q7r8s9`-to-head lanes, asserts the final repository revision is
+`s8t9u0v1w2x3 (head)`, and drops each database after the run.
 
 ### Accountability and governed Threat extension rehearsal evidence
 

@@ -128,6 +128,14 @@ were aligned so Process, Vendor, and Asset changes keep actor-safe labels and
 the existing protected-Asset approval reason remains required in the UI.
 Route guards, row visibility, mutation authority, and capability field shapes
 and semantics are unchanged.
+On 2026-07-31, final reconciliation routed Process-originated Asset
+pending-change resolver evaluation through the canonical
+`governed_process_response_policy` seam. Route guards, row visibility,
+mutation authority, and capability field shapes and semantics are unchanged.
+Final reconciliation on 2026-07-31 also routed fixed Asset and Asset-notification
+resolver privilege checks through the canonical `approval_privilege_tier` seam.
+Route guards, row visibility, mutation authority, and capability field shapes
+and semantics are unchanged.
 On 2026-07-02, the business-logic audit tightened issue-exception governance:
 requesters can no longer approve their own exception requests (403), exception
 requests and approvals are denied on closed issues (409), expired exceptions can

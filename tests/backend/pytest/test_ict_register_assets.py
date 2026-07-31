@@ -37,8 +37,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_keys
-from app.models import Department, Permission, Role, RolePermission, User
+from app.models import (
+    ApprovalScenario,
+    Department,
+    Permission,
+    Role,
+    RolePermission,
+    User,
+)
 from app.models.user import AccessScope
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def disabled_asset_approval_policy(db_session: AsyncSession) -> None:
+    """Keep this core CRUD suite independent from governed Asset approval."""
+    db_session.add(
+        ApprovalScenario(
+            key="protected_asset_edit",
+            display_name="Protected Asset mutation",
+            description="Disabled in the core Asset register contract",
+            requires_approval=False,
+            approver_roles=["risk_manager", "cro"],
+        )
+    )
+    await db_session.commit()
 
 
 @pytest_asyncio.fixture
@@ -344,14 +366,23 @@ async def test_ratings_are_skala15_integers(client_factory, test_user_cro: User)
     async with client_factory(user=test_user_cro) as client:
         for field in rating_fields:
             ok = await client.post(
-                "/api/v1/assets", json=_minimal_payload(test_user_cro, **{field: 5})
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                    name=f"Rating contract {field}",
+                    **{field: 5},
+                ),
             )
             assert ok.status_code == 201, f"{field}=5 rejected: {ok.text}"
 
             for invalid in ("5", 0, 6, 2.5, "Ano"):
                 resp = await client.post(
                     "/api/v1/assets",
-                    json=_minimal_payload(test_user_cro, **{field: invalid}),
+                    json=_minimal_payload(
+                        test_user_cro,
+                        name=f"Rating contract {field}",
+                        **{field: invalid},
+                    ),
                 )
                 assert resp.status_code == 422, f"{field}={invalid!r} accepted"
 
@@ -376,14 +407,23 @@ async def test_coded_fields_are_enforced_as_canonical_codes(
     async with client_factory(user=test_user_cro) as client:
         for field, (valid, invalid) in cases.items():
             ok = await client.post(
-                "/api/v1/assets", json=_minimal_payload(test_user_cro, **{field: valid})
+                "/api/v1/assets",
+                json=_minimal_payload(
+                    test_user_cro,
+                    name=f"Canonical code {field}",
+                    **{field: valid},
+                ),
             )
             assert ok.status_code == 201, f"{field}={valid!r} rejected: {ok.text}"
             assert ok.json()[field] == valid
 
             rejected = await client.post(
                 "/api/v1/assets",
-                json=_minimal_payload(test_user_cro, **{field: invalid}),
+                json=_minimal_payload(
+                    test_user_cro,
+                    name=f"Canonical code {field}",
+                    **{field: invalid},
+                ),
             )
             assert rejected.status_code == 422, f"{field}={invalid!r} accepted"
 
@@ -399,6 +439,7 @@ async def test_coded_fields_are_enforced_as_canonical_codes(
                 "/api/v1/assets",
                 json=_minimal_payload(
                     test_user_cro,
+                    name="Canonical code patch target",
                 ),
             )
         ).json()
@@ -871,8 +912,8 @@ async def test_primary_designation_has_a_db_level_partial_unique_index(db_sessio
     # Behavioral backstop: a second primary row for the same Asset is rejected
     # by the database even when the service layer is bypassed entirely.
     asset = Asset(name="Veris")
-    process_a = Process(l0_area="Provoz", l1_process="Správa smluv", f_code="F900001")
-    process_b = Process(l0_area="Provoz", l1_process="Upisování", f_code="F900002")
+    process_a = Process(l0_area="Provoz", l1_process="Správa smluv", f_code="F901")
+    process_b = Process(l0_area="Provoz", l1_process="Upisování", f_code="F902")
     db_session.add_all([asset, process_a, process_b])
     await db_session.commit()
     # Plain ints: attribute access after the failed commit's rollback would
@@ -1149,6 +1190,9 @@ async def test_risk_manager_seed_grants_full_asset_maintenance(
             "can_update": True,
             "can_archive": True,
             "can_restore": False,
+            "can_cancel_pending_change": False,
+            "has_pending_change": False,
+            "business_edit_blocked": False,
         }
 
         assert (
@@ -1215,6 +1259,14 @@ async def test_employee_reads_assets_but_cannot_maintain_them(
                 json={"process_id": process["id"]},
             )
         ).status_code == 201
+        asset_link = await client.post(
+            f"/api/v1/assets/{seeded['id']}/asset-links",
+            json={
+                "dependent_asset_id": seeded["id"],
+                "supporting_asset_id": supporting["id"],
+            },
+        )
+        assert asset_link.status_code == 201, asset_link.text
 
     async with client_factory(user=test_user_employee) as client:
         listing = await client.get("/api/v1/assets")
@@ -1228,6 +1280,9 @@ async def test_employee_reads_assets_but_cannot_maintain_them(
             "can_update": False,
             "can_archive": False,
             "can_restore": False,
+            "can_cancel_pending_change": False,
+            "has_pending_change": False,
+            "business_edit_blocked": False,
         }
 
         # Links are readable from both ends with the standard read set.
@@ -1284,7 +1339,9 @@ async def test_employee_reads_assets_but_cannot_maintain_them(
             )
         ).status_code == 403
         assert (
-            await client.delete(f"/api/v1/assets/{seeded['id']}/asset-links/1")
+            await client.delete(
+                f"/api/v1/assets/{seeded['id']}/asset-links/{asset_link.json()['id']}"
+            )
         ).status_code == 403
 
 

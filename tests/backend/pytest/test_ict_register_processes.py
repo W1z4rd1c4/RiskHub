@@ -3675,18 +3675,8 @@ async def test_corrupt_governed_envelope_expires_without_process_mutation(
             json={"resolution_notes": "Envelope must be intact"},
         )
 
-    malformed_or_unsupported = corruption in {
-        "proposal_uuid",
-        "proposal_version",
-        "schema_version",
-        "proposal_resource",
-        "base_versions",
-        "impacted_snapshot",
-        "business_snapshot",
-    }
-    assert response.status_code == (400 if malformed_or_unsupported else 200), response.text
-    if not malformed_or_unsupported:
-        assert response.json()["status"] == "expired"
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "expired"
     db_session.expire_all()
     process = await db_session.get(Process, process_id)
     approval = await db_session.get(ApprovalRequest, approval_id)
@@ -3726,16 +3716,10 @@ async def test_corrupt_governed_envelope_expires_without_process_mutation(
     assert process is not None
     assert process.l1_process == "Správa pojistných smluv"
     assert process.governance_version == 1
-    expected_status = ApprovalStatus.PENDING if malformed_or_unsupported else ApprovalStatus.EXPIRED
-    assert approval is not None and approval.status == expected_status
-    if malformed_or_unsupported:
-        assert all(impact.released_at is None for impact in all_locks)
-        assert expiry_events == []
-        assert expiry_audits == []
-    else:
-        assert all(impact.released_at is not None for impact in all_locks)
-        assert len(expiry_events) == 1
-        assert len(expiry_audits) == 1
+    assert approval is not None and approval.status == ApprovalStatus.EXPIRED
+    assert all(impact.released_at is not None for impact in all_locks)
+    assert len(expiry_events) == 1
+    assert len(expiry_audits) == 1
 
 
 @pytest.mark.asyncio

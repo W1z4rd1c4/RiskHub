@@ -9,7 +9,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ApprovalScenarioConfigurationError
-from app.core.permissions import can_resolve_approvals
 from app.models import GovernedMutationProposal, User
 from app.models.approval_scenario import ApprovalScenario
 
@@ -78,11 +77,13 @@ def is_fixed_asset_resolution_authority(
     proposal: GovernedMutationProposal,
 ) -> bool:
     """Authorize bounded terminal cleanup without trusting mutable JSON or live scenario state."""
+    from app.services.approval_scenario_policy import approval_privilege_tier
+
     role_name = getattr(getattr(user, "role", None), "name", None)
     return bool(
         user.is_active
         and user.id != proposal.requested_by_id
-        and can_resolve_approvals(user)
+        and approval_privilege_tier(user).is_privileged
         and role_name in ASSET_ALLOWED_APPROVER_ROLES
     )
 

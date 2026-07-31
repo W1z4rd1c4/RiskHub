@@ -9,7 +9,6 @@ from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.functions import FunctionElement
 
 from app.core.permissions import (
-    can_resolve_approvals,
     control_visibility_clause,
     get_issue_scope_clause,
     has_permission,
@@ -1243,7 +1242,11 @@ def _asset_approval_visibility_clause(
     )
     role_name = getattr(getattr(current_user, "role", None), "name", None)
     live_resolver = false()
-    if current_user.is_active and role_name in {"risk_manager", "cro"} and can_resolve_approvals(current_user):
+    if (
+        current_user.is_active
+        and role_name in {"risk_manager", "cro"}
+        and approval_privilege_tier(current_user).is_privileged
+    ):
         live_scenario = (
             select(ApprovalScenario.id)
             .where(

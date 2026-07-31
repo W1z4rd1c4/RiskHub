@@ -798,7 +798,7 @@ async def test_vendor_link_intake_refreshes_process_authority_after_target_lock(
 ) -> None:
     """A stale ORM Process must not preserve ownership-based write authority."""
     process = Process(
-        f_code="F90291",
+        f_code="F929",
         l0_area="Operations",
         l1_process="Vendor intake authority refresh",
         process_owner_user_id=test_user_employee.id,

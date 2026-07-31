@@ -595,18 +595,24 @@ async def load_pending_asset_changes(
                 scenarios.get(proposal.scenario_snapshot.get("key")),
             )
         else:
-            from app.core.permissions import can_resolve_approvals
+            from app.services.approval_scenario_policy import (
+                governed_process_response_policy,
+            )
 
+            response_policy = await governed_process_response_policy(
+                db,
+                approval=approval,
+                user=current_user,
+            )
             role_name = getattr(getattr(current_user, "role", None), "name", None)
             live_resolver = bool(
-                current_user.id != proposal.requested_by_id
-                and can_resolve_approvals(current_user)
+                response_policy
+                and response_policy.can_resolve
                 and all(
-                    (scenario := scenarios.get(key)) is not None
+                    (scenario := scenarios.get(scenario_key)) is not None
                     and scenario.requires_approval
-                    and role_name in scenario.approver_roles
-                    and list(scenario.approver_roles) == list(proposal.scenario_snapshot.get("approver_roles", []))
-                    for key in triggers
+                    and role_name in (scenario.approver_roles or ())
+                    for scenario_key in triggers
                 )
             )
         can_view_snapshot = bool(current_user.id == proposal.requested_by_id or live_resolver)
