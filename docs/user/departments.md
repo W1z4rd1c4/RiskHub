@@ -81,7 +81,9 @@ Department detail always provides ten tabs:
 
 Threats are intentionally absent because Threat stewardship is global rather than Department-owned.
 
-Overview has eight entity cards in a four-column by two-row desktop grid, followed by full-width recent Department activity. The cards show the operational total and, where relevant, a secondary health signal such as high Risks, inactive Controls, KRI breaches, overdue Issues, accountability gaps, or significant Vendors. Selecting a card opens the matching tab.
+Overview has exactly eight entity cards in a four-column by two-row desktop grid, followed by full-width recent Department activity. The health signals are fixed: Risks show high and critical; Controls show attention; KRIs show breach and overdue; Issues show open and overdue; Processes show critical and Critical or Important Function (CIF); Assets show critical and legacy; Vendors show critical and DORA; Users show active. The grid reflows to two columns and then one column on narrower supported layouts.
+
+The total and each health number are separate actions. Selecting a total opens the matching tab without an added health filter. Selecting a health number opens the same tab with that exact health filter. In both cases, the Department filter remains locked and cannot be removed or replaced. Counts use the same permission-scoped records as the destination register and exclude proposed creations that are still pending approval. A metric shown as **N/A** is unavailable under the current user's permissions.
 
 Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 

@@ -17,6 +17,7 @@ function parseDepartment(recentExecutions: [] | null) {
         risk_count: null,
         high_risk_count: null,
         control_count: null,
+        attention_control_count: null,
         kri_count: null,
         kri_monitoring_counts: null,
         issue_count: null,
@@ -31,6 +32,13 @@ function parseDepartment(recentExecutions: [] | null) {
         risk_by_status: null,
         control_stats: null,
         recent_executions: recentExecutions,
+        open_issue_count: null,
+        critical_process_count: null,
+        cif_process_count: null,
+        critical_asset_count: null,
+        legacy_asset_count: null,
+        critical_vendor_count: null,
+        dora_vendor_count: null,
     });
 }
 

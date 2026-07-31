@@ -57,7 +57,10 @@ export function DepartmentDetailPage() {
         next.set('tab', tab);
         next.delete('page');
         next.delete('group');
-        if (filters) next.set('filters', JSON.stringify(filters));
+        next.delete('filters');
+        if (filters && Object.keys(filters).length > 0) {
+            next.set('filters', JSON.stringify(filters));
+        }
         setSearchParams(next);
     };
 

@@ -1061,7 +1061,8 @@ describe('response schema nullability alignment', () => {
         ]);
     });
 
-    it('accepts department detail responses with a null description', async () => {
+    it('accepts department detail responses with a null description and allows its extended request window', async () => {
+        const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
             const url = responseUrl(input);
             if (!url.endsWith('/api/v1/departments/5')) {
@@ -1078,6 +1079,7 @@ describe('response schema nullability alignment', () => {
                 risk_count: 0,
                 high_risk_count: 0,
                 control_count: 1,
+                attention_control_count: 0,
                 kri_count: 0,
                 kri_monitoring_counts: {},
                 risk_distribution: {
@@ -1095,11 +1097,19 @@ describe('response schema nullability alignment', () => {
                     by_frequency: {},
                 },
                 recent_executions: [],
+                open_issue_count: 0,
+                critical_process_count: 0,
+                cif_process_count: 0,
+                critical_asset_count: 0,
+                legacy_asset_count: 0,
+                critical_vendor_count: 0,
+                dora_vendor_count: 0,
             }));
         });
 
         await expect(departmentApi.getDepartment(5)).resolves.toMatchObject({
             description: null,
         });
+        expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 15_000);
     });
 });

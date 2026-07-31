@@ -66,6 +66,7 @@ export const departmentDetailSchema: z.ZodType<DepartmentDetail> = passthroughOb
     risk_count: z.number().nullable(),
     high_risk_count: z.number().nullable(),
     control_count: z.number().nullable(),
+    attention_control_count: z.number().nullable(),
     kri_count: z.number().nullable(),
     kri_monitoring_counts: numberRecordSchema.nullable(),
     risk_distribution: passthroughObject({
@@ -77,6 +78,13 @@ export const departmentDetailSchema: z.ZodType<DepartmentDetail> = passthroughOb
     risk_by_status: numberRecordSchema.nullable(),
     control_stats: controlStatsSchema.nullable(),
     recent_executions: z.array(recentExecutionSchema).nullable(),
+    open_issue_count: z.number().nullable(),
+    critical_process_count: z.number().nullable(),
+    cif_process_count: z.number().nullable(),
+    critical_asset_count: z.number().nullable(),
+    legacy_asset_count: z.number().nullable(),
+    critical_vendor_count: z.number().nullable(),
+    dora_vendor_count: z.number().nullable(),
 });
 
 export const dashboardSummarySchema: z.ZodType<DashboardSummary> = passthroughObject({

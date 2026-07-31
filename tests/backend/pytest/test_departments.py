@@ -8,6 +8,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
+from app.db.seed import seed_ict_workbook_parameter_config
 from app.models import (
     Asset,
     Control,
@@ -16,8 +17,8 @@ from app.models import (
     GlobalConfig,
     Issue,
     KeyRiskIndicator,
-    Process,
     Permission,
+    Process,
     Risk,
     Role,
     RolePermission,
@@ -696,6 +697,7 @@ async def test_department_detail_high_risk_count_uses_config_threshold(
     db_session: AsyncSession,
     test_user: User,
 ):
+    await seed_ict_workbook_parameter_config(db_session)
     config = GlobalConfig(
         key="high_risk_min_net_score",
         value="12",

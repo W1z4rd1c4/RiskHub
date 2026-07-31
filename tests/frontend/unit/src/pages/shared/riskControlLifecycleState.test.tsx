@@ -124,4 +124,44 @@ describe('Risk and Control lifecycle page state', () => {
             expect(mocks.downloadControlExport.mock.calls.at(-1)?.[0]).not.toHaveProperty('include_archived');
         },
     );
+
+    it.each(['Vysoké', 'Kritické'] as const)(
+        'keeps Department Risk net_band=%s when undefined semantic filters are present',
+        async (netBand) => {
+            renderHook(
+                () => useRisksPageState({ net_band: undefined }),
+                { wrapper: wrapper(registerEntry('/risks', { net_band: netBand })) },
+            );
+
+            await waitFor(() => expect(mocks.getRisks).toHaveBeenCalled());
+            expect(mocks.getRisks.mock.calls.at(-1)?.[0]).toMatchObject({
+                net_band: netBand,
+            });
+        },
+    );
+
+    it('clears the Department Risk net band from public URL-backed register state', async () => {
+        const { result } = renderHook(
+            () => useRisksPageState(),
+            { wrapper: wrapper(registerEntry('/risks', { net_band: 'Kritické' })) },
+        );
+
+        await waitFor(() => expect(result.current.filters.net_band).toBe('Kritické'));
+        act(() => result.current.clearFilters());
+
+        await waitFor(() => expect(result.current.filters.net_band).toBe(''));
+        await waitFor(() => expect(mocks.getRisks.mock.calls.at(-1)?.[0].net_band).toBeUndefined());
+    });
+
+    it('keeps the existing top-level semantic Risk net_band behavior', async () => {
+        renderHook(
+            () => useRisksPageState({ net_band: 'Kritické' }),
+            { wrapper: wrapper('/risks?net_band=Kritick%C3%A9') },
+        );
+
+        await waitFor(() => expect(mocks.getRisks).toHaveBeenCalled());
+        expect(mocks.getRisks.mock.calls.at(-1)?.[0]).toMatchObject({
+            net_band: 'Kritické',
+        });
+    });
 });

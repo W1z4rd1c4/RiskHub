@@ -12,18 +12,18 @@ describe('Risk shared register contract', () => {
     it('round-trips compact URL filters and preserves the mature quick filters', () => {
         const filters = parseRiskRegisterFilters({
             lifecycle: 'archived', status: 'emerging', risk_type: 'operational',
-            is_priority: true, has_breach: false, critical: true,
+            is_priority: true, has_breach: false, critical: true, net_band: 'Vysoké',
         });
         expect(serializeRiskRegisterFilters(filters)).toEqual({
             lifecycle: 'archived', status: 'emerging', risk_type: 'operational',
-            is_priority: true, has_breach: false, critical: true,
+            is_priority: true, has_breach: false, critical: true, net_band: 'Vysoké',
         });
     });
 
     it('maps browser view to grouping and keeps view out of API/export queries', () => {
         const params = buildRiskRegisterListParams({
             criticalMinNetScore: 15, currentPage: 2,
-            filters: { lifecycle: 'active', status: 'active', risk_type: '', is_priority: true, has_breach: null, critical: true },
+            filters: { lifecycle: 'active', status: 'active', risk_type: '', is_priority: true, has_breach: null, critical: true, net_band: 'Kritické' },
             groupValue: 'Operations', limit: 50, search: ' resilience ', sort: { field: 'net_score', direction: 'desc' }, view: 'department',
         });
         const query = buildRiskCollectionQuery(params);
@@ -31,7 +31,12 @@ describe('Risk shared register contract', () => {
         expect(query.get('group_by')).toBe('department');
         expect(query.get('group_value')).toBe('Operations');
         expect(JSON.parse(query.get('sort') ?? '{}')).toEqual({ field: 'net_score', direction: 'desc' });
-        expect(JSON.parse(query.get('filters') ?? '{}')).toMatchObject({ search: 'resilience', is_priority: true, min_net_score: 15 });
+        expect(JSON.parse(query.get('filters') ?? '{}')).toMatchObject({
+            search: 'resilience',
+            is_priority: true,
+            min_net_score: 15,
+            net_band: 'Kritické',
+        });
     });
 
     it.each(['all', 'archived'] as const)(
@@ -47,6 +52,7 @@ describe('Risk shared register contract', () => {
                     is_priority: null,
                     has_breach: null,
                     critical: false,
+                    net_band: '',
                 },
                 groupValue: null,
                 limit: 50,

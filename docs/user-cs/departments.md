@@ -81,7 +81,9 @@ Detail Oddělení má vždy přesně deset záložek:
 
 Hrozby zde záměrně nejsou, protože jejich stewardship je globální a není vlastněný Oddělením.
 
-Přehled obsahuje osm karet entit v desktopové mřížce čtyři krát dva a pod nimi aktivitu Oddělení přes celou šířku. Karty ukazují provozní počet a tam, kde je to relevantní, sekundární health signál, například vysoká Rizika, neaktivní Kontroly, KRI breach, overdue Nálezy, mezery v accountability nebo významné Dodavatele. Výběr karty otevře odpovídající záložku.
+Přehled obsahuje přesně osm karet entit v desktopové mřížce čtyři krát dva a pod nimi aktivitu Oddělení přes celou šířku. Health signály jsou pevně dané: Rizika ukazují vysoká a kritická; Kontroly vyžadující pozornost; KRI ukazují breach a overdue; Nálezy otevřené a overdue; Procesy kritické a Critical or Important Function (CIF); Aktiva kritická a legacy; Dodavatelé kritičtí a DORA; Uživatelé aktivní. Na užších podporovaných rozvrženích se mřížka převede na dva a poté jeden sloupec.
+
+Celkový počet a každý health počet jsou samostatné akce. Výběr celkového počtu otevře odpovídající záložku bez přidaného health filtru. Výběr health počtu otevře stejnou záložku s přesně tímto health filtrem. V obou případech zůstává filtr Oddělení uzamčený a nelze ho odstranit ani nahradit. Počty používají stejné záznamy v permission scope jako cílový registr a nezahrnují návrhy na vytvoření, které stále čekají na schválení. Hodnota **N/A** znamená, že metrika není s oprávněními aktuálního uživatele dostupná.
 
 Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 

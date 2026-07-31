@@ -84,15 +84,23 @@ class DepartmentDetail(DepartmentBase):
     risk_count: int | None
     high_risk_count: int | None
     control_count: int | None
+    attention_control_count: int | None = None
     kri_count: int | None = None
     kri_monitoring_counts: dict[str, int] | None = None
     issue_count: int | None = None
+    open_issue_count: int | None = None
     overdue_issue_count: int | None = None
     process_count: int | None = None
+    critical_process_count: int | None = None
+    cif_process_count: int | None = None
     process_accountability_gap_count: int | None = None
     asset_count: int | None = None
+    critical_asset_count: int | None = None
+    legacy_asset_count: int | None = None
     asset_accountability_gap_count: int | None = None
     vendor_count: int | None = None
+    critical_vendor_count: int | None = None
+    dora_vendor_count: int | None = None
     significant_vendor_count: int | None = None
 
     # Risk metrics

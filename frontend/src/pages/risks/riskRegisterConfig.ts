@@ -31,6 +31,7 @@ export interface RiskRegisterFilters {
     is_priority: boolean | null;
     has_breach: boolean | null;
     critical: boolean;
+    net_band: string;
 }
 
 export const RISK_REGISTER_CONFIG = {
@@ -51,6 +52,7 @@ export const EMPTY_RISK_REGISTER_FILTERS: RiskRegisterFilters = {
     is_priority: null,
     has_breach: null,
     critical: false,
+    net_band: '',
 };
 
 const booleanOrNull = (value: unknown): boolean | null => typeof value === 'boolean' ? value : null;
@@ -65,6 +67,7 @@ export function parseRiskRegisterFilters(filters: RegisterFilters): RiskRegister
         is_priority: booleanOrNull(filters.is_priority),
         has_breach: booleanOrNull(filters.has_breach),
         critical: filters.critical === true,
+        net_band: typeof filters.net_band === 'string' ? filters.net_band : '',
     };
 }
 
@@ -76,6 +79,7 @@ export function serializeRiskRegisterFilters(filters: RiskRegisterFilters): Regi
         is_priority: filters.is_priority,
         has_breach: filters.has_breach,
         critical: filters.critical || undefined,
+        net_band: filters.net_band || undefined,
     };
 }
 
@@ -112,6 +116,7 @@ export function buildRiskRegisterListParams({
         is_priority: filters.is_priority ?? undefined,
         has_breach: filters.has_breach ?? undefined,
         min_net_score: filters.critical ? criticalMinNetScore : undefined,
+        net_band: filters.net_band || undefined,
         sort: sort ?? undefined,
         sort_by: sort?.field,
         sort_order: sort?.direction,

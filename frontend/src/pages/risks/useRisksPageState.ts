@@ -19,6 +19,7 @@ import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '..
 import { buildRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import {
     buildRiskRegisterListParams,
+    EMPTY_RISK_REGISTER_FILTERS,
     parseRiskRegisterFilters,
     RISK_REGISTER_CONFIG,
     serializeRiskRegisterFilters,
@@ -79,7 +80,10 @@ export function useRisksPageState(
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
     const listParams = useMemo(() => {
-        const { committee_scope: committeeScope, ...apiSemanticFilters } = semanticFilters;
+        const { committee_scope: committeeScope, ...rawApiSemanticFilters } = semanticFilters;
+        const apiSemanticFilters = Object.fromEntries(
+            Object.entries(rawApiSemanticFilters).filter(([, value]) => value !== undefined),
+        );
         const effectiveFilters = committeeScope === true
             ? { ...filters, lifecycle: 'all' as const, status: '' as const }
             : filters;
@@ -148,9 +152,10 @@ export function useRisksPageState(
     const updateFilter = useCallback(<K extends keyof RiskRegisterFilters>(key: K, value: RiskRegisterFilters[K]) => {
         writeUrl({ filters: { ...filters, [key]: value }, group: null });
     }, [filters, writeUrl]);
-    const clearFilters = useCallback(() => writeUrl({ filters: {
-        lifecycle: 'active', status: 'active', risk_type: '', is_priority: null, has_breach: null, critical: false,
-    }, group: null }), [writeUrl]);
+    const clearFilters = useCallback(
+        () => writeUrl({ filters: EMPTY_RISK_REGISTER_FILTERS, group: null }),
+        [writeUrl],
+    );
     const restoreRisk = useCallback(async (riskId: number) => {
         try { await riskApi.restoreRisk(riskId); await fetchRisks(); }
         catch (error) { setErrorKey(apiClient.toUiMessageKey(error)); }

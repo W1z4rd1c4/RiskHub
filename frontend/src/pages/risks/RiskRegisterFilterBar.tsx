@@ -16,6 +16,13 @@ import {
 
 type OptionalRiskFilter = 'has_breach' | 'critical';
 
+const NET_BAND_LABEL_KEYS: Readonly<Record<string, string>> = {
+    'Nízké': 'low',
+    'Střední': 'medium',
+    'Vysoké': 'high',
+    'Kritické': 'critical',
+};
+
 interface Props {
     facets: RiskFacets;
     filters: RiskRegisterFilters;
@@ -79,6 +86,10 @@ export function RiskRegisterFilterBar({
         has_breach: t('register.filters.has_breach'),
         critical: t('register.filters.critical'),
     };
+    const netBandLabel = t('register.filters.net_band');
+    const selectedNetBandLabel = filters.net_band
+        ? t(`register.net_bands.${NET_BAND_LABEL_KEYS[filters.net_band]}`, filters.net_band)
+        : '';
     const chips = useMemo<RegisterFilterChip[]>(() => [
         ...(filters.lifecycle !== 'active' ? [{ key: 'lifecycle', label: `${t('register.filters.lifecycle')}: ${t(`register.lifecycle.${filters.lifecycle}`)}` }] : []),
         ...(filters.status !== 'active' ? [{ key: 'status', label: `${t('fields.status')}: ${filters.status ? t(`status.${filters.status}`) : t('filters.all_statuses')}` }] : []),
@@ -86,7 +97,8 @@ export function RiskRegisterFilterBar({
         ...(filters.is_priority !== null ? [{ key: 'is_priority', label: `${t('filters.priority_only')}: ${filters.is_priority ? t('common:actions.yes') : t('common:actions.no')}` }] : []),
         ...(filters.has_breach !== null ? [{ key: 'has_breach', label: labels.has_breach }] : []),
         ...(filters.critical ? [{ key: 'critical', label: labels.critical }] : []),
-    ], [filters, labels.critical, labels.has_breach, riskTypeLabel, t]);
+        ...(filters.net_band ? [{ key: 'net_band', label: `${netBandLabel}: ${selectedNetBandLabel}` }] : []),
+    ], [filters, labels.critical, labels.has_breach, netBandLabel, riskTypeLabel, selectedNetBandLabel, t]);
     const remove = (key: string) => {
         if (key === 'lifecycle') onFilterChange('lifecycle', 'active');
         else if (key === 'status') onFilterChange('status', 'active');
@@ -94,6 +106,7 @@ export function RiskRegisterFilterBar({
         else if (key === 'is_priority') onFilterChange('is_priority', null);
         else if (key === 'has_breach') onFilterChange('has_breach', null);
         else if (key === 'critical') onFilterChange('critical', false);
+        else if (key === 'net_band') onFilterChange('net_band', '');
         if (key === 'has_breach' || key === 'critical') setActiveKeys((current) => current.filter((item) => item !== key));
     };
     const facetOption = (option: CollectionFacetOption, label: string) => ({

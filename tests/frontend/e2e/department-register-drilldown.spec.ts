@@ -1,6 +1,12 @@
+import AxeBuilder from '@axe-core/playwright';
 import type { Page, Request } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.fixture';
+import {
+    assertZeroAxeFindings,
+    WCAG_TAGS,
+    toFindings,
+} from './helpers/axeBaseline';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 
 const ENTITY_TABS = [
@@ -27,14 +33,29 @@ const OVERVIEW_CARDS = [
     'users',
 ] as const;
 
-function collectionFilters(request: Request): Record<string, unknown> {
-    const raw = new URL(request.url()).searchParams.get('filters');
+const REPRESENTATIVE_HEALTH_ACTIONS = [
+    { card: 'risks', action: 'high', tab: 'risks', pathname: '/api/v1/risks', filters: { net_band: 'Vysoké' } },
+    { card: 'controls', action: 'attention', tab: 'controls', pathname: '/api/v1/controls', filters: { monitoring_status: 'needs_review' } },
+    { card: 'kris', action: 'breach', tab: 'kris', pathname: '/api/v1/kris', filters: { monitoring_status: 'breach' } },
+    { card: 'issues', action: 'open', tab: 'issues', pathname: '/api/v1/issues', filters: { status: 'open' } },
+    { card: 'processes', action: 'cif', tab: 'processes', pathname: '/api/v1/processes', filters: { cif: true } },
+    { card: 'assets', action: 'legacy', tab: 'assets', pathname: '/api/v1/assets', filters: { legacy: true } },
+    { card: 'vendors', action: 'dora', tab: 'vendors', pathname: '/api/v1/vendors', filters: { dora_relevant: true } },
+    { card: 'users', action: 'active', tab: 'users', pathname: '/api/v1/access/users/my-department', filters: {} },
+] as const;
+
+function filtersFromUrl(url: URL): Record<string, unknown> {
+    const raw = url.searchParams.get('filters');
     if (!raw) return {};
     try {
         return JSON.parse(raw) as Record<string, unknown>;
     } catch {
         return {};
     }
+}
+
+function collectionFilters(request: Request): Record<string, unknown> {
+    return filtersFromUrl(new URL(request.url()));
 }
 
 function isDepartmentScopedCollectionRequest(
@@ -45,11 +66,12 @@ function isDepartmentScopedCollectionRequest(
     const url = new URL(request.url());
     if (request.method() !== 'GET' || url.pathname !== pathname) return false;
     const filters = collectionFilters(request);
+    const expectedDirect = url.searchParams.get('department_id') === String(departmentId);
     const expectedScalar = filters.department_id === departmentId;
     const expectedPlural = Array.isArray(filters.department_ids)
         && filters.department_ids.length === 1
         && filters.department_ids[0] === departmentId;
-    return expectedScalar || expectedPlural;
+    return expectedDirect || expectedScalar || expectedPlural;
 }
 
 async function openSeededDepartment(page: Page): Promise<number> {
@@ -87,7 +109,7 @@ async function openSeededDepartment(page: Page): Promise<number> {
     return departmentId;
 }
 
-test.describe('Department register drill-down (#89)', () => {
+test.describe('Department metric drill-down (#90)', () => {
     test('exposes exactly the ten contracted tabs and eight overview cards', async ({ page }) => {
         await openSeededDepartment(page);
 
@@ -102,7 +124,10 @@ test.describe('Department register drill-down (#89)', () => {
         for (const entity of OVERVIEW_CARDS) {
             await expect(page.getByTestId(`department-overview-card-${entity}`)).toBeVisible();
         }
-        await expect(page.locator('[data-testid^="department-overview-card-"]')).toHaveCount(8);
+        const cardSelector = OVERVIEW_CARDS
+            .map((card) => `[data-testid="department-overview-card-${card}"]`)
+            .join(',');
+        await expect(page.locator(cardSelector)).toHaveCount(8);
         await expect(page.getByTestId('department-overview-activity')).toBeVisible();
     });
 
@@ -171,5 +196,88 @@ test.describe('Department register drill-down (#89)', () => {
         await expect(firstProcessLink).toBeVisible();
         await firstProcessLink.click();
         await expect(riskManagerPage).toHaveURL(/\/processes\/\d+$/);
+    });
+
+    test('opens every metric family with its exact health filter and locked Department scope', async ({ page }) => {
+        const departmentId = await openSeededDepartment(page);
+
+        for (const health of REPRESENTATIVE_HEALTH_ACTIONS) {
+            const requestPromise = page.waitForRequest((request) => (
+                request.method() === 'GET'
+                && new URL(request.url()).pathname === health.pathname
+            ));
+            await page.getByTestId(`department-overview-card-${health.card}-${health.action}`).click();
+            const request = await requestPromise;
+            expect(isDepartmentScopedCollectionRequest(request, health.pathname, departmentId)).toBe(true);
+            const requestUrl = new URL(request.url());
+            const requestFilters = collectionFilters(request);
+            for (const [key, value] of Object.entries(health.filters)) {
+                expect(requestFilters[key] ?? requestUrl.searchParams.get(key)).toEqual(value);
+            }
+            await expect(page).toHaveURL((url) => {
+                const filters = filtersFromUrl(url);
+                return url.searchParams.get('tab') === health.tab
+                    && Object.entries(health.filters).every(([key, value]) => filters[key] === value);
+            });
+
+            await page.getByRole('tab', { name: /overview|přehled/i }).click();
+            await expect(page.getByTestId(`department-overview-card-${health.card}`)).toBeVisible();
+        }
+    });
+
+    test('renders the exact 4x2 desktop grid, supported reflow, full-width activity, and zero axe findings', async ({ page }, testInfo) => {
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await openSeededDepartment(page);
+
+        const grid = page.getByTestId('department-stats-grid');
+        const activity = page.getByTestId('department-overview-activity');
+        await expect(grid).toBeVisible();
+        const desktopColumns = await grid.evaluate((element) => (
+            getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length
+        ));
+        expect(desktopColumns).toBe(4);
+
+        const cardSelector = OVERVIEW_CARDS
+            .map((card) => `[data-testid="department-overview-card-${card}"]`)
+            .join(',');
+        const cards = page.locator(cardSelector);
+        await expect(cards).toHaveCount(8);
+        const cardBoxes = await cards.evaluateAll((elements) => elements.map((element) => {
+            const box = element.getBoundingClientRect();
+            return { x: box.x, y: box.y };
+        }));
+        expect(new Set(cardBoxes.slice(0, 4).map(({ y }) => Math.round(y))).size).toBe(1);
+        expect(new Set(cardBoxes.slice(4).map(({ y }) => Math.round(y))).size).toBe(1);
+        expect(cardBoxes[4].y).toBeGreaterThan(cardBoxes[0].y);
+
+        const gridBox = await grid.boundingBox();
+        const activityBox = await activity.boundingBox();
+        expect(gridBox).not.toBeNull();
+        expect(activityBox).not.toBeNull();
+        expect(activityBox!.y).toBeGreaterThan(gridBox!.y + gridBox!.height);
+        expect(Math.abs(activityBox!.x - gridBox!.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(activityBox!.width - gridBox!.width)).toBeLessThanOrEqual(1);
+
+        await testInfo.attach('department-overview-1440x1000', {
+            body: await page.locator('main').screenshot(),
+            contentType: 'image/png',
+        });
+
+        await page.setViewportSize({ width: 1024, height: 1000 });
+        await expect(grid).toBeVisible();
+        const supportedReflowColumns = await grid.evaluate((element) => (
+            getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length
+        ));
+        expect(supportedReflowColumns).toBe(2);
+        await testInfo.attach('department-overview-1024x1000', {
+            body: await page.locator('main').screenshot(),
+            contentType: 'image/png',
+        });
+
+        const analysis = await new AxeBuilder({ page })
+            .withTags([...WCAG_TAGS])
+            .include('[data-testid="department-stats-grid"]')
+            .analyze();
+        assertZeroAxeFindings(toFindings(analysis.violations), 'department metric cards');
     });
 });

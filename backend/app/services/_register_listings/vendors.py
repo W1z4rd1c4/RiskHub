@@ -127,6 +127,20 @@ class VendorListCriteria:
     linked_kri_ids: tuple[int, ...] = ()
 
 
+def can_view_vendor_full_derivation(
+    current_user: User,
+    *,
+    check_permission_fn=check_permission,
+) -> bool:
+    return bool(
+        check_permission_fn(current_user, "vendors", "read")
+        and check_permission_fn(current_user, "processes", "read")
+        and check_permission_fn(current_user, "assets", "read")
+        and check_permission_fn(current_user, "vendor_contracts", "read")
+        and get_user_department_ids(current_user) is None
+    )
+
+
 @dataclass(frozen=True)
 class VendorLinkContext:
     processes: dict[int, set[int]]
@@ -1271,12 +1285,9 @@ async def list_vendor_governance(
         current_user,
         check_permission_fn=check_permission_fn,
     )
-    can_view_full_derivation = bool(
-        check_permission_fn(current_user, "vendors", "read")
-        and check_permission_fn(current_user, "processes", "read")
-        and check_permission_fn(current_user, "assets", "read")
-        and check_permission_fn(current_user, "vendor_contracts", "read")
-        and get_user_department_ids(current_user) is None
+    can_view_full_derivation = can_view_vendor_full_derivation(
+        current_user,
+        check_permission_fn=check_permission_fn,
     )
     can_view_contract_context = bool(
         check_permission_fn(current_user, "vendors", "read")

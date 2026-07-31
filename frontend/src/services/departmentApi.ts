@@ -59,6 +59,7 @@ export interface DepartmentDetail {
     risk_count: number | null;
     high_risk_count: number | null;
     control_count: number | null;
+    attention_control_count: number | null;
     kri_count: number | null;
     kri_monitoring_counts: Record<string, number> | null;
     risk_distribution: RiskDistribution | null;
@@ -66,6 +67,7 @@ export interface DepartmentDetail {
     control_stats: ControlStats | null;
     recent_executions: RecentExecution[] | null;
     issue_count?: number | null;
+    open_issue_count: number | null;
     process_count?: number | null;
     asset_count?: number | null;
     vendor_count?: number | null;
@@ -73,6 +75,12 @@ export interface DepartmentDetail {
     process_accountability_gap_count?: number | null;
     asset_accountability_gap_count?: number | null;
     significant_vendor_count?: number | null;
+    critical_process_count: number | null;
+    cif_process_count: number | null;
+    critical_asset_count: number | null;
+    legacy_asset_count: number | null;
+    critical_vendor_count: number | null;
+    dora_vendor_count: number | null;
 }
 
 export const departmentApi = {
@@ -87,7 +95,10 @@ export const departmentApi = {
      * Get detailed department information
      */
     getDepartment: async (id: number): Promise<DepartmentDetail> => {
-        return apiClient.get(`/departments/${id}`, { schema: departmentDetailSchema });
+        return apiClient.get(`/departments/${id}`, {
+            schema: departmentDetailSchema,
+            timeoutMs: 15_000,
+        });
     },
 
     /**
