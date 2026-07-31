@@ -340,11 +340,30 @@
   },
   "department_detail": {
     "tabs": {
+      "label": "Pracovní prostor oddělení",
+      "overview": "Přehled",
       "risks": "Rizika",
       "users": "Uživatelé",
       "controls": "Kontroly",
       "kris": "KRI",
+      "issues": "Problémy",
+      "processes": "Procesy",
+      "assets": "Aktiva",
+      "vendors": "Dodavatelé",
+      "activity": "Aktivita",
       "recent_activity": "Nedávná aktivita"
+    },
+    "health": {
+      "high_risk": "{{count}} vysokých rizik",
+      "inactive_controls": "{{count}} neaktivních",
+      "kri_breaches": "{{count}} překročení",
+      "overdue_issues": "{{count}} po termínu",
+      "accountability_gaps": "{{count}} mezer v odpovědnosti",
+      "significant_vendors": "{{count}} významných"
+    },
+    "recent_activity": {
+      "title": "Nedávná aktivita",
+      "empty": "Žádná nedávná aktivita"
     }
   },
   "documentation": {

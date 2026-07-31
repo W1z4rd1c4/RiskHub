@@ -340,11 +340,30 @@
   },
   "department_detail": {
     "tabs": {
+      "label": "Department workspace",
+      "overview": "Overview",
       "risks": "Risks",
       "users": "Users",
       "controls": "Controls",
       "kris": "KRIs",
+      "issues": "Issues",
+      "processes": "Processes",
+      "assets": "Assets",
+      "vendors": "Vendors",
+      "activity": "Activity",
       "recent_activity": "Recent Activity"
+    },
+    "health": {
+      "high_risk": "{{count}} high risk",
+      "inactive_controls": "{{count}} inactive",
+      "kri_breaches": "{{count}} breaches",
+      "overdue_issues": "{{count}} overdue",
+      "accountability_gaps": "{{count}} accountability gaps",
+      "significant_vendors": "{{count}} significant"
+    },
+    "recent_activity": {
+      "title": "Recent activity",
+      "empty": "No recent activity"
     }
   },
   "documentation": {

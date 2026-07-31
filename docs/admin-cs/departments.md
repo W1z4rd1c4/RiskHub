@@ -1,7 +1,7 @@
 ---
 title: Oddělení: admin podpora a integrita přístupů
-version: "2.1"
-last_updated: "2026-03-29"
+version: "2.2"
+last_updated: "2026-07-31"
 audience: admin
 source_of_truth: "docs/BUSINESS_LOGIC.md (scope/viditelnost) + backend/app/api/v1/endpoints/riskhub/departments.py + frontend/src/pages/UsersPage.tsx"
 summary: "Admin runbook pro podporu změn oddělení bez rozbití přístupů: diagnostika scope, změny přiřazení uživatelů a bezpečné předání business ownerovi."
@@ -26,6 +26,12 @@ Oddělení jsou strukturální hranice v RiskHubu, které ovlivňují:
 Důležitá hranice: **CRUD oddělení je business-governance funkce** (typicky CRO-owned). Platformní admin obvykle nerozhoduje „jaká jsou oddělení“. Odpovědnost admina je držet přístupové chování předvídatelné, držet přiřazení uživatelů konzistentní a dodat evidenci, když změny oddělení způsobí incident.
 
 Tento runbook popisuje admin podporu oddělení: diagnostika scope problémů, bezpečné změny přiřazení uživatelů a koordinace předání business ownerovi pro create/update/archive akce.
+
+## Invariant workspace Oddělení
+
+Detail Oddělení je provozní review workspace s přesně deseti záložkami: Přehled, Rizika, Kontroly, KRI, Nálezy, Procesy, Aktiva, Dodavatelé, Uživatelé a Aktivita. Záložka Hrozby neexistuje, protože Hrozby zůstávají globálně spravované. Osm záložek entit používá běžné stránky registrů pod uzamčeným omezením Oddělení, takže hledání, filtry, skupiny, řazení, stránkování, capability-driven akce, pending/archive prezentace a exporty fungují stejně jako na hlavní stránce registru.
+
+Při diagnostice neodvozujte členství záznamu z domovského Oddělení Accountable Usera. Proces a Aktivum používají své Owning Department, KRI následuje Oddělení svého Rizika a ostatní registry používají své kanonické pole Oddělení. Vyčištění filtrů na záložce Oddělení toto omezení odstranit nemůže. Facety, počty, souhrny vazeb, Aktivita a exporty musí zůstat v rámci oprávnění volajícího i vybraného Oddělení.
 
 ## Kdy to použít
 
@@ -183,6 +189,8 @@ Checks:
 
 - scope omylem eskalovaný (`global`)
 - ownership výjimky (owner viditelnost) fungují podle návrhu
+- kanonické Owning Department záznamu se liší od domovského Oddělení Accountable Usera
+- URL detailu Oddělení po Back/Forward stále ukazuje očekávané Oddělení a záložku
 
 Akce:
 

@@ -20,7 +20,17 @@ export interface DeptUser {
     department_id?: number | null;
 }
 
-export type TabView = 'risks' | 'controls' | 'kris' | 'activity' | 'users';
+export type TabView =
+    | 'overview'
+    | 'risks'
+    | 'controls'
+    | 'kris'
+    | 'issues'
+    | 'processes'
+    | 'assets'
+    | 'vendors'
+    | 'users'
+    | 'activity';
 
 export interface TabFetchState {
     isLoading: boolean;

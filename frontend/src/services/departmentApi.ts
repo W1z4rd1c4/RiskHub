@@ -55,16 +55,24 @@ export interface DepartmentDetail {
     description?: string | null;
     created_at: string;
     updated_at: string;
-    user_count: number;
-    risk_count: number;
-    high_risk_count: number;
-    control_count: number;
-    kri_count: number;
-    kri_monitoring_counts: Record<string, number>;
-    risk_distribution: RiskDistribution;
-    risk_by_status: Record<string, number>;
-    control_stats: ControlStats;
-    recent_executions: RecentExecution[];
+    user_count: number | null;
+    risk_count: number | null;
+    high_risk_count: number | null;
+    control_count: number | null;
+    kri_count: number | null;
+    kri_monitoring_counts: Record<string, number> | null;
+    risk_distribution: RiskDistribution | null;
+    risk_by_status: Record<string, number> | null;
+    control_stats: ControlStats | null;
+    recent_executions: RecentExecution[] | null;
+    issue_count?: number | null;
+    process_count?: number | null;
+    asset_count?: number | null;
+    vendor_count?: number | null;
+    overdue_issue_count?: number | null;
+    process_accountability_gap_count?: number | null;
+    asset_accountability_gap_count?: number | null;
+    significant_vendor_count?: number | null;
 }
 
 export const departmentApi = {

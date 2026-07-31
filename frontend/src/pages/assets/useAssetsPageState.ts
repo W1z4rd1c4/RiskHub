@@ -9,6 +9,8 @@ import { apiClient } from '@/services/apiClient';
 import { assetApi } from '@/services/assetApi';
 import type { Asset, AssetFacets, AssetListCapabilities, AssetSortField } from '@/types/asset';
 
+import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
+import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import {
     canonicalAssetCriticality,
     type AssetSemanticFilters,
@@ -39,6 +41,7 @@ const selectedGroupLabel = (groups: Array<{ value: string; label: string }>, val
     value ? groups.find((group) => group.value === value)?.label ?? null : null;
 
 export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, language: SupportedLanguage = 'en') {
+    const departmentScope = useDepartmentRegisterScope();
     const [searchParams, setSearchParams] = useSearchParams();
     const serializedParams = searchParams.toString();
     const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
@@ -49,7 +52,10 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
     const sort = validSort(urlState.sort);
     const groupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [localCurrentPage, setLocalCurrentPage] = useState(1);
+    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
+        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
+    });
     const [facets, setFacets] = useState<AssetFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
@@ -70,11 +76,12 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
 
     const effectiveFilters = useMemo<AssetRegisterFilters>(() => ({
         ...filters,
+        department_ids: departmentScope ? [departmentScope.departmentId] : filters.department_ids,
         lifecycle: semanticFilters.committee_scope === true ? 'all' : filters.lifecycle,
         criticality: semanticFilters.criticality
             ? [canonicalAssetCriticality(semanticFilters.criticality) ?? semanticFilters.criticality]
             : filters.criticality,
-    }), [filters, semanticFilters.committee_scope, semanticFilters.criticality]);
+    }), [departmentScope, filters, semanticFilters.committee_scope, semanticFilters.criticality]);
     const listParams = useMemo(() => ({
         ...buildAssetRegisterListParams({ currentPage, filters: effectiveFilters, groupValue, limit: DEFAULT_LIST_PAGE_SIZE, search: debouncedSearch, sort, view: viewMode }),
         has_process_link: semanticFilters.has_process_link,
@@ -102,7 +109,7 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
         }
     }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
 
-    useEffect(() => setCurrentPage(1), [serializedParams]);
+    useEffect(() => { if (!isDepartmentScoped) setLocalCurrentPage(1); }, [isDepartmentScoped, serializedParams]);
     useEffect(() => { void fetchAssets(); }, [fetchAssets]);
 
     const writeUrl = useCallback((next: {
@@ -113,8 +120,9 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
             selectedGroupValue: next.group === undefined ? groupValue : next.group,
             sort: next.sort === undefined ? sort : next.sort, view: next.view ?? viewMode,
         }, new URLSearchParams(serializedParams));
-        setSearchParams(params, { replace }); setCurrentPage(1);
-    }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
+        if (!isDepartmentScoped) setCurrentPage(1);
+    }, [filters, groupValue, isDepartmentScoped, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
 
     const updateFilter = useCallback(<K extends keyof AssetRegisterFilters>(key: K, value: AssetRegisterFilters[K]) =>
         writeUrl({ filters: { ...filters, [key]: value }, group: null }), [filters, writeUrl]);

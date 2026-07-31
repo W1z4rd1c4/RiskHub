@@ -1324,6 +1324,61 @@ async def test_activity_log_department_scoping(db_session, client_factory):
 
 
 @pytest.mark.asyncio
+async def test_activity_actor_options_can_be_scoped_to_activity_department(
+    client_cro: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user_cro: User,
+    test_user_employee: User,
+):
+    other_department = Department(
+        name="Other activity department",
+        code="OTHER-ACTIVITY",
+        description="Second Activity Log scope",
+    )
+    db_session.add(other_department)
+    await db_session.commit()
+
+    await log_activity(
+        db_session,
+        entity_type=ActivityEntityType.RISK,
+        entity_id=210,
+        entity_name="Scoped activity",
+        action=ActivityAction.CREATE,
+        actor=test_user_cro,
+        department_id=test_department.id,
+        changes=None,
+        description="Inside the requested Department",
+    )
+    await log_activity(
+        db_session,
+        entity_type=ActivityEntityType.RISK,
+        entity_id=211,
+        entity_name="Other activity",
+        action=ActivityAction.CREATE,
+        actor=test_user_employee,
+        department_id=other_department.id,
+        changes=None,
+        description="Outside the requested Department",
+    )
+    await db_session.commit()
+
+    scoped = await client_cro.get(
+        "/api/v1/activity-log/actors",
+        params={"department_id": test_department.id},
+    )
+    unscoped = await client_cro.get("/api/v1/activity-log/actors")
+
+    assert scoped.status_code == 200, scoped.text
+    assert scoped.json() == [{"id": test_user_cro.id, "name": test_user_cro.name}]
+    assert unscoped.status_code == 200, unscoped.text
+    assert {actor["id"] for actor in unscoped.json()} == {
+        test_user_cro.id,
+        test_user_employee.id,
+    }
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "path",
     [

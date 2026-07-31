@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import datetime, timedelta
 
 import pytest
@@ -170,6 +171,68 @@ async def test_protected_creation_has_no_operational_identity_until_approval(
     created = (await db_session.execute(select(Process))).scalar_one()
     assert created.f_code == f"F{created.id}"
     assert created.l1_process == "Protected creation"
+
+
+@pytest.mark.asyncio
+async def test_pending_process_creations_follow_the_collection_department_scope(
+    client_factory,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+):
+    await _scenario(db_session)
+    other_department = Department(
+        name="Other proposed Process department",
+        code="OTHER-PROCESS",
+        description="Second proposed owning department",
+    )
+    db_session.add(other_department)
+    await db_session.commit()
+
+    async with client_factory(user=test_user_cro) as requester:
+        first = await requester.post(
+            "/api/v1/processes",
+            json=_payload(
+                test_user_cro,
+                test_department.id,
+                l1_process="First scoped pending creation",
+            ),
+        )
+        second = await requester.post(
+            "/api/v1/processes",
+            json=_payload(
+                test_user_cro,
+                other_department.id,
+                l1_process="Second scoped pending creation",
+            ),
+        )
+        requester_scoped = await requester.get(
+            "/api/v1/processes",
+            params={"filters": json.dumps({"department_ids": [test_department.id]})},
+        )
+
+    assert first.status_code == 202, first.text
+    assert second.status_code == 202, second.text
+    assert requester_scoped.status_code == 200, requester_scoped.text
+    assert [
+        row["approval_id"] for row in requester_scoped.json()["pending_creations"]
+    ] == [first.json()["approval_id"]]
+
+    async with client_factory(user=test_user_risk_manager) as approver:
+        approver_scoped = await approver.get(
+            "/api/v1/processes",
+            params={"filters": json.dumps({"department_ids": [other_department.id]})},
+        )
+        approver_unscoped = await approver.get("/api/v1/processes")
+
+    assert approver_scoped.status_code == 200, approver_scoped.text
+    assert [
+        row["approval_id"] for row in approver_scoped.json()["pending_creations"]
+    ] == [second.json()["approval_id"]]
+    assert {
+        row["approval_id"] for row in approver_unscoped.json()["pending_creations"]
+    } == {first.json()["approval_id"], second.json()["approval_id"]}
 
 
 @pytest.mark.asyncio

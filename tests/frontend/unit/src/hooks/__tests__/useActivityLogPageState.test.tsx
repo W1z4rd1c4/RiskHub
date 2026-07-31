@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildActivityLogFilters, transitionActivityLogViewMode } from '@/hooks/activityLogPageWorkflow';
 import { useActivityLogPageState } from '@/hooks/useActivityLogPageState';
 import type { ActivityLogListResponse } from '@/types/activityLog';
+import { DepartmentRegisterScopeProvider } from '@/pages/departments/DepartmentRegisterScope';
 
 const mockList = vi.fn();
 const mockGetActions = vi.fn();
@@ -19,7 +20,7 @@ vi.mock('@/services/activityLogApi', () => ({
     activityLogApi: {
         list: (...args: unknown[]) => mockList(...args),
         getActions: () => mockGetActions(),
-        getActors: () => mockGetActors(),
+        getActors: (...args: unknown[]) => mockGetActors(...args),
     },
 }));
 
@@ -219,6 +220,23 @@ describe('useActivityLogPageState', () => {
         render(<CapabilityHarness />);
 
         await waitFor(() => expect(screen.getByTestId('department-filter')).toHaveTextContent('true'));
+    });
+
+    it('locks entries and lookups to the Department workspace', async () => {
+        mockList.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 50 });
+
+        render(
+            <DepartmentRegisterScopeProvider value={{ departmentId: 7, departmentName: 'Compliance' }}>
+                <HookHarness />
+            </DepartmentRegisterScopeProvider>,
+        );
+
+        await waitFor(() => expect(mockList).toHaveBeenCalled());
+        expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ department_id: 7 }));
+        expect(mockGetActors).toHaveBeenCalledWith(7);
+        expect(mockGetDepartments).not.toHaveBeenCalled();
+        expect(mockGetRisks).toHaveBeenCalledWith(expect.objectContaining({ department_id: 7 }));
+        expect(screen.getByTestId('departments')).toHaveTextContent('Compliance');
     });
 
     it('uses workflow helpers for view transitions and filter payloads', () => {

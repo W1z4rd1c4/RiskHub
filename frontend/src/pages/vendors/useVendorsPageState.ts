@@ -15,6 +15,8 @@ import type {
     VendorSortField,
 } from '@/types/vendor';
 
+import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
+import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import {
     getTotalPages,
     useCollectionDataState,
@@ -63,6 +65,7 @@ export function useVendorsPageState(
     semanticFilters: VendorSemanticFilters = {},
     language: SupportedLanguage = 'en',
 ) {
+    const departmentScope = useDepartmentRegisterScope();
     const [searchParams, setSearchParams] = useSearchParams();
     const serializedParams = searchParams.toString();
     const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
@@ -74,7 +77,10 @@ export function useVendorsPageState(
     const sort = validSort(urlState.sort);
     const groupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [localCurrentPage, setLocalCurrentPage] = useState(1);
+    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
+        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
+    });
     const [facets, setFacets] = useState<VendorFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
@@ -95,12 +101,14 @@ export function useVendorsPageState(
 
     const effectiveFilters = useMemo<VendorRegisterFilters>(() => ({
         ...filters,
+        department_ids: departmentScope ? [departmentScope.departmentId] : filters.department_ids,
         lifecycle: semanticFilters.committee_scope === true ? 'all' : filters.lifecycle,
         tiers: semanticFilters.tier ? [semanticFilters.tier] : filters.tiers,
         has_roi_contract: semanticFilters.has_roi_contract ?? filters.has_roi_contract,
         has_sub_outsourcing: semanticFilters.has_sub_outsourcing ?? filters.has_sub_outsourcing,
         has_direct_process_link: semanticFilters.has_direct_process_link ?? filters.has_direct_process_link,
     }), [
+        departmentScope,
         filters,
         semanticFilters.committee_scope,
         semanticFilters.has_direct_process_link,
@@ -145,7 +153,7 @@ export function useVendorsPageState(
         }
     }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
 
-    useEffect(() => setCurrentPage(1), [serializedParams]);
+    useEffect(() => { if (!isDepartmentScoped) setLocalCurrentPage(1); }, [isDepartmentScoped, serializedParams]);
     useEffect(() => { void fetchVendors(); }, [fetchVendors]);
 
     const writeUrl = useCallback((next: {
@@ -162,9 +170,9 @@ export function useVendorsPageState(
             sort: next.sort === undefined ? sort : next.sort,
             view: next.view ?? viewMode,
         }, new URLSearchParams(serializedParams));
-        setSearchParams(params, { replace });
-        setCurrentPage(1);
-    }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
+        if (!isDepartmentScoped) setCurrentPage(1);
+    }, [filters, groupValue, isDepartmentScoped, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
 
     useEffect(() => {
         if (

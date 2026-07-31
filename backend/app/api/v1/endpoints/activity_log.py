@@ -100,6 +100,7 @@ async def get_actions(
 @router.get("/actors", response_model=list[ActivityLogActorLookup])
 async def get_actors(
     q: str | None = None,
+    department_id: int | None = Query(None, ge=1),
     limit: int = Query(100, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(
@@ -115,5 +116,6 @@ async def get_actors(
         db=db,
         current_user=current_user,
         q=q,
+        department_id=department_id,
         limit=limit,
     )

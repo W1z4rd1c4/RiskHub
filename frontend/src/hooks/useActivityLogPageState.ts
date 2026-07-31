@@ -13,6 +13,7 @@ import { lookupApi } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
 import { logError } from '@/services/logger';
 import { isForbiddenApiError } from '@/services/apiClient';
+import { useDepartmentRegisterScope } from '@/pages/departments/useDepartmentRegisterScope';
 
 export type { ActiveTab, ViewMode } from './activityLogPageWorkflow';
 
@@ -96,6 +97,7 @@ export function useActivityLogPageState(
     options: UseActivityLogPageStateOptions = {},
 ): UseActivityLogPageStateReturn {
     const enabled = options.enabled ?? true;
+    const departmentScope = useDepartmentRegisterScope();
 
     // View mode state
     const [viewMode, setViewModeInternal] = useState<ViewMode>('chronological');
@@ -175,9 +177,16 @@ export function useActivityLogPageState(
         const loadOptions = async () => {
             const results = await Promise.allSettled([
                 activityLogApi.getActions(),
-                activityLogApi.getActors(),
-                lookupApi.getDepartments(),
-                riskApi.getRisks({ limit: 100 }), // Get first 100 risks for picker (matches backend cap)
+                departmentScope
+                    ? activityLogApi.getActors(departmentScope.departmentId)
+                    : activityLogApi.getActors(),
+                departmentScope
+                    ? Promise.resolve([{ id: departmentScope.departmentId, name: departmentScope.departmentName }])
+                    : lookupApi.getDepartments(),
+                riskApi.getRisks({
+                    limit: 100,
+                    department_id: departmentScope?.departmentId,
+                }), // Get first 100 risks for picker (matches backend cap)
             ]);
             if (cancelled) return;
 
@@ -207,7 +216,7 @@ export function useActivityLogPageState(
         return () => {
             cancelled = true;
         };
-    }, [enabled]);
+    }, [departmentScope, enabled]);
 
     // Build entity types based on tab and view mode
     const getEntityTypes = useCallback((): string[] | undefined => {
@@ -240,11 +249,12 @@ export function useActivityLogPageState(
                 entityId,
                 viewMode,
                 selectedActorId,
-                selectedDepartmentId,
+                selectedDepartmentId: departmentScope?.departmentId ?? selectedDepartmentId,
                 action,
                 dateFrom,
                 dateTo,
             });
+            if (departmentScope) filters.department_id = departmentScope.departmentId;
             const response = await activityLogApi.list(filters);
             if (requestId === latestEntriesRequestIdRef.current) {
                 setEntries(response.items);
@@ -278,6 +288,7 @@ export function useActivityLogPageState(
         selectedActorId,
         selectedDepartmentId,
         selectedRiskId,
+        departmentScope,
         getEntityTypes,
     ]);
 
@@ -315,8 +326,8 @@ export function useActivityLogPageState(
         // View mode selectors
         selectedActorId,
         setSelectedActorId,
-        selectedDepartmentId,
-        setSelectedDepartmentId,
+        selectedDepartmentId: departmentScope?.departmentId ?? selectedDepartmentId,
+        setSelectedDepartmentId: departmentScope ? () => undefined : setSelectedDepartmentId,
         selectedRiskId,
         setSelectedRiskId,
 

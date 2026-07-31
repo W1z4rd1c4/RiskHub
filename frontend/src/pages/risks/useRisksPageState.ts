@@ -12,6 +12,8 @@ import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
 import type { RiskFacets, RiskListCapabilities, RiskSummary } from '@/types/risk';
 
+import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
+import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import type { RiskSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
 import { buildRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
@@ -44,6 +46,7 @@ export function useRisksPageState(
     semanticFilters: RiskSemanticFilters = {},
     language: SupportedLanguage = 'en',
 ) {
+    const departmentScope = useDepartmentRegisterScope();
     const { thresholds } = useRiskThresholds();
     const [searchParams, setSearchParams] = useSearchParams();
     const serializedParams = searchParams.toString();
@@ -63,7 +66,10 @@ export function useRisksPageState(
     const sort = validSort(urlState.sort);
     const groupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [localCurrentPage, setLocalCurrentPage] = useState(1);
+    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
+        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
+    });
     const [facets, setFacets] = useState<RiskFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
@@ -89,8 +95,9 @@ export function useRisksPageState(
                 view: viewMode,
             }),
             ...apiSemanticFilters,
+            department_id: departmentScope?.departmentId,
         };
-    }, [currentPage, debouncedSearch, filters, groupValue, semanticFilters, sort, thresholds.critical, viewMode]);
+    }, [currentPage, debouncedSearch, departmentScope?.departmentId, filters, groupValue, semanticFilters, sort, thresholds.critical, viewMode]);
 
     const fetchRisks = useCallback(async () => {
         const request = beginRequest();
@@ -114,7 +121,7 @@ export function useRisksPageState(
         }
     }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
 
-    useEffect(() => setCurrentPage(1), [serializedParams]);
+    useEffect(() => { if (!isDepartmentScoped) setLocalCurrentPage(1); }, [isDepartmentScoped, serializedParams]);
     useEffect(() => { void fetchRisks(); }, [fetchRisks]);
 
     const writeUrl = useCallback((next: {
@@ -134,9 +141,9 @@ export function useRisksPageState(
             sort: next.sort === undefined ? sort : next.sort,
             view: next.view ?? viewMode,
         }, existing);
-        setSearchParams(params, { replace });
-        setCurrentPage(1);
-    }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
+        if (!isDepartmentScoped) setCurrentPage(1);
+    }, [filters, groupValue, isDepartmentScoped, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
 
     const updateFilter = useCallback(<K extends keyof RiskRegisterFilters>(key: K, value: RiskRegisterFilters[K]) => {
         writeUrl({ filters: { ...filters, [key]: value }, group: null });
@@ -162,6 +169,7 @@ export function useRisksPageState(
                 format,
                 asOfDate,
                 filters: {
+                    departmentId: departmentScope?.departmentId,
                     status: filters.lifecycle === 'archived'
                         ? 'archived'
                         : filters.lifecycle === 'all'
@@ -174,7 +182,7 @@ export function useRisksPageState(
             });
         }
         finally { setIsExporting(false); }
-    }, [debouncedSearch, filters]);
+    }, [debouncedSearch, departmentScope?.departmentId, filters]);
 
     return {
         capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,

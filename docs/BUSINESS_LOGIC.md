@@ -281,12 +281,11 @@ Rules:
     │  USERS  │         │  RISKS   │         │ CONTROLS│
     │ dept_id │         │ dept_id  │         │ dept_id │
     └─────────┘         └──────────┘         └─────────┘
-                              │
-                              ▼
-                        ┌─────────┐
-                        │  KRIs   │
-                        │ risk_id │ (inherits dept from Risk)
-                        └─────────┘
+         │                    │
+         │                    └──────────────► KRIs (through Risk)
+         │
+         ├──────────────► ISSUES / VENDORS (department_id)
+         └──────────────► PROCESSES / ASSETS (owning_department_id)
 ```
 
 ### 3.2 Department Access Rules
@@ -300,6 +299,10 @@ Rules:
 **Special Cases:**
 - **Unassigned items** (`department_id = NULL`): Only GLOBAL users can access
 - **Cross-department ownership**: See Section 7
+- **Department detail workspace**: exactly ten tabs are exposed: Overview, Risks, Controls, KRIs, Issues, Processes, Assets, Vendors, Users, and Activity. Threats remain global and are not a Department tab.
+- **Locked drill-down scope**: the eight entity tabs reuse their canonical top-level register controllers, filters, grouped views, sorting, pagination, capabilities, archive/pending presentation, and filtered export. The Department constraint is merged after user-controlled URL filters and cannot be cleared or replaced.
+- **Canonical membership**: Process and Asset membership uses `owning_department_id`; KRI membership uses its Risk's `department_id`; the other entity tabs use their direct canonical Department relationship. An Accountable owner's home Department never changes record membership.
+- **Non-leakage**: rows, totals, facets, group counts, linked summaries, and exports are calculated from the same permission-visible, Department-constrained universe. Pending creations remain excluded from operational counts and standard exports.
 
 ---
 

@@ -86,6 +86,7 @@ async def list_activity_log_actors(
     db: AsyncSession,
     current_user: User,
     q: str | None,
+    department_id: int | None,
     limit: int,
 ) -> list[ActivityLogActorLookup]:
     """List distinct actors represented in activity rows visible to the caller."""
@@ -99,6 +100,8 @@ async def list_activity_log_actors(
         if not dept_ids:
             return []
         query = query.where(ActivityLog.department_id.in_(dept_ids))
+    if department_id is not None:
+        query = query.where(ActivityLog.department_id == department_id)
     if q:
         query = query.where(ActivityLog.actor_name.ilike(f"%{q}%"))
 

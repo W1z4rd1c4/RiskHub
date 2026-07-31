@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
-> **Version**: 1.11
-> **Last Updated**: 2026-07-18
+> **Version**: 1.12
+> **Last Updated**: 2026-07-31
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `frontend/playwright.config.ts`
 
@@ -77,6 +77,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Frontend governed Vendor unit | `cd frontend && npm run test:run -- ../tests/frontend/unit/src/services/vendorGovernedMutationApi.test.ts ../tests/frontend/unit/src/services/protectedVendorSchemas.test.ts ../tests/frontend/unit/src/pages/vendors/VendorPendingChangePanel.test.tsx ../tests/frontend/unit/src/components/riskhub/ProtectedVendorScenario.test.tsx ../tests/frontend/unit/src/components/__tests__/VendorForm.test.tsx ../tests/frontend/unit/src/pages/__tests__/VendorDetailPage.issue-entry.test.tsx ../tests/frontend/unit/src/pages/approvals/ApprovalList.governedMutation.test.tsx` | Typed direct/202 responses, reason submission, runtime safe/redacted projections, pending diff/cancel/edit lock, My Requests labels, and fixed settings policy |
 | Frontend governed Vendor E2E | `cd frontend && npx playwright test -c playwright.config.ts --project=ci ../tests/frontend/e2e/approval-workflows/governed-vendor.spec.ts` | Protected Vendor request, redacted/authorized pending state, cancellation, approval, approved-truth, and accessibility through the production UI |
 | Frontend accountability reassignment E2E (#88) | `cd frontend && npx playwright test -c playwright.config.ts --project=ci ../tests/frontend/e2e/approval-workflows/governed-process-edit.spec.ts ../tests/frontend/e2e/approval-workflows/governed-asset.spec.ts ../tests/frontend/e2e/approval-workflows/governed-vendor.spec.ts ../tests/frontend/e2e/threats.spec.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/roles-access.spec.ts` | Bounded Process/Asset/Vendor/Threat matrix: required reason, one My Requests item, unchanged approved truth while pending, cancel/reject preservation, independent approval, fixed fourth scenario, and orphan persistence until approval |
+| Frontend Department register drill-down E2E (#89) | `cd frontend && npx playwright test -c playwright.config.ts --project=ci --workers=1 --retries=0 ../tests/frontend/e2e/department-register-drilldown.spec.ts` | Exact ten-tab/no-Threat contract, eight-card Overview, immutable canonical Department scope through search/filter/Clear All/export, URL and browser-history restoration, and canonical row drill-down |
 | Production-profile smoke | `.github/workflows/e2e.yml` job `production-profile-smoke` | PR-blocking backend startup/auth/header/docs-disabled smoke under production-safe config |
 | Docs topology consistency | `cd . && make -f scripts/Makefile docs-topology-consistency` | Maintainer-facing docs governance lane for README coverage, docs tree audit scope, and structure metrics consistency |
 | Repo artifact + script syntax contracts | `cd . && make -f scripts/Makefile quality-repo-contracts` | Blocks tracked retired artifacts, tracked ignored paths, broken startup shell syntax, and broken migration/seed script syntax |

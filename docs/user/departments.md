@@ -1,10 +1,10 @@
 ---
 title: Departments and Organizational Scope
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-31"
 audience: user
 source_of_truth: "frontend/src/pages/DepartmentsPage.tsx + frontend/src/services/departmentApi.ts"
-summary: "How to use Departments to understand scope, exposure, and ownership routing across risks, controls, KRIs, users, and activity."
+summary: "How to use the Department workspace across risks, controls, KRIs, issues, processes, assets, vendors, users, and activity."
 tags:
   - departments
   - access
@@ -66,14 +66,22 @@ Common navigation pattern:
 
 What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-Typical information in this area includes:
+Department detail always provides ten tabs:
 
-- Department name
-- Manager
-- Risk count
-- Control count
-- Kri count
-- Vendor and issue context
+1. Overview
+2. Risks
+3. Controls
+4. KRIs
+5. Issues
+6. Processes
+7. Assets
+8. Vendors
+9. Users
+10. Activity
+
+Threats are intentionally absent because Threat stewardship is global rather than Department-owned.
+
+Overview has eight entity cards in a four-column by two-row desktop grid, followed by full-width recent Department activity. The cards show the operational total and, where relevant, a secondary health signal such as high Risks, inactive Controls, KRI breaches, overdue Issues, accountability gaps, or significant Vendors. Selecting a card opens the matching tab.
 
 Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
@@ -101,21 +109,25 @@ If you receive a stale or rejected approval, do not immediately resubmit the sam
 
 ## Finding, Filtering, and Evidence
 
-Use department pages to confirm scope, ownership, and related-record context. The Departments page is a review and navigation surface; it does not provide its own export button.
+Use department pages to confirm scope, ownership, and related-record context. Each entity tab is the same register experience as its top-level page: search, filters, grouped views, sorting, pagination, capability-driven actions, pending badges, archive treatment, and filtered export remain available. The Department itself is a locked filter. **Clear all** clears only filters you added; it cannot remove or replace the Department.
 
 For reliable results, work in this order:
 
 1. Open the department detail page.
 2. Review the summary counts and related records.
-3. Open the relevant risk, control, KRI, vendor, or issue list with the same department context.
+3. Open the relevant Risk, Control, KRI, Issue, Process, Asset, Vendor, or User tab.
 4. Record the related record names or codes that support your review.
 
-For evidence, note the department, date, related record names, and the view you used.
+The URL preserves the selected tab and allowed register state, so browser Back and Forward can return to the prior search, view, group, sort, filters, and page. Export from an entity tab includes all matching Department rows under your permissions, not just the visible page.
+
+Department membership follows the record's canonical Owning Department. The home Department of a Process Owner, Asset Owner, Vendor Outsourcing Owner, or other Accountable User does not move the record between Department tabs.
+
+For evidence, note the department, date, related record names, filters, and the view you used.
 
 ## Tips and Common Mistakes
 
 - Department is a reporting and responsibility lens; it does not replace a named owner.
-- If a record appears in a department you did not expect, open the detail and check owner and linked context.
+- If a record appears in a department you did not expect, open the detail and check its Owning Department separately from the Accountable owner's home Department.
 - Use Governance when ownership is missing.
 
 Common mistakes are usually caused by stale filters, unclear ownership, duplicate records, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the detail view.

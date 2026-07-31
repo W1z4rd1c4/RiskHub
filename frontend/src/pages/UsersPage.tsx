@@ -17,6 +17,8 @@ import { adminApi } from '@/services/adminApi';
 import { logError } from '@/services/logger';
 import type { AccessUserRead } from '@/types/access';
 import type { DirectoryImportResponse } from '@/types/directory';
+import { useDepartmentRegisterScope } from './departments/useDepartmentRegisterScope';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 import { BreakGlassEnableDialog } from './users/BreakGlassEnableDialog';
 import { useUserLifecycleActions } from './users/useUserLifecycleActions';
@@ -34,6 +36,7 @@ function resolveUsersPageMode(authz: ReturnType<typeof useAuthz>): UsersPageMode
 }
 
 export function UsersPage() {
+    const departmentScope = useDepartmentRegisterScope();
     const { t } = useTranslation(['admin', 'common', 'errorKeys']);
     const { user: currentUser } = useAuth();
     const authz = useAuthz();
@@ -48,7 +51,9 @@ export function UsersPage() {
     const [checkingDirectoryUserId, setCheckingDirectoryUserId] = useState<number | null>(null);
 
     const locationState = location.state as UsersPageLocationState;
-    const pageMode = resolveUsersPageMode(authz);
+    const pageMode = departmentScope
+        ? (authz.canViewDepartmentAccess ? 'department-access' : 'forbidden')
+        : resolveUsersPageMode(authz);
     const isAccessMode = pageMode === 'access' || pageMode === 'department-access';
     const isDirectoryMode = pageMode === 'directory';
     const {
@@ -70,6 +75,7 @@ export function UsersPage() {
         users,
     } = useUsersPageData({
         currentUserLoaded: Boolean(currentUser),
+        departmentId: departmentScope?.departmentId,
         loadDirectoryCapabilities: authz.canViewUserDirectory,
         pageMode,
     });
@@ -182,6 +188,7 @@ export function UsersPage() {
     }, [accessWorkflow.importedUserTransition, navigate, t]);
 
     if (currentUser && pageMode === 'forbidden') {
+        if (departmentScope) return <ReadAccessDeniedState />;
         return <Navigate to="/" replace />;
     }
 

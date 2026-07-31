@@ -1,19 +1,34 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import case
 
 from app.core.datetime_utils import utc_now
 from app.core.pagination import DEPARTMENT_RECENT_EXECUTIONS_LIMIT
+from app.core.permissions import (
+    control_visibility_clause,
+    get_issue_scope_clause,
+    has_permission,
+    kri_visibility_clause,
+    risk_visibility_clause,
+    vendor_visibility_clause,
+)
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import Control, ControlExecution, KeyRiskIndicator, Risk, User
+from app.models import Asset, Control, ControlExecution, Issue, KeyRiskIndicator, Process, Risk, User, Vendor
 from app.models.control import ControlStatus
 from app.models.global_config import ConfigDefaults, get_config_int
+from app.models.issue import IssueStatus
 from app.schemas.department import ControlStats, DepartmentDetail, RecentExecution, RiskDistribution
+from app.services._access_workflow import (
+    build_department_access_roster_query,
+    can_view_department_access_roster,
+)
+from app.services._ict_register_lifecycle.asset_policy import asset_visibility_clause
+from app.services._ict_register_lifecycle.policy import process_visibility_clause
 from app.services._monitoring_status import KRIMonitoringStatus, get_kri_monitoring_config
 from app.services._monitoring_status.queries import apply_kri_monitoring_status_filter
 
@@ -37,15 +52,44 @@ async def get_department(
     """
     dept = await _assert_department_in_scope(department_id, db, current_user)
 
+    can_read_users = can_view_department_access_roster(current_user)
+    can_read_risks = has_permission(current_user, "risks", "read")
+    can_read_controls = has_permission(current_user, "controls", "read")
+    can_read_issues = has_permission(current_user, "issues", "read")
+    can_read_processes = has_permission(current_user, "processes", "read")
+    can_read_assets = has_permission(current_user, "assets", "read")
+    can_read_vendors = has_permission(current_user, "vendors", "read")
+
+    risk_visibility = await risk_visibility_clause(db, current_user, department_id=department_id)
+    control_visibility = control_visibility_clause(current_user, department_id=department_id)
+    kri_visibility = await kri_visibility_clause(db, current_user, department_id=department_id)
+    issue_visibility = await get_issue_scope_clause(db, current_user)
+    process_visibility = process_visibility_clause(current_user)
+    asset_visibility = asset_visibility_clause(current_user)
+    vendor_visibility = vendor_visibility_clause(current_user, department_id=department_id)
+    issue_visibility = true() if issue_visibility is None else issue_visibility
+    process_visibility = true() if process_visibility is None else process_visibility
+    asset_visibility = true() if asset_visibility is None else asset_visibility
+
     # Count active users only (consistent with list_departments)
     user_count_result = await db.execute(
-        select(func.count(User.id)).where(and_(User.department_id == department_id, User.is_active.is_(True)))
+        select(func.count())
+        .select_from(
+            build_department_access_roster_query(
+                current_user,
+                department_id=department_id,
+            ).subquery()
+        )
     )
     user_count = user_count_result.scalar() or 0
 
     # Count risks
     risk_count_result = await db.execute(
-        select(func.count(Risk.id)).where(and_(Risk.department_id == department_id, Risk.live()))
+        select(func.count(Risk.id)).where(
+            Risk.department_id == department_id,
+            Risk.live(),
+            risk_visibility,
+        )
     )
     risk_count = risk_count_result.scalar() or 0
     high_risk_min_net_score = await get_config_int(
@@ -59,6 +103,7 @@ async def get_department(
                 Risk.department_id == department_id,
                 Risk.live(),
                 Risk.net_score >= high_risk_min_net_score,
+                risk_visibility,
             )
         )
     )
@@ -66,7 +111,11 @@ async def get_department(
 
     # Count controls (non-archived)
     control_count_result = await db.execute(
-        select(func.count(Control.id)).where(and_(Control.department_id == department_id, Control.live()))
+        select(func.count(Control.id)).where(
+            Control.department_id == department_id,
+            Control.live(),
+            control_visibility,
+        )
     )
     control_count = control_count_result.scalar() or 0
 
@@ -79,12 +128,118 @@ async def get_department(
                 Risk.department_id == department_id,
                 Risk.live(),
                 KeyRiskIndicator.is_archived.is_(False),
+                kri_visibility,
             )
         )
     )
     kri_count_result = await db.execute(select(func.count()).select_from(kri_base_query.subquery()))
     kri_count = kri_count_result.scalar() or 0
     now = utc_now()
+
+    issue_count = int(
+        (
+            await db.execute(
+                select(func.count(Issue.id)).where(
+                    Issue.department_id == department_id,
+                    issue_visibility,
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    overdue_issue_count = int(
+        (
+            await db.execute(
+                select(func.count(Issue.id)).where(
+                    Issue.department_id == department_id,
+                    Issue.status != IssueStatus.closed.value,
+                    Issue.due_at.is_not(None),
+                    Issue.due_at < now,
+                    issue_visibility,
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    process_count = int(
+        (
+            await db.execute(
+                select(func.count(Process.id)).where(
+                    Process.owning_department_id == department_id,
+                    Process.live(),
+                    process_visibility,
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    process_accountability_gap_count = int(
+        (
+            await db.execute(
+                select(func.count(Process.id)).where(
+                    Process.owning_department_id == department_id,
+                    Process.live(),
+                    Process.process_owner_user_id.is_(None),
+                    process_visibility,
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    asset_count = int(
+        (
+            await db.execute(
+                select(func.count(Asset.id)).where(
+                    Asset.owning_department_id == department_id,
+                    Asset.live(),
+                    asset_visibility,
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    asset_accountability_gap_count = int(
+        (
+            await db.execute(
+                select(func.count(Asset.id)).where(
+                    Asset.owning_department_id == department_id,
+                    Asset.live(),
+                    (
+                        Asset.business_owner_user_id.is_(None)
+                        | Asset.ict_owner_user_id.is_(None)
+                    ),
+                    asset_visibility,
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    vendor_count = int(
+        (
+            await db.execute(
+                select(func.count(Vendor.id)).where(
+                    Vendor.department_id == department_id,
+                    Vendor.live(),
+                    vendor_visibility,
+                )
+            )
+        ).scalar()
+        or 0
+    )
+    significant_vendor_count = int(
+        (
+            await db.execute(
+                select(func.count(Vendor.id)).where(
+                    Vendor.department_id == department_id,
+                    Vendor.live(),
+                    Vendor.is_significant_vendor.is_(True),
+                    vendor_visibility,
+                )
+            )
+        ).scalar()
+        or 0
+    )
+
     kri_monitoring_config = await get_kri_monitoring_config(db)
     kri_monitoring_counts: dict[str, int] = {}
     for monitoring_status in KRIMonitoringStatus:
@@ -119,6 +274,7 @@ async def get_department(
         and_(
             Risk.department_id == department_id,
             Risk.live(),
+            risk_visibility,
         )
     )
     risk_distribution_row = (await db.execute(risk_distribution_stmt)).one()
@@ -136,6 +292,7 @@ async def get_department(
             and_(
                 Risk.department_id == department_id,
                 Risk.live(),
+                risk_visibility,
             )
         )
         .group_by(Risk.status)
@@ -153,6 +310,7 @@ async def get_department(
                 Control.department_id == department_id,
                 Control.live(),
                 Control.status.in_([ControlStatus.active.value, ControlStatus.inactive.value]),
+                control_visibility,
             )
         )
         .group_by(Control.status)
@@ -164,7 +322,11 @@ async def get_department(
     # Controls by form (single grouped query, live controls only)
     control_form_stmt = (
         select(Control.control_form, func.count(Control.id))
-        .where(and_(Control.department_id == department_id, Control.live()))
+        .where(
+            Control.department_id == department_id,
+            Control.live(),
+            control_visibility,
+        )
         .group_by(Control.control_form)
     )
     control_stats.by_form = {
@@ -174,7 +336,11 @@ async def get_department(
     # Controls by frequency (single grouped query, live controls only)
     control_frequency_stmt = (
         select(Control.frequency, func.count(Control.id))
-        .where(and_(Control.department_id == department_id, Control.live()))
+        .where(
+            Control.department_id == department_id,
+            Control.live(),
+            control_visibility,
+        )
         .group_by(Control.frequency)
     )
     control_stats.by_frequency = {
@@ -186,7 +352,11 @@ async def get_department(
         select(ControlExecution)
         .join(Control)
         .options(selectinload(ControlExecution.control), selectinload(ControlExecution.executed_by))
-        .where(Control.department_id == department_id)
+        .where(
+            Control.department_id == department_id,
+            Control.live(),
+            control_visibility,
+        )
         .order_by(ControlExecution.executed_at.desc())
         .limit(DEPARTMENT_RECENT_EXECUTIONS_LIMIT)
     )
@@ -211,14 +381,22 @@ async def get_department(
         description=dept.description,
         created_at=dept.created_at,
         updated_at=dept.updated_at,
-        user_count=user_count,
-        risk_count=risk_count,
-        high_risk_count=high_risk_count,
-        control_count=control_count,
-        kri_count=kri_count,
-        kri_monitoring_counts=kri_monitoring_counts,
-        risk_distribution=risk_distribution,
-        risk_by_status=risk_by_status,
-        control_stats=control_stats,
-        recent_executions=recent_executions,
+        user_count=user_count if can_read_users else None,
+        risk_count=risk_count if can_read_risks else None,
+        high_risk_count=high_risk_count if can_read_risks else None,
+        control_count=control_count if can_read_controls else None,
+        kri_count=kri_count if can_read_risks else None,
+        kri_monitoring_counts=kri_monitoring_counts if can_read_risks else None,
+        issue_count=issue_count if can_read_issues else None,
+        overdue_issue_count=overdue_issue_count if can_read_issues else None,
+        process_count=process_count if can_read_processes else None,
+        process_accountability_gap_count=process_accountability_gap_count if can_read_processes else None,
+        asset_count=asset_count if can_read_assets else None,
+        asset_accountability_gap_count=asset_accountability_gap_count if can_read_assets else None,
+        vendor_count=vendor_count if can_read_vendors else None,
+        significant_vendor_count=significant_vendor_count if can_read_vendors else None,
+        risk_distribution=risk_distribution if can_read_risks else None,
+        risk_by_status=risk_by_status if can_read_risks else None,
+        control_stats=control_stats if can_read_controls else None,
+        recent_executions=recent_executions if can_read_controls else None,
     )

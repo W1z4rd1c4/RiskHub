@@ -113,7 +113,13 @@ async def list_processes(
         capabilities=process_collection_capabilities(current_user),
     )
     return response.model_copy(
-        update={"pending_creations": await load_visible_pending_process_creations(db, current_user=current_user)}
+        update={
+            "pending_creations": await load_visible_pending_process_creations(
+                db,
+                current_user=current_user,
+                department_ids=criteria.department_ids,
+            )
+        }
     )
 
 

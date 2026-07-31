@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
+from app.core.permissions import has_permission, is_privileged_user
 from app.models import Role, User
 from app.models.role import RoleType
 from app.schemas.access import AccessUserCapabilities
@@ -22,6 +23,63 @@ def is_platform_admin(user: User) -> bool:
 
 def is_cro(user: User) -> bool:
     return bool(user.role and user.role.name == RoleType.CRO)
+
+
+def can_view_department_access_roster(user: User) -> bool:
+    """Match the Department Users tab's caller eligibility."""
+    is_department_head = bool(user.role and user.role.name == RoleType.DEPARTMENT_HEAD)
+    return is_department_head or (
+        is_privileged_user(user) and has_permission(user, "users", "read")
+    )
+
+
+def resolve_department_access_roster_target(
+    current_user: User,
+    requested_department_id: int | None,
+) -> int:
+    """Resolve the Department Users tab target with its existing fail-closed policy."""
+    if not can_view_department_access_roster(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only department heads or privileged users can view department access",
+        )
+    is_department_head = bool(
+        current_user.role and current_user.role.name == RoleType.DEPARTMENT_HEAD
+    )
+    if requested_department_id is not None and not is_department_head:
+        return requested_department_id
+    if not current_user.department_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You are not assigned to a department",
+        )
+
+    target_department_id = requested_department_id or current_user.department_id
+    if is_department_head and target_department_id != current_user.department_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this department",
+        )
+    return target_department_id
+
+
+def build_department_access_roster_query(
+    current_user: User,
+    *,
+    department_id: int,
+):
+    """Build the exact active roster visible on the Department Users tab."""
+    query = (
+        select(User)
+        .join(Role)
+        .where(
+            User.department_id == department_id,
+            User.is_active.is_(True),
+        )
+    )
+    if not is_platform_admin(current_user):
+        query = query.where(Role.name != RoleType.ADMIN)
+    return query
 
 
 def access_user_capabilities(current_user: User, target_user: User) -> AccessUserCapabilities:

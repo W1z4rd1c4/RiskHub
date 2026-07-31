@@ -15,7 +15,13 @@ from app.models.role import RoleType
 from app.models.user import AccessScope
 from app.schemas.access import AccessUserRead, AccessUserUpdate, PermissionRead, RoleWithPermissions
 from app.schemas.user import AccessScopeEnum, RoleRead
-from app.services._access_workflow import access_user_capabilities, is_cro, is_platform_admin
+from app.services._access_workflow import (
+    access_user_capabilities,
+    build_department_access_roster_query,
+    is_cro,
+    is_platform_admin,
+    resolve_department_access_roster_target,
+)
 from app.services._identity_access_lifecycle import update_access_profile
 
 router = APIRouter()
@@ -138,34 +144,14 @@ async def list_department_access_users(
     Department heads are always limited to their own department. Privileged
     callers with users:read may request another department for its roster.
     """
-    from app.models.role import RoleType
-
-    # Allow department heads and privileged users
-    is_dept_head = current_user.role and current_user.role.name == RoleType.DEPARTMENT_HEAD
-    is_priv = is_privileged_user(current_user) and has_permission(current_user, "users", "read")
-
-    if not is_dept_head and not is_priv:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only department heads or privileged users can view department access",
-        )
-
-    if not current_user.department_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You are not assigned to a department")
-
-    target_department_id = department_id or current_user.department_id
-    if is_dept_head and target_department_id != current_user.department_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this department")
-
-    query = (
-        select(User)
-        .options(*user_selectinload_options(include_permissions=True))
-        .join(Role)
-        .where(User.department_id == target_department_id)
-        .where(User.is_active.is_(True))
+    target_department_id = resolve_department_access_roster_target(
+        current_user,
+        department_id,
     )
-    if not is_platform_admin(current_user):
-        query = query.where(Role.name != RoleType.ADMIN)
+    query = build_department_access_roster_query(
+        current_user,
+        department_id=target_department_id,
+    ).options(*user_selectinload_options(include_permissions=True))
 
     result = await db.execute(query)
     users = result.scalars().all()

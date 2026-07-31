@@ -80,21 +80,29 @@ class DepartmentDetail(DepartmentBase):
     updated_at: UtcAwareDatetime
 
     # Counts
-    user_count: int
-    risk_count: int
-    high_risk_count: int
-    control_count: int
-    kri_count: int = 0
-    kri_monitoring_counts: dict[str, int] = Field(default_factory=dict)
+    user_count: int | None
+    risk_count: int | None
+    high_risk_count: int | None
+    control_count: int | None
+    kri_count: int | None = None
+    kri_monitoring_counts: dict[str, int] | None = None
+    issue_count: int | None = None
+    overdue_issue_count: int | None = None
+    process_count: int | None = None
+    process_accountability_gap_count: int | None = None
+    asset_count: int | None = None
+    asset_accountability_gap_count: int | None = None
+    vendor_count: int | None = None
+    significant_vendor_count: int | None = None
 
     # Risk metrics
-    risk_distribution: RiskDistribution
-    risk_by_status: dict[str, int]
+    risk_distribution: RiskDistribution | None
+    risk_by_status: dict[str, int] | None
 
     # Control metrics
-    control_stats: ControlStats
+    control_stats: ControlStats | None
 
     # Recent activity
-    recent_executions: list[RecentExecution]
+    recent_executions: list[RecentExecution] | None
 
     model_config = {"from_attributes": True}

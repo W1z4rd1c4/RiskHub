@@ -1,13 +1,628 @@
 """Tests for department endpoints."""
 
+import json
+from datetime import timedelta
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Control, Department, GlobalConfig, KeyRiskIndicator, Risk, Role, User
+from app.core.datetime_utils import utc_now
+from app.models import (
+    Asset,
+    Control,
+    ControlExecution,
+    Department,
+    GlobalConfig,
+    Issue,
+    KeyRiskIndicator,
+    Process,
+    Permission,
+    Risk,
+    Role,
+    RolePermission,
+    User,
+    Vendor,
+)
 from app.models.global_config import clear_config_cache
+from app.models.issue import IssueStatus
 from app.models.risk import RiskStatus as RiskStatusEnum
+from app.models.role import RoleType
 from app.models.user import AccessScope
+
+
+@pytest.mark.asyncio
+async def test_unassigned_global_cro_explicit_department_roster_matches_overview_count(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    department_read = Permission(resource="departments", action="read")
+    users_read = Permission(resource="users", action="read")
+    cro_role = Role(name=RoleType.CRO, display_name="CRO")
+    employee_role = Role(name=RoleType.EMPLOYEE, display_name="Employee")
+    admin_role = Role(name=RoleType.ADMIN, display_name="Platform Admin")
+    department = Department(name="Explicit Roster Target", code="EXPLICIT-ROSTER")
+    db_session.add_all(
+        [
+            department_read,
+            users_read,
+            cro_role,
+            employee_role,
+            admin_role,
+            department,
+        ]
+    )
+    await db_session.flush()
+    db_session.add_all(
+        [
+            RolePermission(role_id=cro_role.id, permission_id=department_read.id),
+            RolePermission(role_id=cro_role.id, permission_id=users_read.id),
+        ]
+    )
+    caller = User(
+        name="Unassigned Global CRO",
+        email="unassigned-global-cro@test.com",
+        department_id=None,
+        role_id=cro_role.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    active_employee = User(
+        name="Explicit Target Employee",
+        email="explicit-target-employee@test.com",
+        department_id=department.id,
+        role_id=employee_role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    inactive_employee = User(
+        name="Inactive Explicit Target Employee",
+        email="inactive-explicit-target-employee@test.com",
+        department_id=department.id,
+        role_id=employee_role.id,
+        is_active=False,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    target_admin = User(
+        name="Explicit Target Admin",
+        email="explicit-target-admin@test.com",
+        department_id=department.id,
+        role_id=admin_role.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    db_session.add_all(
+        [caller, active_employee, inactive_employee, target_admin]
+    )
+    await db_session.commit()
+    headers = {"X-Mock-User-Id": str(caller.id)}
+
+    roster_response = await client.get(
+        "/api/v1/access/users/my-department",
+        params={"department_id": department.id},
+        headers=headers,
+    )
+    detail_response = await client.get(
+        f"/api/v1/departments/{department.id}",
+        headers=headers,
+    )
+
+    assert roster_response.status_code == 200
+    assert detail_response.status_code == 200
+    roster_ids = {row["id"] for row in roster_response.json()}
+    assert roster_ids == {active_employee.id}
+    assert inactive_employee.id not in roster_ids
+    assert target_admin.id not in roster_ids
+    assert detail_response.json()["user_count"] == len(roster_ids)
+
+
+@pytest.mark.asyncio
+async def test_department_overview_user_count_matches_department_head_access_roster(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    department_read = Permission(resource="departments", action="read")
+    users_read = Permission(resource="users", action="read")
+    department_head_role = Role(
+        name=RoleType.DEPARTMENT_HEAD,
+        display_name="Department Head",
+    )
+    employee_role = Role(name=RoleType.EMPLOYEE, display_name="Employee")
+    admin_role = Role(name=RoleType.ADMIN, display_name="Platform Admin")
+    cro_role = Role(name=RoleType.CRO, display_name="CRO")
+    department = Department(name="Roster Overview", code="ROSTER-OVERVIEW")
+    cro_department = Department(name="CRO Department", code="CRO-ROSTER")
+    db_session.add_all(
+        [
+            department_read,
+            users_read,
+            department_head_role,
+            employee_role,
+            admin_role,
+            cro_role,
+            department,
+            cro_department,
+        ]
+    )
+    await db_session.flush()
+    db_session.add_all(
+        [
+            RolePermission(
+                role_id=department_head_role.id,
+                permission_id=department_read.id,
+            ),
+            RolePermission(role_id=admin_role.id, permission_id=department_read.id),
+            RolePermission(role_id=admin_role.id, permission_id=users_read.id),
+            RolePermission(role_id=cro_role.id, permission_id=department_read.id),
+            RolePermission(role_id=cro_role.id, permission_id=users_read.id),
+        ]
+    )
+    await db_session.flush()
+
+    caller = User(
+        name="Roster Department Head",
+        email="roster-department-head@test.com",
+        department_id=department.id,
+        role_id=department_head_role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    active_employee = User(
+        name="Active Roster Employee",
+        email="active-roster-employee@test.com",
+        department_id=department.id,
+        role_id=employee_role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    inactive_employee = User(
+        name="Inactive Roster Employee",
+        email="inactive-roster-employee@test.com",
+        department_id=department.id,
+        role_id=employee_role.id,
+        is_active=False,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    platform_admin = User(
+        name="Department Platform Admin",
+        email="department-platform-admin@test.com",
+        department_id=department.id,
+        role_id=admin_role.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    cro = User(
+        name="Roster CRO",
+        email="roster-cro@test.com",
+        department_id=cro_department.id,
+        role_id=cro_role.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    db_session.add_all(
+        [caller, active_employee, inactive_employee, platform_admin, cro]
+    )
+    await db_session.commit()
+    headers = {"X-Mock-User-Id": str(caller.id)}
+
+    roster_response = await client.get(
+        "/api/v1/access/users/my-department",
+        headers=headers,
+    )
+    detail_response = await client.get(
+        f"/api/v1/departments/{department.id}",
+        headers=headers,
+    )
+
+    assert roster_response.status_code == 200
+    assert detail_response.status_code == 200
+    roster_ids = {row["id"] for row in roster_response.json()}
+    assert roster_ids == {caller.id, active_employee.id}
+    assert inactive_employee.id not in roster_ids
+    assert platform_admin.id not in roster_ids
+    assert detail_response.json()["user_count"] == len(roster_ids)
+
+    for privileged_caller, expected_ids in (
+        (cro, {caller.id, active_employee.id}),
+        (platform_admin, {caller.id, active_employee.id, platform_admin.id}),
+    ):
+        privileged_headers = {"X-Mock-User-Id": str(privileged_caller.id)}
+        privileged_roster = await client.get(
+            "/api/v1/access/users/my-department",
+            params={"department_id": department.id},
+            headers=privileged_headers,
+        )
+        privileged_detail = await client.get(
+            f"/api/v1/departments/{department.id}",
+            headers=privileged_headers,
+        )
+        assert privileged_roster.status_code == 200
+        assert privileged_detail.status_code == 200
+        assert {row["id"] for row in privileged_roster.json()} == expected_ids
+        assert privileged_detail.json()["user_count"] == len(expected_ids)
+
+
+@pytest.mark.asyncio
+async def test_department_overview_does_not_publish_domain_counts_to_departments_read_only_user(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+):
+    department_read = Permission(
+        resource="departments",
+        action="read",
+        description="Read Departments only",
+    )
+    role = Role(
+        name="department_overview_without_domain_reads",
+        display_name="Department Overview without domain reads",
+    )
+    db_session.add_all([department_read, role])
+    await db_session.flush()
+    db_session.add(RolePermission(role_id=role.id, permission_id=department_read.id))
+    await db_session.flush()
+    caller = User(
+        name="Department Overview Reader",
+        email="department-overview-reader@test.com",
+        department_id=test_department.id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(caller)
+    await db_session.flush()
+    hidden_risk = Risk(
+        risk_id_code="RISK-HIDDEN-OVERVIEW",
+        name="Hidden Overview Risk",
+        process="Restricted",
+        description="Must not leak through Department derived metrics",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=caller.id,
+        risk_type="operational",
+        gross_probability=5,
+        gross_impact=5,
+        gross_score=25,
+        net_probability=5,
+        net_impact=5,
+        net_score=25,
+        status=RiskStatusEnum.active.value,
+    )
+    hidden_control = Control(
+        name="Hidden Overview Control",
+        description="Must not leak through recent executions",
+        department_id=test_department.id,
+        control_owner_id=caller.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=5,
+        status="active",
+    )
+    db_session.add_all([hidden_risk, hidden_control])
+    await db_session.flush()
+    db_session.add(
+        ControlExecution(
+            control_id=hidden_control.id,
+            executed_by_id=caller.id,
+            result="failed",
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/v1/departments/{test_department.id}",
+        headers={"X-Mock-User-Id": str(caller.id)},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert {
+        "risks": (payload["risk_count"], payload["high_risk_count"]),
+        "controls": (payload["control_count"], payload["control_stats"]),
+        "kris": (payload["kri_count"], payload["kri_monitoring_counts"]),
+        "issues": (payload["issue_count"], payload["overdue_issue_count"]),
+        "processes": (
+            payload["process_count"],
+            payload["process_accountability_gap_count"],
+        ),
+        "assets": (
+            payload["asset_count"],
+            payload["asset_accountability_gap_count"],
+        ),
+        "vendors": (payload["vendor_count"], payload["significant_vendor_count"]),
+        "users": (payload["user_count"], None),
+    } == {
+        domain: (None, None)
+        for domain in (
+            "risks",
+            "controls",
+            "kris",
+            "issues",
+            "processes",
+            "assets",
+            "vendors",
+            "users",
+        )
+    }
+    assert payload["risk_distribution"] is None
+    assert payload["risk_by_status"] is None
+    assert payload["recent_executions"] is None
+
+
+@pytest.mark.asyncio
+async def test_department_overview_control_reader_keeps_factual_empty_recent_executions(
+    client_cro: AsyncClient,
+    test_department: Department,
+):
+    response = await client_cro.get(f"/api/v1/departments/{test_department.id}")
+
+    assert response.status_code == 200
+    assert response.json()["recent_executions"] == []
+
+
+@pytest.mark.asyncio
+async def test_department_overview_partial_permissions_count_only_canonical_visible_rows(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    department_read = Permission(resource="departments", action="read")
+    asset_read = Permission(resource="assets", action="read")
+    role = Role(
+        name=RoleType.DEPARTMENT_HEAD,
+        display_name="Department Head",
+    )
+    department = Department(
+        name="Inactive Department",
+        code="INACTIVE-COUNT-SCOPE",
+        is_active=False,
+    )
+    db_session.add_all([department_read, asset_read, role, department])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            RolePermission(role_id=role.id, permission_id=department_read.id),
+            RolePermission(role_id=role.id, permission_id=asset_read.id),
+        ]
+    )
+    caller = User(
+        name="Inactive Department Head",
+        email="inactive-department-head@test.com",
+        department_id=department.id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(caller)
+    await db_session.flush()
+    db_session.add(
+        Asset(
+            name="Invisible inactive-department asset",
+            owning_department_id=department.id,
+            business_owner_user_id=None,
+            ict_owner_user_id=None,
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/v1/departments/{department.id}",
+        headers={"X-Mock-User-Id": str(caller.id)},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert {
+        "risks": (payload["risk_count"], payload["high_risk_count"]),
+        "controls": (payload["control_count"], payload["control_stats"]),
+        "kris": (payload["kri_count"], payload["kri_monitoring_counts"]),
+        "issues": (payload["issue_count"], payload["overdue_issue_count"]),
+        "processes": (
+            payload["process_count"],
+            payload["process_accountability_gap_count"],
+        ),
+        "assets": (
+            payload["asset_count"],
+            payload["asset_accountability_gap_count"],
+        ),
+        "vendors": (payload["vendor_count"], payload["significant_vendor_count"]),
+        "users": (payload["user_count"], None),
+    } == {
+        "risks": (None, None),
+        "controls": (None, None),
+        "kris": (None, None),
+        "issues": (None, None),
+        "processes": (None, None),
+        # The canonical Asset register excludes unowned records in an inactive
+        # Department from a Department Head's row-visible universe.
+        "assets": (0, 0),
+        "vendors": (None, None),
+        # Department Heads are eligible for their active Department roster
+        # independently of users:read; this fixture contains only the caller.
+        "users": (1, None),
+    }
+
+
+@pytest.mark.asyncio
+async def test_department_detail_scopes_operational_register_counts_by_canonical_department(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_employee: User,
+    test_user_cro: User,
+):
+    scoped_department = Department(name="Operational Overview", code="OPS-OVERVIEW")
+    owner_department = Department(name="Accountable Owner Department", code="OWNER-DEPT")
+    db_session.add_all([scoped_department, owner_department])
+    await db_session.flush()
+
+    # Accountability intentionally crosses Departments; membership remains on
+    # each register's canonical owning Department field.
+    test_user_employee.department_id = owner_department.id
+    scoped_user = User(
+        name="Scoped Department User",
+        email="scoped-department-user@test.com",
+        department_id=scoped_department.id,
+        role_id=test_user_employee.role_id,
+        is_active=True,
+    )
+    scoped_risk = Risk(
+        risk_id_code="RISK-OVERVIEW-SCOPE",
+        name="Scoped high risk",
+        process="Operations",
+        description="Scoped Department Overview risk",
+        category="Operational",
+        department_id=scoped_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        gross_probability=4,
+        gross_impact=4,
+        gross_score=16,
+        net_probability=4,
+        net_impact=4,
+        net_score=16,
+        status=RiskStatusEnum.active.value,
+    )
+    scoped_control = Control(
+        name="Scoped inactive control",
+        description="Scoped Department Overview control",
+        department_id=scoped_department.id,
+        control_owner_id=test_user_employee.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="inactive",
+    )
+    db_session.add_all([scoped_user, scoped_risk, scoped_control])
+    await db_session.flush()
+    now = utc_now()
+    db_session.add_all(
+        [
+            KeyRiskIndicator(
+                risk_id=scoped_risk.id,
+                metric_name="Scoped breached KRI",
+                description="Scoped Department Overview KRI",
+                current_value=101,
+                lower_limit=0,
+                upper_limit=100,
+                unit="%",
+                frequency="monthly",
+                reporting_owner_id=test_user_employee.id,
+                last_period_end=now.date(),
+            ),
+            Issue(
+                title="Scoped overdue issue",
+                severity="high",
+                status=IssueStatus.open,
+                source_type="manual",
+                department_id=scoped_department.id,
+                owner_user_id=test_user_employee.id,
+                due_at=now - timedelta(days=1),
+            ),
+            Issue(
+                title="Other Department issue",
+                severity="high",
+                status=IssueStatus.open,
+                source_type="manual",
+                department_id=owner_department.id,
+                owner_user_id=test_user_employee.id,
+                due_at=now - timedelta(days=1),
+            ),
+            Process(
+                f_code="F8901",
+                l0_area="Operations",
+                l1_process="Scoped process",
+                process_owner_user_id=None,
+                owning_department_id=scoped_department.id,
+            ),
+            Process(
+                f_code="F8902",
+                l0_area="Operations",
+                l1_process="Other process",
+                process_owner_user_id=test_user_employee.id,
+                owning_department_id=owner_department.id,
+            ),
+            Asset(
+                name="Scoped asset",
+                owning_department_id=scoped_department.id,
+                business_owner_user_id=test_user_employee.id,
+                ict_owner_user_id=None,
+            ),
+            Asset(
+                name="Other asset",
+                owning_department_id=owner_department.id,
+                business_owner_user_id=test_user_employee.id,
+                ict_owner_user_id=test_user_employee.id,
+            ),
+            Vendor(
+                name="Scoped significant vendor",
+                process="Operations",
+                department_id=scoped_department.id,
+                outsourcing_owner_user_id=test_user_employee.id,
+                vendor_type="ict",
+                is_significant_vendor=True,
+            ),
+            Vendor(
+                name="Other significant vendor",
+                process="Operations",
+                department_id=owner_department.id,
+                outsourcing_owner_user_id=test_user_employee.id,
+                vendor_type="ict",
+                is_significant_vendor=True,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    async with client_factory(current_user=test_user_cro) as auth_client:
+        response = await auth_client.get(f"/api/v1/departments/{scoped_department.id}")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["issue_count"] == 1
+        assert payload["overdue_issue_count"] == 1
+        assert payload["process_count"] == 1
+        assert payload["process_accountability_gap_count"] == 1
+        assert payload["asset_count"] == 1
+        assert payload["asset_accountability_gap_count"] == 1
+        assert payload["vendor_count"] == 1
+        assert payload["significant_vendor_count"] == 1
+
+        canonical_totals = {}
+        for domain, path, params in (
+            ("risks", "/api/v1/risks", {"department_id": scoped_department.id}),
+            ("controls", "/api/v1/controls", {"department_id": scoped_department.id}),
+            ("kris", "/api/v1/kris", {"department_id": scoped_department.id}),
+                (
+                    "issues",
+                    "/api/v1/issues",
+                {"filters": json.dumps({"department_id": scoped_department.id})},
+            ),
+            (
+                "processes",
+                "/api/v1/processes",
+                {"department_ids": scoped_department.id},
+            ),
+            ("assets", "/api/v1/assets", {"department_ids": scoped_department.id}),
+            ("vendors", "/api/v1/vendors", {"department_id": scoped_department.id}),
+            (
+                "users",
+                "/api/v1/users/directory",
+                {"department_id": scoped_department.id},
+            ),
+        ):
+            canonical_response = await auth_client.get(path, params=params)
+            assert canonical_response.status_code == 200, domain
+            canonical_totals[domain] = canonical_response.json()["total"]
+
+    assert canonical_totals == {
+        "risks": payload["risk_count"],
+        "controls": payload["control_count"],
+        "kris": payload["kri_count"],
+        "issues": payload["issue_count"],
+        "processes": payload["process_count"],
+        "assets": payload["asset_count"],
+        "vendors": payload["vendor_count"],
+        "users": payload["user_count"],
+    }
 
 
 @pytest.mark.asyncio

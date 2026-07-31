@@ -99,6 +99,7 @@ async def load_visible_pending_process_creations(
     db: "AsyncSession",
     *,
     current_user: User,
+    department_ids: tuple[int, ...] = (),
 ) -> list[ProcessPendingCreationRead]:
     """Project non-operational create proposals for requester/eligible approvers.
 
@@ -137,6 +138,9 @@ async def load_visible_pending_process_creations(
         except ValueError:
             continue
         if identity is None or identity.mutation_kind != PROCESS_CREATE_KIND:
+            continue
+        proposed_after = proposal.proposed_changes["after"]
+        if department_ids and proposed_after["owning_department_id"] not in department_ids:
             continue
         is_requester = identity.requested_by_id == current_user.id
         is_eligible_approver = can_resolve_extended_process_approval(

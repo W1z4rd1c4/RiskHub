@@ -15,6 +15,8 @@ import type {
     ProcessSortField,
 } from '@/types/process';
 
+import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
+import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import type { ProcessSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 import {
     getTotalPages,
@@ -53,6 +55,7 @@ export function useProcessesPageState(
     semanticFilters: ProcessSemanticFilters = {},
     language: SupportedLanguage = 'en',
 ) {
+    const departmentScope = useDepartmentRegisterScope();
     const [searchParams, setSearchParams] = useSearchParams();
     const serializedParams = searchParams.toString();
     const urlState = useMemo(() => parseRegisterUrlState(
@@ -64,7 +67,10 @@ export function useProcessesPageState(
     const sort = validSort(urlState.sort);
     const selectedGroupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [localCurrentPage, setLocalCurrentPage] = useState(1);
+    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
+        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
+    });
     const [facets, setFacets] = useState<ProcessFacets>({});
     const [pendingCreations, setPendingCreations] = useState<ProcessPendingCreationRead[]>([]);
     const [isExporting, setIsExporting] = useState(false);
@@ -86,8 +92,9 @@ export function useProcessesPageState(
 
     const effectiveFilters = useMemo<ProcessRegisterFilters>(() => ({
         ...filters,
+        department_ids: departmentScope ? [departmentScope.departmentId] : filters.department_ids,
         cif: semanticFilters.cif === true ? true : filters.cif,
-    }), [filters, semanticFilters.cif]);
+    }), [departmentScope, filters, semanticFilters.cif]);
 
     const listParams = useMemo(() => buildProcessRegisterListParams({
         currentPage,
@@ -126,8 +133,8 @@ export function useProcessesPageState(
     }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
 
     useEffect(() => {
-        setCurrentPage(1);
-    }, [serializedParams]);
+        if (!isDepartmentScoped) setLocalCurrentPage(1);
+    }, [isDepartmentScoped, serializedParams]);
 
     useEffect(() => {
         void fetchProcesses();
@@ -147,9 +154,9 @@ export function useProcessesPageState(
             sort: next.sort === undefined ? sort : next.sort,
             view: next.view ?? viewMode,
         }, new URLSearchParams(serializedParams));
-        setSearchParams(params, { replace });
-        setCurrentPage(1);
-    }, [filters, selectedGroupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
+        if (!isDepartmentScoped) setCurrentPage(1);
+    }, [filters, isDepartmentScoped, selectedGroupValue, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
 
     const updateSearch = useCallback((value: string) => writeUrl({ search: value, group: null }, true), [writeUrl]);
     const updateFilter = useCallback(<K extends keyof ProcessRegisterFilters>(key: K, value: ProcessRegisterFilters[K]) => {

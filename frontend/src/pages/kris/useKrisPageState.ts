@@ -11,6 +11,8 @@ import { kriApi } from '@/services/kriApi';
 import { reportApi } from '@/services/reportApi';
 import type { KRIFacets, KRIListCapabilities, KeyRiskIndicator } from '@/types/kri';
 
+import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
+import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
 import { buildRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import { buildKriExportFilters, readKriRouteFilters } from './kriPagePresentation';
@@ -39,6 +41,7 @@ function parseLegacyFilters(params: URLSearchParams): Partial<KriRegisterFilters
 }
 
 export function useKrisPageState(language: SupportedLanguage = 'en') {
+    const departmentScope = useDepartmentRegisterScope();
     const [searchParams, setSearchParams] = useSearchParams();
     const serializedParams = searchParams.toString();
     const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
@@ -50,11 +53,18 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
             ? parsed
             : { ...EMPTY_KRI_REGISTER_FILTERS, ...parseLegacyFilters(new URLSearchParams(serializedParams)) };
     }, [serializedParams, urlState.filters]);
+    const effectiveFilters = useMemo(() => ({
+        ...filters,
+        department_id: departmentScope?.departmentId ?? filters.department_id,
+    }), [departmentScope?.departmentId, filters]);
     const viewMode = urlState.view as KriRegisterView;
     const sort = validSort(urlState.sort);
     const selectedGroupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [localCurrentPage, setLocalCurrentPage] = useState(1);
+    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
+        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
+    });
     const [facets, setFacets] = useState<KRIFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
@@ -64,9 +74,9 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
     const listParams = useMemo(() => buildKriRegisterListParams({
-        currentPage, filters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
+        currentPage, filters: effectiveFilters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
         search: debouncedSearch, sort, view: viewMode,
-    }), [currentPage, debouncedSearch, filters, selectedGroupValue, sort, viewMode]);
+    }), [currentPage, debouncedSearch, effectiveFilters, selectedGroupValue, sort, viewMode]);
 
     const fetchKris = useCallback(async () => {
         const request = beginRequest();
@@ -85,7 +95,7 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
         }
     }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
 
-    useEffect(() => setCurrentPage(1), [serializedParams]);
+    useEffect(() => { if (!isDepartmentScoped) setLocalCurrentPage(1); }, [isDepartmentScoped, serializedParams]);
     useEffect(() => { void fetchKris(); }, [fetchKris]);
 
     const writeUrl = useCallback((next: {
@@ -103,9 +113,9 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
             sort: next.sort === undefined ? sort : next.sort,
             view: next.view ?? viewMode,
         }, existing);
-        setSearchParams(params, { replace });
-        setCurrentPage(1);
-    }, [filters, selectedGroupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
+        if (!isDepartmentScoped) setCurrentPage(1);
+    }, [filters, isDepartmentScoped, selectedGroupValue, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
 
     const updateFilter = useCallback(<K extends keyof KriRegisterFilters>(key: K, value: KriRegisterFilters[K]) => {
         const next = { ...filters, [key]: value };
@@ -131,10 +141,13 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
         try {
             await reportApi.exportKRIs({
                 format, asOfDate,
-                filters: buildKriExportFilters({ search: debouncedSearch, statusFilter: filters.lifecycle === 'archived' ? 'archived' : filters.monitoring_status || 'all', timelinessFilter: filters.timeliness_status || null }),
+                filters: {
+                    ...buildKriExportFilters({ search: debouncedSearch, statusFilter: filters.lifecycle === 'archived' ? 'archived' : filters.monitoring_status || 'all', timelinessFilter: filters.timeliness_status || null }),
+                    departmentId: departmentScope?.departmentId,
+                },
             });
         } finally { setIsExporting(false); }
-    }, [debouncedSearch, filters]);
+    }, [debouncedSearch, departmentScope?.departmentId, filters]);
 
     return {
         capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,

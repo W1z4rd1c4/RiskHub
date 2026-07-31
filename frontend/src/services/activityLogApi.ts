@@ -42,7 +42,10 @@ export const activityLogApi = {
         return api.get('/activity-log/actions', { schema: stringArraySchema });
     },
 
-    async getActors(): Promise<ActivityLogActorLookup[]> {
-        return api.get('/activity-log/actors', { schema: activityLogActorLookupArraySchema });
+    async getActors(departmentId?: number): Promise<ActivityLogActorLookup[]> {
+        return api.get('/activity-log/actors', {
+            ...(departmentId === undefined ? {} : { params: { department_id: departmentId } }),
+            schema: activityLogActorLookupArraySchema,
+        });
     },
 };
