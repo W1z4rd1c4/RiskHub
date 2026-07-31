@@ -132,9 +132,13 @@ Podpora rolí a oddělení:
 - department manager musí být active user; bezpečnější je usera nahradit nebo řízeně reaktivovat než validaci obcházet
 - department delete je záměrně konzervativní, protože department scope ovlivňuje RBAC, reporty, vendory, KRIs a orphan governance
 
-Podpora chráněného schvalování procesů:
+Podpora chráněného schvalování procesů, aktiv, dodavatelů a odpovědnosti:
 
 - `protected_process_edit` je pevný scénář v Risk Hubu. CRO jej může zapnout nebo vypnout a vybrat neprázdnou podmnožinu rolí Risk Manager a CRO.
+- `protected_asset_edit` je také pevný. Pokrývá aktivum, jehož současné nebo
+  navrhované CIF je Ano nebo výsledná kritičnost je Critical, včetně řízeného
+  create/edit/archive a chráněného relationship dopadu. Práh, pokryté akce a
+  zákaz self-approval jsou read-only.
 - `protected_vendor_edit` je rovněž pevný scénář. Pokrývá vytvoření, úpravu a
   archivaci dodavatele s aktuální nebo navrženou kritickou či významnou úrovní,
   změny smluv a sub-outsourcingu a vazby na rizika, kontroly a KRI spravované z

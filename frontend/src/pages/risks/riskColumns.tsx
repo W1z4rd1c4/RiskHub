@@ -62,7 +62,7 @@ export function buildRiskColumns({
                             </div>
                         )}
                     </div>
-                    <span className="text-[10px] text-slate-500">{risk.process}</span>
+                    <span className="text-[10px] text-slate-400">{risk.process}</span>
                 </div>
             ),
         },

@@ -1,7 +1,7 @@
 ---
 title: Getting Started with RiskHub
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-31"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routes"
 summary: "First-day onboarding manual for non-admin users: scope validation, navigation, workflow readiness, and how to avoid the most common early mistakes."
@@ -39,8 +39,18 @@ You will use this area most often for:
 - Controls
 - KRIs
 - Vendors
+- Processes
+- Assets
+- Threats
 - Approvals
 - Settings
+
+In the local demo login picker, ten demo personas appear as equal cards in a
+five-column by two-row desktop grid. The dedicated CISO persona is the starting
+point for Threat stewardship; it does not grant User administration, approval
+authority, or broad write access to other registers. Choose the persona that
+matches the workflow you want to demonstrate instead of treating the cards as
+levels of increasing privilege.
 
 ## Before You Start
 

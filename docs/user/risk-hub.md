@@ -1,7 +1,7 @@
 ---
 title: Risk Hub (CRO Configuration Workspace)
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-31"
 audience: user
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + frontend/src/components/riskhub/*"
 summary: "CRO manual for configuring RiskHub taxonomy, thresholds, approval scenarios, roles, departments, and sending risk questionnaires safely."
@@ -106,6 +106,15 @@ Vendor policy, the threshold is current-or-proposed Critical/Significant and
 the covered Vendor, child, and link actions plus no-self approval cannot be
 edited. An authorized administrator may change only enabled state and the
 non-empty Risk Manager/CRO approver-role subset.
+
+The four fixed scenario identifiers are `protected_process_edit`,
+`protected_asset_edit`, `protected_vendor_edit`, and
+`accountability_reassignment`. The fourth scenario covers an actual change of
+Process Owner or Owning Department, Asset Business Owner, Asset ICT Owner or
+Owning Department, Vendor Outsourcing Owner, and Threat Steward. Risk Hub lets
+the CRO enable or disable each scenario and select its non-empty Risk
+Manager/CRO approver-role subset; thresholds, covered mutations, and
+no-self-approval remain read-only policy.
 
 Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; Risk Hub panels and Activity Log entries show the current context.
 

@@ -130,9 +130,13 @@ Role/department-specific support:
 - Department managers must be active users. Reactivating or replacing the user is safer than bypassing this validation.
 - Department deletes are intentionally conservative because department scope drives RBAC, reports, vendors, KRIs, and orphan governance.
 
-Protected Process approval support:
+Protected Process, Asset, Vendor, and accountability approval support:
 
 - `protected_process_edit` is a fixed Risk Hub scenario. The CRO may enable or disable it and select a non-empty subset of Risk Manager and CRO approver roles.
+- `protected_asset_edit` is fixed as well. It covers an Asset when current or
+  proposed CIF is Yes or resulting criticality is Critical, including governed
+  create/edit/archive and protected relationship impact. Its threshold,
+  covered actions, and no-self-approval rule are read-only.
 - `protected_vendor_edit` is also fixed. It covers current-or-proposed Critical
   or Significant Vendor create/edit/archive, Contract and Sub-outsourcing
   mutations, and Vendor-managed Risk/Control/KRI links. Asset-to-Vendor and

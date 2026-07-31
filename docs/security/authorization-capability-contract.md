@@ -123,6 +123,11 @@ On 2026-05-26, issue assignment began suppressing duplicate no-op assignment
 outbox events and deriving assignment event idempotency from persisted activity
 identity. `issues:write`, issue scope, assignable-owner checks, REST shape, and
 capability semantics are unchanged.
+On 2026-07-31, Asset pending-impact projection and link-request presentation
+were aligned so Process, Vendor, and Asset changes keep actor-safe labels and
+the existing protected-Asset approval reason remains required in the UI.
+Route guards, row visibility, mutation authority, and capability field shapes
+and semantics are unchanged.
 On 2026-07-02, the business-logic audit tightened issue-exception governance:
 requesters can no longer approve their own exception requests (403), exception
 requests and approvals are denied on closed issues (409), expired exceptions can
@@ -334,6 +339,7 @@ oversight surface, not a register-end detail view.
 | `backend/app/services/_approval_execution/delete_side_effects.py` | 2026-05-25 Postgres compatibility fix changed the KRI delete side-effect loader from joined eager loading to select-in loading so row locking does not target nullable outer-join relations. User-visible authorization policy and capability semantics unchanged. |
 | `backend/app/services/_ict_register_lifecycle/`, `backend/app/services/_register_listings/`, ICT register endpoints, and ICT register frontend pages | 2026-07-14 DORA remediation added semantic committee drill-down filters, shared lifecycle/list-state adapters, RoI readiness normalization, and serialized sub-outsourcing validation. All filtered register queries continue to compose with their canonical row-visibility predicates; route guards, mutation authority, and capability field shapes are unchanged. |
 | `backend/app/services/_register_listings/lifecycle.py`, Process/Asset/Threat list endpoints, and shared frontend register-list state | 2026-07-16 ICT-GOV #83 removed unused collection/frontend orchestration facades and routed the three in-memory registers through the shared response lifecycle. Permission-scoped facets, groups, counts, exports, route guards, mutation authority, and capability field shapes are unchanged. |
+| `backend/app/services/_ict_register_lifecycle/asset_projection.py` and `frontend/src/pages/assets/AssetLinkSections.tsx` | 2026-07-31 ICT-GOV #91 aligned actor-safe Process, Vendor, and Asset pending-impact labels and mirrored the existing protected-Asset approval-reason requirement in link-request presentation. Route guards, row visibility, mutation authority, and capability field shapes and semantics are unchanged. |
 | `frontend/src/lib/capabilities.ts` | Backend-first capability fallback resolver. |
 | `frontend/src/authz/policy.ts` | Local route/navigation policy projection that mirrors backend policy. |
 | `docs/TESTING.md` | Existing RBAC, authz, capability, report, dashboard, vendor, KRI, questionnaire, and access verification lanes. |

@@ -1,7 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiClient } from '@/services/api/ApiClientCore';
 import { buildPreparedRequest, buildUrl } from '@/services/api/apiRequestBuilder';
 import { API_URL, setApiRuntimeOrigin } from '@/services/api/apiConfig';
+import { z } from '@/services/api/schemas';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 
 describe('apiClient request builder', () => {
@@ -49,6 +51,30 @@ describe('apiClient request builder', () => {
         expect(headers.get('Authorization')).toBe('Bearer riskhub-jwt');
         expect(headers.get('Content-Type')).toBe('application/json');
         expect(prepared.init.credentials).toBe('include');
+    });
+
+    it('sets a JSON content type and preserves a string body for DELETE requests', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(
+            new Response(JSON.stringify({ ok: true }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            }),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+        const body = JSON.stringify({ reason: 'Accountability reassignment' });
+        const client = new ApiClient(API_URL);
+
+        await client.delete('/assets/8/accountability', {
+            body,
+            schema: z.object({ ok: z.boolean() }),
+        });
+
+        expect(fetchMock).toHaveBeenCalledOnce();
+        const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+        const headers = init.headers as Headers;
+        expect(init.method).toBe('DELETE');
+        expect(headers.get('Content-Type')).toBe('application/json');
+        expect(init.body).toBe(body);
     });
 
     it('keeps runtime timeout overrides out of the fetch init payload', () => {

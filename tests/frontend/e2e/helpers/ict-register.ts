@@ -836,6 +836,7 @@ export interface ThreatLookup {
     name: string;
     category: string | null;
     is_archived: boolean;
+    threat_steward_user_id: number | null;
 }
 
 export interface ThreatRiskLinkLookup {
@@ -853,11 +854,23 @@ export async function getThreatByName(name: string): Promise<ThreatLookup | null
         throw new Error(`Failed to load threats for '${name}': ${response.status}`);
     }
     const body = await response.json() as {
-        items: Array<{ id: number; name: string; category: string | null; is_archived: boolean }>;
+        items: Array<{
+            id: number;
+            name: string;
+            category: string | null;
+            is_archived: boolean;
+            threat_steward_user_id: number | null;
+        }>;
     };
     const threat = body.items.find((item) => item.name === name);
     return threat
-        ? { id: threat.id, name: threat.name, category: threat.category, is_archived: threat.is_archived }
+        ? {
+            id: threat.id,
+            name: threat.name,
+            category: threat.category,
+            is_archived: threat.is_archived,
+            threat_steward_user_id: threat.threat_steward_user_id,
+        }
         : null;
 }
 
@@ -882,8 +895,20 @@ export async function createThreatViaApi(
     if (!response.ok) {
         throw new Error(`Failed to create threat: ${response.status} - ${await response.text()}`);
     }
-    const body = await response.json() as { id: number; name: string; category: string | null; is_archived: boolean };
-    return { id: body.id, name: body.name, category: body.category, is_archived: body.is_archived };
+    const body = await response.json() as {
+        id: number;
+        name: string;
+        category: string | null;
+        is_archived: boolean;
+        threat_steward_user_id: number | null;
+    };
+    return {
+        id: body.id,
+        name: body.name,
+        category: body.category,
+        is_archived: body.is_archived,
+        threat_steward_user_id: body.threat_steward_user_id,
+    };
 }
 
 export async function getRiskByCode(riskIdCode: string): Promise<{ id: number; name: string } | null> {

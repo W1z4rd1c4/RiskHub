@@ -1,7 +1,7 @@
 ---
 title: Approvals Support (Admin Runbook)
-version: "2.1"
-last_updated: "2026-04-25"
+version: "2.2"
+last_updated: "2026-07-31"
 audience: admin
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + backend/app/api/v1/endpoints/approvals/* + backend/app/core/activity_logger.py"
 summary: "Admin support runbook for approvals incidents: stuck requests, transition failures, missing notifications, and evidence-backed escalation."
@@ -24,6 +24,12 @@ Approvals are the system’s guardrail for governance-sensitive changes. They ex
 - “rollback” can be handled through a new controlled change rather than manual edits
 
 As a platform admin, your job is to keep the workflow **reliable and legible**. You are not the business decision-maker by default.
+
+The governed ICT workflow has four fixed scenarios:
+`protected_process_edit`, `protected_asset_edit`, `protected_vendor_edit`, and
+`accountability_reassignment`. Use those exact identifiers when correlating a
+request with Risk Hub configuration. A scenario is separate from request
+status and resource lifecycle.
 
 An approvals incident is usually one of:
 

@@ -98,6 +98,12 @@ Behavior:
 - Local `./scripts/dev.sh` uses the Vite frontend at `http://localhost:5173/login`
 - Docker `./scripts/compose.sh up` uses the nginx frontend at `http://localhost/login`
 - Both paths keep demo login enabled for development-only auth flows
+- The deterministic picker presents ten demo personas as equal cards in a
+  five-column by two-row desktop grid. The dedicated CISO card demonstrates
+  Threat stewardship and least privilege; it is not a platform administrator
+  or approval resolver. Use the same persona identities after
+  `./scripts/install.sh demo --reset test` so manuals, Playwright, and
+  screenshots describe one repeatable dataset.
 - To disable demo auth for local backend runs:
 
 ```bash

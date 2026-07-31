@@ -1,7 +1,7 @@
 ---
 title: Začínáme s RiskHub
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-31"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routy"
 summary: "Onboarding manuál pro non-admin uživatele: ověření scope, navigace, workflow připravenost a nejčastější chyby na začátku."
@@ -39,8 +39,17 @@ Tuto oblast budete používat hlavně pro:
 - Kontroly
 - KRI
 - Dodavatelé
+- Procesy
+- Aktiva
+- Hrozby
 - Schvalování
 - Nastavení
+
+V lokálním demo login pickeru se zobrazuje deset demo person jako stejné karty
+v pěti sloupcích a dvou řádcích na desktopu. Samostatná CISO persona je
+výchozím bodem pro správu Hrozeb; nedává User administration, approval
+authority ani broad writes do ostatních registrů. Vyberte personu podle
+workflow, které chcete předvést, ne jako stupně rostoucího oprávnění.
 
 ## Než začnete
 

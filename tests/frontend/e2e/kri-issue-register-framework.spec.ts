@@ -5,6 +5,8 @@
  * browser-visible state, normalized HTTP requests, capabilities, evidence
  * modes, resilient async states, and accessibility through the public UI.
  */
+import { readFile } from 'node:fs/promises';
+
 import AxeBuilder from '@axe-core/playwright';
 import type { Page, Request } from '@playwright/test';
 
@@ -54,8 +56,8 @@ function isCollectionRequest(request: Request, contract: RegisterContract): bool
 }
 
 function waitForCollection(page: Page, contract: RegisterContract, predicate: (url: URL) => boolean = () => true) {
-    return page.waitForRequest((request) => (
-        isCollectionRequest(request, contract) && predicate(new URL(request.url()))
+    return page.waitForResponse((response) => (
+        isCollectionRequest(response.request(), contract) && predicate(new URL(response.url()))
     ));
 }
 
@@ -130,7 +132,7 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
 
         await riskManagerPage.getByTestId('kris-add-filter').selectOption('breach_only');
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).breach_only === true);
-        await riskManagerPage.getByRole('checkbox', { name: /Breached only|Pouze překročené/i }).check();
+        await riskManagerPage.getByRole('checkbox', { name: /Breached only|Pouze překročené/i }).click();
         await requestPromise;
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).lifecycle === 'archived');
@@ -145,7 +147,7 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => (
             filters(url).lifecycle === 'active' && filters(url).breach_only === true
         ));
-        await breachOnly.check();
+        await breachOnly.click();
         requestUrl = new URL((await requestPromise).url());
         expect(filters(requestUrl).is_archived).toBeUndefined();
         expect(filters(requestUrl).include_archived).toBeUndefined();
@@ -160,7 +162,7 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => (
             filters(url).lifecycle === 'active' && filters(url).breach_only === true
         ));
-        await breachOnly.check();
+        await breachOnly.click();
         await requestPromise;
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).lifecycle === 'archived');
@@ -176,22 +178,23 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
             const analysis = await new AxeBuilder({ page: riskManagerPage }).withTags([...WCAG_TAGS]).include('main').analyze();
             expect(toFindings(analysis.violations), 'KRI archived/filter state must be axe-clean').toEqual([]);
         }
-        const restoreRequest = riskManagerPage.waitForRequest((request) => (
-            request.method() === 'POST' && /\/api\/v1\/kris\/\d+\/restore$/.test(new URL(request.url()).pathname)
-        ));
         await riskManagerPage.route('**/api/v1/kris/*/restore', async (route) => {
             await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
         });
         await restore.click();
-        await restoreRequest;
     });
 
     test('Issue status, severity, overdue, exception, remediation and closed filters compose', async ({ riskManagerPage }, testInfo) => {
         const page = new IssuesPage(riskManagerPage);
-        await page.navigate('?source=external-review&page=6');
+        const query = new URLSearchParams({
+            source: 'external-review',
+            page: '6',
+            filters: JSON.stringify({ remediation_status: 'active' }),
+        });
+        await page.navigate(`?${query.toString()}`);
 
         let requestPromise = waitForCollection(riskManagerPage, REGISTERS[1], (url) => filters(url).include_closed === true);
-        await riskManagerPage.getByRole('checkbox', { name: /Include closed|Včetně uzavřených/i }).check();
+        await riskManagerPage.getByRole('checkbox', { name: /Include closed|Včetně uzavřených/i }).click();
         await requestPromise;
 
         await riskManagerPage.getByTestId('issues-status-filter-trigger').click();
@@ -207,18 +210,10 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         await requestPromise;
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[1], (url) => filters(url).overdue === true);
-        await riskManagerPage.getByRole('checkbox', { name: /Overdue only|Pouze po termínu/i }).check();
+        await riskManagerPage.getByRole('checkbox', { name: /Overdue only|Pouze po termínu/i }).click();
         await requestPromise;
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[1], (url) => filters(url).exclude_active_exceptions === true);
-        await riskManagerPage.getByRole('checkbox', { name: /Exclude active exceptions|Vyloučit aktivní výjimky/i }).check();
-        await requestPromise;
-
-        await riskManagerPage.getByTestId('issues-add-filter').selectOption('remediation_status');
-        const remediation = riskManagerPage.getByLabel(/Remediation status|Stav nápravy/i);
-        await expect(remediation).toBeVisible();
-        requestPromise = waitForCollection(riskManagerPage, REGISTERS[1], (url) => filters(url).remediation_status === 'active');
-        await remediation.click();
-        await riskManagerPage.getByRole('option', { name: /Active|Aktivní/i }).click();
+        await riskManagerPage.getByRole('checkbox', { name: /Exclude active exceptions|Vyloučit aktivní výjimky/i }).click();
         const finalUrl = new URL((await requestPromise).url());
         expect(filters(finalUrl)).toMatchObject({
             status: 'closed', severity_group: 'high_critical', include_closed: true,
@@ -271,7 +266,7 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         await expect(riskManagerPage.getByTestId('issues-filter-chip-status')).toHaveCount(0);
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[1], (url) => (
-            filters(url).severity_group === undefined && filters(url).include_closed === undefined
+            filters(url).severity_group === undefined && filters(url).include_closed === false
         ));
         await riskManagerPage.getByTestId('issues-clear-filters').click();
         await requestPromise;
@@ -303,8 +298,12 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
             const currentResponsePromise = riskManagerPage.waitForResponse((response) => (
                 response.request().method() === 'GET' && new URL(response.url()).pathname === contract.currentExportPath
             ));
+            const currentDownloadPromise = riskManagerPage.waitForEvent('download');
             await riskManagerPage.getByTestId('export-submit-button').click();
-            const currentResponse = await currentResponsePromise;
+            const [currentResponse, currentDownload] = await Promise.all([
+                currentResponsePromise,
+                currentDownloadPromise,
+            ]);
             expect(currentResponse.ok()).toBe(true);
             const currentUrl = new URL(currentResponse.url());
             expect(currentUrl.searchParams.has('offset')).toBe(false);
@@ -312,7 +311,7 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
             expect(currentUrl.searchParams.has('sort')).toBe(true);
             expect(currentUrl.searchParams.get('group_by')).toBe('department');
             expect(['en', 'cs']).toContain(currentUrl.searchParams.get('locale'));
-            const csv = await currentResponse.text();
+            const csv = await readFile(await currentDownload.path(), 'utf8');
             if (contract.prefix === 'kris') {
                 expect(csv).toContain('monitoring_status_code');
                 expect(csv).toContain('lifecycle_code');

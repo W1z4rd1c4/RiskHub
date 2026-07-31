@@ -453,19 +453,29 @@ def _pending_asset_derived_impact(proposal: GovernedMutationProposal, labels) ->
     if not isinstance(raw, dict) or not isinstance(raw.get("assets"), list):
         safe = _actor_safe_pending_asset_value(raw)
         return safe if isinstance(safe, dict) else {}
-    names = labels.asset_labels
-    return {
-        **{str(key): _actor_safe_pending_asset_value(value) for key, value in raw.items() if key != "assets"},
-        "assets": [
+    safe = {
+        str(key): _actor_safe_pending_asset_value(value)
+        for key, value in raw.items()
+        if key not in {"assets", "processes", "vendors"}
+    }
+    for key, names, fallback in (
+        ("assets", labels.asset_labels, "Unknown Asset"),
+        ("processes", labels.process_labels, "Restricted Process"),
+        ("vendors", labels.vendor_labels, "Restricted Vendor"),
+    ):
+        rows = raw.get(key)
+        if not isinstance(rows, list):
+            continue
+        safe[key] = [
             {
-                "resource_name": names.get(item.get("resource_id"), "Unknown Asset"),
+                "resource_name": names.get(item.get("resource_id"), fallback),
                 "before": _actor_safe_pending_asset_value(item.get("before")),
                 "after": _actor_safe_pending_asset_value(item.get("after")),
             }
-            for item in raw["assets"]
+            for item in rows
             if isinstance(item, dict)
-        ],
-    }
+        ]
+    return safe
 
 
 def _pending_asset_relationship_change(

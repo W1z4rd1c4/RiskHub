@@ -18,6 +18,7 @@ from app.models import (
     ApprovalScenario,
     ApprovalStatus,
     Asset,
+    AssetVendorLink,
     GovernedMutationImpactLock,
     GovernedMutationProposal,
     OrphanedItem,
@@ -718,6 +719,7 @@ async def test_all_process_link_rows_project_authoritative_pending_lock_state(
     db_session.add_all(
         [
             ProcessAssetLink(process_id=process.id, asset_id=asset.id),
+            AssetVendorLink(asset_id=asset.id, vendor_id=vendor.id, ict_service_code="S01"),
             RiskProcessLink(process_id=process.id, risk_id=risk.id),
             ProcessVendorLink(process_id=process.id, vendor_id=vendor.id),
             ApprovalScenario(
@@ -752,17 +754,23 @@ async def test_all_process_link_rows_project_authoritative_pending_lock_state(
     )
     async with client_factory(user=test_user_cro) as requester:
         before = [await requester.get(path) for path in paths]
-        queued = await requester.patch(
-            f"/api/v1/processes/{process.id}",
-            json={
-                "notes": "Pending governed edit",
-                "request_reason": "Lock all Process relationship controls",
-            },
+        queued = await requester.request(
+            "DELETE",
+            f"/api/v1/assets/{asset.id}/process-links/{process.id}",
+            json={"request_reason": "Lock all Process relationship controls"},
         )
         after = [await requester.get(path) for path in paths]
+        asset_detail = await requester.get(f"/api/v1/assets/{asset.id}")
 
     assert queued.status_code == 202, queued.text
     assert all(response.status_code == 200 for response in (*before, *after))
+    assert asset_detail.status_code == 200, asset_detail.text
+    derived_impact = asset_detail.json()["pending_change"]["derived_impact"]
+    assert derived_impact["processes"][0]["resource_name"] == (
+        "F9029 — Locked relationship projection"
+    )
+    assert derived_impact["vendors"][0]["resource_name"] == "Locked projection vendor"
+    assert "resource_id" not in str(derived_impact)
     assert [
         response.json()[0]["process_business_edit_blocked"] for response in before
     ] == [

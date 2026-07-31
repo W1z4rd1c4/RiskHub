@@ -43,8 +43,10 @@ async function approveRequest(page: Page, reason: string): Promise<void> {
     await waitForDataLoad(page);
     const card = await requestCard(page, reason);
     await card.getByRole('button', { name: /Approve|Schválit/ }).click();
-    const dialog = page.locator('.fixed.inset-0.z-50 .glass').last();
-    await dialog.getByRole('textbox').fill(`Independent Asset approval: ${reason}`);
+    const dialog = page.getByRole('dialog', { name: /Approve Request|Schválit žádost/ });
+    await dialog.getByRole('textbox', {
+        name: /Please provide a reason for this decision|Uveďte prosím důvod tohoto rozhodnutí/,
+    }).fill(`Independent Asset approval: ${reason}`);
     const resolved = page.waitForResponse((response) => (
         response.request().method() === 'POST'
         && /\/api\/v1\/approvals\/\d+\/approve$/.test(new URL(response.url()).pathname)

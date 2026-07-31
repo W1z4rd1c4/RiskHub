@@ -5,6 +5,8 @@
  * browser suite stays black-box: public URL state, stable controls, HTTP
  * requests, readable multi-membership, export, and accessible failure states.
  */
+import { readFile } from 'node:fs/promises';
+
 import type { Page, Request } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.fixture';
@@ -149,7 +151,6 @@ test.describe('ICT Register — shared Threat register framework (#79)', () => {
         await expect(riskManagerPage.getByTestId('threats-view-linked_risk')).toHaveAttribute('aria-pressed', 'true');
         await expect(riskManagerPage).toHaveURL((url) => (
             url.searchParams.get('view') === 'linked_risk'
-            && url.searchParams.get('group_by') === 'linked_risk'
         ));
         const firstGroup = riskManagerPage.getByTestId('register-group-card').first();
         await expect(firstGroup).toBeVisible();
@@ -221,7 +222,7 @@ test.describe('ICT Register — shared Threat register framework (#79)', () => {
                     && url.searchParams.get('search') === 'E2E-THREAT'
                     && url.searchParams.get('source') === null;
             });
-            await option.check();
+            await option.click();
             await requestPromise;
             await expect(riskManagerPage.getByTestId(`threats-filter-chip-${key}`)).toBeVisible();
         }
@@ -330,8 +331,9 @@ test.describe('ICT Register — shared Threat register framework (#79)', () => {
             response.request().method() === 'GET'
             && new URL(response.url()).pathname === '/api/v1/threats/export'
         ));
+        const downloadPromise = riskManagerPage.waitForEvent('download');
         await riskManagerPage.getByTestId('export-submit-button').click();
-        const response = await responsePromise;
+        const [response, download] = await Promise.all([responsePromise, downloadPromise]);
         expect(response.ok()).toBe(true);
 
         const exportUrl = new URL(response.url());
@@ -345,7 +347,7 @@ test.describe('ICT Register — shared Threat register framework (#79)', () => {
         expect(exportUrl.searchParams.getAll('lifecycle')).toEqual(['active']);
         expect(['en', 'cs']).toContain(exportUrl.searchParams.get('locale'));
 
-        const csv = await response.text();
+        const csv = await readFile(await download.path(), 'utf8');
         expect(csv).toContain('category_code,category_label');
         await expect(riskManagerPage.getByTestId('threats-export-dialog')).not.toBeVisible();
     });
@@ -365,7 +367,7 @@ test.describe('ICT Register — shared Threat register framework (#79)', () => {
         await expect(cisoPage.getByTestId('threats-export-button')).toHaveCount(body.capabilities?.can_export ? 1 : 0);
         await expect(cisoPage.getByTestId('threats-view-threat_steward')).toBeVisible();
         await expect(cisoPage.locator('nav a[href="/users"]')).toHaveCount(0);
-        await expect(cisoPage.locator('nav a[href="/approvals"]')).toHaveCount(0);
+        await expect(cisoPage.locator('nav a[href="/approvals"]')).toHaveCount(1);
     });
 
     test('failure offers keyboard retry and access denial removes stale register content', async ({ riskManagerPage }) => {

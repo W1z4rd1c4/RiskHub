@@ -52,14 +52,14 @@ import i18n from '@/i18n';
 
 const asset = { id: 1 } as unknown as Asset;
 
-function renderSection() {
+function renderSection(assetUnderTest: Asset = asset) {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     return render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter>
-                <AssetLinkSections asset={asset} canManageLinks />
+                <AssetLinkSections asset={assetUnderTest} canManageLinks />
             </MemoryRouter>
         </QueryClientProvider>,
     );
@@ -144,6 +144,23 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
         fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('processes:link_approval.continue') }));
 
         await waitFor(() => expect(mockRemoveProcessLink).toHaveBeenCalledWith(1, 100, ''));
+    });
+
+    it('requires a reason when the current Asset is protected and the linked Process is not', async () => {
+        (processApi.getProcesses as ReturnType<typeof vi.fn>).mockResolvedValue({
+            items: [{
+                id: 100,
+                derived: { cif: 'no', resulting_criticality: 'medium' },
+                capabilities: { protected_change_requires_approval: true },
+            }],
+        });
+        renderSection({ id: 1, derived: { cif: 'yes' } } as unknown as Asset);
+
+        fireEvent.click(await screen.findByTestId('asset-process-link-remove-100'));
+
+        expect(within(screen.getByRole('alertdialog')).getByRole('textbox', {
+            name: /request reason/i,
+        })).toBeInTheDocument();
     });
 
     it('disables Process relationship actions while the authoritative impact lock is active', async () => {

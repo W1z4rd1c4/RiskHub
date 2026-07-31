@@ -72,8 +72,8 @@ function waitForCollection(
     contract: RegisterContract,
     predicate: (url: URL) => boolean = () => true,
 ) {
-    return page.waitForRequest((request) => (
-        isCollectionRequest(request, contract) && predicate(new URL(request.url()))
+    return page.waitForResponse((response) => (
+        isCollectionRequest(response.request(), contract) && predicate(new URL(response.url()))
     ));
 }
 

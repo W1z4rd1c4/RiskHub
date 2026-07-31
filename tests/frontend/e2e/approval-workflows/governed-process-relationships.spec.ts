@@ -1,7 +1,7 @@
 /** Issue #85 — every Process relationship end uses the same governed tracer. */
-import type { Locator, Page, Response } from '@playwright/test';
+import type { BrowserContext, Locator, Page, Response } from '@playwright/test';
 
-import { expect, test } from '../fixtures/auth.fixture';
+import { DEMO_ACCOUNTS, expect, test } from '../fixtures/auth.fixture';
 import {
     E2E_ASSETS,
     E2E_ICT_REGISTER_RISK,
@@ -15,6 +15,7 @@ import {
     getProcessByL1,
     listAssetProcessLinks,
 } from '../helpers/ict-register';
+import { loginAsDemoUser } from '../helpers/login';
 import { waitForDataLoad } from '../helpers/wait';
 
 const APPROVAL_CARD = '.space-y-4 .glass-card';
@@ -35,9 +36,11 @@ async function approveRequest(page: Page, reason: string): Promise<void> {
     await waitForDataLoad(page);
     const card = await requestCard(page, reason);
     await card.getByRole('button', { name: /Approve|Schválit/ }).click();
-    const dialog = page.locator('.fixed.inset-0.z-50 .glass').last();
+    const dialog = page.getByRole('dialog', { name: /Approve Request|Schválit žádost/ });
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('textbox').fill(`Independent approval: ${reason}`);
+    await dialog.getByRole('textbox', {
+        name: /Please provide a reason for this decision|Uveďte prosím důvod tohoto rozhodnutí/,
+    }).fill(`Independent approval: ${reason}`);
     const resolved = page.waitForResponse((response) => (
         response.request().method() === 'POST'
         && /\/api\/v1\/approvals\/\d+\/approve$/.test(new URL(response.url()).pathname)
@@ -99,10 +102,13 @@ test.describe('Governed protected Process relationships (#85)', () => {
     test('Risk, Asset, and Vendor ends preserve approved truth until independent approval', async ({
         riskManagerPage,
         croPage,
+        browser,
     }) => {
         test.setTimeout(300_000);
         const processName = `E2E-GOV-REL-${Date.now()}`;
         let primaryFailure: unknown;
+        let relationshipContext: BrowserContext | undefined;
+        let relationshipPage: Page | undefined;
         let assetPrimaryBaseline: { assetId: number; processId: number | null } | undefined;
         try {
             const processId = await createApprovedProtectedProcess(riskManagerPage, croPage, processName);
@@ -153,88 +159,96 @@ test.describe('Governed protected Process relationships (#85)', () => {
             await waitForDataLoad(riskManagerPage);
             await expect(riskManagerPage.getByTestId('risk-process-link-rows').getByText(processName)).toBeVisible();
             await approveRequest(croPage, riskRemoveReason);
-            await riskManagerPage.reload();
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId('risk-process-link-rows').getByText(processName)).toHaveCount(0);
+            relationshipContext = await browser.newContext();
+            relationshipPage = await relationshipContext.newPage();
+            await loginAsDemoUser(relationshipPage, DEMO_ACCOUNTS.RISK_MANAGER);
+            await relationshipPage.goto(`/risks/${risk!.id}`);
+            await waitForDataLoad(relationshipPage);
+            await expect(relationshipPage.getByTestId('risk-process-link-rows')).toBeVisible();
+            await expect(relationshipPage.getByTestId('risk-process-link-rows').getByText(processName)).toHaveCount(0);
 
             // Asset -> Process add/update/remove all share the tracer. Setting the
             // primary flag is the relationship update applicable to this end.
-            await riskManagerPage.goto(`/assets/${asset!.id}`);
-            await waitForDataLoad(riskManagerPage);
-            await selectExactOption(riskManagerPage, 'asset-process-link-select', processName);
+            await relationshipPage.goto(`/assets/${asset!.id}`);
+            await waitForDataLoad(relationshipPage);
+            await selectExactOption(relationshipPage, 'asset-process-link-select', processName);
             const assetAddReason = `Approve protected Asset link add ${processName}`;
             await submitGovernedDialog(
-                riskManagerPage,
+                relationshipPage,
                 assetAddReason,
-                () => riskManagerPage.getByTestId('asset-process-link-add').click(),
+                () => relationshipPage.getByTestId('asset-process-link-add').click(),
                 (response) => response.request().method() === 'POST'
                     && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/process-links`,
             );
-            await riskManagerPage.goto(`/assets/${asset!.id}`);
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId('asset-process-links').getByText(processName)).toHaveCount(0);
+            await relationshipPage.goto(`/assets/${asset!.id}`);
+            await waitForDataLoad(relationshipPage);
+            await expect(relationshipPage.getByTestId('asset-process-links').getByText(processName)).toHaveCount(0);
             await approveRequest(croPage, assetAddReason);
-            await riskManagerPage.reload();
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId('asset-process-links').getByText(processName)).toBeVisible();
+            await relationshipPage.reload();
+            await waitForDataLoad(relationshipPage);
+            await expect(relationshipPage.getByTestId('asset-process-links').getByText(processName)).toBeVisible();
 
             const assetUpdateReason = `Approve protected Asset link update ${processName}`;
             await submitGovernedDialog(
-                riskManagerPage,
+                relationshipPage,
                 assetUpdateReason,
-                () => riskManagerPage.getByTestId(`asset-process-link-set-primary-${processId}`).click(),
+                () => relationshipPage.getByTestId(`asset-process-link-set-primary-${processId}`).click(),
                 (response) => response.request().method() === 'PATCH'
                     && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/process-links/${processId}`,
             );
-            await riskManagerPage.goto(`/assets/${asset!.id}`);
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId(`asset-process-link-primary-${processId}`)).toHaveCount(0);
+            await relationshipPage.goto(`/assets/${asset!.id}`);
+            await waitForDataLoad(relationshipPage);
+            await expect(relationshipPage.getByTestId(`asset-process-link-primary-${processId}`)).toHaveCount(0);
             await approveRequest(croPage, assetUpdateReason);
-            await riskManagerPage.reload();
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId(`asset-process-link-primary-${processId}`)).toBeVisible();
+            await relationshipPage.reload();
+            await waitForDataLoad(relationshipPage);
+            await expect(relationshipPage.getByTestId(`asset-process-link-primary-${processId}`)).toBeVisible();
 
             const assetRemoveReason = `Approve protected Asset link remove ${processName}`;
             await submitGovernedDialog(
-                riskManagerPage,
+                relationshipPage,
                 assetRemoveReason,
-                () => riskManagerPage.getByTestId(`asset-process-link-remove-${processId}`).click(),
+                () => relationshipPage.getByTestId(`asset-process-link-remove-${processId}`).click(),
                 (response) => response.request().method() === 'DELETE'
                     && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/process-links/${processId}`,
             );
-            await riskManagerPage.goto(`/assets/${asset!.id}`);
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId('asset-process-links').getByText(processName)).toBeVisible();
+            await relationshipPage.goto(`/assets/${asset!.id}`);
+            await waitForDataLoad(relationshipPage);
+            await expect(relationshipPage.getByTestId('asset-process-links').getByText(processName)).toBeVisible();
             await approveRequest(croPage, assetRemoveReason);
-            await riskManagerPage.reload();
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId('asset-process-links').getByText(processName)).toHaveCount(0);
+            await relationshipPage.reload();
+            await waitForDataLoad(relationshipPage);
+            await expect(relationshipPage.getByTestId('asset-process-links').getByText(processName)).toHaveCount(0);
 
             // Vendor -> Process add/remove behaves identically and keeps the row
             // absent/present respectively until the approver accepts the proposal.
-            await riskManagerPage.goto(`/vendors/${vendor!.id}`);
-            await waitForDataLoad(riskManagerPage);
-            await selectExactOption(riskManagerPage, 'vendor-process-link-select', processName);
+            if (!relationshipPage.isClosed()) await relationshipContext.close();
+            relationshipContext = await browser.newContext();
+            relationshipPage = await relationshipContext.newPage();
+            await loginAsDemoUser(relationshipPage, DEMO_ACCOUNTS.RISK_MANAGER);
+            await relationshipPage.goto(`/vendors/${vendor!.id}`);
+            await waitForDataLoad(relationshipPage);
+            await selectExactOption(relationshipPage, 'vendor-process-link-select', processName);
             const vendorAddReason = `Approve protected Vendor link add ${processName}`;
             await submitGovernedDialog(
-                riskManagerPage,
+                relationshipPage,
                 vendorAddReason,
-                () => riskManagerPage.getByTestId('vendor-process-link-add').click(),
+                () => relationshipPage.getByTestId('vendor-process-link-add').click(),
                 (response) => response.request().method() === 'POST'
                     && new URL(response.url()).pathname === `/api/v1/processes/${processId}/vendor-links`,
             );
-            await riskManagerPage.goto(`/vendors/${vendor!.id}`);
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId('vendor-process-links').getByText(processName)).toHaveCount(0);
+            await relationshipPage.goto(`/vendors/${vendor!.id}`);
+            await waitForDataLoad(relationshipPage);
+            await expect(relationshipPage.getByTestId('vendor-process-links').getByText(processName)).toHaveCount(0);
             await approveRequest(croPage, vendorAddReason);
-            await riskManagerPage.reload();
-            await waitForDataLoad(riskManagerPage);
-            const vendorRow = riskManagerPage.getByTestId('vendor-process-links').getByRole('listitem').filter({ hasText: processName });
+            await relationshipPage.reload();
+            await waitForDataLoad(relationshipPage);
+            const vendorRow = relationshipPage.getByTestId('vendor-process-links').getByRole('listitem').filter({ hasText: processName });
             await expect(vendorRow).toBeVisible();
 
             const vendorRemoveReason = `Approve protected Vendor link remove ${processName}`;
             await submitGovernedDialog(
-                riskManagerPage,
+                relationshipPage,
                 vendorRemoveReason,
                 () => vendorRow.locator('[data-testid^="vendor-process-link-remove-"]').click(),
                 (response) => response.request().method() === 'DELETE'
@@ -242,17 +256,20 @@ test.describe('Governed protected Process relationships (#85)', () => {
                         new URL(response.url()).pathname,
                     ),
             );
-            await riskManagerPage.goto(`/vendors/${vendor!.id}`);
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId('vendor-process-links').getByText(processName)).toBeVisible();
+            await relationshipPage.goto(`/vendors/${vendor!.id}`);
+            await waitForDataLoad(relationshipPage);
+            await expect(relationshipPage.getByTestId('vendor-process-links').getByText(processName)).toBeVisible();
             await approveRequest(croPage, vendorRemoveReason);
-            await riskManagerPage.reload();
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId('vendor-process-links').getByText(processName)).toHaveCount(0);
+            await relationshipPage.reload();
+            await waitForDataLoad(relationshipPage);
+            await expect(relationshipPage.getByTestId('vendor-process-links').getByText(processName)).toHaveCount(0);
         } catch (error) {
             primaryFailure = error;
             throw error;
         } finally {
+            if (relationshipContext && relationshipPage && !relationshipPage.isClosed()) {
+                await relationshipContext.close();
+            }
             await cleanupWithoutMaskingPrimaryFailure(
                 primaryFailure,
                 () => cleanupGovernedProcessFixture({ processName, assetPrimaryBaseline }),

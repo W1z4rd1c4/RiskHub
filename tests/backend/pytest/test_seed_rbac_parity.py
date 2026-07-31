@@ -35,8 +35,22 @@ def test_demo_seed_role_permissions_match_canonical_contract() -> None:
         assert demo_expanded == canonical_expanded
 
 
-def test_ciso_persona_is_a_required_e2e_mapping() -> None:
-    assert "ciso@riskhub.local" in e2e_mappings.REQUIRED_USER_EMAILS
+def test_all_ten_demo_personas_are_required_e2e_mappings() -> None:
+    canonical_demo_emails = tuple(user["email"] for user in app_seed.TEST_USERS)
+
+    assert canonical_demo_emails == (
+        "admin@riskhub.local",
+        "cro@riskhub.local",
+        "risk.manager@riskhub.local",
+        "ops.head@riskhub.local",
+        "fin.head@riskhub.local",
+        "it.head@riskhub.local",
+        "ops.analyst@riskhub.local",
+        "fin.analyst@riskhub.local",
+        "it.analyst@riskhub.local",
+        "ciso@riskhub.local",
+    )
+    assert e2e_mappings.REQUIRED_USER_EMAILS == canonical_demo_emails
 
 
 def test_controls_execute_contract_and_convergence_mapping() -> None:

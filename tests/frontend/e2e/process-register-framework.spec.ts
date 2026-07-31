@@ -5,6 +5,8 @@
  * and HTTP requests. Filter algebra and visibility are exhaustively covered at
  * the backend seam; this suite proves the representative browser workflow.
  */
+import { readFile } from 'node:fs/promises';
+
 import type { Page, Request } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.fixture';
@@ -18,9 +20,9 @@ function isProcessListRequest(request: Request): boolean {
 }
 
 function waitForProcessList(page: Page, predicate: (url: URL) => boolean = () => true) {
-    return page.waitForRequest((request) => {
-        if (!isProcessListRequest(request)) return false;
-        return predicate(new URL(request.url()));
+    return page.waitForResponse((response) => {
+        if (!isProcessListRequest(response.request())) return false;
+        return predicate(new URL(response.url()));
     });
 }
 
@@ -136,7 +138,7 @@ test.describe('ICT Register — shared Process register framework (#77)', () => 
                 && url.searchParams.get('source') === null
                 && url.searchParams.getAll('lifecycle').join(',') === 'active';
         });
-        await criticalityOption.check();
+        await criticalityOption.click();
         const criticalityRequest = await criticalityRequestPromise;
 
         await riskManagerPage.getByTestId('processes-add-filter').selectOption('cif');
@@ -185,8 +187,9 @@ test.describe('ICT Register — shared Process register framework (#77)', () => 
             response.request().method() === 'GET'
             && new URL(response.url()).pathname === '/api/v1/processes/export'
         ));
+        const downloadPromise = riskManagerPage.waitForEvent('download');
         await riskManagerPage.getByTestId('export-submit-button').click();
-        const response = await responsePromise;
+        const [response, download] = await Promise.all([responsePromise, downloadPromise]);
         expect(response.ok()).toBe(true);
         const exportUrl = new URL(response.url());
         expect(exportUrl.searchParams.has('offset')).toBe(false);
@@ -200,7 +203,7 @@ test.describe('ICT Register — shared Process register framework (#77)', () => 
         expect(exportUrl.searchParams.getAll('lifecycle')).toEqual(['active']);
         expect(new URL(riskManagerPage.url()).searchParams.get('source')).toBe('external-review');
 
-        const csv = await response.text();
+        const csv = await readFile(await download.path(), 'utf8');
         expect(csv).toContain('criticality_code,criticality_label');
         expect(csv).toContain('licensed_activity_code,licensed_activity_label');
         await expect(riskManagerPage.getByTestId('processes-export-dialog')).not.toBeVisible();

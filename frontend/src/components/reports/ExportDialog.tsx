@@ -155,7 +155,7 @@ export function ExportDialog({
                 )}
                 {purpose === 'point_in_time' && (
                     <div className="space-y-2">
-                        <span id={dateLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                        <span id={dateLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
                             {t('export.fields.date')}
                         </span>
                         <input
@@ -189,7 +189,7 @@ export function ExportDialog({
                     onClick={handleSubmit}
                     disabled={isSubmitting || (purpose === 'point_in_time' && !asOfDate)}
                     data-testid="export-submit-button"
-                    className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all flex items-center gap-2 disabled:opacity-60"
+                    className="px-5 py-2.5 rounded-xl bg-accent text-slate-950 font-bold hover:bg-accent/90 transition-all flex items-center gap-2 disabled:opacity-60"
                 >
                     <Download className="h-4 w-4" />
                     {purpose === 'current_view'

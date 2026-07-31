@@ -212,10 +212,12 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             ?.filter((link) => link.is_primary)
             .forEach((link) => pendingProcessIds.add(link.process_id));
     }
-    const processReasonRequired = [...pendingProcessIds].some((processId) =>
-        processMutationRequiresApprovalReason(
-            processOptionsQuery.data?.items.find((candidate) => candidate.id === processId),
-        ));
+    const processReasonRequired = asset.derived?.cif === 'yes'
+        || asset.derived?.resulting_criticality === 'critical'
+        || [...pendingProcessIds].some((processId) =>
+            processMutationRequiresApprovalReason(
+                processOptionsQuery.data?.items.find((candidate) => candidate.id === processId),
+            ));
     const selectedProcess = processOptionsQuery.data?.items.find(
         (candidate) => candidate.id === Number(processToLink),
     );

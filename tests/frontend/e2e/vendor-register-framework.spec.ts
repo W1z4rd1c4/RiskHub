@@ -6,6 +6,8 @@
  * filtered export, record-owner capabilities, cleanup, and accessible async
  * states.
  */
+import { readFile } from 'node:fs/promises';
+
 import AxeBuilder from '@axe-core/playwright';
 import type { Page, Request } from '@playwright/test';
 
@@ -27,8 +29,8 @@ function isVendorListRequest(request: Request): boolean {
 }
 
 function waitForVendorList(page: Page, predicate: (url: URL) => boolean = () => true) {
-    return page.waitForRequest((request) => (
-        isVendorListRequest(request) && predicate(new URL(request.url()))
+    return page.waitForResponse((response) => (
+        isVendorListRequest(response.request()) && predicate(new URL(response.url()))
     ));
 }
 
@@ -49,6 +51,28 @@ async function riskManagerHeaders(): Promise<Record<string, string>> {
     };
 }
 
+async function resolveQueuedVendorMutation(response: globalThis.Response, reason: string): Promise<void> {
+    if (response.status !== 202) {
+        if (!response.ok) {
+            throw new Error(`Vendor fixture mutation failed: ${response.status} ${await response.text()}`);
+        }
+        return;
+    }
+    const queued = await response.json() as { approval_id: number };
+    const token = await getDemoToken({ email: 'cro@riskhub.local', fallbackUserIds: [2] });
+    const approved = await fetch(`${getApiBaseUrl()}/api/v1/approvals/${queued.approval_id}/approve`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ resolution_notes: `Approve ${reason}` }),
+    });
+    if (!approved.ok) {
+        throw new Error(`Failed to approve Vendor fixture mutation: ${approved.status} ${await approved.text()}`);
+    }
+}
+
 async function lookupVendorOwnerId(email: string): Promise<number> {
     const headers = await riskManagerHeaders();
     const params = new URLSearchParams({ q: email, limit: '50' });
@@ -66,14 +90,16 @@ async function lookupVendorOwnerId(email: string): Promise<number> {
 
 async function setVendorOwner(vendorId: number, ownerId: number): Promise<void> {
     const headers = await riskManagerHeaders();
+    const reason = `Set Vendor ${vendorId} owner for register scope verification`;
     const response = await fetch(`${getApiBaseUrl()}/api/v1/vendors/${vendorId}`, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ outsourcing_owner_user_id: ownerId }),
+        body: JSON.stringify({
+            outsourcing_owner_user_id: ownerId,
+            request_reason: reason,
+        }),
     });
-    if (!response.ok) {
-        throw new Error(`Failed to assign Vendor ${vendorId} owner ${ownerId}: ${response.status} ${await response.text()}`);
-    }
+    await resolveQueuedVendorMutation(response, reason);
 }
 
 async function ensureVendorRiskLink(vendorId: number, riskId: number): Promise<boolean> {
@@ -90,11 +116,15 @@ async function ensureVendorRiskLink(vendorId: number, riskId: number): Promise<b
     const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}/linked-risks`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ risk_id: riskId }),
+        body: JSON.stringify({
+            risk_id: riskId,
+            request_reason: `Link Vendor ${vendorId} to Risk ${riskId} for register grouping verification`,
+        }),
     });
-    if (!response.ok) {
-        throw new Error(`Failed to link Vendor ${vendorId} to Risk ${riskId}: ${response.status} ${await response.text()}`);
-    }
+    await resolveQueuedVendorMutation(
+        response,
+        `Link Vendor ${vendorId} to Risk ${riskId} for register grouping verification`,
+    );
     return true;
 }
 
@@ -103,12 +133,14 @@ async function cleanupVendorRiskLinks(vendorId: number, riskIds: number[]): Prom
     const failures: string[] = [];
     for (const riskId of riskIds) {
         try {
+            const reason = `Remove Vendor ${vendorId} Risk ${riskId} after register grouping verification`;
             const response = await fetch(`${getApiBaseUrl()}/api/v1/vendors/${vendorId}/linked-risks/${riskId}`, {
                 method: 'DELETE',
                 headers,
+                body: JSON.stringify({ request_reason: reason }),
             });
-            if (!response.ok && response.status !== 404) {
-                failures.push(`${riskId}: ${response.status}`);
+            if (response.status !== 404) {
+                await resolveQueuedVendorMutation(response, reason);
             }
         } catch (error) {
             failures.push(`${riskId}: ${String(error)}`);
@@ -129,18 +161,19 @@ async function selectArrayFilter(page: Page, key: string): Promise<Request> {
         const value = requestFilters(url)[key];
         return Array.isArray(value) && value.length > 0;
     });
-    await option.check();
+    await option.click();
     const completedRequest = await request;
     await expect(page.getByTestId(`vendors-filter-chip-${key}`)).toBeVisible();
     return completedRequest;
 }
 
-async function selectBooleanFilter(page: Page, key: string): Promise<void> {
+async function selectBooleanFilter(page: Page, key: string): Promise<Request> {
     await page.getByTestId('vendors-add-filter').selectOption(key);
     const request = waitForVendorList(page, (url) => requestFilters(url)[key] === true);
     await page.getByTestId(`vendors-filter-${key}-select`).selectOption('true');
-    await request;
+    const completedRequest = await request;
     await expect(page.getByTestId(`vendors-filter-chip-${key}`)).toBeVisible();
+    return completedRequest;
 }
 
 test.describe('ICT Register — shared Vendor register framework (#80)', () => {
@@ -208,8 +241,13 @@ test.describe('ICT Register — shared Vendor register framework (#80)', () => {
     });
 
     test('search and representative remote, facet, boolean, lifecycle, and linked filters compose and reset page', async ({ riskManagerPage }, testInfo) => {
-        await riskManagerPage.goto('/vendors?source=external-review&page=4');
-        await waitForRegisterReady(riskManagerPage);
+        const vendor = await getVendorByRegistration(E2E_VENDORS.ACTIVE_SECONDARY.registration_id);
+        const risk = await getRiskByCode('E2E-IT-001');
+        if (!vendor || !risk) throw new Error('Required Vendor and Risk fixtures are missing; reseed E2E data.');
+        const createdLink = await ensureVendorRiskLink(vendor.id, risk.id);
+        try {
+            await riskManagerPage.goto('/vendors?source=external-review&page=4');
+            await waitForRegisterReady(riskManagerPage);
 
         const searchInput = riskManagerPage.getByTestId('vendors-search-input');
         await Promise.all([
@@ -229,9 +267,9 @@ test.describe('ICT Register — shared Vendor register framework (#80)', () => {
         await selectArrayFilter(riskManagerPage, 'department_ids');
         await selectArrayFilter(riskManagerPage, 'vendor_types');
         await selectArrayFilter(riskManagerPage, 'tiers');
+        await selectArrayFilter(riskManagerPage, 'linked_risk_ids');
         await selectBooleanFilter(riskManagerPage, 'dora_relevant');
-        await selectBooleanFilter(riskManagerPage, 'has_roi_contract');
-        const finalRequest = await selectArrayFilter(riskManagerPage, 'linked_risk_ids');
+        const finalRequest = await selectBooleanFilter(riskManagerPage, 'has_roi_contract');
         const finalUrl = new URL(finalRequest.url());
         const finalFilters = requestFilters(finalUrl);
         expect(finalUrl.searchParams.get('search')).toBe('E2E-VENDOR');
@@ -281,7 +319,10 @@ test.describe('ICT Register — shared Vendor register framework (#80)', () => {
         ]) {
             await expect(riskManagerPage.getByTestId(`vendors-filter-chip-${key}`)).toHaveCount(0);
         }
-        await expect(searchInput).toHaveValue('E2E-VENDOR');
+            await expect(searchInput).toHaveValue('E2E-VENDOR');
+        } finally {
+            if (createdLink) await cleanupVendorRiskLinks(vendor.id, [risk.id]);
+        }
     });
 
     test('By Risk repeats a Vendor across readable memberships without exposing a hidden Risk', async ({ employeePage }) => {
@@ -373,8 +414,9 @@ test.describe('ICT Register — shared Vendor register framework (#80)', () => {
             response.request().method() === 'GET'
             && new URL(response.url()).pathname === '/api/v1/vendors/export'
         ));
+        const downloadPromise = riskManagerPage.waitForEvent('download');
         await riskManagerPage.getByTestId('export-submit-button').click();
-        const response = await exportResponse;
+        const [response, download] = await Promise.all([exportResponse, downloadPromise]);
         expect(response.ok()).toBe(true);
         const url = new URL(response.url());
         expect(url.searchParams.has('offset')).toBe(false);
@@ -385,7 +427,7 @@ test.describe('ICT Register — shared Vendor register framework (#80)', () => {
         expect(url.searchParams.get('group_value')).toBe(groupValue);
         expect(url.searchParams.getAll('lifecycle')).toEqual(['active']);
         expect(['en', 'cs']).toContain(url.searchParams.get('locale'));
-        const csv = await response.text();
+        const csv = await readFile(await download.path(), 'utf8');
         expect(csv).toContain('legal_name');
         expect(csv).toContain(E2E_VENDORS.ACTIVE_PRIMARY.registration_id);
         expect(csv).not.toContain(E2E_VENDORS.ACTIVE_SECONDARY.registration_id);

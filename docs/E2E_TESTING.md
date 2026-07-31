@@ -1,7 +1,7 @@
 # RiskHub E2E Testing Guide
 
-> **Version**: 1.4
-> **Last Updated**: 2026-04-04
+> **Version**: 1.5
+> **Last Updated**: 2026-07-31
 > **Audience**: QA, Engineering
 > **Source of Truth**: `frontend/playwright.config.ts`, `tests/frontend/e2e/`, `frontend/package.json`
 
@@ -49,6 +49,27 @@ Primary suite groups in `tests/frontend/e2e/`:
   - `entity-ownership/`
   - `activity-logging/`
 - Focus suites: `issues-workflow`, `issues-contextual-create`, `settings-isolation`, `navigation-stability`, `questionnaires`
+
+## ICT Governance Acceptance Matrix
+
+The #91 release acceptance uses the deterministic test dataset and the
+following public browser seams:
+
+| Acceptance behavior | Primary Playwright evidence |
+|---|---|
+| CISO stewardship, Threat lifecycle, reassignment, and permission-safe linked-Risk context | `threats.spec.ts`, `threat-register-framework.spec.ts`, `roles-access.spec.ts` |
+| Process ownership and protected create/edit/relationships | `processes.spec.ts`, `process-register-framework.spec.ts`, `approval-workflows/governed-process-*.spec.ts` |
+| Asset dual ownership, protected mutation, and Composite cascade | `assets.spec.ts`, `asset-register-framework.spec.ts`, `approval-workflows/governed-asset.spec.ts`, `approval-workflows/governed-process-relationships.spec.ts` |
+| Protected Vendor and accountability outcomes | `vendors.spec.ts`, `vendor-register-framework.spec.ts`, `approval-workflows/governed-vendor.spec.ts` |
+| Department drill-down under a locked Department filter | `department-register-drilldown.spec.ts`, `department-access.spec.ts` |
+| Requester/approver separation and scenario resolution | `approval-workflows/self-approval.spec.ts`, `approval-workflows/status-flow.spec.ts`, `permissions/approvals-access.spec.ts` |
+
+The demo picker is also a release seam: verify the ten-persona desktop layout,
+including the CISO card, as five equal columns by two rows. Run representative
+register and governed-workflow journeys in both English and Czech. Controlled
+labels must be language-pure; free text remains as entered. This manual visual
+check complements the automated locale and accessibility gates and must not be
+reported as automated evidence.
 
 ## Deterministic Seed Workflow
 

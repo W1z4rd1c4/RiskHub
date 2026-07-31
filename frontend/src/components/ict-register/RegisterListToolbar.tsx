@@ -124,7 +124,7 @@ export function RegisterListToolbar({
                             </button>
                         </span>
                     ))}
-                    <button type="button" data-testid={`${testIdPrefix}-clear-filters`} onClick={onClearAll} className="text-xs font-semibold text-accent hover:text-white">
+                    <button type="button" data-testid={`${testIdPrefix}-clear-filters`} onClick={onClearAll} className="text-xs font-semibold text-slate-300 hover:text-white">
                         {clearAllLabel}
                     </button>
                 </div>

@@ -6,6 +6,8 @@
  * public URL state, stable controls, representative requests, export, and
  * visible capability/access states.
  */
+import { readFile } from 'node:fs/promises';
+
 import type { Page, Request } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.fixture';
@@ -20,8 +22,8 @@ function isAssetListRequest(request: Request): boolean {
 }
 
 function waitForAssetList(page: Page, predicate: (url: URL) => boolean = () => true) {
-    return page.waitForRequest((request) => (
-        isAssetListRequest(request) && predicate(new URL(request.url()))
+    return page.waitForResponse((response) => (
+        isAssetListRequest(response.request()) && predicate(new URL(response.url()))
     ));
 }
 
@@ -156,7 +158,7 @@ test.describe('ICT Register — shared Asset register framework (#78)', () => {
                 && filters.asset_types.length === 1
                 && url.searchParams.get('search') === 'E2E-ASSET';
         });
-        await typeOption.check();
+        await typeOption.click();
         await combinedRequestPromise;
 
         await expect(riskManagerPage.getByTestId('assets-filter-chip-business_owner_ids')).toBeVisible();
@@ -190,8 +192,9 @@ test.describe('ICT Register — shared Asset register framework (#78)', () => {
             response.request().method() === 'GET'
             && new URL(response.url()).pathname === '/api/v1/assets/export'
         ));
+        const downloadPromise = riskManagerPage.waitForEvent('download');
         await riskManagerPage.getByTestId('export-submit-button').click();
-        const response = await responsePromise;
+        const [response, download] = await Promise.all([responsePromise, downloadPromise]);
         expect(response.ok()).toBe(true);
 
         const exportUrl = new URL(response.url());
@@ -205,7 +208,7 @@ test.describe('ICT Register — shared Asset register framework (#78)', () => {
         expect(isDefaultActiveRequest(exportUrl)).toBe(true);
         expect(['en', 'cs']).toContain(exportUrl.searchParams.get('locale'));
 
-        const csv = await response.text();
+        const csv = await readFile(await download.path(), 'utf8');
         expect(csv).toContain('asset_type_code,asset_type_label');
         expect(csv).toContain('criticality_code,criticality_label');
         expect(csv).toContain('data_classification_code,data_classification_label');

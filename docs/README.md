@@ -1,7 +1,7 @@
 # RiskHub Documentation Index
 
-> **Version**: 1.5
-> **Last Updated**: 2026-04-25
+> **Version**: 1.6
+> **Last Updated**: 2026-07-31
 > **Audience**: Product, Engineering, QA, Operations
 
 This file is the primary documentation index for `docs/`.
@@ -55,6 +55,12 @@ Current workflow truth for directory lifecycle, break-glass enablement, cross-en
 - [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
 - [`docs/user/README.md`](./user/README.md) and [`docs/user-cs/README.md`](./user-cs/README.md)
 - [`docs/admin/README.md`](./admin/README.md) and [`docs/admin-cs/README.md`](./admin-cs/README.md)
+
+The bilingual ICT governance manuals are indexed from those four reader
+entrypoints. Dedicated Process, Asset, and Threat manuals are available for
+users and operational administrators; Vendor, Department, Approvals,
+Notifications, Risk Hub, and Getting Started guidance stays in the matching
+audience library.
 
 In-app user documentation is intentionally written as a user manual. Keep implementation details, source paths, and maintainer references in frontmatter, admin runbooks, or engineering docs rather than in user-facing manual body text.
 

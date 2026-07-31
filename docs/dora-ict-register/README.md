@@ -48,6 +48,20 @@ behind it.
 - [`REGISTER-UX-OWNERSHIP-APPROVAL-SPEC.md`](./REGISTER-UX-OWNERSHIP-APPROVAL-SPEC.md):
   implementation specification for register consistency, accountability, CISO stewardship,
   localization, approvals, notifications, verification, and bilingual documentation.
+- Bilingual user manuals:
+  [`docs/user/processes.md`](../user/processes.md),
+  [`docs/user/assets.md`](../user/assets.md),
+  [`docs/user/threats.md`](../user/threats.md),
+  [`docs/user-cs/processes.md`](../user-cs/processes.md),
+  [`docs/user-cs/assets.md`](../user-cs/assets.md), and
+  [`docs/user-cs/threats.md`](../user-cs/threats.md).
+- Bilingual admin runbooks:
+  [`docs/admin/processes.md`](../admin/processes.md),
+  [`docs/admin/assets.md`](../admin/assets.md),
+  [`docs/admin/threats.md`](../admin/threats.md),
+  [`docs/admin-cs/processes.md`](../admin-cs/processes.md),
+  [`docs/admin-cs/assets.md`](../admin-cs/assets.md), and
+  [`docs/admin-cs/threats.md`](../admin-cs/threats.md).
 - [`FRONTEND-UX-REMEDIATION-SPEC.md`](./FRONTEND-UX-REMEDIATION-SPEC.md): implementation- and
   ticket-ready specification formalizing the capture + ADRs (normative constraints, per-phase
   requirements with `FR-*` IDs, findings traceability, phase-dependency DAG for ticketing).

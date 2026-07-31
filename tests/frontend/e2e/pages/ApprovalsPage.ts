@@ -46,11 +46,15 @@ export class ApprovalsPage {
     }
 
     get resolutionDialog(): Locator {
-        return this.page.locator('.fixed.inset-0.z-50 .glass');
+        return this.page.getByRole('dialog', {
+            name: /Approve Request|Reject Request|Schválit žádost|Zamítnout žádost/,
+        });
     }
 
     get resolutionNotesInput(): Locator {
-        return this.page.locator('.fixed.inset-0.z-50 textarea').first();
+        return this.resolutionDialog.getByRole('textbox', {
+            name: /Please provide a reason for this decision|Uveďte prosím důvod tohoto rozhodnutí/,
+        });
     }
 
     get dialogApproveButton(): Locator {
