@@ -220,7 +220,20 @@ describe('AssetForm — ownership acceptance (#75)', () => {
         ]);
     });
 
-    it('fills an empty Department from Business Owner while ICT Owner changes remain independent', async () => {
+    it('fills an empty Department from Business Owner', async () => {
+        const user = userEvent.setup();
+        await renderForm();
+
+        const department = screen.getByTestId('asset-form-owner-department');
+        expect(department).toHaveTextContent(/^$/);
+        await user.click(screen.getByTestId('asset-form-business-owner'));
+        const operationsOwner = await screen.findByRole('option', { name: /Alex Owner.*Operations/ });
+        expect(operationsOwner).toHaveTextContent('Operations');
+        await user.click(operationsOwner);
+        expect(department).toHaveTextContent('Operations (OPS)');
+    });
+
+    it('keeps the Business Owner Department when ICT Owner changes and submits the selected ownership', async () => {
         const user = userEvent.setup();
         mockCreateAsset.mockResolvedValue({ id: 75, name: 'Cross-department service' });
         await renderForm();
@@ -228,15 +241,7 @@ describe('AssetForm — ownership acceptance (#75)', () => {
 
         const department = screen.getByTestId('asset-form-owner-department');
         await user.click(screen.getByTestId('asset-form-business-owner'));
-        const operationsOwner = await screen.findByRole('option', { name: /Alex Owner.*Operations/ });
-        expect(operationsOwner).toHaveTextContent('Operations');
-        await user.click(operationsOwner);
-        expect(department).toHaveTextContent('Operations (OPS)');
-
-        await user.click(screen.getByTestId('asset-form-ict-owner'));
-        const itOwner = await screen.findByRole('option', { name: /Taylor Owner.*IT/ });
-        expect(itOwner).toHaveTextContent('IT');
-        await user.click(itOwner);
+        await user.click(await screen.findByRole('option', { name: /Alex Owner.*Operations/ }));
         expect(department).toHaveTextContent('Operations (OPS)');
 
         await user.click(screen.getByTestId('asset-form-ict-owner'));
