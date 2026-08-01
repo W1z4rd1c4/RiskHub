@@ -59,7 +59,7 @@ jobs:
 
             for path in "${changed_paths[@]}"; do
               case "$path" in
-                backend/*|frontend/*|tests/frontend/e2e/*|backend/scripts/seed_e2e_*|scripts/install.sh|scripts/dev.sh|scripts/compose.sh|scripts/Makefile|docker-compose.yml|.github/workflows/e2e.yml)
+                backend/*|frontend/*|tests/frontend/e2e/*|tests/frontend/contracts/*|backend/scripts/seed_e2e_*|scripts/install.sh|scripts/dev.sh|scripts/compose.sh|scripts/Makefile|docker-compose.yml|.github/workflows/e2e.yml)
                   run_e2e=true
                   break
                   ;;
@@ -197,6 +197,7 @@ jobs:
             unset PLAYWRIGHT_CHROMIUM_CHANNEL
           fi
           npm run e2e:a11y:collect
+          npm run e2e:dora:collect
           npx playwright test -c playwright.config.ts --project=ci
           npm run e2e:a11y:results -- ../tests/results/frontend/playwright/test-results/results.json
 

@@ -339,6 +339,7 @@ def test_e2e_workflow_classifies_scope_before_expensive_playwright_steps() -> No
         "backend/*",
         "frontend/*",
         "tests/frontend/e2e/*",
+        "tests/frontend/contracts/*",
         "backend/scripts/seed_e2e_*",
         "scripts/install.sh",
         "scripts/dev.sh",
