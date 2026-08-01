@@ -1,3 +1,9 @@
+import type { ComponentType } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue } from '@/i18n/formatters';
+import type { TabView } from '@/hooks/useDepartmentDetail';
 import { ActivityLogPage } from '@/pages/ActivityLogPage';
 import { AssetsPage } from '@/pages/AssetsPage';
 import { ControlsPage } from '@/pages/ControlsPage';
@@ -7,12 +13,8 @@ import { ProcessesPage } from '@/pages/ProcessesPage';
 import { RisksPage } from '@/pages/RisksPage';
 import { UsersPage } from '@/pages/UsersPage';
 import { VendorsPage } from '@/pages/VendorsPage';
-import type { TabView } from '@/hooks/useDepartmentDetail';
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateValue } from '@/i18n/formatters';
-import { useNavigate } from 'react-router-dom';
-import type { DepartmentDetail } from '@/services/departmentApi';
 import type { RegisterFilters } from '@/pages/shared/registerListQuery';
+import type { DepartmentDetail } from '@/services/departmentApi';
 
 import { DepartmentRegisterScopeProvider } from './DepartmentRegisterScope';
 import { DepartmentStatsGrid } from './DepartmentStatsGrid';
@@ -23,7 +25,7 @@ interface DepartmentTabContentProps {
     onSelectTab: (tab: TabView, filters?: RegisterFilters) => void;
 }
 
-const REGISTER_TABS: Partial<Record<TabView, () => JSX.Element>> = {
+const REGISTER_TABS: Partial<Record<TabView, ComponentType>> = {
     risks: RisksPage,
     controls: ControlsPage,
     kris: KRIsPage,

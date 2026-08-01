@@ -353,7 +353,7 @@ export function useDepartmentDetail({
     const getRiskCount = () => {
         const department = departmentOutcome.department;
         if (!department) return 0;
-        return riskFilter === 'high' ? department.high_risk_count : department.risk_count;
+        return (riskFilter === 'high' ? department.high_risk_count : department.risk_count) ?? 0;
     };
 
     const refresh = () => {

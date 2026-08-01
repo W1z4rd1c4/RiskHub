@@ -205,6 +205,6 @@ export interface ControlRiskLink {
     };
 }
 
-export type ControlListResponse = CollectionListResponse<ControlSummary, ControlListCapabilities> & {
+export type ControlListResponse = Omit<CollectionListResponse<ControlSummary, ControlListCapabilities>, 'facets'> & {
     facets?: ControlFacets | null;
 };

@@ -344,4 +344,57 @@ describe('GovernedMutationDiff', () => {
             }
         },
     );
+
+    it('renders nullable Asset criticality as not set', () => {
+        render(
+            <GovernedMutationDiff
+                mutationKind="asset.edit"
+                before={{ name: 'Claims v1' }}
+                after={{ name: 'Claims v2' }}
+                derivedImpact={{
+                    before: { cif: 'no', resulting_criticality: null },
+                    after: { cif: 'yes', resulting_criticality: null },
+                }}
+            />,
+        );
+
+        expect(screen.getByText('Resulting criticality')).toBeInTheDocument();
+        expect(screen.getAllByText('Not set')).toHaveLength(2);
+    });
+
+    it('uses the structural Asset impact when the mutation kind is unavailable', () => {
+        render(
+            <GovernedMutationDiff
+                mutationKind={null}
+                before={{}}
+                after={{}}
+                derivedImpact={{
+                    before: { cif: 'no', resulting_criticality: 'medium' },
+                    after: { cif: 'yes', resulting_criticality: 'critical' },
+                }}
+            />,
+        );
+
+        expect(screen.getByText('CIF')).toBeInTheDocument();
+        expect(screen.getByText('Resulting criticality')).toBeInTheDocument();
+        expect(screen.queryByText('Criticality class')).not.toBeInTheDocument();
+    });
+
+    it('does not fabricate derived rows when the mutation kind and impact shape disagree', () => {
+        render(
+            <GovernedMutationDiff
+                mutationKind="asset.edit"
+                before={{}}
+                after={{}}
+                derivedImpact={{
+                    before: { cif: 'no', criticality_class: 'medium' },
+                    after: { cif: 'yes', criticality_class: 'critical' },
+                }}
+            />,
+        );
+
+        expect(screen.queryByText('CIF')).not.toBeInTheDocument();
+        expect(screen.queryByText('Resulting criticality')).not.toBeInTheDocument();
+        expect(screen.queryByText('Criticality class')).not.toBeInTheDocument();
+    });
 });

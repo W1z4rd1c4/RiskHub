@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import type { SortDirection } from '@/components/tables';
 import type { SupportedLanguage } from '@/i18n';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import type { IssueListFilters, IssueSummary } from '@/types/issue';
+import type { IssueSummary } from '@/types/issue';
 
 import { buildIssueColumns } from './issues/issueColumns';
 import { ISSUE_REGISTER_CONFIG, type IssueRegisterView } from './issues/issueRegisterConfig';
@@ -59,7 +58,7 @@ export function IssuesPage() {
             rowLabel: (issue) => issue.title,
             sortKey: state.sortField,
             sortDirection: state.sortDirection,
-            onSort: (key, direction) => state.updateSort((direction ? key : null) as IssueListFilters['sort_by'] | null, direction as SortDirection),
+            onSort: (key, direction) => state.updateSort(direction ? key : null, direction),
         }}
         currentPage={state.currentPage}
         totalPages={state.totalPages}

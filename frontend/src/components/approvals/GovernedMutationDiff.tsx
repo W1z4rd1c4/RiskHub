@@ -9,12 +9,18 @@ import {
     type ProcessControlledField,
 } from '@/pages/processes/processesPagePresentation';
 import type {
+    GovernedAssetCreateDerivedImpact,
     GovernedDerivedImpact,
+    GovernedAssetEditDerivedImpact,
     GovernedAssetDerivedState,
+    GovernedCreateDerivedImpact,
     GovernedDerivedState,
+    GovernedEditDerivedImpact,
     GovernedImpactedResource,
     GovernedMutationKind,
     GovernedRelationshipChange,
+    GovernedVendorCreateDerivedImpact,
+    GovernedVendorEditDerivedImpact,
     GovernedVendorDerivedState,
 } from '@/types/approval';
 
@@ -24,7 +30,7 @@ interface GovernedMutationDiffProps {
     derivedImpact: GovernedDerivedImpact;
     impactedResources?: GovernedImpactedResource[];
     relationshipChange?: GovernedRelationshipChange | null;
-    mutationKind?: GovernedMutationKind;
+    mutationKind?: GovernedMutationKind | null;
     testId?: string;
 }
 
@@ -38,21 +44,60 @@ function isRelationshipImpact(
     return 'processes' in impact || 'assets' in impact || 'vendors' in impact;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isAssetDerivedState(value: unknown): value is GovernedAssetDerivedState {
+    return isRecord(value)
+        && typeof value.cif === 'string'
+        && (typeof value.resulting_criticality === 'string' || value.resulting_criticality === null);
+}
+
+function isAssetDerivedImpact(
+    impact: GovernedDerivedImpact,
+): impact is GovernedAssetEditDerivedImpact | GovernedAssetCreateDerivedImpact {
+    return 'before' in impact
+        && 'after' in impact
+        && (impact.before === null || isAssetDerivedState(impact.before))
+        && isAssetDerivedState(impact.after);
+}
+
+function isProcessDerivedState(value: unknown): value is GovernedDerivedState {
+    return isRecord(value)
+        && typeof value.cif === 'string'
+        && (typeof value.criticality_class === 'string' || value.criticality_class === null);
+}
+
+function isProcessDerivedImpact(
+    impact: GovernedDerivedImpact,
+): impact is GovernedEditDerivedImpact | GovernedCreateDerivedImpact {
+    return 'before' in impact
+        && 'after' in impact
+        && (impact.before === null || isProcessDerivedState(impact.before))
+        && isProcessDerivedState(impact.after);
+}
+
+function isVendorDerivedState(value: unknown): value is GovernedVendorDerivedState {
+    return isRecord(value) && (typeof value.tier === 'string' || value.tier === null);
+}
+
+function isVendorDerivedImpact(
+    impact: GovernedDerivedImpact,
+): impact is GovernedVendorEditDerivedImpact | GovernedVendorCreateDerivedImpact {
+    return 'before' in impact
+        && 'after' in impact
+        && (impact.before === null || isVendorDerivedState(impact.before))
+        && isVendorDerivedState(impact.after);
+}
+
 function assetDerivedStateLabel(
     t: (key: string, options?: Record<string, unknown>) => string,
     state: GovernedAssetDerivedState,
     field: 'cif' | 'resulting_criticality',
-): string {
+): string | null {
     if (field === 'cif') return processDerivedCifLabel(t, state.cif);
     return processDerivedCriticalityLabel(t, state.resulting_criticality);
-}
-
-function nullableAssetDerivedStateLabel(
-    t: (key: string, options?: Record<string, unknown>) => string,
-    state: GovernedAssetDerivedState | null,
-    field: 'cif' | 'resulting_criticality',
-): string | null {
-    return state === null ? null : assetDerivedStateLabel(t, state, field);
 }
 
 function derivedStateLabel(
@@ -427,40 +472,41 @@ export function GovernedMutationDiff({
     const visibleFields = visibleChangedFields;
     const hasRestrictedChanges = visibleChangedFields.length !== changedFields.length;
     let pointDerivedRows: ReadonlyArray<readonly [string, string | null, string | null]> = [];
+    const processPointMutation = mutationKind?.startsWith('process.') === true;
     if (!isRelationshipImpact(derivedImpact)) {
         if (threatPointMutation) {
             pointDerivedRows = [];
-        } else if (vendorPointMutation) {
+        } else if ((vendorPointMutation || mutationKind == null) && isVendorDerivedImpact(derivedImpact)) {
             pointDerivedRows = [[
                 'approvals:governed.derived.vendor_tier',
-                vendorDerivedStateLabel(t, derivedImpact.before as GovernedVendorDerivedState | null),
-                vendorDerivedStateLabel(t, derivedImpact.after as GovernedVendorDerivedState | null),
+                vendorDerivedStateLabel(t, derivedImpact.before),
+                vendorDerivedStateLabel(t, derivedImpact.after),
             ]];
-        } else if (assetPointMutation) {
+        } else if ((assetPointMutation || mutationKind == null) && isAssetDerivedImpact(derivedImpact)) {
             pointDerivedRows = [
                 [
                     'approvals:governed.derived.cif',
-                    nullableAssetDerivedStateLabel(t, derivedImpact.before as GovernedAssetDerivedState | null, 'cif'),
-                    nullableAssetDerivedStateLabel(t, derivedImpact.after as GovernedAssetDerivedState | null, 'cif'),
+                    derivedImpact.before === null ? null : assetDerivedStateLabel(t, derivedImpact.before, 'cif'),
+                    assetDerivedStateLabel(t, derivedImpact.after, 'cif'),
                 ],
                 [
                     'approvals:governed.derived.resulting_criticality',
-                    nullableAssetDerivedStateLabel(t, derivedImpact.before as GovernedAssetDerivedState | null, 'resulting_criticality'),
-                    nullableAssetDerivedStateLabel(t, derivedImpact.after as GovernedAssetDerivedState | null, 'resulting_criticality'),
+                    derivedImpact.before === null ? null : assetDerivedStateLabel(t, derivedImpact.before, 'resulting_criticality'),
+                    assetDerivedStateLabel(t, derivedImpact.after, 'resulting_criticality'),
                 ],
             ];
-        } else {
+        } else if ((processPointMutation || mutationKind == null) && isProcessDerivedImpact(derivedImpact)) {
             pointDerivedRows = [
-            [
-                'approvals:governed.derived.cif',
-                derivedStateLabel(t, derivedImpact.before, 'cif'),
-                derivedStateLabel(t, derivedImpact.after, 'cif'),
-            ],
-            [
-                'approvals:governed.derived.criticality_class',
-                derivedStateLabel(t, derivedImpact.before, 'criticality_class'),
-                derivedStateLabel(t, derivedImpact.after, 'criticality_class'),
-            ],
+                [
+                    'approvals:governed.derived.cif',
+                    derivedStateLabel(t, derivedImpact.before, 'cif'),
+                    derivedStateLabel(t, derivedImpact.after, 'cif'),
+                ],
+                [
+                    'approvals:governed.derived.criticality_class',
+                    derivedStateLabel(t, derivedImpact.before, 'criticality_class'),
+                    derivedStateLabel(t, derivedImpact.after, 'criticality_class'),
+                ],
             ];
         }
     }

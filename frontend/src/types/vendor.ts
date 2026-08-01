@@ -303,7 +303,7 @@ export interface VendorLookupOption {
     count?: number | null;
 }
 
-export type VendorListResponse = CollectionListResponse<Vendor, VendorListCapabilities> & {
+export type VendorListResponse = Omit<CollectionListResponse<Vendor, VendorListCapabilities>, 'facets'> & {
     facets?: VendorFacets | null;
 };
 

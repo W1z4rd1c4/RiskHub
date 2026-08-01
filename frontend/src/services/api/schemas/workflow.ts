@@ -212,7 +212,9 @@ export const governedMutationReadSchema: z.ZodType<GovernedMutationRead> = z.str
                 message: 'Non-relationship governed mutations cannot expose relationship data',
             });
         }
-        const isCreationImpact = !hasCompositeImpact && value.derived_impact.before === null;
+        const isCreationImpact = !hasCompositeImpact
+            && 'before' in value.derived_impact
+            && value.derived_impact.before === null;
         const isCreationKind = value.mutation_kind === 'process.create'
             || value.mutation_kind === 'asset.create'
             || value.mutation_kind === 'vendor.create';

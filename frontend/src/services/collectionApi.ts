@@ -22,6 +22,14 @@ interface LegacyPaginationFields {
     size?: number;
 }
 
+type CollectionResponseWithFacets<
+    TItem,
+    TCapabilities extends object,
+    TFacets,
+> = Omit<CollectionListResponse<TItem, TCapabilities>, 'facets'> & {
+    facets?: TFacets | null;
+};
+
 export function buildCollectionParams({
     offset,
     limit,
@@ -59,9 +67,13 @@ export function buildCollectionParams({
     return params;
 }
 
-export function normalizeCollectionResponse<TItem, TCapabilities extends object = CollectionCapabilities>(
-    response: CollectionListResponse<TItem, TCapabilities> & LegacyPaginationFields
-): CollectionListResponse<TItem, TCapabilities> {
+export function normalizeCollectionResponse<
+    TItem,
+    TCapabilities extends object = CollectionCapabilities,
+    TFacets = Record<string, unknown>,
+>(
+    response: CollectionResponseWithFacets<TItem, TCapabilities, TFacets> & LegacyPaginationFields,
+): CollectionResponseWithFacets<TItem, TCapabilities, TFacets> {
     return {
         ...response,
         items: response.items,
@@ -74,7 +86,7 @@ export function normalizeCollectionResponse<TItem, TCapabilities extends object 
     };
 }
 
-function normalizeCollectionOffset(response: CollectionListResponse<unknown, object> & LegacyPaginationFields): number {
+function normalizeCollectionOffset(response: { offset: number } & LegacyPaginationFields): number {
     if (typeof response.offset === 'number') {
         return response.offset;
     }
@@ -87,7 +99,7 @@ function normalizeCollectionOffset(response: CollectionListResponse<unknown, obj
     return 0;
 }
 
-function normalizeCollectionLimit(response: CollectionListResponse<unknown, object> & LegacyPaginationFields): number {
+function normalizeCollectionLimit(response: { limit: number } & LegacyPaginationFields): number {
     if (typeof response.limit === 'number') {
         return response.limit;
     }

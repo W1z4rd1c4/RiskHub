@@ -231,6 +231,6 @@ export interface RiskControlLink {
     };
 }
 
-export type RiskListResponse = CollectionListResponse<RiskSummary, RiskListCapabilities> & {
+export type RiskListResponse = Omit<CollectionListResponse<RiskSummary, RiskListCapabilities>, 'facets'> & {
     facets?: RiskFacets | null;
 };

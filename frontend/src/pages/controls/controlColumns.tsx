@@ -58,7 +58,7 @@ export function buildControlColumns({
             render: (control) => (
                 <div className="flex items-center gap-2 text-xs text-slate-400 capitalize">
                     <Calendar className="h-3 w-3 text-accent" aria-hidden="true" />
-                    {translate(`frequencies.${control.frequency}`, control.frequency)}
+                    {translate(`frequencies.${control.frequency}`, { defaultValue: control.frequency })}
                 </div>
             ),
         },
