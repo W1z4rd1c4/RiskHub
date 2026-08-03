@@ -381,6 +381,7 @@
     "title": "Smlouvy",
     "empty": "Zatím žádné smlouvy.",
     "archived_heading": "Archivované smlouvy ({{count}})",
+    "archive_confirm": "Archivovat smlouvu {{reference}}? Schválená data zůstanou beze změny až do dokončení případného povinného schválení.",
     "columns": {
       "reference": "Ref. smlouvy (RoI)",
       "arrangement_type": "Typ ujednání",

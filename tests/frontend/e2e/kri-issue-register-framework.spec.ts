@@ -348,7 +348,10 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
                     body: JSON.stringify({ detail: `synthetic #82 ${forcedStatus}` }),
                 });
             });
-            await riskManagerPage.goto(contract.path);
+            await riskManagerPage.getByRole('link', {
+                name: contract.prefix === 'kris' ? /^Risk Appetite$/ : /^Issues$/,
+            }).click();
+            await riskManagerPage.waitForURL(contract.path);
             await waitForRegisterReady(riskManagerPage, contract);
             const priorRows = await riskManagerPage.locator('table tbody tr').count();
 
@@ -363,7 +366,7 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
             await expect(retry).toHaveCount(0);
 
             forcedStatus = 403;
-            await riskManagerPage.goto(`${contract.path}?access_probe=true`);
+            await riskManagerPage.getByTestId(`${contract.prefix}-refresh-button`).click();
             await expect(riskManagerPage.getByTestId(`${contract.prefix}-register-shell`)).toHaveCount(0);
             await expect(riskManagerPage.locator('table tbody tr')).toHaveCount(0);
             await expect(riskManagerPage.getByTestId('register-group-card')).toHaveCount(0);

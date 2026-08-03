@@ -80,4 +80,4 @@ export type VendorContractWritePayload = Partial<
         | 'created_at'
         | 'updated_at'
     >
->;
+> & { request_reason?: string };

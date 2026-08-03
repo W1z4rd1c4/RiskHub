@@ -15,9 +15,12 @@ import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ICT_VENDOR, E2E_SUB_OUTSOURCING, E2E_VENDOR_CONTRACTS } from './fixtures/e2e-data';
 import { getVendorByRegistration } from './helpers/api-auth';
 import {
+    type ApprovalScenarioSnapshot,
     createSubOutsourcingViaApi,
+    getApprovalScenario,
     getContractByReference,
     getSubOutsourcingByName,
+    updateApprovalScenario,
 } from './helpers/ict-register';
 import { VendorDetailPage } from './pages/VendorDetailPage';
 
@@ -60,6 +63,22 @@ async function seededVendorId(): Promise<number> {
 }
 
 test.describe('ICT Register — Sub-outsourcing chains (Deterministic)', () => {
+    let originalProtectedVendorScenario: ApprovalScenarioSnapshot | null = null;
+
+    test.beforeAll(async () => {
+        originalProtectedVendorScenario = await getApprovalScenario('protected_vendor_edit');
+        await updateApprovalScenario('protected_vendor_edit', {
+            ...originalProtectedVendorScenario,
+            requires_approval: false,
+        });
+    });
+
+    test.afterAll(async () => {
+        if (originalProtectedVendorScenario) {
+            await updateApprovalScenario('protected_vendor_edit', originalProtectedVendorScenario);
+        }
+    });
+
     test('Deep-link tab=sub-outsourcing lands on the section with the seeded chain', async ({ riskManagerPage }) => {
         const vendorId = await seededVendorId();
 

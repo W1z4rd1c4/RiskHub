@@ -31,6 +31,23 @@ describe('live dialog render-site owner monitoring', () => {
     )).toBe('requestfailed: GET /api/v1/users/me/shell-summary (net::ERR_CONNECTION_RESET)');
   });
 
+  it('allows only the exact aborted dashboard handoff request', () => {
+    const event = {
+      method: 'GET',
+      url: 'http://127.0.0.1:5174/api/v1/dashboard/overview',
+      failureText: 'net::ERR_ABORTED',
+    };
+
+    expect(describeLiveNetworkFailure(
+      event,
+      ['GET /api/v1/dashboard/overview net::ERR_ABORTED'],
+    )).toBeNull();
+    expect(describeLiveNetworkFailure(
+      { ...event, failureText: 'net::ERR_CONNECTION_RESET' },
+      ['GET /api/v1/dashboard/overview net::ERR_ABORTED'],
+    )).toBe('requestfailed: GET /api/v1/dashboard/overview (net::ERR_CONNECTION_RESET)');
+  });
+
   it('records application error responses and ignores successful responses', () => {
     expect(describeLiveNetworkResponse({
       method: 'GET',

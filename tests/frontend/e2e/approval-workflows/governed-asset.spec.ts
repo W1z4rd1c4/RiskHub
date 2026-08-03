@@ -7,6 +7,8 @@ import { E2E_ASSETS } from '../fixtures/e2e-data';
 import { getApiBaseUrl, getDemoToken } from '../helpers/api-auth';
 import { assertZeroAxeFindings, toFindings, WCAG_TAGS } from '../helpers/axeBaseline';
 import {
+    cleanupGovernedProcessFixture,
+    cleanupWithoutMaskingPrimaryFailure,
     createAssetViaApi,
     createProcessViaApi,
     ensureAssetArchived,
@@ -211,23 +213,43 @@ test.describe('Governed protected Asset workflow (#86)', () => {
             cif_override: 'no',
         });
         const reason = `Asset-only composite ${stamp}`;
-        await riskManagerPage.goto(`/assets/${asset!.id}`);
-        await waitForDataLoad(riskManagerPage);
-        await riskManagerPage.getByTestId('asset-process-link-select').click();
-        await riskManagerPage.getByRole('option', { name: new RegExp(process.l1_process) }).click();
-        await submitGovernedDialog(
-            riskManagerPage,
-            reason,
-            () => riskManagerPage.getByTestId('asset-process-link-add').click(),
-            (response) => response.request().method() === 'POST'
-                && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/process-links`,
-        );
-        const card = await requestCard(riskManagerPage, reason);
-        await expect(card.getByTestId(/approval-governed-mutation-/)).toContainText(asset!.name);
-        await riskManagerPage.goto(`/assets/${asset!.id}`);
-        await expect(riskManagerPage.getByTestId('asset-process-links').getByText(process.l1_process)).toHaveCount(0);
-        await approveRequest(croPage, reason);
-        await riskManagerPage.goto(`/assets/${asset!.id}`);
-        await expect(riskManagerPage.getByTestId('asset-process-links').getByText(process.l1_process)).toBeVisible();
+        let primaryFailure: unknown;
+        try {
+            await riskManagerPage.goto(`/assets/${asset!.id}`);
+            await waitForDataLoad(riskManagerPage);
+            await riskManagerPage.getByTestId('asset-process-link-select').click();
+            await riskManagerPage.getByRole('option', { name: new RegExp(process.l1_process) }).click();
+            await submitGovernedDialog(
+                riskManagerPage,
+                reason,
+                () => riskManagerPage.getByTestId('asset-process-link-add').click(),
+                (response) => response.request().method() === 'POST'
+                    && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/process-links`,
+            );
+            const card = await requestCard(riskManagerPage, reason);
+            await expect(card.getByTestId(/approval-governed-mutation-/)).toContainText(asset!.name);
+            await riskManagerPage.goto(`/assets/${asset!.id}`);
+            await expect(riskManagerPage.getByTestId('asset-process-links').getByText(process.l1_process))
+                .toHaveCount(0);
+            await approveRequest(croPage, reason);
+            await riskManagerPage.goto(`/assets/${asset!.id}`);
+            await expect(riskManagerPage.getByTestId('asset-process-links').getByText(process.l1_process))
+                .toBeVisible();
+        } catch (error) {
+            primaryFailure = error;
+            throw error;
+        } finally {
+            await cleanupWithoutMaskingPrimaryFailure(
+                primaryFailure,
+                () => cleanupGovernedProcessFixture({
+                    processName: process.l1_process,
+                    additionalScenarioKeys: [
+                        'protected_asset_edit',
+                        'protected_vendor_edit',
+                    ],
+                }),
+                test.info(),
+            );
+        }
     });
 });

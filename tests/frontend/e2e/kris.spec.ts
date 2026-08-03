@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures/auth.fixture';
-import { E2E_KRIS } from './fixtures/e2e-data';
+import { E2E_KRIS, E2E_VENDORS } from './fixtures/e2e-data';
 import { ensureVendorArchived, getKRIByMetricName, linkVendorToKRI } from './helpers/api-auth';
 import { KRIsPage } from './pages/KRIsPage';
 import { waitForTableRowByText } from './helpers/wait';
@@ -71,7 +71,7 @@ test.describe('KRI Management (Deterministic)', () => {
     });
 
     test('KRI register groups linked KRIs by vendor', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorArchived('E2E-VREG-001', false);
+        const vendorId = await ensureVendorArchived(E2E_VENDORS.NONPROTECTED_DIRECT.registration_id, false);
         const kri = await getKRIByMetricName(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
         expect(kri).not.toBeNull();
         await linkVendorToKRI(vendorId, kri!.id);
@@ -81,7 +81,7 @@ test.describe('KRI Management (Deterministic)', () => {
         await krisPage.search(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
 
         await riskManagerPage.getByRole('button', { name: /By Vendor|Podle dodavatele/i }).click();
-        await riskManagerPage.getByRole('button', { name: /E2E-VENDOR-001 Claims Cloud Platform/i }).click();
+        await riskManagerPage.getByRole('button', { name: E2E_VENDORS.NONPROTECTED_DIRECT.name }).click();
 
         await expect(riskManagerPage.getByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name).first()).toBeVisible({
             timeout: 15000,

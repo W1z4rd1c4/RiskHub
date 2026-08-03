@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/auth.fixture';
-import { E2E_CONTROLS } from './fixtures/e2e-data';
+import { readFile } from 'node:fs/promises';
+import { E2E_CONTROLS, E2E_VENDORS } from './fixtures/e2e-data';
 import { ensureControlStatus, ensureVendorArchived, getControlByName, linkVendorToControl } from './helpers/api-auth';
 import { ControlsPage } from './pages/ControlsPage';
 import { waitForDataLoad, waitForTableRowByText } from './helpers/wait';
@@ -23,13 +24,16 @@ test.describe('Control Management (Deterministic)', () => {
         const asOfDate = todayLocalIso();
         await expect(controlsPage.exportDateInput).toHaveValue(asOfDate);
         // Export dialog is CSV-only; format chooser is intentionally absent.
-        const response = await controlsPage.submitPointInTimeExport('csv');
+        const { response, download } = await controlsPage.submitPointInTimeExport('csv');
         const exportUrl = new URL(response.url());
         expect(exportUrl.pathname).toBe('/api/v1/reports/controls/export');
         expect(exportUrl.searchParams.get('format')).toBe('csv');
         expect(exportUrl.searchParams.get('as_of_date')).toBe(asOfDate);
+        expect(response.ok()).toBe(true);
         expect(response.headers()['content-type']).toContain('text/csv');
-        const [header] = (await response.text()).split(/\r?\n/, 1);
+        const downloadPath = await download.path();
+        expect(downloadPath).not.toBeNull();
+        const [header] = (await readFile(downloadPath!, 'utf8')).split(/\r?\n/, 1);
         expect(header).toBe([
             'Name', 'Description', 'Department', 'Owner', 'Frequency', 'Form', 'Risk Level', 'Status',
             'Monitoring Status', 'Latest Execution Result', 'Latest Executed At', 'Days Since Last Execution',
@@ -94,7 +98,7 @@ test.describe('Control Management (Deterministic)', () => {
     });
 
     test('Control register groups linked controls by vendor', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorArchived('E2E-VREG-001', false);
+        const vendorId = await ensureVendorArchived(E2E_VENDORS.NONPROTECTED_DIRECT.registration_id, false);
         await ensureControlStatus(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name, 'active');
         const control = await getControlByName(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name);
         expect(control).not.toBeNull();
@@ -105,7 +109,7 @@ test.describe('Control Management (Deterministic)', () => {
         await controlsPage.search(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name);
 
         await riskManagerPage.getByRole('button', { name: /By Vendor|Podle dodavatele/i }).click();
-        await riskManagerPage.getByRole('button', { name: /E2E-VENDOR-001 Claims Cloud Platform/i }).click();
+        await riskManagerPage.getByRole('button', { name: E2E_VENDORS.NONPROTECTED_DIRECT.name }).click();
 
         await expect(riskManagerPage.getByText(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name).first()).toBeVisible({
             timeout: 15000,

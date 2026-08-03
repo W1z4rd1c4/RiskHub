@@ -11,22 +11,35 @@
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ASSETS, E2E_PROCESSES } from './fixtures/e2e-data';
 import {
+    cleanupWithoutMaskingPrimaryFailure,
     createAssetViaApi,
     ensureAssetArchived,
     ensureAssetPrimaryProcess,
+    getApprovalScenario,
     getAssetByName,
     getProcessByL1,
+    removeAssetAssetLinkTuple,
     postAssetExpectingStatus,
-    resetAssetAssetLinks,
     resetAssetProcessLinks,
+    runCleanupSteps,
+    updateApprovalScenario,
 } from './helpers/ict-register';
 import { waitForDataLoad } from './helpers/wait';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 import { AssetsPage } from './pages/AssetsPage';
 
 const ASSET_TYPE_LABELS = [
-    'Application', 'Database', 'Infrastructure', 'Network component', 'Hardware',
-    'Cloud service', 'Data storage', 'Information asset', 'Security asset', 'BCM/DR asset', 'Other',
+    'Application',
+    'Database',
+    'Infrastructure',
+    'Network component',
+    'Hardware',
+    'Cloud service',
+    'Data storage',
+    'Information asset',
+    'Security asset',
+    'BCM/DR asset',
+    'Other',
 ];
 const SKALA_15 = ['1', '2', '3', '4', '5'];
 
@@ -56,7 +69,9 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId('assets-create-button')).toBeVisible();
     });
 
-    test('Employee sees the register read-only: no create, edit, archive, or link management', async ({ employeePage }) => {
+    test('Employee sees the register read-only: no create, edit, archive, or link management', async ({
+        employeePage,
+    }) => {
         await employeePage.goto('/');
         await expect(employeePage.locator('nav a[href="/assets"]')).toBeVisible();
 
@@ -77,7 +92,9 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(employeePage.locator('[data-testid^="asset-process-link-remove-"]')).toHaveCount(0);
     });
 
-    test('distinct cross-department owners can list, safely read, and edit without lifecycle powers', async ({ browser }) => {
+    test('distinct cross-department owners can list, safely read, and edit without lifecycle powers', async ({
+        browser,
+    }) => {
         test.slow();
         const asset = await getAssetByName(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
         const archivedAsset = await getAssetByName(E2E_ASSETS.OWNER_SCOPED_ARCHIVED.name);
@@ -105,7 +122,9 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 await expect(page.getByText('SaaS', { exact: true }).first()).toBeVisible();
 
                 const ownership = page.locator('.glass-card').filter({
-                    has: page.getByRole('heading', { name: 'Ownership', exact: true }),
+                    has: page.getByRole('heading', {
+                        name: /^(Ownership and regulation|Vlastnictví a regulace)$/,
+                    }),
                 });
                 await expect(ownership).toContainText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.business_owner_name);
                 await expect(ownership).toContainText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.ict_owner_name);
@@ -148,7 +167,9 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         }
     });
 
-    test('Finance Owning Department head can read and edit the cross-department Asset but cannot create or archive', async ({ browser }) => {
+    test('Finance Owning Department head can read and edit the cross-department Asset but cannot create or archive', async ({
+        browser,
+    }) => {
         const asset = await getAssetByName(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
         expect(asset).not.toBeNull();
 
@@ -162,8 +183,16 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(assetsPage.createButton).toHaveCount(0);
 
         await assetsPage.openRowByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
-        await expect(page.getByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.business_owner_name, { exact: true })).toBeVisible();
-        await expect(page.getByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.ict_owner_name, { exact: true })).toBeVisible();
+        await expect(
+            page.getByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.business_owner_name, {
+                exact: true,
+            }),
+        ).toBeVisible();
+        await expect(
+            page.getByText(E2E_ASSETS.OWNER_SCOPED_ACTIVE.ict_owner_name, {
+                exact: true,
+            }),
+        ).toBeVisible();
         await expect(page.getByTestId('asset-detail-edit')).toBeVisible();
         await expect(page.getByTestId('asset-detail-archive')).toHaveCount(0);
 
@@ -173,14 +202,20 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await context.close();
     });
 
-    test('unrelated Operations head cannot enumerate, read, or edit the Finance-owned Asset', async ({ deptHeadPage }) => {
+    test('unrelated Operations head cannot enumerate, read, or edit the Finance-owned Asset', async ({
+        deptHeadPage,
+    }) => {
         const asset = await getAssetByName(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
         expect(asset).not.toBeNull();
 
         const assetsPage = new AssetsPage(deptHeadPage);
         await assetsPage.navigate();
         await assetsPage.search(E2E_ASSETS.OWNER_SCOPED_ACTIVE.name);
-        await expect(assetsPage.tableRows.filter({ hasText: E2E_ASSETS.OWNER_SCOPED_ACTIVE.name })).toHaveCount(0);
+        await expect(
+            assetsPage.tableRows.filter({
+                hasText: E2E_ASSETS.OWNER_SCOPED_ACTIVE.name,
+            }),
+        ).toHaveCount(0);
 
         await deptHeadPage.goto(`/assets/${asset!.id}`);
         await waitForDataLoad(deptHeadPage);
@@ -214,7 +249,11 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
 
         await assetsPage.search(E2E_ASSETS.CLAIMS_DATABASE.name);
         await expect(assetsPage.rowByText(E2E_ASSETS.CLAIMS_DATABASE.name)).toBeVisible();
-        await expect(assetsPage.tableRows.filter({ hasText: E2E_ASSETS.CORE_CLAIMS_SYSTEM.name })).toHaveCount(0);
+        await expect(
+            assetsPage.tableRows.filter({
+                hasText: E2E_ASSETS.CORE_CLAIMS_SYSTEM.name,
+            }),
+        ).toHaveCount(0);
     });
 
     test('Archived asset appears only under the Archived status filter', async ({ riskManagerPage }) => {
@@ -230,7 +269,9 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId(`asset-restore-${archivedId}`)).toBeVisible();
     });
 
-    test('Create flow uses canonical localized values and permits same-user, cross-department ownership', async ({ riskManagerPage }) => {
+    test('Create flow uses canonical localized values and permits same-user, cross-department ownership', async ({
+        riskManagerPage,
+    }) => {
         const uniqueName = `E2E-ASSET-UI Created ${Date.now()}`;
 
         const assetsPage = new AssetsPage(riskManagerPage);
@@ -279,9 +320,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.getByTestId('asset-form-name').fill('   ');
         await riskManagerPage.getByTestId('asset-form-submit').click();
 
-        await expect(
-            riskManagerPage.getByText(/Asset name is required|Název aktiva je povinný/),
-        ).toBeVisible();
+        await expect(riskManagerPage.getByText(/Asset name is required|Název aktiva je povinný/)).toBeVisible();
         await expect(riskManagerPage).toHaveURL(/.*assets\/new$/);
     });
 
@@ -341,35 +380,55 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
     });
 
     test('Archive and restore round-trip through the register UI', async ({ riskManagerPage }) => {
-        const uniqueName = `E2E-ASSET-LC ${Date.now()}`;
-        const created = await createAssetViaApi({ name: uniqueName });
+        let primaryFailure: unknown;
 
-        await riskManagerPage.goto(`/assets/${created.id}`);
-        await waitForDataLoad(riskManagerPage);
-        await riskManagerPage.getByTestId('asset-detail-archive').click();
-        await riskManagerPage
-            .locator('.confirm-dialog-actions')
-            .getByRole('button', { name: ARCHIVE_CONFIRM_BUTTON })
-            .click();
-        await riskManagerPage.waitForURL(/.*assets$/);
+        try {
+            const assetId = await ensureAssetArchived(E2E_ASSETS.INTEGRATION_BUS.name, false);
 
-        const assetsPage = new AssetsPage(riskManagerPage);
-        await assetsPage.setStatusFilterArchived();
-        await assetsPage.search(uniqueName);
-        await expect(assetsPage.rowByText(uniqueName)).toBeVisible();
+            await riskManagerPage.goto(`/assets/${assetId}`);
+            await waitForDataLoad(riskManagerPage);
+            await riskManagerPage.getByTestId('asset-detail-archive').click();
+            await riskManagerPage
+                .getByRole('alertdialog')
+                .getByRole('textbox')
+                .fill('E2E direct archive lifecycle verification');
+            await riskManagerPage
+                .locator('.confirm-dialog-actions')
+                .getByRole('button', { name: ARCHIVE_CONFIRM_BUTTON })
+                .click();
+            await riskManagerPage.waitForURL(/.*assets$/);
 
-        // Hard reload: the SPA detail cache still holds the pre-archive copy
-        // for up to 30s (DETAIL_QUERY_STALE_TIME_MS).
-        await riskManagerPage.goto(`/assets/${created.id}`);
-        await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.getByTestId('asset-detail-restore')).toBeVisible();
-        await riskManagerPage.getByTestId('asset-detail-restore').click();
+            const assetsPage = new AssetsPage(riskManagerPage);
+            await assetsPage.setStatusFilterArchived();
+            await assetsPage.search(E2E_ASSETS.INTEGRATION_BUS.name);
+            await expect(assetsPage.rowByText(E2E_ASSETS.INTEGRATION_BUS.name)).toBeVisible();
 
-        await expect(riskManagerPage.getByTestId('asset-detail-archive')).toBeVisible();
-        await expect(riskManagerPage.getByTestId('asset-detail-restore')).toHaveCount(0);
+            // Hard reload: the SPA detail cache still holds the pre-archive copy
+            // for up to 30s (DETAIL_QUERY_STALE_TIME_MS).
+            await riskManagerPage.goto(`/assets/${assetId}`);
+            await waitForDataLoad(riskManagerPage);
+            await expect(riskManagerPage.getByTestId('asset-detail-restore')).toBeVisible();
+            await riskManagerPage.getByTestId('asset-detail-restore').click();
+
+            await expect(riskManagerPage.getByTestId('asset-detail-archive')).toBeVisible();
+            await expect(riskManagerPage.getByTestId('asset-detail-restore')).toHaveCount(0);
+        } catch (error) {
+            primaryFailure = error;
+            throw error;
+        } finally {
+            await cleanupWithoutMaskingPrimaryFailure(
+                primaryFailure,
+                async () => {
+                    await ensureAssetArchived(E2E_ASSETS.INTEGRATION_BUS.name, false);
+                },
+                test.info(),
+            );
+        }
     });
 
-    test('Seeded links render: exactly one primary Process badge and directional asset links', async ({ riskManagerPage }) => {
+    test('Seeded links render: exactly one primary Process badge and directional asset links', async ({
+        riskManagerPage,
+    }) => {
         const asset = await getAssetByName(E2E_ASSETS.CORE_CLAIMS_SYSTEM.name);
         const primaryProcess = await getProcessByL1(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
         expect(asset).not.toBeNull();
@@ -386,9 +445,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(processLinks.getByText(E2E_PROCESSES.POLICY_ADMIN.l1_process).first()).toBeVisible();
         // Exactly one primary designation, and it sits on the seeded primary Process.
         await expect(riskManagerPage.locator(PRIMARY_BADGE_SELECTOR)).toHaveCount(1);
-        await expect(
-            riskManagerPage.getByTestId(`asset-process-link-primary-${primaryProcess!.id}`),
-        ).toBeVisible();
+        await expect(riskManagerPage.getByTestId(`asset-process-link-primary-${primaryProcess!.id}`)).toBeVisible();
 
         const assetLinks = riskManagerPage.getByTestId('asset-asset-links');
         await expect(assetLinks).toBeVisible();
@@ -406,7 +463,9 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(derivedSection.getByTestId('asset-derived-cif')).toHaveText('Yes');
     });
 
-    test('Non-protected Process links add, swap primary, and remove without governed reasons', async ({ riskManagerPage }) => {
+    test('Non-protected Process links add, swap primary, and remove without governed reasons', async ({
+        riskManagerPage,
+    }) => {
         const asset = await getAssetByName(E2E_ASSETS.INTEGRATION_BUS.name);
         const processA = await getProcessByL1(E2E_PROCESSES.POLICY_ADMIN.l1_process);
         const processB = await getProcessByL1(E2E_PROCESSES.PORTAL_SUPPORT.l1_process);
@@ -427,7 +486,11 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.getByRole('option', { name: 'BCM/DR vazba', exact: true }).click();
         await riskManagerPage.getByTestId('asset-process-link-add').click();
         const firstAddDialog = riskManagerPage.getByRole('alertdialog');
-        await expect(firstAddDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+        await expect(
+            firstAddDialog.getByRole('textbox', {
+                name: /Request reason|Důvod žádosti/,
+            }),
+        ).toHaveCount(0);
         await firstAddDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
 
         const processLinks = riskManagerPage.getByTestId('asset-process-links');
@@ -439,20 +502,32 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.getByRole('option', { name: /E2E-PROC-004/ }).click();
         await riskManagerPage.getByTestId('asset-process-link-add').click();
         const secondAddDialog = riskManagerPage.getByRole('alertdialog');
-        await expect(secondAddDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+        await expect(
+            secondAddDialog.getByRole('textbox', {
+                name: /Request reason|Důvod žádosti/,
+            }),
+        ).toHaveCount(0);
         await secondAddDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
         await expect(processLinks.getByText(E2E_PROCESSES.PORTAL_SUPPORT.l1_process).first()).toBeVisible();
 
         await riskManagerPage.getByTestId(`asset-process-link-set-primary-${processA!.id}`).click();
         const firstUpdateDialog = riskManagerPage.getByRole('alertdialog');
-        await expect(firstUpdateDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+        await expect(
+            firstUpdateDialog.getByRole('textbox', {
+                name: /Request reason|Důvod žádosti/,
+            }),
+        ).toHaveCount(0);
         await firstUpdateDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
         await expect(riskManagerPage.getByTestId(`asset-process-link-primary-${processA!.id}`)).toBeVisible();
         await expect(riskManagerPage.locator(PRIMARY_BADGE_SELECTOR)).toHaveCount(1);
 
         await riskManagerPage.getByTestId(`asset-process-link-set-primary-${processB!.id}`).click();
         const secondUpdateDialog = riskManagerPage.getByRole('alertdialog');
-        await expect(secondUpdateDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+        await expect(
+            secondUpdateDialog.getByRole('textbox', {
+                name: /Request reason|Důvod žádosti/,
+            }),
+        ).toHaveCount(0);
         await secondUpdateDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
         await expect(riskManagerPage.getByTestId(`asset-process-link-primary-${processB!.id}`)).toBeVisible();
         await expect(riskManagerPage.getByTestId(`asset-process-link-primary-${processA!.id}`)).toHaveCount(0);
@@ -461,44 +536,82 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         for (const processId of [processA!.id, processB!.id]) {
             await riskManagerPage.getByTestId(`asset-process-link-remove-${processId}`).click();
             const removeDialog = riskManagerPage.getByRole('alertdialog');
-            await expect(removeDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+            await expect(
+                removeDialog.getByRole('textbox', {
+                    name: /Request reason|Důvod žádosti/,
+                }),
+            ).toHaveCount(0);
             await removeDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
             await expect(riskManagerPage.getByTestId(`asset-process-link-remove-${processId}`)).toHaveCount(0);
         }
-        await expect(
-            riskManagerPage.getByText(/No Processes linked yet|Zatím žádné vazby na procesy/),
-        ).toBeVisible();
+        await expect(riskManagerPage.getByText(/No Processes linked yet|Zatím žádné vazby na procesy/)).toBeVisible();
     });
 
     test('Asset link management: add a directional dependency and remove it', async ({ riskManagerPage }) => {
-        const asset = await getAssetByName(E2E_ASSETS.REPORTING_WAREHOUSE.name);
+        const asset = await getAssetByName(E2E_ASSETS.INTEGRATION_BUS.name);
+        const supportingAsset = await getAssetByName(E2E_ASSETS.REPORTING_WAREHOUSE.name);
         expect(asset).not.toBeNull();
-        // Deterministic baseline: this asset owns no asset links at test start.
-        await resetAssetAssetLinks(asset!.id);
+        expect(supportingAsset).not.toBeNull();
+        const originalArchived = asset!.is_archived === true;
+        const assetScenario = await getApprovalScenario('protected_asset_edit');
+        let dependencyCreated = false;
+        let primaryFailure: unknown;
+        try {
+            await updateApprovalScenario('protected_asset_edit', {
+                ...assetScenario,
+                requires_approval: false,
+            });
+            await ensureAssetArchived(E2E_ASSETS.INTEGRATION_BUS.name, false);
+            await riskManagerPage.goto(`/assets/${asset!.id}`);
+            await waitForDataLoad(riskManagerPage);
 
-        await riskManagerPage.goto(`/assets/${asset!.id}`);
-        await waitForDataLoad(riskManagerPage);
+            await riskManagerPage.getByTestId('asset-asset-link-select').click();
+            await riskManagerPage.getByRole('option', { name: /E2E-ASSET-004/ }).click();
+            await riskManagerPage.getByTestId('asset-asset-link-dependency-type').click();
+            await riskManagerPage.getByRole('option', { name: 'Datová', exact: true }).click();
+            await riskManagerPage.getByTestId('asset-asset-link-add').click();
+            const addDialog = riskManagerPage.getByRole('alertdialog');
+            await addDialog.getByRole('textbox').fill('E2E direct asset dependency addition');
+            const added = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'POST'
+                && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/asset-links`
+            ));
+            await addDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+            dependencyCreated = (await added).status() === 201;
+            await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${asset!.id}$`));
 
-        await riskManagerPage.getByTestId('asset-asset-link-select').click();
-        await riskManagerPage.getByRole('option', { name: /E2E-ASSET-002/ }).click();
-        await riskManagerPage.getByTestId('asset-asset-link-dependency-type').click();
-        await riskManagerPage.getByRole('option', { name: 'Datová', exact: true }).click();
-        await riskManagerPage.getByTestId('asset-asset-link-add').click();
+            const assetLinks = riskManagerPage.getByTestId('asset-asset-links');
+            const linkRow = assetLinks.locator('li').filter({
+                hasText: E2E_ASSETS.REPORTING_WAREHOUSE.name,
+            }).first();
+            await expect(linkRow).toBeVisible();
+            // Directional: this asset is the dependent side of the new link.
+            await expect(linkRow.getByText(/Depends on|Závisí na/)).toBeVisible();
+            await expect(linkRow.getByText('Datová', { exact: true })).toBeVisible();
 
-        const assetLinks = riskManagerPage.getByTestId('asset-asset-links');
-        const linkRow = assetLinks.locator('li').filter({ hasText: E2E_ASSETS.CLAIMS_DATABASE.name }).first();
-        await expect(linkRow).toBeVisible();
-        // Directional: this asset is the dependent side of the new link.
-        await expect(linkRow.getByText(/Depends on|Závisí na/)).toBeVisible();
-        await expect(linkRow.getByText('Datová', { exact: true })).toBeVisible();
-
-        await linkRow.locator('[data-testid^="asset-asset-link-remove-"]').click();
-        await riskManagerPage
-            .getByRole('alertdialog', { name: /Remove link\?/ })
-            .getByRole('button', { name: 'Remove link', exact: true })
-            .click();
-        await expect(
-            riskManagerPage.getByText(/No Asset links yet|Zatím žádné vazby mezi aktivy/),
-        ).toBeVisible();
+            await linkRow.locator('[data-testid^="asset-asset-link-remove-"]').click();
+            const removeDialog = riskManagerPage.getByRole('alertdialog');
+            await removeDialog.getByRole('textbox').fill('E2E direct asset dependency removal');
+            await removeDialog.getByRole('button', { name: 'Remove link', exact: true }).click();
+            await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${asset!.id}$`));
+            await expect(linkRow).toHaveCount(0);
+            dependencyCreated = false;
+        } catch (error) {
+            primaryFailure = error;
+            throw error;
+        } finally {
+            await cleanupWithoutMaskingPrimaryFailure(
+                primaryFailure,
+                () => runCleanupSteps('Failed to restore Asset dependency fixture', [
+                    ...(dependencyCreated ? [
+                        () => removeAssetAssetLinkTuple(asset!.id, supportingAsset!.id),
+                    ] : []),
+                    () => ensureAssetArchived(E2E_ASSETS.INTEGRATION_BUS.name, originalArchived)
+                        .then(() => undefined),
+                    () => updateApprovalScenario('protected_asset_edit', assetScenario),
+                ]),
+                test.info(),
+            );
+        }
     });
 });

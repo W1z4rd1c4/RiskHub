@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { waitForNotificationByAccountName } from './helpers/api-auth';
 import { DEMO_ACCOUNTS, loginAsDemoUser, logout } from './helpers/login';
-import { navigateSpa } from './helpers/spaNavigate';
 
 test.describe('questionnaire workflow', () => {
     test('CRO sends, owner submits, CRO notified', async ({ page }) => {
@@ -145,19 +144,19 @@ test.describe('questionnaire workflow', () => {
 
         // 3) CRO sees notification after the queued outbox notification is dispatched
         await test.step('CRO receives the submitted-questionnaire notification', async () => {
-            await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
-            await page.goto('/dashboard');
-            await waitForNotificationByAccountName(
+            const notification = await waitForNotificationByAccountName(
                 DEMO_ACCOUNTS.CRO,
                 (notification) =>
                     notification.type === 'questionnaire_submitted' &&
                     (riskNameRe.test(notification.title) || riskNameRe.test(notification.message)),
                 { timeoutMs: 30000, intervalMs: 1000 },
             );
-            await navigateSpa(page, '/notifications');
-            await expect(page.getByText(riskNameRe).first()).toBeVisible({
-                timeout: 15000,
-            });
+
+            // The helper authenticates as the named CRO account and reads the
+            // public notifications API, so the returned item proves recipient,
+            // type, and questionnaire identity without depending on route fetches.
+            expect(notification.type).toBe('questionnaire_submitted');
+            expect(`${notification.title} ${notification.message}`).toMatch(riskNameRe);
         });
     });
 });

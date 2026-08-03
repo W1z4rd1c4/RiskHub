@@ -369,6 +369,10 @@ export function VendorOverviewTab({
                     <VendorContractsSection
                         vendorId={vendor.id}
                         canManageContracts={resolveCapabilityFlag(vendor.capabilities, 'can_manage_contracts')}
+                        protectedChangeRequiresApproval={resolveCapabilityFlag(
+                            vendor.capabilities,
+                            'protected_change_requires_approval',
+                        )}
                     />
                 </div>
             ) : null}

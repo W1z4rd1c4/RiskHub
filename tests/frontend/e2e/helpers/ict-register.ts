@@ -295,7 +295,7 @@ export async function resetAssetProcessLinks(assetId: number): Promise<void> {
     }
 }
 
-interface ApprovalScenarioSnapshot {
+export interface ApprovalScenarioSnapshot {
     requires_approval: boolean;
     approver_roles: string[];
 }
@@ -327,13 +327,14 @@ interface RelationshipCleanupOptions<TLink> {
 
 export interface GovernedProcessCleanupOptions {
     processName: string;
+    additionalScenarioKeys?: string[];
     assetPrimaryBaseline?: {
         assetId: number;
         processId: number | null;
     };
 }
 
-async function cancelPendingApprovalsForMarker(marker: string): Promise<void> {
+export async function cancelPendingApprovalsForMarker(marker: string): Promise<void> {
     const apiBase = getApiBaseUrl();
     const headers = await riskManagerHeaders();
     const params = new URLSearchParams({ my_requests: 'true', skip: '0', limit: '100' });
@@ -357,7 +358,25 @@ async function cancelPendingApprovalsForMarker(marker: string): Promise<void> {
     }
 }
 
-async function getProtectedProcessScenario(): Promise<ApprovalScenarioSnapshot> {
+/** Run every cleanup step in order and report all failures after the last attempt. */
+export async function runCleanupSteps(
+    message: string,
+    steps: Array<() => Promise<void>>,
+): Promise<void> {
+    const failures: unknown[] = [];
+    for (const step of steps) {
+        try {
+            await step();
+        } catch (error) {
+            failures.push(error);
+        }
+    }
+    if (failures.length > 0) {
+        throw new AggregateError(failures, message);
+    }
+}
+
+export async function getApprovalScenario(scenarioKey: string): Promise<ApprovalScenarioSnapshot> {
     const apiBase = getApiBaseUrl();
     const headers = await croHeaders();
     const response = await fetch(`${apiBase}/api/v1/riskhub/approval-scenarios`, { headers });
@@ -365,9 +384,9 @@ async function getProtectedProcessScenario(): Promise<ApprovalScenarioSnapshot> 
         throw new Error(`Failed to read protected Process approval scenario: ${response.status}`);
     }
     const scenarios = await response.json() as Array<ApprovalScenarioSnapshot & { key: string }>;
-    const scenario = scenarios.find((candidate) => candidate.key === PROTECTED_PROCESS_SCENARIO);
+    const scenario = scenarios.find((candidate) => candidate.key === scenarioKey);
     if (!scenario) {
-        throw new Error(`Approval scenario '${PROTECTED_PROCESS_SCENARIO}' is missing`);
+        throw new Error(`Approval scenario '${scenarioKey}' is missing`);
     }
     return {
         requires_approval: scenario.requires_approval,
@@ -375,11 +394,14 @@ async function getProtectedProcessScenario(): Promise<ApprovalScenarioSnapshot> 
     };
 }
 
-async function updateProtectedProcessScenario(snapshot: ApprovalScenarioSnapshot): Promise<void> {
+export async function updateApprovalScenario(
+    scenarioKey: string,
+    snapshot: ApprovalScenarioSnapshot,
+): Promise<void> {
     const apiBase = getApiBaseUrl();
     const headers = await croHeaders();
     const response = await fetch(
-        `${apiBase}/api/v1/riskhub/approval-scenarios/${PROTECTED_PROCESS_SCENARIO}`,
+        `${apiBase}/api/v1/riskhub/approval-scenarios/${scenarioKey}`,
         {
             method: 'PATCH',
             headers,
@@ -388,7 +410,7 @@ async function updateProtectedProcessScenario(snapshot: ApprovalScenarioSnapshot
     );
     if (!response.ok) {
         throw new Error(
-            `Failed to update protected Process approval scenario: ${response.status} - ${await response.text()}`,
+            `Failed to update approval scenario '${scenarioKey}': ${response.status} - ${await response.text()}`,
         );
     }
 }
@@ -441,7 +463,9 @@ async function cleanupListedProcessRelationships<TLink>(
         const removed = await fetch(removalUrl(link), {
             method: 'DELETE',
             headers,
-            body: JSON.stringify({}),
+            body: JSON.stringify({
+                request_reason: `Clean up E2E Process ${processId} ${relationshipName} link`,
+            }),
         });
         if (!removed.ok && removed.status !== 404) {
             throw new Error(
@@ -458,7 +482,7 @@ async function cleanupListedProcessRelationships<TLink>(
 export async function cleanupGovernedProcessFixture(
     options: GovernedProcessCleanupOptions,
 ): Promise<void> {
-    const { processName, assetPrimaryBaseline } = options;
+    const { processName, additionalScenarioKeys = [], assetPrimaryBaseline } = options;
     const failures: unknown[] = [];
     const attempt = async (operation: () => Promise<void>): Promise<void> => {
         try {
@@ -470,16 +494,22 @@ export async function cleanupGovernedProcessFixture(
 
     await attempt(() => cancelPendingApprovalsForMarker(processName));
 
-    let scenario: ApprovalScenarioSnapshot | null = null;
-    try {
-        scenario = await getProtectedProcessScenario();
-        if (scenario.requires_approval) {
-            await updateProtectedProcessScenario({
-                requires_approval: false,
-                approver_roles: scenario.approver_roles,
-            });
-        }
+    const scenarioKeys = [PROTECTED_PROCESS_SCENARIO, ...additionalScenarioKeys];
+    const scenarios: Array<[string, ApprovalScenarioSnapshot]> = [];
+    for (const scenarioKey of scenarioKeys) {
+        await attempt(async () => {
+            const scenario = await getApprovalScenario(scenarioKey);
+            scenarios.push([scenarioKey, scenario]);
+            if (scenario.requires_approval) {
+                await updateApprovalScenario(scenarioKey, {
+                    requires_approval: false,
+                    approver_roles: scenario.approver_roles,
+                });
+            }
+        });
+    }
 
+    await attempt(async () => {
         const process = await getProcessByL1(processName);
         if (process) {
             const apiBase = getApiBaseUrl();
@@ -529,7 +559,9 @@ export async function cleanupGovernedProcessFixture(
                 const archived = await fetch(`${apiBase}/api/v1/processes/${current.id}`, {
                     method: 'DELETE',
                     headers,
-                    body: JSON.stringify({}),
+                    body: JSON.stringify({
+                        request_reason: `Clean up E2E Process ${processName}`,
+                    }),
                 });
                 if (!archived.ok) {
                     throw new Error(
@@ -538,11 +570,11 @@ export async function cleanupGovernedProcessFixture(
                 }
             });
         }
-    } catch (error) {
-        failures.push(error);
-    } finally {
-        if (scenario?.requires_approval) {
-            await attempt(() => updateProtectedProcessScenario(scenario!));
+    });
+
+    for (const [scenarioKey, scenario] of scenarios.reverse()) {
+        if (scenario.requires_approval) {
+            await attempt(() => updateApprovalScenario(scenarioKey, scenario));
         }
     }
 
@@ -569,6 +601,33 @@ export async function resetAssetAssetLinks(assetId: number): Promise<void> {
     }
 }
 
+/** Remove the exact directional Asset dependency if it exists. */
+export async function removeAssetAssetLinkTuple(
+    dependentAssetId: number,
+    supportingAssetId: number,
+): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const links = await listAssetAssetLinks(dependentAssetId);
+    for (const link of links) {
+        if (
+            link.dependent_asset_id !== dependentAssetId
+            || link.supporting_asset_id !== supportingAssetId
+        ) {
+            continue;
+        }
+        const response = await fetch(
+            `${apiBase}/api/v1/assets/${dependentAssetId}/asset-links/${link.id}`,
+            { method: 'DELETE', headers },
+        );
+        if (!response.ok && response.status !== 204 && response.status !== 404) {
+            throw new Error(
+                `Failed to remove Asset dependency ${link.id} on asset ${dependentAssetId}: ${response.status}`,
+            );
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Vendor-domain register helpers (Contracts #44, Sub-outsourcing chains #45).
 // All lookups run include_archived so natural-key resolution never misses a
@@ -580,6 +639,7 @@ export interface VendorContractLookup {
     vendor_id: number;
     contract_reference: string | null;
     main_contract: string | null;
+    note: string | null;
     is_archived: boolean;
 }
 
@@ -627,6 +687,24 @@ export async function createVendorContractViaApi(
     });
     if (!response.ok) {
         throw new Error(`Failed to create contract on vendor ${vendorId}: ${response.status} - ${await response.text()}`);
+    }
+    return await response.json() as VendorContractLookup;
+}
+
+export async function updateVendorContractViaApi(
+    vendorId: number,
+    contractId: number,
+    payload: Record<string, string | number | null>,
+): Promise<VendorContractLookup> {
+    const apiBase = getApiBaseUrl();
+    const headers = await riskManagerHeaders();
+    const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}/contracts/${contractId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to update contract ${contractId}: ${response.status} - ${await response.text()}`);
     }
     return await response.json() as VendorContractLookup;
 }
@@ -814,16 +892,19 @@ export async function removeProcessVendorLinkPair(processId: number, vendorId: n
  * Force the vendor's entered Substituce value (idempotent test baseline —
  * the committed register-extension round-trip test leaves it mutated).
  */
-export async function ensureVendorReplaceability(vendorId: number, replaceability: string): Promise<void> {
+export async function updateVendorRegisterFields(
+    vendorId: number,
+    fields: { identifier_type: string | null; identifier_value: string | null; replaceability: string | null },
+): Promise<void> {
     const apiBase = getApiBaseUrl();
     const headers = await riskManagerHeaders();
     const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}`, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ replaceability }),
+        body: JSON.stringify(fields),
     });
     if (!response.ok) {
-        throw new Error(`Failed to set replaceability on vendor ${vendorId}: ${response.status} - ${await response.text()}`);
+        throw new Error(`Failed to restore register fields on vendor ${vendorId}: ${response.status} - ${await response.text()}`);
     }
 }
 

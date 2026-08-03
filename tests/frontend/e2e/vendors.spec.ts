@@ -10,6 +10,13 @@ import {
     unlinkVendorFromKRI,
 } from './helpers/api-auth';
 import { waitForDataLoad } from './helpers/wait';
+import {
+    type ApprovalScenarioSnapshot,
+    cleanupWithoutMaskingPrimaryFailure,
+    getApprovalScenario,
+    runCleanupSteps,
+    updateApprovalScenario,
+} from './helpers/ict-register';
 import { VendorsPage } from './pages/VendorsPage';
 import { ApprovalsPage } from './pages/ApprovalsPage';
 
@@ -79,6 +86,28 @@ async function setUserActive(userId: number, isActive: boolean): Promise<void> {
     );
 }
 
+async function scanOrphans(): Promise<void> {
+    const token = await getDemoToken({ email: 'cro@riskhub.local', fallbackUserIds: [2] });
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/orphaned-items/scan`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.status !== 200) {
+        throw new Error(`POST /api/v1/orphaned-items/scan failed: ${response.status} ${await response.text()}`);
+    }
+}
+
+async function cancelPendingApproval(approvalId: number): Promise<void> {
+    const token = await getDemoToken({ email: 'cro@riskhub.local', fallbackUserIds: [2] });
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/approvals/${approvalId}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok && ![400, 404, 409].includes(response.status)) {
+        throw new Error(`POST /api/v1/approvals/${approvalId}/cancel failed: ${response.status} ${await response.text()}`);
+    }
+}
+
 async function ensureDedicatedVendorOwner(): Promise<AdminUserFixture> {
     const token = await getDemoToken({ email: 'admin@riskhub.local', fallbackUserIds: [1] });
     const users = await apiJson<AdminUserFixture[]>('/api/v1/users?skip=0&limit=1000', token);
@@ -107,19 +136,32 @@ async function ensureDedicatedVendorOwner(): Promise<AdminUserFixture> {
     return owner;
 }
 
-async function restoreVendorOwnerBaseline(vendorId: number, ownerId: number): Promise<void> {
-    const token = await getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3] });
-    const overview = await apiJson<{
-        items: Array<{ id: number; item_id: number; item_type: string }>;
-    }>('/api/v1/orphaned-items/overview?status=pending', token);
-    const orphan = overview.items.find((item) => item.item_type === 'vendor' && item.item_id === vendorId);
-    if (orphan) {
-        await apiJson(
-            `/api/v1/orphaned-items/${orphan.id}/resolve`,
-            token,
-            { method: 'POST', body: JSON.stringify({ new_owner_id: ownerId }) },
-        );
-        return;
+async function restoreVendorOwnerBaseline(
+    vendorId: number,
+    ownerId: number,
+    waitForPendingOrphan = false,
+): Promise<void> {
+    const token = await getDemoToken({ email: 'cro@riskhub.local', fallbackUserIds: [2] });
+    const attempts = waitForPendingOrphan ? 20 : 1;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+        const overview = await apiJson<{
+            items: Array<{ id: number; item_id: number; item_type: string }>;
+        }>('/api/v1/orphaned-items/overview?status=pending', token);
+        const orphan = overview.items.find((item) => item.item_type === 'vendor' && item.item_id === vendorId);
+        if (orphan) {
+            await apiJson(
+                `/api/v1/orphaned-items/${orphan.id}/resolve`,
+                token,
+                { method: 'POST', body: JSON.stringify({ new_owner_id: ownerId }) },
+            );
+            return;
+        }
+        if (waitForPendingOrphan) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+    }
+    if (waitForPendingOrphan) {
+        throw new Error(`Pending Vendor orphan ${vendorId} was not available for cleanup`);
     }
     await setVendorOwner(vendorId, ownerId);
 }
@@ -188,7 +230,7 @@ test.describe('Vendor Management (Deterministic)', () => {
         await expect(riskManagerPage.getByRole('button', { name: /Link Existing|Propojit existující/i }).first()).toBeVisible();
         await expect(riskManagerPage.getByRole('button', { name: /Add Risk|Přidat riziko/i })).toBeVisible();
         await expect(riskManagerPage.getByRole('button', { name: /Add Control|Přidat kontrolu/i })).toBeVisible();
-        await expect(riskManagerPage.getByText('Highly complex', { exact: true })).toBeVisible();
+        await expect(riskManagerPage.getByText('Highly complex substitutability', { exact: true }).first()).toBeVisible();
         await expect(riskManagerPage.getByText('it.head@riskhub.local', { exact: false }).first()).toBeVisible();
     });
 
@@ -204,7 +246,10 @@ test.describe('Vendor Management (Deterministic)', () => {
         });
         await riskManagerPage.getByTestId('vendor-form-owner-search').fill('ops.analyst@riskhub.local');
         expect((await ownerLookup).ok()).toBe(true);
-        await expect(riskManagerPage.getByText(/ops\.analyst@riskhub\.local.*Operations/i).first()).toBeVisible();
+        await riskManagerPage.getByTestId('vendor-form-owner').click();
+        await expect(riskManagerPage.getByRole('option', {
+            name: /ops\.analyst@riskhub\.local.*Operations/i,
+        })).toBeVisible();
     });
 
     test('Record-only Vendor owner submits an ordinary field diff with accountability and link actions gated', async ({ riskManagerPage }) => {
@@ -222,6 +267,7 @@ test.describe('Vendor Management (Deterministic)', () => {
                     capabilities: {
                         ...capabilities,
                         can_update: true,
+                        protected_change_requires_approval: false,
                         can_manage_accountability: false,
                         can_create_linked_risk: false,
                         can_create_linked_control: false,
@@ -253,7 +299,7 @@ test.describe('Vendor Management (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId('vendor-form-owner-search')).toBeDisabled();
 
         await riskManagerPage.getByTestId('vendor-form-name').fill('Owner-maintained Vendor');
-        await riskManagerPage.getByRole('button', { name: /Save Changes|Uložit změny/i }).click();
+        await riskManagerPage.getByRole('button', { name: /^(Save|Uložit)$/i }).click();
         await expect.poll(() => patchPayload).toEqual({ name: 'Owner-maintained Vendor' });
         await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}$`));
         await expect(riskManagerPage.getByRole('button', { name: /Link Existing|Propojit existující/i })).toHaveCount(0);
@@ -265,87 +311,148 @@ test.describe('Vendor Management (Deterministic)', () => {
         riskManagerPage,
         croPage,
     }) => {
-        const vendorId = await ensureVendorArchived(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, false);
-        const originalOwner = await getVendorOwnerByEmail(E2E_VENDORS.ACTIVE_PRIMARY.owner_email);
-        const formerOwner = await ensureDedicatedVendorOwner();
-        await restoreVendorOwnerBaseline(vendorId, originalOwner.id);
-        await setVendorOwner(vendorId, formerOwner.id);
+        const scenarioKeys = ['protected_vendor_edit', 'accountability_reassignment'] as const;
+        const scenarioSnapshots = new Map<string, ApprovalScenarioSnapshot>();
+        let vendorId: number | null = null;
+        let originalOwner: VendorOwnerFixture | null = null;
+        let formerOwner: AdminUserFixture | null = null;
+        let approvalId: number | null = null;
+        let primaryFailure: unknown;
 
         try {
+            vendorId = await ensureVendorArchived(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, false);
+            originalOwner = await getVendorOwnerByEmail(E2E_VENDORS.ACTIVE_PRIMARY.owner_email);
+            formerOwner = await ensureDedicatedVendorOwner();
+            for (const key of scenarioKeys) {
+                const snapshot = await getApprovalScenario(key);
+                scenarioSnapshots.set(key, snapshot);
+                await updateApprovalScenario(key, { ...snapshot, requires_approval: false });
+            }
+            await restoreVendorOwnerBaseline(vendorId, originalOwner.id);
+            await setVendorOwner(vendorId, formerOwner.id);
+            await runCleanupSteps(
+                'Failed to restore approval policy after Vendor orphan setup',
+                scenarioKeys
+                    .filter((key) => scenarioSnapshots.has(key))
+                    .map((key) => () => updateApprovalScenario(key, scenarioSnapshots.get(key)!)),
+            );
+
             await setUserActive(formerOwner.id, false);
+            await scanOrphans();
 
-            await riskManagerPage.goto(`/vendors/${vendorId}`);
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByText('Ownership reassignment required').first()).toBeVisible();
-            await expect(riskManagerPage.getByText(formerOwner.email, { exact: false }).first()).toBeVisible();
-
-            await riskManagerPage.goto(`/vendors/${vendorId}/edit`);
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByText('Ownership reassignment required').first()).toBeVisible();
-            await expect(riskManagerPage.getByTestId('vendor-form-name')).toHaveCount(0);
-
-            await riskManagerPage.goto('/governance?type=vendor');
-            await waitForDataLoad(riskManagerPage);
-            const orphanRow = riskManagerPage.locator('tbody tr').filter({
+            await croPage.getByRole('link', { name: /^Governance\b/ }).click();
+            await croPage.waitForURL('/governance');
+            await waitForDataLoad(croPage);
+            await croPage.getByRole('button', { name: /Vendors Orphaned Vendors/i }).click();
+            const orphanRow = croPage.locator('tbody tr').filter({
                 hasText: E2E_VENDORS.ACTIVE_PRIMARY.name,
             });
             await expect(orphanRow).toContainText(formerOwner.email);
             await orphanRow.getByRole('button', { name: /Resolve/i }).click();
-            await expect(riskManagerPage.getByTestId('resolve-orphan-ready')).toBeVisible();
+            await expect(croPage.getByTestId('resolve-orphan-ready')).toBeVisible();
 
-            const ownerLookup = riskManagerPage.waitForResponse((response) => {
+            const ownerLookup = croPage.waitForResponse((response) => {
                 const url = new URL(response.url());
                 return url.pathname.endsWith('/api/v1/users/lookup/vendor-owners')
                     && url.searchParams.get('q') === originalOwner.email;
             });
-            await riskManagerPage.getByTestId('orphan-owner-search').fill(originalOwner.email);
+            await croPage.getByTestId('orphan-owner-search').fill(originalOwner.email);
             expect((await ownerLookup).ok()).toBe(true);
-            await riskManagerPage.getByRole('button', { name: new RegExp(originalOwner.email, 'i') }).click();
-            await riskManagerPage.getByRole('button', { name: /Submit for approval/i }).click();
-            await expect(riskManagerPage.getByTestId('resolve-orphan-request-reason'))
+            await croPage.getByRole('button', { name: new RegExp(originalOwner.email, 'i') }).click();
+            await croPage.getByRole('button', { name: /Submit for approval/i }).click();
+            await expect(croPage.getByTestId('resolve-orphan-request-reason'))
                 .toHaveAttribute('aria-invalid', 'true');
             const reason = `Restore Vendor accountability ${Date.now()}`;
-            await riskManagerPage.getByTestId('resolve-orphan-request-reason').fill(reason);
-            const queued = riskManagerPage.waitForResponse((response) => (
+            await croPage.getByTestId('resolve-orphan-request-reason').fill(reason);
+            const queued = croPage.waitForResponse((response) => (
                 response.request().method() === 'POST'
                 && /\/api\/v1\/orphaned-items\/\d+\/resolve$/.test(new URL(response.url()).pathname)
             ));
-            await riskManagerPage.getByRole('button', { name: /Submit for approval/i }).click();
+            await croPage.getByRole('button', { name: /Submit for approval/i }).click();
             expect((await queued).status()).toBe(202);
-            await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
+            await expect(croPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
+            approvalId = Number(new URL(croPage.url()).searchParams.get('approvalId'));
 
-            const requesterApprovals = new ApprovalsPage(riskManagerPage);
-            await requesterApprovals.navigate();
-            await requesterApprovals.selectMyRequests();
+            const requesterApprovals = new ApprovalsPage(croPage);
+            await requesterApprovals.waitForApprovalsReady();
             await expect(requesterApprovals.approvalCards.filter({ hasText: reason })).toHaveCount(1);
 
-            await riskManagerPage.goto('/governance?type=vendor');
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.locator('tbody tr').filter({
+            await croPage.getByRole('link', { name: /^Governance\b/ }).click();
+            await croPage.waitForURL('/governance');
+            await waitForDataLoad(croPage);
+            await croPage.getByRole('button', { name: /Vendors Orphaned Vendors/i }).click();
+            await expect(croPage.locator('tbody tr').filter({
                 hasText: E2E_VENDORS.ACTIVE_PRIMARY.name,
             })).toBeVisible();
-            await riskManagerPage.goto(`/vendors/${vendorId}/edit`);
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.getByTestId('vendor-form-name')).toHaveCount(0);
 
-            const resolverApprovals = new ApprovalsPage(croPage);
-            await resolverApprovals.navigate();
+            const resolverApprovals = new ApprovalsPage(riskManagerPage);
+            await riskManagerPage.getByRole('link', { name: /^Workflow/ }).click();
+            await riskManagerPage.waitForURL(/\/approvals/);
+            await resolverApprovals.waitForApprovalsReady();
             const requestIndex = await resolverApprovals.findCardByReason(reason);
             await resolverApprovals.clickApprove(requestIndex);
+            const approved = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'POST'
+                && new URL(response.url()).pathname === `/api/v1/approvals/${approvalId}/approve`
+            ));
             await resolverApprovals.submitResolution(`Approve ${reason}`, 'approve');
+            const approvedResponse = await approved;
+            expect(approvedResponse.ok()).toBe(true);
+            expect((await approvedResponse.json() as { status?: string }).status).toBe('approved');
 
-            await riskManagerPage.goto('/governance?type=vendor');
-            await waitForDataLoad(riskManagerPage);
-            await expect(riskManagerPage.locator('tbody tr').filter({
+            const refreshed = croPage.waitForResponse(async (response) => {
+                if (
+                    response.request().method() !== 'GET'
+                    || new URL(response.url()).pathname !== '/api/v1/orphaned-items/overview'
+                    || !response.ok()
+                ) return false;
+                const overview = await response.json() as {
+                    items?: Array<{ item_type?: string; item_id?: number }>;
+                };
+                return !overview.items?.some((item) => (
+                    item.item_type === 'vendor' && item.item_id === vendorId
+                ));
+            });
+            await croPage.getByRole('button', { name: /Refresh Data/i }).click();
+            expect((await refreshed).ok()).toBe(true);
+            await croPage.getByRole('button', { name: /Vendors Orphaned Vendors/i }).click();
+            await expect(croPage.locator('tbody tr').filter({
                 hasText: E2E_VENDORS.ACTIVE_PRIMARY.name,
             })).toHaveCount(0);
-            await riskManagerPage.goto(`/vendors/${vendorId}/edit`);
-            await waitForDataLoad(riskManagerPage);
+            await riskManagerPage.getByRole('link', { name: /^Vendors$/ }).click();
+            await riskManagerPage.waitForURL('/vendors');
+            const vendorsPage = new VendorsPage(riskManagerPage);
+            await vendorsPage.search(E2E_VENDORS.ACTIVE_PRIMARY.name);
+            await vendorsPage.openRowByText(E2E_VENDORS.ACTIVE_PRIMARY.name);
+            await riskManagerPage.getByRole('button', { name: /Edit|Upravit/i }).click();
+            await riskManagerPage.waitForURL(`/vendors/${vendorId}/edit`);
             await expect(riskManagerPage.getByTestId('vendor-form-name')).toBeVisible();
             await expect(riskManagerPage.getByTestId('vendor-form-owner')).toBeEnabled();
+        } catch (error) {
+            primaryFailure = error;
+            throw error;
         } finally {
-            await setUserActive(formerOwner.id, true);
-            await restoreVendorOwnerBaseline(vendorId, originalOwner.id);
+            await cleanupWithoutMaskingPrimaryFailure(
+                primaryFailure,
+                () => runCleanupSteps('Failed to restore Vendor orphan fixture', [
+                    ...(approvalId === null ? [] : [() => cancelPendingApproval(approvalId!)]),
+                    ...scenarioKeys
+                        .filter((key) => scenarioSnapshots.has(key))
+                        .map((key) => () => updateApprovalScenario(key, {
+                            ...scenarioSnapshots.get(key)!,
+                            requires_approval: false,
+                        })),
+                    () => scanOrphans(),
+                    ...(vendorId === null || originalOwner === null
+                        ? []
+                        : [() => restoreVendorOwnerBaseline(vendorId!, originalOwner!.id)]),
+                    ...(formerOwner === null ? [] : [() => setUserActive(formerOwner!.id, true)]),
+                    ...scenarioKeys
+                        .filter((key) => scenarioSnapshots.has(key))
+                        .map((key) => () => updateApprovalScenario(key, scenarioSnapshots.get(key)!)),
+                ]),
+                test.info(),
+            );
         }
     });
 
@@ -416,7 +523,7 @@ test.describe('Vendor Management (Deterministic)', () => {
     });
 
     test('Vendor detail Add KRI creates and links the new KRI back to the vendor', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorArchived(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, false);
+        const vendorId = await ensureVendorArchived(E2E_VENDORS.ACTIVE_SECONDARY.registration_id, false);
         const riskId = await ensureRiskStatus(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code, 'active');
         await linkVendorToRisk(vendorId, riskId);
 

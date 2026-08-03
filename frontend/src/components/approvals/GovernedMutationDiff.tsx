@@ -628,11 +628,11 @@ export function GovernedMutationDiff({
                                 key={`${processImpact.resource_name}-${index}`}
                                 className="rounded-lg border border-white/5 bg-black/20 p-3"
                             >
-                                <p className="mb-3 text-xs font-bold text-slate-200">
+                                <h6 className="mb-3 text-xs font-bold text-slate-200">
                                     {isSafeBusinessLabel(processImpact.resource_name)
                                         ? processImpact.resource_name.trim()
                                         : t('approvals:governed.redacted_value')}
-                                </p>
+                                </h6>
                                 <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     {(['cif', 'criticality_class'] as const).map((field) => (
                                         <div key={field}>
@@ -660,11 +660,11 @@ export function GovernedMutationDiff({
                                 key={`${assetImpact.resource_name}-${index}`}
                                 className="rounded-lg border border-white/5 bg-black/20 p-3"
                             >
-                                <p className="mb-3 text-xs font-bold text-slate-200">
+                                <h6 className="mb-3 text-xs font-bold text-slate-200">
                                     {isSafeBusinessLabel(assetImpact.resource_name)
                                         ? assetImpact.resource_name.trim()
                                         : t('approvals:governed.redacted_value')}
-                                </p>
+                                </h6>
                                 <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     {(['cif', 'resulting_criticality'] as const).map((field) => (
                                         <div key={field}>
@@ -690,11 +690,11 @@ export function GovernedMutationDiff({
                                 key={`${vendorImpact.resource_name}-${index}`}
                                 className="rounded-lg border border-white/5 bg-black/20 p-3"
                             >
-                                <p className="mb-3 text-xs font-bold text-slate-200">
+                                <h6 className="mb-3 text-xs font-bold text-slate-200">
                                     {isSafeBusinessLabel(vendorImpact.resource_name)
                                         ? vendorImpact.resource_name.trim()
                                         : t('approvals:governed.redacted_value')}
-                                </p>
+                                </h6>
                                 <dl>
                                     <div>
                                         <dt className="mb-2 text-[10px] font-bold uppercase text-accent">

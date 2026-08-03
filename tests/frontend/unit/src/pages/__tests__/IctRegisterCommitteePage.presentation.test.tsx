@@ -33,6 +33,8 @@ vi.mock('@/services/ictRegisterCommitteeApi', () => ({
     },
 }));
 
+import { IctRegisterCommitteePage } from '@/pages/IctRegisterCommitteePage';
+
 function roiTemplate(overrides: Partial<IctRoiTemplateReadiness>): IctRoiTemplateReadiness {
     return {
         code: 'B_06.01',
@@ -413,8 +415,7 @@ describe('ICT Risk Committee presentation helpers', () => {
 });
 
 describe('IctRegisterCommitteePage', () => {
-    async function renderPage() {
-        const { IctRegisterCommitteePage } = await import('@/pages/IctRegisterCommitteePage');
+    function renderPage() {
         render(
             <MemoryRouter>
                 <AuthProviderWithReady>
@@ -428,7 +429,7 @@ describe('IctRegisterCommitteePage', () => {
 
     it('renders both sheets: tiles, matrices, tables, narratives, and drill-downs', async () => {
         getCommittee.mockResolvedValue(samplePayload());
-        await renderPage();
+        renderPage();
 
         // 16_Dashboard register-state tiles carry their values and drill down.
         expect(await screen.findByTestId('committee-state-process_count')).toHaveTextContent('148');
@@ -504,7 +505,7 @@ describe('IctRegisterCommitteePage', () => {
 
     it('mutes the material KPI as not yet measurable — never a silent 0', async () => {
         getCommittee.mockResolvedValue(samplePayload());
-        await renderPage();
+        renderPage();
 
         const materialTile = await screen.findByTestId('committee-kpi-material_risk_count');
         expect(materialTile).toHaveTextContent('—');
@@ -514,7 +515,7 @@ describe('IctRegisterCommitteePage', () => {
 
     it('renders the RoI-readiness element: per-template rows, coverage badges, gaps', async () => {
         getCommittee.mockResolvedValue(samplePayload());
-        await renderPage();
+        renderPage();
 
         const section = await screen.findByTestId('committee-roi');
         expect(section).toHaveTextContent('90.4');
@@ -564,7 +565,7 @@ describe('IctRegisterCommitteePage', () => {
             },
         ];
         getCommittee.mockResolvedValue(payload);
-        await renderPage();
+        renderPage();
 
         fireEvent.click(await screen.findByTestId('committee-roi-toggle-B_05.01'));
         const gaps = screen.getByTestId('committee-roi-gaps-B_05.01');

@@ -30,7 +30,7 @@ export class ProcessesPage {
     }
 
     private async waitForProcessesResponse(
-        expected: { search?: string; include_archived?: boolean } = {},
+        expected: { search?: string; lifecycle?: string } = {},
     ): Promise<void> {
         await this.page.waitForResponse(
             (response) => matchesCollectionResponse(response, '/api/v1/processes', expected),
@@ -68,7 +68,7 @@ export class ProcessesPage {
     async setStatusFilterArchived(): Promise<void> {
         await this.statusSelectTrigger.click();
         await Promise.all([
-            this.waitForProcessesResponse({ include_archived: true }),
+            this.waitForProcessesResponse({ lifecycle: 'archived' }),
             this.page.getByTestId('processes-status-filter-option-archived').click(),
         ]);
         await waitForDataLoad(this.page);

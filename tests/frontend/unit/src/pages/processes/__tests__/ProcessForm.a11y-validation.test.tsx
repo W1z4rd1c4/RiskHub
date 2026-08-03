@@ -5,7 +5,7 @@
  * per-field, and focus moves to the first invalid control in DOM order.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import * as axe from 'axe-core';
@@ -16,6 +16,20 @@ const mockGetProcessOwners = vi.fn();
 const mockGetProcessDepartments = vi.fn();
 const mockCreateProcess = vi.fn();
 const mockUpdateProcess = vi.fn();
+const accountabilityScenario = vi.hoisted(() => ({
+    enabled: false,
+    error: false,
+    loading: false,
+}));
+
+vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
+    useAccountabilityReassignmentScenario: () => ({
+        isEnabled: accountabilityScenario.enabled,
+        isError: accountabilityScenario.error,
+        isLoading: accountabilityScenario.loading,
+        requiresApproval: () => accountabilityScenario.enabled,
+    }),
+}));
 
 vi.mock('@/services/processApi', () => ({
     processApi: {
@@ -142,7 +156,6 @@ describe('ProcessForm — Field migration + per-field validation (#59)', () => {
     });
 
     it('routes protected creation to the approval callback without an operational Process id', async () => {
-        const user = userEvent.setup();
         mockCreateProcess.mockResolvedValue({
             status: 'approval_required',
             message: 'Submitted',
@@ -154,12 +167,20 @@ describe('ProcessForm — Field migration + per-field validation (#59)', () => {
         });
         const { onSaved, onApprovalQueued } = renderForm();
 
-        await user.type(screen.getByRole('textbox', { name: l0Label() }), 'Operations');
-        await user.type(screen.getByRole('textbox', { name: l1Label() }), 'Critical settlement');
-        await user.click(screen.getByTestId('process-form-owner'));
-        await user.click(await screen.findByRole('option', { name: /Clara Owner/ }));
-        await user.type(screen.getByTestId('process-form-request-reason'), 'New critical function');
-        await user.click(screen.getByTestId('process-form-submit'));
+        fireEvent.change(screen.getByRole('textbox', { name: l0Label() }), {
+            target: { value: 'Operations' },
+        });
+        fireEvent.change(screen.getByRole('textbox', { name: l1Label() }), {
+            target: { value: 'Critical settlement' },
+        });
+        const owner = screen.getByTestId('process-form-owner');
+        await waitFor(() => expect(owner).toBeEnabled());
+        fireEvent.click(owner);
+        fireEvent.click(await screen.findByRole('option', { name: /Clara Owner/ }));
+        fireEvent.change(screen.getByTestId('process-form-request-reason'), {
+            target: { value: 'New critical function' },
+        });
+        fireEvent.click(screen.getByTestId('process-form-submit'));
 
         await waitFor(() => expect(onApprovalQueued).toHaveBeenCalledWith(expect.objectContaining({
             approval_id: 85,
@@ -172,17 +193,24 @@ describe('ProcessForm — Field migration + per-field validation (#59)', () => {
     });
 
     it('never overwrites an independently selected Department when the owner changes', async () => {
-        const user = userEvent.setup();
         mockCreateProcess.mockResolvedValue({ id: 3 });
         renderForm();
 
-        await user.type(screen.getByRole('textbox', { name: l0Label() }), 'Payments');
-        await user.type(screen.getByRole('textbox', { name: l1Label() }), 'Settlement');
-        await user.click(screen.getByTestId('process-form-owner-department'));
-        await user.click(await screen.findByRole('option', { name: /Finance/ }));
-        await user.click(screen.getByTestId('process-form-owner'));
-        await user.click(await screen.findByRole('option', { name: /Clara Owner/ }));
-        await user.click(screen.getByTestId('process-form-submit'));
+        fireEvent.change(screen.getByRole('textbox', { name: l0Label() }), {
+            target: { value: 'Payments' },
+        });
+        fireEvent.change(screen.getByRole('textbox', { name: l1Label() }), {
+            target: { value: 'Settlement' },
+        });
+        const department = screen.getByTestId('process-form-owner-department');
+        await waitFor(() => expect(department).toBeEnabled());
+        fireEvent.click(department);
+        fireEvent.click(await screen.findByRole('option', { name: /Finance/ }));
+        const owner = screen.getByTestId('process-form-owner');
+        await waitFor(() => expect(owner).toBeEnabled());
+        fireEvent.click(owner);
+        fireEvent.click(await screen.findByRole('option', { name: /Clara Owner/ }));
+        fireEvent.click(screen.getByTestId('process-form-submit'));
 
         await waitFor(() => expect(mockCreateProcess).toHaveBeenCalledWith(expect.objectContaining({
             process_owner_user_id: 17,

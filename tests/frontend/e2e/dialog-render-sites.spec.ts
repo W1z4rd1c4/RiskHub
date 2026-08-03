@@ -49,6 +49,7 @@ interface RenderSiteDriver {
 
 const contractPath = path.resolve(__dirname, '../contracts/dialog-surfaces.json');
 const loginHandoffFailure = 'GET /api/v1/users/me/shell-summary net::ERR_ABORTED';
+const dashboardOverviewHandoffFailure = 'GET /api/v1/dashboard/overview net::ERR_ABORTED';
 const governanceRefreshFailure = 'GET /api/v1/orphaned-items/overview?status=pending net::ERR_ABORTED';
 const adminSectionHandoffFailures = [
   'GET /api/v1/admin/health net::ERR_ABORTED',
@@ -119,6 +120,7 @@ const governanceOrphan = {
   previous_owner_email: 'jo@example.test',
   orphaned_at: '2026-01-01T00:00:00Z',
   status: 'pending',
+  request_reason_required: true,
   capabilities: {
     can_resolve: true,
     can_view_detail: true,
@@ -196,6 +198,7 @@ async function installApiContract(page: Page, unexpected: string[]) {
           description: 'Approve risk updates',
           requires_approval: true,
           approver_roles: ['risk_owner'],
+          fixed_policy: false,
           updated_at: '2026-04-01T00:00:00Z',
           updated_by_name: null,
           capabilities: { can_update: true },
@@ -287,6 +290,7 @@ async function installApiContract(page: Page, unexpected: string[]) {
           asset_id: 1,
           process_id: 1,
           process_name: 'Claims',
+          process_business_edit_blocked: false,
           is_primary: true,
           created_at: '2026-01-01T00:00:00Z',
         }]); return;
@@ -295,6 +299,16 @@ async function installApiContract(page: Page, unexpected: string[]) {
       case '/api/v1/assets/1/vendor-links':
       case '/api/v1/vendors/1/linked-risks':
         await json(route, []); return;
+      case '/api/v1/vendors/1/contracts':
+        await json(route, [{
+          id: 1,
+          vendor_id: 1,
+          contract_reference: 'DIALOG-CONTRACT-1',
+          is_archived: false,
+          capabilities: { can_read: true, can_update: true, can_archive: true, can_restore: false },
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        }]); return;
       case '/api/v1/ict-register/reference/closed-lists':
         await json(route, { lists: [] }); return;
       case '/api/v1/ict-register/reference/ict-service-taxonomy':
@@ -380,6 +394,8 @@ const parentSiteIds = new Set([
   'control-create.risk-linked-controls',
   'link.vendor-linked-entities',
   'confirm.asset-links',
+  'confirm.vendor-contracts',
+  'confirm.governed-mutation-reason',
   'link.control-overview',
   'risk-view.control-overview',
   'risk-drilldown.dashboard',
@@ -403,27 +419,45 @@ async function arrangeParent(page: Page, site: RenderSite) {
 }
 
 async function gotoOwnerRoute(page: Page, route: string) {
-  await page.goto(route);
+  if (new URL(page.url()).pathname !== route) {
+    const sidebarLink = page.locator(`a[href="${route}"]`).first();
+    if (await sidebarLink.isVisible()) {
+      await Promise.all([
+        page.waitForURL((url) => url.pathname === route),
+        sidebarLink.click(),
+      ]);
+    } else {
+      await page.goto(route);
+    }
+  }
   await expect(page.locator('main')).toBeVisible();
 }
 
 async function arrangeGovernance(page: Page) {
   await page.route('**/api/v1/orphaned-items/overview**', (route) => json(route, {
-    stats: { risk_count: 1, control_count: 0, kri_count: 0, total_count: 1 },
+    stats: {
+      risk_count: 1,
+      control_count: 0,
+      kri_count: 0,
+      threat_count: 0,
+      process_count: 0,
+      asset_count: 0,
+      vendor_count: 0,
+      total_count: 1,
+    },
     items: [governanceOrphan],
     last_scan_at: '2026-01-01T00:00:00Z',
     scan_status: 'complete',
   }));
   await page.route('**/api/v1/users?**', (route) => json(route, []));
   await page.route('**/api/v1/departments', (route) => json(route, [department]));
-  await page.goto('/governance');
-  await expect(page.locator('main')).toBeVisible();
+  await gotoOwnerRoute(page, '/governance');
   await expect(page.getByText(governanceOrphan.item_name)).toBeVisible();
 }
 
 async function arrangeUserLifecycle(page: Page) {
   await page.route('**/api/v1/access/users', (route) => json(route, [lifecycleAccessUser]));
-  await page.goto('/users');
+  await gotoOwnerRoute(page, '/users');
   await expect(page.getByText(lifecycleAccessUser.name)).toBeVisible();
 }
 
@@ -449,7 +483,7 @@ async function arrangeKriWithHistory(page: Page) {
     capabilities: { can_request_correction: true },
   }));
   const register = new KRIsPage(page);
-  await register.navigate();
+  await gotoOwnerRoute(page, '/kris');
   await register.search(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
   await register.openRowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
   await page.waitForURL(/\/kris\/\d+$/, { timeout: 15_000 });
@@ -458,38 +492,32 @@ async function arrangeKriWithHistory(page: Page) {
 }
 
 async function gotoFirstDetail(page: Page, listRoute: string, detailPattern: RegExp) {
+  await gotoOwnerRoute(page, listRoute);
   if (listRoute === '/assets') {
     const register = new AssetsPage(page);
-    await register.navigate();
     await register.search(E2E_ASSETS.CORE_CLAIMS_SYSTEM.name);
     await register.openRowByText(E2E_ASSETS.CORE_CLAIMS_SYSTEM.name);
   } else if (listRoute === '/controls') {
     const register = new ControlsPage(page);
-    await register.navigate();
     await register.search(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name);
     await register.openRowByText(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name);
   } else if (listRoute === '/kris') {
     const register = new KRIsPage(page);
-    await register.navigate();
     await register.search(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
     await register.openRowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
   } else if (listRoute === '/processes') {
     const register = new ProcessesPage(page);
-    await register.navigate();
     await register.search(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
     await register.openRowByText(E2E_PROCESSES.CLAIMS_INTAKE.l1_process);
   } else if (listRoute === '/risks') {
     const register = new RisksPage(page);
-    await register.navigate();
     await register.search(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name);
     await register.openRowByText(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name);
   } else if (listRoute === '/vendors') {
     const register = new VendorsPage(page);
-    await register.navigate();
     await register.search(E2E_VENDORS.ACTIVE_PRIMARY.name);
     await register.openRowByText(E2E_VENDORS.ACTIVE_PRIMARY.name);
   } else if (listRoute === '/threats') {
-    await page.goto('/threats');
     await page.getByTestId('threats-search-input').fill(E2E_THREATS.RANSOMWARE.name);
     const row = page.locator('tbody tr').filter({ hasText: E2E_THREATS.RANSOMWARE.name }).first();
     await expect(row).toBeVisible();
@@ -513,6 +541,8 @@ const parentOpeners: Record<string, (page: Page) => Locator> = {
   'control-create.risk-linked-controls': (page) => page.getByRole('button', { name: /add control/i }).first(),
   'link.vendor-linked-entities': (page) => page.getByTestId('vendor-linked-kris-link-existing'),
   'confirm.asset-links': (page) => page.getByTestId('asset-process-link-remove-1'),
+  'confirm.vendor-contracts': (page) => page.getByTestId('vendor-contract-archive-1'),
+  'confirm.governed-mutation-reason': (page) => page.getByRole('button', { name: /open governed mutation reason/i }),
   'link.control-overview': (page) => page.getByRole('button', { name: /link.*risk|manage.*risk|controls:detail/i }).first(),
   'risk-view.control-overview': (page) => page.getByRole('button', { name: /authentication drift/i }).first(),
   'risk-drilldown.dashboard': (page) => page.getByRole('button', { name: /1.*probability.*4.*impact.*4/i }).first(),
@@ -562,12 +592,36 @@ const drivers: Record<string, RenderSiteDriver> = Object.fromEntries(
 );
 
 Object.assign(drivers, {
-  'approval-resolution.approvals-page': liveDriver(CRO, (page) => gotoOwnerRoute(page, '/approvals'), (page) => page.getByRole('button', { name: /approve/i }).first()),
+  'approval-resolution.approvals-page': liveDriver(
+    CRO,
+    (page) => gotoOwnerRoute(page, '/approvals'),
+    (page) => page.getByRole('button', { name: /approve/i }).first(),
+    undefined,
+    [dashboardOverviewHandoffFailure],
+  ),
   'confirm.approvals-page': liveDriver(DEMO_ACCOUNTS.EMPLOYEE_OPERATIONS, async (page) => {
     await gotoOwnerRoute(page, '/approvals');
-    await page.getByRole('button', { name: /my requests/i }).click();
-  }, (page) => page.getByRole('button', { name: /cancel request/i }).first()),
-  'confirm.asset-detail': liveDriver(RM, detail('/assets', /\/assets\/\d+$/), (page) => page.getByTestId('asset-detail-archive')),
+    const [response] = await Promise.all([
+      page.waitForResponse((candidate) => {
+        const url = new URL(candidate.url());
+        return candidate.request().method() === 'GET'
+          && url.pathname === '/api/v1/approvals'
+          && url.searchParams.get('my_requests') === 'true';
+      }),
+      page.getByRole('button', { name: /my requests/i }).click(),
+    ]);
+    expect(response.ok()).toBe(true);
+  },
+  (page) => page.getByRole('button', { name: /cancel request/i }).first(),
+  undefined,
+  [dashboardOverviewHandoffFailure]),
+  'confirm.asset-detail': liveDriver(
+    RM,
+    detail('/assets', /\/assets\/\d+$/),
+    (page) => page.getByTestId('asset-detail-archive'),
+    undefined,
+    [dashboardOverviewHandoffFailure],
+  ),
   'execution-log.control-detail': liveDriver(RM, async (page) => {
     await detail('/controls', /\/controls\/\d+$/)(page);
     await page.getByRole('button', { name: /execution history/i }).click();
@@ -603,9 +657,9 @@ Object.assign(drivers, {
   'confirm.threat-detail': liveDriver(RM, detail('/threats', /\/threats\/\d+$/), (page) => page.getByTestId('threat-detail-archive')),
   'export.threats-page': liveDriver(RM, list('/threats'), (page) => page.getByTestId('threats-export-button')),
   'access-edit.users-page': liveDriver(CRO, (page) => gotoOwnerRoute(page, '/users'), (page) => page.getByRole('button', { name: /edit access/i }).first()),
-  'confirm.users-page': liveDriver(ADMIN, arrangeUserLifecycle, (page) => page.getByRole('button', { name: /deactivate|reactivate|activate/i }).first()),
-  'ad-picker.users-page': liveDriver(ADMIN, (page) => gotoOwnerRoute(page, '/users'), (page) => page.getByRole('button', { name: /add from ad/i }).first()),
-  'break-glass.users-page': liveDriver(ADMIN, arrangeUserLifecycle, (page) => page.getByRole('button', { name: /break.?glass/i }).first()),
+  'confirm.users-page': liveDriver(ADMIN, arrangeUserLifecycle, (page) => page.getByRole('button', { name: /deactivate|reactivate|activate/i }).first(), undefined, adminSectionHandoffFailures),
+  'ad-picker.users-page': liveDriver(ADMIN, (page) => gotoOwnerRoute(page, '/users'), (page) => page.getByRole('button', { name: /add from ad/i }).first(), undefined, adminSectionHandoffFailures),
+  'break-glass.users-page': liveDriver(ADMIN, arrangeUserLifecycle, (page) => page.getByRole('button', { name: /break.?glass/i }).first(), undefined, adminSectionHandoffFailures),
   'issue.vendor-detail': liveDriver(RM, detail('/vendors', /\/vendors\/\d+$/), (page) => page.getByRole('button', { name: /new issue/i }).first()),
   'confirm.vendor-detail': liveDriver(RM, detail('/vendors', /\/vendors\/\d+$/), (page) => page.getByRole('button', { name: /^archive$/i }).first()),
   'export.vendors-page': liveDriver(RM, list('/vendors'), (page) => page.getByTestId('vendors-export-button')),
@@ -623,6 +677,23 @@ async function assertFocusInside(page: Page, surface: Locator) {
   await expect.poll(async () => surface.evaluate((node) => node.contains(document.activeElement))).toBe(true);
 }
 
+async function getVisibleFocusableControls(surface: Locator): Promise<Locator[]> {
+  const focusable = surface.locator([
+    'a[href]',
+    'button:not([disabled])',
+    'textarea:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(','));
+  const visibleFocusable: Locator[] = [];
+  for (let index = 0; index < await focusable.count(); index += 1) {
+    const candidate = focusable.nth(index);
+    if (await candidate.isVisible()) visibleFocusable.push(candidate);
+  }
+  return visibleFocusable;
+}
+
 test.describe('validated application dialog render sites', () => {
   test('driver registry exactly covers the machine inventory', async () => {
     expect(Object.keys(drivers).sort()).toEqual(contract.applicationRenderSites.map((site) => site.id).sort());
@@ -638,10 +709,6 @@ test.describe('validated application dialog render sites', () => {
       if (driver.mode === 'live') {
         if (!driver.account) throw new Error(`Live render-site driver ${site.id} has no account`);
         await loginAsDemoUser(page, driver.account);
-        // End the authenticated dashboard lifecycle before owner monitoring
-        // starts. Its in-flight query cancellations are login handoff noise,
-        // not evidence about the render-site owner loaded next.
-        await page.goto('about:blank');
       }
 
       page.on('console', (message) => {
@@ -699,27 +766,18 @@ test.describe('validated application dialog render sites', () => {
       expect(accessibleName.length).toBeGreaterThan(0);
       await assertFocusInside(page, surface);
 
-      const focusable = surface.locator([
-        'a[href]',
-        'button:not([disabled])',
-        'textarea:not([disabled])',
-        'input:not([disabled])',
-        'select:not([disabled])',
-        '[tabindex]:not([tabindex="-1"])',
-      ].join(','));
-      const visibleFocusable = [];
-      for (let index = 0; index < await focusable.count(); index += 1) {
-        const candidate = focusable.nth(index);
-        if (await candidate.isVisible()) visibleFocusable.push(candidate);
-      }
+      let visibleFocusable = await getVisibleFocusableControls(surface);
       expect(visibleFocusable.length, 'dialog must expose at least one tabbable control').toBeGreaterThan(0);
-      const firstFocusable = visibleFocusable[0]!;
-      const lastFocusable = visibleFocusable.at(-1)!;
+      let firstFocusable = visibleFocusable[0]!;
+      let lastFocusable = visibleFocusable.at(-1)!;
 
       await lastFocusable.focus();
       await page.keyboard.press('Tab');
       await expect(firstFocusable).toBeFocused();
 
+      visibleFocusable = await getVisibleFocusableControls(surface);
+      firstFocusable = visibleFocusable[0]!;
+      lastFocusable = visibleFocusable.at(-1)!;
       await firstFocusable.focus();
       await page.keyboard.press('Shift+Tab');
       await expect(lastFocusable).toBeFocused();

@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/auth.fixture';
-import { E2E_RISKS } from './fixtures/e2e-data';
+import { readFile } from 'node:fs/promises';
+import { E2E_RISKS, E2E_VENDORS } from './fixtures/e2e-data';
 import { ensureRiskStatus, ensureVendorArchived, getRiskByCode, linkVendorToRisk } from './helpers/api-auth';
 import { RisksPage } from './pages/RisksPage';
 import { waitForDataLoad, waitForTableRowByText } from './helpers/wait';
@@ -13,7 +14,14 @@ function todayLocalIso(): string {
 test.describe('Risk Management (Deterministic)', () => {
     test('Export dialog explicitly produces a mature point-in-time snapshot', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
-        await risksPage.navigate();
+        await Promise.all([
+            riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'GET'
+                && new URL(response.url()).pathname === '/api/v1/risks'
+                && response.status() === 200
+            )),
+            risksPage.navigate(),
+        ]);
 
         await expect(riskManagerPage.getByTestId('risks-export-button')).toHaveCount(1);
         await risksPage.openExportDialog();
@@ -23,13 +31,16 @@ test.describe('Risk Management (Deterministic)', () => {
         const asOfDate = todayLocalIso();
         await expect(risksPage.exportDateInput).toHaveValue(asOfDate);
         // Export dialog is CSV-only; format chooser is intentionally absent.
-        const response = await risksPage.submitPointInTimeExport('csv');
+        const { response, download } = await risksPage.submitPointInTimeExport('csv');
         const exportUrl = new URL(response.url());
         expect(exportUrl.pathname).toBe('/api/v1/reports/risks/export');
         expect(exportUrl.searchParams.get('format')).toBe('csv');
         expect(exportUrl.searchParams.get('as_of_date')).toBe(asOfDate);
+        expect(response.ok()).toBe(true);
         expect(response.headers()['content-type']).toContain('text/csv');
-        const [header] = (await response.text()).split(/\r?\n/, 1);
+        const downloadPath = await download.path();
+        expect(downloadPath).not.toBeNull();
+        const [header] = (await readFile(downloadPath!, 'utf8')).split(/\r?\n/, 1);
         expect(header).toBe('Risk ID,Name,Process,Category,Type,Gross Score,Net Score,Status,Priority,Owner,Department,Controls,KRIs');
         await expect(risksPage.exportDialog).not.toBeVisible();
     });
@@ -105,7 +116,7 @@ test.describe('Risk Management (Deterministic)', () => {
     });
 
     test('Risk register groups linked risks by vendor', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorArchived('E2E-VREG-001', false);
+        const vendorId = await ensureVendorArchived(E2E_VENDORS.NONPROTECTED_DIRECT.registration_id, false);
         await ensureRiskStatus(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code, 'active');
         const risk = await getRiskByCode(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code);
         expect(risk).not.toBeNull();
@@ -116,7 +127,7 @@ test.describe('Risk Management (Deterministic)', () => {
         await risksPage.search(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name);
 
         await riskManagerPage.getByRole('button', { name: /By Vendor|Podle dodavatele/i }).click();
-        await riskManagerPage.getByRole('button', { name: /E2E-VENDOR-001 Claims Cloud Platform/i }).click();
+        await riskManagerPage.getByRole('button', { name: E2E_VENDORS.NONPROTECTED_DIRECT.name }).click();
 
         await expect(riskManagerPage.getByText(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name).first()).toBeVisible({
             timeout: 15000,

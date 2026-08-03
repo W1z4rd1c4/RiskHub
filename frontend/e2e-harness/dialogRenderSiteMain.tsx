@@ -7,6 +7,7 @@ import '@/index.css';
 import '@/i18n';
 
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
+import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { KRIFormContainer } from '@/components/kri-form/KRIFormContainer';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
@@ -23,6 +24,7 @@ import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AssetLinkSections } from '@/pages/assets/AssetLinkSections';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
+import { VendorContractsSection } from '@/pages/vendors/VendorContractsSection';
 import { DashboardRiskSections } from '@/pages/dashboard/DashboardRiskSections';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import type { Asset } from '@/types/asset';
@@ -269,6 +271,21 @@ function ContextualIssueOwner() {
   );
 }
 
+function GovernedMutationReasonOwner() {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setIsOpen(true)}>Open governed mutation reason</button>
+      <GovernedMutationReasonDialog
+        isOpen={isOpen}
+        kind="link_remove"
+        onClose={() => setIsOpen(false)}
+        onConfirm={() => setIsOpen(false)}
+      />
+    </>
+  );
+}
+
 function OwnerSurface({ siteId }: { siteId: string }) {
   switch (siteId) {
     case 'confirm.link-management': return <LinkManagementOwner />;
@@ -282,10 +299,14 @@ function OwnerSurface({ siteId }: { siteId: string }) {
     case 'control-create.risk-linked-controls': return <RiskLinkedControlsOwner />;
     case 'link.vendor-linked-entities': return <VendorLinkedOwner />;
     case 'confirm.asset-links': return <AssetLinkSections asset={assetFixture} canManageLinks />;
+    case 'confirm.vendor-contracts': return (
+      <VendorContractsSection vendorId={1} canManageContracts protectedChangeRequiresApproval />
+    );
     case 'link.control-overview':
     case 'risk-view.control-overview': return <ControlOverviewOwner />;
     case 'risk-drilldown.dashboard': return <DashboardOwner />;
     case 'issue.contextual-action': return <ContextualIssueOwner />;
+    case 'confirm.governed-mutation-reason': return <GovernedMutationReasonOwner />;
     case 'inline.departments-delete':
     case 'frame.departments': return <DepartmentsPanel />;
     case 'inline.risk-types-delete':

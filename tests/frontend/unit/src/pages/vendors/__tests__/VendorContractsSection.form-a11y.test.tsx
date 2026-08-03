@@ -6,7 +6,7 @@
  * error contract lives in VendorContractsSection.error-contract.test.tsx.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import * as axe from 'axe-core';
@@ -14,13 +14,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetContracts = vi.fn();
 const mockGetClosedLists = vi.fn();
+const mockCreateContract = vi.fn();
+const mockArchiveContract = vi.fn();
 
 vi.mock('@/services/vendorContractApi', () => ({
     vendorContractApi: {
         getContracts: (...args: unknown[]) => mockGetContracts(...args),
-        createContract: vi.fn(),
+        createContract: (...args: unknown[]) => mockCreateContract(...args),
         updateContract: vi.fn(),
-        archiveContract: vi.fn(),
+        archiveContract: (...args: unknown[]) => mockArchiveContract(...args),
         restoreContract: vi.fn(),
     },
 }));
@@ -51,7 +53,11 @@ function renderSection() {
     return render(
         <QueryClientProvider client={client}>
             <MemoryRouter>
-                <VendorContractsSection vendorId={1} canManageContracts />
+                <VendorContractsSection
+                    vendorId={1}
+                    canManageContracts
+                    protectedChangeRequiresApproval
+                />
             </MemoryRouter>
         </QueryClientProvider>,
     );
@@ -66,6 +72,8 @@ beforeEach(() => {
     vi.clearAllMocks();
     mockGetContracts.mockResolvedValue([]);
     mockGetClosedLists.mockResolvedValue({});
+    mockCreateContract.mockResolvedValue({ id: 1 });
+    mockArchiveContract.mockResolvedValue(undefined);
 });
 
 afterEach(async () => {
@@ -106,5 +114,63 @@ describe('VendorContractsSection form — Field migration (#59)', () => {
         await openForm(user);
 
         await expectNoAxeViolations(container);
+    });
+
+    it('rejects a blank governed create reason locally with an accessible field error', async () => {
+        const user = userEvent.setup();
+        renderSection();
+        const form = await openForm(user);
+
+        await user.click(screen.getByTestId('vendor-contract-form-save'));
+
+        const reason = screen.getByTestId('vendor-contract-request-reason');
+        expect(reason).toHaveAttribute('aria-invalid', 'true');
+        expect(reason).toHaveAccessibleDescription(
+            new RegExp(i18n.t('vendors:errors.request_reason_required')),
+        );
+        expect(mockCreateContract).not.toHaveBeenCalled();
+        expect(form).toBeInTheDocument();
+    });
+
+    it('collects a governed archive reason before invoking the archive seam', async () => {
+        mockGetContracts.mockResolvedValue([
+            {
+                id: 7,
+                vendor_id: 1,
+                contract_reference: 'GOV-CTR-7',
+                is_archived: false,
+                capabilities: {
+                    can_read: true,
+                    can_update: true,
+                    can_archive: true,
+                    can_restore: false,
+                },
+                created_at: '2026-01-01T00:00:00Z',
+                updated_at: '2026-01-01T00:00:00Z',
+            },
+        ]);
+        const user = userEvent.setup();
+        renderSection();
+
+        await user.click(await screen.findByTestId('vendor-contract-archive-7'));
+        const dialog = screen.getByRole('alertdialog');
+        const confirm = within(dialog).getByRole('button', {
+            name: i18n.t('vendors:contracts.actions.archive'),
+        });
+        expect(confirm).toBeDisabled();
+
+        await user.type(
+            within(dialog).getByRole('textbox', {
+                name: new RegExp(i18n.t('vendors:form.request_reason')),
+            }),
+            '  Review governed Contract archive  ',
+        );
+        await user.click(confirm);
+
+        await waitFor(() => expect(mockArchiveContract).toHaveBeenCalledWith(
+            1,
+            7,
+            'Review governed Contract archive',
+        ));
     });
 });

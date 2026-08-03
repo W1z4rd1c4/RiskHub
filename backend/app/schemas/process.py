@@ -178,6 +178,14 @@ class ProcessPendingRelationshipDerivedProcess(BaseModel):
 
 class ProcessPendingRelationshipDerivedImpact(BaseModel):
     processes: list[ProcessPendingRelationshipDerivedProcess]
+    assets: list[ProcessPendingRelationshipDerivedProcess] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
+    vendors: list[ProcessPendingRelationshipDerivedProcess] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
 
 
 class ProcessPendingChange(BaseModel):

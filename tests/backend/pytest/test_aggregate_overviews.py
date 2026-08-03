@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 
 import pytest
@@ -383,6 +384,56 @@ async def test_shell_summary_degrades_when_questionnaire_inbox_has_bad_data_shap
 
     assert response.status_code == 200
     assert response.json()["questionnaire_inbox_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_shell_summary_coalesces_concurrent_cache_misses_without_blocking_other_user_api(
+    client_factory,
+    monkeypatch: pytest.MonkeyPatch,
+    test_user_employee: User,
+):
+    from app.api.v1.endpoints.users import summary as users_summary_module
+
+    count_started = asyncio.Event()
+    release_count = asyncio.Event()
+    count_calls = 0
+
+    async def delayed_unread_count(_db, _current_user):
+        nonlocal count_calls
+        count_calls += 1
+        count_started.set()
+        await release_count.wait()
+        return 7
+
+    async def zero_count(_db, _current_user):
+        return 0
+
+    monkeypatch.setattr(
+        users_summary_module,
+        "count_visible_unread_notifications",
+        delayed_unread_count,
+    )
+    monkeypatch.setattr(users_summary_module, "_count_pending_approvals", zero_count)
+    monkeypatch.setattr(users_summary_module, "_count_questionnaire_inbox", zero_count)
+
+    async with client_factory(current_user=test_user_employee) as concurrent_client:
+        shell_requests = [
+            asyncio.create_task(concurrent_client.get("/api/v1/users/me/shell-summary"))
+            for _ in range(16)
+        ]
+        await asyncio.wait_for(count_started.wait(), timeout=1)
+
+        capabilities = await asyncio.wait_for(
+            concurrent_client.get("/api/v1/auth/me/capabilities"),
+            timeout=1,
+        )
+        release_count.set()
+        responses = await asyncio.gather(*shell_requests)
+
+    assert capabilities.status_code == 200
+    assert all(response.status_code == 200 for response in responses)
+    assert all(response.json()["unread_notifications_count"] == 7 for response in responses)
+    assert count_calls == 1
 
 
 @pytest.mark.asyncio

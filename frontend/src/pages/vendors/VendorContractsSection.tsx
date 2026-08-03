@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, Save, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { SortableTable } from '@/components/tables';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TableErrorState, resolveTableErrorContract } from '@/components/tables/tableError';
 import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -12,12 +14,15 @@ import { assetApi } from '@/services/assetApi';
 import { logError } from '@/services/logger';
 import { vendorContractApi } from '@/services/vendorContractApi';
 import type { VendorContract } from '@/types/vendorContract';
+import { isProcessApprovalQueuedResponse } from '@/types/process';
+import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
 
 import { buildVendorContractColumns, buildVendorContractPayload } from './vendorContractsPresentation';
 
 interface VendorContractsSectionProps {
     vendorId: number;
     canManageContracts: boolean;
+    protectedChangeRequiresApproval: boolean;
 }
 
 type ContractFormFields = {
@@ -82,13 +87,21 @@ function toNullableNumber(value: string): number | null {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function VendorContractsSection({ vendorId, canManageContracts }: VendorContractsSectionProps) {
+export function VendorContractsSection({
+    vendorId,
+    canManageContracts,
+    protectedChangeRequiresApproval,
+}: VendorContractsSectionProps) {
     const { t, i18n } = useTranslation('vendors');
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
 
     const [formOpen, setFormOpen] = useState(false);
     const [editingContract, setEditingContract] = useState<VendorContract | null>(null);
     const [fields, setFields] = useState<ContractFormFields>(() => initialContractFields());
+    const [requestReason, setRequestReason] = useState('');
+    const [requestReasonError, setRequestReasonError] = useState<string | null>(null);
+    const [pendingArchive, setPendingArchive] = useState<VendorContract | null>(null);
     const [sectionError, setSectionError] = useState<string | null>(null);
 
     const contractsQuery = useQuery({
@@ -126,22 +139,28 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
         setFormOpen(false);
         setEditingContract(null);
         setFields(initialContractFields());
+        setRequestReason('');
+        setRequestReasonError(null);
     };
 
     const openCreateForm = () => {
         setEditingContract(null);
         setFields(initialContractFields());
+        setRequestReason('');
+        setRequestReasonError(null);
         setFormOpen(true);
     };
 
     const openEditForm = (contract: VendorContract) => {
         setEditingContract(contract);
         setFields(initialContractFields(contract));
+        setRequestReason('');
+        setRequestReasonError(null);
         setFormOpen(true);
     };
 
-    const buildPayload = () =>
-        buildVendorContractPayload({
+    const buildPayload = () => ({
+        ...buildVendorContractPayload({
             contract_reference: fields.contract_reference,
             internal_contract_number: fields.internal_contract_number,
             records_system: fields.records_system,
@@ -158,25 +177,37 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
             annual_cost: toNullableNumber(fields.annual_cost),
             currency: fields.currency,
             note: fields.note,
-        });
+        }),
+        ...(requestReason.trim() ? { request_reason: requestReason.trim() } : {}),
+    });
 
     const saveContract = useMutation({
         mutationFn: () =>
             editingContract
                 ? vendorContractApi.updateContract(vendorId, editingContract.id, buildPayload())
                 : vendorContractApi.createContract(vendorId, buildPayload()),
-        onSuccess: async () => {
+        onSuccess: async (result) => {
             setSectionError(null);
             closeForm();
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             await refreshContracts();
         },
         onError: handleMutationError,
     });
 
     const archiveContract = useMutation({
-        mutationFn: (contract: VendorContract) => vendorContractApi.archiveContract(vendorId, contract.id),
-        onSuccess: async () => {
+        mutationFn: ({ contract, reason }: { contract: VendorContract; reason: string }) =>
+            vendorContractApi.archiveContract(vendorId, contract.id, reason),
+        onSuccess: async (result) => {
             setSectionError(null);
+            setPendingArchive(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             await refreshContracts();
         },
         onError: handleMutationError,
@@ -198,7 +229,13 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
         t: (key, options) => t(key, options),
         locale: i18n.language,
         onEdit: openEditForm,
-        onArchive: (contract) => archiveContract.mutate(contract),
+        onArchive: (contract) => {
+            if (protectedChangeRequiresApproval) {
+                setPendingArchive(contract);
+                return;
+            }
+            archiveContract.mutate({ contract, reason: '' });
+        },
         onRestore: (contract) => restoreContract.mutate(contract),
     });
 
@@ -284,6 +321,11 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
                     className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5"
                     onSubmit={(event) => {
                         event.preventDefault();
+                        if (protectedChangeRequiresApproval && !requestReason.trim()) {
+                            setRequestReasonError(t('errors.request_reason_required'));
+                            return;
+                        }
+                        setRequestReasonError(null);
                         saveContract.mutate();
                     }}
                 >
@@ -447,6 +489,31 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
                             />
                         )}
                     </Field>
+                    {protectedChangeRequiresApproval ? (
+                        <Field
+                            label={t('form.request_reason')}
+                            required
+                            help={t('form.request_reason_help')}
+                            error={requestReasonError}
+                            labelClassName="vendor-label"
+                            className="vendor-field space-y-0"
+                        >
+                            {(control) => (
+                                <textarea
+                                    {...control}
+                                    data-testid="vendor-contract-request-reason"
+                                    value={requestReason}
+                                    onChange={(event) => {
+                                        setRequestReason(event.target.value);
+                                        setRequestReasonError(null);
+                                    }}
+                                    rows={2}
+                                    required
+                                    className={contractInputClass}
+                                />
+                            )}
+                        </Field>
+                    ) : null}
                     <div className="flex items-center justify-end gap-3">
                         <button
                             type="button"
@@ -514,6 +581,27 @@ export function VendorContractsSection({ vendorId, canManageContracts }: VendorC
                     </div>
                 </section>
             ) : null}
+
+            <ConfirmDialog
+                isOpen={pendingArchive !== null}
+                onClose={() => setPendingArchive(null)}
+                onConfirm={(reason) => {
+                    if (pendingArchive && reason?.trim()) {
+                        archiveContract.mutate({ contract: pendingArchive, reason: reason.trim() });
+                    }
+                }}
+                title={t('contracts.actions.archive')}
+                message={t('contracts.archive_confirm', {
+                    reference: pendingArchive?.contract_reference ?? '—',
+                })}
+                confirmLabel={t('contracts.actions.archive')}
+                variant="danger"
+                isLoading={archiveContract.isPending}
+                showInput
+                inputRequired
+                inputLabel={t('form.request_reason')}
+                inputPlaceholder={t('form.request_reason_help')}
+            />
         </div>
     );
 }

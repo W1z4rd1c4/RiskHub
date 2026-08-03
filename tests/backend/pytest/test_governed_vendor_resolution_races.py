@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from app.models import ApprovalScenario, GlobalConfig, User
-from app.models.user import AccessScope
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.models import ApprovalScenario, GlobalConfig, User
+from app.models.user import AccessScope
 
 
 @pytest.mark.postgres

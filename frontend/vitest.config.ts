@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 const testRoot = path.resolve(__dirname, '../tests/frontend/unit');
+const frontendTestRoot = path.resolve(__dirname, '../tests/frontend');
 const frontendProbeImporter = path.resolve(__dirname, 'src/main.tsx');
 const forwardedExternalTestImports = new Set([
   'react',
@@ -14,6 +15,7 @@ const forwardedExternalTestImports = new Set([
   '@tanstack/react-query',
   '@testing-library/react',
   '@testing-library/user-event',
+  '@playwright/test',
   'axe-core',
   'msw',
   'msw/node',
@@ -27,7 +29,7 @@ function externalTestPackageResolver() {
       if (!importer) {
         return null;
       }
-      if (!importer.startsWith(testRoot)) {
+      if (!importer.startsWith(frontendTestRoot)) {
         return null;
       }
       if (!forwardedExternalTestImports.has(source)) {

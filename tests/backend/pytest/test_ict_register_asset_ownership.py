@@ -12,13 +12,13 @@ from app.core.datetime_utils import utc_now
 from app.core.exceptions import ConflictError
 from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_keys
 from app.models import (
-    Asset,
-    AssetAssetLink,
-    AssetVendorLink,
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
     ApprovalStatus,
+    Asset,
+    AssetAssetLink,
+    AssetVendorLink,
     Department,
     GovernedMutationImpactLock,
     GovernedMutationProposal,

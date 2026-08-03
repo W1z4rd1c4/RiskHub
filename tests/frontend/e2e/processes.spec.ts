@@ -273,7 +273,18 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await riskManagerPage.waitForURL(new RegExp(`/processes/${created.id}$`));
         // Hard reload: the SPA detail cache holds the pre-edit copy for up to
         // 30s (DETAIL_QUERY_STALE_TIME_MS); a fresh document proves persistence.
+        const persistedProcessResponse = riskManagerPage.waitForResponse((response) => {
+            const request = response.request();
+            return (
+                request.method() === 'GET' &&
+                new URL(response.url()).pathname === `/api/v1/processes/${created.id}` &&
+                response.status() === 200
+            );
+        });
         await riskManagerPage.goto(`/processes/${created.id}`);
+        const persistedResponse = await persistedProcessResponse;
+        await persistedResponse.finished();
+        await expect(riskManagerPage.getByTestId('process-detail-back')).toBeVisible();
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.getByText(CRITICALITY_LABELS.medium).first()).toBeVisible();
         // The stable F-code survives the edit untouched.

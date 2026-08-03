@@ -27,10 +27,10 @@ from app.models import (
     Vendor,
 )
 from app.models.user import AccessScope
-from app.services._orphaned_items import flag_orphaned_items
 from app.services._governed_mutations.asset_identity import (
     valid_asset_governed_envelope,
 )
+from app.services._orphaned_items import flag_orphaned_items
 
 
 async def _accountability_scenario(

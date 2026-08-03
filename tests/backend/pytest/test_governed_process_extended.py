@@ -18,6 +18,7 @@ from app.models import (
     ApprovalScenario,
     ApprovalStatus,
     Asset,
+    AssetVendorLink,
     Department,
     GlobalConfig,
     GovernedMutationImpactLock,
@@ -29,6 +30,7 @@ from app.models import (
     Process,
     ProcessAssetLink,
     User,
+    Vendor,
 )
 from app.models.activity_log import ActivityAction, ActivityEntityType, ActivityLog
 from app.models.user import AccessScope
@@ -57,6 +59,15 @@ async def _scenario(db: AsyncSession) -> None:
             approver_roles=["risk_manager", "cro"],
         )
     )
+    db.add(
+        ApprovalScenario(
+            key="protected_vendor_edit",
+            display_name="Protected Vendor mutations",
+            description="Independent approval for protected Vendor mutations",
+            requires_approval=True,
+            approver_roles=["risk_manager", "cro"],
+        )
+    )
     await db.commit()
 
 
@@ -78,6 +89,104 @@ async def _scoped_cro_reviewer(db: AsyncSession, source: User) -> User:
             .where(User.id == reviewer.id)
         )
     ).scalar_one()
+
+
+@pytest.mark.asyncio
+async def test_composite_process_edit_projects_valid_pending_detail(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+) -> None:
+    del test_user_risk_manager
+    other_department = Department(
+        name="Composite pending restricted department",
+        code="W4-PENDING-RESTRICTED",
+    )
+    db_session.add(other_department)
+    await db_session.flush()
+    process = Process(
+        f_code="F-W4-PENDING",
+        l0_area="Operations",
+        l1_process="Composite pending projection",
+        process_owner_user_id=test_user_cro.id,
+        owning_department_id=test_user_cro.department_id,
+        preliminary_criticality="low",
+        cif_override="no",
+    )
+    asset = Asset(
+        name="Composite pending Asset",
+        business_owner_user_id=test_user_cro.id,
+        ict_owner_user_id=test_user_cro.id,
+        owning_department_id=other_department.id,
+        preliminary_criticality="low",
+    )
+    vendor = Vendor(
+        name="Composite pending Vendor",
+        process="Operations",
+        outsourcing_owner_user_id=test_user_cro.id,
+        department_id=other_department.id,
+        replaceability="easily_substitutable",
+    )
+    db_session.add_all([process, asset, vendor])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ProcessAssetLink(process_id=process.id, asset_id=asset.id, is_primary=True),
+            AssetVendorLink(asset_id=asset.id, vendor_id=vendor.id, ict_service_code="S01"),
+        ]
+    )
+    await db_session.commit()
+    await _scenario(db_session)
+
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.patch(
+            f"/api/v1/processes/{process.id}",
+            json={
+                "preliminary_criticality": "critical",
+                "cif_override": "yes",
+                "request_reason": "Review composite pending projection",
+            },
+        )
+        detail = await requester.get(f"/api/v1/processes/{process.id}")
+
+    assert submitted.status_code == 202, submitted.text
+    assert detail.status_code == 200, detail.text
+    pending = detail.json()["pending_change"]
+    assert pending["derived_impact"]["processes"] == [
+        {
+            "resource_name": "F-W4-PENDING — Composite pending projection",
+            "before": {"cif": "no", "criticality_class": "low"},
+            "after": {"cif": "yes", "criticality_class": "critical"},
+        }
+    ]
+    assert pending["derived_impact"]["assets"] == [
+        {
+            "resource_name": "Composite pending Asset",
+            "before": {"cif": "no", "resulting_criticality": "low"},
+            "after": {"cif": "yes", "resulting_criticality": "critical"},
+        }
+    ]
+    assert pending["derived_impact"]["vendors"] == [
+        {
+            "resource_name": "Composite pending Vendor",
+            "before": {"tier": "standard"},
+            "after": {"tier": "critical"},
+        }
+    ]
+    assert "resource_id" not in json.dumps(pending["derived_impact"])
+
+    scoped_reviewer = await _scoped_cro_reviewer(db_session, test_user_cro)
+    async with client_factory(user=scoped_reviewer) as reviewer:
+        scoped_detail = await reviewer.get(f"/api/v1/processes/{process.id}")
+    assert scoped_detail.status_code == 200, scoped_detail.text
+    scoped_impact = scoped_detail.json()["pending_change"]["derived_impact"]
+    assert scoped_impact["processes"][0]["resource_name"] == (
+        "F-W4-PENDING — Composite pending projection"
+    )
+    assert scoped_impact["assets"][0]["resource_name"] == "Restricted Asset"
+    assert scoped_impact["vendors"][0]["resource_name"] == "Restricted Vendor"
+    assert "resource_id" not in json.dumps(scoped_impact)
 
 
 def _payload(owner: User, department_id: int, **extra):

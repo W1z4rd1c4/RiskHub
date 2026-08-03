@@ -7,7 +7,7 @@
  * closed-lists fetch (C4) so a dropped request is not a silent empty dropdown.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import * as axe from 'axe-core';
@@ -111,12 +111,12 @@ beforeEach(() => {
     mockGetAssetDepartments.mockResolvedValue([{ id: 4, name: 'Operations', code: 'OPS' }]);
 });
 
-async function fillRequiredOwnership(user: ReturnType<typeof userEvent.setup>) {
+async function fillRequiredOwnership() {
     await waitFor(() => expect(mockGetAssetOwners).toHaveBeenCalledTimes(2));
-    await user.click(screen.getByTestId('asset-form-business-owner'));
-    await user.click(await screen.findByRole('option', { name: /Alex Owner/ }));
-    await user.click(screen.getByTestId('asset-form-ict-owner'));
-    await user.click(await screen.findByRole('option', { name: /Alex Owner/ }));
+    fireEvent.click(screen.getByTestId('asset-form-business-owner'));
+    fireEvent.click(await screen.findByRole('option', { name: /Alex Owner/ }));
+    fireEvent.click(screen.getByTestId('asset-form-ict-owner'));
+    fireEvent.click(await screen.findByRole('option', { name: /Alex Owner/ }));
 }
 
 afterEach(async () => {
@@ -153,7 +153,7 @@ describe('AssetForm — Field migration + validation (#59)', () => {
         const { onSaved } = await renderForm();
 
         await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Payroll DB');
-        await fillRequiredOwnership(user);
+        await fillRequiredOwnership();
         await user.click(screen.getByTestId('asset-form-submit'));
 
         await waitFor(() => expect(mockCreateAsset).toHaveBeenCalledTimes(1));
@@ -167,13 +167,14 @@ describe('AssetForm — Field migration + validation (#59)', () => {
     });
 
     it('surfaces the save-failed banner when the request rejects', async () => {
-        const user = userEvent.setup();
         mockCreateAsset.mockRejectedValue(new Error('boom'));
         await renderForm();
 
-        await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Payroll DB');
-        await fillRequiredOwnership(user);
-        await user.click(screen.getByTestId('asset-form-submit'));
+        fireEvent.change(screen.getByRole('textbox', { name: nameLabel() }), {
+            target: { value: 'Payroll DB' },
+        });
+        await fillRequiredOwnership();
+        fireEvent.click(screen.getByTestId('asset-form-submit'));
 
         expect(await screen.findByText(i18n.t('assets:form.errors.save_failed'))).toBeInTheDocument();
     });
@@ -234,23 +235,24 @@ describe('AssetForm — ownership acceptance (#75)', () => {
     });
 
     it('keeps the Business Owner Department when ICT Owner changes and submits the selected ownership', async () => {
-        const user = userEvent.setup();
         mockCreateAsset.mockResolvedValue({ id: 75, name: 'Cross-department service' });
         await renderForm();
-        await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Cross-department service');
+        fireEvent.change(screen.getByRole('textbox', { name: nameLabel() }), {
+            target: { value: 'Cross-department service' },
+        });
 
         const department = screen.getByTestId('asset-form-owner-department');
-        await user.click(screen.getByTestId('asset-form-business-owner'));
-        await user.click(await screen.findByRole('option', { name: /Alex Owner.*Operations/ }));
+        fireEvent.click(screen.getByTestId('asset-form-business-owner'));
+        fireEvent.click(await screen.findByRole('option', { name: /Alex Owner.*Operations/ }));
         expect(department).toHaveTextContent('Operations (OPS)');
 
-        await user.click(screen.getByTestId('asset-form-ict-owner'));
+        fireEvent.click(screen.getByTestId('asset-form-ict-owner'));
         const financeOwner = await screen.findByRole('option', { name: /Casey Owner.*Finance/ });
         expect(financeOwner).toHaveTextContent('Finance');
-        await user.click(financeOwner);
+        fireEvent.click(financeOwner);
         expect(department).toHaveTextContent('Operations (OPS)');
 
-        await user.click(screen.getByTestId('asset-form-submit'));
+        fireEvent.click(screen.getByTestId('asset-form-submit'));
         await waitFor(() => expect(mockCreateAsset).toHaveBeenCalledTimes(1));
         expect(mockCreateAsset).toHaveBeenCalledWith(expect.objectContaining({
             business_owner_user_id: 11,
@@ -260,34 +262,40 @@ describe('AssetForm — ownership acceptance (#75)', () => {
     });
 
     it('preserves a manually selected Department across Business Owner changes', async () => {
-        const user = userEvent.setup();
         mockCreateAsset.mockResolvedValue({ id: 76, name: 'Manual-department service' });
         await renderForm();
-        await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Manual-department service');
+        fireEvent.change(screen.getByRole('textbox', { name: nameLabel() }), {
+            target: { value: 'Manual-department service' },
+        });
 
         const department = screen.getByTestId('asset-form-owner-department');
-        await user.click(department);
-        await user.click(await screen.findByRole('option', { name: 'Finance (FIN)' }));
+        await waitFor(() => expect(department).toBeEnabled());
+        fireEvent.click(department);
+        fireEvent.click(await screen.findByRole('option', { name: 'Finance (FIN)' }));
 
-        await user.click(screen.getByTestId('asset-form-business-owner'));
+        const businessOwner = screen.getByTestId('asset-form-business-owner');
+        await waitFor(() => expect(businessOwner).toBeEnabled());
+        fireEvent.click(businessOwner);
         const operationsOwner = await screen.findByRole('option', { name: /Alex Owner.*Operations/ });
         expect(operationsOwner).toHaveTextContent('Operations');
-        await user.click(operationsOwner);
+        fireEvent.click(operationsOwner);
         expect(department).toHaveTextContent('Finance (FIN)');
 
-        await user.click(screen.getByTestId('asset-form-business-owner'));
+        fireEvent.click(businessOwner);
         const itOwner = await screen.findByRole('option', { name: /Taylor Owner.*IT/ });
         expect(itOwner).toHaveTextContent('IT');
-        await user.click(itOwner);
+        fireEvent.click(itOwner);
         expect(department).toHaveTextContent('Finance (FIN)');
 
-        await user.click(screen.getByTestId('asset-form-ict-owner'));
+        const ictOwner = screen.getByTestId('asset-form-ict-owner');
+        await waitFor(() => expect(ictOwner).toBeEnabled());
+        fireEvent.click(ictOwner);
         const financeOwner = await screen.findByRole('option', { name: /Casey Owner.*Finance/ });
         expect(financeOwner).toHaveTextContent('Finance');
-        await user.click(financeOwner);
+        fireEvent.click(financeOwner);
         expect(department).toHaveTextContent('Finance (FIN)');
 
-        await user.click(screen.getByTestId('asset-form-submit'));
+        fireEvent.click(screen.getByTestId('asset-form-submit'));
         await waitFor(() => expect(mockCreateAsset).toHaveBeenCalledTimes(1));
         expect(mockCreateAsset).toHaveBeenCalledWith(expect.objectContaining({
             business_owner_user_id: 22,
@@ -411,15 +419,16 @@ describe('AssetForm — governed accountability edits (#88)', () => {
         testId,
         option,
     }) => {
-        const user = userEvent.setup();
         const { container } = await renderForm(nonProtectedAsset);
 
-        await user.click(screen.getByTestId(testId));
-        await user.click(await screen.findByRole('option', { name: option }));
+        const trigger = screen.getByTestId(testId);
+        await waitFor(() => expect(trigger).toBeEnabled());
+        fireEvent.click(trigger);
+        fireEvent.click(await screen.findByRole('option', { name: option }));
         expect(screen.getByTestId('asset-form-submit')).toHaveTextContent(
             i18n.t('assets:actions.submit_for_approval'),
         );
-        await user.click(screen.getByTestId('asset-form-submit'));
+        fireEvent.click(screen.getByTestId('asset-form-submit'));
 
         const reason = screen.getByTestId('asset-form-request-reason');
         expect(reason).toHaveAttribute('aria-invalid', 'true');
@@ -430,7 +439,6 @@ describe('AssetForm — governed accountability edits (#88)', () => {
     });
 
     it('hands a typed Business Owner reassignment 202 to the existing approval callback', async () => {
-        const user = userEvent.setup();
         mockUpdateAsset.mockResolvedValue(processApprovalQueuedResponseSchema.parse({
             status: 'approval_required',
             message: 'Submitted',
@@ -442,13 +450,14 @@ describe('AssetForm — governed accountability edits (#88)', () => {
         }));
         const { onApprovalQueued, onSaved } = await renderForm(nonProtectedAsset);
 
-        await user.click(screen.getByTestId('asset-form-business-owner'));
-        await user.click(await screen.findByRole('option', { name: /Casey Owner.*Finance/ }));
-        await user.type(
-            screen.getByTestId('asset-form-request-reason'),
-            'Transfer accountability to the service owner',
-        );
-        await user.click(screen.getByTestId('asset-form-submit'));
+        const businessOwner = screen.getByTestId('asset-form-business-owner');
+        await waitFor(() => expect(businessOwner).toBeEnabled());
+        fireEvent.click(businessOwner);
+        fireEvent.click(await screen.findByRole('option', { name: /Casey Owner.*Finance/ }));
+        fireEvent.change(screen.getByTestId('asset-form-request-reason'), {
+            target: { value: 'Transfer accountability to the service owner' },
+        });
+        fireEvent.click(screen.getByTestId('asset-form-submit'));
 
         await waitFor(() => expect(mockUpdateAsset).toHaveBeenCalledWith(
             88,

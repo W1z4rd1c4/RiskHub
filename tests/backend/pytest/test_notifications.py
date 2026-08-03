@@ -1,7 +1,7 @@
 """Tests for notification API endpoints."""
 
-from datetime import timedelta
 import inspect
+from datetime import timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -12,9 +12,9 @@ from app.models import (
     ApprovalRequest,
     Department,
     Issue,
+    Notification,
     Permission,
     Process,
-    Notification,
     Risk,
     RiskQuestionnaire,
     Role,

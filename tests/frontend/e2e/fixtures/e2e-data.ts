@@ -128,6 +128,11 @@ export const E2E_VENDORS = {
         status: 'inactive',
         vendor_type: 'partner',
     },
+    NONPROTECTED_DIRECT: {
+        registration_id: 'E2E-VREG-006',
+        name: 'E2E-VENDOR-006 Finance Reporting SaaS',
+        status: 'active',
+    },
 } as const;
 
 /** Dedicated Vendor of the ICT Register vendor-domain suites (issues #44/#45). */

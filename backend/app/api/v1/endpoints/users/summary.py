@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+from weakref import WeakValueDictionary
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -23,6 +25,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 SHELL_SUMMARY_CACHE = TTLCache[dict](ttl_seconds=15, max_entries=500)
+_SHELL_SUMMARY_CACHE_FILL_LOCKS: WeakValueDictionary[object, asyncio.Lock] = WeakValueDictionary()
 QUESTIONNAIRE_INBOX_DEGRADABLE_ERRORS = (SQLAlchemyError, ValueError, KeyError, TypeError)
 
 
@@ -81,5 +84,15 @@ async def get_shell_summary(
     if cached is not None:
         return UserShellSummary(**cached)
 
-    payload = await _build_shell_summary(db, current_user)
-    return UserShellSummary(**SHELL_SUMMARY_CACHE.set(cache_key, payload))
+    fill_lock = _SHELL_SUMMARY_CACHE_FILL_LOCKS.get(cache_key)
+    if fill_lock is None:
+        fill_lock = asyncio.Lock()
+        _SHELL_SUMMARY_CACHE_FILL_LOCKS[cache_key] = fill_lock
+
+    async with fill_lock:
+        cached = SHELL_SUMMARY_CACHE.get(cache_key)
+        if cached is not None:
+            return UserShellSummary(**cached)
+
+        payload = await _build_shell_summary(db, current_user)
+        return UserShellSummary(**SHELL_SUMMARY_CACHE.set(cache_key, payload))

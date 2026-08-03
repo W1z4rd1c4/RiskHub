@@ -2,7 +2,7 @@
  * Risks Page Object Model
  * Handles Risk list and interaction operations
  */
-import { expect, Locator, Page, type Response } from '@playwright/test';
+import { expect, Locator, Page, type Download, type Response } from '@playwright/test';
 import { waitForDataLoad, waitForTableRows } from '../helpers/wait';
 import { matchesCollectionResponse } from './collectionResponse';
 
@@ -178,9 +178,9 @@ export class RisksPage {
         return response;
     }
 
-    async submitPointInTimeExport(format: 'csv' = 'csv'): Promise<Response> {
+    async submitPointInTimeExport(format: 'csv' = 'csv'): Promise<{ response: Response; download: Download }> {
         const asOfDate = await this.exportDateInput.inputValue();
-        const [response] = await Promise.all([
+        const [response, download] = await Promise.all([
             this.page.waitForResponse((response) => {
                 if (response.request().method() !== 'GET') return false;
                 if (new URL(response.url()).pathname !== '/api/v1/reports/risks/export') return false;
@@ -192,9 +192,10 @@ export class RisksPage {
                     return false;
                 }
             }, { timeout: 20000 }),
+            this.page.waitForEvent('download'),
             this.page.getByTestId('export-submit-button').click(),
         ]);
-        return response;
+        return { response, download };
     }
 
     async setStatusFilterArchived(): Promise<void> {

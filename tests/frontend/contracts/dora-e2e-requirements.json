@@ -104,9 +104,12 @@
     },
     {
       "id": "DORA-GOVERNED-VENDOR",
-      "description": "Protected Vendor accountability changes preserve approved truth through resolution.",
+      "description": "Protected Vendor accountability, relationship, archive, and restore workflows preserve approved truth through resolution.",
       "evidence": [
-        { "spec": "tests/frontend/e2e/approval-workflows/governed-vendor.spec.ts", "titleIncludes": "accountability delta queues once, preserves truth, and rejection keeps the original owner" }
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-vendor.spec.ts", "titleIncludes": "accountability delta queues once, preserves truth, and rejection keeps the original owner" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-vendor.spec.ts", "titleIncludes": "direct accountability edit preserves approved truth until an independent CRO approves it" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-vendor.spec.ts", "titleIncludes": "archive preserves approved truth until independent approval and restore stays direct" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-process-relationships.spec.ts", "titleIncludes": "Risk, Asset, and Vendor ends preserve approved truth until independent approval" }
       ]
     },
     {
@@ -119,9 +122,26 @@
     },
     {
       "id": "DORA-COMPOSITE-IMPACT",
-      "description": "Composite approval review exposes protected Asset impact before apply.",
+      "description": "Composite approval review exposes Process, protected Asset, and downstream Vendor impact before atomic apply.",
       "evidence": [
-        { "spec": "tests/frontend/e2e/approval-workflows/governed-asset.spec.ts", "titleIncludes": "Asset-only protected Process link exposes composite Asset impact before apply" }
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-asset.spec.ts", "titleIncludes": "Asset-only protected Process link exposes composite Asset impact before apply" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-process-edit.spec.ts", "titleIncludes": "Process edit reviews and atomically applies primary Asset and downstream Vendor impact" }
+      ]
+    },
+    {
+      "id": "DORA-GOVERNED-NOTIFICATIONS",
+      "description": "Governed notification preferences control delivery without changing authoritative approval queues or history.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-notification-preferences.spec.ts", "titleIncludes": "governed defaults persist while disabled delivery leaves Pending Queue, My Requests, and History authoritative" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-notification-preferences.spec.ts", "titleIncludes": "enabled delivery reaches the actionable resolver before approval and both inboxes after approval" }
+      ]
+    },
+    {
+      "id": "DORA-LOCALE-JOURNEYS",
+      "description": "English and Czech register and governed approval journeys localize controlled labels while preserving user free text.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/dora-locale-journeys.spec.ts", "titleIncludes": "English register and governed approval keep controlled labels language-pure and free text unchanged" },
+        { "spec": "tests/frontend/e2e/dora-locale-journeys.spec.ts", "titleIncludes": "Czech register and governed approval keep controlled labels language-pure and free text unchanged" }
       ]
     },
     {
@@ -150,6 +170,13 @@
       "description": "Vendor contracts render governed flags and archived restore behavior.",
       "evidence": [
         { "spec": "tests/frontend/e2e/vendor-contracts.spec.ts", "titleIncludes": "Seeded contracts render with Main/RoI flags and the archived row keeps its restore affordance" }
+      ]
+    },
+    {
+      "id": "DORA-VENDOR-DEPENDENT-MUTATION",
+      "description": "Protected Vendor contract edit and archive mutations preserve approved child truth until independent approval, with direct restore after archive approval.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/vendor-contracts.spec.ts", "titleIncludes": "protected Vendor contract edit and archive preserve approved truth until independent approval" }
       ]
     },
     {

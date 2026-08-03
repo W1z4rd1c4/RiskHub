@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.permissions import visible_vendor_ids
 from app.core.security import check_permission
@@ -82,6 +83,34 @@ _PROCESS_BCM_CHECK_CODE_BY_ENGINE_VALUE = {
     BCM_GAP: "cif_without_bcm",
 }
 _PROTECTED_PROCESS_EDIT_SCENARIO_KEY = "protected_process_edit"
+
+
+def _pending_process_composite_derived_impact(
+    value: dict,
+    *,
+    process_labels: dict[int, str],
+    asset_labels: dict[int, str],
+    vendor_labels: dict[int, str],
+) -> dict[str, list[dict[str, object]]]:
+    safe: dict[str, list[dict[str, object]]] = {}
+    for group, labels, fallback in (
+        ("processes", process_labels, "Restricted Process"),
+        ("assets", asset_labels, "Restricted Asset"),
+        ("vendors", vendor_labels, "Restricted Vendor"),
+    ):
+        rows = value.get(group)
+        if not isinstance(rows, list):
+            continue
+        safe[group] = [
+            {
+                "resource_name": labels.get(row.get("resource_id"), fallback),
+                "before": row.get("before"),
+                "after": row.get("after"),
+            }
+            for row in rows
+            if isinstance(row, dict)
+        ]
+    return safe
 
 
 async def protected_process_changes_require_approval(db: "AsyncSession") -> bool:
@@ -375,6 +404,14 @@ async def load_pending_process_changes(
             for lock in proposal.impact_locks
             if lock.resource_type == "process" and lock.released_at is None
         }
+        if isinstance(proposal.derived_impact_snapshot, dict):
+            derived_processes = proposal.derived_impact_snapshot.get("processes")
+            if isinstance(derived_processes, list):
+                relationship_derived_process_ids.update(
+                    row["resource_id"]
+                    for row in derived_processes
+                    if isinstance(row, dict) and type(row.get("resource_id")) is int
+                )
         if isinstance(identity, ExtendedProcessMutationIdentity):
             impacted_process_ids = {
                 resource["resource_id"]
@@ -397,6 +434,20 @@ async def load_pending_process_changes(
             for process in impacted_processes
             if can_read_process_record(current_user, process)
         }
+
+    from app.services._approval_queue.projection import governed_process_actor_safe_labels
+
+    for proposal, _, _ in parsed:
+        set_committed_value(
+            proposal.approval_request,
+            "governed_mutation_proposal",
+            proposal,
+        )
+    safe_labels = await governed_process_actor_safe_labels(
+        db,
+        approvals=[proposal.approval_request for proposal, _, _ in parsed],
+        current_user=current_user,
+    )
 
     projections: dict[int, ProcessPendingChange] = {}
     for proposal, identity, affected_process_ids in parsed:
@@ -427,7 +478,16 @@ async def load_pending_process_changes(
                 proposal,
                 can_view_proposed_references=can_view_proposed_references,
             )
-            derived_impact = proposal.derived_impact_snapshot
+            if "processes" in proposal.derived_impact_snapshot:
+                labels = safe_labels.get(approval.id)
+                derived_impact = _pending_process_composite_derived_impact(
+                    proposal.derived_impact_snapshot,
+                    process_labels=labels.process_labels if labels is not None else {},
+                    asset_labels=labels.asset_labels if labels is not None else {},
+                    vendor_labels=labels.vendor_labels if labels is not None else {},
+                )
+            else:
+                derived_impact = proposal.derived_impact_snapshot
         pending = ProcessPendingChange(
             approval_id=approval.id,
             proposal_id=proposal.proposal_id,

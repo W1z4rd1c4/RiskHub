@@ -25,7 +25,6 @@ import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ASSETS, E2E_ICT_VENDOR, E2E_PROCESSES, E2E_SUB_OUTSOURCING } from './fixtures/e2e-data';
 import { getVendorByRegistration } from './helpers/api-auth';
 import {
-    ensureVendorReplaceability,
     getAssetByName,
     getProcessByL1,
     getSubOutsourcingByName,
@@ -68,10 +67,6 @@ async function seededVendorId(): Promise<number> {
 test.describe('ICT Register — Vendor-cascade derivations (Deterministic)', () => {
     test('Vendor derived section shows the engine tier, two-path CIF, and explain inputs', async ({ riskManagerPage }) => {
         const vendorId = await seededVendorId();
-        // Repair any drift: the committed register-extension round-trip test
-        // leaves the vendor's Substituce value mutated.
-        await ensureVendorReplaceability(vendorId, E2E_ICT_VENDOR.replaceability);
-
         const detailResponse = riskManagerPage.waitForResponse((response) =>
             response.url().endsWith(`/api/v1/vendors/${vendorId}`) && response.request().method() === 'GET',
         );
@@ -219,7 +214,7 @@ test.describe('ICT Register — Vendor-cascade derivations (Deterministic)', () 
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.getByTestId('asset-derived-completeness')).toContainText('✓');
         await expect(riskManagerPage.getByTestId('asset-derived-missing')).not.toContainText(
-            'primary_process',
+            /Primary process \(name\)|Primární proces \(název\)/,
         );
 
         // E2E-ASSET-002: fully entered but carries NO primary designation —
@@ -227,6 +222,8 @@ test.describe('ICT Register — Vendor-cascade derivations (Deterministic)', () 
         await riskManagerPage.goto(`/assets/${incompleteAsset!.id}`);
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.getByTestId('asset-derived-completeness')).toContainText('⚠');
-        await expect(riskManagerPage.getByTestId('asset-derived-missing')).toHaveText('primary_process');
+        await expect(riskManagerPage.getByTestId('asset-derived-missing')).toHaveText(
+            /^(Primary process \(name\)|Primární proces \(název\))$/,
+        );
     });
 });

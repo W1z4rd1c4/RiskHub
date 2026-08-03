@@ -13,7 +13,14 @@ from app.core.config import Settings
 def create_engine(settings: Settings) -> AsyncEngine:
     return create_async_engine(
         settings.database_url,
-        echo=settings.debug,
+        echo=(
+            settings.e2e_sqlalchemy_echo
+            if settings.debug
+            and settings.mock_auth_enabled
+            and settings.auth_mode == "hybrid_dev"
+            and settings.e2e_sqlalchemy_echo is not None
+            else settings.debug
+        ),
         future=True,
         pool_pre_ping=True,
         pool_recycle=1800,

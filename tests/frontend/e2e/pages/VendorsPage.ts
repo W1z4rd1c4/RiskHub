@@ -115,7 +115,7 @@ export class VendorsPage {
     async setStatusFilterInactive(): Promise<void> {
         await this.statusSelectTrigger.click();
         await Promise.all([
-            this.waitForVendorsResponse({ include_archived: true }),
+            this.waitForVendorsResponse({ lifecycle: 'archived' }),
             this.page.getByTestId('vendors-status-filter-option-archived').click(),
         ]);
         await waitForDataLoad(this.page);

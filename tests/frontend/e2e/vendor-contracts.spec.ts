@@ -16,11 +16,20 @@ import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ICT_VENDOR, E2E_VENDOR_CONTRACTS } from './fixtures/e2e-data';
 import { getVendorByRegistration } from './helpers/api-auth';
 import {
+    type ApprovalScenarioSnapshot,
     createVendorContractViaApi,
+    cancelPendingApprovalsForMarker,
+    cleanupWithoutMaskingPrimaryFailure,
     ensureContractArchived,
+    getApprovalScenario,
     getContractByReference,
+    runCleanupSteps,
+    updateVendorRegisterFields,
+    updateVendorContractViaApi,
+    updateApprovalScenario,
 } from './helpers/ict-register';
 import { waitForDataLoad } from './helpers/wait';
+import { ApprovalsPage } from './pages/ApprovalsPage';
 import { VendorDetailPage } from './pages/VendorDetailPage';
 
 // TypUjednani — verbatim workbook closed list (docs/dora-ict-register spec section 3.1).
@@ -29,12 +38,12 @@ const TYP_UJEDNANI = ['Samostatné', 'Rámcové (master)', 'Navazující'];
 const MENA_LIST = ['CZK', 'EUR', 'USD', 'GBP'];
 // TypKodu — verbatim workbook closed list (vendor register identifier type).
 const TYP_KODU = ['LEI', 'EUID', 'CRN', 'VAT', 'PNR', 'NIN'];
-// Substituce — verbatim workbook closed list (vendor substitutability input).
+// Locale-controlled labels for the Substituce closed list in the default English UI.
 const SUBSTITUCE = [
-    'Nenahraditelný',
-    'Velmi obtížně nahraditelný',
-    'Středně obtížně nahraditelný',
-    'Snadno nahraditelný',
+    'Not substitutable',
+    'Highly complex substitutability',
+    'Medium complexity of substitutability',
+    'Easily substitutable',
 ];
 
 const MAIN_FLAG = /^(Main|Hlavní)$/;
@@ -48,6 +57,42 @@ async function seededVendorId(): Promise<number> {
 }
 
 test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
+
+    let originalProtectedVendorScenario: ApprovalScenarioSnapshot | null = null;
+    let originalVendorRegisterFields: {
+        identifier_type: string | null;
+        identifier_value: string | null;
+        replaceability: string | null;
+    } | null = null;
+
+    test.beforeAll(async () => {
+        const vendor = await getVendorByRegistration(E2E_ICT_VENDOR.registration_id);
+        if (!vendor) {
+            throw new Error(`Vendor '${E2E_ICT_VENDOR.registration_id}' not found — run the deterministic E2E seed first.`);
+        }
+        originalVendorRegisterFields = {
+            identifier_type: vendor.identifier_type ?? null,
+            identifier_value: vendor.identifier_value ?? null,
+            replaceability: vendor.replaceability ?? null,
+        };
+        originalProtectedVendorScenario = await getApprovalScenario('protected_vendor_edit');
+        await updateApprovalScenario('protected_vendor_edit', {
+            ...originalProtectedVendorScenario,
+            requires_approval: false,
+        });
+    });
+
+    test.afterAll(async () => {
+        const vendorId = await seededVendorId();
+        await runCleanupSteps('Failed to restore Vendor contract suite fixtures', [
+            ...(originalVendorRegisterFields === null
+                ? []
+                : [() => updateVendorRegisterFields(vendorId, originalVendorRegisterFields!)]),
+            ...(originalProtectedVendorScenario === null
+                ? []
+                : [() => updateApprovalScenario('protected_vendor_edit', originalProtectedVendorScenario!)]),
+        ]);
+    });
     test('Deep-link tab=contracts lands on the Contracts section of the seeded vendor', async ({ riskManagerPage }) => {
         const vendorId = await seededVendorId();
 
@@ -189,6 +234,133 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         await expect(editedRow.getByText('Navazující', { exact: true })).toBeVisible();
     });
 
+    test('protected Vendor contract edit and archive preserve approved truth until independent approval', async ({
+        riskManagerPage,
+        croPage,
+    }) => {
+        const vendorId = await seededVendorId();
+        const contractReference = E2E_VENDOR_CONTRACTS.MAIN_ROI.contract_reference;
+        const contract = await getContractByReference(vendorId, contractReference);
+        expect(contract).not.toBeNull();
+        const originalNote = contract!.note;
+        const originalArchived = contract!.is_archived;
+        const scenario = await getApprovalScenario('protected_vendor_edit');
+        const proposedNote = `Governed contract note ${Date.now()}`;
+        const reason = `Approve protected Vendor contract ${Date.now()}`;
+        const archiveReason = `Archive protected Vendor contract ${Date.now()}`;
+        let primaryFailure: unknown;
+
+        try {
+            await ensureContractArchived(vendorId, contractReference, false);
+            await updateApprovalScenario('protected_vendor_edit', {
+                ...scenario,
+                requires_approval: true,
+            });
+
+            const detailPage = new VendorDetailPage(riskManagerPage);
+            await detailPage.navigateToSection(vendorId, 'contracts');
+            await riskManagerPage.getByTestId(`vendor-contract-edit-${contract!.id}`).click();
+            await riskManagerPage.getByTestId('vendor-contract-field-note').fill(proposedNote);
+            await riskManagerPage.getByTestId('vendor-contract-form-save').click();
+            await expect(riskManagerPage.getByTestId('vendor-contract-request-reason'))
+                .toHaveAttribute('aria-invalid', 'true');
+            await riskManagerPage.getByTestId('vendor-contract-request-reason').fill(reason);
+
+            const queued = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'PATCH'
+                && new URL(response.url()).pathname
+                    === `/api/v1/vendors/${vendorId}/contracts/${contract!.id}`
+            ));
+            await riskManagerPage.getByTestId('vendor-contract-form-save').click();
+            expect((await queued).status()).toBe(202);
+            await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
+
+            expect((await getContractByReference(vendorId, contractReference))!.note).toBe(originalNote);
+            await detailPage.navigateToSection(vendorId, 'contracts');
+            await riskManagerPage.getByTestId(`vendor-contract-edit-${contract!.id}`).click();
+            await expect(riskManagerPage.getByTestId('vendor-contract-field-note'))
+                .toHaveValue(originalNote ?? '');
+
+            const approvals = new ApprovalsPage(croPage);
+            await approvals.navigate();
+            const approvalIndex = await approvals.findCardByReason(reason);
+            await approvals.clickApprove(approvalIndex);
+            const approved = croPage.waitForResponse((response) => (
+                response.request().method() === 'POST'
+                && /\/api\/v1\/approvals\/\d+\/approve$/.test(new URL(response.url()).pathname)
+            ));
+            await approvals.submitResolution(`Approve ${reason}`, 'approve');
+            expect((await approved).status()).toBe(200);
+
+            await expect.poll(
+                async () => (await getContractByReference(vendorId, contractReference))!.note,
+            ).toBe(proposedNote);
+            await detailPage.navigateToSection(vendorId, 'contracts');
+            await riskManagerPage.getByTestId(`vendor-contract-edit-${contract!.id}`).click();
+            await expect(riskManagerPage.getByTestId('vendor-contract-field-note')).toHaveValue(proposedNote);
+            await riskManagerPage.getByTestId('vendor-contract-form-cancel').click();
+
+            await riskManagerPage.getByTestId(`vendor-contract-archive-${contract!.id}`).click();
+            const archiveDialog = riskManagerPage.getByRole('alertdialog');
+            await archiveDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })
+                .fill(archiveReason);
+            const archiveQueued = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'DELETE'
+                && new URL(response.url()).pathname
+                    === `/api/v1/vendors/${vendorId}/contracts/${contract!.id}`
+            ));
+            await archiveDialog.getByRole('button', { name: /Archive contract|Archivovat smlouvu/ }).click();
+            expect((await archiveQueued).status()).toBe(202);
+            await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
+            expect((await getContractByReference(vendorId, contractReference))!.is_archived).toBe(false);
+
+            await approvals.navigate();
+            const archiveApprovalIndex = await approvals.findCardByReason(archiveReason);
+            await approvals.clickApprove(archiveApprovalIndex);
+            const archiveApproved = croPage.waitForResponse((response) => (
+                response.request().method() === 'POST'
+                && /\/api\/v1\/approvals\/\d+\/approve$/.test(new URL(response.url()).pathname)
+            ));
+            await approvals.submitResolution(`Approve ${archiveReason}`, 'approve');
+            expect((await archiveApproved).status()).toBe(200);
+            await expect.poll(
+                async () => (await getContractByReference(vendorId, contractReference))!.is_archived,
+            ).toBe(true);
+
+            await detailPage.navigateToSection(vendorId, 'contracts');
+            const restored = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'POST'
+                && new URL(response.url()).pathname
+                    === `/api/v1/vendors/${vendorId}/contracts/${contract!.id}/restore`
+            ));
+            await riskManagerPage.getByTestId(`vendor-contract-restore-${contract!.id}`).click();
+            expect((await restored).status()).toBe(200);
+            await expect.poll(
+                async () => (await getContractByReference(vendorId, contractReference))!.is_archived,
+            ).toBe(false);
+        } catch (error) {
+            primaryFailure = error;
+            throw error;
+        } finally {
+            await cleanupWithoutMaskingPrimaryFailure(
+                primaryFailure,
+                () => runCleanupSteps('Failed to restore governed Vendor contract fixture', [
+                    () => cancelPendingApprovalsForMarker(reason),
+                    () => cancelPendingApprovalsForMarker(archiveReason),
+                    () => updateApprovalScenario('protected_vendor_edit', {
+                        ...scenario,
+                        requires_approval: false,
+                    }),
+                    () => ensureContractArchived(vendorId, contractReference, false).then(() => undefined),
+                    () => updateVendorContractViaApi(vendorId, contract!.id, { note: originalNote }).then(() => undefined),
+                    () => ensureContractArchived(vendorId, contractReference, originalArchived).then(() => undefined),
+                    () => updateApprovalScenario('protected_vendor_edit', scenario),
+                ]),
+                test.info(),
+            );
+        }
+    });
+
     test('Archive and restore round-trip through the section row actions', async ({ riskManagerPage }) => {
         const vendorId = await seededVendorId();
         const uniqueReference = `E2E-CTR-LC ${Date.now()}`;
@@ -239,12 +411,10 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         await expect(adminPage.locator('a[href="/admin"]').first()).toBeVisible();
         await expect(adminPage.locator('nav a[href="/vendors"]')).toHaveCount(0);
 
-        // A direct visit renders the access-denied state, never the vendor page.
+        // A direct visit uses deliberate not-found camouflage, never the vendor page.
         await adminPage.goto(`/vendors/${vendorId}?tab=contracts`);
         await waitForDataLoad(adminPage);
-        await expect(
-            adminPage.getByRole('heading', { name: /Access Denied|Přístup zamítnut/i }),
-        ).toBeVisible();
+        await expect(adminPage.getByRole('heading', { name: /Vendor not found|Dodavatel nenalezen/i })).toBeVisible();
         await expect(adminPage.locator('#vendor-contracts')).toHaveCount(0);
     });
 
@@ -275,7 +445,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         for (const value of SUBSTITUCE) {
             await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
         }
-        await riskManagerPage.getByRole('option', { name: 'Snadno nahraditelný', exact: true }).click();
+        await riskManagerPage.getByRole('option', { name: 'Easily substitutable', exact: true }).click();
 
         await riskManagerPage.getByRole('button', { name: /^(Save|Uložit)$/ }).click();
         await riskManagerPage.waitForURL(new RegExp(`/vendors/${vendorId}$`));
@@ -283,13 +453,14 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         // Hard reload: the detail overview renders the persisted Substituce value...
         await riskManagerPage.goto(`/vendors/${vendorId}`);
         await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.getByText('Snadno nahraditelný', { exact: true }).first()).toBeVisible();
+        await expect(riskManagerPage.getByText('Easily substitutable', { exact: true }).first()).toBeVisible();
 
         // ...and a fresh edit form carries all three persisted register fields.
         await riskManagerPage.goto(`/vendors/${vendorId}/edit`);
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.getByTestId('vendor-register-identifier_type')).toContainText('EUID');
         await expect(riskManagerPage.getByTestId('vendor-register-identifier_value')).toHaveValue('E2E-EUID-0001');
-        await expect(substitutabilityField.getByRole('combobox')).toContainText('Snadno nahraditelný');
+        await expect(substitutabilityField.getByRole('combobox')).toContainText('Easily substitutable');
+
     });
 });

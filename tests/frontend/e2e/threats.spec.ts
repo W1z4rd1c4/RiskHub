@@ -338,8 +338,16 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
             category: 'confidentiality',
         });
 
-        await riskManagerPage.goto(`/threats/${created.id}`);
-        await waitForDataLoad(riskManagerPage);
+        const [detailResponse] = await Promise.all([
+            riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'GET'
+                && new URL(response.url()).pathname === `/api/v1/threats/${created.id}`
+                && response.status() === 200
+            )),
+            riskManagerPage.goto(`/threats/${created.id}`),
+        ]);
+        await detailResponse.finished();
+        await expect(riskManagerPage.getByTestId('threat-detail-back')).toBeVisible();
         await expect(riskManagerPage.getByTestId('threat-detail-archive')).toBeVisible();
 
         // Archive: confirm dialog, then the detail navigates back to /threats.

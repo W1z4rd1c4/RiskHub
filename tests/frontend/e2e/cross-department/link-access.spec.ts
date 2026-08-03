@@ -7,12 +7,16 @@ import { collectionQueryValue, matchesCollectionResponse } from '../pages/collec
 import { waitForDataLoad } from '../helpers/wait';
 
 function matchesControlCandidateSearch(response: Response, includeArchived: boolean): boolean {
-    if (!matchesCollectionResponse(response, '/api/v1/controls', { search: 'E2E-ARCH-CTRL' })) {
+    if (
+        !matchesCollectionResponse(response, '/api/v1/controls', {
+            search: 'E2E-ARCH-CTRL',
+        })
+    ) {
         return false;
     }
 
-    const includeArchivedValue = collectionQueryValue(new URL(response.url()), 'include_archived').toLowerCase();
-    return includeArchived ? includeArchivedValue === 'true' : includeArchivedValue !== 'true';
+    const lifecycle = collectionQueryValue(new URL(response.url()), 'lifecycle').toLowerCase();
+    return lifecycle === (includeArchived ? 'all' : 'active');
 }
 
 test.describe('Risk-Control Linking Access (Deterministic)', () => {
@@ -22,24 +26,32 @@ test.describe('Risk-Control Linking Access (Deterministic)', () => {
         await risksPage.search(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name);
         await risksPage.openRowByText(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name);
 
-        const linkExistingButton = riskManagerPage.locator('button:has-text("Link Existing"), button:has-text("Link Control")').first();
+        const linkExistingButton = riskManagerPage
+            .locator('button:has-text("Link Existing"), button:has-text("Link Control")')
+            .first();
         await expect(linkExistingButton).toBeVisible();
         await linkExistingButton.click();
 
         const dialog = riskManagerPage.locator('[data-testid="link-management-dialog"], [role="dialog"]').first();
         await expect(dialog).toBeVisible();
 
-        const includeArchivedCheckbox = dialog.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
+        let includeArchivedCheckbox = dialog
+            .locator('label:has(input[type="checkbox"]) input[type="checkbox"]')
+            .first();
         await expect(includeArchivedCheckbox).not.toBeChecked();
     });
 
-    test('Archived control candidate appears in link search only with include archived enabled', async ({ riskManagerPage }) => {
+    test('Archived control candidate appears in link search only with include archived enabled', async ({
+        riskManagerPage,
+    }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
         await risksPage.search(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name);
         await risksPage.openRowByText(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name);
 
-        const linkExistingButton = riskManagerPage.locator('button:has-text("Link Existing"), button:has-text("Link Control")').first();
+        const linkExistingButton = riskManagerPage
+            .locator('button:has-text("Link Existing"), button:has-text("Link Control")')
+            .first();
         await linkExistingButton.click();
 
         const dialog = riskManagerPage.locator('[data-testid="link-management-dialog"], [role="dialog"]').first();
@@ -53,19 +65,28 @@ test.describe('Risk-Control Linking Access (Deterministic)', () => {
         await initialSearchResponse;
         await waitForDataLoad(riskManagerPage);
 
-        const archivedCandidate = dialog.locator('button').filter({ hasText: E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name }).first();
+        const archivedCandidate = dialog
+            .locator('button')
+            .filter({ hasText: E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name })
+            .first();
         await expect(archivedCandidate).toHaveCount(0);
 
-        const includeArchivedCheckbox = dialog.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
+        let includeArchivedCheckbox = dialog
+            .locator('label:has(input[type="checkbox"]) input[type="checkbox"]')
+            .first();
         const includeArchivedSearchResponse = riskManagerPage.waitForResponse((response) =>
             matchesControlCandidateSearch(response, true),
         );
         await includeArchivedCheckbox.click();
+        includeArchivedCheckbox = dialog.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
         await expect(includeArchivedCheckbox).toBeChecked();
         await includeArchivedSearchResponse;
         await waitForDataLoad(riskManagerPage);
 
-        const archivedResult = dialog.locator('button').filter({ hasText: E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name }).first();
+        const archivedResult = dialog
+            .locator('button')
+            .filter({ hasText: E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name })
+            .first();
         await expect(archivedResult).toBeVisible({ timeout: 15000 });
         await expect(archivedResult).toContainText(/Archived/i);
     });
@@ -76,7 +97,9 @@ test.describe('Risk-Control Linking Access (Deterministic)', () => {
         await risksPage.search(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
         await risksPage.openRowByText(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
 
-        const linkExistingButton = employeePage.locator('button:has-text("Link Existing"), button:has-text("Link Control")').first();
+        const linkExistingButton = employeePage
+            .locator('button:has-text("Link Existing"), button:has-text("Link Control")')
+            .first();
         await expect(linkExistingButton).toHaveCount(0);
     });
 });

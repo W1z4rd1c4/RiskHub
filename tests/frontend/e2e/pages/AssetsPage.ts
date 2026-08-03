@@ -30,7 +30,7 @@ export class AssetsPage {
     }
 
     private async waitForAssetsResponse(
-        expected: { search?: string; include_archived?: boolean } = {},
+        expected: { search?: string; lifecycle?: string } = {},
     ): Promise<void> {
         await this.page.waitForResponse(
             (response) => matchesCollectionResponse(response, '/api/v1/assets', expected),
@@ -68,7 +68,7 @@ export class AssetsPage {
     async setStatusFilterArchived(): Promise<void> {
         await this.statusSelectTrigger.click();
         await Promise.all([
-            this.waitForAssetsResponse({ include_archived: true }),
+            this.waitForAssetsResponse({ lifecycle: 'archived' }),
             this.page.getByTestId('assets-status-filter-option-archived').click(),
         ]);
         await waitForDataLoad(this.page);

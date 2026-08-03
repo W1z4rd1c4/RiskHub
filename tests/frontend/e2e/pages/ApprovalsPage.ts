@@ -79,6 +79,10 @@ export class ApprovalsPage {
     }
 
     async selectPendingQueue(): Promise<void> {
+        if (await this.pendingQueueTab.evaluate((tab) => tab.classList.contains('bg-accent'))) {
+            await this.waitForApprovalsReady();
+            return;
+        }
         await Promise.all([
             this.waitForApprovalsResponse({ status: 'pending', myRequests: false }),
             this.pendingQueueTab.click(),
@@ -88,6 +92,10 @@ export class ApprovalsPage {
     }
 
     async selectMyRequests(): Promise<void> {
+        if (await this.myRequestsTab.evaluate((tab) => tab.classList.contains('bg-accent'))) {
+            await this.waitForApprovalsReady();
+            return;
+        }
         await Promise.all([
             this.waitForApprovalsResponse({ myRequests: true }),
             this.myRequestsTab.click(),
@@ -166,7 +174,22 @@ export class ApprovalsPage {
         const card = this.getCard(index);
         // The status badge has specific styling: rounded-full with text-[10px] font-black uppercase tracking-widest
         const statusBadge = card.locator('span.rounded-full.uppercase');
-        return (await statusBadge.textContent() ?? '').toLowerCase().trim();
+        const label = (await statusBadge.textContent() ?? '').toLowerCase().trim();
+        const statuses: Record<string, string> = {
+            'pending': 'pending',
+            'čeká': 'pending',
+            'pending privileged review': 'pending_privileged',
+            'čeká na privilegované schválení': 'pending_privileged',
+            'approved': 'approved',
+            'schváleno': 'approved',
+            'rejected': 'rejected',
+            'zamítnuto': 'rejected',
+            'cancelled': 'cancelled',
+            'zrušeno': 'cancelled',
+            'expired': 'expired',
+            'vypršelo': 'expired',
+        };
+        return statuses[label] ?? label;
     }
 
     /**
@@ -174,19 +197,25 @@ export class ApprovalsPage {
      */
     async getActionType(index: number): Promise<string> {
         const card = this.getCard(index);
-        const actionBadge = card.locator(
-            '.rounded:has(.lucide-trash-2), .rounded:has(.lucide-edit), ' +
-            '.rounded:has-text("delete"), .rounded:has-text("edit")'
-        ).first();
-        const badgeText = (await actionBadge.textContent().catch(() => ''))?.toLowerCase().trim() ?? '';
-        if (badgeText.includes('delete') || badgeText.includes('edit')) {
-            return badgeText;
-        }
-
-        const cardText = (await card.textContent() ?? '').toLowerCase();
-        if (cardText.includes('delete')) return 'delete';
-        if (cardText.includes('edit')) return 'edit';
-        return '';
+        const actionBadge = card.locator('span.rounded.border').first();
+        const label = (await actionBadge.textContent() ?? '').toLowerCase().trim();
+        const actions: Record<string, string> = {
+            'create': 'create',
+            'vytvoření': 'create',
+            'update': 'edit',
+            'aktualizace': 'edit',
+            'delete': 'delete',
+            'smazání': 'delete',
+            'archive': 'archive',
+            'archivace': 'archive',
+            'add link': 'link_add',
+            'přidání vazby': 'link_add',
+            'update link': 'link_update',
+            'aktualizace vazby': 'link_update',
+            'remove link': 'link_remove',
+            'odebrání vazby': 'link_remove',
+        };
+        return actions[label] ?? '';
     }
 
     /**

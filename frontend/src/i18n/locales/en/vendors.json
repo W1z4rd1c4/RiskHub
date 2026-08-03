@@ -381,6 +381,7 @@
     "title": "Contracts",
     "empty": "No contracts yet.",
     "archived_heading": "Archived contracts ({{count}})",
+    "archive_confirm": "Archive contract {{reference}}? Approved data remains unchanged until any required approval is completed.",
     "columns": {
       "reference": "Contract reference (RoI)",
       "arrangement_type": "Arrangement type",

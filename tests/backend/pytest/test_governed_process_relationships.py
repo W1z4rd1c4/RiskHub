@@ -1351,11 +1351,15 @@ async def test_postgres_overlapping_primary_swaps_lock_every_impacted_process(
             .all()
         )
     assert approval is not None and approval.status == ApprovalStatus.PENDING
-    assert [(lock.resource_type, lock.resource_id) for lock in active_locks] == [
-        ("asset", winning_asset_id),
-        ("process", processes[0].id),
-        ("process", winning_new_process_id),
-    ]
+    assert sorted(
+        (lock.resource_type, lock.resource_id) for lock in active_locks
+    ) == sorted(
+        [
+            ("asset", winning_asset_id),
+            ("process", processes[0].id),
+            ("process", winning_new_process_id),
+        ]
+    )
     assert [(link.process_id, link.is_primary) for link in live_links] == [
         (processes[0].id, True),
         (processes[0].id, True),

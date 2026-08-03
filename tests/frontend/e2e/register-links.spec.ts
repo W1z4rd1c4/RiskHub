@@ -12,7 +12,7 @@
  *
  * Determinism: the SEEDED links live on E2E-VENDOR-ICT and feed the derived
  * values pinned by vendor-derived.spec.ts, so every mutation flow here works
- * on E2E-VENDOR-001 + the empty fixtures (E2E-ASSET-004 / E2E-PROC-004)
+ * on the non-protected E2E-VENDOR-006 + E2E-ASSET-003 / E2E-PROC-004
  * instead, each test on its own (asset, vendor, S-code) tuple.
  */
 import { test, expect } from './fixtures/auth.fixture';
@@ -27,14 +27,19 @@ import {
 import { getVendorByRegistration } from './helpers/api-auth';
 import {
     createAssetVendorLinkViaApi,
+    cleanupWithoutMaskingPrimaryFailure,
+    getApprovalScenario,
     getAssetByName,
     getProcessByL1,
     listAssetVendorLinks,
     listProcessVendorLinks,
     removeAssetVendorLinkTuple,
     removeProcessVendorLinkPair,
+    runCleanupSteps,
+    updateApprovalScenario,
 } from './helpers/ict-register';
 import { waitForDataLoad } from './helpers/wait';
+import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 
 // S01-S19 ICT service taxonomy, verbatim workbook labels (spec section 3.2);
 // the asset-end S-code dropdown renders each option as "<code> — <label>"
@@ -85,6 +90,35 @@ async function requireProcessId(l1Process: string): Promise<number> {
     return process.id;
 }
 
+async function withDirectAssetVendorMechanics(run: () => Promise<void>): Promise<void> {
+    const assetScenario = await getApprovalScenario('protected_asset_edit');
+    const vendorScenario = await getApprovalScenario('protected_vendor_edit');
+    let primaryFailure: unknown;
+    try {
+        await updateApprovalScenario('protected_asset_edit', {
+            ...assetScenario,
+            requires_approval: false,
+        });
+        await updateApprovalScenario('protected_vendor_edit', {
+            ...vendorScenario,
+            requires_approval: false,
+        });
+        await run();
+    } catch (error) {
+        primaryFailure = error;
+        throw error;
+    } finally {
+        await cleanupWithoutMaskingPrimaryFailure(
+            primaryFailure,
+            () => runCleanupSteps('Failed to restore Asset/Vendor approval policies', [
+                () => updateApprovalScenario('protected_vendor_edit', vendorScenario),
+                () => updateApprovalScenario('protected_asset_edit', assetScenario),
+            ]),
+            test.info(),
+        );
+    }
+}
+
 test.describe('ICT Register — Link relations (Deterministic)', () => {
     test('Asset detail renders the seeded Vendors subsection with S-code metadata', async ({ riskManagerPage }) => {
         const assetId = await requireAssetId(E2E_ASSETS.CORE_CLAIMS_SYSTEM.name);
@@ -107,100 +141,133 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
     });
 
     test('Asset-end add and remove with the verbatim 19-code S-code taxonomy', async ({ riskManagerPage }) => {
-        const assetId = await requireAssetId(E2E_ASSETS.REPORTING_WAREHOUSE.name);
-        const vendorId = await requireVendorId(E2E_VENDORS.ACTIVE_PRIMARY.registration_id);
-        // Idempotent baseline: only THIS tuple is cleared, so parallel tests
-        // on the same rows never lose their in-flight fixtures.
-        await removeAssetVendorLinkTuple(assetId, vendorId, 'S03');
+        const assetId = await requireAssetId(E2E_ASSETS.INTEGRATION_BUS.name);
+        const vendorId = await requireVendorId(E2E_VENDORS.NONPROTECTED_DIRECT.registration_id);
+        await withDirectAssetVendorMechanics(async () => {
+            // Idempotent baseline: only THIS tuple is cleared, so parallel tests
+            // on the same rows never lose their in-flight fixtures.
+            await removeAssetVendorLinkTuple(assetId, vendorId, 'S03');
 
-        await riskManagerPage.goto(`/assets/${assetId}`);
-        await waitForDataLoad(riskManagerPage);
+            try {
+                await riskManagerPage.goto(`/assets/${assetId}`);
+                await waitForDataLoad(riskManagerPage);
 
-        await riskManagerPage.getByTestId('asset-vendor-link-select').click();
-        await riskManagerPage
-            .getByRole('option', { name: E2E_VENDORS.ACTIVE_PRIMARY.name, exact: true })
-            .click();
+                await riskManagerPage.getByTestId('asset-vendor-link-select').click();
+                await riskManagerPage
+                    .getByRole('option', {
+                        name: E2E_VENDORS.NONPROTECTED_DIRECT.name,
+                        exact: true,
+                    })
+                    .click();
 
-        // The S-code dropdown carries the S01-S19 taxonomy verbatim, in
-        // order, with no empty entry (the S-code is part of the identity).
-        await riskManagerPage.getByTestId('asset-vendor-link-s-code').click();
-        await expect(riskManagerPage.getByRole('option')).toHaveCount(ICT_SERVICE_OPTIONS.length);
-        const optionTexts = await riskManagerPage.getByRole('option').allTextContents();
-        expect(optionTexts).toEqual(ICT_SERVICE_OPTIONS);
-        await riskManagerPage.getByRole('option', { name: ICT_SERVICE_OPTIONS[2], exact: true }).click();
+                // The S-code dropdown carries the S01-S19 taxonomy verbatim, in
+                // order, with no empty entry (the S-code is part of the identity).
+                await riskManagerPage.getByTestId('asset-vendor-link-s-code').click();
+                await expect(riskManagerPage.getByRole('option')).toHaveCount(ICT_SERVICE_OPTIONS.length);
+                const optionTexts = await riskManagerPage.getByRole('option').allTextContents();
+                expect(optionTexts).toEqual(ICT_SERVICE_OPTIONS);
+                await riskManagerPage.getByRole('option', { name: ICT_SERVICE_OPTIONS[2], exact: true }).click();
 
-        await riskManagerPage.getByTestId('asset-vendor-link-add').click();
+                await riskManagerPage.getByTestId('asset-vendor-link-add').click();
+                const addDialog = riskManagerPage.getByRole('alertdialog');
+                await addDialog.getByRole('textbox').fill('E2E direct Asset-Vendor link addition');
+                await addDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+                await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${assetId}$`));
 
-        const vendorLinks = riskManagerPage.getByTestId('asset-vendor-links');
-        await expect(vendorLinks.getByText(E2E_VENDORS.ACTIVE_PRIMARY.name).first()).toBeVisible();
-        await expect(vendorLinks.getByText('S03', { exact: true })).toBeVisible();
+                const vendorLinks = riskManagerPage.getByTestId('asset-vendor-links');
+                await expect(vendorLinks.getByText(E2E_VENDORS.NONPROTECTED_DIRECT.name).first()).toBeVisible();
+                await expect(vendorLinks.getByText('S03', { exact: true })).toBeVisible();
 
-        // Remove from the same asset end; the row disappears and the API
-        // confirms the tuple is gone.
-        const created = (await listAssetVendorLinks(assetId)).find(
-            (link) => link.vendor_id === vendorId && link.ict_service_code === 'S03',
-        );
-        expect(created).toBeDefined();
-        await riskManagerPage.getByTestId(`asset-vendor-link-remove-${created!.id}`).click();
-        await riskManagerPage
-            .getByRole('alertdialog', { name: /Remove link\?/ })
-            .getByRole('button', { name: 'Remove link', exact: true })
-            .click();
-        await expect(riskManagerPage.getByTestId(`asset-vendor-link-remove-${created!.id}`)).toHaveCount(0);
-        const remaining = await listAssetVendorLinks(assetId);
-        expect(
-            remaining.some((link) => link.vendor_id === vendorId && link.ict_service_code === 'S03'),
-        ).toBe(false);
+                // Remove from the same asset end; the row disappears and the API
+                // confirms the tuple is gone.
+                const created = (await listAssetVendorLinks(assetId)).find(
+                    (link) => link.vendor_id === vendorId && link.ict_service_code === 'S03',
+                );
+                expect(created).toBeDefined();
+                await riskManagerPage.getByTestId(`asset-vendor-link-remove-${created!.id}`).click();
+                const removeDialog = riskManagerPage.getByRole('alertdialog');
+                await removeDialog.getByRole('textbox').fill('E2E direct Asset-Vendor link removal');
+                await removeDialog.getByRole('button', { name: 'Remove link', exact: true }).click();
+                await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${assetId}$`));
+                await expect(riskManagerPage.getByTestId(`asset-vendor-link-remove-${created!.id}`)).toHaveCount(0);
+                const remaining = await listAssetVendorLinks(assetId);
+                expect(remaining.some((link) => link.vendor_id === vendorId && link.ict_service_code === 'S03')).toBe(
+                    false,
+                );
+            } finally {
+                await removeAssetVendorLinkTuple(assetId, vendorId, 'S03');
+            }
+        });
     });
 
     test('Process-end add and remove of the §1 vendor pair', async ({ riskManagerPage }) => {
         const processId = await requireProcessId(E2E_PROCESSES.PORTAL_SUPPORT.l1_process);
-        const vendorId = await requireVendorId(E2E_VENDORS.ACTIVE_PRIMARY.registration_id);
+        const vendorId = await requireVendorId(E2E_VENDORS.NONPROTECTED_DIRECT.registration_id);
         await removeProcessVendorLinkPair(processId, vendorId);
+        let primaryFailure: unknown;
 
-        await riskManagerPage.goto(`/processes/${processId}`);
-        await waitForDataLoad(riskManagerPage);
-        await expect(riskManagerPage.getByTestId('process-vendor-links-section')).toBeVisible();
+        try {
+            await riskManagerPage.goto(`/processes/${processId}`);
+            await waitForDataLoad(riskManagerPage);
+            await expect(riskManagerPage.getByTestId('process-vendor-links-section')).toBeVisible();
 
-        await riskManagerPage.getByTestId('process-vendor-link-select').click();
-        await riskManagerPage
-            .getByRole('option', { name: E2E_VENDORS.ACTIVE_PRIMARY.name, exact: true })
-            .click();
-        await riskManagerPage
-            .getByTestId('process-vendor-link-description')
-            .fill('E2E direct service (§1)');
-        await riskManagerPage.getByTestId('process-vendor-link-add').click();
-        const addDialog = riskManagerPage.getByRole('alertdialog');
-        // PORTAL_SUPPORT derives CIF No. The deterministic confirmation stays
-        // visible, but it must not invent a governed-request reason field.
-        await expect(addDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
-        await addDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+            await riskManagerPage.getByTestId('process-vendor-link-select').click();
+            await riskManagerPage
+                .getByRole('option', {
+                    name: E2E_VENDORS.NONPROTECTED_DIRECT.name,
+                    exact: true,
+                })
+                .click();
+            await riskManagerPage.getByTestId('process-vendor-link-description').fill('E2E direct service (§1)');
+            await riskManagerPage.getByTestId('process-vendor-link-add').click();
+            const addDialog = riskManagerPage.getByRole('alertdialog');
+            // PORTAL_SUPPORT derives CIF No. The deterministic confirmation stays
+            // visible, but it must not invent a governed-request reason field.
+            await expect(addDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
+            await addDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
 
-        const processLinks = riskManagerPage.getByTestId('process-vendor-links');
-        await expect(processLinks.getByText(E2E_VENDORS.ACTIVE_PRIMARY.name).first()).toBeVisible();
-        await expect(processLinks.getByText('E2E direct service (§1)', { exact: true })).toBeVisible();
+            const processLinks = riskManagerPage.getByTestId('process-vendor-links');
+            await expect(processLinks.getByText(E2E_VENDORS.NONPROTECTED_DIRECT.name).first()).toBeVisible();
+            await expect(processLinks.getByText('E2E direct service (§1)', { exact: true })).toBeVisible();
 
-        // §1 pairs are unique: the linked vendor leaves the add dropdown.
-        await riskManagerPage.getByTestId('process-vendor-link-select').click();
-        await expect(
-            riskManagerPage.getByRole('option', { name: E2E_VENDORS.ACTIVE_PRIMARY.name, exact: true }),
-        ).toHaveCount(0);
-        await riskManagerPage.keyboard.press('Escape');
+            // §1 pairs are unique: the linked vendor leaves the add dropdown.
+            await riskManagerPage.getByTestId('process-vendor-link-select').click();
+            await expect(
+                riskManagerPage.getByRole('option', {
+                    name: E2E_VENDORS.NONPROTECTED_DIRECT.name,
+                    exact: true,
+                }),
+            ).toHaveCount(0);
+            await riskManagerPage.keyboard.press('Escape');
 
-        const created = (await listProcessVendorLinks(processId)).find(
-            (link) => link.vendor_id === vendorId,
-        );
-        expect(created).toBeDefined();
-        await riskManagerPage.getByTestId(`process-vendor-link-remove-${created!.id}`).click();
-        const removeDialog = riskManagerPage.getByRole('alertdialog');
-        await expect(removeDialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ })).toHaveCount(0);
-        await removeDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
-        await expect(riskManagerPage.getByTestId(`process-vendor-link-remove-${created!.id}`)).toHaveCount(0);
-        const remaining = await listProcessVendorLinks(processId);
-        expect(remaining.some((link) => link.vendor_id === vendorId)).toBe(false);
+            const created = (await listProcessVendorLinks(processId)).find((link) => link.vendor_id === vendorId);
+            expect(created).toBeDefined();
+            await riskManagerPage.getByTestId(`process-vendor-link-remove-${created!.id}`).click();
+            const removeDialog = riskManagerPage.getByRole('alertdialog');
+            await expect(
+                removeDialog.getByRole('textbox', {
+                    name: /Request reason|Důvod žádosti/,
+                }),
+            ).toHaveCount(0);
+            await removeDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+            await expect(riskManagerPage.getByTestId(`process-vendor-link-remove-${created!.id}`)).toHaveCount(0);
+            const remaining = await listProcessVendorLinks(processId);
+            expect(remaining.some((link) => link.vendor_id === vendorId)).toBe(false);
+        } catch (error) {
+            primaryFailure = error;
+            throw error;
+        } finally {
+            await cleanupWithoutMaskingPrimaryFailure(
+                primaryFailure,
+                () => removeProcessVendorLinkPair(processId, vendorId),
+                test.info(),
+            );
+        }
     });
 
-    test('Vendor detail Register-links section renders both far-end blocks with delete affordances', async ({ riskManagerPage }) => {
+    test('Vendor detail Register-links section renders both far-end blocks with delete affordances', async ({
+        riskManagerPage,
+    }) => {
         const vendorId = await requireVendorId(E2E_ICT_VENDOR.registration_id);
 
         await riskManagerPage.goto(`/vendors/${vendorId}`);
@@ -235,64 +302,89 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
     });
 
     test('Vendor-end delete removes the link when can_delete grants it', async ({ riskManagerPage }) => {
-        const vendorId = await requireVendorId(E2E_VENDORS.ACTIVE_PRIMARY.registration_id);
-        const assetId = await requireAssetId(E2E_ASSETS.REPORTING_WAREHOUSE.name);
-        // Own tuple (S13) so the asset-end test's S03 flow never collides.
-        await removeAssetVendorLinkTuple(assetId, vendorId, 'S13');
-        const created = await createAssetVendorLinkViaApi(assetId, {
-            vendor_id: vendorId,
-            ict_service_code: 'S13',
+        const vendorId = await requireVendorId(E2E_VENDORS.NONPROTECTED_DIRECT.registration_id);
+        const assetId = await requireAssetId(E2E_ASSETS.INTEGRATION_BUS.name);
+        await withDirectAssetVendorMechanics(async () => {
+            // Own tuple (S13) so the asset-end test's S03 flow never collides.
+            await removeAssetVendorLinkTuple(assetId, vendorId, 'S13');
+            try {
+                const created = await createAssetVendorLinkViaApi(assetId, {
+                    vendor_id: vendorId,
+                    ict_service_code: 'S13',
+                });
+
+                await riskManagerPage.goto(`/vendors/${vendorId}`);
+                await waitForDataLoad(riskManagerPage);
+
+                const assetLinks = riskManagerPage.getByTestId('vendor-asset-links');
+                await expect(assetLinks.getByText(E2E_ASSETS.INTEGRATION_BUS.name).first()).toBeVisible();
+
+                // The vendor-end remove calls the register-end DELETE route.
+                await riskManagerPage.getByTestId(`vendor-asset-link-remove-${created.id}`).click();
+                const removeDialog = riskManagerPage.getByRole('alertdialog');
+                await removeDialog.getByRole('textbox').fill('E2E direct Vendor-Asset link removal');
+                await removeDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+                await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}$`));
+                await expect(riskManagerPage.getByTestId(`vendor-asset-link-remove-${created.id}`)).toHaveCount(0);
+                const remaining = await listAssetVendorLinks(assetId);
+                expect(remaining.some((link) => link.vendor_id === vendorId && link.ict_service_code === 'S13')).toBe(
+                    false,
+                );
+            } finally {
+                await removeAssetVendorLinkTuple(assetId, vendorId, 'S13');
+            }
         });
-
-        await riskManagerPage.goto(`/vendors/${vendorId}`);
-        await waitForDataLoad(riskManagerPage);
-
-        const assetLinks = riskManagerPage.getByTestId('vendor-asset-links');
-        await expect(assetLinks.getByText(E2E_ASSETS.REPORTING_WAREHOUSE.name).first()).toBeVisible();
-
-        // The vendor-end remove calls the register-end DELETE route.
-        await riskManagerPage.getByTestId(`vendor-asset-link-remove-${created.id}`).click();
-        await expect(riskManagerPage.getByTestId(`vendor-asset-link-remove-${created.id}`)).toHaveCount(0);
-        const remaining = await listAssetVendorLinks(assetId);
-        expect(
-            remaining.some((link) => link.vendor_id === vendorId && link.ict_service_code === 'S13'),
-        ).toBe(false);
     });
 
-    test('Employee reads all three surfaces without manage affordances', async ({ employeePage }) => {
+    test('Department-scoped employees read their surfaces without manage affordances', async ({
+        browser,
+        employeePage,
+    }) => {
         const assetId = await requireAssetId(E2E_ASSETS.CORE_CLAIMS_SYSTEM.name);
         const processId = await requireProcessId(E2E_PROCESSES.REGULATORY_REPORTING.l1_process);
         const vendorId = await requireVendorId(E2E_ICT_VENDOR.registration_id);
+        const financeContext = await browser.newContext();
+        const financeEmployeePage = await financeContext.newPage();
+        let primaryFailure: unknown;
+        try {
+            await loginAsDemoUser(financeEmployeePage, DEMO_ACCOUNTS.EMPLOYEE_FINANCE);
 
-        // Asset end: the seeded vendor link renders, no add form, no remove.
-        await employeePage.goto(`/assets/${assetId}`);
-        await waitForDataLoad(employeePage);
-        await expect(employeePage.getByTestId('asset-vendor-links')).toBeVisible();
-        await expect(employeePage.getByTestId('asset-vendor-link-add')).toHaveCount(0);
-        await expect(employeePage.locator('[data-testid^="asset-vendor-link-remove-"]')).toHaveCount(0);
+            // Asset end: the seeded vendor link renders, no add form, no remove.
+            await employeePage.goto(`/assets/${assetId}`);
+            await waitForDataLoad(employeePage);
+            await expect(employeePage.getByTestId('asset-vendor-links')).toBeVisible();
+            await expect(employeePage.getByTestId('asset-vendor-link-add')).toHaveCount(0);
+            await expect(employeePage.locator('[data-testid^="asset-vendor-link-remove-"]')).toHaveCount(0);
 
-        // Process end: the §1 section renders read-only.
-        await employeePage.goto(`/processes/${processId}`);
-        await waitForDataLoad(employeePage);
-        await expect(employeePage.getByTestId('process-vendor-links-section')).toBeVisible();
-        await expect(employeePage.getByTestId('process-vendor-links')).toBeVisible();
-        await expect(employeePage.getByTestId('process-vendor-link-add')).toHaveCount(0);
-        await expect(employeePage.locator('[data-testid^="process-vendor-link-remove-"]')).toHaveCount(0);
+            // Process end: the §1 section renders read-only.
+            await financeEmployeePage.goto(`/processes/${processId}`);
+            await waitForDataLoad(financeEmployeePage);
+            await expect(financeEmployeePage.getByTestId('process-vendor-links-section')).toBeVisible();
+            await expect(
+                financeEmployeePage.getByText(/^(No Vendors linked yet\.|Zatím žádní propojení dodavatelé\.)$/),
+            ).toBeVisible();
+            await expect(financeEmployeePage.getByTestId('process-vendor-link-add')).toHaveCount(0);
+            await expect(financeEmployeePage.locator('[data-testid^="process-vendor-link-remove-"]')).toHaveCount(0);
 
-        // Vendor end: both blocks render (dual-permission reads), rows carry
-        // no remove buttons (per-row can_delete is false without write).
-        await employeePage.goto(`/vendors/${vendorId}`);
-        await waitForDataLoad(employeePage);
-        await expect(employeePage.getByTestId('vendor-register-links-section')).toBeVisible();
-        await expect(
-            employeePage
-                .getByTestId('vendor-asset-links')
-                .getByText(E2E_ASSETS.CORE_CLAIMS_SYSTEM.name)
-                .first(),
-        ).toBeVisible();
-        await expect(employeePage.getByTestId('vendor-asset-link-add')).toHaveCount(0);
-        await expect(employeePage.getByTestId('vendor-process-link-add')).toHaveCount(0);
-        await expect(employeePage.locator('[data-testid^="vendor-asset-link-remove-"]')).toHaveCount(0);
-        await expect(employeePage.locator('[data-testid^="vendor-process-link-remove-"]')).toHaveCount(0);
+            // Vendor end: both blocks render (dual-permission reads), rows carry
+            // no remove buttons (per-row can_delete is false without write).
+            await employeePage.goto(`/vendors/${vendorId}`);
+            await waitForDataLoad(employeePage);
+            await expect(employeePage.getByTestId('vendor-register-links-section')).toBeVisible();
+            await expect(
+                employeePage.getByTestId('vendor-asset-links').getByText(E2E_ASSETS.CORE_CLAIMS_SYSTEM.name).first(),
+            ).toBeVisible();
+            await expect(employeePage.locator('[data-testid^="vendor-asset-link-remove-"]')).toHaveCount(0);
+            await expect(employeePage.locator('[data-testid^="vendor-process-link-remove-"]')).toHaveCount(0);
+        } catch (error) {
+            primaryFailure = error;
+            throw error;
+        } finally {
+            await cleanupWithoutMaskingPrimaryFailure(
+                primaryFailure,
+                () => financeContext.close(),
+                test.info(),
+            );
+        }
     });
 });

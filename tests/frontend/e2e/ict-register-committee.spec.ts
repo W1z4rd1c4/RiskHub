@@ -36,13 +36,13 @@
  * and stay language-neutral; localized pill/heading/badge/tab text is matched
  * with dual EN/CS regexes (the vendor-derived precedent).
  */
+import type { Page } from '@playwright/test';
+
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ICT_REGISTER_RISK } from './fixtures/e2e-data';
 import { waitForDataLoad } from './helpers/wait';
 
-// Canonical new address for the committee (the Dashboard tab, #64).
-const COMMITTEE_PAGE = '/?view=ict-committee';
-// Legacy standalone route — now a <Navigate replace> to COMMITTEE_PAGE.
+// Legacy standalone route — now a <Navigate replace> to the Dashboard tab.
 const LEGACY_COMMITTEE_PATH = '/ict-register/committee';
 
 // Workbook-verbatim band labels the API serves regardless of UI language.
@@ -58,6 +58,17 @@ const NOT_MEASURABLE = /Not yet measurable|Zatím neměřitelné/;
 const COVERAGE_FULL = /^(Full|Úplné)$/;
 const COVERAGE_DOCUMENTARY = /^(Documentary|Dokumentační)$/;
 
+async function openCommitteeTab(page: Page): Promise<void> {
+    const currentUrl = new URL(page.url());
+    if (currentUrl.pathname !== '/' || currentUrl.search !== '') {
+        await page.getByRole('link', { name: /^Dashboard$/ }).click();
+        await page.waitForURL((url) => url.pathname === '/' && url.search === '');
+    }
+    await page.getByRole('button', { name: ICT_COMMITTEE_TAB }).click();
+    await page.waitForURL((url) => url.pathname === '/' && url.searchParams.get('view') === 'ict-committee');
+    await waitForDataLoad(page);
+}
+
 // The committee body (<IctCommitteeSection>) renders its 16_Dashboard section
 // under this testid only once the committee payload has loaded.
 const COMMITTEE_BODY = 'committee-dashboard';
@@ -66,6 +77,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
     test('the legacy /ict-register/committee route redirects to the ?view=ict-committee tab', async ({
         riskManagerPage,
     }) => {
+        await riskManagerPage.waitForLoadState('networkidle');
         await riskManagerPage.goto(LEGACY_COMMITTEE_PATH);
         await waitForDataLoad(riskManagerPage);
 
@@ -83,8 +95,8 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
     test('the committee tab is ?view=-addressable and browser back/forward move tabs', async ({ riskManagerPage }) => {
         // Start on the canonical overview (no ?view=). The risk-manager holds the
         // ict_committee capability, so the dashboard tab bar renders.
-        await riskManagerPage.goto('/');
         await waitForDataLoad(riskManagerPage);
+        await expect(riskManagerPage).toHaveURL((url) => url.pathname === '/' && url.search === '');
         await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toHaveCount(0);
 
         // Clicking the ICT Committee tab pushes ?view=ict-committee (a history
@@ -96,7 +108,10 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
 
         // Browser BACK returns to the overview tab (param cleared, committee gone).
         await riskManagerPage.goBack();
-        await expect(riskManagerPage).toHaveURL(/localhost:\d+\/$/);
+        await expect.poll(() => {
+            const url = new URL(riskManagerPage.url());
+            return `${url.pathname}${url.search}`;
+        }).toBe('/');
         await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toHaveCount(0);
 
         // Browser FORWARD re-selects the committee tab.
@@ -107,8 +122,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
     });
 
     test('authorized user sees the dashboard tiles, heatmap, Top-10 and KPIs', async ({ riskManagerPage }) => {
-        await riskManagerPage.goto(COMMITTEE_PAGE);
-        await waitForDataLoad(riskManagerPage);
+        await openCommitteeTab(riskManagerPage);
 
         // Both output sheets render (16_Dashboard + 18_CRO_přehled).
         await expect(riskManagerPage.getByTestId('committee-dashboard')).toBeVisible();
@@ -128,8 +142,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
     test('a max-band risk shows Kritické in the band visuals (proves the app-scale config)', async ({
         riskManagerPage,
     }) => {
-        await riskManagerPage.goto(COMMITTEE_PAGE);
-        await waitForDataLoad(riskManagerPage);
+        await openCommitteeTab(riskManagerPage);
 
         // The migration matrix Kritické(gross) → Kritické(net) cell holds the
         // single seeded risk: net 20 ≥ P_RizKrit(16) → Kritické. Under the old
@@ -180,10 +193,9 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
             },
         ] as const;
 
-        for (const entry of cases) {
+        await openCommitteeTab(riskManagerPage);
+        for (const [index, entry] of cases.entries()) {
             await test.step(entry.href, async () => {
-                await riskManagerPage.goto(COMMITTEE_PAGE);
-                await waitForDataLoad(riskManagerPage);
                 const source = riskManagerPage.getByTestId(entry.source);
                 let link = source;
                 if (!(await source.evaluate((node) => node.tagName === 'A'))) {
@@ -200,13 +212,17 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
                         );
                 });
                 await expect(riskManagerPage.getByTestId('semantic-filter-summary')).toContainText(entry.summary);
+                if (index < cases.length - 1) {
+                    await riskManagerPage.goBack();
+                    await expect(riskManagerPage).toHaveURL(/\/\?view=ict-committee$/);
+                    await waitForDataLoad(riskManagerPage);
+                }
             });
         }
     });
 
     test('a chart value is a keyboard-accessible scoped register link', async ({ riskManagerPage }) => {
-        await riskManagerPage.goto(COMMITTEE_PAGE);
-        await waitForDataLoad(riskManagerPage);
+        await openCommitteeTab(riskManagerPage);
         const link = riskManagerPage.getByTestId('committee-asset-bar-Kritická');
         await expect(link).toHaveAttribute('href', '/assets?committee_scope=true&criticality=critical');
         await link.focus();
@@ -219,8 +235,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
     });
 
     test('the Materiální KPI shows the muted "not yet measurable" state', async ({ riskManagerPage }) => {
-        await riskManagerPage.goto(COMMITTEE_PAGE);
-        await waitForDataLoad(riskManagerPage);
+        await openCommitteeTab(riskManagerPage);
 
         // 13!material has no app column → production-inert: an em dash plus the
         // muted label, never a silent 0.
@@ -232,8 +247,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
     test('the RoI-readiness section renders per-template coverage and a gap drill-down', async ({
         riskManagerPage,
     }) => {
-        await riskManagerPage.goto(COMMITTEE_PAGE);
-        await waitForDataLoad(riskManagerPage);
+        await openCommitteeTab(riskManagerPage);
 
         const roi = riskManagerPage.getByTestId('committee-roi');
         await expect(roi).toBeVisible();
@@ -261,6 +275,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
         // the Dashboard normalizes the unauthorized ?view= away to the overview:
         // the URL search is stripped, no committee body/loading renders, and the
         // ICT Committee tab is not offered (capability gate, post-#64).
+        await employeePage.waitForLoadState('networkidle');
         await employeePage.goto(LEGACY_COMMITTEE_PATH);
         await waitForDataLoad(employeePage);
 

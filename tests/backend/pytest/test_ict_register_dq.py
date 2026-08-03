@@ -37,6 +37,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.models import Process, Risk, User
 from app.models.global_config import clear_config_cache
+from app.services._ict_register_lifecycle import dq_cache
 from app.services._ict_register_lifecycle.derivation import (
     AssetAssetLinkInput,
     AssetDerivationInput,
@@ -50,7 +51,6 @@ from app.services._ict_register_lifecycle.derivation import (
     VendorDerivationInput,
 )
 from app.services._ict_register_lifecycle.derivation_inputs import risk_dq_input
-from app.services._ict_register_lifecycle import dq_cache
 from app.services._ict_register_lifecycle.dq import (
     DQ_STATUS_FINDING,
     DQ_STATUS_OK,

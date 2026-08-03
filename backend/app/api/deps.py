@@ -15,6 +15,7 @@ from app.core.security import TokenDecodeError, decode_access_token
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
 from app.models import User
+from app.services._auth_session_workflow.transactions import commit_auth_transaction
 
 logger = get_logger("api.deps")
 security = HTTPBearer(auto_error=False)
@@ -64,9 +65,11 @@ async def _resolve_bearer_user(
         last_active = coerce_utc(user.last_active_at)
         should_update = not last_active or (now - last_active) > timedelta(minutes=1)
         if should_update:
-            # Keep the write best-effort and in-session so callers control commits.
             user.last_active_at = now
             db.add(user)
+            # Persist before the endpoint work starts so concurrent requests do not
+            # hold the same user-row lock for their full response lifetime.
+            await commit_auth_transaction(db, boundary="bearer_last_active")
 
     return user
 
