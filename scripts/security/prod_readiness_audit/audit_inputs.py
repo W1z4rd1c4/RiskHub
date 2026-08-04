@@ -30,7 +30,9 @@ def write_audit_input_files(
                 "ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000",
                 "ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111",
                 "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
+                "BOOTSTRAP_ADMIN_EXTERNAL_ID=11111111-2222-4333-8444-555555555555",
                 "BOOTSTRAP_CRO_EMAIL=cro@example.com",
+                "BOOTSTRAP_CRO_EXTERNAL_ID=66666666-7777-4888-8999-aaaaaaaaaaaa",
                 "API_WORKERS=4",
                 f"FRONTEND_BIND_PORT={frontend_host_port}",
             ]
@@ -48,10 +50,17 @@ def write_audit_input_files(
         secret_dir / "database_url",
         f"postgresql+asyncpg://riskhub:riskhub_audit@host.docker.internal:{postgres_port}/riskhub\n",
     )
-    _write_locked_file(secret_dir / "secret_key", "phase500-local-test-key-phase500-local-test\n")
-    _write_locked_file(secret_dir / "entra_client_secret", "phase500-test-entra-client-secret\n")
+    _write_locked_file(
+        secret_dir / "secret_key", "phase500-local-test-key-phase500-local-test\n"
+    )
+    _write_locked_file(
+        secret_dir / "entra_client_secret", "phase500-test-entra-client-secret\n"
+    )
     _write_locked_file(secret_dir / "redis_password", "riskhub_audit_redis_password\n")
-    _write_locked_file(runtime_dir / "redis_url", "redis://:riskhub_audit_redis_password@redis:6379/0\n")
+    _write_locked_file(
+        runtime_dir / "redis_url",
+        "redis://:riskhub_audit_redis_password@redis:6379/0\n",
+    )
 
     (config_path.parent / "backend_valid.env").write_text(
         "\n".join(
@@ -70,8 +79,10 @@ def write_audit_input_files(
                 "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
                 "BOOTSTRAP_ADMIN_ROLE=admin",
                 "BOOTSTRAP_ADMIN_ACCESS_SCOPE=global",
+                "BOOTSTRAP_ADMIN_EXTERNAL_ID=11111111-2222-4333-8444-555555555555",
                 "BOOTSTRAP_CRO_EMAIL=cro@example.com",
                 "BOOTSTRAP_CRO_ACCESS_SCOPE=global",
+                "BOOTSTRAP_CRO_EXTERNAL_ID=66666666-7777-4888-8999-aaaaaaaaaaaa",
             ]
         )
         + "\n",
@@ -112,7 +123,9 @@ def write_audit_inputs(state: ProdReadinessRunState) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Write local production-readiness audit inputs")
+    parser = argparse.ArgumentParser(
+        description="Write local production-readiness audit inputs"
+    )
     parser.add_argument("--config-path", type=Path, required=True)
     parser.add_argument("--secret-dir", type=Path, required=True)
     parser.add_argument("--runtime-dir", type=Path, required=True)

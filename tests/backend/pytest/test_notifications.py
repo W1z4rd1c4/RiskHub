@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
@@ -37,19 +38,87 @@ from app.services.kri_deadline_service import KRIDeadlineService
 from app.services.notification_service import NotificationService
 
 
-def test_asset_notification_visibility_is_correlated_sql_not_materialized_ids() -> None:
+def test_governed_notification_visibility_bounds_strict_validation_to_candidate_ids() -> None:
     from app.services import notification_visibility
 
     source = inspect.getsource(notification_visibility.visible_notification_clause)
-    assert "valid_asset_approval_ids" not in source
-    assert "live_asset_resolver_approval_ids" not in source
-    helper = inspect.getsource(
-        notification_visibility._asset_approval_visibility_clause
+    assert "valid_asset_approval_ids" in source
+    assert "valid_vendor_approvals" in source
+    assert source.count("approval_ids=notification_approval_ids") >= 2
+
+    approval_clause = inspect.getsource(notification_visibility._approval_exists_clause)
+    assert "_asset_approval_visibility_clause" not in approval_clause
+    assert "_vendor_approval_visibility_clause" not in approval_clause
+
+
+@pytest.mark.asyncio
+async def test_asset_notification_resolver_queries_only_candidate_approval_ids(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_cro: User,
+    test_user_employee: User,
+) -> None:
+    candidate = ApprovalRequest(
+        id=900_001,
+        resource_type=ApprovalResourceType.ASSET,
+        resource_id=1,
+        resource_name="Candidate Asset",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Candidate notification approval",
+        status=ApprovalStatus.PENDING,
     )
-    assert ".exists()" in helper
-    assert (
-        "GovernedMutationProposal.approval_request_id == ApprovalRequest.id" in helper
+    historical = ApprovalRequest(
+        id=900_002,
+        resource_type=ApprovalResourceType.ASSET,
+        resource_id=2,
+        resource_name="Historical Asset",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Unrelated historical approval",
+        status=ApprovalStatus.PENDING,
     )
+    db_session.add_all([candidate, historical])
+    await db_session.flush()
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+        title="Candidate Asset approval",
+        message="Only this approval should reach strict Asset validation",
+        resource_type="approval",
+        resource_id=candidate.id,
+    )
+    await db_session.commit()
+
+    asset_queries: list[tuple[str, object]] = []
+
+    def capture_asset_query(
+        _connection, _cursor, statement, parameters, _context, _executemany
+    ) -> None:
+        if (
+            "FROM governed_mutation_proposals JOIN approval_requests" in statement
+            and "governed_mutation_proposals.primary_resource_type" in statement
+        ):
+            asset_queries.append((statement, parameters))
+
+    sync_engine = db_session.bind.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", capture_asset_query)
+    try:
+        response = await client.get(
+            "/api/v1/notifications",
+            headers=_headers_for(test_user_employee),
+        )
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", capture_asset_query)
+
+    assert response.status_code == 200, response.text
+    assert len(asset_queries) >= 2
+    for statement, parameters in asset_queries:
+        values = tuple(parameters.values()) if isinstance(parameters, dict) else tuple(parameters)
+        assert "approval_request_id IN" in statement or "approval_requests.id IN" in statement
+        assert candidate.id in values
+        assert historical.id not in values
 
 
 def _headers_for(user) -> dict[str, str]:
@@ -150,6 +219,60 @@ async def test_list_notifications_empty(auth_client: AsyncClient):
     assert data["items"] == []
     assert data["total"] == 0
     assert data["unread_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_list_notifications_combines_total_and_unread_aggregate(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_employee,
+):
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.KRI_DUE_SOON,
+        title="Unread notification",
+        message="Unread pagination evidence",
+    )
+    read_notification = await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.KRI_DUE_SOON,
+        title="Read notification",
+        message="Read pagination evidence",
+    )
+    read_notification.is_read = True
+    await db_session.commit()
+
+    statements: list[str] = []
+
+    def capture_statement(_connection, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    sync_engine = db_session.bind.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", capture_statement)
+    try:
+        response = await client.get(
+            "/api/v1/notifications?skip=0&limit=1",
+            headers=_headers_for(test_user_employee),
+        )
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", capture_statement)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert data["unread_count"] == 1
+    assert len(data["items"]) == 1
+
+    aggregate_queries = [
+        statement
+        for statement in statements
+        if statement.lstrip().lower().startswith("select count(")
+        and "FROM notifications" in statement
+    ]
+    assert len(aggregate_queries) == 1
+    assert aggregate_queries[0].split("\n", 1)[0].lower().count("count(") == 2
 
 
 @pytest.mark.asyncio

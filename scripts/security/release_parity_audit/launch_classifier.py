@@ -4,8 +4,11 @@ from pathlib import Path
 from typing import Any
 
 
-def classify_launch_failure(startup_path_id: str, log_text: str, launch_rc: int) -> dict[str, Any]:
+def classify_launch_failure(
+    startup_path_id: str, log_text: str, launch_rc: int
+) -> dict[str, Any]:
     log_lower = log_text.lower()
+    docker_backed_path = startup_path_id in {"dev_sh_full", "compose_sh_up_full"}
 
     def result(
         classification: str,
@@ -25,19 +28,24 @@ def classify_launch_failure(startup_path_id: str, log_text: str, launch_rc: int)
             "unexpected_port_owner",
             "A required local port was owned by an unexpected process on the audit host.",
         )
-    if "docker daemon is unavailable" in log_lower or "cannot connect to the docker daemon" in log_lower:
+    if docker_backed_path and (
+        "docker daemon is unavailable" in log_lower
+        or "cannot connect to the docker daemon" in log_lower
+    ):
         return result(
             "environment_contamination",
             "docker_daemon_unavailable",
             "Docker was unavailable on the audit host for a Docker-backed startup path.",
         )
-    if "docker is required" in log_lower or "docker daemon not reachable" in log_lower:
+    if docker_backed_path and (
+        "docker is required" in log_lower or "docker daemon not reachable" in log_lower
+    ):
         return result(
             "environment_contamination",
             "docker_tooling_missing",
             "Docker tooling was unavailable for a Docker-backed startup path.",
         )
-    if (
+    if startup_path_id == "dev_sh_full" and (
         "unsupported node.js major" in log_lower
         or "node.js is required but was not found" in log_lower
         or "npm is required but was not found" in log_lower
@@ -46,23 +54,6 @@ def classify_launch_failure(startup_path_id: str, log_text: str, launch_rc: int)
             "environment_contamination",
             "toolchain_mismatch",
             "Node/npm on the audit host could not satisfy the startup script requirements.",
-        )
-    packaging_markers = (
-        "backend/venv/bin/python",
-        "./venv/bin/python",
-        "package-lock.json",
-        "requirements.txt",
-        "requirements-runtime.txt",
-        "requirements-db.txt",
-        "no such file or directory",
-        "missing required file",
-        "missing required directory",
-    )
-    if any(marker in log_lower for marker in packaging_markers):
-        return result(
-            "environment_contamination",
-            "parity_artifact_incomplete",
-            "The parity workspace or generated artifacts were incomplete for this startup path.",
         )
     return result(
         "product_failure",
@@ -80,14 +71,18 @@ def build_launch_failure_fingerprint(
     captured_at_utc: str,
     docker_state: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    log_text = Path(launch_result.log_path).read_text(encoding="utf-8", errors="replace")
+    log_text = Path(launch_result.log_path).read_text(
+        encoding="utf-8", errors="replace"
+    )
     failure = classify_launch_failure(startup_path_id, log_text, launch_result.rc)
     fingerprint: dict[str, Any] = {
         "startup_path_id": startup_path_id,
         "context_id": context_id,
         "captured_at_utc": captured_at_utc,
         "git_sha_expected": baseline.get("git_sha"),
-        "git_sha_observed": baseline.get("git_sha"),
+        "git_sha_observed_unavailable_reason": (
+            "Launch failed before runtime identity could be observed."
+        ),
         "launch_failed": True,
         "launch_rc": launch_result.rc,
         "launch_log": launch_result.log_path,

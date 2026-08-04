@@ -86,7 +86,9 @@ def _source_shell_assignments(path: Path, *keys: str) -> dict[str, str]:
     return values
 
 
-def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_without_emitting_raw_secrets() -> None:
+def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_without_emitting_raw_secrets() -> (
+    None
+):
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -145,17 +147,24 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
             "DOCKER_NETWORK_SUBNET",
             "ENTRA_GRAPH_CREDENTIAL_MODE",
         )
-        linux_meta = _source_shell_assignments(linux_out / "metadata.env", "BACKEND_BIND_PORT")
+        linux_meta = _source_shell_assignments(
+            linux_out / "metadata.env", "BACKEND_BIND_PORT"
+        )
 
         assert docker_backend["CORS_ORIGINS"] == '["https://riskhub.example.com"]'
         assert docker_backend["ALLOWED_HOSTS"] == '["riskhub.example.com"]'
-        assert docker_backend["TRUSTED_PROXIES"] == f'["127.0.0.1", "::1", "{DEFAULT_DOCKER_NETWORK_SUBNET}"]'
+        assert (
+            docker_backend["TRUSTED_PROXIES"]
+            == f'["127.0.0.1", "::1", "{DEFAULT_DOCKER_NETWORK_SUBNET}"]'
+        )
         assert docker_backend["DOCKER_NETWORK_SUBNET"] == DEFAULT_DOCKER_NETWORK_SUBNET
         assert linux_backend["TRUSTED_PROXIES"] == '["127.0.0.1", "::1"]'
         assert "DOCKER_NETWORK_SUBNET" not in linux_backend
         assert docker_backend["DATABASE_URL_FILE"] == str(secret_dir / "database_url")
         assert docker_backend["SECRET_KEY_FILE"] == str(secret_dir / "secret_key")
-        assert docker_backend["ENTRA_CLIENT_SECRET_FILE"] == str(secret_dir / "entra_client_secret")
+        assert docker_backend["ENTRA_CLIENT_SECRET_FILE"] == str(
+            secret_dir / "entra_client_secret"
+        )
         assert "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT" not in docker_backend
         assert "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE" not in docker_backend
         assert docker_backend["REDIS_URL_FILE"] == str(runtime_dir / "redis_url")
@@ -175,8 +184,12 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         metadata_text = (docker_out / "metadata.env").read_text(encoding="utf-8")
         assert "REDIS_URL=" not in metadata_text
         assert "redis-secret" not in metadata_text
-        assert (docker_out / "redis_url").read_text(encoding="utf-8") == "redis://:redis-secret@redis:6379/0\n"
-        assert (linux_out / "redis_url").read_text(encoding="utf-8") == "redis://:redis-secret@127.0.0.1:6379/0\n"
+        assert (docker_out / "redis_url").read_text(
+            encoding="utf-8"
+        ) == "redis://:redis-secret@redis:6379/0\n"
+        assert (linux_out / "redis_url").read_text(
+            encoding="utf-8"
+        ) == "redis://:redis-secret@127.0.0.1:6379/0\n"
         assert docker_meta["SERVER_NAME"] == "riskhub.example.com"
         assert docker_meta["FRONTEND_BIND_PORT"] == "18080"
         assert docker_meta["DOCKER_NETWORK_SUBNET"] == DEFAULT_DOCKER_NETWORK_SUBNET
@@ -184,8 +197,124 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         assert docker_meta["ENTRA_GRAPH_CREDENTIAL_MODE"] == "secret"
 
 
+def test_renderer_plumbs_optional_bootstrap_external_ids_only_when_configured() -> None:
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-deploy-render-bootstrap-ids-"
+    ) as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        out_dir = tmp / "out"
+        _write_config(
+            config_path,
+            BOOTSTRAP_ADMIN_EXTERNAL_ID="11111111-2222-4333-8444-555555555555",
+            BOOTSTRAP_CRO_EXTERNAL_ID="66666666-7777-4888-8999-aaaaaaaaaaaa",
+        )
+        _write_secrets(secret_dir)
+
+        subprocess.run(
+            [
+                "python3",
+                str(RENDERER),
+                "write-runtime",
+                "--config",
+                str(config_path),
+                "--target",
+                "docker",
+                "--secret-dir",
+                str(secret_dir),
+                "--runtime-dir",
+                str(runtime_dir),
+                "--out-dir",
+                str(out_dir),
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+
+        backend_env = _parse_env(out_dir / "backend.env")
+        assert backend_env["BOOTSTRAP_ADMIN_EXTERNAL_ID"] == (
+            "11111111-2222-4333-8444-555555555555"
+        )
+        assert backend_env["BOOTSTRAP_CRO_EXTERNAL_ID"] == (
+            "66666666-7777-4888-8999-aaaaaaaaaaaa"
+        )
+
+        default_config = tmp / "default.env"
+        default_out = tmp / "default-out"
+        _write_config(default_config)
+        subprocess.run(
+            [
+                "python3",
+                str(RENDERER),
+                "write-runtime",
+                "--config",
+                str(default_config),
+                "--target",
+                "docker",
+                "--secret-dir",
+                str(secret_dir),
+                "--runtime-dir",
+                str(runtime_dir),
+                "--out-dir",
+                str(default_out),
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+        default_backend_env = _parse_env(default_out / "backend.env")
+        assert "BOOTSTRAP_ADMIN_EXTERNAL_ID" not in default_backend_env
+        assert "BOOTSTRAP_CRO_EXTERNAL_ID" not in default_backend_env
+
+
+def test_renderer_rejects_duplicate_bootstrap_external_ids_before_rendering() -> None:
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-deploy-render-duplicate-bootstrap-id-"
+    ) as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        duplicate_external_id = "11111111-2222-4333-8444-555555555555"
+        _write_config(
+            config_path,
+            BOOTSTRAP_ADMIN_EXTERNAL_ID=duplicate_external_id,
+            BOOTSTRAP_CRO_EXTERNAL_ID=duplicate_external_id,
+        )
+        _write_secrets(secret_dir)
+
+        result = subprocess.run(
+            [
+                "python3",
+                str(RENDERER),
+                "show-json",
+                "--config",
+                str(config_path),
+                "--target",
+                "docker",
+                "--secret-dir",
+                str(secret_dir),
+                "--runtime-dir",
+                str(runtime_dir),
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode != 0
+        assert (
+            "BOOTSTRAP_ADMIN_EXTERNAL_ID and BOOTSTRAP_CRO_EXTERNAL_ID must be different"
+            in result.stderr
+        )
+
+
 def test_renderer_rejects_wildcard_public_url_before_rendering_allowed_hosts() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-wildcard-host-") as td:
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-deploy-render-wildcard-host-"
+    ) as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
@@ -219,7 +348,9 @@ def test_renderer_rejects_wildcard_public_url_before_rendering_allowed_hosts() -
 
 
 def test_renderer_passes_through_observability_settings() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-observability-") as td:
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-deploy-render-observability-"
+    ) as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
@@ -255,11 +386,16 @@ def test_renderer_passes_through_observability_settings() -> None:
 
         backend_env = _parse_env(out_dir / "backend.env")
         assert backend_env["METRICS_ENABLED"] == "true"
-        assert backend_env["OTEL_EXPORTER_OTLP_ENDPOINT"] == "http://otel-collector:4318/v1/traces"
+        assert (
+            backend_env["OTEL_EXPORTER_OTLP_ENDPOINT"]
+            == "http://otel-collector:4318/v1/traces"
+        )
         assert backend_env["OTEL_SERVICE_NAME"] == "riskhub-prod"
 
 
-def test_renderer_prefers_certificate_mode_and_omits_secret_file_from_runtime_env() -> None:
+def test_renderer_prefers_certificate_mode_and_omits_secret_file_from_runtime_env() -> (
+    None
+):
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-cert-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -296,9 +432,14 @@ def test_renderer_prefers_certificate_mode_and_omits_secret_file_from_runtime_en
         )
 
         backend_env = _parse_env(out_dir / "backend.env")
-        metadata = _source_shell_assignments(out_dir / "metadata.env", "ENTRA_GRAPH_CREDENTIAL_MODE")
+        metadata = _source_shell_assignments(
+            out_dir / "metadata.env", "ENTRA_GRAPH_CREDENTIAL_MODE"
+        )
 
-        assert backend_env["ENTRA_CLIENT_CERTIFICATE_THUMBPRINT"] == "ABCDEF1234567890ABCDEF1234567890ABCDEF12"
+        assert (
+            backend_env["ENTRA_CLIENT_CERTIFICATE_THUMBPRINT"]
+            == "ABCDEF1234567890ABCDEF1234567890ABCDEF12"
+        )
         assert backend_env["ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE"] == str(
             secret_dir / "entra_client_certificate_private_key"
         )
@@ -307,7 +448,9 @@ def test_renderer_prefers_certificate_mode_and_omits_secret_file_from_runtime_en
 
 
 def test_renderer_passes_through_entra_business_role_attribute_name() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-business-role-") as td:
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-deploy-render-business-role-"
+    ) as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
@@ -340,11 +483,15 @@ def test_renderer_passes_through_entra_business_role_attribute_name() -> None:
         )
 
         backend_env = _parse_env(out_dir / "backend.env")
-        assert backend_env["ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME"] == "riskhubBusinessRole"
+        assert (
+            backend_env["ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME"] == "riskhubBusinessRole"
+        )
 
 
 def test_renderer_rejects_partial_certificate_configuration() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-cert-invalid-") as td:
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-deploy-render-cert-invalid-"
+    ) as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
@@ -377,7 +524,10 @@ def test_renderer_rejects_partial_certificate_configuration() -> None:
 
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
-        assert "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is set but no valid entra_client_certificate_private_key" in output
+        assert (
+            "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is set but no valid entra_client_certificate_private_key"
+            in output
+        )
 
 
 def test_renderer_enforces_scheduler_singleton_runtime_contract() -> None:
@@ -475,15 +625,25 @@ def test_renderer_enforces_scheduler_singleton_runtime_contract() -> None:
         assert metadata["SCHEDULER_ENABLED"] == "true"
         assert metadata["SCHEDULER_WORKERS"] == "1"
         assert metadata["SCHEDULER_BIND_PORT"] == "8001"
-        assert "Environment=ENABLE_SCHEDULER=false" in backend_unit.read_text(encoding="utf-8")
+        assert "Environment=ENABLE_SCHEDULER=false" in backend_unit.read_text(
+            encoding="utf-8"
+        )
         assert "--workers 6" in backend_unit.read_text(encoding="utf-8")
         assert "--port 8000" in backend_unit.read_text(encoding="utf-8")
-        assert "Requires=riskhub-redis.service" in backend_unit.read_text(encoding="utf-8")
-        assert "Environment=ENABLE_SCHEDULER=true" in scheduler_unit.read_text(encoding="utf-8")
+        assert "Requires=riskhub-redis.service" in backend_unit.read_text(
+            encoding="utf-8"
+        )
+        assert "Environment=ENABLE_SCHEDULER=true" in scheduler_unit.read_text(
+            encoding="utf-8"
+        )
         assert "--workers 1" in scheduler_unit.read_text(encoding="utf-8")
         assert "--port 8001" in scheduler_unit.read_text(encoding="utf-8")
-        assert "ExecStart=redis-server /run/riskhub/redis.conf" in redis_unit.read_text(encoding="utf-8")
-        assert str(secret_dir / "redis_password") in redis_unit.read_text(encoding="utf-8")
+        assert "ExecStart=redis-server /run/riskhub/redis.conf" in redis_unit.read_text(
+            encoding="utf-8"
+        )
+        assert str(secret_dir / "redis_password") in redis_unit.read_text(
+            encoding="utf-8"
+        )
 
 
 def test_renderer_rejects_invalid_api_workers() -> None:
@@ -520,7 +680,9 @@ def test_renderer_rejects_invalid_api_workers() -> None:
         assert "API_WORKERS must be at least 1" in output
 
 
-def test_renderer_metadata_env_round_trips_shell_safe_values_for_paths_with_spaces() -> None:
+def test_renderer_metadata_env_round_trips_shell_safe_values_for_paths_with_spaces() -> (
+    None
+):
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-spaces-") as td:
         tmp = Path(td) / "workspace with spaces"
         tmp.mkdir(parents=True)
@@ -567,7 +729,10 @@ def test_renderer_metadata_env_round_trips_shell_safe_values_for_paths_with_spac
         assert metadata["RUNTIME_DIR"] == str(runtime_dir)
         assert metadata["CORS_ORIGINS_JSON"] == '["https://riskhub.example.com"]'
         assert metadata["ALLOWED_HOSTS_JSON"] == '["riskhub.example.com"]'
-        assert metadata["TRUSTED_PROXIES_JSON"] == f'["127.0.0.1", "::1", "{DEFAULT_DOCKER_NETWORK_SUBNET}"]'
+        assert (
+            metadata["TRUSTED_PROXIES_JSON"]
+            == f'["127.0.0.1", "::1", "{DEFAULT_DOCKER_NETWORK_SUBNET}"]'
+        )
         assert metadata["DOCKER_NETWORK_SUBNET"] == DEFAULT_DOCKER_NETWORK_SUBNET
         assert metadata["REDIS_URL_FILE"] == str(runtime_dir / "redis_url")
         assert metadata["REDIS_PASSWORD_FILE"] == str(secret_dir / "redis_password")

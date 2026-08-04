@@ -11,6 +11,10 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
         await ensureRiskStatus(E2E_RISKS.ARCHIVE_RESTORE_TARGET.code, 'archived');
     });
 
+    test.afterEach(async () => {
+        await ensureRiskStatus(E2E_RISKS.ARCHIVE_RESTORE_TARGET.code, 'archived');
+    });
+
     test('Risk Manager can see deterministic risk list rows', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
@@ -98,7 +102,5 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
 
         await risksPage.openRowByText(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
         await expect(riskManagerPage.locator('span').filter({ hasText: /^active$/i }).first()).toBeVisible();
-
-        await ensureRiskStatus(E2E_RISKS.ARCHIVE_RESTORE_TARGET.code, 'archived');
     });
 });

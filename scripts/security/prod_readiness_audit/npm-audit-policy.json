@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "accepted_advisory": {
+    "id": "GHSA-qwww-vcr4-c8h2",
+    "severity": "high",
+    "packages": [
+      "react-router",
+      "react-router-dom"
+    ],
+    "owner": "Frontend Platform",
+    "reason": "Time-bound acceptance for the React Router RSC-mode CSRF advisory while no compatible fixed react-router-dom release exists.",
+    "reachability_evidence": "RiskHub uses the client-side BrowserRouter in frontend/src/App.tsx and has no React Server Components route or server-action API usage under frontend/src or tests/frontend.",
+    "no_fixed_version_proof": "The candidate lock resolves react-router-dom 7.18.1 to affected react-router 7.18.1. npm audit identifies react-router >=8.3.0 as fixed, but no compatible react-router-dom 7.x release can resolve to that major. Current registry and audit output are retained in the external release evidence.",
+    "exit_criterion": "Upgrade react-router-dom to the first compatible release that depends on react-router 8.3.0 or later, then remove this policy entry.",
+    "expires_on": "2026-09-30"
+  }
+}

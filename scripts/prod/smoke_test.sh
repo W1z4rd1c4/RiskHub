@@ -79,6 +79,28 @@ asyncio.run(main())
 PY
 }
 
+backend_http_code_python() {
+  cat <<'PY'
+import sys
+import urllib.error
+import urllib.request
+
+class NoRedirect(urllib.request.HTTPErrorProcessor):
+    def http_response(self, request, response):
+        return response
+
+    https_response = http_response
+
+opener = urllib.request.build_opener(NoRedirect())
+request = urllib.request.Request(sys.argv[1], headers={"Host": sys.argv[2]})
+try:
+    with opener.open(request, timeout=10) as response:
+        print(response.status)
+except urllib.error.HTTPError as error:
+    print(error.code)
+PY
+}
+
 usage() {
   cat <<EOF
 Usage: scripts/prod/smoke_test.sh --frontend-env PATH [options]
@@ -206,9 +228,9 @@ fi
 if [[ "$DRY_RUN" == "true" ]]; then
   printf '+ curl -f -H "Host: %s" http://localhost:%s/\\n' "$resolved_host" "$host_port"
   printf '+ curl -f -H "Host: %s" http://localhost:%s/api/v1/readyz\\n' "$resolved_host" "$host_port"
-  printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/docs\\n' "$BACKEND_CONTAINER" "$resolved_host"
-  printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/openapi.json\\n' "$BACKEND_CONTAINER" "$resolved_host"
-  printf "+ docker exec -i %s python - <<'PY'\\n" "$BACKEND_CONTAINER"
+  printf "+ backend_http_code_python | docker exec -i %s python - http://localhost:8000/docs '%s'\\n" "$BACKEND_CONTAINER" "$resolved_host"
+  printf "+ backend_http_code_python | docker exec -i %s python - http://localhost:8000/openapi.json '%s'\\n" "$BACKEND_CONTAINER" "$resolved_host"
+  printf "+ docker exec -i --user riskhub %s python - <<'PY'\\n" "$BACKEND_CONTAINER"
   reliability_runtime_check_python
   printf 'PY\\n'
   exit 0
@@ -264,12 +286,17 @@ if ! container_exists "$BACKEND_CONTAINER"; then
   die "Backend container not found: $BACKEND_CONTAINER"
 fi
 
-docs_code="$(docker exec "$BACKEND_CONTAINER" curl -sS -H "Host: ${resolved_host}" -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null || true)"
+backend_http_code() {
+  local url="$1"
+  backend_http_code_python | docker exec -i "$BACKEND_CONTAINER" python - "$url" "$resolved_host"
+}
+
+docs_code="$(backend_http_code http://localhost:8000/docs 2>/dev/null || true)"
 if [[ "$docs_code" != "404" ]]; then
   die "Expected backend /docs to be disabled in production (404), got: $docs_code"
 fi
 
-openapi_code="$(docker exec "$BACKEND_CONTAINER" curl -sS -H "Host: ${resolved_host}" -o /dev/null -w "%{http_code}" http://localhost:8000/openapi.json 2>/dev/null || true)"
+openapi_code="$(backend_http_code http://localhost:8000/openapi.json 2>/dev/null || true)"
 if [[ "$openapi_code" != "404" ]]; then
   die "Expected backend /openapi.json to be disabled in production (404), got: $openapi_code"
 fi
@@ -277,7 +304,7 @@ fi
 log "Smoke: backend /docs and /openapi.json disabled (production mode)"
 
 reliability_report="$(
-  docker exec -i "$BACKEND_CONTAINER" python - <<'PY'
+  docker exec -i --user riskhub "$BACKEND_CONTAINER" python - <<'PY'
 import asyncio
 import json
 import os

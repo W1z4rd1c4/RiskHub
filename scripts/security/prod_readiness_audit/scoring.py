@@ -46,7 +46,9 @@ def find_protocol_probe_results_path(state: ProdReadinessRunState) -> Path | Non
             return Path(matches[-1])
 
     candidates = sorted(
-        state.root_dir.glob("tests/results/security/contract-drift-remediation-*/protocol/probe-results.json"),
+        state.root_dir.glob(
+            "tests/results/security/contract-drift-remediation-*/protocol/probe-results.json"
+        ),
         key=lambda path: path.stat().st_mtime,
     )
     return candidates[-1] if candidates else None
@@ -76,8 +78,12 @@ def read_protocol_probe_counts(path: Path | None) -> dict[str, int]:
     if not isinstance(summary, dict):
         return _failed_protocol_probe_counts()
     return {
-        "unresolved_contract_drift_count": _protocol_probe_count(summary, "unresolved_contract_drift_count"),
-        "security_defect_count": _protocol_probe_count(summary, "security_defect_count"),
+        "unresolved_contract_drift_count": _protocol_probe_count(
+            summary, "unresolved_contract_drift_count"
+        ),
+        "security_defect_count": _protocol_probe_count(
+            summary, "security_defect_count"
+        ),
     }
 
 
@@ -85,11 +91,21 @@ def trivy_high_critical_count(path: Path) -> int:
     payload = _read_json(path)
     if not isinstance(payload, dict):
         return 999
+    results = payload.get("Results")
+    if not isinstance(results, list):
+        return 999
     total = 0
-    for result in payload.get("Results", []):
+    for result in results:
         if not isinstance(result, dict):
-            continue
-        for vulnerability in result.get("Vulnerabilities") or []:
+            return 999
+        vulnerabilities = (
+            result["Vulnerabilities"] if "Vulnerabilities" in result else []
+        )
+        if not isinstance(vulnerabilities, list) or not all(
+            isinstance(vulnerability, dict) for vulnerability in vulnerabilities
+        ):
+            return 999
+        for vulnerability in vulnerabilities:
             if str(vulnerability.get("Severity", "")).upper() in {"HIGH", "CRITICAL"}:
                 total += 1
     return total
@@ -99,12 +115,17 @@ def grype_high_critical_count(path: Path) -> int:
     payload = _read_json(path)
     if not isinstance(payload, dict):
         return 999
+    matches = payload.get("matches")
+    if not isinstance(matches, list):
+        return 999
     total = 0
-    for match in payload.get("matches", []):
+    for match in matches:
         if not isinstance(match, dict):
-            continue
-        vulnerability = match.get("vulnerability", {})
-        if isinstance(vulnerability, dict) and str(vulnerability.get("severity", "")).upper() in {"HIGH", "CRITICAL"}:
+            return 999
+        vulnerability = match.get("vulnerability")
+        if not isinstance(vulnerability, dict):
+            return 999
+        if str(vulnerability.get("severity", "")).upper() in {"HIGH", "CRITICAL"}:
             total += 1
     return total
 
@@ -116,13 +137,48 @@ def gitleaks_count(path: Path) -> int:
     return 999
 
 
-def build_supply_chain_counts(reports_dir: Path) -> dict[str, int]:
+def _failed_npm_audit_policy_counts() -> dict[str, int]:
     return {
-        "trivy_backend_high_critical": trivy_high_critical_count(reports_dir / "trivy-backend.json"),
-        "trivy_frontend_high_critical": trivy_high_critical_count(reports_dir / "trivy-frontend.json"),
-        "grype_backend_high_critical": grype_high_critical_count(reports_dir / "grype-backend.json"),
+        "npm_raw_high_critical": 999,
+        "npm_accepted_high_critical": 0,
+        "npm_open_high_critical": 999,
+    }
+
+
+def npm_audit_policy_counts(path: Path) -> dict[str, int]:
+    payload = _read_json(path)
+    if not isinstance(payload, dict):
+        return _failed_npm_audit_policy_counts()
+    try:
+        raw = int(payload["raw_high_critical_packages"])
+        accepted = int(payload["accepted_high_critical_packages"])
+        open_count = int(payload["open_high_critical_packages"])
+    except (KeyError, TypeError, ValueError):
+        return _failed_npm_audit_policy_counts()
+    if min(raw, accepted, open_count) < 0 or raw != accepted + open_count:
+        return _failed_npm_audit_policy_counts()
+    return {
+        "npm_raw_high_critical": raw,
+        "npm_accepted_high_critical": accepted,
+        "npm_open_high_critical": open_count,
+    }
+
+
+def build_supply_chain_counts(reports_dir: Path) -> dict[str, int]:
+    counts = {
+        "trivy_backend_high_critical": trivy_high_critical_count(
+            reports_dir / "trivy-backend.json"
+        ),
+        "trivy_frontend_high_critical": trivy_high_critical_count(
+            reports_dir / "trivy-frontend.json"
+        ),
+        "grype_backend_high_critical": grype_high_critical_count(
+            reports_dir / "grype-backend.json"
+        ),
         "gitleaks_findings": gitleaks_count(reports_dir / "gitleaks-report.json"),
     }
+    counts.update(npm_audit_policy_counts(reports_dir / "npm-audit-filtered.json"))
+    return counts
 
 
 def _rc_by_id(state: ProdReadinessRunState) -> dict[str, int]:
@@ -147,7 +203,9 @@ def _mandatory_control_finding(
     }
 
 
-def evaluate_mandatory_controls(state: ProdReadinessRunState) -> list[dict[str, object]]:
+def evaluate_mandatory_controls(
+    state: ProdReadinessRunState,
+) -> list[dict[str, object]]:
     rc_by_id = _rc_by_id(state)
     findings: list[dict[str, object]] = []
 
@@ -162,7 +220,10 @@ def evaluate_mandatory_controls(state: ProdReadinessRunState) -> list[dict[str, 
                     state.log_dir / "p2_preflight_invalid_host_range.log",
                     state.log_dir / "p2_preflight_invalid_container_port.log",
                 ],
-                details={"host_rc": invalid_host_rc, "container_rc": invalid_container_rc},
+                details={
+                    "host_rc": invalid_host_rc,
+                    "container_rc": invalid_container_rc,
+                },
             )
         )
 
@@ -203,7 +264,10 @@ def evaluate_mandatory_controls(state: ProdReadinessRunState) -> list[dict[str, 
             _mandatory_control_finding(
                 control_id="MC-09",
                 summary="Deploy lifecycle preflight/deploy/status/runtime/smoke/upgrade/rollback must pass.",
-                evidence=[state.log_dir / f"{command_id}.log" for command_id in lifecycle_commands],
+                evidence=[
+                    state.log_dir / f"{command_id}.log"
+                    for command_id in lifecycle_commands
+                ],
                 details=lifecycle_commands,
             )
         )
@@ -241,7 +305,9 @@ def evaluate_mandatory_controls(state: ProdReadinessRunState) -> list[dict[str, 
     return findings
 
 
-def score_command_results(state: ProdReadinessRunState) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+def score_command_results(
+    state: ProdReadinessRunState,
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     findings: list[dict[str, object]] = []
     for row in state.command_results:
         if bool(row.get("required")) and int(row.get("rc", 0)) != 0:
@@ -257,7 +323,12 @@ def score_command_results(state: ProdReadinessRunState) -> tuple[list[dict[str, 
             )
     findings.extend(evaluate_mandatory_controls(state))
     supply_counts = build_supply_chain_counts(state.reports_dir)
-    if any(count != 0 for count in supply_counts.values()):
+    blocking_supply_counts = {
+        key: value
+        for key, value in supply_counts.items()
+        if key not in {"npm_raw_high_critical", "npm_accepted_high_critical"}
+    }
+    if any(count != 0 for count in blocking_supply_counts.values()):
         findings.append(
             {
                 "id": "MC-12",
@@ -276,7 +347,10 @@ def score_command_results(state: ProdReadinessRunState) -> tuple[list[dict[str, 
             "domain": "production readiness",
             "status": "pass" if blocking == 0 else "needs-attention",
             "score_0_to_5": score,
-            "evidence": [str(state.matrix_json), str(state.reports_dir / "findings.json")],
+            "evidence": [
+                str(state.matrix_json),
+                str(state.reports_dir / "findings.json"),
+            ],
         }
     ]
     return findings, scorecard
@@ -289,7 +363,10 @@ def write_final_artifacts(state: ProdReadinessRunState) -> int:
     exit_code = 1 if state.required_failures or open_high_critical_count else 0
     state.planned_run_complete = True
 
-    write_json(state.reports_dir / "supply-chain-counts.json", build_supply_chain_counts(state.reports_dir))
+    write_json(
+        state.reports_dir / "supply-chain-counts.json",
+        build_supply_chain_counts(state.reports_dir),
+    )
     write_json(state.matrix_json, state.command_results)
     write_json(
         state.reports_dir / "findings.json",
@@ -311,9 +388,13 @@ def write_final_artifacts(state: ProdReadinessRunState) -> int:
         "findings": str(state.reports_dir / "findings.json"),
         "scorecard": str(state.reports_dir / "scorecard.json"),
         "report": str(state.report_artifact_path),
+        "run_status": str(state.run_status_json),
     }
     write_json(state.artifact_root / "SUMMARY.json", summary_payload)
-    write_json(state.run_status_json, build_run_status(state, status=status, exit_code=exit_code))
+    write_json(
+        state.run_status_json,
+        build_run_status(state, status=status, exit_code=exit_code),
+    )
     report_lines = [
         f"# Production Readiness Audit ({state.run_id})",
         "",
@@ -324,7 +405,9 @@ def write_final_artifacts(state: ProdReadinessRunState) -> int:
         "## Scorecard",
     ]
     for item in scorecard:
-        report_lines.append(f"- {item['domain']}: **{item['status']}** ({item['score_0_to_5']}/5)")
+        report_lines.append(
+            f"- {item['domain']}: **{item['status']}** ({item['score_0_to_5']}/5)"
+        )
     report_lines.extend(
         [
             "",
@@ -336,5 +419,6 @@ def write_final_artifacts(state: ProdReadinessRunState) -> int:
         ]
     )
     write_text(state.report_artifact_path, "\n".join(report_lines))
-    write_text(state.report_path, "\n".join(report_lines))
+    if state.report_path != state.report_artifact_path:
+        write_text(state.report_path, "\n".join(report_lines))
     return exit_code

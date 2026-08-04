@@ -14,25 +14,33 @@ conformance statement additionally requires the human passes below **and** closu
 the SC 1.4.4 / 1.4.10 exceptions (finding **C6**, ADR-014) — none of which is done here.
 
 Nothing in the "Manual / AT" or "C6" sections may be checked off by an automated agent.
-Those boxes are for a human operating real assistive technology on this exact commit.
+Those boxes are for a human operating real assistive technology on the commit selected
+for final human certification.
+
+> **Historical context only - not current acceptance evidence.** Sections 1 and 4
+> retain the July 2026 closeout narrative, including its then-recorded commands,
+> counts, and results. They have not been regenerated against the current tree and
+> must not be used to accept it. Any `COMPLETE`, `VERIFIED`, or `PASS` wording in
+> those sections describes that historical record only.
 
 ## State under verification
 
 | Field | Value |
 |---|---|
 | Branch | `dora` |
-| Under verification | The complete forward-only **Round-3 remediation range** (`924442ac..HEAD`) on 2026-07-13. This record cannot cite its own final documentation commit, so `HEAD` means the commit containing this record. |
-| Automated-remediation range | Round 1 `0fe16977..669b9cc4`; Round 2 `36f579ad..c8a7f7cd`; **Round 3 `924442ac..HEAD`**: native controls + danger tokens; validated two-level dialog inventory; 29-case real unit matrix; 48-site browser matrix plus exact registry assertion; `ci`-project collection/fallback enforcement; strict-zero jsx-a11y + axe policy; owner-keyed department state; canonical E2E repairs; documentation truth reconciliation. |
+| Historical verification scope | The July record described a forward-only **Round-3 remediation range** beginning at `924442ac`; its exact terminal commit was not recorded here. This is not a current-tree verification statement. |
+| Historical automated-remediation ranges | Round 1 `0fe16977..669b9cc4`; Round 2 `36f579ad..c8a7f7cd`; Round 3 began at `924442ac` (terminal commit not recorded here): native controls + danger tokens; validated two-level dialog inventory; 29-case real unit matrix; 48-site browser matrix plus exact registry assertion; `ci`-project collection/fallback enforcement; strict-zero jsx-a11y + axe policy; owner-keyed department state; canonical E2E repairs; documentation truth reconciliation. |
 | Automated-gate environment | macOS (Darwin 27.0.0), canonical E2E under bundled Node `v24.14.0`, system `python3` |
 | Assistive-tech environment | **to be recorded by the human tester** (OS + browser + AT versions) |
 
 ---
 
-## 1. Automated evidence (automated remediation COMPLETE — VERIFIED)
+## 1. Historical automated evidence (non-acceptance context)
 
-These gates are machine-checkable. They were rerun sequentially on the final implementation tree
-on 2026-07-13. The subsequent closeout-only documentation commit does not change application or
-test behavior. The manual/AT status is unchanged.
+The July record stated that these machine-checkable gates were rerun sequentially on
+its then-final implementation tree on 2026-07-13. The commands and results below are
+preserved as historical narrative; they are not evidence about the current tree. The
+manual/AT status remains unchanged.
 
 > **Round-3 correction (2026-07-13).** The 26 implementation owners are not the complete
 > application inventory: the validated manifest contains **48 concrete render sites** and
@@ -112,7 +120,7 @@ verified for merge (§4).
 ## 2. Manual / assistive-technology matrix (HUMAN-OWNED — UNCHECKED)
 
 Every row below is **pending** and must be completed by a human operating real
-assistive technology against the Round-3 range tip (`924442ac..HEAD`). An automated agent **cannot** run screen
+assistive technology against the commit selected for final human certification. An automated agent **cannot** run screen
 readers or judge focus order, so no agent may check these boxes or backdate them.
 Record the tester, date, OS/browser/AT versions, and pass/fail + notes per row.
 
@@ -179,7 +187,7 @@ this document does not claim otherwise.
 
 **Compensating control (what was actually done instead):** corrective remediation landed in
 Round 1 (`0fe16977..669b9cc4`), Round 2 (`36f579ad..c8a7f7cd`), and the forward-only Round 3
-range (`924442ac..HEAD`). Round 3 removes the remaining copied test surface, render-site gap,
+range beginning at `924442ac` (historical terminal commit not recorded here). Round 3 removes the remaining copied test surface, render-site gap,
 branch-widenable policy, custom keyboard emulation, and department ownership race, then runs the
 full final automated gate sequentially. It keeps the **still-pending human manual/AT pass**
 (§2–§3) and user-triggered ultrareview (§5) as explicit, unchecked gates before merge. The
@@ -191,8 +199,45 @@ human pass for the missing **per-phase** gates; it does not retroactively satisf
 ## 5. Remaining human-owned items (all PENDING)
 
 - [ ] pending (human) — Complete the manual / AT matrix in §2 and the C6 reproduction in §3.
-- [ ] pending (human) — Run the user-triggered **`/code-review ultra`** (ultrareview) against the Round-3 tip (`924442ac..HEAD`).
+- [ ] pending (human) — Run the user-triggered **`/code-review ultra`** (ultrareview) against the commit selected for final human certification.
 - [ ] pending (human) — Make the **merge decision** for `dora` once §2–§3 pass (with C6 recorded as an accepted limitation) and §5 ultrareview is clean.
 
 Until every box above is checked by a human, `dora` is **not** established as
 merge-ready by this record, regardless of the green automated gate in §1.
+
+---
+
+## 6. Automated DORA remediation and browser-coverage addendum (2026-08-03)
+
+This automated-only addendum preserves historical context about DORA workflow
+coverage delivered through Wave 4; it is not current acceptance evidence. It
+does not check, satisfy, or modify any human-owned item in
+§2, §3, or §5; it does not establish WCAG 2.2 AA conformance or make the
+merge decision.
+
+The canonical fail-closed collection command is:
+
+```bash
+cd frontend
+npm run e2e:dora:collect
+```
+
+It validates `tests/frontend/contracts/dora-e2e-requirements.json` against a
+dynamic Playwright `ci` collection. This tracked document does not assert exact
+historical requirement, evidence-entry, spec, collection, execution, pass,
+skip, failure, retry, or flaky-outcome totals as acceptance evidence.
+
+Wave 4 browser evidence includes protected Vendor accountability and lifecycle,
+protected Contract edit/archive with unchanged pre-approval truth and direct
+restore, Composite Process/Asset/Vendor projection with atomic visibility,
+governed notification defaults/persistence/suppression with authoritative
+queue/history visibility, and parameterized English/Czech register and approval
+journeys that preserve user free text.
+
+After final certification, the external release ledger and final report MUST
+record the exact documentation-inclusive final release SHA/tree, commands,
+counts, generated logs/reports, and artifact hashes. Those generated outputs
+remain gitignored and are therefore not stable tracked evidence in this
+document. Release-workflow retention windows do not make the generated
+artifact bytes permanently retrievable. This tracked document intentionally
+does not self-reference its own Wave 5 commit or tree identity.

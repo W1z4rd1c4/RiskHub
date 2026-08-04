@@ -230,7 +230,7 @@ test.describe('Governed notification preferences', () => {
         }
     });
 
-    test('enabled delivery reaches the actionable resolver before approval and both inboxes after approval', async ({
+    test('enabled delivery reaches the resolver inbox before approval and requester inbox after approval', async ({
         riskManagerPage,
         croPage,
     }) => {
@@ -267,6 +267,8 @@ test.describe('Governed notification preferences', () => {
                     && notification.message.includes(enabledProcess),
             );
             expect(actionNotification.is_read).toBe(false);
+            await openNotificationInbox(croPage);
+            await expect(croPage.getByText(enabledProcess).first()).toBeVisible();
 
             await approveByReason(croPage, enabledReason);
             await waitForOutboxIdle();
@@ -277,11 +279,7 @@ test.describe('Governed notification preferences', () => {
             );
             expect(requesterNotification.is_read).toBe(false);
 
-            await Promise.all([
-                openNotificationInbox(croPage),
-                openNotificationInbox(riskManagerPage),
-            ]);
-            await expect(croPage.getByText(enabledProcess).first()).toBeVisible();
+            await openNotificationInbox(riskManagerPage);
             await expect(riskManagerPage.getByText(enabledProcess).first()).toBeVisible();
             expect(riskManagerErrors.pageErrors).toEqual([]);
             expect(riskManagerErrors.serverErrors).toEqual([]);

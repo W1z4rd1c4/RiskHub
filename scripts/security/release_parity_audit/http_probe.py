@@ -20,17 +20,23 @@ def http_json(url: str, timeout: float = 8.0) -> tuple[int, Any]:
         return status, payload
 
 
+def http_status(url: str, timeout: float = 8.0) -> int:
+    req = Request(url, headers={"Accept": "*/*"})
+    with urlopen(req, timeout=timeout) as response:
+        return response.getcode()
+
+
 def wait_http(
     url: str,
     timeout_sec: int = 90,
     expect_status: int | None = None,
     *,
-    http_json_func: Callable[[str, float], tuple[int, Any]] = http_json,
+    http_status_func: Callable[[str, float], int] = http_status,
 ) -> bool:
     deadline = time.time() + timeout_sec
     while time.time() < deadline:
         try:
-            status, _ = http_json_func(url, 4.0)
+            status = http_status_func(url, 4.0)
             if expect_status is None or status == expect_status:
                 return True
         except (URLError, HTTPError, TimeoutError, ConnectionError, OSError):

@@ -18,6 +18,6 @@ Canonical security policy and reporting documentation for RiskHub.
 - Historical reports remain immutable records.
 - If a report cycle is remediated later, add a supersession note in the original report pointing to the remediation report.
 - Machine-readable findings indexes are emitted under `tests/results/security/<run-id>/findings-*.json`; parity/closure cycles may publish a consolidated index that updates status without mutating base-run findings.
-- Release-parity gate reports are tracked under `docs/security/reports/` and point to immutable `tests/results/release-parity-audit-<run-id>/` evidence artifacts.
+- Release-parity gate reports may be tracked under `docs/security/reports/`. Generated `tests/results/release-parity-audit-<run-id>/` evidence is gitignored run output; its uploaded copy is retained by the release workflow for 14 days. Recorded commit/tree identities and artifact hashes establish which bytes were verified, but they do not make expired artifact bytes retrievable.
 - Authorization-sensitive code changes must update the authorization/capability contract and pass `python3 scripts/security/validate_authz_capability_contract.py`.
 - Keep this README updated when responsibilities or structure in this folder change.

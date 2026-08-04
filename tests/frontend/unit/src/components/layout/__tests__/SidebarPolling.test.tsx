@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -28,7 +29,7 @@ vi.mock('@/components/notifications/NotificationBell', () => ({
 const getShellSummary = vi.fn();
 vi.mock('@/services/userApi', () => ({
     userApi: {
-        getShellSummary: () => getShellSummary(),
+        getShellSummary: (options?: { signal?: AbortSignal }) => getShellSummary(options),
     },
 }));
 
@@ -80,6 +81,54 @@ describe('Sidebar badge polling', () => {
         await waitFor(() => expect(getShellSummary).toHaveBeenCalledTimes(1));
 
         unmount();
+    });
+
+    it('reuses an in-flight shell summary request across StrictMode remounts', async () => {
+        let resolveRequest!: (value: {
+            unread_notifications_count: number;
+            pending_approvals_count: number;
+            questionnaire_inbox_count: number;
+            orphan_total_count: number;
+            can_view_governance: boolean;
+            generated_at: string;
+        }) => void;
+        getShellSummary.mockImplementation((options?: { signal?: AbortSignal }) => new Promise((resolve, reject) => {
+            resolveRequest = resolve;
+            options?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+        }));
+
+        const wrapper = createWrapper();
+        const firstMount = render(
+            <StrictMode>
+                <MemoryRouter>
+                    <Sidebar />
+                </MemoryRouter>
+            </StrictMode>,
+            { wrapper },
+        );
+
+        await waitFor(() => expect(getShellSummary).toHaveBeenCalled());
+        firstMount.unmount();
+        const secondMount = render(
+            <StrictMode>
+                <MemoryRouter>
+                    <Sidebar />
+                </MemoryRouter>
+            </StrictMode>,
+            { wrapper },
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(getShellSummary).toHaveBeenCalledTimes(1);
+
+        resolveRequest({
+            unread_notifications_count: 2,
+            pending_approvals_count: 2,
+            questionnaire_inbox_count: 2,
+            orphan_total_count: 5,
+            can_view_governance: true,
+            generated_at: '2026-03-07T10:00:00Z',
+        });
+        secondMount.unmount();
     });
 
     it('does not poll any badge endpoints for admin console users', async () => {

@@ -321,6 +321,13 @@ def valid_asset_governed_envelope(
                 )
             )
             and set(operation) == expected_operation_keys
+            and (
+                "related_resource_id" not in operation
+                or (
+                    type(operation["related_resource_id"]) is int
+                    and operation["related_resource_id"] > 0
+                )
+            )
             and operation.get("relationship_type") == relationship_type
             and operation.get("action") == action
             and isinstance(values, dict)
@@ -579,6 +586,7 @@ async def live_asset_resolver_approval_ids(
     *,
     current_user,
     approval_statuses: Collection[ApprovalStatus] | None = None,
+    approval_ids: Collection[int] | None = None,
 ) -> frozenset[int]:
     """Return strict Asset approvals authorized by the shared live predicate."""
     from .fixed_asset_policy import (
@@ -586,6 +594,8 @@ async def live_asset_resolver_approval_ids(
         load_fixed_asset_scenario,
     )
 
+    if approval_ids is not None and not approval_ids:
+        return frozenset()
     scenario = await load_fixed_asset_scenario(db)
     statement = (
         select(GovernedMutationProposal)
@@ -595,6 +605,8 @@ async def live_asset_resolver_approval_ids(
     )
     if approval_statuses is not None:
         statement = statement.where(ApprovalRequest.status.in_(tuple(approval_statuses)))
+    if approval_ids is not None:
+        statement = statement.where(ApprovalRequest.id.in_(tuple(approval_ids)))
     proposals = (await db.execute(statement)).scalars().all()
     return frozenset(
         proposal.approval_request_id

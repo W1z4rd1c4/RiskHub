@@ -1,9 +1,9 @@
 # RiskHub E2E Testing Guide
 
-> **Version**: 1.5
-> **Last Updated**: 2026-07-31
+> **Version**: 1.6
+> **Last Updated**: 2026-08-03
 > **Audience**: QA, Engineering
-> **Source of Truth**: `frontend/playwright.config.ts`, `tests/frontend/e2e/`, `frontend/package.json`
+> **Source of Truth**: `frontend/playwright.config.ts`, `tests/frontend/e2e/`, `tests/frontend/contracts/dora-e2e-requirements.json`, `frontend/package.json`
 
 This guide covers Playwright execution, suite organization, and deterministic test prerequisites.
 
@@ -21,6 +21,7 @@ npm run e2e:ui
 npm run e2e:headed
 npm run e2e:report
 npm run e2e:business-logic
+npm run e2e:dora:collect
 npx playwright install chromium
 ```
 
@@ -60,16 +61,31 @@ following public browser seams:
 | CISO stewardship, Threat lifecycle, reassignment, and permission-safe linked-Risk context | `threats.spec.ts`, `threat-register-framework.spec.ts`, `roles-access.spec.ts` |
 | Process ownership and protected create/edit/relationships | `processes.spec.ts`, `process-register-framework.spec.ts`, `approval-workflows/governed-process-*.spec.ts` |
 | Asset dual ownership, protected mutation, and Composite cascade | `assets.spec.ts`, `asset-register-framework.spec.ts`, `approval-workflows/governed-asset.spec.ts`, `approval-workflows/governed-process-relationships.spec.ts` |
-| Protected Vendor and accountability outcomes | `vendors.spec.ts`, `vendor-register-framework.spec.ts`, `approval-workflows/governed-vendor.spec.ts` |
+| Protected Vendor accountability, approval-gated archive with direct restore, and protected Contract edit/archive | `vendors.spec.ts`, `vendor-register-framework.spec.ts`, `approval-workflows/governed-vendor.spec.ts`, `vendor-contracts.spec.ts` |
 | Department drill-down under a locked Department filter | `department-register-drilldown.spec.ts`, `department-access.spec.ts` |
 | Requester/approver separation and scenario resolution | `approval-workflows/self-approval.spec.ts`, `approval-workflows/status-flow.spec.ts`, `permissions/approvals-access.spec.ts` |
 
-The demo picker is also a release seam: verify the ten-persona desktop layout,
-including the CISO card, as five equal columns by two rows. Run representative
-register and governed-workflow journeys in both English and Czech. Controlled
-labels must be language-pure; free text remains as entered. This manual visual
-check complements the automated locale and accessibility gates and must not be
-reported as automated evidence.
+### Fail-closed DORA coverage contract
+
+```bash
+cd frontend
+npm run e2e:dora:collect
+```
+
+The command reads `tests/frontend/contracts/dora-e2e-requirements.json` and
+dynamically collects the Playwright `ci` project with `--list`; it does not pin
+a historical suite size. Validation fails for malformed or duplicate
+requirements/evidence, unsafe or missing spec paths, required specs containing
+`skip`/`fixme`, uncollected evidence, or title fragments that do not resolve to
+exactly one collected test.
+
+`dora-locale-journeys.spec.ts` automates representative English and Czech
+register and governed-approval journeys. Controlled labels must remain
+language-pure while user-entered free text remains unchanged.
+
+The ten-persona demo-picker desktop layout, including the CISO card in a
+five-column by two-row grid, remains a separate manual visual seam and must not
+be reported as automated evidence.
 
 ## Deterministic Seed Workflow
 

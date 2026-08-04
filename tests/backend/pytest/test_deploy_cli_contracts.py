@@ -91,6 +91,29 @@ exec {real_python313!s} "$@"
 set -euo pipefail
 subcmd="${1:-}"
 shift || true
+if [[ -n "${DOCKER_COMMAND_LOG:-}" ]]; then
+  printf '%s\n' "${subcmd} $*" >> "$DOCKER_COMMAND_LOG"
+fi
+if [[ "$subcmd" == "ps" && -n "${DOCKER_FAIL_PS_NTH:-}" ]]; then
+  count=0
+  if [[ -f "$DOCKER_PS_COUNT_FILE" ]]; then
+    count="$(cat "$DOCKER_PS_COUNT_FILE")"
+  fi
+  count=$((count + 1))
+  printf '%s\n' "$count" > "$DOCKER_PS_COUNT_FILE"
+  if [[ "$count" == "$DOCKER_FAIL_PS_NTH" ]]; then
+    exit "${DOCKER_FAIL_RC:-37}"
+  fi
+fi
+if [[ -n "${DOCKER_FAIL_MATCH:-}" && "${subcmd} $*" == *"$DOCKER_FAIL_MATCH"* ]]; then
+  exit "${DOCKER_FAIL_RC:-37}"
+fi
+if [[ "${DOCKER_FAIL_BOOTSTRAP:-0}" == "1" && " $* " == *" scripts.bootstrap_sso_user "* ]]; then
+  exit 37
+fi
+container_is_fake_created() {
+  [[ -n "${DOCKER_STATE_FILE:-}" && -f "$DOCKER_STATE_FILE" ]] && grep -Fxq "$1" "$DOCKER_STATE_FILE"
+}
 case "${subcmd}" in
   ps)
     exit 0
@@ -146,11 +169,22 @@ case "${subcmd}" in
     fi
     container="${1:-}"
     case "${container}" in
-      riskhub-backend) [[ "${DOCKER_BACKEND_EXISTS:-0}" == "1" ]] && exit 0 || exit 1 ;;
-      riskhub-frontend) [[ "${DOCKER_FRONTEND_EXISTS:-0}" == "1" ]] && exit 0 || exit 1 ;;
-      riskhub-backend-scheduler) [[ "${DOCKER_SCHEDULER_EXISTS:-0}" == "1" ]] && exit 0 || exit 1 ;;
+      riskhub-backend) [[ "${DOCKER_BACKEND_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
+      riskhub-frontend) [[ "${DOCKER_FRONTEND_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
+      riskhub-backend-scheduler) [[ "${DOCKER_SCHEDULER_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
       *) exit 1 ;;
     esac
+    ;;
+  run)
+    previous=""
+    for arg in "$@"; do
+      if [[ "$previous" == "--name" && -n "${DOCKER_STATE_FILE:-}" ]]; then
+        printf '%s\n' "$arg" >> "$DOCKER_STATE_FILE"
+        break
+      fi
+      previous="$arg"
+    done
+    exit 0
     ;;
   *)
     exit 0
@@ -169,6 +203,7 @@ esac
         "id",
         "groupadd",
         "useradd",
+        "sleep",
     ):
         if command == "sudo":
             script = """#!/usr/bin/env bash
@@ -193,6 +228,17 @@ exit 0
 set -euo pipefail
 printf 'State Recv-Q Send-Q Local Address:Port Peer Address:Port Process\n'
 """
+        elif command == "curl":
+            script = """#!/usr/bin/env bash
+set -euo pipefail
+if [[ -n "${DOCKER_COMMAND_LOG:-}" ]]; then
+  printf '%s\n' "curl $*" >> "$DOCKER_COMMAND_LOG"
+fi
+if [[ "${CURL_FAIL:-0}" == "1" ]]; then
+  exit "${DOCKER_FAIL_RC:-37}"
+fi
+printf '200'
+"""
         else:
             script = """#!/usr/bin/env bash
 set -euo pipefail
@@ -206,7 +252,9 @@ exit 0
 def _make_linux_bundle(root: Path, version: str) -> Path:
     bundle_root = root / f"riskhub-linux-{version}"
     bundle_root.mkdir()
-    (bundle_root / "manifest.json").write_text(f'{{"version": "{version}"}}\n', encoding="utf-8")
+    (bundle_root / "manifest.json").write_text(
+        f'{{"version": "{version}"}}\n', encoding="utf-8"
+    )
     archive_path = root / f"riskhub-linux-{version}.tar.gz"
     with tarfile.open(archive_path, "w:gz") as archive:
         archive.add(bundle_root, arcname=bundle_root.name)
@@ -251,7 +299,15 @@ def test_init_writes_non_secret_config_and_secret_scaffold() -> None:
         env = os.environ.copy()
         env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
         result = _run_cli(
-            ["init", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir)],
+            [
+                "init",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+            ],
             env,
         )
 
@@ -271,7 +327,9 @@ def test_init_writes_non_secret_config_and_secret_scaffold() -> None:
         assert "BOOTSTRAP_CRO_EMAIL=" in text
 
 
-def test_docker_preflight_succeeds_before_first_deploy_without_persistent_runtime_dir() -> None:
+def test_docker_preflight_succeeds_before_first_deploy_without_persistent_runtime_dir() -> (
+    None
+):
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-preflight-fresh-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -306,7 +364,9 @@ def test_docker_preflight_succeeds_before_first_deploy_without_persistent_runtim
 
 
 def test_docker_preflight_rejects_existing_network_with_mismatched_subnet() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-preflight-network-mismatch-") as td:
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-deploy-preflight-network-mismatch-"
+    ) as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
@@ -464,8 +524,14 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
         )
         assert upgrade.returncode == 0, f"{upgrade.stdout}\n{upgrade.stderr}"
         upgrade_output = f"{upgrade.stdout}\n{upgrade.stderr}"
-        assert "--previous-image ghcr.io/example/riskhub-backend:previous" in upgrade_output
-        assert "--previous-image ghcr.io/example/riskhub-frontend:previous" in upgrade_output
+        assert (
+            "--previous-image ghcr.io/example/riskhub-backend:previous"
+            in upgrade_output
+        )
+        assert (
+            "--previous-image ghcr.io/example/riskhub-frontend:previous"
+            in upgrade_output
+        )
 
         rollback = _run_cli(
             [
@@ -488,7 +554,9 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
         assert "scripts/prod/rollback.sh" in rollback_output
 
 
-def test_docker_deploy_dry_run_keeps_env_arguments_and_rendered_env_files_clean() -> None:
+def test_docker_deploy_dry_run_keeps_env_arguments_and_rendered_env_files_clean() -> (
+    None
+):
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-dryrun-clean-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -543,6 +611,296 @@ def test_docker_deploy_dry_run_keeps_env_arguments_and_rendered_env_files_clean(
                         continue
                     assert "=" in line
                     assert not line.startswith("+ ")
+
+
+def test_docker_deploy_propagates_bootstrap_failure_before_app_install() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-bootstrap-failure-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        command_log = tmp / "docker.log"
+        admin_external_id = "11111111-2222-4333-8444-555555555555"
+        cro_external_id = "66666666-7777-4888-8999-aaaaaaaaaaaa"
+        _write_config(
+            config_path,
+            BOOTSTRAP_ADMIN_EXTERNAL_ID=admin_external_id,
+            BOOTSTRAP_CRO_EXTERNAL_ID=cro_external_id,
+        )
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+        env = os.environ.copy()
+        env.update(
+            {
+                "PATH": f"{fake_bin}:{env['PATH']}",
+                "RISKHUB_RUNTIME_DIR": str(runtime_dir),
+                "DOCKER_COMMAND_LOG": str(command_log),
+                "DOCKER_FAIL_BOOTSTRAP": "1",
+            }
+        )
+
+        deploy = _run_cli(
+            [
+                "deploy",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--backend-image",
+                _image("riskhub-backend"),
+                "--backend-db-image",
+                _image("riskhub-backend-db"),
+                "--frontend-image",
+                _image("riskhub-frontend"),
+                "--redis-image",
+                _image("riskhub-redis"),
+                "--yes",
+            ],
+            env,
+        )
+
+        docker_commands = command_log.read_text(encoding="utf-8")
+        assert deploy.returncode == 37, f"{deploy.stdout}\n{deploy.stderr}"
+        assert f"--external-id {admin_external_id}" in docker_commands
+        assert f"--external-id {cro_external_id}" not in docker_commands
+        assert "uvicorn app.main:app" not in docker_commands
+
+
+@pytest.mark.parametrize(
+    ("stage", "failure_match", "later_match", "expected_rc"),
+    [
+        ("preflight", "", "pull ghcr.io/example/riskhub-backend", 1),
+        ("pull", "pull ghcr.io/example/riskhub-backend", " python -", 73),
+        ("db_preflight", " python -", "--name riskhub-redis", 73),
+        ("redis", "--name riskhub-redis", "alembic upgrade head", 73),
+        ("migration", "alembic upgrade head", "scripts.seed_roles_permissions", 73),
+        ("bootstrap", "scripts.bootstrap_sso_user", "--name riskhub-backend", 73),
+        ("api", "--name riskhub-backend ", "--name riskhub-backend-scheduler", 73),
+        (
+            "scheduler",
+            "--name riskhub-backend-scheduler",
+            "--name riskhub-frontend",
+            73,
+        ),
+        ("frontend", "--name riskhub-frontend", "exec riskhub-backend", 73),
+        ("smoke", "curl ", None, 1),
+    ],
+)
+def test_docker_deploy_fails_fast_at_every_mandatory_stage_and_cleans_once(
+    stage: str, failure_match: str, later_match: str | None, expected_rc: int
+) -> None:
+    with tempfile.TemporaryDirectory(prefix=f"riskhub-deploy-fail-{stage}-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        command_log = tmp / "docker.log"
+        cleanup_log = tmp / "cleanup.log"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+        real_rm = shutil.which("rm")
+        assert real_rm is not None
+        _write_exec(
+            fake_bin / "rm",
+            f"""#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == *".riskhub-deploy."* ]]; then
+  printf '%s\n' "$*" >> "${{DOCKER_CLEANUP_LOG}}"
+fi
+exec {real_rm} "$@"
+""",
+        )
+
+        env = os.environ.copy()
+        env.update(
+            {
+                "PATH": f"{fake_bin}:{env['PATH']}",
+                "RISKHUB_RUNTIME_DIR": str(runtime_dir),
+                "DOCKER_COMMAND_LOG": str(command_log),
+                "DOCKER_CLEANUP_LOG": str(cleanup_log),
+                "DOCKER_FAIL_MATCH": failure_match,
+                "DOCKER_FAIL_RC": "73",
+                "DOCKER_NETWORK_EXISTS": "1",
+                "DOCKER_PS_COUNT_FILE": str(tmp / "docker-ps-count"),
+                "DOCKER_STATE_FILE": str(tmp / "docker-state"),
+            }
+        )
+        if stage == "preflight":
+            env["DOCKER_FAIL_PS_NTH"] = "2"
+        if stage == "smoke":
+            env["CURL_FAIL"] = "1"
+
+        deploy = _run_cli(
+            [
+                "deploy",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--backend-image",
+                _image("riskhub-backend"),
+                "--backend-db-image",
+                _image("riskhub-backend-db"),
+                "--frontend-image",
+                _image("riskhub-frontend"),
+                "--redis-image",
+                _image("riskhub-redis"),
+                "--yes",
+            ],
+            env,
+        )
+
+        docker_commands = command_log.read_text(encoding="utf-8")
+        assert deploy.returncode == expected_rc, f"{deploy.stdout}\n{deploy.stderr}"
+        if failure_match:
+            assert failure_match in docker_commands, f"{deploy.stdout}\n{deploy.stderr}"
+        if later_match is not None:
+            assert later_match not in docker_commands
+        cleanup_lines = cleanup_log.read_text(encoding="utf-8").splitlines()
+        assert cleanup_lines
+        assert len(cleanup_lines) == len(set(cleanup_lines))
+        assert all(".riskhub-deploy." in line for line in cleanup_lines)
+        assert not list(runtime_dir.parent.glob(".riskhub-deploy.*"))
+
+
+@pytest.mark.parametrize("include_external_ids", [False, True])
+def test_linux_db_bootstrap_runtime_argv_preserves_optional_external_ids(
+    include_external_ids: bool,
+) -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-linux-bootstrap-argv-") as td:
+        tmp = Path(td)
+        release_dir = tmp / "release"
+        (release_dir / "backend").mkdir(parents=True)
+        (release_dir / "backend_db").mkdir()
+        (release_dir / "db-venv" / "bin").mkdir(parents=True)
+        argv_log = tmp / "argv.log"
+        backend_env = tmp / "backend.env"
+        env_lines = [
+            "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
+            "BOOTSTRAP_CRO_EMAIL=cro@example.com",
+        ]
+        if include_external_ids:
+            env_lines += [
+                "BOOTSTRAP_ADMIN_EXTERNAL_ID=11111111-2222-4333-8444-555555555555",
+                "BOOTSTRAP_CRO_EXTERNAL_ID=66666666-7777-4888-8999-aaaaaaaaaaaa",
+            ]
+        backend_env.write_text("\n".join(env_lines) + "\n", encoding="utf-8")
+        _write_exec(
+            release_dir / "db-venv" / "bin" / "python",
+            """#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$LINUX_ARGV_LOG"
+""",
+        )
+        _write_exec(
+            release_dir / "db-venv" / "bin" / "alembic",
+            "#!/usr/bin/env bash\nset -euo pipefail\n",
+        )
+        harness = f"""
+set -euo pipefail
+source {str(REPO_ROOT / 'scripts/deploy/lib/common.sh')!r}
+source {str(REPO_ROOT / 'scripts/deploy/lib/linux.sh')!r}
+LINUX_BACKEND_ENV={str(backend_env)!r}
+run_privileged_sh() {{ bash -lc "$2"; }}
+linux_run_db_tasks {str(release_dir)!r}
+"""
+        result = subprocess.run(
+            ["bash", "-c", harness],
+            cwd=REPO_ROOT,
+            env={**os.environ, "LINUX_ARGV_LOG": str(argv_log)},
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+        commands = argv_log.read_text(encoding="utf-8").splitlines()
+        admin = next(line for line in commands if "--role admin" in line)
+        cro = next(line for line in commands if "--role cro" in line)
+        if include_external_ids:
+            assert "--external-id 11111111-2222-4333-8444-555555555555" in admin
+            assert "--external-id 66666666-7777-4888-8999-aaaaaaaaaaaa" in cro
+        else:
+            assert "--external-id" not in admin
+            assert "--external-id" not in cro
+
+
+@pytest.mark.parametrize("include_external_ids", [False, True])
+def test_docker_db_bootstrap_runtime_argv_matches_linux_optional_external_ids(
+    include_external_ids: bool,
+) -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-docker-bootstrap-argv-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        command_log = tmp / "docker.log"
+        config_overrides = {}
+        if include_external_ids:
+            config_overrides = {
+                "BOOTSTRAP_ADMIN_EXTERNAL_ID": "11111111-2222-4333-8444-555555555555",
+                "BOOTSTRAP_CRO_EXTERNAL_ID": "66666666-7777-4888-8999-aaaaaaaaaaaa",
+            }
+        _write_config(config_path, **config_overrides)
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+        env = os.environ.copy()
+        env.update(
+            {
+                "PATH": f"{fake_bin}:{env['PATH']}",
+                "RISKHUB_RUNTIME_DIR": str(runtime_dir),
+                "DOCKER_COMMAND_LOG": str(command_log),
+                "DOCKER_FAIL_MATCH": "--name riskhub-backend ",
+                "DOCKER_NETWORK_EXISTS": "1",
+                "DOCKER_STATE_FILE": str(tmp / "docker-state"),
+            }
+        )
+
+        result = _run_cli(
+            [
+                "deploy",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--backend-image",
+                _image("riskhub-backend"),
+                "--backend-db-image",
+                _image("riskhub-backend-db"),
+                "--frontend-image",
+                _image("riskhub-frontend"),
+                "--redis-image",
+                _image("riskhub-redis"),
+                "--yes",
+            ],
+            env,
+        )
+
+        assert result.returncode == 37, f"{result.stdout}\n{result.stderr}"
+        bootstrap_commands = [
+            line
+            for line in command_log.read_text(encoding="utf-8").splitlines()
+            if "scripts.bootstrap_sso_user" in line
+        ]
+        assert len(bootstrap_commands) == 2
+        if include_external_ids:
+            assert (
+                "--external-id 11111111-2222-4333-8444-555555555555"
+                in bootstrap_commands[0]
+            )
+            assert (
+                "--external-id 66666666-7777-4888-8999-aaaaaaaaaaaa"
+                in bootstrap_commands[1]
+            )
+        else:
+            assert all("--external-id" not in command for command in bootstrap_commands)
 
 
 def test_docker_deploy_requires_backend_db_image_when_version_is_omitted() -> None:
@@ -767,7 +1125,9 @@ def test_preflight_reports_missing_docker_prerequisite() -> None:
         _write_exec(fake_bin / "date", f'#!/bin/sh\nexec {real_date!s} "$@"\n')
         _write_exec(fake_bin / "dirname", f'#!/bin/sh\nexec {real_dirname!s} "$@"\n')
         _write_exec(fake_bin / "python3", f'#!/bin/sh\nexec {real_python3!s} "$@"\n')
-        _write_exec(fake_bin / "python3.13", f'#!/bin/sh\nexec {real_python313!s} "$@"\n')
+        _write_exec(
+            fake_bin / "python3.13", f'#!/bin/sh\nexec {real_python313!s} "$@"\n'
+        )
         _write_config(config_path)
         _write_secrets(secret_dir)
 
@@ -794,8 +1154,12 @@ def test_preflight_reports_missing_docker_prerequisite() -> None:
         assert "Missing required command: docker" in output
 
 
-def test_docker_preflight_rejects_wildcard_public_url_before_rendering_allowed_hosts() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-preflight-wildcard-host-") as td:
+def test_docker_preflight_rejects_wildcard_public_url_before_rendering_allowed_hosts() -> (
+    None
+):
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-deploy-preflight-wildcard-host-"
+    ) as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
@@ -837,7 +1201,9 @@ def test_docker_preflight_rejects_wildcard_public_url_before_rendering_allowed_h
         ("--redis-image", "ghcr.io/example/riskhub-redis:test"),
     ],
 )
-def test_docker_deploy_rejects_mutable_explicit_image_refs(flag: str, value: str) -> None:
+def test_docker_deploy_rejects_mutable_explicit_image_refs(
+    flag: str, value: str
+) -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-mutable-image-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -924,13 +1290,21 @@ def test_docker_deploy_accepts_digest_only_image_refs() -> None:
 @pytest.mark.parametrize(
     ("secret_name", "placeholder_value", "expected_message"),
     [
-        ("database_url", "CHANGE_ME_DATABASE_URL\n", "database_url still contains the placeholder value"),
+        (
+            "database_url",
+            "CHANGE_ME_DATABASE_URL\n",
+            "database_url still contains the placeholder value",
+        ),
         (
             "secret_key",
             "CHANGE_ME_SECRET_KEY_AT_LEAST_32_CHARACTERS\n",
             "secret_key still contains the placeholder value",
         ),
-        ("redis_password", "CHANGE_ME_REDIS_PASSWORD\n", "redis_password still contains the placeholder value"),
+        (
+            "redis_password",
+            "CHANGE_ME_REDIS_PASSWORD\n",
+            "redis_password still contains the placeholder value",
+        ),
     ],
 )
 def test_secrets_check_rejects_placeholder_values(
@@ -943,15 +1317,22 @@ def test_secrets_check_rejects_placeholder_values(
         secret_dir = tmp / "secrets"
         _write_secrets(secret_dir, **{secret_name: placeholder_value})
 
-        result = _run_cli(["secrets-check", "--target", "docker", "--secret-dir", str(secret_dir)], os.environ.copy())
+        result = _run_cli(
+            ["secrets-check", "--target", "docker", "--secret-dir", str(secret_dir)],
+            os.environ.copy(),
+        )
 
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
         assert expected_message in output
 
 
-def test_secrets_check_allows_placeholder_values_for_optional_entra_scaffold_files() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-secrets-check-optional-") as td:
+def test_secrets_check_allows_placeholder_values_for_optional_entra_scaffold_files() -> (
+    None
+):
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-deploy-secrets-check-optional-"
+    ) as td:
         tmp = Path(td)
         secret_dir = tmp / "secrets"
         _write_secrets(
@@ -960,7 +1341,10 @@ def test_secrets_check_allows_placeholder_values_for_optional_entra_scaffold_fil
             entra_client_certificate_private_key="CHANGE_ME_ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY\n",
         )
 
-        result = _run_cli(["secrets-check", "--target", "docker", "--secret-dir", str(secret_dir)], os.environ.copy())
+        result = _run_cli(
+            ["secrets-check", "--target", "docker", "--secret-dir", str(secret_dir)],
+            os.environ.copy(),
+        )
 
         assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
 
@@ -1009,8 +1393,12 @@ def test_preflight_rejects_certificate_placeholder_before_prod_preflight() -> No
         assert "Preflight: OK" not in output
 
 
-def test_preflight_accepts_secret_mode_with_unused_certificate_placeholder_from_init_scaffold() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-secret-mode-scaffold-") as td:
+def test_preflight_accepts_secret_mode_with_unused_certificate_placeholder_from_init_scaffold() -> (
+    None
+):
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-deploy-secret-mode-scaffold-"
+    ) as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
@@ -1022,10 +1410,20 @@ def test_preflight_accepts_secret_mode_with_unused_certificate_placeholder_from_
         env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
 
         init_result = _run_cli(
-            ["init", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir)],
+            [
+                "init",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+            ],
             env,
         )
-        assert init_result.returncode == 0, f"{init_result.stdout}\n{init_result.stderr}"
+        assert (
+            init_result.returncode == 0
+        ), f"{init_result.stdout}\n{init_result.stderr}"
 
         _write_config(config_path)
         _write_secret_value(
@@ -1033,7 +1431,9 @@ def test_preflight_accepts_secret_mode_with_unused_certificate_placeholder_from_
             "database_url",
             "postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub\n",
         )
-        _write_secret_value(secret_dir, "secret_key", "0123456789abcdef0123456789abcdef\n")
+        _write_secret_value(
+            secret_dir, "secret_key", "0123456789abcdef0123456789abcdef\n"
+        )
         _write_secret_value(secret_dir, "redis_password", "redis-secret\n")
         _write_secret_value(secret_dir, "entra_client_secret", "entra-client-secret\n")
 
@@ -1054,7 +1454,9 @@ def test_preflight_accepts_secret_mode_with_unused_certificate_placeholder_from_
         assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
 
 
-def test_preflight_accepts_certificate_mode_with_unused_client_secret_placeholder_from_init_scaffold() -> None:
+def test_preflight_accepts_certificate_mode_with_unused_client_secret_placeholder_from_init_scaffold() -> (
+    None
+):
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-cert-mode-scaffold-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -1067,10 +1469,20 @@ def test_preflight_accepts_certificate_mode_with_unused_client_secret_placeholde
         env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
 
         init_result = _run_cli(
-            ["init", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir)],
+            [
+                "init",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+            ],
             env,
         )
-        assert init_result.returncode == 0, f"{init_result.stdout}\n{init_result.stderr}"
+        assert (
+            init_result.returncode == 0
+        ), f"{init_result.stdout}\n{init_result.stderr}"
 
         _write_config(
             config_path,
@@ -1081,7 +1493,9 @@ def test_preflight_accepts_certificate_mode_with_unused_client_secret_placeholde
             "database_url",
             "postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub\n",
         )
-        _write_secret_value(secret_dir, "secret_key", "0123456789abcdef0123456789abcdef\n")
+        _write_secret_value(
+            secret_dir, "secret_key", "0123456789abcdef0123456789abcdef\n"
+        )
         _write_secret_value(secret_dir, "redis_password", "redis-secret\n")
         _write_secret_value(
             secret_dir,
@@ -1173,4 +1587,6 @@ def test_preflight_reports_config_validation_failures() -> None:
 
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
-        assert "BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_CRO_EMAIL must be different" in output
+        assert (
+            "BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_CRO_EMAIL must be different" in output
+        )

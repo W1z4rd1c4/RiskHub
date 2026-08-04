@@ -35,6 +35,7 @@ async def valid_vendor_approvals(
     db: AsyncSession,
     *,
     approval_statuses: Collection[ApprovalStatus] | None = None,
+    approval_ids: Collection[int] | None = None,
 ) -> dict[int, GovernedMutationProposal]:
     """Return only immutable Vendor identities that pass the strict classifier."""
     statement = (
@@ -48,6 +49,10 @@ async def valid_vendor_approvals(
     )
     if approval_statuses is not None:
         statement = statement.where(ApprovalRequest.status.in_(tuple(approval_statuses)))
+    if approval_ids is not None:
+        if not approval_ids:
+            return {}
+        statement = statement.where(ApprovalRequest.id.in_(tuple(approval_ids)))
     approvals = (await db.execute(statement)).scalars().all()
     return {
         approval.id: proposal

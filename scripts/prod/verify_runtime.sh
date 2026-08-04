@@ -55,7 +55,7 @@ done
 
 if container_exists "$BACKEND_CONTAINER"; then
   log "Reliability runtime:"
-  run docker exec -i "$BACKEND_CONTAINER" python - <<'PY'
+  run docker exec -i --user riskhub "$BACKEND_CONTAINER" python - <<'PY'
 import asyncio
 import json
 import os

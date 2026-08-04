@@ -262,7 +262,8 @@ preflight_check_db_connectivity() {
   fi
 
   log "Checking external PostgreSQL connectivity (SELECT 1)..."
-  run docker run --rm \
+  run docker run --rm -i \
+    --add-host host.docker.internal:host-gateway \
     -v "${SECRET_DIR}:${SECRET_DIR}:ro" \
     -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro" \
     --env-file "$backend_env" "$backend_image" python - <<'PY'

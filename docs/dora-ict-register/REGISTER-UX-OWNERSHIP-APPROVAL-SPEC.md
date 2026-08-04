@@ -1,6 +1,6 @@
 # ICT Register consistency, accountability, and governed-change specification
 
-_Tracker: [GitHub issue #71](https://github.com/W1z4rd1c4/RiskHub/issues/71) · Status: ready for ticket decomposition._
+_Tracker: [GitHub issue #71](https://github.com/W1z4rd1c4/RiskHub/issues/71) · Status: all in-scope automated remediation and DORA E2E certification complete; human/AT evaluation, C6 reproduction, ultrareview, WCAG-conformance, and the merge decision remain pending and outside this automated closeout._
 
 ## Problem Statement
 

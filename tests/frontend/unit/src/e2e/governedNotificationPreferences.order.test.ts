@@ -9,8 +9,8 @@ const source = readFileSync(resolve(
 ), 'utf8');
 
 describe('governed notification preference evidence ordering', () => {
-  it('observes the resolver action notification before approval and the requester update after approval', () => {
-    const title = "test('enabled delivery reaches the actionable resolver before approval and both inboxes after approval'";
+  it('shows the resolver action before approval and only the requester update after approval', () => {
+    const title = "test('enabled delivery reaches the resolver inbox before approval and requester inbox after approval'";
     const enabledFlow = source.slice(source.indexOf(title));
     const actionObservation = enabledFlow.indexOf(
       "waitForNotificationByAccountName(\n                'Anna Kowalski'",
@@ -19,9 +19,14 @@ describe('governed notification preference evidence ordering', () => {
     const requesterObservation = enabledFlow.indexOf(
       "waitForNotificationByAccountName(\n                'Petra Svobodová'",
     );
+    const resolverInbox = enabledFlow.indexOf('openNotificationInbox(croPage)');
+    const requesterInbox = enabledFlow.indexOf('openNotificationInbox(riskManagerPage)');
 
     expect(actionObservation).toBeGreaterThanOrEqual(0);
-    expect(approval).toBeGreaterThan(actionObservation);
+    expect(resolverInbox).toBeGreaterThan(actionObservation);
+    expect(approval).toBeGreaterThan(resolverInbox);
     expect(requesterObservation).toBeGreaterThan(approval);
+    expect(requesterInbox).toBeGreaterThan(requesterObservation);
+    expect(enabledFlow.slice(approval, requesterInbox)).not.toContain('openNotificationInbox(croPage)');
   });
 });

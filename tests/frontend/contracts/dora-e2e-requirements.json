@@ -133,7 +133,7 @@
       "description": "Governed notification preferences control delivery without changing authoritative approval queues or history.",
       "evidence": [
         { "spec": "tests/frontend/e2e/approval-workflows/governed-notification-preferences.spec.ts", "titleIncludes": "governed defaults persist while disabled delivery leaves Pending Queue, My Requests, and History authoritative" },
-        { "spec": "tests/frontend/e2e/approval-workflows/governed-notification-preferences.spec.ts", "titleIncludes": "enabled delivery reaches the actionable resolver before approval and both inboxes after approval" }
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-notification-preferences.spec.ts", "titleIncludes": "enabled delivery reaches the resolver inbox before approval and requester inbox after approval" }
       ]
     },
     {

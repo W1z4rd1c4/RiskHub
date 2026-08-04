@@ -144,6 +144,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test
           SECRET_KEY: test-secret-key-for-ci-testing-only
           DEBUG: 'true'
+          E2E_SQLALCHEMY_ECHO: 'false'
           MOCK_AUTH_ENABLED: 'true'
           AUTH_MODE: hybrid_dev
           ENABLE_SCHEDULER: 'true'

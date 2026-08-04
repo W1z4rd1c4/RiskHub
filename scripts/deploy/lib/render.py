@@ -50,7 +50,9 @@ def _render_template(path: Path, replacements: dict[str, str]) -> str:
 
 
 def _render_shell_assignments(values: dict[str, str]) -> str:
-    return "".join(f"{key}={shlex.quote(str(value))}\n" for key, value in values.items())
+    return "".join(
+        f"{key}={shlex.quote(str(value))}\n" for key, value in values.items()
+    )
 
 
 def _validate_email(name: str, email: str) -> str:
@@ -99,7 +101,9 @@ def _parse_json_string_list(name: str, raw_value: str) -> tuple[str, ...]:
         parsed = json.loads(raw_value)
     except json.JSONDecodeError as exc:
         raise RenderError(f"{name} must be a JSON array of strings") from exc
-    if not isinstance(parsed, list) or not all(isinstance(item, str) and item.strip() for item in parsed):
+    if not isinstance(parsed, list) or not all(
+        isinstance(item, str) and item.strip() for item in parsed
+    ):
         raise RenderError(f"{name} must be a JSON array of non-empty strings")
     return tuple(item.strip() for item in parsed)
 
@@ -158,7 +162,8 @@ class DeploySecrets:
             database_url_path=secret_dir / "database_url",
             secret_key_path=secret_dir / "secret_key",
             entra_client_secret_path=secret_dir / "entra_client_secret",
-            entra_client_certificate_private_key_path=secret_dir / "entra_client_certificate_private_key",
+            entra_client_certificate_private_key_path=secret_dir
+            / "entra_client_certificate_private_key",
             redis_password_path=secret_dir / "redis_password",
         )
 
@@ -178,7 +183,9 @@ class DeploySecrets:
         return _read_optional_secret_file(self.entra_client_secret_path)
 
     def optional_entra_client_certificate_private_key(self) -> str | None:
-        return _read_optional_secret_file(self.entra_client_certificate_private_key_path)
+        return _read_optional_secret_file(
+            self.entra_client_certificate_private_key_path
+        )
 
     @property
     def redis_password(self) -> str:
@@ -187,9 +194,13 @@ class DeploySecrets:
     def validate(self, config: "DeployConfig") -> str:
         database_url = self.database_url
         if database_url == DEFAULT_DATABASE_URL:
-            raise RenderError("database_url secret must not use the default placeholder")
+            raise RenderError(
+                "database_url secret must not use the default placeholder"
+            )
         if "@db:" in database_url:
-            raise RenderError("database_url secret must not target docker-compose hostname 'db'")
+            raise RenderError(
+                "database_url secret must not target docker-compose hostname 'db'"
+            )
 
         secret_key = self.secret_key
         if len(secret_key) < 32:
@@ -198,10 +209,14 @@ class DeploySecrets:
         _ = self.redis_password
         client_secret = self.optional_entra_client_secret()
         certificate_key = self.optional_entra_client_certificate_private_key()
-        secret_ready = bool(client_secret and client_secret != SECRET_PLACEHOLDERS["entra_client_secret"])
+        secret_ready = bool(
+            client_secret
+            and client_secret != SECRET_PLACEHOLDERS["entra_client_secret"]
+        )
         certificate_key_ready = bool(
             certificate_key
-            and certificate_key != SECRET_PLACEHOLDERS["entra_client_certificate_private_key"]
+            and certificate_key
+            != SECRET_PLACEHOLDERS["entra_client_certificate_private_key"]
         )
         thumbprint_ready = bool(config.entra_client_certificate_thumbprint)
 
@@ -238,7 +253,9 @@ class DeployConfig:
     entra_client_certificate_thumbprint: str | None
     entra_business_role_attribute_name: str | None
     bootstrap_admin_email: str
+    bootstrap_admin_external_id: str | None
     bootstrap_cro_email: str
+    bootstrap_cro_external_id: str | None
     api_workers: int
     frontend_bind_port: int
     metrics_enabled: str
@@ -259,21 +276,55 @@ class DeployConfig:
 
         public_url = require("PUBLIC_URL").rstrip("/")
         parsed = urlparse(public_url)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.path not in {"", "/"}:
-            raise RenderError("PUBLIC_URL must be an origin only, for example https://riskhub.example.com")
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.path not in {"", "/"}
+        ):
+            raise RenderError(
+                "PUBLIC_URL must be an origin only, for example https://riskhub.example.com"
+            )
         if "*" in parsed.hostname:
             raise RenderError("PUBLIC_URL host must not contain wildcard entries")
 
-        api_workers = _validate_positive_int("API_WORKERS", values.get("API_WORKERS", "4"))
-        frontend_bind_port = _validate_port("FRONTEND_BIND_PORT", values.get("FRONTEND_BIND_PORT", "80"))
-        metrics_enabled = _validate_bool_string("METRICS_ENABLED", values.get("METRICS_ENABLED", "false"))
-        otel_exporter_otlp_endpoint = values.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip() or None
-        otel_service_name = values.get("OTEL_SERVICE_NAME", "riskhub-api").strip() or "riskhub-api"
+        api_workers = _validate_positive_int(
+            "API_WORKERS", values.get("API_WORKERS", "4")
+        )
+        frontend_bind_port = _validate_port(
+            "FRONTEND_BIND_PORT", values.get("FRONTEND_BIND_PORT", "80")
+        )
+        metrics_enabled = _validate_bool_string(
+            "METRICS_ENABLED", values.get("METRICS_ENABLED", "false")
+        )
+        otel_exporter_otlp_endpoint = (
+            values.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip() or None
+        )
+        otel_service_name = (
+            values.get("OTEL_SERVICE_NAME", "riskhub-api").strip() or "riskhub-api"
+        )
 
-        admin_email = _validate_email("BOOTSTRAP_ADMIN_EMAIL", require("BOOTSTRAP_ADMIN_EMAIL"))
-        cro_email = _validate_email("BOOTSTRAP_CRO_EMAIL", require("BOOTSTRAP_CRO_EMAIL"))
+        admin_email = _validate_email(
+            "BOOTSTRAP_ADMIN_EMAIL", require("BOOTSTRAP_ADMIN_EMAIL")
+        )
+        cro_email = _validate_email(
+            "BOOTSTRAP_CRO_EMAIL", require("BOOTSTRAP_CRO_EMAIL")
+        )
         if admin_email.lower() == cro_email.lower():
-            raise RenderError("BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_CRO_EMAIL must be different")
+            raise RenderError(
+                "BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_CRO_EMAIL must be different"
+            )
+        admin_external_id = (
+            values.get("BOOTSTRAP_ADMIN_EXTERNAL_ID", "").strip() or None
+        )
+        cro_external_id = values.get("BOOTSTRAP_CRO_EXTERNAL_ID", "").strip() or None
+        if (
+            admin_external_id is not None
+            and cro_external_id is not None
+            and admin_external_id == cro_external_id
+        ):
+            raise RenderError(
+                "BOOTSTRAP_ADMIN_EXTERNAL_ID and BOOTSTRAP_CRO_EXTERNAL_ID must be different"
+            )
 
         trusted_proxies_raw = values.get("TRUSTED_PROXIES", "").strip()
         trusted_proxies = (
@@ -290,10 +341,18 @@ class DeployConfig:
             public_url=public_url,
             entra_tenant_id=require("ENTRA_TENANT_ID"),
             entra_client_id=require("ENTRA_CLIENT_ID"),
-            entra_client_certificate_thumbprint=values.get("ENTRA_CLIENT_CERTIFICATE_THUMBPRINT", "").strip() or None,
-            entra_business_role_attribute_name=values.get("ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME", "").strip() or None,
+            entra_client_certificate_thumbprint=values.get(
+                "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT", ""
+            ).strip()
+            or None,
+            entra_business_role_attribute_name=values.get(
+                "ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME", ""
+            ).strip()
+            or None,
             bootstrap_admin_email=admin_email,
+            bootstrap_admin_external_id=admin_external_id,
             bootstrap_cro_email=cro_email,
+            bootstrap_cro_external_id=cro_external_id,
             api_workers=api_workers,
             frontend_bind_port=frontend_bind_port,
             metrics_enabled=metrics_enabled,
@@ -321,7 +380,9 @@ class DeployConfig:
             defaults.append(self.docker_network_subnet)
         return defaults
 
-    def backend_env(self, target: str, secret_dir: Path, runtime_dir: Path, credential_mode: str) -> str:
+    def backend_env(
+        self, target: str, secret_dir: Path, runtime_dir: Path, credential_mode: str
+    ) -> str:
         values = {
             "DEBUG": "false",
             "MOCK_AUTH_ENABLED": "false",
@@ -347,15 +408,23 @@ class DeployConfig:
             "BOOTSTRAP_CRO_EMAIL": self.bootstrap_cro_email,
             "BOOTSTRAP_CRO_ACCESS_SCOPE": "global",
         }
+        if self.bootstrap_admin_external_id:
+            values["BOOTSTRAP_ADMIN_EXTERNAL_ID"] = self.bootstrap_admin_external_id
+        if self.bootstrap_cro_external_id:
+            values["BOOTSTRAP_CRO_EXTERNAL_ID"] = self.bootstrap_cro_external_id
         if target == "docker":
             values["DOCKER_NETWORK_SUBNET"] = self.docker_network_subnet
         if self.otel_exporter_otlp_endpoint:
             values["OTEL_EXPORTER_OTLP_ENDPOINT"] = self.otel_exporter_otlp_endpoint
         if self.entra_business_role_attribute_name:
-            values["ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME"] = self.entra_business_role_attribute_name
+            values["ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME"] = (
+                self.entra_business_role_attribute_name
+            )
         if credential_mode == "certificate":
             assert self.entra_client_certificate_thumbprint is not None
-            values["ENTRA_CLIENT_CERTIFICATE_THUMBPRINT"] = self.entra_client_certificate_thumbprint
+            values["ENTRA_CLIENT_CERTIFICATE_THUMBPRINT"] = (
+                self.entra_client_certificate_thumbprint
+            )
             values["ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE"] = str(
                 secret_dir / "entra_client_certificate_private_key"
             )
@@ -407,7 +476,9 @@ class DeployConfig:
         return _render_shell_assignments(values)
 
 
-def _write_runtime_files(config_path: Path, target: str, secret_dir: Path, runtime_dir: Path, out_dir: Path) -> None:
+def _write_runtime_files(
+    config_path: Path, target: str, secret_dir: Path, runtime_dir: Path, out_dir: Path
+) -> None:
     config = DeployConfig.from_env_file(config_path)
     secrets = DeploySecrets.from_dir(secret_dir)
     credential_mode = secrets.validate(config)
@@ -421,13 +492,19 @@ def _write_runtime_files(config_path: Path, target: str, secret_dir: Path, runti
         config.metadata_env(target, secret_dir, runtime_dir, secrets, credential_mode),
         encoding="utf-8",
     )
-    (out_dir / "redis_url").write_text(config.redis_url(target, secrets) + "\n", encoding="utf-8")
+    (out_dir / "redis_url").write_text(
+        config.redis_url(target, secrets) + "\n", encoding="utf-8"
+    )
 
 
 def _bundle_manifest(bundle_path: Path) -> dict[str, object]:
     with tarfile.open(bundle_path, "r:*") as archive:
         manifest_member = next(
-            (member for member in archive.getmembers() if member.name.endswith("/manifest.json")),
+            (
+                member
+                for member in archive.getmembers()
+                if member.name.endswith("/manifest.json")
+            ),
             None,
         )
         if manifest_member is None:
@@ -469,7 +546,9 @@ def _render_linux_nginx_full(config_path: Path, release_root: str) -> str:
     )
 
 
-def _render_backend_unit(config_path: Path, current_link: str, runtime_dir: Path, redis_service: str) -> str:
+def _render_backend_unit(
+    config_path: Path, current_link: str, runtime_dir: Path, redis_service: str
+) -> str:
     config = DeployConfig.from_env_file(config_path)
     return _render_template(
         TEMPLATES_DIR / "linux" / "riskhub-backend.service.tmpl",
@@ -482,7 +561,9 @@ def _render_backend_unit(config_path: Path, current_link: str, runtime_dir: Path
     )
 
 
-def _render_scheduler_unit(current_link: str, runtime_dir: Path, redis_service: str) -> str:
+def _render_scheduler_unit(
+    current_link: str, runtime_dir: Path, redis_service: str
+) -> str:
     return _render_template(
         TEMPLATES_DIR / "linux" / "riskhub-scheduler.service.tmpl",
         {
@@ -507,7 +588,9 @@ def _print_json(payload: object) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Render RiskHub deployment runtime artifacts")
+    parser = argparse.ArgumentParser(
+        description="Render RiskHub deployment runtime artifacts"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     write_runtime = sub.add_parser("write-runtime")
@@ -542,7 +625,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     render_scheduler_unit = sub.add_parser("render-linux-scheduler-unit")
     render_scheduler_unit.add_argument("--current-link", default="/opt/riskhub/current")
-    render_scheduler_unit.add_argument("--runtime-dir", default=str(DEFAULT_RUNTIME_DIR))
+    render_scheduler_unit.add_argument(
+        "--runtime-dir", default=str(DEFAULT_RUNTIME_DIR)
+    )
     render_scheduler_unit.add_argument("--redis-service", default="riskhub-redis")
 
     render_redis_unit = sub.add_parser("render-linux-redis-unit")
@@ -593,7 +678,9 @@ def main(argv: Iterable[str] | None = None) -> int:
         elif args.command == "render-linux-site":
             print(_render_linux_site(Path(args.config), args.release_root), end="")
         elif args.command == "render-linux-nginx-full":
-            print(_render_linux_nginx_full(Path(args.config), args.release_root), end="")
+            print(
+                _render_linux_nginx_full(Path(args.config), args.release_root), end=""
+            )
         elif args.command == "render-linux-backend-unit":
             print(
                 _render_backend_unit(
@@ -605,7 +692,12 @@ def main(argv: Iterable[str] | None = None) -> int:
                 end="",
             )
         elif args.command == "render-linux-scheduler-unit":
-            print(_render_scheduler_unit(args.current_link, Path(args.runtime_dir), args.redis_service), end="")
+            print(
+                _render_scheduler_unit(
+                    args.current_link, Path(args.runtime_dir), args.redis_service
+                ),
+                end="",
+            )
         elif args.command == "render-linux-redis-unit":
             print(_render_redis_unit(Path(args.secret_dir)), end="")
         else:

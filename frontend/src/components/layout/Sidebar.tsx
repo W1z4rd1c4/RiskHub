@@ -34,7 +34,7 @@ export function Sidebar() {
 
     const shellSummaryQuery = useAdaptivePollingQuery({
         queryKey: dashboardKeys.shellSummary(user?.id, user?.department_id ?? null, user?.access_scope ?? null),
-        queryFn: ({ signal }) => userApi.getShellSummary({ signal }),
+        queryFn: () => userApi.getShellSummary(),
         pollMs: SIDEBAR_POLL_MS,
         enabled: shouldPollShellSummary,
     });

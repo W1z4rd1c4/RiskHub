@@ -32,6 +32,8 @@ Optional keys:
 - `OTEL_SERVICE_NAME` default `riskhub-api`
 - `CORS_ORIGINS` when you need an explicit override instead of the managed same-origin default
 - `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` when using certificate credential mode
+- `BOOTSTRAP_ADMIN_EXTERNAL_ID` trusted Entra object ID (`oid`) override for the bootstrap admin; omit it to use exact email/UPN Graph lookup
+- `BOOTSTRAP_CRO_EXTERNAL_ID` trusted Entra object ID (`oid`) override for the bootstrap CRO; omit it to use exact email/UPN Graph lookup
 - `DOCKER_NETWORK_SUBNET` default `172.31.255.0/24` for managed docker installs
 - `TRUSTED_PROXIES` JSON array override when you need explicit proxy CIDRs beyond the target defaults
 

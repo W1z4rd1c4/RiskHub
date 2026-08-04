@@ -602,6 +602,8 @@ async def test_sqlite_asset_edit_notification_rejects_mismatched_raw_snapshot_ke
         "impact_nonnumeric_id",
         "impact_oversized_id",
         "operation_string_id",
+        "operation_bool_id",
+        "operation_float_id",
         "proposal_uuid",
         "approver_roles",
     ],
@@ -669,8 +671,12 @@ async def test_postgres_notification_sql_rejects_noninteger_json_ids_without_abo
         impacts[0]["resource_id"] = malformed_id
         derived["assets"][0]["resource_id"] = malformed_id
         base_versions = {f"asset:{malformed_id}": impacts[0]["base_governance_version"]}
-    elif corruption == "operation_string_id":
-        proposed["operation"]["related_resource_id"] = str(risk.id)
+    elif corruption.startswith("operation_"):
+        proposed["operation"]["related_resource_id"] = {
+            "operation_string_id": str(risk.id),
+            "operation_bool_id": True,
+            "operation_float_id": float(risk.id),
+        }[corruption]
     scenario_snapshot = deepcopy(source.scenario_snapshot)
     if corruption == "approver_roles":
         scenario_snapshot["approver_roles"] = ["cro"]
@@ -721,6 +727,9 @@ async def test_postgres_notification_sql_rejects_noninteger_json_ids_without_abo
     )
     db_session.add(malformed_notification)
     await db_session.commit()
+    if corruption.startswith("operation_"):
+        await db_session.refresh(corrupt, ["approval_request"])
+        assert valid_asset_governed_envelope(corrupt) is False
     async with client_factory(user=test_user_cro) as requester:
         inbox = await requester.get("/api/v1/notifications")
         unread = await requester.get("/api/v1/notifications/unread/count")

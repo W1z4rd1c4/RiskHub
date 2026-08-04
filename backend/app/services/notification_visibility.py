@@ -35,10 +35,16 @@ from app.services._approval_queue.threat import (
     live_threat_resolver_approval_ids,
     valid_threat_approvals,
 )
+from app.services._approval_queue.vendor import (
+    live_vendor_resolver_approval_ids,
+    valid_vendor_approvals,
+)
 from app.services._governed_mutations.asset_identity import (
     ASSET_ARCHIVE_KIND,
     ASSET_EDIT_KIND,
     ASSET_RELATIONSHIP_KINDS,
+    live_asset_resolver_approval_ids,
+    valid_asset_approval_ids,
 )
 from app.services._governed_mutations.fixed_asset_policy import ASSET_SCENARIO_KEY
 from app.services._governed_mutations.fixed_vendor_policy import VENDOR_SCENARIO_KEY
@@ -949,6 +955,26 @@ async def visible_notification_clause(db: AsyncSession, current_user: User) -> C
         db,
         approval_ids=notification_approval_ids,
     )
+    valid_asset_ids = await valid_asset_approval_ids(
+        db,
+        approval_ids=notification_approval_ids,
+    )
+    live_asset_resolver_ids = (
+        await live_asset_resolver_approval_ids(
+            db,
+            current_user=current_user,
+            approval_ids=notification_approval_ids,
+        )
+    ) & valid_asset_ids
+    valid_vendor_proposals = await valid_vendor_approvals(
+        db,
+        approval_ids=notification_approval_ids,
+    )
+    live_vendor_resolver_ids = await live_vendor_resolver_approval_ids(
+        db,
+        current_user=current_user,
+        proposals=valid_vendor_proposals,
+    )
     valid_threat_proposals = await valid_threat_approvals(db)
     valid_threat_proposals = {
         approval_id: proposal
@@ -982,6 +1008,10 @@ async def visible_notification_clause(db: AsyncSession, current_user: User) -> C
                     kri_clause=kri_clause,
                     resource_id=Notification.resource_id,
                     valid_extended_approval_ids=valid_extended_ids,
+                    valid_asset_approval_ids=valid_asset_ids,
+                    live_asset_resolver_ids=live_asset_resolver_ids,
+                    valid_vendor_approval_ids=frozenset(valid_vendor_proposals),
+                    live_vendor_resolver_ids=live_vendor_resolver_ids,
                     valid_threat_approval_ids=frozenset(valid_threat_proposals),
                     live_threat_resolver_ids=live_threat_resolver_ids,
                 ),
@@ -1017,12 +1047,17 @@ async def paginate_visible_notifications(
     unread_only: bool = False,
 ) -> tuple[list[Notification], int, int]:
     visibility_clause = await visible_notification_clause(db, current_user)
-    total_query = select(func.count()).select_from(Notification).where(visibility_clause)
+    aggregate_query = (
+        select(
+            func.count(),
+            func.count().filter(Notification.is_read.is_(False)),
+        )
+        .select_from(Notification)
+        .where(visibility_clause)
+    )
     if unread_only:
-        total_query = total_query.where(Notification.is_read.is_(False))
-    total = (await db.execute(total_query)).scalar() or 0
-
-    unread_count = await count_visible_unread_notifications(db, current_user)
+        aggregate_query = aggregate_query.where(Notification.is_read.is_(False))
+    total, unread_count = (await db.execute(aggregate_query)).one()
 
     page_query = (
         select(Notification)
@@ -1122,6 +1157,10 @@ def _approval_exists_clause(
     kri_clause: ColumnElement[bool] | None,
     resource_id: Any,
     valid_extended_approval_ids: frozenset[int],
+    valid_asset_approval_ids: frozenset[int],
+    live_asset_resolver_ids: frozenset[int],
+    valid_vendor_approval_ids: frozenset[int],
+    live_vendor_resolver_ids: frozenset[int],
     valid_threat_approval_ids: frozenset[int],
     live_threat_resolver_ids: frozenset[int],
 ) -> ColumnElement[bool]:
@@ -1136,11 +1175,27 @@ def _approval_exists_clause(
                 current_user.id,
                 valid_extended_approval_ids,
             ),
-            _asset_approval_visibility_clause(
-                current_user,
+            and_(
+                ApprovalRequest.id.in_(tuple(valid_asset_approval_ids))
+                if valid_asset_approval_ids
+                else false(),
+                or_(
+                    ApprovalRequest.requested_by_id == current_user.id,
+                    ApprovalRequest.id.in_(tuple(live_asset_resolver_ids))
+                    if live_asset_resolver_ids
+                    else false(),
+                ),
             ),
-            _vendor_approval_visibility_clause(
-                current_user,
+            and_(
+                ApprovalRequest.id.in_(tuple(valid_vendor_approval_ids))
+                if valid_vendor_approval_ids
+                else false(),
+                or_(
+                    ApprovalRequest.requested_by_id == current_user.id,
+                    ApprovalRequest.id.in_(tuple(live_vendor_resolver_ids))
+                    if live_vendor_resolver_ids
+                    else false(),
+                ),
             ),
             and_(
                 ApprovalRequest.id.in_(tuple(valid_threat_approval_ids))

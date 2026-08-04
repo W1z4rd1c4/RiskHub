@@ -7,7 +7,7 @@
  */
 import { readFile } from 'node:fs/promises';
 
-import type { Page, Request } from '@playwright/test';
+import type { Page, Request, Response } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.fixture';
 import { createThreatViaApi, getRiskByCode } from './helpers/ict-register';
@@ -22,6 +22,14 @@ function isThreatListRequest(request: Request): boolean {
 function waitForThreatList(page: Page, predicate: (url: URL) => boolean = () => true) {
     return page.waitForRequest((request) => (
         isThreatListRequest(request) && predicate(new URL(request.url()))
+    ));
+}
+
+function waitForThreatListResponse(page: Page, predicate: (url: URL) => boolean): Promise<Response> {
+    return page.waitForResponse((response) => (
+        response.request().method() === 'GET'
+        && new URL(response.url()).pathname === THREAT_LIST_PATH
+        && predicate(new URL(response.url()))
     ));
 }
 
@@ -114,6 +122,17 @@ test.describe('ICT Register — shared Threat register framework (#79)', () => {
         await riskManagerPage.goto('/threats?source=external-review&page=9');
         await waitForRegisterReady(riskManagerPage);
 
+        await riskManagerPage.route('**/api/v1/threats?**', async (route) => {
+            const url = new URL(route.request().url());
+            if (
+                url.searchParams.get('group_by') === 'linked_risk'
+                && !url.searchParams.has('group_value')
+            ) {
+                await new Promise((resolve) => setTimeout(resolve, 250));
+            }
+            await route.continue();
+        });
+
         const viewContracts = [
             ['all', null],
             ['category', 'category'],
@@ -131,13 +150,16 @@ test.describe('ICT Register — shared Threat register framework (#79)', () => {
             }
 
             await viewButton.focus();
+            const requestPredicate = (url: URL) => (
+                url.searchParams.get('view') === view
+                && url.searchParams.get('group_by') === groupBy
+                && url.searchParams.get('source') === null
+                && url.searchParams.getAll('lifecycle').join(',') === 'active'
+            );
             await Promise.all([
-                waitForThreatList(riskManagerPage, (url) => (
-                    url.searchParams.get('view') === view
-                    && url.searchParams.get('group_by') === groupBy
-                    && url.searchParams.get('source') === null
-                    && url.searchParams.getAll('lifecycle').join(',') === 'active'
-                )),
+                view === 'linked_risk'
+                    ? waitForThreatListResponse(riskManagerPage, requestPredicate)
+                    : waitForThreatList(riskManagerPage, requestPredicate),
                 riskManagerPage.keyboard.press('Enter'),
             ]);
             await expect(viewButton).toHaveAttribute('aria-pressed', 'true');
@@ -154,6 +176,10 @@ test.describe('ICT Register — shared Threat register framework (#79)', () => {
         ));
         const firstGroup = riskManagerPage.getByTestId('register-group-card').first();
         await expect(firstGroup).toBeVisible();
+        await expect(firstGroup).toHaveAttribute(
+            'data-group-value',
+            /^(?:risk:[1-9]\d*|__unlinked_risk__)$/,
+        );
         const groupValue = await firstGroup.getAttribute('data-group-value');
         expect(groupValue).toBeTruthy();
 

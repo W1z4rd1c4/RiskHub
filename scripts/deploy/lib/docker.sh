@@ -92,7 +92,13 @@ docker_deploy_or_upgrade() {
   local runtime_dir=""
   runtime_dir="$(make_runtime_dir "$config_path" "docker")"
   local rc=0
-  {
+  local errexit_was_set="false"
+  if [[ "$-" == *e* ]]; then
+    errexit_was_set="true"
+  fi
+  set +e
+  (
+    set -e
     if [[ "$DRY_RUN" != "true" ]]; then
       copy_runtime_file "${runtime_dir}/backend.env" "${RUNTIME_DIR}/backend.env" 640
       copy_runtime_file "${runtime_dir}/frontend.env" "${RUNTIME_DIR}/frontend.env" 640
@@ -214,9 +220,13 @@ docker_deploy_or_upgrade() {
       "${REPO_ROOT}/scripts/prod/install_frontend.sh" "${frontend_install_args[@]}"
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
       "${REPO_ROOT}/scripts/prod/smoke_test.sh" --frontend-env "$frontend_env" --backend-env "$backend_env" "${prod_common[@]}"
-  } || rc=$?
+  )
+  rc=$?
 
   cleanup_runtime_dir "$runtime_dir"
+  if [[ "$errexit_was_set" == "true" ]]; then
+    set -e
+  fi
   return "$rc"
 }
 
