@@ -32,6 +32,10 @@ Playwright E2E suite for `approval-workflows`.
   a protected Vendor Risk link submits with a reason, queues as 202 (never
   success), leaves pre-approval truth unchanged, and applies in API and UI
   only after independent approval.
+- `governed-vendor-sub-outsourcing.spec.ts` — the same 5-step governed journey
+  for protected Vendor sub-outsourcing maintenance (#101): a create submits
+  with a reason, queues as 202 (never success), leaves pre-approval chain
+  truth unchanged, and applies in API and UI only after independent approval.
 - `governed-notification-preferences.spec.ts` — governed delivery preferences
   suppress notifications without changing Pending Queue, My Requests, or
   History truth.

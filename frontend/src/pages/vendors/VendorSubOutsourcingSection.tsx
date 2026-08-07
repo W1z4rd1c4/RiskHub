@@ -1,15 +1,20 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Network, Plus, Save, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SortableTable } from '@/components/tables';
+import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
+import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
 import { assetApi } from '@/services/assetApi';
 import { logError } from '@/services/logger';
 import { vendorContractApi } from '@/services/vendorContractApi';
 import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
+import { isProcessApprovalQueuedResponse } from '@/types/process';
 import type { VendorSubOutsourcing } from '@/types/vendorSubOutsourcing';
 
 import { VendorSubOutsourcingChainTable } from './VendorSubOutsourcingChainTable';
@@ -24,6 +29,13 @@ import {
 interface VendorSubOutsourcingSectionProps {
     vendorId: number;
     canManageSubOutsourcing: boolean;
+    /**
+     * Backend-declared `protected_change_requires_approval` capability from
+     * the Vendor read payload (ADR-016, #101). It is the ONLY switch between
+     * the direct create/edit/archive path and the governed reason-then-queue
+     * path — no local re-derivation. Restore stays direct by design.
+     */
+    protectedChangeRequiresApproval: boolean;
 }
 
 type SubOutsourcingFormFields = {
@@ -68,13 +80,18 @@ function toNullableInt(value: string): number | null {
 export function VendorSubOutsourcingSection({
     vendorId,
     canManageSubOutsourcing,
+    protectedChangeRequiresApproval,
 }: VendorSubOutsourcingSectionProps) {
     const { t } = useTranslation(['vendors', 'common']);
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
 
     const [formOpen, setFormOpen] = useState(false);
     const [editingEntry, setEditingEntry] = useState<VendorSubOutsourcing | null>(null);
     const [fields, setFields] = useState<SubOutsourcingFormFields>(() => initialSubOutsourcingFields());
+    const [requestReason, setRequestReason] = useState('');
+    const [requestReasonError, setRequestReasonError] = useState<string | null>(null);
+    const [pendingArchive, setPendingArchive] = useState<VendorSubOutsourcing | null>(null);
     const [sectionError, setSectionError] = useState<string | null>(null);
 
     const entriesQuery = useQuery({
@@ -166,17 +183,23 @@ export function VendorSubOutsourcingSection({
         setFormOpen(false);
         setEditingEntry(null);
         setFields(initialSubOutsourcingFields());
+        setRequestReason('');
+        setRequestReasonError(null);
     };
 
     const openCreateForm = () => {
         setEditingEntry(null);
         setFields(initialSubOutsourcingFields());
+        setRequestReason('');
+        setRequestReasonError(null);
         setFormOpen(true);
     };
 
     const openEditForm = (entry: VendorSubOutsourcing) => {
         setEditingEntry(entry);
         setFields(initialSubOutsourcingFields(entry));
+        setRequestReason('');
+        setRequestReasonError(null);
         setFormOpen(true);
     };
 
@@ -196,20 +219,30 @@ export function VendorSubOutsourcingSection({
     const saveEntry = useMutation({
         mutationFn: () =>
             editingEntry
-                ? vendorSubOutsourcingApi.updateEntry(vendorId, editingEntry.id, buildPayload())
-                : vendorSubOutsourcingApi.createEntry(vendorId, buildPayload()),
-        onSuccess: async () => {
+                ? vendorSubOutsourcingApi.updateEntry(vendorId, editingEntry.id, buildPayload(), requestReason)
+                : vendorSubOutsourcingApi.createEntry(vendorId, buildPayload(), requestReason),
+        onSuccess: async (result) => {
             setSectionError(null);
             closeForm();
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             await refreshEntries();
         },
         onError: handleMutationError,
     });
 
     const archiveEntry = useMutation({
-        mutationFn: (entry: VendorSubOutsourcing) => vendorSubOutsourcingApi.archiveEntry(vendorId, entry.id),
-        onSuccess: async () => {
+        mutationFn: ({ entry, reason }: { entry: VendorSubOutsourcing; reason: string }) =>
+            vendorSubOutsourcingApi.archiveEntry(vendorId, entry.id, reason),
+        onSuccess: async (result) => {
             setSectionError(null);
+            setPendingArchive(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
             await refreshEntries();
         },
         onError: handleMutationError,
@@ -243,7 +276,13 @@ export function VendorSubOutsourcingSection({
         t: (key, options) => t(key, options),
         getContractLabel,
         onEdit: openEditForm,
-        onArchive: (entry) => archiveEntry.mutate(entry),
+        onArchive: (entry) => {
+            if (protectedChangeRequiresApproval) {
+                setPendingArchive(entry);
+                return;
+            }
+            archiveEntry.mutate({ entry, reason: '' });
+        },
         onRestore: (entry) => restoreEntry.mutate(entry),
     });
 
@@ -320,17 +359,26 @@ export function VendorSubOutsourcingSection({
             </div>
 
             {sectionError ? (
-                <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300">
+                <div
+                    role="alert"
+                    className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300"
+                >
                     {sectionError}
                 </div>
             ) : null}
 
             {formOpen ? (
                 <form
+                    noValidate
                     data-testid="vendor-sub-outsourcing-form"
                     className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5"
                     onSubmit={(event) => {
                         event.preventDefault();
+                        if (protectedChangeRequiresApproval && !requestReason.trim()) {
+                            setRequestReasonError(t('errors.request_reason_required'));
+                            return;
+                        }
+                        setRequestReasonError(null);
                         saveEntry.mutate();
                     }}
                 >
@@ -371,6 +419,31 @@ export function VendorSubOutsourcingSection({
                             className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
                         />
                     </div>
+                    {protectedChangeRequiresApproval ? (
+                        <Field
+                            label={t('form.request_reason')}
+                            required
+                            help={t('form.request_reason_help')}
+                            error={requestReasonError}
+                            labelClassName="vendor-label"
+                            className="vendor-field space-y-0"
+                        >
+                            {(control) => (
+                                <textarea
+                                    {...control}
+                                    data-testid="vendor-sub-outsourcing-request-reason"
+                                    value={requestReason}
+                                    onChange={(event) => {
+                                        setRequestReason(event.target.value);
+                                        setRequestReasonError(null);
+                                    }}
+                                    rows={2}
+                                    required
+                                    className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
+                                />
+                            )}
+                        </Field>
+                    ) : null}
                     <div className="flex items-center justify-end gap-3">
                         <button
                             type="button"
@@ -409,6 +482,27 @@ export function VendorSubOutsourcingSection({
             ) : (
                 <VendorSubOutsourcingChainTable groups={chainGroups} columns={columns} />
             )}
+
+            <ConfirmDialog
+                isOpen={pendingArchive !== null}
+                onClose={() => setPendingArchive(null)}
+                onConfirm={(reason) => {
+                    if (pendingArchive && reason?.trim()) {
+                        archiveEntry.mutate({ entry: pendingArchive, reason: reason.trim() });
+                    }
+                }}
+                title={t('sub_outsourcing.actions.archive')}
+                message={t('sub_outsourcing.archive_confirm', {
+                    name: pendingArchive?.sub_provider_name || t('common:fallbacks.unknown_sub_outsourcing'),
+                })}
+                confirmLabel={t('sub_outsourcing.actions.archive')}
+                variant="danger"
+                isLoading={archiveEntry.isPending}
+                showInput
+                inputRequired
+                inputLabel={t('form.request_reason')}
+                inputPlaceholder={t('form.request_reason_help')}
+            />
         </div>
     );
 }

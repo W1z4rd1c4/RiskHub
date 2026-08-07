@@ -429,6 +429,7 @@
   "sub_outsourcing": {
     "title": "Sub-outsourcing",
     "empty": "No sub-outsourcing entries yet.",
+    "archive_confirm": "Archive sub-outsourcing entry {{name}}? Approved data remains unchanged until any required approval is completed.",
     "columns": {
       "sub_provider": "Sub-provider",
       "contract": "Contract",

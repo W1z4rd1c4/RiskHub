@@ -25,6 +25,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AssetLinkSections } from '@/pages/assets/AssetLinkSections';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
 import { VendorContractsSection } from '@/pages/vendors/VendorContractsSection';
+import { VendorSubOutsourcingSection } from '@/pages/vendors/VendorSubOutsourcingSection';
 import { DashboardRiskSections } from '@/pages/dashboard/DashboardRiskSections';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import type { Asset } from '@/types/asset';
@@ -302,6 +303,9 @@ function OwnerSurface({ siteId }: { siteId: string }) {
     case 'confirm.asset-links': return <AssetLinkSections asset={assetFixture} canManageLinks />;
     case 'confirm.vendor-contracts': return (
       <VendorContractsSection vendorId={1} canManageContracts protectedChangeRequiresApproval />
+    );
+    case 'confirm.vendor-sub-outsourcing': return (
+      <VendorSubOutsourcingSection vendorId={1} canManageSubOutsourcing protectedChangeRequiresApproval />
     );
     case 'link.control-overview':
     case 'risk-view.control-overview': return <ControlOverviewOwner />;

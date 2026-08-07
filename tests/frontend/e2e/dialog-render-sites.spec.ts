@@ -309,6 +309,18 @@ async function installApiContract(page: Page, unexpected: string[]) {
           created_at: '2026-01-01T00:00:00Z',
           updated_at: '2026-01-01T00:00:00Z',
         }]); return;
+      case '/api/v1/vendors/1/sub-outsourcing':
+        await json(route, [{
+          id: 1,
+          vendor_id: 1,
+          contract_id: 1,
+          predecessor_id: null,
+          sub_provider_name: 'DIALOG-SUB-1',
+          is_archived: false,
+          capabilities: { can_read: true, can_update: true, can_archive: true, can_restore: false },
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        }]); return;
       case '/api/v1/ict-register/reference/closed-lists':
         await json(route, { lists: [] }); return;
       case '/api/v1/ict-register/reference/ict-service-taxonomy':
@@ -395,6 +407,7 @@ const parentSiteIds = new Set([
   'link.vendor-linked-entities',
   'confirm.asset-links',
   'confirm.vendor-contracts',
+  'confirm.vendor-sub-outsourcing',
   'confirm.governed-mutation-reason',
   'link.control-overview',
   'risk-view.control-overview',
@@ -542,6 +555,7 @@ const parentOpeners: Record<string, (page: Page) => Locator> = {
   'link.vendor-linked-entities': (page) => page.getByTestId('vendor-linked-kris-link-existing'),
   'confirm.asset-links': (page) => page.getByTestId('asset-process-link-remove-1'),
   'confirm.vendor-contracts': (page) => page.getByTestId('vendor-contract-archive-1'),
+  'confirm.vendor-sub-outsourcing': (page) => page.getByTestId('vendor-sub-outsourcing-archive-1'),
   'confirm.governed-mutation-reason': (page) => page.getByRole('button', { name: /open governed mutation reason/i }),
   'link.control-overview': (page) => page.getByRole('button', { name: /link.*risk|manage.*risk|controls:detail/i }).first(),
   'risk-view.control-overview': (page) => page.getByRole('button', { name: /authentication drift/i }).first(),

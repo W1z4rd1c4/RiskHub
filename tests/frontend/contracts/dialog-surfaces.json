@@ -72,6 +72,7 @@
     { "id": "confirm.sessions-panel", "component": "ConfirmDialog", "file": "frontend/src/pages/admin-console/sections/ops/SessionsPanel.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "confirm.asset-links", "component": "ConfirmDialog", "file": "frontend/src/pages/assets/AssetLinkSections.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "confirm.vendor-contracts", "component": "ConfirmDialog", "file": "frontend/src/pages/vendors/VendorContractsSection.tsx", "verificationCaseId": "owner.confirm-dialog" },
+    { "id": "confirm.vendor-sub-outsourcing", "component": "ConfirmDialog", "file": "frontend/src/pages/vendors/VendorSubOutsourcingSection.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "link.control-overview", "component": "LinkManagementDialog", "file": "frontend/src/pages/controls/ControlDetailOverviewTab.tsx", "verificationCaseId": "owner.link-management-dialog" },
     { "id": "risk-view.control-overview", "component": "RiskQuickViewModal", "file": "frontend/src/pages/controls/ControlDetailOverviewTab.tsx", "verificationCaseId": "owner.risk-quick-view-modal" },
     { "id": "risk-drilldown.dashboard", "component": "RiskDrilldownModal", "file": "frontend/src/pages/dashboard/DashboardRiskSections.tsx", "verificationCaseId": "owner.risk-drilldown-modal" },

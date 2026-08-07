@@ -429,6 +429,7 @@
   "sub_outsourcing": {
     "title": "Subdodavatelské řetězce",
     "empty": "Zatím žádné subdodávky.",
+    "archive_confirm": "Archivovat subdodávku {{name}}? Schválená data zůstanou beze změny až do dokončení případného povinného schválení.",
     "columns": {
       "sub_provider": "Subdodavatel",
       "contract": "Smlouva",
