@@ -186,6 +186,12 @@ const governedRelationshipContract = {
     'vendor.link.kri.remove': ['kri', 'remove'],
 } as const;
 
+const isIdenticalTierVendorPointImpact = (derivedImpact: unknown): boolean => {
+    const vendorPointImpact = governedVendorEditDerivedImpactSchema.safeParse(derivedImpact);
+    return vendorPointImpact.success
+        && vendorPointImpact.data.before.tier === vendorPointImpact.data.after.tier;
+};
+
 export const governedMutationReadSchema: z.ZodType<GovernedMutationRead> = z.strictObject({
     proposal_id: z.string(),
     proposal_version: z.number(),
@@ -228,11 +234,16 @@ export const governedMutationReadSchema: z.ZodType<GovernedMutationRead> = z.str
     }
 
     const [expectedResourceType, expectedAction] = relationshipContract;
+    // Vendor relationship kinds carry the backend's point impact — an identical
+    // before/after Vendor tier block — instead of a composite cascade (#99).
+    const hasExpectedImpact = value.mutation_kind.startsWith('vendor.link.')
+        ? isIdenticalTierVendorPointImpact(value.derived_impact)
+        : hasCompositeImpact;
     if (
         value.relationship_change == null
         || value.relationship_change.target_resource_type !== expectedResourceType
         || value.relationship_change.action !== expectedAction
-        || !hasCompositeImpact
+        || !hasExpectedImpact
     ) {
         context.addIssue({
             code: 'custom',
