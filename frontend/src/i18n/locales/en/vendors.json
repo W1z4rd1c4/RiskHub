@@ -527,5 +527,17 @@
       "yes": "Yes",
       "no": "No"
     }
+  },
+  "link_approval": {
+    "continue": "Continue",
+    "reason_placeholder": "Explain why this Vendor relationship change is needed...",
+    "link_add": {
+      "title": "Request Vendor link addition",
+      "message": "Provide a reason. A protected Vendor keeps its approved relationships until this request is approved."
+    },
+    "link_remove": {
+      "title": "Request Vendor link removal",
+      "message": "Provide a reason. The existing relationship remains active until this request is approved."
+    }
   }
 }

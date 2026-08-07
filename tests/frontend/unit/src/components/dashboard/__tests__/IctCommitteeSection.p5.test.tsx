@@ -1,8 +1,12 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection';
+import { DrilldownBarShape, IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection';
+import {
+    assetCriticalityDrilldownPath,
+    riskBandDrilldownPath,
+} from '@/pages/ictRegisterCommittee/committeePresentation';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import i18n from '@/i18n';
 import type { IctCommittee, IctRoiTemplateReadiness } from '@/types/ictRegisterCommittee';
@@ -15,6 +19,15 @@ vi.mock('@/services/ictRegisterCommitteeApi', () => ({
         getCommittee: (...args: unknown[]) => getCommittee(...args),
     },
 }));
+
+// Router mock for the chart-bar drilldowns (#102): the SVG bar anchors must
+// navigate in-app via useNavigate instead of a full page reload.
+const mockNavigate = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    return { ...actual, useNavigate: () => mockNavigate };
+});
 
 function roiTemplate(overrides: Partial<IctRoiTemplateReadiness> = {}): IctRoiTemplateReadiness {
     return {
@@ -44,19 +57,19 @@ function makeCommittee(): IctCommittee {
                 asset_count: 183,
                 process_asset_link_count: 1000,
                 vendor_count: 30,
-                assets_pending_review_count: 7, // blocking > 0 → amber
+                assets_pending_review_count: 7, // blocking > 0 → warning
                 direct_process_vendor_link_count: 358,
                 contracts_in_roi_scope_count: 1,
                 sub_outsourcing_link_count: 5,
-                assets_without_data_classification_count: 0, // blocking = 0 → emerald
-                top_tier_vendors_without_orderly_exit_count: 25, // blocking > 0 → amber
+                assets_without_data_classification_count: 0, // blocking = 0 → success-derived
+                top_tier_vendors_without_orderly_exit_count: 25, // blocking > 0 → warning
             },
             key_metrics: {
                 cif_process_count: 79, // inventory → white
                 processes_without_impact_assessment_count: 148,
                 critical_asset_count: 12,
                 critical_vendor_count: 26,
-                risks_above_tolerance_count: 4, // blocking > 0 → amber
+                risks_above_tolerance_count: 4, // blocking > 0 → warning
                 open_dq_finding_count: 23,
             },
         },
@@ -65,9 +78,9 @@ function makeCommittee(): IctCommittee {
                 risk_count: 8, // inventory → white
                 material_risk_count: 0,
                 risks_above_tolerance_count: 4,
-                accepted_above_tolerance_count: 0, // blocking = 0 → emerald
+                accepted_above_tolerance_count: 0, // blocking = 0 → success-derived
                 cif_without_bcm_count: 3,
-                open_dq_finding_count: 23, // blocking > 0 → amber
+                open_dq_finding_count: 23, // blocking > 0 → warning
                 material_risk_count_production_inert: false,
             },
             heatmap: {
@@ -104,9 +117,9 @@ function makeCommittee(): IctCommittee {
         },
         roi_readiness: {
             templates: [
-                roiTemplate({ code: 'RT01', readiness_pct: 95 }), // ≥ 80 → emerald
-                roiTemplate({ code: 'RT02', coverage: 'partial', readiness_pct: 60 }), // ≥ 50 → amber
-                roiTemplate({ code: 'RT03', coverage: 'partial', readiness_pct: 20 }), // < 50 → rose
+                roiTemplate({ code: 'RT01', readiness_pct: 95 }), // ≥ 80 → success
+                roiTemplate({ code: 'RT02', coverage: 'partial', readiness_pct: 60 }), // ≥ 50 → warning
+                roiTemplate({ code: 'RT03', coverage: 'partial', readiness_pct: 20 }), // < 50 → destructive
             ],
             overall_readiness_pct: 58,
             total_gap_row_count: 0,
@@ -132,33 +145,35 @@ afterEach(async () => {
 });
 
 describe('IctCommitteeSection — blocking-count priority (FR-P5-6 / S1)', () => {
-    it('prioritizes blocking counts (amber when > 0, emerald when cleared) apart from neutral inventory', async () => {
+    it('prioritizes blocking counts (warning when > 0, success-derived when cleared) apart from neutral inventory', async () => {
         getCommittee.mockResolvedValue(makeCommittee());
         renderSection();
 
-        // A non-zero blocking register-state tile reads amber, not neutral white.
+        // A non-zero blocking register-state tile reads amber via the semantic
+        // warning token, not neutral white (#102 / ADR-015).
         const pending = await screen.findByTestId('committee-state-assets_pending_review_count');
-        expect(within(pending).getByText('7').className).toContain('text-amber-300');
+        expect(within(pending).getByText('7').className).toContain('text-warning');
 
-        // A cleared blocking tile reads emerald (all good), still not inventory-white.
+        // A cleared blocking tile reads green via the standalone-text success
+        // token (contrast-contract-tested in statusTokenContrast.test.ts).
         const noGap = screen.getByTestId('committee-state-assets_without_data_classification_count');
-        expect(within(noGap).getByText('0').className).toContain('text-emerald-400');
+        expect(within(noGap).getByText('0').className).toContain('text-success-text');
 
         // A pure inventory count keeps the neutral white treatment.
         const processes = screen.getByTestId('committee-state-process_count');
         expect(within(processes).getByText('148').className).toContain('text-white');
 
-        // Key-metrics table: blocking metric amber, inventory metric white.
+        // Key-metrics table: blocking metric warning-token amber, inventory metric white.
         const toleranceMetric = screen.getByTestId('committee-metric-risks_above_tolerance_count');
-        expect(within(toleranceMetric).getByText('4').className).toContain('text-amber-300');
+        expect(within(toleranceMetric).getByText('4').className).toContain('text-warning');
         const cifMetric = screen.getByTestId('committee-metric-cif_process_count');
         expect(within(cifMetric).getByText('79').className).toContain('text-white');
 
-        // CRO KPI strip: blocking KPI amber (> 0) / emerald (= 0), inventory white.
+        // CRO KPI strip: blocking KPI warning (> 0) / success-text (= 0), inventory white.
         const openDq = screen.getByTestId('committee-kpi-open_dq_finding_count');
-        expect(within(openDq).getByText('23').className).toContain('text-amber-300');
+        expect(within(openDq).getByText('23').className).toContain('text-warning');
         const accepted = screen.getByTestId('committee-kpi-accepted_above_tolerance_count');
-        expect(within(accepted).getByText('0').className).toContain('text-emerald-400');
+        expect(within(accepted).getByText('0').className).toContain('text-success-text');
         const riskCount = screen.getByTestId('committee-kpi-risk_count');
         expect(within(riskCount).getByText('8').className).toContain('text-white');
     });
@@ -179,13 +194,13 @@ describe('IctCommitteeSection — heatmap legend + RoI threshold (FR-P5-7 / P10)
         expect(within(migrationLegend).getByText('5+')).toBeInTheDocument();
     });
 
-    it('colours the RoI readiness bar by threshold (ready / partial / at-risk)', async () => {
+    it('colours the RoI readiness bar by threshold (ready / partial / at-risk) from the status tokens', async () => {
         getCommittee.mockResolvedValue(makeCommittee());
         renderSection();
 
-        expect((await screen.findByTestId('committee-roi-bar-RT01')).className).toContain('bg-emerald-500');
-        expect(screen.getByTestId('committee-roi-bar-RT02').className).toContain('bg-amber-500');
-        expect(screen.getByTestId('committee-roi-bar-RT03').className).toContain('bg-rose-500');
+        expect((await screen.findByTestId('committee-roi-bar-RT01')).className).toContain('bg-success');
+        expect(screen.getByTestId('committee-roi-bar-RT02').className).toContain('bg-warning');
+        expect(screen.getByTestId('committee-roi-bar-RT03').className).toContain('bg-destructive');
     });
 });
 
@@ -211,6 +226,77 @@ describe('IctCommitteeSection — semantic drill-downs', () => {
             gross_band: 'Vysoké',
             net_band: 'Střední',
         });
+    });
+
+    // jsdom cannot lay out the recharts bars (zero-size container), so the
+    // drilldown shape is exercised directly with the same hrefForBand builders
+    // the charts pass in.
+    function renderAssetBarShape() {
+        return render(
+            <MemoryRouter>
+                <svg>
+                    <DrilldownBarShape
+                        payload={{ band: 'Kritická' }}
+                        x={0}
+                        y={0}
+                        width={40}
+                        height={100}
+                        hrefForBand={assetCriticalityDrilldownPath}
+                        testIdPrefix="committee-asset-bar-shape"
+                    />
+                </svg>
+            </MemoryRouter>,
+        );
+    }
+
+    it('navigates chart-bar drilldowns in-app on click instead of a full page reload (#102)', () => {
+        renderAssetBarShape();
+
+        const bar = screen.getByTestId('committee-asset-bar-shape-Kritická');
+        // The real href is kept for open-in-new-tab semantics…
+        expect(bar.getAttribute('href')).toBe('/assets?committee_scope=true&criticality=critical');
+
+        // …while a plain left click routes through the SPA router.
+        fireEvent.click(bar);
+        expect(mockNavigate).toHaveBeenCalledWith('/assets?committee_scope=true&criticality=critical');
+
+        // A modified click keeps the native new-tab behaviour.
+        mockNavigate.mockClear();
+        fireEvent.click(bar, { ctrlKey: true });
+        expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('activates chart-bar drilldowns from the keyboard (Enter and Space) (#102)', () => {
+        render(
+            <MemoryRouter>
+                <svg>
+                    <DrilldownBarShape
+                        payload={{ band: 'Vysoké' }}
+                        x={0}
+                        y={0}
+                        width={40}
+                        height={100}
+                        hrefForBand={(band) => riskBandDrilldownPath(band, 'net')}
+                        testIdPrefix="committee-risk-bar-shape-net"
+                    />
+                </svg>
+            </MemoryRouter>,
+        );
+
+        const expectedPath = `/risks?${new URLSearchParams({
+            committee_scope: 'true',
+            ict_linked: 'true',
+            net_band: 'Vysoké',
+        }).toString()}`;
+        const bar = screen.getByTestId('committee-risk-bar-shape-net-Vysoké');
+        expect(bar.getAttribute('tabindex')).toBe('0');
+
+        fireEvent.keyDown(bar, { key: 'Enter' });
+        expect(mockNavigate).toHaveBeenCalledWith(expectedPath);
+
+        mockNavigate.mockClear();
+        fireEvent.keyDown(bar, { key: ' ' });
+        expect(mockNavigate).toHaveBeenCalledWith(expectedPath);
     });
 
     it('renders a production-inert material-risk KPI without an interactive link', async () => {

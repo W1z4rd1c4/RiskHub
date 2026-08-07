@@ -9,15 +9,24 @@
  * so the react-refresh rule stays satisfied.
  */
 
+// Semantic status tokens (ADR-015): each pill pairs a token background with its
+// contract-tested foreground (statusTokenContrast.test.ts), matching the
+// committee pill migration (FR-P5-1). The four bands collapse onto the
+// three-token RAG scale — the amber Střední and orange Vysoká middles both read
+// amber (--warning) — with the label text still carrying the exact band.
+const FILL_SUCCESS = 'bg-success text-success-foreground border-transparent';
+const FILL_WARNING = 'bg-warning text-warning-foreground border-transparent';
+const FILL_DESTRUCTIVE = 'bg-destructive text-destructive-foreground border-transparent';
+
 const CRITICALITY_PILLS: Record<string, string> = {
-    ['Nízká']: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-    low: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-    ['Střední']: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-    medium: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-    ['Vysoká']: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
-    high: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
-    ['Kritická']: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-    critical: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
+    ['Nízká']: FILL_SUCCESS,
+    low: FILL_SUCCESS,
+    ['Střední']: FILL_WARNING,
+    medium: FILL_WARNING,
+    ['Vysoká']: FILL_WARNING,
+    high: FILL_WARNING,
+    ['Kritická']: FILL_DESTRUCTIVE,
+    critical: FILL_DESTRUCTIVE,
 };
 
 // TierDod, verbatim workbook labels (never translated).

@@ -34,6 +34,13 @@ interface GovernedMutationDiffProps {
     testId?: string;
 }
 
+// Diff status colours come from the semantic status tokens (ADR-015): removed
+// (old) values read destructive, added (new) values read --success-text — both
+// standalone-text tokens are contrast-contract-tested against the background
+// (statusTokenContrast.test.ts).
+const REMOVED_VALUE_CLASS = 'text-destructive';
+const ADDED_VALUE_CLASS = 'text-success-text';
+
 function valuesEqual(before: unknown, after: unknown): boolean {
     return JSON.stringify(before) === JSON.stringify(after);
 }
@@ -588,11 +595,11 @@ export function GovernedMutationDiff({
                                         </dd>
                                     ) : (
                                         <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                            <span className="break-words text-rose-300">
+                                            <span className={`break-words ${REMOVED_VALUE_CLASS}`}>
                                                 {displayGovernedValue(displayedBefore[field], spec, t, locale)}
                                             </span>
                                             <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                            <span className="break-words font-bold text-emerald-300">
+                                            <span className={`break-words font-bold ${ADDED_VALUE_CLASS}`}>
                                                 {displayGovernedValue(displayedAfter[field], spec, t, locale)}
                                             </span>
                                         </dd>
@@ -640,12 +647,12 @@ export function GovernedMutationDiff({
                                                 {t(`approvals:governed.derived.${field}`)}
                                             </dt>
                                             <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                                <span className="text-rose-300">
+                                                <span className={REMOVED_VALUE_CLASS}>
                                                     {derivedStateLabel(t, processImpact.before, field)
                                                         ?? t('approvals:governed.not_set')}
                                                 </span>
                                                 <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                                <span className="font-bold text-emerald-300">
+                                                <span className={`font-bold ${ADDED_VALUE_CLASS}`}>
                                                     {derivedStateLabel(t, processImpact.after, field)
                                                         ?? t('approvals:governed.not_set')}
                                                 </span>
@@ -672,11 +679,11 @@ export function GovernedMutationDiff({
                                                 {t(`approvals:governed.derived.${field}`)}
                                             </dt>
                                             <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                                <span className="text-rose-300">
+                                                <span className={REMOVED_VALUE_CLASS}>
                                                     {assetDerivedStateLabel(t, assetImpact.before, field)}
                                                 </span>
                                                 <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                                <span className="font-bold text-emerald-300">
+                                                <span className={`font-bold ${ADDED_VALUE_CLASS}`}>
                                                     {assetDerivedStateLabel(t, assetImpact.after, field)}
                                                 </span>
                                             </dd>
@@ -701,12 +708,12 @@ export function GovernedMutationDiff({
                                             {t('approvals:governed.derived.vendor_tier')}
                                         </dt>
                                         <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                            <span className="text-rose-300">
+                                            <span className={REMOVED_VALUE_CLASS}>
                                                 {vendorDerivedStateLabel(t, vendorImpact.before)
                                                     ?? t('approvals:governed.not_set')}
                                             </span>
                                             <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                            <span className="font-bold text-emerald-300">
+                                            <span className={`font-bold ${ADDED_VALUE_CLASS}`}>
                                                 {vendorDerivedStateLabel(t, vendorImpact.after)
                                                     ?? t('approvals:governed.not_set')}
                                             </span>
@@ -722,11 +729,11 @@ export function GovernedMutationDiff({
                         <div key={labelKey} className="rounded-lg border border-white/5 bg-black/20 p-3">
                             <dt className="mb-2 text-[10px] font-bold uppercase text-accent">{t(labelKey)}</dt>
                             <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                <span className="text-rose-300">
+                                <span className={REMOVED_VALUE_CLASS}>
                                     {oldValue ?? t('approvals:governed.not_set')}
                                 </span>
                                 <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                <span className="font-bold text-emerald-300">
+                                <span className={`font-bold ${ADDED_VALUE_CLASS}`}>
                                     {newValue ?? t('approvals:governed.not_set')}
                                 </span>
                             </dd>

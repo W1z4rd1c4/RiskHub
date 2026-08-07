@@ -245,5 +245,17 @@
         "is_complete": "Complete (hotovo)",
         "complete": "Complete",
         "incomplete": "Incomplete"
+    },
+    "link_approval": {
+        "continue": "Continue",
+        "reason_placeholder": "Explain why this Asset relationship change is needed...",
+        "link_add": {
+            "title": "Request Asset link addition",
+            "message": "Provide a reason. A protected Asset keeps its approved relationships until this request is approved."
+        },
+        "link_remove": {
+            "title": "Request Asset link removal",
+            "message": "Provide a reason. The existing relationship remains active until this request is approved."
+        }
     }
 }

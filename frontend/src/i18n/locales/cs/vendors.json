@@ -527,5 +527,17 @@
       "yes": "Ano",
       "no": "Ne"
     }
+  },
+  "link_approval": {
+    "continue": "Pokračovat",
+    "reason_placeholder": "Vysvětlete důvod změny vazby Dodavatele...",
+    "link_add": {
+      "title": "Požádat o přidání vazby Dodavatele",
+      "message": "Uveďte důvod. Chráněný Dodavatel si zachová schválené vazby do schválení této žádosti."
+    },
+    "link_remove": {
+      "title": "Požádat o odebrání vazby Dodavatele",
+      "message": "Uveďte důvod. Existující vazba zůstane aktivní do schválení této žádosti."
+    }
   }
 }

@@ -208,6 +208,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                 <GovernedMutationReasonDialog
                     isOpen={pendingGovernedAction !== null}
                     reasonRequired
+                    namespace="vendors"
                     kind={pendingGovernedAction?.kind ?? 'link_add'}
                     isLoading={isGovernedSubmitting}
                     onClose={() => setPendingGovernedAction(null)}

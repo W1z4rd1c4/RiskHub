@@ -136,7 +136,7 @@ describe('protected Vendor link/unlink governed UX (#100)', () => {
             fireEvent.change(within(reasonDialog).getByRole('textbox'), {
                 target: { value: 'Material register change' },
             });
-            fireEvent.click(within(reasonDialog).getByText('link_approval.continue'));
+            fireEvent.click(within(reasonDialog).getByText('vendors:link_approval.continue'));
 
             await waitFor(() => {
                 expect(mutation).toHaveBeenCalledWith(7, 501, 'Material register change');
@@ -174,7 +174,7 @@ describe('protected Vendor link/unlink governed UX (#100)', () => {
         fireEvent.change(within(reasonDialog).getByRole('textbox'), {
             target: { value: 'Material register change' },
         });
-        fireEvent.click(within(reasonDialog).getByText('link_approval.continue'));
+        fireEvent.click(within(reasonDialog).getByText('vendors:link_approval.continue'));
 
         expect(await screen.findByText('register_links.errors.mutation_failed')).toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent('/');

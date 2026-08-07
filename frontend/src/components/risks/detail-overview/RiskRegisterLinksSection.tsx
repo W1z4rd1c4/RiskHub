@@ -95,7 +95,7 @@ function LinkBlock({
                         >
                             <span className="text-sm font-bold text-white truncate">{row.name}</span>
                             {row.processEditBlocked && processBlockedLabel ? (
-                                <p className="text-xs font-medium text-amber-300">{processBlockedLabel}</p>
+                                <p className="text-xs font-medium text-warning">{processBlockedLabel}</p>
                             ) : null}
                             {canManageLinks && row.canDelete ? (
                                 <button
@@ -144,7 +144,7 @@ function LinkBlock({
                         {addLabel}
                     </button>
                     {selectedTargetBlocked && processBlockedLabel ? (
-                        <p className="md:col-span-4 text-xs font-medium text-amber-300">
+                        <p className="md:col-span-4 text-xs font-medium text-warning">
                             {processBlockedLabel}
                         </p>
                     ) : null}
@@ -312,7 +312,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             </div>
 
             {linkError ? (
-                <div className="border border-rose-400/30 rounded-xl px-4 py-3 text-rose-300 text-sm font-medium">
+                <div className="border border-destructive/30 rounded-xl px-4 py-3 text-destructive text-sm font-medium">
                     {linkError}
                 </div>
             ) : null}
@@ -414,6 +414,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             <GovernedMutationReasonDialog
                 isOpen={pendingProcessAction !== null}
                 reasonRequired={processMutationRequiresApprovalReason(pendingProcess)}
+                namespace="processes"
                 kind={pendingProcessAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addProcessLink.isPending || removeProcessLink.isPending}
                 onClose={() => setPendingProcessAction(null)}
@@ -428,6 +429,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             <GovernedMutationReasonDialog
                 isOpen={pendingAssetAction !== null}
                 reasonRequired
+                namespace="assets"
                 kind={pendingAssetAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addAssetLink.isPending || removeAssetLink.isPending}
                 onClose={() => setPendingAssetAction(null)}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { RefreshCw } from 'lucide-react';
 
@@ -102,8 +102,13 @@ const BLOCKING_KPI_KEYS = new Set<string>([
     'open_dq_finding_count',
 ]);
 
+// Status text derives from the semantic tokens (ADR-015 / FR-P5-1). --warning
+// already reads amber as text on the dark surfaces (the ConfirmDialog idiom);
+// --success is background-oriented (deep green) and unreadable as text there,
+// so the standalone-text variant --success-text is used — AA against
+// --background is contract-tested in statusTokenContrast.test.ts.
 function blockingCountClass(value: number): string {
-    return value > 0 ? 'text-amber-300' : 'text-emerald-400';
+    return value > 0 ? 'text-warning' : 'text-success-text';
 }
 
 interface DrilldownBarShapeProps {
@@ -115,7 +120,9 @@ interface DrilldownBarShapeProps {
     y?: number;
 }
 
-function DrilldownBarShape({
+// Exported for the drilldown navigation unit tests — jsdom cannot lay out the
+// recharts bars, so the shape is exercised directly.
+export function DrilldownBarShape({
     fill = 'currentColor',
     height = 0,
     payload,
@@ -128,13 +135,29 @@ function DrilldownBarShape({
     hrefForBand: (band: string) => string;
     testIdPrefix: string;
 }) {
+    const navigate = useNavigate();
     if (!payload) return null;
+    const href = hrefForBand(payload.band);
     return (
         <a
-            href={hrefForBand(payload.band)}
+            href={href}
             tabIndex={0}
             data-testid={`${testIdPrefix}-${payload.band}`}
             aria-label={payload.band}
+            // Router-aware drill-down: a plain left click / Enter / Space stays
+            // in-app instead of a full page reload; modified clicks keep the
+            // native open-in-new-tab behaviour of the real href.
+            onClick={(event) => {
+                if (event.defaultPrevented || event.button !== 0) return;
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                void navigate(href);
+            }}
+            onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                void navigate(href);
+            }}
         >
             <rect x={x} y={y} width={width} height={height} rx={6} ry={6} fill={fill} />
         </a>
@@ -143,11 +166,13 @@ function DrilldownBarShape({
 
 // FR-P5-7 (P10): the RoI per-template readiness bar gets a colour threshold so a
 // glance separates ready (≥ 80 %) from partial (≥ 50 %) from at-risk (< 50 %).
+// Threshold fills come from the semantic status tokens (ADR-015); the null
+// "not measurable" fill stays neutral slate (no neutral status token).
 function roiReadinessBarClass(pct: number | null): string {
     if (pct === null) return 'bg-slate-500';
-    if (pct >= 80) return 'bg-emerald-500';
-    if (pct >= 50) return 'bg-amber-500';
-    return 'bg-rose-500';
+    if (pct >= 80) return 'bg-success';
+    if (pct >= 50) return 'bg-warning';
+    return 'bg-destructive';
 }
 
 // FR-P5-7 (P10): a legend for the two magnitude heatmaps — swatches sampled from
@@ -284,9 +309,12 @@ function TopRisksTable({ risks }: { risks: IctCommitteeTopRisk[] }) {
 // RoI-readiness element (issue #52) — the 15 templates of CIR 2024/2956 with
 // per-template completeness and the concrete gap drill-down.
 
+// Coverage is a status, so the full/partial badges pair a semantic token
+// background with its contract-tested foreground (ADR-015 / FR-P5-1);
+// documentary stays the neutral non-status treatment.
 const COVERAGE_BADGE_CLASSES: Record<string, string> = {
-    full: 'bg-emerald-500/15 text-emerald-400',
-    partial: 'bg-amber-500/15 text-amber-400',
+    full: 'bg-success text-success-foreground',
+    partial: 'bg-warning text-warning-foreground',
     documentary: 'bg-white/5 text-slate-400',
 };
 

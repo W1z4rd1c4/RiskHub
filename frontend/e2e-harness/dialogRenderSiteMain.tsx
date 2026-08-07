@@ -281,6 +281,7 @@ function GovernedMutationReasonOwner() {
       <GovernedMutationReasonDialog
         isOpen={isOpen}
         kind="link_remove"
+        namespace="processes"
         onClose={() => setIsOpen(false)}
         onConfirm={() => setIsOpen(false)}
       />

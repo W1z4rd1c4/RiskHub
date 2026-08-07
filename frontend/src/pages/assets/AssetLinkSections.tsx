@@ -814,6 +814,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             <GovernedMutationReasonDialog
                 isOpen={pendingProcessAction !== null}
                 reasonRequired={processReasonRequired}
+                namespace="processes"
                 kind={pendingProcessAction?.kind === 'remove'
                     ? 'link_remove'
                     : pendingProcessAction?.kind === 'update'
@@ -834,6 +835,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             <GovernedMutationReasonDialog
                 isOpen={pendingAssetAction !== null}
                 reasonRequired
+                namespace="assets"
                 kind="link_add"
                 isLoading={addAssetLink.isPending || addVendorLink.isPending}
                 onClose={() => setPendingAssetAction(null)}

@@ -146,7 +146,7 @@ describe('Vendor register-link backend capability gates', () => {
         fireEvent.change(within(dialog).getByRole('textbox'), {
             target: { value: 'Remove obsolete dependency' },
         });
-        fireEvent.click(within(dialog).getByText('link_approval.continue'));
+        fireEvent.click(within(dialog).getByText('assets:link_approval.continue'));
 
         await waitFor(() => {
             expect(assetApi.removeVendorLink).toHaveBeenCalledWith(7, 41, 'Remove obsolete dependency');
@@ -184,7 +184,7 @@ describe('Vendor register-link backend capability gates', () => {
         fireEvent.change(within(dialog).getByRole('textbox'), {
             target: { value: 'Review protected dependency' },
         });
-        fireEvent.click(within(dialog).getByText('link_approval.continue'));
+        fireEvent.click(within(dialog).getByText('assets:link_approval.continue'));
 
         await waitFor(() => {
             expect(screen.getByTestId('location')).toHaveTextContent('/approvals?tab=mine&approvalId=186');

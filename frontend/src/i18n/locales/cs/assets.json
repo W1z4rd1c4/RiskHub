@@ -245,5 +245,17 @@
         "is_complete": "Hotovo?",
         "complete": "Kompletní",
         "incomplete": "Nekompletní"
+    },
+    "link_approval": {
+        "continue": "Pokračovat",
+        "reason_placeholder": "Vysvětlete důvod změny vazby Aktiva...",
+        "link_add": {
+            "title": "Požádat o přidání vazby Aktiva",
+            "message": "Uveďte důvod. Chráněné Aktivum si zachová schválené vazby do schválení této žádosti."
+        },
+        "link_remove": {
+            "title": "Požádat o odebrání vazby Aktiva",
+            "message": "Uveďte důvod. Existující vazba zůstane aktivní do schválení této žádosti."
+        }
     }
 }

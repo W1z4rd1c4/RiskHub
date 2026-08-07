@@ -427,6 +427,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
             <GovernedMutationReasonDialog
                 isOpen={pendingProcessAction !== null}
                 reasonRequired={processMutationRequiresApprovalReason(pendingProcess)}
+                namespace="processes"
                 kind={pendingProcessAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addProcessLink.isPending || removeProcessLink.isPending}
                 onClose={() => setPendingProcessAction(null)}
@@ -440,6 +441,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
             <GovernedMutationReasonDialog
                 isOpen={pendingAssetAction !== null}
                 reasonRequired
+                namespace="assets"
                 kind={pendingAssetAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addAssetLink.isPending || removeAssetLink.isPending}
                 onClose={() => setPendingAssetAction(null)}

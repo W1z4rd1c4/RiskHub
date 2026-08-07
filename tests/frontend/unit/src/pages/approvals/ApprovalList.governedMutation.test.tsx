@@ -159,6 +159,14 @@ describe('ApprovalList governed Process mutation', () => {
         ['vendor.contract.archive', 'archive', 'request_types.archive'],
         ['vendor.link.control.add', 'edit', 'request_types.link_add'],
         ['vendor.link.kri.remove', 'edit', 'request_types.link_remove'],
+        // #102: asset link/unlink kinds are explicit link additions/removals,
+        // never the generic "update" they previously fell through to.
+        ['asset.link.asset.add', 'edit', 'request_types.link_add'],
+        ['asset.link.vendor.add', 'edit', 'request_types.link_add'],
+        ['asset.link.risk.add', 'edit', 'request_types.link_add'],
+        ['asset.link.asset.remove', 'edit', 'request_types.link_remove'],
+        ['asset.link.vendor.remove', 'edit', 'request_types.link_remove'],
+        ['asset.link.risk.remove', 'edit', 'request_types.link_remove'],
     ] as const)('labels governed %s requests by mutation intent', (mutationKind, actionType, expectedLabel) => {
         const approval = governedApproval(true);
         approval.action_type = actionType;

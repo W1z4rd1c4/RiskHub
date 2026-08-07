@@ -201,6 +201,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
             <GovernedMutationReasonDialog
                 isOpen={pendingAction !== null}
                 reasonRequired={processMutationRequiresApprovalReason(process)}
+                namespace="processes"
                 kind={pendingAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addVendorLink.isPending || removeVendorLink.isPending}
                 onClose={() => setPendingAction(null)}

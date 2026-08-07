@@ -60,6 +60,19 @@ describe('Approvals page presentation helpers', () => {
         expect(getGovernedActionLabel('edit', 'unknown_link_remove')).toBe('update');
     });
 
+    // #102: governed Asset link/unlink approvals read as explicit link
+    // additions/removals, never as a generic "update".
+    it('labels every governed asset.link.* kind as an explicit link add/remove', () => {
+        expect(getGovernedActionLabel('edit', 'asset.link.asset.add')).toBe('link_add');
+        expect(getGovernedActionLabel('edit', 'asset.link.vendor.add')).toBe('link_add');
+        expect(getGovernedActionLabel('edit', 'asset.link.risk.add')).toBe('link_add');
+        expect(getGovernedActionLabel('edit', 'asset.link.asset.remove')).toBe('link_remove');
+        expect(getGovernedActionLabel('edit', 'asset.link.vendor.remove')).toBe('link_remove');
+        expect(getGovernedActionLabel('edit', 'asset.link.risk.remove')).toBe('link_remove');
+        // Unknown asset.link suffixes still fall back to the generic label.
+        expect(getGovernedActionLabel('edit', 'asset.link.asset.update')).toBe('update');
+    });
+
     describe('questionnaire helpers', () => {
         it('treats past-due non-submitted questionnaires as overdue', () => {
             const questionnaire = createQuestionnaire({ due_at: '2026-03-02T09:00:00Z' });

@@ -67,7 +67,7 @@ export function getGovernedActionLabel(
     actionType: ApprovalActionType,
     mutationKind?: string | null,
 ): GovernedActionLabel {
-    if (mutationKind?.startsWith('vendor.link.')) {
+    if (mutationKind?.startsWith('vendor.link.') || mutationKind?.startsWith('asset.link.')) {
         if (mutationKind.endsWith('.add')) return 'link_add';
         if (mutationKind.endsWith('.remove')) return 'link_remove';
     }

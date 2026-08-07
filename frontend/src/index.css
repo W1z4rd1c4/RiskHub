@@ -36,9 +36,14 @@
        canonical danger token (no rename, no `danger`). Token pairs and
        destructive text/hover states clear WCAG AA 4.5:1 — enforced by
        tests/frontend/unit/src/design-system/statusTokenContrast.test.ts.
-       Amber warning uses a dark foreground on purpose: white on amber fails AA. */
+       Amber warning uses a dark foreground on purpose: white on amber fails AA.
+       --success-text is the standalone-text variant of --success (the fill token
+       is too dark to read as text on the dark surfaces): the static HSL of
+       color-mix(in srgb, hsl(var(--success)) 50%, white). AA against
+       --background is enforced by statusTokenContrast.test.ts. */
     --success: 142 72% 26%;
     --success-foreground: 210 40% 98%;
+    --success-text: 142 25% 63%;
     --warning: 38 92% 50%;
     --warning-foreground: 26 84% 6%;
     --info: 211 80% 38%;
@@ -224,6 +229,7 @@
   /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale. */
   --success: 142 72% 26%;
   --success-foreground: 0 0% 100%;
+  --success-text: 142 25% 63%;
   --warning: 38 92% 50%;
   --warning-foreground: 26 84% 6%;
   --info: 211 80% 38%;
@@ -344,9 +350,13 @@
   --destructive: 0 74% 42%;
   --destructive-foreground: 0 0% 100%;
 
-  /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale. */
+  /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale.
+     --success-text: on the light surfaces the deep-green fill token itself is
+     the readable text shade (the vendorRoute.css light theme reuses it the
+     same way), so no lightening here. */
   --success: 142 72% 26%;
   --success-foreground: 0 0% 100%;
+  --success-text: 142 72% 26%;
   --warning: 38 92% 50%;
   --warning-foreground: 26 84% 6%;
   --info: 211 80% 38%;

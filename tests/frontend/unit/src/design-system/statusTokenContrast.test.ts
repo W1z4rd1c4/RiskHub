@@ -145,6 +145,19 @@ describe('semantic status tokens — WCAG AA contrast (FR-P1-3, N20)', () => {
     expect(ratio, `text-destructive @ ${name} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
   });
 
+  it.each(THEMES)('success-text clears AA against the $name background', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    const ratio = contrastRatio(readHsl(block, 'success-text'), readHsl(block, 'background'));
+    expect(ratio, `text-success-text @ ${name} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+  });
+
+  it('defines --success-text in every theme and wires it into Tailwind', () => {
+    for (const { selector } of THEMES) {
+      expect(themeBlock(indexCss, selector), '--success-text').toContain('--success-text:');
+    }
+    expect(tailwindConfig).toContain('hsl(var(--success-text))');
+  });
+
   it.each(THEMES)('90% destructive hover fill clears AA against its foreground in $name', ({ selector, name }) => {
     const block = themeBlock(indexCss, selector);
     const hoverFill = composite(readHsl(block, 'destructive'), readHsl(block, 'background'), 0.9);
