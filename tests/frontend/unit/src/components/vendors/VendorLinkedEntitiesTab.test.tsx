@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { VendorLinkedEntitiesAdapter } from '@/components/vendors/useVendorLinkedEntities';
@@ -37,30 +38,33 @@ const adapter: VendorLinkedEntitiesAdapter<FakeItem> = {
 describe('VendorLinkedEntitiesTab', () => {
     it('renders header, empty state, manage button, and opens the link dialog', async () => {
         render(
-            <VendorLinkedEntitiesTab
-                adapter={adapter}
-                canCreate
-                canEdit
-                headerColorClass="text-indigo-400"
-                i18nKeys={{
-                    addAction: 'links.actions.add_fake',
-                    archived: 'links.archived_fake',
-                    dialogTitle: 'links.dialogs.link_fake_title',
-                    empty: 'links.fake.empty',
-                    subtitle: 'links.fake.subtitle',
-                    tabTitle: 'tabs.linked_fake',
-                }}
-                icon={<span aria-hidden="true" />}
-                linkDialogMode="control-to-risk"
-                onAdd={vi.fn()}
-                onNavigate={vi.fn()}
-                renderCard={(item, onClick) => (
-                    <button key={item.id} type="button" onClick={onClick}>
-                        {item.name}
-                    </button>
-                )}
-                vendorId={7}
-            />,
+            <MemoryRouter>
+                <VendorLinkedEntitiesTab
+                    adapter={adapter}
+                    canCreate
+                    canEdit
+                    protectedChangeRequiresApproval={false}
+                    headerColorClass="text-indigo-400"
+                    i18nKeys={{
+                        addAction: 'links.actions.add_fake',
+                        archived: 'links.archived_fake',
+                        dialogTitle: 'links.dialogs.link_fake_title',
+                        empty: 'links.fake.empty',
+                        subtitle: 'links.fake.subtitle',
+                        tabTitle: 'tabs.linked_fake',
+                    }}
+                    icon={<span aria-hidden="true" />}
+                    linkDialogMode="control-to-risk"
+                    onAdd={vi.fn()}
+                    onNavigate={vi.fn()}
+                    renderCard={(item, onClick) => (
+                        <button key={item.id} type="button" onClick={onClick}>
+                            {item.name}
+                        </button>
+                    )}
+                    vendorId={7}
+                />
+            </MemoryRouter>,
         );
 
         await waitFor(() => expect(screen.queryByText('labels.loading')).not.toBeInTheDocument());

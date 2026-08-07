@@ -2,10 +2,14 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle, Link as LinkIcon, Loader2, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
+import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import type { LinkMode } from '@/components/linking/linkTypes';
 import { useTranslation } from '@/i18n/hooks';
+import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { logError } from '@/services/logger';
 
 import {
     useVendorLinkedEntities,
@@ -19,6 +23,12 @@ export interface VendorLinkedEntitiesTabProps<T extends { id: number }> {
     adapter: VendorLinkedEntitiesAdapter<T>;
     canCreate: boolean;
     canEdit: boolean;
+    /**
+     * Backend-declared `protected_change_requires_approval` capability from the
+     * Vendor read payload (#100). It is the ONLY switch between the direct link
+     * path and the governed reason-then-queue path — no local re-derivation.
+     */
+    protectedChangeRequiresApproval: boolean;
     onAdd: () => void;
     renderCard: (item: T, onClick: () => void) => ReactNode;
     onNavigate: (entityId: number) => void;
@@ -43,6 +53,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
     adapter,
     canCreate,
     canEdit,
+    protectedChangeRequiresApproval,
     onAdd,
     renderCard,
     onNavigate,
@@ -55,10 +66,38 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
     motionDelay = 0,
 }: VendorLinkedEntitiesTabProps<T>) {
     const { t } = useTranslation(['vendors', 'common']);
+    const navigate = useNavigate();
     const entities = useVendorLinkedEntities(vendorId, adapter);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [dialogMode, setDialogMode] = useState<DialogMode>('search-only');
+    const [pendingGovernedAction, setPendingGovernedAction] = useState<
+        { kind: 'link_add' | 'link_remove'; targetId: number } | null
+    >(null);
+    const [isGovernedSubmitting, setIsGovernedSubmitting] = useState(false);
+    const [mutationError, setMutationError] = useState<string | null>(null);
     const testId = (suffix: string) => dataTestIdPrefix ? `${dataTestIdPrefix}-${suffix}` : undefined;
+
+    const confirmGovernedAction = async (reason: string) => {
+        if (pendingGovernedAction === null) {
+            return;
+        }
+        try {
+            setIsGovernedSubmitting(true);
+            setMutationError(null);
+            const queued = pendingGovernedAction.kind === 'link_add'
+                ? await entities.link(pendingGovernedAction.targetId, reason)
+                : await entities.unlink(pendingGovernedAction.targetId, reason);
+            setPendingGovernedAction(null);
+            if (queued !== null) {
+                navigateToApprovalRequest(navigate, queued.approval_id);
+            }
+        } catch (mutationErr) {
+            logError('Vendor link mutation failed:', mutationErr);
+            setMutationError(t('register_links.errors.mutation_failed'));
+        } finally {
+            setIsGovernedSubmitting(false);
+        }
+    };
 
     return (
         <motion.div
@@ -91,6 +130,16 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                     </div>
                 ) : null}
             </div>
+
+            {mutationError ? (
+                <div
+                    role="alert"
+                    data-testid={testId('mutation-error')}
+                    className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+                >
+                    {mutationError}
+                </div>
+            ) : null}
 
             {entities.isLoading ? (
                 <div className="flex items-center gap-3 text-slate-400 font-medium">
@@ -130,7 +179,42 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                 </button>
             ) : null}
             {canEdit ? (
-                <LinkManagementDialog mode={linkDialogMode} title={t(i18nKeys.dialogTitle)} existingLinks={entities.existingLinks} onLink={async (targetId) => entities.link(targetId)} onUnlink={async (targetId) => entities.unlink(targetId)} isOpen={isDialogOpen} onClose={() => setIsDialogOpen(false)} showSearch={dialogMode !== 'links-only'} showLinks={dialogMode !== 'search-only'} showLinkMetadataBadge={false} />
+                <LinkManagementDialog
+                    mode={linkDialogMode}
+                    title={t(i18nKeys.dialogTitle)}
+                    existingLinks={entities.existingLinks}
+                    onLink={async (targetId) => {
+                        if (protectedChangeRequiresApproval) {
+                            setPendingGovernedAction({ kind: 'link_add', targetId });
+                            return;
+                        }
+                        await entities.link(targetId);
+                    }}
+                    onUnlink={async (targetId) => {
+                        if (protectedChangeRequiresApproval) {
+                            setPendingGovernedAction({ kind: 'link_remove', targetId });
+                            return;
+                        }
+                        await entities.unlink(targetId);
+                    }}
+                    isOpen={isDialogOpen}
+                    onClose={() => setIsDialogOpen(false)}
+                    showSearch={dialogMode !== 'links-only'}
+                    showLinks={dialogMode !== 'search-only'}
+                    showLinkMetadataBadge={false}
+                />
+            ) : null}
+            {protectedChangeRequiresApproval ? (
+                <GovernedMutationReasonDialog
+                    isOpen={pendingGovernedAction !== null}
+                    reasonRequired
+                    kind={pendingGovernedAction?.kind ?? 'link_add'}
+                    isLoading={isGovernedSubmitting}
+                    onClose={() => setPendingGovernedAction(null)}
+                    onConfirm={(reason) => {
+                        void confirmGovernedAction(reason);
+                    }}
+                />
             ) : null}
         </motion.div>
     );

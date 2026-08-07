@@ -10,31 +10,35 @@ const krisAdapter = {
     errorLogPrefix: 'Failed to load linked KRIs:',
     fetch: (vendorId: number) => vendorLinkApi.getLinkedKRIs(vendorId),
     isArchived: (kri: LinkedKRI) => Boolean(kri.is_archived),
-    link: (vendorId: number, kriId: number) => vendorLinkApi.linkKRI(vendorId, kriId),
+    link: (vendorId: number, kriId: number, requestReason?: string) =>
+        vendorLinkApi.linkKRI(vendorId, kriId, requestReason),
     toExistingLink: (kri: LinkedKRI) => ({
         display_name: kri.metric_name,
         effectiveness: 'linked' as const,
         id: kri.id,
         kri_id: kri.id,
     }),
-    unlink: (vendorId: number, kriId: number) => vendorLinkApi.unlinkKRI(vendorId, kriId),
+    unlink: (vendorId: number, kriId: number, requestReason?: string) =>
+        vendorLinkApi.unlinkKRI(vendorId, kriId, requestReason),
 };
 
 interface VendorLinkedKRIsTabProps {
     vendorId: number;
     canCreateKri: boolean;
     canEdit: boolean;
+    protectedChangeRequiresApproval: boolean;
     onAddKri: () => void;
     onNavigateToKri: (kriId: number) => void;
 }
 
-export function VendorLinkedKRIsTab({ vendorId, canCreateKri, canEdit, onAddKri, onNavigateToKri }: VendorLinkedKRIsTabProps) {
+export function VendorLinkedKRIsTab({ vendorId, canCreateKri, canEdit, protectedChangeRequiresApproval, onAddKri, onNavigateToKri }: VendorLinkedKRIsTabProps) {
     return (
         <VendorLinkedEntitiesTab
             adapter={krisAdapter}
             addButtonTestId="vendor-linked-kris-add-kri"
             canCreate={canCreateKri}
             canEdit={canEdit}
+            protectedChangeRequiresApproval={protectedChangeRequiresApproval}
             dataTestIdPrefix="vendor-linked-kris"
             headerColorClass="text-white"
             i18nKeys={{ addAction: 'links.actions.add_kri', archived: 'links.archived_kris', dialogTitle: 'links.dialogs.link_kris_title', empty: 'links.kris.empty', subtitle: 'links.kris.subtitle', tabTitle: 'tabs.linked_kris' }}

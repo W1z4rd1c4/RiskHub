@@ -8,6 +8,7 @@ Folder for `tests/frontend/unit/src/components/vendors` implementation assets.
 
 - `useVendorLinkedEntities.test.tsx`
 - `VendorLinkedEntitiesTab.test.tsx`
+- `VendorLinkedTabs.governed.test.tsx`
 
 ## Notes
 

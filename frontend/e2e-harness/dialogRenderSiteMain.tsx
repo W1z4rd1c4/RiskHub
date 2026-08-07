@@ -181,6 +181,7 @@ function VendorLinkedOwner() {
       adapter={adapter}
       canCreate
       canEdit
+      protectedChangeRequiresApproval={false}
       onAdd={() => {}}
       renderCard={(item) => <button key={item.id} type="button">{item.name}</button>}
       onNavigate={() => {}}

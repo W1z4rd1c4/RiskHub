@@ -9,6 +9,7 @@ import { logError } from '@/services/logger';
 import { riskApi } from '@/services/riskApi';
 import { vendorApi } from '@/services/vendorApi';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
+import { isProcessApprovalQueuedResponse } from '@/types/process';
 
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { combineCapabilityGateStates, useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
@@ -83,7 +84,16 @@ export function RiskNewPage() {
         }
 
         try {
-            await vendorLinkApi.linkRisk(vendorId, riskId);
+            const result = await vendorLinkApi.linkRisk(vendorId, riskId);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToVendor({
+                    tone: 'warn',
+                    message: t('vendors:links.risks.created_but_not_linked'),
+                    ctaHref: `/risks/${riskId}`,
+                    ctaLabel: t('vendors:links.actions.open_risk'),
+                });
+                return;
+            }
             navigateToVendor({
                 tone: 'success',
                 message: t('vendors:links.risks.created_and_linked'),

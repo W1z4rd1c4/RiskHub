@@ -95,6 +95,12 @@ export function VendorOverviewTab({
     const canViewLinkedRisks = resolveCapabilityFlag(vendor.capabilities, 'can_view_linked_risks');
     const canViewLinkedControls = resolveCapabilityFlag(vendor.capabilities, 'can_view_linked_controls');
     const canViewLinkedKris = resolveCapabilityFlag(vendor.capabilities, 'can_view_linked_kris');
+    // ADR-016 (#100): the backend's capability is the single protected-Vendor
+    // switch for governed link/contract mutations — never re-derived locally.
+    const protectedChangeRequiresApproval = resolveCapabilityFlag(
+        vendor.capabilities,
+        'protected_change_requires_approval',
+    );
     const canViewAnyLinkedExposure = canViewLinkedRisks || canViewLinkedControls || canViewLinkedKris;
 
     const refreshSummary = useCallback(async () => {
@@ -334,6 +340,7 @@ export function VendorOverviewTab({
                         vendorId={vendor.id}
                         canCreateRisk={canCreateRisk}
                         canEdit={canLinkRisk}
+                        protectedChangeRequiresApproval={protectedChangeRequiresApproval}
                         onAddRisk={onAddRisk}
                         onNavigateToRisk={onNavigateToRisk}
                     />
@@ -346,6 +353,7 @@ export function VendorOverviewTab({
                         vendorId={vendor.id}
                         canCreateControl={canCreateControl}
                         canEdit={canLinkControl}
+                        protectedChangeRequiresApproval={protectedChangeRequiresApproval}
                         onAddControl={onAddControl}
                         onNavigateToControl={onNavigateToControl}
                     />
@@ -358,6 +366,7 @@ export function VendorOverviewTab({
                         vendorId={vendor.id}
                         canCreateKri={canCreateKri}
                         canEdit={canLinkKri}
+                        protectedChangeRequiresApproval={protectedChangeRequiresApproval}
                         onAddKri={onAddKri}
                         onNavigateToKri={onNavigateToKri}
                     />
@@ -369,10 +378,7 @@ export function VendorOverviewTab({
                     <VendorContractsSection
                         vendorId={vendor.id}
                         canManageContracts={resolveCapabilityFlag(vendor.capabilities, 'can_manage_contracts')}
-                        protectedChangeRequiresApproval={resolveCapabilityFlag(
-                            vendor.capabilities,
-                            'protected_change_requires_approval',
-                        )}
+                        protectedChangeRequiresApproval={protectedChangeRequiresApproval}
                     />
                 </div>
             ) : null}

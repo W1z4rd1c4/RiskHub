@@ -113,6 +113,13 @@
       ]
     },
     {
+      "id": "DORA-GOVERNED-VENDOR-LINKS",
+      "description": "Protected Vendor Risk/Control/KRI link changes collect a reason, queue for independent approval, and preserve link truth until approval.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-vendor-links.spec.ts", "titleIncludes": "Risk link on a protected Vendor queues with a reason and applies only after independent approval" }
+      ]
+    },
+    {
       "id": "DORA-ACCOUNTABILITY-ORPHANS",
       "description": "Vendor accountability actions are capability-gated and orphan reassignment remains pending until approval.",
       "evidence": [
