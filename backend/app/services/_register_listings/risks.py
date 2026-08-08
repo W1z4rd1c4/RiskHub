@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy import String, and_, asc, case, desc, false, func, literal, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -254,10 +254,10 @@ async def _build_risk_facets(
         .subquery()
     )
 
-    medium_from = cast(int, parameters.value("P_RizStr"))
-    high_from = cast(int, parameters.value("P_RizVys"))
-    critical_from = cast(int, parameters.value("P_RizKrit"))
-    tolerance = cast(int, parameters.value("P_Tolerance"))
+    medium_from = parameters.value("P_RizStr")
+    high_from = parameters.value("P_RizVys")
+    critical_from = parameters.value("P_RizKrit")
+    tolerance = parameters.value("P_Tolerance")
     counts: dict[str, Counter[str]] = {
         key: Counter()
         for key in (

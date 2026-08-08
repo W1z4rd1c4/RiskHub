@@ -109,7 +109,7 @@ async def _build_issue_facets(
         "exception",
         "remediation_status",
     )
-    counts = {key: Counter() for key in keys}
+    counts: dict[str, Counter[str]] = {key: Counter() for key in keys}
     catalogs: dict[str, dict[str, tuple[str, dict[str, Any]]]] = {key: {} for key in keys}
 
     direct_queries = [

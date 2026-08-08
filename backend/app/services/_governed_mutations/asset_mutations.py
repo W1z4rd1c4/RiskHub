@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import cast
 from uuid import uuid4
 
 from fastapi.encoders import jsonable_encoder
@@ -373,7 +374,8 @@ async def submit_asset_edit_if_required(
         updates=updates,
     )
     vendor_protected = any(
-        vendor_impact_is_protected(block)
+        # cast: impact rows carry dict blocks by construction (vendor_impact).
+        vendor_impact_is_protected(cast("dict[str, object]", block))
         for row in vendor_rows
         for block in (row["before"], row["after"])
     )
@@ -440,7 +442,7 @@ async def submit_asset_edit_if_required(
     for field, value in proposed_values.items():
         if field in after:
             after[field] = jsonable_encoder(value)
-    safe_reference_fields = {
+    safe_reference_fields: dict[str, tuple[str, type[User] | type[Department], str]] = {
         "business_owner_user_id": ("business_owner", User, "Unknown user"),
         "ict_owner_user_id": ("ict_owner", User, "Unknown user"),
         "owning_department_id": ("owning_department", Department, "Unknown department"),
@@ -448,7 +450,11 @@ async def submit_asset_edit_if_required(
     for raw_field, (safe_field, model, fallback) in safe_reference_fields.items():
         if raw_field not in proposed_values:
             continue
-        reference = await db.get(model, proposed_values[raw_field])
+        # cast: db.get() joins the entity union to Base; model is User or Department here.
+        reference = cast(
+            "User | Department | None",
+            await db.get(model, proposed_values[raw_field]),
+        )
         after[safe_field] = reference.name if reference is not None else fallback
     pending_changes: dict[str, dict[str, object]] = {}
     for field in sorted(updates):
@@ -615,7 +621,8 @@ async def submit_asset_archive_if_required(
         archive=True,
     )
     vendor_protected = any(
-        vendor_impact_is_protected(block)
+        # cast: impact rows carry dict blocks by construction (vendor_impact).
+        vendor_impact_is_protected(cast("dict[str, object]", block))
         for row in vendor_rows
         for block in (row["before"], row["after"])
     )
@@ -821,7 +828,8 @@ async def submit_asset_link_mutation_if_required(
         operation=operation,
     )
     vendor_protected = any(
-        vendor_impact_is_protected(block)
+        # cast: impact rows carry dict blocks by construction (vendor_impact).
+        vendor_impact_is_protected(cast("dict[str, object]", block))
         for row in vendor_rows
         for block in (row["before"], row["after"])
     )

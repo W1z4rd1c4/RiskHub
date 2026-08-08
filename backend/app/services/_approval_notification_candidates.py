@@ -41,6 +41,7 @@ async def load_scenario_approval_notification_candidates(
     approval: ApprovalRequest,
 ) -> list[User]:
     proposal = approval.governed_mutation_proposal
+    roles: list[str] | None
     if proposal is not None:
         try:
             identity = strict_governed_process_notification_identity(proposal)

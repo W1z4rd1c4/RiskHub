@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
@@ -26,7 +27,7 @@ async def create_vendor_detail(
     db: AsyncSession,
     payload: VendorCreate,
     current_user: User,
-) -> VendorRead:
+) -> VendorRead | JSONResponse:
     from app.services._governed_mutations.vendor_mutations import (
         acquire_vendor_creation_name_lock,
         submit_vendor_creation_if_required,
@@ -82,7 +83,7 @@ async def update_vendor_detail(
     vendor_id: int,
     payload: VendorUpdate,
     current_user: User,
-) -> VendorRead:
+) -> VendorRead | JSONResponse:
     vendor = await assert_vendor_update_allowed(db, vendor_id=vendor_id, current_user=current_user)
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
     updates.pop("request_reason", None)
@@ -149,7 +150,7 @@ async def archive_vendor_detail(
     vendor_id: int,
     current_user: User,
     request_reason: str | None = None,
-) -> object | None:
+) -> JSONResponse | None:
     vendor = await assert_vendor_archive_allowed(db, vendor_id=vendor_id, current_user=current_user)
     from app.services._governed_mutations.vendor_mutations import (
         submit_vendor_archive_if_required,
@@ -175,6 +176,7 @@ async def archive_vendor_detail(
         log_activity_func=log_activity,
     )
     await db.commit()
+    return None
 
 
 async def restore_vendor_detail(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy import asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,7 +37,7 @@ async def create_vendor_sub_outsourcing_detail(
     vendor_id: int,
     payload: VendorSubOutsourcingCreate,
     current_user: User,
-) -> VendorSubOutsourcingRead:
+) -> VendorSubOutsourcingRead | JSONResponse:
     vendor = await assert_sub_outsourcing_mutation_vendor(
         db, vendor_id=vendor_id, current_user=current_user
     )
@@ -110,7 +111,7 @@ async def update_vendor_sub_outsourcing_detail(
     entry_id: int,
     payload: VendorSubOutsourcingUpdate,
     current_user: User,
-) -> VendorSubOutsourcingRead:
+) -> VendorSubOutsourcingRead | JSONResponse:
     entry = await assert_sub_outsourcing_update_allowed(
         db, vendor_id=vendor_id, entry_id=entry_id, current_user=current_user
     )
@@ -180,7 +181,7 @@ async def archive_vendor_sub_outsourcing_detail(
     entry_id: int,
     current_user: User,
     request_reason: str | None = None,
-) -> object | None:
+) -> JSONResponse | None:
     entry = await assert_sub_outsourcing_archive_allowed(
         db, vendor_id=vendor_id, entry_id=entry_id, current_user=current_user
     )
@@ -213,6 +214,7 @@ async def archive_vendor_sub_outsourcing_detail(
         db, actor=current_user, entry=entry, changes=changes
     )
     await commit_service_boundary(db, boundary="vendor_sub_outsourcing_archive")
+    return None
 
 
 async def restore_vendor_sub_outsourcing_detail(

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Any, Literal
 
@@ -67,7 +68,10 @@ _VALID_GROUPS = _VALID_VIEWS - {"all"}
 _SORT_FIELDS = frozenset(
     ("f_code", "l0_area", "l1_process", "owner", "department", "criticality", "cif", "mtpd_hours", "created_at")
 )
-_CRITICALITY_ORDER = {value: index for index, value in enumerate(PROCESS_PRELIMINARY_CRITICALITY_CODES)}
+# Sort-key lookup domain includes ``None`` (rows without a derived block).
+_CRITICALITY_ORDER: dict[str | None, int] = {
+    value: index for index, value in enumerate(PROCESS_PRELIMINARY_CRITICALITY_CODES)
+}
 
 
 @dataclass(frozen=True)
@@ -240,25 +244,29 @@ async def _load_visible_link_context(
             )
         )
     ).all()
-    transitive_vendor_rows = []
+    transitive_vendor_rows: Sequence[tuple[int, int]] = []
     if visible_asset_ids:
         transitive_vendor_rows = (
-            await db.execute(
-                select(ProcessAssetLink.process_id, AssetVendorLink.vendor_id)
-                .join(AssetVendorLink, AssetVendorLink.asset_id == ProcessAssetLink.asset_id)
-                .where(
-                    ProcessAssetLink.process_id.in_(process_ids),
-                    ProcessAssetLink.asset_id.in_(visible_asset_ids),
+            (
+                await db.execute(
+                    select(ProcessAssetLink.process_id, AssetVendorLink.vendor_id)
+                    .join(AssetVendorLink, AssetVendorLink.asset_id == ProcessAssetLink.asset_id)
+                    .where(
+                        ProcessAssetLink.process_id.in_(process_ids),
+                        ProcessAssetLink.asset_id.in_(visible_asset_ids),
+                    )
                 )
             )
-        ).all()
+            .tuples()
+            .all()
+        )
     candidate_vendor_ids = {row[1] for row in (*direct_vendor_rows, *transitive_vendor_rows)}
     if candidate_vendor_ids:
         vendor_query = apply_vendor_visibility_scope(
             select(Vendor.id, Vendor.name).where(Vendor.id.in_(candidate_vendor_ids)),
             current_user,
         )
-        vendor_labels = dict((await db.execute(vendor_query)).all())
+        vendor_labels = dict((await db.execute(vendor_query)).tuples().all())
         readable_vendor_ids = set(vendor_labels)
         for process_id, vendor_id in (*direct_vendor_rows, *transitive_vendor_rows):
             if vendor_id in readable_vendor_ids:
@@ -275,7 +283,9 @@ async def _load_visible_link_context(
     readable_risk_ids = await visible_risk_ids(db, current_user, candidate_risk_ids)
     if readable_risk_ids:
         risk_labels = dict(
-            (await db.execute(select(Risk.id, Risk.risk_id_code).where(Risk.id.in_(readable_risk_ids)))).all()
+            (await db.execute(select(Risk.id, Risk.risk_id_code).where(Risk.id.in_(readable_risk_ids))))
+            .tuples()
+            .all()
         )
         for process_id, risk_id in risk_rows:
             if risk_id in readable_risk_ids:

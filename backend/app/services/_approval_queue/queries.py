@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import and_, false, func, or_, select
+from sqlalchemy import and_, false, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -103,6 +103,7 @@ async def list_approval_queue_page(
     my_requests: bool,
 ) -> ApprovalRequestListResponse:
     tier = approval_privilege_tier(current_user)
+    candidate_statuses: tuple[ApprovalStatus, ...] | None
     if status_filter == ApprovalStatusEnum.pending:
         candidate_statuses = (
             ApprovalStatus.PENDING,
@@ -279,9 +280,9 @@ async def list_approval_queue_page(
                     ApprovalResourceType(resource_type.value),
                     valid_extended_ids,
                 ),
-                and_(resource_type.value == "asset", asset_governed),
-                and_(resource_type.value == "vendor", vendor_governed),
-                and_(resource_type.value == "threat", threat_governed),
+                and_(true() if resource_type.value == "asset" else false(), asset_governed),
+                and_(true() if resource_type.value == "vendor" else false(), vendor_governed),
+                and_(true() if resource_type.value == "threat" else false(), threat_governed),
             )
         )
 

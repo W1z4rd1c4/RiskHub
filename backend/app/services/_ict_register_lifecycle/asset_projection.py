@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -227,7 +229,7 @@ async def _filter_asset_linked_context(
     assets: list[Asset],
     current_user: User,
     blocks: dict[int, AssetDerived],
-    process_derivations: dict[int, object],
+    process_derivations: Mapping[int, object],
 ) -> dict[int, AssetDerived]:
     """Filter linked labels, identifiers, and counts through counterpart policies."""
     asset_ids = {asset.id for asset in assets}
@@ -587,7 +589,9 @@ async def load_pending_asset_changes(
         scenario_rows = list(
             (await db.execute(select(ApprovalScenario).where(ApprovalScenario.key.in_(tuple(triggers))))).scalars()
         )
-        scenarios = {scenario.key: scenario for scenario in scenario_rows}
+        # Keyed by scenario key; looked up with snapshot-sourced values, so the
+        # lookup domain is wider than ``str`` (may include ``None``).
+        scenarios: dict[Any, ApprovalScenario] = {scenario.key: scenario for scenario in scenario_rows}
         if asset_identity:
             live_resolver = is_live_eligible_asset_resolver(
                 current_user,

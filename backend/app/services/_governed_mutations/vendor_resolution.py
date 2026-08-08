@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any, Generic, TypeVar, cast
+
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -270,12 +275,12 @@ async def _live_policy(
                 vendor,
                 "A triggering governed Vendor scenario was disabled after submission",
             )
-        roles = (
+        configured_roles = (
             validated_fixed_vendor_roles(scenario)
             if scenario_key == VENDOR_SCENARIO_KEY
             else validated_fixed_accountability_roles(scenario)
         )
-        live_policies.append({"configured_roles": roles})
+        live_policies.append({"configured_roles": configured_roles})
     live_roles = effective_triggered_policy_roles(live_policies)
     resolver_role = getattr(getattr(resolver, "role", None), "name", None)
     snapshot_roles = (
@@ -288,7 +293,13 @@ async def _live_policy(
         and resolver_role in live_roles
         and isinstance(snapshot_roles, list)
         and resolver_role in snapshot_roles
-        and resolver_role in proposal.approval_request.scenario_approver_roles
+        # scenario_approver_roles is nullable in the DB, but application writers
+        # (vendor_mutations.py) always persist a non-null list for governed Vendor
+        # submissions. A corrupt/legacy NULL row raises TypeError on this membership
+        # test — identically pre- and post-typing-wave (pre-existing assumption; the
+        # cast is a runtime no-op and introduced no behavior change).
+        and resolver_role
+        in cast("list[str]", proposal.approval_request.scenario_approver_roles)
     ):
         raise AuthorizationError(
             "Only an independent active Risk Manager or CRO may resolve this Vendor request"
@@ -337,7 +348,7 @@ async def _live_policy(
 
 def _positive_ids_for_keys(value: object, keys: frozenset[str]) -> set[int]:
     if isinstance(value, dict):
-        found = {
+        found: set[int] = {
             item
             for key, item in value.items()
             if key in keys and type(item) is int and item > 0
@@ -346,7 +357,7 @@ def _positive_ids_for_keys(value: object, keys: frozenset[str]) -> set[int]:
             found.update(_positive_ids_for_keys(nested, keys))
         return found
     if isinstance(value, list):
-        found: set[int] = set()
+        found = set()
         for nested in value:
             found.update(_positive_ids_for_keys(nested, keys))
         return found
@@ -375,6 +386,245 @@ async def _expire(
     )
     await commit_service_boundary(db, boundary="governed_mutation.vendor.expire")
     return await _reload(db, approval.id)
+
+
+_ChildT = TypeVar("_ChildT", VendorContract, VendorSubOutsourcing)
+_CreateT = TypeVar("_CreateT", bound=BaseModel)
+_UpdateT = TypeVar("_UpdateT", bound=BaseModel)
+
+
+async def _emit_contract_created(
+    db: AsyncSession, actor: User, contract: VendorContract
+) -> None:
+    await audit_vendor_contract.vendor_contract_created(
+        db, actor=actor, contract=contract
+    )
+
+
+async def _emit_contract_updated(
+    db: AsyncSession,
+    actor: User,
+    contract: VendorContract,
+    changes: dict[str, dict[str, object]],
+) -> None:
+    await audit_vendor_contract.vendor_contract_updated(
+        db, actor=actor, contract=contract, changes=changes
+    )
+
+
+async def _emit_contract_archived(
+    db: AsyncSession,
+    actor: User,
+    contract: VendorContract,
+    changes: dict[str, dict[str, object]],
+) -> None:
+    await audit_vendor_contract.vendor_contract_archived(
+        db, actor=actor, contract=contract, changes=changes
+    )
+
+
+async def _emit_sub_outsourcing_created(
+    db: AsyncSession, actor: User, entry: VendorSubOutsourcing
+) -> None:
+    await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_created(
+        db, actor=actor, entry=entry
+    )
+
+
+async def _emit_sub_outsourcing_updated(
+    db: AsyncSession,
+    actor: User,
+    entry: VendorSubOutsourcing,
+    changes: dict[str, dict[str, object]],
+) -> None:
+    await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_updated(
+        db, actor=actor, entry=entry, changes=changes
+    )
+
+
+async def _emit_sub_outsourcing_archived(
+    db: AsyncSession,
+    actor: User,
+    entry: VendorSubOutsourcing,
+    changes: dict[str, dict[str, object]],
+) -> None:
+    await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_archived(
+        db, actor=actor, entry=entry, changes=changes
+    )
+
+
+async def _assert_sub_outsourcing_create_chain(
+    db: AsyncSession, vendor_id: int, values: dict[str, Any]
+) -> None:
+    await assert_chain_contract(
+        db,
+        vendor_id=vendor_id,
+        contract_id=values["contract_id"],
+    )
+    if values.get("predecessor_id") is not None:
+        await assert_chain_predecessor(
+            db,
+            vendor_id=vendor_id,
+            contract_id=values["contract_id"],
+            predecessor_id=values["predecessor_id"],
+        )
+
+
+async def _assert_sub_outsourcing_edit_chain(
+    db: AsyncSession,
+    vendor_id: int,
+    entry: VendorSubOutsourcing,
+    values: dict[str, Any],
+) -> None:
+    contract_id = values.get("contract_id", entry.contract_id)
+    predecessor_id = values.get("predecessor_id", entry.predecessor_id)
+    await assert_chain_contract(
+        db,
+        vendor_id=vendor_id,
+        contract_id=contract_id,
+    )
+    if predecessor_id is not None:
+        await assert_chain_predecessor(
+            db,
+            vendor_id=vendor_id,
+            contract_id=contract_id,
+            predecessor_id=predecessor_id,
+            entry_id=entry.id,
+        )
+
+
+@dataclass(frozen=True)
+class _LineageSpec(Generic[_ChildT, _CreateT, _UpdateT]):
+    """One governed Vendor child lineage (Contract or Sub-outsourcing).
+
+    Bundles the ORM model, payload schemas, audit emitters, and chain
+    assertions so the polymorphic replay below stays type-consistent per
+    lineage instead of mixing ``type[VendorContract]`` reassignments.
+    """
+
+    model: type[_ChildT]
+    create_schema: type[_CreateT]
+    update_schema: type[_UpdateT]
+    emit_created: Callable[[AsyncSession, User, _ChildT], Awaitable[None]]
+    update_changes: Callable[[_ChildT, dict[str, object]], dict[str, dict[str, object]]]
+    emit_updated: Callable[
+        [AsyncSession, User, _ChildT, dict[str, dict[str, object]]], Awaitable[None]
+    ]
+    archive_changes: Callable[[_ChildT], dict[str, dict[str, object]]]
+    emit_archived: Callable[
+        [AsyncSession, User, _ChildT, dict[str, dict[str, object]]], Awaitable[None]
+    ]
+    assert_create_chain: (
+        Callable[[AsyncSession, int, dict[str, Any]], Awaitable[None]] | None
+    )
+    assert_edit_chain: (
+        Callable[[AsyncSession, int, _ChildT, dict[str, Any]], Awaitable[None]] | None
+    )
+
+
+_CONTRACT_LINEAGE = _LineageSpec(
+    model=VendorContract,
+    create_schema=VendorContractCreate,
+    update_schema=VendorContractUpdate,
+    emit_created=_emit_contract_created,
+    update_changes=audit_vendor_contract.vendor_contract_update_changes,
+    emit_updated=_emit_contract_updated,
+    archive_changes=audit_vendor_contract.vendor_contract_archive_changes,
+    emit_archived=_emit_contract_archived,
+    assert_create_chain=None,
+    assert_edit_chain=None,
+)
+
+_SUB_OUTSOURCING_LINEAGE = _LineageSpec(
+    model=VendorSubOutsourcing,
+    create_schema=VendorSubOutsourcingCreate,
+    update_schema=VendorSubOutsourcingUpdate,
+    emit_created=_emit_sub_outsourcing_created,
+    update_changes=audit_vendor_sub_outsourcing.vendor_sub_outsourcing_update_changes,
+    emit_updated=_emit_sub_outsourcing_updated,
+    archive_changes=audit_vendor_sub_outsourcing.vendor_sub_outsourcing_archive_changes,
+    emit_archived=_emit_sub_outsourcing_archived,
+    assert_create_chain=_assert_sub_outsourcing_create_chain,
+    assert_edit_chain=_assert_sub_outsourcing_edit_chain,
+)
+
+
+async def _apply_child_mutation(
+    db: AsyncSession,
+    *,
+    spec: _LineageSpec[_ChildT, _CreateT, _UpdateT],
+    action: str,
+    vendor: Vendor,
+    resolver: User,
+    child_id: object,
+    before: object,
+    after: object,
+) -> str | None:
+    """Replay one governed child mutation; return the stale reason, if any."""
+    child = None
+    if action != "create":
+        child = (
+            await db.execute(
+                select(spec.model)
+                .where(spec.model.id == child_id, spec.model.vendor_id == vendor.id)
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+    if action == "create":
+        try:
+            create_payload = spec.create_schema.model_validate(after)
+            values = create_payload.model_dump(exclude={"request_reason"})
+        except (TypeError, ValueError):
+            values = {}
+        if not values or child_id is not None or before is not None:
+            return "Governed Vendor child creation payload is stale"
+        if spec.assert_create_chain is not None:
+            await spec.assert_create_chain(db, vendor.id, values)
+        child = spec.model(vendor_id=vendor.id, **values)
+        db.add(child)
+        await db.flush()
+        await spec.emit_created(db, resolver, child)
+    elif action == "edit":
+        try:
+            update_payload = spec.update_schema.model_validate(after)
+            values = update_payload.model_dump(
+                exclude_unset=True,
+                exclude={"request_reason"},
+            )
+        except (TypeError, ValueError):
+            values = {}
+        if (
+            child is None
+            or child.is_archived
+            or not values
+            or not isinstance(before, dict)
+            or set(before) != set(values)
+            or any(
+                jsonable_encoder(getattr(child, field)) != value
+                for field, value in before.items()
+            )
+        ):
+            return "Governed Vendor child edit payload is stale"
+        if spec.assert_edit_chain is not None:
+            await spec.assert_edit_chain(db, vendor.id, child, values)
+        changes = spec.update_changes(child, values)
+        for field, value in values.items():
+            setattr(child, field, value)
+        await spec.emit_updated(db, resolver, child, changes)
+    elif action == "archive":
+        if (
+            child is None
+            or child.is_archived
+            or before != {"is_archived": False}
+            or after != {"is_archived": True}
+        ):
+            return "Governed Vendor child archive became stale"
+        changes = spec.archive_changes(child)
+        child.mark_archived(resolver)
+        await spec.emit_archived(db, resolver, child, changes)
+    else:
+        raise ValidationError("Unsupported governed Vendor child operation")
+    return None
 
 
 async def approve_vendor_mutation(
@@ -411,6 +661,7 @@ async def approve_vendor_mutation(
             department_id=requester.department_id,
         )
 
+    vendor: Vendor | None
     if proposal.mutation_kind == VENDOR_CREATE_KIND:
         try:
             payload = VendorCreate.model_validate(proposal.proposed_changes["after"])
@@ -527,7 +778,7 @@ async def approve_vendor_mutation(
             )
         except (TypeError, ValueError):
             updates = {}
-        malformed = bool(
+        if (
             not isinstance(raw_before, dict)
             or not isinstance(raw_after, dict)
             or not updates
@@ -537,29 +788,34 @@ async def approve_vendor_mutation(
                 jsonable_encoder(getattr(vendor, field)) != value
                 for field, value in raw_before.items()
             )
-        )
-        expected_before: dict[str, object] = {}
-        expected_after: dict[str, object] = {}
-        if not malformed:
-            expected_before, expected_after = await _safe_vendor_edit_snapshots(
+        ):
+            return await _expire(
                 db,
-                vendor=vendor,
-                raw_after=jsonable_encoder(updates),
+                approval=approval,
+                proposal=proposal,
+                locks=locks,
+                actor=resolver,
+                reason="Governed Vendor edit payload is stale",
+                department_id=vendor.department_id,
             )
-            expected_pending = {
-                field: {
-                    "old": expected_before.get(field),
-                    "new": expected_after.get(field),
-                }
-                for field in sorted(set(expected_before) | set(expected_after))
-                if expected_before.get(field) != expected_after.get(field)
+        expected_before, expected_after = await _safe_vendor_edit_snapshots(
+            db,
+            vendor=vendor,
+            raw_after=jsonable_encoder(updates),
+        )
+        expected_pending = {
+            field: {
+                "old": expected_before.get(field),
+                "new": expected_after.get(field),
             }
-            malformed = bool(
-                proposal.before_snapshot != expected_before
-                or proposal.after_snapshot != expected_after
-                or approval.pending_changes != expected_pending
-            )
-        if malformed:
+            for field in sorted(set(expected_before) | set(expected_after))
+            if expected_before.get(field) != expected_after.get(field)
+        }
+        if (
+            proposal.before_snapshot != expected_before
+            or proposal.after_snapshot != expected_after
+            or approval.pending_changes != expected_pending
+        ):
             return await _expire(
                 db,
                 approval=approval,
@@ -678,7 +934,7 @@ async def approve_vendor_mutation(
     elif proposal.mutation_kind == VENDOR_ARCHIVE_KIND:
         vendor = locked_vendor
         lock = locks[0] if len(locks) == 1 else None
-        stale = bool(
+        if (
             vendor is None
             or vendor.is_archived
             or lock is None
@@ -686,8 +942,7 @@ async def approve_vendor_mutation(
             or lock.resource_id != vendor.id
             or lock.base_governance_version != vendor.governance_version
             or proposal.base_versions != {"vendor": vendor.governance_version}
-        )
-        if stale:
+        ):
             return await _expire(
                 db,
                 approval=approval,
@@ -779,13 +1034,17 @@ async def approve_vendor_mutation(
             )
         from app.services._vendor_governance.links import get_existing_link
         from app.services._vendor_links.workflow import (
+            VendorLinkKind,
             link_vendor_target_no_commit,
             unlink_vendor_target_no_commit,
             vendor_link_target,
             visible_vendor_link_target_label,
         )
 
-        target = vendor_link_target(resource)
+        # Invariant: mutation_kind is in VENDOR_RELATIONSHIP_KINDS (checked above),
+        # so its resource segment is one of "risk" | "control" | "kri".
+        link_kind = cast(VendorLinkKind, resource)
+        target = vendor_link_target(link_kind)
         try:
             live_entity_name = await visible_vendor_link_target_label(
                 db,
@@ -839,7 +1098,7 @@ async def approve_vendor_mutation(
                 vendor_id=vendor.id,
                 current_user=requester,
                 audit_actor=resolver,
-                kind=resource,
+                kind=link_kind,
                 entity_id=entity_id,
             )
         else:
@@ -848,7 +1107,7 @@ async def approve_vendor_mutation(
                 vendor_id=vendor.id,
                 current_user=requester,
                 audit_actor=resolver,
-                kind=resource,
+                kind=link_kind,
                 entity_id=entity_id,
             )
         vendor.governance_version += 1
@@ -910,184 +1169,40 @@ async def approve_vendor_mutation(
         after = operation.get("after")
         resource, action = proposal.mutation_kind.removeprefix("vendor.").split(".")
         if resource == "contract":
-            model = VendorContract
-            create_schema = VendorContractCreate
-            update_schema = VendorContractUpdate
+            stale_child_reason = await _apply_child_mutation(
+                db,
+                spec=_CONTRACT_LINEAGE,
+                action=action,
+                vendor=vendor,
+                resolver=resolver,
+                child_id=child_id,
+                before=before,
+                after=after,
+            )
         else:
-            model = VendorSubOutsourcing
-            create_schema = VendorSubOutsourcingCreate
-            update_schema = VendorSubOutsourcingUpdate
             # Canonical-order anchor: Vendor row FOR UPDATE (taken in _live_policy) before the
             # chain advisory lock; the direct lifecycle paths mirror it (sub_outsourcing_lifecycle.py).
             await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor.id)
-        child = None
-        if action != "create":
-            child = (
-                await db.execute(
-                    select(model)
-                    .where(model.id == child_id, model.vendor_id == vendor.id)
-                    .with_for_update()
-                )
-            ).scalar_one_or_none()
-        if action == "create":
-            try:
-                payload = create_schema.model_validate(after)
-                values = payload.model_dump(exclude={"request_reason"})
-            except (TypeError, ValueError):
-                values = {}
-            if not values or child_id is not None or before is not None:
-                return await _expire(
-                    db,
-                    approval=approval,
-                    proposal=proposal,
-                    locks=locks,
-                    actor=resolver,
-                    reason="Governed Vendor child creation payload is stale",
-                    department_id=vendor.department_id,
-                )
-            if resource == "sub_outsourcing":
-                await assert_chain_contract(
-                    db,
-                    vendor_id=vendor.id,
-                    contract_id=values["contract_id"],
-                )
-                if values.get("predecessor_id") is not None:
-                    await assert_chain_predecessor(
-                        db,
-                        vendor_id=vendor.id,
-                        contract_id=values["contract_id"],
-                        predecessor_id=values["predecessor_id"],
-                    )
-            child = model(vendor_id=vendor.id, **values)
-            db.add(child)
-            await db.flush()
-            if resource == "contract":
-                await audit_vendor_contract.vendor_contract_created(
-                    db,
-                    actor=resolver,
-                    contract=child,
-                )
-            else:
-                await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_created(
-                    db,
-                    actor=resolver,
-                    entry=child,
-                )
-        elif action == "edit":
-            try:
-                payload = update_schema.model_validate(after)
-                values = payload.model_dump(
-                    exclude_unset=True,
-                    exclude={"request_reason"},
-                )
-            except (TypeError, ValueError):
-                values = {}
-            malformed = bool(
-                child is None
-                or child.is_archived
-                or not values
-                or not isinstance(before, dict)
-                or set(before) != set(values)
-                or any(
-                    jsonable_encoder(getattr(child, field)) != value
-                    for field, value in before.items()
-                )
+            stale_child_reason = await _apply_child_mutation(
+                db,
+                spec=_SUB_OUTSOURCING_LINEAGE,
+                action=action,
+                vendor=vendor,
+                resolver=resolver,
+                child_id=child_id,
+                before=before,
+                after=after,
             )
-            if malformed:
-                return await _expire(
-                    db,
-                    approval=approval,
-                    proposal=proposal,
-                    locks=locks,
-                    actor=resolver,
-                    reason="Governed Vendor child edit payload is stale",
-                    department_id=vendor.department_id,
-                )
-            if resource == "sub_outsourcing":
-                contract_id = values.get("contract_id", child.contract_id)
-                predecessor_id = values.get("predecessor_id", child.predecessor_id)
-                await assert_chain_contract(
-                    db,
-                    vendor_id=vendor.id,
-                    contract_id=contract_id,
-                )
-                if predecessor_id is not None:
-                    await assert_chain_predecessor(
-                        db,
-                        vendor_id=vendor.id,
-                        contract_id=contract_id,
-                        predecessor_id=predecessor_id,
-                        entry_id=child.id,
-                    )
-            if resource == "contract":
-                changes = audit_vendor_contract.vendor_contract_update_changes(
-                    child,
-                    values,
-                )
-            else:
-                changes = (
-                    audit_vendor_sub_outsourcing.vendor_sub_outsourcing_update_changes(
-                        child,
-                        values,
-                    )
-                )
-            for field, value in values.items():
-                setattr(child, field, value)
-            if resource == "contract":
-                await audit_vendor_contract.vendor_contract_updated(
-                    db,
-                    actor=resolver,
-                    contract=child,
-                    changes=changes,
-                )
-            else:
-                await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_updated(
-                    db,
-                    actor=resolver,
-                    entry=child,
-                    changes=changes,
-                )
-        elif action == "archive":
-            if (
-                child is None
-                or child.is_archived
-                or before != {"is_archived": False}
-                or after != {"is_archived": True}
-            ):
-                return await _expire(
-                    db,
-                    approval=approval,
-                    proposal=proposal,
-                    locks=locks,
-                    actor=resolver,
-                    reason="Governed Vendor child archive became stale",
-                    department_id=vendor.department_id,
-                )
-            if resource == "contract":
-                changes = audit_vendor_contract.vendor_contract_archive_changes(child)
-            else:
-                changes = (
-                    audit_vendor_sub_outsourcing.vendor_sub_outsourcing_archive_changes(
-                        child
-                    )
-                )
-            child.mark_archived(resolver)
-            if resource == "contract":
-                await audit_vendor_contract.vendor_contract_archived(
-                    db,
-                    actor=resolver,
-                    contract=child,
-                    changes=changes,
-                )
-            else:
-                await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_archived(
-                    db,
-                    actor=resolver,
-                    entry=child,
-                    changes=changes,
-                )
-        else:
-            raise ValidationError("Unsupported governed Vendor child operation")
+        if stale_child_reason is not None:
+            return await _expire(
+                db,
+                approval=approval,
+                proposal=proposal,
+                locks=locks,
+                actor=resolver,
+                reason=stale_child_reason,
+                department_id=vendor.department_id,
+            )
         vendor.governance_version += 1
         await finalize_governed_terminal_transition(
             db,

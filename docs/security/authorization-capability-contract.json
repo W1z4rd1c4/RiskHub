@@ -1,8 +1,9 @@
 {
  "version": "1.0",
  "last_reviewed": "2026-07-18",
- "last_architecture_refactor_reviewed": "2026-07-31",
+ "last_architecture_refactor_reviewed": "2026-08-08",
  "architecture_refactor_notes": [
+  "2026-08-08: Mypy strict-debt elimination pass applied a behavior-preserving type-driven pass (precise annotations, invariant-commented casts, and equivalence-audited structural refactors: generic lineage dispatch, boolean-literal SQL construction, walrus narrowing) across authz-sensitive backend modules, full-suite-verified with zero test-outcome delta. Route guards, row visibility, mutation authority, and capability field shapes and semantics are unchanged.",
   "2026-07-31: Final reconciliation routed Process-originated Asset pending-change resolver evaluation through the canonical governed_process_response_policy seam. Route guards, row visibility, mutation authority, and capability field shapes and semantics are unchanged.",
   "2026-07-31: Final reconciliation routed fixed Asset and Asset-notification resolver privilege checks through the canonical approval_privilege_tier seam. Route guards, row visibility, mutation authority, and capability field shapes and semantics are unchanged.",
   "2026-07-31: ICT-GOV #91 aligned actor-safe Process, Vendor, and Asset pending-impact labels and mirrored the existing protected-Asset approval-reason requirement in link-request presentation. Route guards, row visibility, mutation authority, and capability field shapes and semantics are unchanged.",

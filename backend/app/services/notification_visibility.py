@@ -1296,7 +1296,7 @@ def _asset_approval_visibility_clause(
         .exists()
     )
     role_name = getattr(getattr(current_user, "role", None), "name", None)
-    live_resolver = false()
+    live_resolver: ColumnElement[bool] = false()
     if (
         current_user.is_active
         and role_name in {"risk_manager", "cro"}

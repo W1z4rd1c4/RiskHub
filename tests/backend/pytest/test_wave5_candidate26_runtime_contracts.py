@@ -9,7 +9,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.error import HTTPError
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_SCRIPTS = REPO_ROOT / "scripts" / "security"
 if str(SECURITY_SCRIPTS) not in sys.path:

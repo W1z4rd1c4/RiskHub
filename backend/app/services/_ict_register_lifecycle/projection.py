@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -33,6 +34,7 @@ from app.schemas.process import (
 )
 from app.services._authorization_capabilities import process_capabilities
 from app.services._governed_mutations.process_identity import (
+    GovernedProcessIdentity,
     InvalidGovernedProcessIdentity,
     canonical_process_display_name,
     strict_governed_process_identity,
@@ -88,9 +90,9 @@ _PROTECTED_PROCESS_EDIT_SCENARIO_KEY = "protected_process_edit"
 def _pending_process_composite_derived_impact(
     value: dict,
     *,
-    process_labels: dict[int, str],
-    asset_labels: dict[int, str],
-    vendor_labels: dict[int, str],
+    process_labels: Mapping[Any, str],
+    asset_labels: Mapping[Any, str],
+    vendor_labels: Mapping[Any, str],
 ) -> dict[str, list[dict[str, object]]]:
     safe: dict[str, list[dict[str, object]]] = {}
     for group, labels, fallback in (
@@ -306,7 +308,9 @@ async def load_proposed_process_derived_block(
     graph = await load_ict_register_graph(db, processes=[process])
     current = process_derivation_input(process)
     derivation_fields = set(current.__dataclass_fields__)
-    proposed_values = {key: value for key, value in updates.items() if key in derivation_fields}
+    proposed_values: dict[str, Any] = {
+        key: value for key, value in updates.items() if key in derivation_fields
+    }
     proposed = replace(current, **proposed_values)
     proposed_graph = replace(
         graph,
@@ -328,10 +332,10 @@ async def load_governed_process_derived_blocks(
     graph = await load_ict_register_graph(db, processes=[process])
     current = process_derivation_input(process)
     derivation_fields = set(current.__dataclass_fields__)
-    proposed = replace(
-        current,
-        **{key: value for key, value in updates.items() if key in derivation_fields},
-    )
+    proposed_updates: dict[str, Any] = {
+        key: value for key, value in updates.items() if key in derivation_fields
+    }
+    proposed = replace(current, **proposed_updates)
     proposed_graph = replace(
         graph,
         processes=tuple(proposed if row.id == process.id else row for row in graph.processes),
@@ -381,12 +385,13 @@ async def load_pending_process_changes(
     parsed: list[
         tuple[
             GovernedMutationProposal,
-            object,
+            ExtendedProcessMutationIdentity | GovernedProcessIdentity,
             set[int],
         ]
     ] = []
     relationship_derived_process_ids: set[int] = set()
     for proposal in rows:
+        identity: ExtendedProcessMutationIdentity | GovernedProcessIdentity | None
         if is_extended_process_kind(proposal.mutation_kind):
             try:
                 identity = strict_extended_process_identity(proposal)

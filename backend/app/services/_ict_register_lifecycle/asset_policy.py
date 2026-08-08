@@ -238,14 +238,15 @@ async def assert_asset_ordinary_mutation_allowed(
         asset.business_owner_user_id,
         asset.ict_owner_user_id,
     )
-    asset = await lock_asset_for_owner_mutation(
+    locked_asset = await lock_asset_for_owner_mutation(
         db,
         asset_id=asset.id,
         user_ids=(*expected_owner_ids, *additional_owner_user_ids),
         expected_owner_user_ids=expected_owner_ids,
     )
-    if asset is None:
+    if locked_asset is None:
         raise NotFoundError("Asset not found")
+    asset = locked_asset
     await assert_locked_asset_ordinary_mutation_allowed(
         db,
         asset=asset,

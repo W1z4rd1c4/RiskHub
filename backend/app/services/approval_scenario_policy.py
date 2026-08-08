@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import and_, false, or_, select
+from sqlalchemy import and_, false, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import (
@@ -29,6 +30,7 @@ from app.models import (
 )
 from app.models.approval_scenario import ApprovalScenario
 from app.services._governed_mutations.process_identity import (
+    GovernedProcessIdentity,
     InvalidGovernedProcessIdentity,
     any_governed_mutation_proposal_exists_clause,
     exact_governed_process_proposal_exists_clause,
@@ -43,6 +45,9 @@ from app.services._ict_register_lifecycle.policy import (
     process_visibility_clause,
 )
 from app.services._riskhub_config.approval_scenario_roles import get_approval_scenario_roles
+
+if TYPE_CHECKING:
+    from app.services._governed_mutations.process_mutations import ExtendedProcessMutationIdentity
 
 RISK_OWNER_APPROVER_ROLE = "risk_owner"
 PRIVILEGED_APPROVER_ROLE_ORDER = ("risk_manager", "cro")
@@ -288,7 +293,9 @@ async def _evaluate_governed_process_policy(
     user: User,
 ) -> _GovernedProcessPolicyEvaluation | None:
     """Strictly parse and evaluate one governed Process proposal scope."""
-    identity = strict_governed_process_identity(proposal)
+    identity: GovernedProcessIdentity | ExtendedProcessMutationIdentity | None = strict_governed_process_identity(
+        proposal
+    )
     is_extended = False
     if identity is None:
         from app.services._governed_mutations.process_mutations import (
@@ -554,7 +561,7 @@ def approval_resource_type_filter_clause(
         .exists()
     )
     extended_type_match = and_(
-        resource_type == ApprovalResourceType.PROCESS,
+        true() if resource_type == ApprovalResourceType.PROCESS else false(),
         _extended_process_approval_exists_clause(
             valid_extended_approval_ids=valid_extended_approval_ids,
         ),
@@ -698,12 +705,14 @@ async def can_resolve_scenario_approval(
 
 async def can_view_approval_resource(db: AsyncSession, user: User, approval: ApprovalRequest) -> bool:
     """Return whether a user can read the approval's underlying business resource."""
+    # cast: ck_approval_requests_process_create_resource_identity permits NULL resource_id
+    # only for PROCESS/ASSET/VENDOR CREATE rows, so RISK/CONTROL/KRI rows carry an int.
     if approval.resource_type == ApprovalResourceType.RISK:
-        return await can_read_risk_id(db, user, approval.resource_id)
+        return await can_read_risk_id(db, user, cast(int, approval.resource_id))
     if approval.resource_type == ApprovalResourceType.CONTROL:
-        return await can_read_control_id(db, user, approval.resource_id)
+        return await can_read_control_id(db, user, cast(int, approval.resource_id))
     if approval.resource_type == ApprovalResourceType.KRI:
-        return await can_read_kri_id(db, user, approval.resource_id)
+        return await can_read_kri_id(db, user, cast(int, approval.resource_id))
     if approval.resource_type == ApprovalResourceType.PROCESS:
         process = await db.get(Process, approval.resource_id)
         return process is not None and can_read_process_record(user, process)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -415,7 +416,9 @@ async def resolve_orphan(
         try:
             new_steward = await assert_active_ciso_steward(
                 db,
-                user_id=int(new_owner_id),
+                # cast: validate_resolution_context above raises for threat orphans
+                # unless new_owner_id loaded an active user, so it is non-None here.
+                user_id=int(cast(int, new_owner_id)),
                 acquire_identity_lock=False,
             )
         except ValidationError as exc:
@@ -733,7 +736,7 @@ async def _submit_asset_orphan_reassignment(
     if requester is None:
         raise ValueError(f"Resolving user {resolved_by_id} not found")
     owner_field = f"{orphan.responsibility_role}_user_id"
-    updates = {owner_field: new_owner_id}
+    updates: dict[str, object] = {owner_field: new_owner_id}
     if target_department_id != asset.owning_department_id:
         updates["owning_department_id"] = target_department_id
     from app.services._governed_mutations.asset_mutations import (
@@ -768,7 +771,7 @@ async def _submit_vendor_orphan_reassignment(
     new_owner_id: int | None,
     department_id: int | None,
     target_risk_id: int | None,
-    request_reason: str,
+    request_reason: str | None,
 ) -> object:
     if new_owner_id is None:
         raise ValueError("new_owner_id is required to resolve orphaned Vendors")
@@ -873,7 +876,7 @@ async def _submit_threat_orphan_reassignment(
     new_owner_id: int | None,
     department_id: int | None,
     target_risk_id: int | None,
-    request_reason: str,
+    request_reason: str | None,
 ) -> object:
     if new_owner_id is None:
         raise ValueError("new_owner_id is required to resolve orphaned threats")

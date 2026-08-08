@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import or_, select
@@ -90,7 +91,7 @@ def _valid_impact_block(value: object) -> bool:
 
 
 def _valid_single_asset_impact(
-    impacts: list[object],
+    impacts: Sequence[object],
     *,
     resource_id: object,
     resource_name: object,
@@ -125,6 +126,8 @@ def _valid_vendor_composite_impacts(
     vendor_impacts = [item for item in impacts if isinstance(item, dict) and item.get("resource_type") == "vendor"]
     vendor_rows = derived.get("vendors")
     asset_rows = derived.get("assets")
+    # JSON-sourced ids; int-ness is enforced by the strict checks below.
+    vendor_ids: list[Any] = [item.get("resource_id") for item in vendor_impacts]
     return bool(
         len(asset_impacts) == 1
         and asset_impacts[0].get("resource_id") == proposal.primary_resource_id
@@ -132,8 +135,7 @@ def _valid_vendor_composite_impacts(
         and asset_impacts[0].get("base_governance_version") == proposal.base_versions.get("asset")
         and impacts == [*asset_impacts, *vendor_impacts]
         and vendor_impacts
-        and [item.get("resource_id") for item in vendor_impacts]
-        == sorted({item.get("resource_id") for item in vendor_impacts})
+        and vendor_ids == sorted(set(vendor_ids))
         and all(
             set(item)
             == {"resource_type", "resource_id", "resource_name", "base_governance_version"}
@@ -301,7 +303,8 @@ def valid_asset_governed_envelope(
             for item in impacts
             if isinstance(item, dict) and item.get("resource_type") == "vendor"
         ]
-        impact_ids = [item.get("resource_id") for item in asset_impacts]
+        # JSON-sourced ids; int-ness is enforced by the strict checks below.
+        impact_ids: list[Any] = [item.get("resource_id") for item in asset_impacts]
         derived_assets = proposal.derived_impact_snapshot.get("assets")
         derived_vendors = proposal.derived_impact_snapshot.get("vendors", [])
         relationship_valid = bool(

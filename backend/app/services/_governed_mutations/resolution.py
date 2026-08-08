@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
@@ -57,6 +57,9 @@ from .process_identity import (
 )
 from .resolution_lock_plan import lock_governed_process_resolution_suffix
 from .terminal_transitions import finalize_governed_terminal_transition
+
+if TYPE_CHECKING:
+    from app.core.audit.governed_mutation import GovernedProposalAuditIdentity
 
 _PENDING = (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED)
 _ENVELOPE_STALE_REASON = "Governed mutation envelope integrity check failed"
@@ -255,13 +258,17 @@ async def _load_governed_resolution(
         user_ids=(process_snapshot.process_owner_user_id, proposed_owner_id),
     )
 
+    # Invariant: subtracting {None} leaves only int user ids.
     primary_user_ids = sorted(
-        {
-            identity.requested_by_id,
-            current_user.id,
-            proposed_owner_id,
-        }
-        - {None}
+        cast(
+            "set[int]",
+            {
+                identity.requested_by_id,
+                current_user.id,
+                proposed_owner_id,
+            }
+            - {None},
+        )
     )
     manager_snapshot_rows = list(
         (
@@ -337,7 +344,7 @@ async def _load_governed_resolution(
         .scalars()
         .all()
     )
-    users_by_id = {user.id: user for user in reference_users}
+    users_by_id: dict[int | None, User] = {user.id: user for user in reference_users}
     for user in reference_users:
         set_committed_value(user, "role", roles_by_id.get(user.role_id))
         if user.id in primary_user_ids:
@@ -513,7 +520,8 @@ async def _expire(
         db,
         actor=current_user,
         approval=approval,
-        proposal=audit_identity,
+        # Invariant: the frozen identity satisfies the read-only audit protocol at runtime.
+        proposal=cast("GovernedProposalAuditIdentity", audit_identity),
         impact_locks=impact_locks,
         department_id=process.owning_department_id,
         status=ApprovalStatus.EXPIRED,
@@ -717,7 +725,8 @@ async def approve_governed_mutation(
             if ASSET_SCENARIO_KEY in context.identity.triggered_scenarios and not any(
                 block["cif"] == "yes" or block["resulting_criticality"] == "critical"
                 for row in asset_rows
-                for block in (row["before"], row["after"])
+                # Invariant: derived impact rows always carry dict before/after blocks.
+                for block in cast("tuple[dict[str, object], dict[str, object]]", (row["before"], row["after"]))
             ):
                 stale_reason = "Downstream Assets are no longer protected by the current policy"
         else:
@@ -740,7 +749,8 @@ async def approve_governed_mutation(
             if VENDOR_SCENARIO_KEY in context.identity.triggered_scenarios and not any(
                 vendor_impact_is_protected(block)
                 for row in vendor_rows
-                for block in (row["before"], row["after"])
+                # Invariant: derived impact rows always carry dict before/after blocks.
+                for block in cast("tuple[dict[str, object], dict[str, object]]", (row["before"], row["after"]))
             ):
                 stale_reason = "Downstream Vendors are no longer protected by the current policy"
         if proposal.derived_impact_snapshot != expected_impact:

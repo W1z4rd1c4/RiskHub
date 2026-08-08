@@ -276,14 +276,15 @@ async def assert_process_ordinary_mutation_allowed(
         current_user=current_user,
     )
     expected_owner_id = process.process_owner_user_id
-    process = await lock_process_for_owner_mutation(
+    locked_process = await lock_process_for_owner_mutation(
         db,
         process_id=process.id,
         user_ids=(expected_owner_id, *additional_owner_user_ids),
         expected_owner_user_id=expected_owner_id,
     )
-    if process is None:
+    if locked_process is None:
         raise NotFoundError("Process not found")
+    process = locked_process
     if process.is_archived:
         raise ConflictError("Cannot update archived process")
     if not can_update_process_record(current_user, process):

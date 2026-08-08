@@ -613,3 +613,4 @@ async def remove_process_vendor_link(
         target_label=vendor.name,
     )
     await commit_service_boundary(db, boundary="ict_register_process_link_delete")
+    return None

@@ -113,11 +113,11 @@ async def create_asset_detail(
 
     await audit_asset.asset_created(db, actor=current_user, asset=asset)
     await commit_service_boundary(db, boundary="ict_register_asset_create")
-    asset = await load_asset(db, asset.id)
-    assert asset is not None
+    reloaded = await load_asset(db, asset.id)
+    assert reloaded is not None
     # A freshly created Asset has no Link relations yet; the derived block
     # still rides the payload with its empty-links shape (compute-on-read).
-    return await serialize_asset_detail_with_primary(db, asset, current_user=current_user)
+    return await serialize_asset_detail_with_primary(db, reloaded, current_user=current_user)
 
 
 async def read_asset_detail(

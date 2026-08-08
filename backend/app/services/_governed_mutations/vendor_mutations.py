@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import cast
 from uuid import uuid4
 
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -270,7 +272,7 @@ async def _safe_vendor_edit_snapshots(
 ) -> tuple[dict[str, object], dict[str, object]]:
     before = await _safe_vendor_snapshot(db, vendor, fields=set(raw_after))
     after = dict(before)
-    reference_fields = {
+    reference_fields: dict[str, tuple[str, type[User] | type[Department], str]] = {
         "outsourcing_owner_user_id": (
             "outsourcing_owner",
             User,
@@ -288,7 +290,8 @@ async def _safe_vendor_edit_snapshots(
             after[field] = value
             continue
         safe_field, model, fallback = reference_field
-        reference = await db.get(model, value)
+        # Invariant: model is User or Department (reference_fields above); both define name.
+        reference = cast("User | Department | None", await db.get(model, value))
         after[safe_field] = reference.name if reference else fallback
     return before, after
 
@@ -327,7 +330,7 @@ async def submit_vendor_creation_if_required(
     db: AsyncSession,
     payload: VendorCreate,
     current_user: User,
-) -> object | None:
+) -> JSONResponse | None:
     impact = await _creation_impact(db, payload)
     if not _is_protected(impact):
         return None
@@ -419,7 +422,7 @@ async def submit_vendor_edit_if_required(
     current_user: User,
     updates: dict[str, object],
     orphan_resolution: tuple[int, int] | None = None,
-) -> object | None:
+) -> JSONResponse | None:
     await assert_no_pending_vendor_mutation(db, vendor_id=vendor.id)
     current_impact, proposed_impact = await _existing_vendor_impacts(
         db,
@@ -571,7 +574,7 @@ async def submit_vendor_archive_if_required(
     vendor: Vendor,
     current_user: User,
     request_reason: str | None,
-) -> object | None:
+) -> JSONResponse | None:
     await assert_no_pending_vendor_mutation(db, vendor_id=vendor.id)
     current_impact = _impact(
         (await load_vendor_derived_blocks(db, [vendor]))[vendor.id]
@@ -592,7 +595,9 @@ async def submit_vendor_archive_if_required(
             "No independent configured Risk Manager or CRO is available",
             code="governed_mutation_independent_approver_required",
         )
-    pending = {"is_archived": {"old": False, "new": True}}
+    pending: dict[str, dict[str, object]] = {
+        "is_archived": {"old": False, "new": True}
+    }
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.VENDOR,
         resource_id=vendor.id,
@@ -680,7 +685,7 @@ async def submit_vendor_child_mutation_if_required(
     after: dict[str, object] | None,
     current_user: User,
     request_reason: str | None,
-) -> object | None:
+) -> JSONResponse | None:
     """Queue one Contract/Sub-outsourcing mutation under the Vendor aggregate."""
     from .vendor_identity import VENDOR_CHILD_KINDS
 
@@ -808,7 +813,7 @@ async def submit_vendor_relationship_mutation_if_required(
     entity_name: str,
     current_user: User,
     request_reason: str | None,
-) -> object | None:
+) -> JSONResponse | None:
     """Queue one Risk/Control/KRI relationship mutation under the Vendor aggregate."""
     from .vendor_identity import VENDOR_RELATIONSHIP_KINDS
 
@@ -840,7 +845,7 @@ async def submit_vendor_relationship_mutation_if_required(
     adding = action == "add"
     relationship_target_before = None if adding else entity_name
     relationship_target_after = entity_name if adding else None
-    pending = {
+    pending: dict[str, dict[str, object]] = {
         f"linked_{resource}": {
             "old": not adding,
             "new": adding,

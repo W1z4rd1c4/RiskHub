@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -148,7 +150,9 @@ async def load_pending_threat_changes(
                 scenario,
             )
         )
-        result[int(proposal.primary_resource_id)] = ThreatPendingChange(
+        # strict_threat_mutation_kind() above validated the envelope, including
+        # _positive_int(primary_resource_id), so None cannot reach this point.
+        result[int(cast(int, proposal.primary_resource_id))] = ThreatPendingChange(
             approval_id=approval.id if can_view_diff else None,
             proposal_id=proposal.proposal_id if can_view_diff else None,
             proposal_version=proposal.proposal_version if can_view_diff else None,

@@ -24,21 +24,43 @@ SerializeItems = Callable[[list[TModel]], Awaitable[list[TItem]]]
 
 
 class InMemoryRegisterCriteria(Protocol):
-    """Pagination and grouping state shared by derived in-memory registers."""
+    """Pagination and grouping state shared by derived in-memory registers.
 
-    offset: int
-    limit: int
-    group_by: str | None
-    group_value: str | None
+    Members are read-only properties so frozen dataclass criteria satisfy the
+    protocol structurally without claiming settable attributes.
+    """
+
+    @property
+    def offset(self) -> int: ...
+
+    @property
+    def limit(self) -> int: ...
+
+    @property
+    def group_by(self) -> str | None: ...
+
+    @property
+    def group_value(self) -> str | None: ...
 
 
 class InMemoryRegisterResult(Protocol[TItem]):
-    """Canonical result shape produced from one permission-scoped candidate set."""
+    """Canonical result shape produced from one permission-scoped candidate set.
 
-    matching_items: list[TItem]
-    page_items: list[TItem]
-    groups: list[Any]
-    facets: dict[str, Any]
+    Members are read-only properties so frozen dataclass results satisfy the
+    protocol structurally without claiming settable attributes.
+    """
+
+    @property
+    def matching_items(self) -> list[TItem]: ...
+
+    @property
+    def page_items(self) -> list[TItem]: ...
+
+    @property
+    def groups(self) -> list[Any]: ...
+
+    @property
+    def facets(self) -> dict[str, Any]: ...
 
 
 @dataclass(frozen=True)

@@ -11,10 +11,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import asdict, is_dataclass
 from types import MappingProxyType
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from app.services._ict_register_reference.country_categories import COUNTRY_CATEGORIES
 from app.services._ict_register_reference.roi_maps import roi_en_value
+
+if TYPE_CHECKING:
+    from app.services._ict_register_lifecycle._derivation_impl import VendorDerivation
 
 VendorLocale = Literal["en", "cs"]
 
@@ -443,7 +446,7 @@ def vendor_regulatory_value(field: str, code: str) -> str:
     return vendor_value_label(field, code, locale="en")
 
 
-def canonicalize_vendor_derived(value: Any) -> dict[str, Any]:
+def canonicalize_vendor_derived(value: VendorDerivation | Mapping[str, Any]) -> dict[str, Any]:
     """Normalize one engine Vendor derivation for the public API projection."""
 
     raw = asdict(value) if is_dataclass(value) else dict(value)

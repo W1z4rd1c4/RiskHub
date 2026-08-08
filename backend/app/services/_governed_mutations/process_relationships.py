@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +43,9 @@ from app.services._vendor_governance.policy import assert_vendor_not_pending_gov
 from app.services._vendor_owner_lock import acquire_vendor_owner_identity_locks
 
 from .process_identity import canonical_process_display_name
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Row
 
 RelationshipType = Literal["risk", "asset", "vendor"]
 RelationshipAction = Literal["add", "update", "remove"]
@@ -85,6 +88,8 @@ async def snapshot_process_relationship_authorization(
     process_owner_ids = {row.process_owner_user_id for row in process_rows}
     department_ids = {row.owning_department_id for row in process_rows if row.owning_department_id is not None}
     related_owner_ids: set[int] = set()
+    row: Row[Any] | None
+    related_state: tuple[object, ...]
     if relationship_type == "risk":
         row = (
             await db.execute(
@@ -162,6 +167,8 @@ async def lock_process_relationship_authorization_rows(
 ) -> None:
     """Lock and verify every related row used by requester authorization."""
     related_id = snapshot.related_resource_id
+    row: Risk | Asset | Vendor | None
+    state: tuple[object, ...] | None
     if snapshot.relationship_type == "risk":
         row = (
             await db.execute(
@@ -274,7 +281,9 @@ async def lock_process_relationship_targets(
     if readable_process_id not in process_ids or not process_ids:
         raise ValidationError("Invalid governed relationship impact set")
     optimistic = dict(
-        (await db.execute(select(Process.id, Process.process_owner_user_id).where(Process.id.in_(process_ids)))).all()
+        (await db.execute(select(Process.id, Process.process_owner_user_id).where(Process.id.in_(process_ids))))
+        .tuples()
+        .all()
     )
     if set(optimistic) != process_ids:
         raise NotFoundError("Process not found")
@@ -503,6 +512,7 @@ async def apply_process_relationship_operation(
     if process.is_archived and action != "remove":
         raise ConflictError("Cannot mutate relationships of an archived Process")
 
+    existing: RiskProcessLink | ProcessAssetLink | ProcessVendorLink | None
     if relationship_type == "risk":
         risk = (await db.execute(select(Risk).where(Risk.id == related_id).with_for_update())).scalar_one_or_none()
         if risk is None or (action == "add" and risk.is_archived):

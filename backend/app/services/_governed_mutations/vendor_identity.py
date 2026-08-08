@@ -294,9 +294,9 @@ def vendor_triggered_scenarios(
     if not isinstance(policies, list):
         return ()
     keys = tuple(
-        policy.get("key")
+        key
         for policy in policies
-        if isinstance(policy, dict) and isinstance(policy.get("key"), str)
+        if isinstance(policy, dict) and isinstance(key := policy.get("key"), str)
     )
     if (
         not keys

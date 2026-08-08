@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -128,7 +128,7 @@ async def export_issues(
         plan=listing_plan,
     )
     now = utc_now()
-    rows = []
+    rows: list[dict[str, Any]] = []
     for offset in range(0, len(models), 100):
         batch = models[offset : offset + 100]
         linked_visibility = await build_issue_linked_visibility(db, current_user, batch)

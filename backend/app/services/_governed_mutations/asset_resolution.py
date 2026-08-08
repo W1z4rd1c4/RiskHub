@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +35,7 @@ from app.services._ict_register_lifecycle.asset_policy import (
     can_update_asset_record,
 )
 
+from ._payload_types import EditProposedChanges
 from .asset_identity import (
     ASSET_ARCHIVE_KIND,
     ASSET_CREATE_KIND,
@@ -113,12 +116,14 @@ async def approve_asset_mutation(
     assert requester is not None
     current_user = resolver
     if proposal.mutation_kind.startswith(ASSET_RELATIONSHIP_PREFIX):
-        operation = proposal.proposed_changes.get("operation")
+        # JSON-sourced envelope; the staleness gates isinstance-check it at runtime.
+        operation: Any = proposal.proposed_changes.get("operation")
         asset_locks = [lock for lock in locks if lock.resource_type == "asset"]
         vendor_locks = [lock for lock in locks if lock.resource_type == "vendor"]
         asset_ids = sorted(lock.resource_id for lock in asset_locks)
         vendor_ids = sorted(lock.resource_id for lock in vendor_locks)
-        assets = {
+        # Keys are ints; the wider key type admits Optional primary_resource_id lookups.
+        assets: dict[int | None, Asset] = {
             row.id: row
             for row in (
                 await db.execute(
@@ -201,7 +206,8 @@ async def approve_asset_mutation(
                 )
                 expected_impact["vendors"] = vendor_rows
                 vendor_protected = any(
-                    vendor_impact_is_protected(block)
+                    # cast: impact rows carry dict blocks by construction (vendor_impact).
+                    vendor_impact_is_protected(cast("dict[str, object]", block))
                     for row in vendor_rows
                     for block in (row["before"], row["after"])
                 )
@@ -239,15 +245,14 @@ async def approve_asset_mutation(
                 )
             )
         if stale:
+            primary_asset = assets.get(proposal.primary_resource_id)
             await finalize_governed_terminal_transition(
                 db,
                 approval=approval,
                 proposal=proposal,
                 impact_locks=locks,
                 actor=current_user,
-                department_id=assets.get(proposal.primary_resource_id).owning_department_id
-                if assets.get(proposal.primary_resource_id)
-                else None,
+                department_id=primary_asset.owning_department_id if primary_asset else None,
                 status=ApprovalStatus.EXPIRED,
                 resolution_notes="Governed Asset link became stale",
             )
@@ -268,10 +273,10 @@ async def approve_asset_mutation(
             elif relationship_type == "vendor" and action == "add":
                 db.add(AssetVendorLink(**values))
             elif relationship_type == "vendor" and action == "remove":
-                link = await db.get(AssetVendorLink, values.get("id"))
-                if link is None:
+                vendor_link = await db.get(AssetVendorLink, values.get("id"))
+                if vendor_link is None:
                     raise ValidationError("Governed Asset link payload is stale")
-                await db.delete(link)
+                await db.delete(vendor_link)
             elif relationship_type == "risk" and action == "add":
                 if risk is None:
                     raise ValidationError("Governed Asset link payload is stale")
@@ -283,23 +288,23 @@ async def approve_asset_mutation(
                 )
             elif relationship_type == "risk" and action == "remove":
                 link_id = values.get("id")
-                link = (
+                risk_link = (
                     await db.execute(select(RiskAssetLink).where(RiskAssetLink.id == link_id).with_for_update())
                 ).scalar_one_or_none()
                 if (
-                    link is None
+                    risk_link is None
                     or risk is None
-                    or link.risk_id != risk.id
-                    or link.asset_id != assets[proposal.primary_resource_id].id
+                    or risk_link.risk_id != risk.id
+                    or risk_link.asset_id != assets[proposal.primary_resource_id].id
                 ):
                     raise ValidationError("Governed Asset link payload is stale")
-                await db.delete(link)
+                await db.delete(risk_link)
             else:
                 raise ValidationError("Unsupported governed Asset link operation")
             for item in assets.values():
                 item.governance_version += 1
-            for item in vendors.values():
-                item.governance_version += 1
+            for impacted_vendor in vendors.values():
+                impacted_vendor.governance_version += 1
             await finalize_governed_terminal_transition(
                 db,
                 approval=approval,
@@ -371,8 +376,11 @@ async def approve_asset_mutation(
                 resolution_notes="Governed Asset version changed after submission",
             )
         else:
-            proposed_updates = proposal.proposed_changes.get("after")
-            expected_before = proposal.proposed_changes.get("before")
+            # cast: governed edit payloads are EditProposedChanges by intake validation
+            # (valid_asset_governed_envelope); the malformed gate below still fails closed.
+            edit_changes = cast(EditProposedChanges, proposal.proposed_changes)
+            proposed_updates = edit_changes.get("after")
+            expected_before = edit_changes.get("before")
             malformed = not isinstance(proposed_updates, dict) or not isinstance(expected_before, dict)
             if not malformed:
                 try:
@@ -403,8 +411,15 @@ async def approve_asset_mutation(
                             .execution_options(populate_existing=True)
                         )
                     ).scalar_one_or_none()
-                orphan_owner_field = role_to_field.get(
-                    getattr(governed_orphan, "responsibility_role", None)
+                # Invariant: identical to role_to_field.get(getattr(orphan, ..., None)) —
+                # a missing orphan or a None/unknown role always mapped to None.
+                orphan_role = (
+                    governed_orphan.responsibility_role
+                    if governed_orphan is not None
+                    else None
+                )
+                orphan_owner_field = (
+                    role_to_field.get(orphan_role) if orphan_role is not None else None
                 )
                 malformed = bool(
                     len(orphan_locks) != 1
@@ -509,7 +524,6 @@ async def approve_asset_mutation(
                 current_impact, proposed_impact = await _existing_asset_impacts(
                     db, asset=asset, updates=proposed_updates
                 )
-                expected_impact: dict[str, object]
                 if vendors:
                     from .vendor_impact import (
                         asset_point_vendor_impacts,
@@ -533,7 +547,8 @@ async def approve_asset_mutation(
                         "vendors": vendor_rows,
                     }
                     vendor_protected = any(
-                        vendor_impact_is_protected(block)
+                        # cast: impact rows carry dict blocks by construction (vendor_impact).
+                        vendor_impact_is_protected(cast("dict[str, object]", block))
                         for row in vendor_rows
                         for block in (row["before"], row["after"])
                     )
@@ -666,7 +681,8 @@ async def approve_asset_mutation(
                     "vendors": vendor_rows,
                 }
                 vendor_protected = any(
-                    vendor_impact_is_protected(block)
+                    # cast: impact rows carry dict blocks by construction (vendor_impact).
+                    vendor_impact_is_protected(cast("dict[str, object]", block))
                     for row in vendor_rows
                     for block in (row["before"], row["after"])
                 )

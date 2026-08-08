@@ -171,7 +171,8 @@ case "${subcmd}" in
     case "${container}" in
       riskhub-backend) [[ "${DOCKER_BACKEND_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
       riskhub-frontend) [[ "${DOCKER_FRONTEND_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
-      riskhub-backend-scheduler) [[ "${DOCKER_SCHEDULER_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
+      riskhub-backend-scheduler)
+        [[ "${DOCKER_SCHEDULER_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
       *) exit 1 ;;
     esac
     ;;

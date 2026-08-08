@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +25,8 @@ from app.services._ict_register_reference.parameters import (
 )
 from app.services._ict_register_reference.vendor_values import vendor_workbook_value
 
-_TIER_CODES = {
+# Keyed as ``str | None`` because lookups pass a possibly missing derived tier.
+_TIER_CODES: dict[str | None, str] = {
     "Kritický dodavatel": "critical",
     "Významný dodavatel": "significant",
     "Standardní dodavatel": "standard",
@@ -46,7 +48,7 @@ async def existing_vendor_impacts(
     parameters = await load_ict_workbook_parameter_set_for_update(db)
     graph = await load_ict_register_graph(db, vendors=[vendor])
     current_input = next(item for item in graph.vendors if item.id == vendor.id)
-    proposed_updates = {
+    proposed_updates: dict[str, Any] = {
         key: value
         for key, value in updates.items()
         if key in current_input.__dataclass_fields__
@@ -132,10 +134,10 @@ async def process_point_vendor_impacts(
     before = derive_ict_register(graph, parameters)
     current_input = process_derivation_input(process)
     supported = set(current_input.__dataclass_fields__)
-    proposed_input = replace(
-        current_input,
-        **{key: value for key, value in updates.items() if key in supported},
-    )
+    supported_updates: dict[str, Any] = {
+        key: value for key, value in updates.items() if key in supported
+    }
+    proposed_input = replace(current_input, **supported_updates)
     proposed_graph = replace(
         graph,
         processes=(
@@ -238,7 +240,7 @@ async def process_relationship_vendor_impacts(
             links = (*links, ProcessVendorLinkInput(process_id=process.id, vendor_id=related_id))
         proposed_graph = replace(graph, process_vendor_links=links)
     else:
-        links = tuple(
+        asset_links = tuple(
             link
             for link in graph.process_asset_links
             if not (link.process_id == process.id and link.asset_id == related_id)
@@ -247,8 +249,8 @@ async def process_relationship_vendor_impacts(
             values = operation.get("after")
             if not isinstance(values, dict):
                 return vendors, []
-            links = (
-                *links,
+            asset_links = (
+                *asset_links,
                 ProcessAssetLinkInput(
                     process_id=process.id,
                     asset_id=related_id,
@@ -257,7 +259,7 @@ async def process_relationship_vendor_impacts(
                     significance=values.get("significance"),
                 ),
             )
-        proposed_graph = replace(graph, process_asset_links=links)
+        proposed_graph = replace(graph, process_asset_links=asset_links)
     after = derive_ict_register(proposed_graph, parameters)
     rows = [
         {
@@ -314,10 +316,10 @@ async def asset_point_vendor_impacts(
     before = derive_ict_register(graph, parameters)
     current_input = asset_derivation_input(asset)
     supported = set(current_input.__dataclass_fields__)
-    proposed_input = replace(
-        current_input,
-        **{key: value for key, value in updates.items() if key in supported},
-    )
+    supported_updates: dict[str, Any] = {
+        key: value for key, value in updates.items() if key in supported
+    }
+    proposed_input = replace(current_input, **supported_updates)
     proposed_graph = replace(
         graph,
         assets=(

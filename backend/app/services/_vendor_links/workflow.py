@@ -5,6 +5,7 @@ from datetime import UTC
 from typing import Literal
 
 from fastapi import HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -334,7 +335,7 @@ async def link_vendor_target(
     entity_id: int,
     request_reason: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
-) -> dict[str, str]:
+) -> dict[str, str] | JSONResponse:
     target, vendor, entity_name = await _prepare_vendor_link_mutation(
         db,
         vendor_id=vendor_id,
@@ -443,7 +444,7 @@ async def unlink_vendor_target(
     entity_id: int,
     request_reason: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
-) -> None:
+) -> JSONResponse | None:
     target, vendor, entity_name = await _prepare_vendor_link_mutation(
         db,
         vendor_id=vendor_id,
@@ -480,6 +481,7 @@ async def unlink_vendor_target(
         )
         vendor.governance_version += 1
         await db.commit()
+        return None
     except Exception:
         # Keep the relationship mutation and the audit record atomic.
         await db.rollback()

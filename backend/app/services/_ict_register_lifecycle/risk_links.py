@@ -358,6 +358,7 @@ async def remove_risk_process_link(
         target_label=process_display_name(process.l1_process, process.l2_subprocess),
     )
     await commit_service_boundary(db, boundary="ict_register_risk_link_delete")
+    return None
 
 
 async def list_risk_asset_links(

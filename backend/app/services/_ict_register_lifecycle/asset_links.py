@@ -602,6 +602,7 @@ async def remove_asset_process_link(
         target_label=process_display_name(process.l1_process, process.l2_subprocess),
     )
     await commit_service_boundary(db, boundary="ict_register_asset_link_delete")
+    return None
 
 
 async def list_asset_asset_links(

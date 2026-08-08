@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, overload
 
 from app.core.exceptions import NotFoundError
 from app.services._config.lookup import get_config_value
@@ -28,6 +28,31 @@ if TYPE_CHECKING:
 
 IctParameterValue = int | str | date
 IctParameterValueType = Literal["int", "string", "date"]
+
+# Typed name groups mirroring the ``value_type`` column of the registry below;
+# ``_coerce_effective_value`` guarantees the matching runtime type per group.
+IctIntParameterName = Literal[
+    "P_KritSkore",
+    "P_VysSkore",
+    "P_StrSkore",
+    "P_MTPDKrit",
+    "P_MTPDStr",
+    "P_BonusKrit",
+    "P_BonusStr",
+    "P_BonusDef",
+    "P_AktNizka",
+    "P_AktStredni",
+    "P_AktVysoka",
+    "P_RizStr",
+    "P_RizVys",
+    "P_RizKrit",
+    "P_Tolerance",
+    "P_VKProc",
+    "P_Vypadek",
+    "P_GdprMinC",
+]
+IctStringParameterName = Literal["P_Verze", "P_Entita", "P_LEI"]
+IctDateParameterName = Literal["P_RefDatum", "P_RoIDatum"]
 
 ICT_PARAMETER_CONFIG_CATEGORY = "ict_register_parameters"
 
@@ -126,6 +151,14 @@ class IctWorkbookParameterSet:
     version: str
     values: Mapping[str, IctParameterValue]
 
+    @overload
+    def value(self, name: IctIntParameterName) -> int: ...
+    @overload
+    def value(self, name: IctStringParameterName) -> str: ...
+    @overload
+    def value(self, name: IctDateParameterName) -> date: ...
+    @overload
+    def value(self, name: str) -> IctParameterValue: ...
     def value(self, name: str) -> IctParameterValue:
         """Return one effective parameter value by its workbook name."""
         try:

@@ -1,4 +1,6 @@
-from sqlalchemy import String, case, func, or_, select, union_all
+from typing import Any
+
+from sqlalchemy import ColumnElement, SQLColumnExpression, String, case, func, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import risk_visibility_clause, vendor_visibility_clause
@@ -177,6 +179,9 @@ async def load_issue_sql_groups(
     highlighted_expr = Issue.severity.in_((IssueSeverity.high.value, IssueSeverity.critical.value))
 
     if group_by in {"department", "owner", "severity", "status"}:
+        value_expr: SQLColumnExpression[Any]
+        join_target: type[Department] | type[User] | None
+        join_on: ColumnElement[bool] | None
         if group_by == "department":
             value_expr = func.coalesce(Department.name, ISSUE_GROUP_UNKNOWN_DEPARTMENT)
             join_target = Department

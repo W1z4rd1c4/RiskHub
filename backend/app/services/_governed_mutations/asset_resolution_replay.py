@@ -26,7 +26,7 @@ async def relationship_replay_stale_reason(
     *,
     proposal: GovernedMutationProposal,
     operation: object,
-    assets: dict[int, Asset],
+    assets: dict[int | None, Asset],
 ) -> str | None:
     if not isinstance(operation, dict):
         return "Governed Asset link operation is malformed"
@@ -93,13 +93,15 @@ async def relationship_replay_stale_reason(
         if vendor is None or (action == "add" and vendor.is_archived):
             return "Governed Asset Vendor reference is stale"
         if action == "remove":
-            link = (
+            vendor_link = (
                 await db.execute(
                     select(AssetVendorLink).where(AssetVendorLink.id == values.get("id")).with_for_update()
                 )
             ).scalar_one_or_none()
-            if link is None or any(
-                jsonable_encoder(getattr(link, field)) != value for field, value in values.items() if field != "id"
+            if vendor_link is None or any(
+                jsonable_encoder(getattr(vendor_link, field)) != value
+                for field, value in values.items()
+                if field != "id"
             ):
                 return "Governed Asset Vendor pair is stale"
     else:
@@ -115,10 +117,10 @@ async def relationship_replay_stale_reason(
         if risk is None or risk.is_archived:
             return "Governed Risk reference is stale"
         if action == "remove":
-            link = (
+            risk_link = (
                 await db.execute(select(RiskAssetLink).where(RiskAssetLink.id == values.get("id")).with_for_update())
             ).scalar_one_or_none()
-            if link is None or link.risk_id != risk_id or link.asset_id != primary_id:
+            if risk_link is None or risk_link.risk_id != risk_id or risk_link.asset_id != primary_id:
                 return "Governed Risk Asset pair is stale"
     return None
 

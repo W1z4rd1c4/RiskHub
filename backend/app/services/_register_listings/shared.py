@@ -13,7 +13,7 @@ from app.services._collection_filters import coerce_optional_bool, coerce_option
 GROUP_UNLINKED_VENDOR = "__unlinked_vendor__"
 GROUP_UNCATEGORIZED = "__uncategorized__"
 RegisterLifecycle = Literal["active", "archived", "all"]
-REGISTER_LIFECYCLES = {"active", "archived", "all"}
+REGISTER_LIFECYCLES: set[RegisterLifecycle] = {"active", "archived", "all"}
 
 
 def resolve_register_lifecycle(filters: dict[str, Any]) -> tuple[RegisterLifecycle, bool]:

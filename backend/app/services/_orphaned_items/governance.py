@@ -253,20 +253,20 @@ async def project_orphan_request_reason_requirements(
             assets=assets,
             vendors=vendors,
         )
-        for link in graph.process_asset_links:
-            if link.process_id in process_ids:
-                process_asset_ids.setdefault(link.process_id, set()).add(link.asset_id)
+        for process_asset_link in graph.process_asset_links:
+            if process_asset_link.process_id in process_ids:
+                process_asset_ids.setdefault(process_asset_link.process_id, set()).add(process_asset_link.asset_id)
         asset_scope_ids = asset_ids | {
             asset_id
             for linked_asset_ids in process_asset_ids.values()
             for asset_id in linked_asset_ids
         }
-        for link in graph.asset_vendor_links:
-            if link.asset_id in asset_scope_ids:
-                asset_vendor_ids.setdefault(link.asset_id, set()).add(link.vendor_id)
-        for link in graph.process_vendor_links:
-            if link.process_id in process_ids:
-                process_vendor_ids.setdefault(link.process_id, set()).add(link.vendor_id)
+        for asset_vendor_link in graph.asset_vendor_links:
+            if asset_vendor_link.asset_id in asset_scope_ids:
+                asset_vendor_ids.setdefault(asset_vendor_link.asset_id, set()).add(asset_vendor_link.vendor_id)
+        for process_vendor_link in graph.process_vendor_links:
+            if process_vendor_link.process_id in process_ids:
+                process_vendor_ids.setdefault(process_vendor_link.process_id, set()).add(process_vendor_link.vendor_id)
         for process_id, linked_asset_ids in process_asset_ids.items():
             process_vendor_ids.setdefault(process_id, set()).update(
                 vendor_id

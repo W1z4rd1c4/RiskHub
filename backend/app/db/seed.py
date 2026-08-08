@@ -352,8 +352,7 @@ async def seed_database():
 
         # Create test users
         users = {}
-        for user_data_raw in TEST_USERS:
-            user_data = cast(SeedPayload, user_data_raw)
+        for user_data in TEST_USERS:
             role = roles[cast(str, user_data["role"])]
             department_code = cast(str | None, user_data["department"])
             user_department = departments.get(department_code) if department_code else None

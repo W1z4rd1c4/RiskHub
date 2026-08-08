@@ -112,12 +112,14 @@ async def reload_asset_approval(db: AsyncSession, approval_id: int) -> ApprovalR
 
 def _positive_ids_for_keys(value: object, keys: frozenset[str]) -> set[int]:
     if isinstance(value, dict):
-        found = {item for key, item in value.items() if key in keys and type(item) is int and item > 0}
+        found: set[int] = {
+            item for key, item in value.items() if key in keys and type(item) is int and item > 0
+        }
         for nested in value.values():
             found.update(_positive_ids_for_keys(nested, keys))
         return found
     if isinstance(value, list):
-        found: set[int] = set()
+        found = set()
         for nested in value:
             found.update(_positive_ids_for_keys(nested, keys))
         return found
@@ -221,7 +223,9 @@ async def _lock_asset_departments_resources_and_references(
             await db.execute(
                 select(Asset.id, Asset.owning_department_id).where(Asset.id.in_(sorted(asset_ids))).order_by(Asset.id)
             )
-        ).all()
+        )
+        .tuples()
+        .all()
     )
     department_ids = (
         {actor.department_id for actor in actors.values() if actor.department_id is not None}
@@ -262,8 +266,10 @@ async def _lock_asset_departments_resources_and_references(
     link_ids = _positive_ids_for_keys(proposal.proposed_changes, frozenset({"id", "link_id"}))
     for model in (Risk, Vendor):
         await db.execute(select(model).where(model.id.in_(sorted(reference_ids))).order_by(model.id).with_for_update())
-    for model in (AssetAssetLink, AssetVendorLink, RiskAssetLink):
-        await db.execute(select(model).where(model.id.in_(sorted(link_ids))).order_by(model.id).with_for_update())
+    for link_model in (AssetAssetLink, AssetVendorLink, RiskAssetLink):
+        await db.execute(
+            select(link_model).where(link_model.id.in_(sorted(link_ids))).order_by(link_model.id).with_for_update()
+        )
 
 
 async def load_live_asset_resolution_policy(

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from pydantic import ValidationError as PydanticValidationError
@@ -325,7 +326,7 @@ def _valid_composite_point_impact(
         or process_row.get("resource_id") != process_id
     ):
         return False
-    process_blocks = {"before": process_row.get("before"), "after": process_row.get("after")}
+    process_blocks: dict[str, Any] = {"before": process_row.get("before"), "after": process_row.get("after")}
     if not all(
         isinstance(block, dict)
         and set(block) == {"cif", "criticality_class"}
@@ -566,8 +567,9 @@ def _strict_governed_process_identity(
         and _valid_composite_point_impact(
             proposal.derived_impact_snapshot,
             process_id=primary_resource_id or 0,
-            asset_ids=asset_ids,
-            vendor_ids=vendor_ids,
+            # Invariant: the preceding all() guard proved every impacted resource_id is a positive int.
+            asset_ids=cast("set[int]", asset_ids),
+            vendor_ids=cast("set[int]", vendor_ids),
         )
     )
     if (
@@ -621,7 +623,8 @@ def _strict_governed_process_identity(
         primary_resource_type=PROCESS_RESOURCE_TYPE,
         primary_resource_id=primary_resource_id,
         primary_resource_name=resource_name,
-        base_governance_version=base_version,
+        # Invariant: the identity guard above raised unless _positive_int(base_version) held.
+        base_governance_version=cast(int, base_version),
         action_type=ApprovalActionType.EDIT,
         pending_changes=pending_changes,
         triggered_scenarios=tuple(triggered_scenarios),
@@ -1065,7 +1068,7 @@ def _compile_json_object_keys_allowed_postgresql(element, compiler, **kw):
     )
 
 
-def _quoted_sql_values(values: object) -> str:
+def _quoted_sql_values(values: Iterable[object]) -> str:
     return ", ".join("'" + str(value).replace("'", "''") + "'" for value in values)
 
 

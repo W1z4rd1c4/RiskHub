@@ -260,9 +260,9 @@ async def build_visible_pending_approvals_query(
         query = query.where(
             or_(
                 approval_resource_type_filter_clause(resource_type, valid_extended_ids),
-                and_(resource_type == ApprovalResourceType.ASSET, asset_governed),
-                and_(resource_type == ApprovalResourceType.VENDOR, vendor_governed),
-                and_(resource_type == ApprovalResourceType.THREAT, threat_governed),
+                and_(true() if resource_type == ApprovalResourceType.ASSET else false(), asset_governed),
+                and_(true() if resource_type == ApprovalResourceType.VENDOR else false(), vendor_governed),
+                and_(true() if resource_type == ApprovalResourceType.THREAT else false(), threat_governed),
             )
         )
     return query.order_by(ApprovalRequest.created_at.desc(), ApprovalRequest.id.desc())

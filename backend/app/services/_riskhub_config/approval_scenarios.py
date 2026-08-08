@@ -17,6 +17,7 @@ from app.services._authorization_capabilities import approval_scenario_capabilit
 from app.services._governed_mutations.fixed_accountability_policy import (
     ACCOUNTABILITY_SCENARIO_KEY,
     FIXED_ACCOUNTABILITY_POLICY,
+    FixedAccountabilityPolicyDefinition,
     load_fixed_accountability_scenario_for_update,
 )
 from app.services._governed_mutations.fixed_accountability_policy import (
@@ -26,18 +27,21 @@ from app.services._governed_mutations.fixed_asset_policy import (
     ASSET_ALLOWED_APPROVER_ROLES,
     ASSET_SCENARIO_KEY,
     FIXED_ASSET_POLICY,
+    FixedAssetPolicyDefinition,
     load_fixed_asset_scenario_for_update,
 )
 from app.services._governed_mutations.fixed_policy import (
     ALLOWED_APPROVER_ROLES,
     FIXED_PROCESS_POLICY,
     SCENARIO_KEY,
+    FixedProcessPolicyDefinition,
     load_fixed_process_scenario_for_update,
 )
 from app.services._governed_mutations.fixed_vendor_policy import (
     FIXED_VENDOR_POLICY,
     VENDOR_ALLOWED_APPROVER_ROLES,
     VENDOR_SCENARIO_KEY,
+    FixedVendorPolicyDefinition,
     load_fixed_vendor_scenario_for_update,
 )
 from app.services.approval_scenario_policy import normalize_approval_scenario_roles
@@ -61,7 +65,13 @@ class ApprovalScenarioChanges:
 def _fixed_policy_definition(
     scenario_key: str,
 ) -> ApprovalScenarioFixedPolicyRead | None:
-    policies = {
+    policies: dict[
+        str,
+        FixedProcessPolicyDefinition
+        | FixedAssetPolicyDefinition
+        | FixedVendorPolicyDefinition
+        | FixedAccountabilityPolicyDefinition,
+    ] = {
         SCENARIO_KEY: FIXED_PROCESS_POLICY,
         ASSET_SCENARIO_KEY: FIXED_ASSET_POLICY,
         VENDOR_SCENARIO_KEY: FIXED_VENDOR_POLICY,

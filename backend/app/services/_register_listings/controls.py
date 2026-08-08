@@ -166,7 +166,7 @@ async def _build_control_facets(
     """Aggregate permission-scoped Control facets without materializing Controls."""
 
     facet_keys = ("status", "department", "process", "category", "monitoring_status")
-    counts = {key: Counter() for key in facet_keys}
+    counts: dict[str, Counter[str]] = {key: Counter() for key in facet_keys}
     catalogs: dict[str, dict[str, tuple[str, dict[str, Any]]]] = {key: {} for key in counts}
 
     status_value = Control.status

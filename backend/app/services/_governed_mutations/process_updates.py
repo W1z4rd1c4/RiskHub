@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
@@ -207,12 +209,14 @@ async def submit_process_mutation_if_required(
     asset_protected = any(
         block["cif"] == "yes" or block["resulting_criticality"] == "critical"
         for row in asset_derived_rows
-        for block in (row["before"], row["after"])
+        # Invariant: derived impact rows always carry dict before/after blocks.
+        for block in cast("tuple[dict[str, object], dict[str, object]]", (row["before"], row["after"]))
     )
     vendor_protected = any(
         vendor_impact_is_protected(block)
         for row in vendor_derived_rows
-        for block in (row["before"], row["after"])
+        # Invariant: derived impact rows always carry dict before/after blocks.
+        for block in cast("tuple[dict[str, object], dict[str, object]]", (row["before"], row["after"]))
     )
     triggered_scenarios: list[str] = []
     triggered_policies = []

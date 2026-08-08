@@ -149,7 +149,7 @@ async def export_risks(
                 RiskTypeConfig.code.in_(risk_type_codes)
             )
         )
-        configured_type_labels = dict(result.all())
+        configured_type_labels = {code: display_name for code, display_name in result.all()}
     return render_risk_register_csv(
         rows,
         locale=locale,

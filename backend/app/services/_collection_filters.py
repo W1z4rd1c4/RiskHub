@@ -83,13 +83,15 @@ def coerce_optional_string(field_name: str, value: Any) -> str | None:
     return value or None
 
 
-def coerce_optional_literal(field_name: str, value: Any, allowed_values: set[str]) -> str | None:
+def coerce_optional_literal[L: str](field_name: str, value: Any, allowed_values: set[L]) -> L | None:
     coerced = coerce_optional_string(field_name, value)
     if coerced is None:
         return None
-    if coerced not in allowed_values:
-        raise _invalid_filter(field_name)
-    return coerced
+    # Return the matching member so the result carries the literal type.
+    for allowed in allowed_values:
+        if coerced == allowed:
+            return allowed
+    raise _invalid_filter(field_name)
 
 
 def merge_collection_filters(query: Any, defaults: dict[str, Any]) -> dict[str, Any]:

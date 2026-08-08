@@ -77,7 +77,9 @@ async def lock_governed_process_resolution_suffix(
                 .where(Process.id.in_(ordered_process_ids))
                 .order_by(Process.id)
             )
-        ).all()
+        )
+        .tuples()
+        .all()
     )
     department_ids = sorted(
         set(additional_department_ids)

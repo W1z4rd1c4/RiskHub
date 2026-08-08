@@ -354,43 +354,43 @@ async def _load_visible_vendor_link_context(
             process_labels[process_id] = f"{code}: {name}"
 
     if check_permission_fn(current_user, "risks", "read"):
-        rows = (
+        risk_rows = (
             await db.execute(
                 select(VendorRiskLink.vendor_id, Risk.id, Risk.risk_id_code, Risk.name)
                 .join(Risk, Risk.id == VendorRiskLink.risk_id)
                 .where(VendorRiskLink.vendor_id.in_(vendor_ids))
             )
         ).all()
-        readable = await visible_risk_ids(db, current_user, (row[1] for row in rows))
-        for vendor_id, risk_id, code, name in rows:
+        readable = await visible_risk_ids(db, current_user, (row[1] for row in risk_rows))
+        for vendor_id, risk_id, code, name in risk_rows:
             if risk_id in readable:
                 risks[vendor_id].add(risk_id)
                 risk_labels[risk_id] = f"{code}: {name}"
 
     if check_permission_fn(current_user, "controls", "read"):
-        rows = (
+        control_rows = (
             await db.execute(
                 select(VendorControlLink.vendor_id, Control.id, Control.name)
                 .join(Control, Control.id == VendorControlLink.control_id)
                 .where(VendorControlLink.vendor_id.in_(vendor_ids))
             )
         ).all()
-        readable = await visible_control_ids(db, current_user, (row[1] for row in rows))
-        for vendor_id, control_id, name in rows:
+        readable = await visible_control_ids(db, current_user, (row[1] for row in control_rows))
+        for vendor_id, control_id, name in control_rows:
             if control_id in readable:
                 controls[vendor_id].add(control_id)
                 control_labels[control_id] = name
 
     if check_permission_fn(current_user, "kris", "read"):
-        rows = (
+        kri_rows = (
             await db.execute(
                 select(VendorKRILink.vendor_id, KeyRiskIndicator.id, KeyRiskIndicator.metric_name)
                 .join(KeyRiskIndicator, KeyRiskIndicator.id == VendorKRILink.kri_id)
                 .where(VendorKRILink.vendor_id.in_(vendor_ids))
             )
         ).all()
-        readable = await visible_kri_ids(db, current_user, (row[1] for row in rows))
-        for vendor_id, kri_id, name in rows:
+        readable = await visible_kri_ids(db, current_user, (row[1] for row in kri_rows))
+        for vendor_id, kri_id, name in kri_rows:
             if kri_id in readable:
                 kris[vendor_id].add(kri_id)
                 kri_labels[kri_id] = name

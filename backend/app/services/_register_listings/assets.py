@@ -68,7 +68,10 @@ _SORT_FIELDS = frozenset(
         "created_at",
     )
 )
-_CRITICALITY_ORDER = {value: index for index, value in enumerate(ASSET_PRELIMINARY_CRITICALITY_CODES)}
+# Sort-key lookup domain includes ``None`` (rows without a derived block).
+_CRITICALITY_ORDER: dict[str | None, int] = {
+    value: index for index, value in enumerate(ASSET_PRELIMINARY_CRITICALITY_CODES)
+}
 
 
 @dataclass(frozen=True)
@@ -135,6 +138,7 @@ def _tuple_values(name: str, value: Any, *, integers: bool = False) -> tuple[Any
     raw_values = value if isinstance(value, (list, tuple, set)) else [value]
     result: list[Any] = []
     for raw in raw_values:
+        coerced: int | str | None
         if integers:
             try:
                 coerced = int(raw)
@@ -272,7 +276,9 @@ async def _load_visible_link_context(
     asset_clause = asset_visibility_clause(current_user)
     if asset_clause is not None:
         asset_query = asset_query.where(asset_clause)
-    asset_labels = dict((await db.execute(asset_query)).all()) if candidate_asset_ids else {}
+    asset_labels: dict[int, str] = (
+        dict((await db.execute(asset_query)).tuples().all()) if candidate_asset_ids else {}
+    )
     readable_asset_ids = set(asset_labels)
     for dependent_id, supporting_id in asset_link_rows:
         if dependent_id in asset_ids and supporting_id in readable_asset_ids:
@@ -288,7 +294,7 @@ async def _load_visible_link_context(
     candidate_vendor_ids = {vendor_id for _, vendor_id in vendor_rows}
     readable_vendor_ids = await visible_vendor_ids(db, current_user, candidate_vendor_ids)
     vendor_labels = dict(
-        (await db.execute(select(Vendor.id, Vendor.name).where(Vendor.id.in_(readable_vendor_ids)))).all()
+        (await db.execute(select(Vendor.id, Vendor.name).where(Vendor.id.in_(readable_vendor_ids)))).tuples().all()
     )
     for asset_id, vendor_id in vendor_rows:
         if vendor_id in readable_vendor_ids:
@@ -302,7 +308,7 @@ async def _load_visible_link_context(
     candidate_risk_ids = {risk_id for _, risk_id in risk_rows}
     readable_risk_ids = await visible_risk_ids(db, current_user, candidate_risk_ids)
     risk_labels = dict(
-        (await db.execute(select(Risk.id, Risk.risk_id_code).where(Risk.id.in_(readable_risk_ids)))).all()
+        (await db.execute(select(Risk.id, Risk.risk_id_code).where(Risk.id.in_(readable_risk_ids)))).tuples().all()
     )
     for asset_id, risk_id in risk_rows:
         if risk_id in readable_risk_ids:

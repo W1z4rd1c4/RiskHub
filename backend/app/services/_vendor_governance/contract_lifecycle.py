@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy import asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,7 +30,7 @@ async def create_vendor_contract_detail(
     vendor_id: int,
     payload: VendorContractCreate,
     current_user: User,
-) -> VendorContractRead:
+) -> VendorContractRead | JSONResponse:
     vendor = await assert_contract_mutation_vendor(db, vendor_id=vendor_id, current_user=current_user)
     from app.services._governed_mutations.vendor_mutations import (
         submit_vendor_child_mutation_if_required,
@@ -86,7 +87,7 @@ async def update_vendor_contract_detail(
     contract_id: int,
     payload: VendorContractUpdate,
     current_user: User,
-) -> VendorContractRead:
+) -> VendorContractRead | JSONResponse:
     contract = await assert_contract_update_allowed(
         db, vendor_id=vendor_id, contract_id=contract_id, current_user=current_user
     )
@@ -138,7 +139,7 @@ async def archive_vendor_contract_detail(
     contract_id: int,
     current_user: User,
     request_reason: str | None = None,
-) -> object | None:
+) -> JSONResponse | None:
     contract = await assert_contract_archive_allowed(
         db, vendor_id=vendor_id, contract_id=contract_id, current_user=current_user
     )
@@ -169,6 +170,7 @@ async def archive_vendor_contract_detail(
         db, actor=current_user, contract=contract, changes=changes
     )
     await commit_service_boundary(db, boundary="vendor_contract_archive")
+    return None
 
 
 async def restore_vendor_contract_detail(

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from fastapi.encoders import jsonable_encoder
@@ -488,6 +488,8 @@ def _strict_extended_process_identity(
     )
     if not common_valid:
         raise ValueError("Malformed extended governed Process identity")
+    # Invariant: common_valid proved approver_roles is a non-empty list[str].
+    roles = cast("list[str]", roles)
 
     kind = proposal.mutation_kind
     triggered_scenarios = proposal.proposed_changes.get("triggered_scenarios", [scenario.get("key")])
@@ -631,7 +633,7 @@ def _strict_extended_process_identity(
         except ValidationError as exc:
             raise ValueError("Malformed governed Process relationship") from exc
         impact_rows = proposal.impacted_resources_snapshot
-        impact_process_ids = [
+        impact_process_ids: list[Any] = [
             item.get("resource_id")
             for item in impact_rows
             if isinstance(item, dict) and item.get("resource_type") == "process"
@@ -819,7 +821,8 @@ async def valid_extended_process_approval_ids(
         )
     )
     if approval_ids is not None:
-        ids = sorted({_positive_int(value) for value in approval_ids} - {None})
+        # Invariant: subtracting {None} leaves only positive int ids.
+        ids = sorted(cast("set[int]", {_positive_int(value) for value in approval_ids} - {None}))
         if not ids:
             return frozenset()
         statement = statement.where(GovernedMutationProposal.approval_request_id.in_(ids))
@@ -1107,12 +1110,14 @@ async def submit_process_archive_if_required(
     asset_protected = any(
         block["cif"] == "yes" or block["resulting_criticality"] == "critical"
         for row in asset_derived_rows
-        for block in (row["before"], row["after"])
+        # Invariant: derived impact rows always carry dict before/after blocks.
+        for block in cast("tuple[dict[str, object], dict[str, object]]", (row["before"], row["after"]))
     )
     vendor_protected = any(
         vendor_impact_is_protected(block)
         for row in vendor_derived_rows
-        for block in (row["before"], row["after"])
+        # Invariant: derived impact rows always carry dict before/after blocks.
+        for block in cast("tuple[dict[str, object], dict[str, object]]", (row["before"], row["after"]))
     )
     triggered_scenarios: list[str] = []
     triggered_policies: list[dict[str, Any]] = []
@@ -1272,7 +1277,7 @@ async def submit_process_relationship_mutation(
         not isinstance(item.get("resource_name"), str) for item in provided_impacts.values()
     ):
         raise ValidationError("Invalid impacted Process display identity")
-    canonical_impacts = [
+    canonical_impacts: list[dict[str, Any]] = [
         {
             "resource_type": "process",
             "resource_id": impacted.id,
@@ -1329,7 +1334,8 @@ async def submit_process_relationship_mutation(
     vendor_protected = any(
         vendor_impact_is_protected(block)
         for row in vendor_derived_rows
-        for block in (row["before"], row["after"])
+        # Invariant: derived impact rows always carry dict before/after blocks.
+        for block in cast("tuple[dict[str, object], dict[str, object]]", (row["before"], row["after"]))
     )
     vendor_roles: list[str] = []
     if vendor_protected:

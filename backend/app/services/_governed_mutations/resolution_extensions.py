@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from fastapi.encoders import jsonable_encoder
@@ -137,7 +137,8 @@ async def _expire_malformed_extended(
         process_ids=process_ids,
         additional_department_ids=actor_department_ids,
     )
-    process = locked.processes.get(approval.resource_id) if process_ids else None
+    # Invariant: process_ids is non-empty only when resource_id is a positive int.
+    process = locked.processes.get(cast(int, approval.resource_id)) if process_ids else None
     if not requester_cancel:
         roles = validated_fixed_process_roles(locked.scenario)
         role_name = getattr(getattr(actor, "role", None), "name", None)
@@ -280,7 +281,8 @@ async def _locked_actor_context(db: AsyncSession, user_ids: set[int]) -> dict[in
     users_by_id = {user.id: user for user in users}
     for user in users:
         set_committed_value(user, "role", roles_by_id.get(user.role_id))
-        set_committed_value(user, "manager", users_by_id.get(user.manager_id))
+        # Read-only widening: a missing or None manager id simply resolves to None.
+        set_committed_value(user, "manager", cast("dict[int | None, User]", users_by_id).get(user.manager_id))
     return users_by_id
 
 
@@ -623,7 +625,7 @@ async def approve_extended_process_mutation(
                     assets=point_assets,
                     parameters=locked_suffix.parameters,
                 )
-                expected = {
+                expected: dict[str, Any] = {
                     "processes": [{"resource_id": primary.id, **process_impact}],
                     "assets": asset_rows,
                 }
@@ -655,13 +657,15 @@ async def approve_extended_process_mutation(
             elif ASSET_SCENARIO_KEY in identity.triggered_scenarios and not any(
                 block["cif"] == "yes" or block["resulting_criticality"] == "critical"
                 for row in asset_rows
-                for block in (row["before"], row["after"])
+                # Invariant: derived impact rows always carry dict before/after blocks.
+                for block in cast("tuple[dict[str, object], dict[str, object]]", (row["before"], row["after"]))
             ):
                 stale = "Downstream Assets are no longer protected by the current policy"
             elif VENDOR_SCENARIO_KEY in identity.triggered_scenarios and not any(
                 vendor_impact_is_protected(block)
                 for row in vendor_rows
-                for block in (row["before"], row["after"])
+                # Invariant: derived impact rows always carry dict before/after blocks.
+                for block in cast("tuple[dict[str, object], dict[str, object]]", (row["before"], row["after"]))
             ):
                 stale = "Downstream Vendors are no longer protected by the current policy"
         if stale is None:
@@ -744,7 +748,8 @@ async def approve_extended_process_mutation(
                 try:
                     _, vendor_rows = await process_relationship_vendor_impacts(
                         db,
-                        process=primary,
+                        # Invariant: relationship resolution verified the primary Process row exists.
+                        process=cast(Process, primary),
                         operation=proposal.proposed_changes["operation"],
                         vendors=point_vendors,
                         parameters=locked_suffix.parameters,
@@ -753,7 +758,8 @@ async def approve_extended_process_mutation(
                     vendor_protected = any(
                         vendor_impact_is_protected(block)
                         for row in vendor_rows
-                        for block in (row["before"], row["after"])
+                        # Invariant: derived impact rows always carry dict before/after blocks.
+                        for block in cast("tuple[dict[str, object], dict[str, object]]", (row["before"], row["after"]))
                     )
                     protected = protected or vendor_protected
                     if VENDOR_SCENARIO_KEY in identity.triggered_scenarios and not vendor_protected:

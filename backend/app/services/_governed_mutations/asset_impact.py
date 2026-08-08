@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +21,8 @@ from app.services._ict_register_lifecycle.derivation_inputs import (
 from app.services._ict_register_reference.parameters import (
     load_ict_workbook_parameter_set_for_update,
 )
+
+from ._payload_types import RelationshipOperation
 
 
 def impact_from_derived(derived) -> dict[str, object]:
@@ -72,10 +75,11 @@ async def process_point_asset_impacts(
     proposed_process = process_derivation_input(process)
     if not archive:
         supported = set(proposed_process.__dataclass_fields__)
-        proposed_process = replace(
-            proposed_process,
-            **{field: value for field, value in updates.items() if field in supported},
-        )
+        # JSON-sourced governed update values: heterogeneous scalars by field.
+        filtered_updates: dict[str, Any] = {
+            field: value for field, value in updates.items() if field in supported
+        }
+        proposed_process = replace(proposed_process, **filtered_updates)
     proposed_graph = replace(
         graph,
         processes=(
@@ -110,8 +114,10 @@ async def process_asset_composite_impact(
     parameters=None,
 ) -> tuple[Asset, dict[str, object], bool]:
     """Rederive one Process-to-Asset operation at the pure graph seam."""
-    asset_id = int(operation["related_resource_id"])
-    process_id = int(operation["process_id"])
+    # cast: relationship envelopes persist these ids as intake-validated JSON integers.
+    envelope = cast(RelationshipOperation, operation)
+    asset_id = int(envelope["related_resource_id"])
+    process_id = int(envelope["process_id"])
     process = (await db.execute(select(Process).where(Process.id == process_id).with_for_update())).scalar_one_or_none()
     if process is None:
         raise NotFoundError("Process not found")
@@ -135,7 +141,8 @@ async def process_asset_composite_impact(
     graph = await load_ict_register_graph(db, processes=[process], assets=[asset])
     before = derive_ict_register(graph, parameters).assets[asset.id]
     action = operation.get("action")
-    after_values = operation.get("after") if isinstance(operation.get("after"), dict) else {}
+    raw_after = envelope.get("after")
+    after_values = raw_after if isinstance(raw_after, dict) else {}
     if action == "add":
         links = (
             *graph.process_asset_links,
@@ -185,10 +192,11 @@ async def existing_asset_impacts(
     graph = await load_ict_register_graph(db, assets=[asset])
     current_input = next(item for item in graph.assets if item.id == asset.id)
     derivation_fields = set(current_input.__dataclass_fields__)
-    proposed_input = replace(
-        current_input,
-        **{key: value for key, value in updates.items() if key in derivation_fields},
-    )
+    # JSON-sourced governed update values: heterogeneous scalars by field.
+    filtered_updates: dict[str, Any] = {
+        key: value for key, value in updates.items() if key in derivation_fields
+    }
+    proposed_input = replace(current_input, **filtered_updates)
     current = derive_ict_register(graph, parameters).assets[asset.id]
     proposed_graph = replace(
         graph,

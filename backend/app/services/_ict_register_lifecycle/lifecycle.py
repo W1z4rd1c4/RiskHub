@@ -93,9 +93,9 @@ async def create_process_detail(
 
     await audit_process.process_created(db, actor=current_user, process=process)
     await commit_service_boundary(db, boundary="ict_register_process_create")
-    process = await load_process(db, process.id)
-    assert process is not None
-    return await serialize_process_detail_with_derived(db, process, current_user=current_user)
+    reloaded = await load_process(db, process.id)
+    assert reloaded is not None
+    return await serialize_process_detail_with_derived(db, reloaded, current_user=current_user)
 
 
 async def read_process_detail(
