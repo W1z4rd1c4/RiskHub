@@ -77,6 +77,7 @@ AGENTS.md
   - [`docs/dora-ict-register/REGISTER-LISTING-CONTRACTION-2026-07-16.md`](./dora-ict-register/REGISTER-LISTING-CONTRACTION-2026-07-16.md)
   - [`docs/dora-ict-register/FRONTEND-DIALOG-INTERACTION-INVENTORY.md`](./dora-ict-register/FRONTEND-DIALOG-INTERACTION-INVENTORY.md)
   - [`docs/dora-ict-register/FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md`](./dora-ict-register/FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md)
+  - [`docs/dora-ict-register/RELEASE-HARDENING-RETROSPECTIVE-2026-08-08.md`](./dora-ict-register/RELEASE-HARDENING-RETROSPECTIVE-2026-08-08.md)
 - Development startup and local workflows:
   - [`docs/development/README.md`](./development/README.md)
 - Documentation screenshots and support assets:

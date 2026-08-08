@@ -75,6 +75,10 @@ behind it.
   jsx-a11y + axe, validated dialog inventory and browser matrix) from the
   **human-owned + pending** manual / assistive-technology pass, C6 (SC 1.4.4/1.4.10) reproduction,
   ultrareview, and merge decision. Records the #55–#70 process deviation honestly; no WCAG conformance claimed.
+- [`RELEASE-HARDENING-RETROSPECTIVE-2026-08-08.md`](./RELEASE-HARDENING-RETROSPECTIVE-2026-08-08.md):
+  Retrospective record (#108) of release-evidence commit `2425ecbe`'s true scope, the four
+  expiring security acceptances with their release-acceptance owner, and the five refuted
+  `eb7ca6f9` review findings recorded as checked-and-cleared.
 
 ## Notes
 
