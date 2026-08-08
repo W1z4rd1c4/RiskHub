@@ -125,6 +125,20 @@ def _deep_json_envelope(depth: int) -> dict[str, object]:
     return {"before": {}, "after": value}
 
 
+def _independent_db_override(async_engine):
+    """get_db override yielding independent sessions with a bounded lock timeout."""
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    async def independent_db_session():
+        async with session_maker() as session:
+            await session.execute(text("SET LOCAL lock_timeout = '3s'"))
+            yield session
+
+    return independent_db_session
+
+
 def test_asset_resolution_policy_declares_one_canonical_lock_plan_with_scenario_last() -> (
     None
 ):
@@ -787,14 +801,7 @@ async def test_postgres_rowless_asset_creation_serializes_name_with_pending_reso
         return impact
 
     monkeypatch.setattr(asset_mutations, "_creation_impact", paused_ordinary_impact)
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    async def independent_db_session():
-        async with session_maker() as session:
-            await session.execute(text("SET LOCAL lock_timeout = '3s'"))
-            yield session
+    independent_db_session = _independent_db_override(async_engine)
 
     ordinary_payload = _critical_payload(
         test_user_risk_manager,
@@ -1579,6 +1586,67 @@ async def test_asset_edit_expires_when_proposed_owner_is_no_longer_active(
     assert resolved.json()["status"] == "expired"
     asset = await db_session.get(Asset, created.json()["id"])
     assert asset is not None and asset.business_owner_user_id == test_user_cro.id
+
+
+@pytest.mark.asyncio
+async def test_governed_asset_rename_expires_when_display_name_is_taken_at_resolution(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+) -> None:
+    """Ticket #106: a governed rename apply enforces create's unique-name check."""
+    direct = _critical_payload(
+        test_user_cro,
+        name="Governed rename source",
+        preliminary_criticality="low",
+    )
+    direct.pop("request_reason")
+    async with client_factory(user=test_user_cro) as requester:
+        created = await requester.post("/api/v1/assets", json=direct)
+    assert created.status_code == 201, created.text
+    await _scenario(db_session)
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.patch(
+            f"/api/v1/assets/{created.json()['id']}",
+            json={
+                "name": "Contested display name",
+                "preliminary_criticality": "critical",
+                "request_reason": "Rename with classification increase",
+            },
+        )
+    assert submitted.status_code == 202, submitted.text
+
+    # A direct creation takes the display name while the rename awaits review.
+    taken_payload = _critical_payload(
+        test_user_cro,
+        name="Contested display name",
+        preliminary_criticality="low",
+    )
+    taken_payload.pop("request_reason")
+    async with client_factory(user=test_user_cro) as creator:
+        taken = await creator.post("/api/v1/assets", json=taken_payload)
+    assert taken.status_code == 201, taken.text
+
+    async with client_factory(user=test_user_risk_manager) as resolver:
+        resolved = await resolver.post(
+            f"/api/v1/approvals/{submitted.json()['approval_id']}/approve",
+            json={"resolution_notes": "Apply governed rename"},
+        )
+    assert resolved.status_code == 200, resolved.text
+    assert resolved.json()["status"] == "expired"
+    approval = await db_session.get(ApprovalRequest, submitted.json()["approval_id"])
+    assert approval is not None
+    assert approval.resolution_notes == "An Asset with this name already exists"
+    asset = await db_session.get(Asset, created.json()["id"])
+    assert asset is not None and asset.name == "Governed rename source"
+    assert (
+        await db_session.scalar(
+            select(func.count())
+            .select_from(Asset)
+            .where(Asset.name == "Contested display name")
+        )
+    ) == 1
 
 
 @pytest.mark.asyncio
@@ -4030,20 +4098,13 @@ async def test_postgres_identical_rowless_asset_creations_serialize_to_one_pendi
     await _scenario(db_session)
     from app.services._governed_mutations import asset_mutations
 
-    session_maker = async_sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    async def independent_db_session():
-        async with session_maker() as session:
-            await session.execute(text("SET LOCAL lock_timeout = '3s'"))
-            yield session
+    independent_db_session = _independent_db_override(async_engine)
 
     first_checked = asyncio.Event()
     release_first = asyncio.Event()
     second_lock_attempted = asyncio.Event()
     original_duplicate_check = asset_mutations._assert_no_duplicate_asset_creation
-    original_name_lock = asset_mutations.acquire_asset_creation_name_lock
+    original_name_lock = asset_mutations.acquire_asset_name_lock
     check_calls = 0
     lock_attempts = 0
 
@@ -4069,7 +4130,7 @@ async def test_postgres_identical_rowless_asset_creations_serialize_to_one_pendi
     )
     monkeypatch.setattr(
         asset_mutations,
-        "acquire_asset_creation_name_lock",
+        "acquire_asset_name_lock",
         observed_name_lock,
     )
     first_payload = _critical_payload(
@@ -4118,6 +4179,232 @@ async def test_postgres_identical_rowless_asset_creations_serialize_to_one_pendi
         )
     )
     assert pending == 1
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_postgres_create_vs_direct_rename_to_same_name_exactly_one_wins(
+    client_factory,
+    db_session: AsyncSession,
+    async_engine,
+    monkeypatch,
+    test_user_cro: User,
+) -> None:
+    """Ticket #106 AC4a: creation vs direct rename serialize on the name lock."""
+    if db_session.bind.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL advisory name locks are authoritative")
+    from app.services._governed_mutations import asset_mutations
+
+    seed = _critical_payload(
+        test_user_cro,
+        name="Rename contender",
+        preliminary_criticality="low",
+    )
+    seed.pop("request_reason")
+    async with client_factory(user=test_user_cro) as seeder:
+        seeded = await seeder.post("/api/v1/assets", json=seed)
+    assert seeded.status_code == 201, seeded.text
+    asset_id = seeded.json()["id"]
+
+    independent_db_session = _independent_db_override(async_engine)
+
+    first_checked = asyncio.Event()
+    release_first = asyncio.Event()
+    second_lock_attempted = asyncio.Event()
+    original_duplicate_check = asset_mutations.duplicate_asset_display_name_exists
+    original_name_lock = asset_mutations.acquire_asset_name_lock
+    check_calls = 0
+    lock_attempts = 0
+
+    async def observed_name_lock(*args, **kwargs):
+        nonlocal lock_attempts
+        lock_attempts += 1
+        if lock_attempts == 2:
+            second_lock_attempted.set()
+        return await original_name_lock(*args, **kwargs)
+
+    async def paused_first_duplicate_check(*args, **kwargs):
+        nonlocal check_calls
+        result = await original_duplicate_check(*args, **kwargs)
+        check_calls += 1
+        if check_calls == 1:
+            first_checked.set()
+            await release_first.wait()
+        return result
+
+    monkeypatch.setattr(
+        asset_mutations,
+        "duplicate_asset_display_name_exists",
+        paused_first_duplicate_check,
+    )
+    monkeypatch.setattr(
+        asset_mutations,
+        "acquire_asset_name_lock",
+        observed_name_lock,
+    )
+    create_payload = _critical_payload(
+        test_user_cro,
+        name="Contended display name",
+        preliminary_criticality="low",
+    )
+    create_payload.pop("request_reason")
+    async with (
+        client_factory(
+            user=test_user_cro, db_override=independent_db_session
+        ) as first_client,
+        client_factory(
+            user=test_user_cro, db_override=independent_db_session
+        ) as second_client,
+    ):
+        first = asyncio.create_task(
+            first_client.post("/api/v1/assets", json=create_payload)
+        )
+        await asyncio.wait_for(first_checked.wait(), timeout=5)
+        second = asyncio.create_task(
+            second_client.patch(
+                f"/api/v1/assets/{asset_id}",
+                json={"name": "Contended display name"},
+            )
+        )
+        await asyncio.wait_for(second_lock_attempted.wait(), timeout=5)
+        assert lock_attempts == 2
+        assert not second.done()
+        assert check_calls == 1
+        release_first.set()
+        first_result, second_result = await asyncio.wait_for(
+            asyncio.gather(first, second),
+            timeout=10,
+        )
+
+    assert first_result.status_code == 201, first_result.text
+    assert second_result.status_code == 400, second_result.text
+    assert second_result.json() == {"detail": "An Asset with this name already exists"}
+    assert (
+        await db_session.scalar(
+            select(func.count())
+            .select_from(Asset)
+            .where(Asset.name == "Contended display name")
+        )
+    ) == 1
+    loser = await db_session.get(Asset, asset_id)
+    assert loser is not None and loser.name == "Rename contender"
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_postgres_create_vs_governed_rename_resolution_exactly_one_wins(
+    client_factory,
+    db_session: AsyncSession,
+    async_engine,
+    monkeypatch,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+) -> None:
+    """Ticket #106 AC4b: creation vs governed rename apply serialize on the name lock."""
+    if db_session.bind.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL advisory name locks are authoritative")
+    await _scenario(db_session)
+    from app.services._governed_mutations import asset_mutations, asset_resolution
+
+    direct = _critical_payload(
+        test_user_cro,
+        name="Governed rename contender",
+        preliminary_criticality="low",
+    )
+    direct.pop("request_reason")
+    async with client_factory(user=test_user_cro) as requester:
+        created = await requester.post("/api/v1/assets", json=direct)
+        assert created.status_code == 201, created.text
+        submitted = await requester.patch(
+            f"/api/v1/assets/{created.json()['id']}",
+            json={
+                "name": "Race display name",
+                "preliminary_criticality": "critical",
+                "request_reason": "Rename under independent review",
+            },
+        )
+    assert submitted.status_code == 202, submitted.text
+
+    independent_db_session = _independent_db_override(async_engine)
+
+    resolver_checked = asyncio.Event()
+    release_resolver = asyncio.Event()
+    creation_lock_attempted = asyncio.Event()
+    original_duplicate_check = asset_resolution.duplicate_asset_display_name_exists
+    original_name_lock = asset_mutations.acquire_asset_name_lock
+    resolver_checks = 0
+
+    async def paused_resolution_duplicate_check(*args, **kwargs):
+        nonlocal resolver_checks
+        result = await original_duplicate_check(*args, **kwargs)
+        resolver_checks += 1
+        if resolver_checks == 1:
+            resolver_checked.set()
+            await release_resolver.wait()
+        return result
+
+    async def observed_name_lock(*args, **kwargs):
+        creation_lock_attempted.set()
+        return await original_name_lock(*args, **kwargs)
+
+    monkeypatch.setattr(
+        asset_resolution,
+        "duplicate_asset_display_name_exists",
+        paused_resolution_duplicate_check,
+    )
+    monkeypatch.setattr(
+        asset_mutations,
+        "acquire_asset_name_lock",
+        observed_name_lock,
+    )
+    create_payload = _critical_payload(
+        test_user_cro,
+        name="Race display name",
+        preliminary_criticality="low",
+    )
+    create_payload.pop("request_reason")
+    async with (
+        client_factory(
+            user=test_user_risk_manager, db_override=independent_db_session
+        ) as resolver,
+        client_factory(
+            user=test_user_cro, db_override=independent_db_session
+        ) as creator,
+    ):
+        resolve = asyncio.create_task(
+            resolver.post(
+                f"/api/v1/approvals/{submitted.json()['approval_id']}/approve",
+                json={"resolution_notes": "Apply governed rename"},
+            )
+        )
+        await asyncio.wait_for(resolver_checked.wait(), timeout=5)
+        create = asyncio.create_task(
+            creator.post("/api/v1/assets", json=create_payload)
+        )
+        await asyncio.wait_for(creation_lock_attempted.wait(), timeout=5)
+        assert not create.done()
+        assert resolver_checks == 1
+        release_resolver.set()
+        resolved, created_second = await asyncio.wait_for(
+            asyncio.gather(resolve, create),
+            timeout=10,
+        )
+
+    assert resolved.status_code == 200, resolved.text
+    assert resolved.json()["status"] == "approved"
+    assert created_second.status_code == 400, created_second.text
+    assert created_second.json() == {
+        "detail": "An Asset with this name already exists"
+    }
+    assert (
+        await db_session.scalar(
+            select(func.count())
+            .select_from(Asset)
+            .where(Asset.name == "Race display name")
+        )
+    ) == 1
+    renamed = await db_session.get(Asset, created.json()["id"])
+    assert renamed is not None and renamed.name == "Race display name"
 
 
 @pytest.mark.postgres

@@ -92,17 +92,31 @@ from .vendor_impact import (
 )
 
 
-async def acquire_asset_creation_name_lock(
+async def acquire_asset_name_lock(
     db: AsyncSession,
     *,
     asset_name: str,
 ) -> None:
-    """Serialize rowless Asset creation decisions by exact persisted name."""
+    """Serialize Asset creation and rename decisions by exact persisted name."""
     if db.bind is not None and db.bind.dialect.name == "postgresql":
         await db.execute(
             text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+            # The key retains the legacy 'create' namespace for compatibility.
             {"lock_key": f"riskhub:asset:create:{asset_name}"},
         )
+
+
+async def duplicate_asset_display_name_exists(
+    db: AsyncSession,
+    *,
+    asset_name: str,
+    exclude_asset_id: int | None = None,
+) -> bool:
+    """Exact-name duplicate check shared by Asset creation and rename paths."""
+    query = select(Asset.id).where(Asset.name == asset_name)
+    if exclude_asset_id is not None:
+        query = query.where(Asset.id != exclude_asset_id)
+    return await db.scalar(query.limit(1)) is not None
 
 
 def _required_reason(value: str | None) -> str:
@@ -205,7 +219,7 @@ async def submit_asset_creation_if_required(
     name_lock_acquired: bool = False,
 ):
     if not name_lock_acquired:
-        await acquire_asset_creation_name_lock(db, asset_name=payload.name)
+        await acquire_asset_name_lock(db, asset_name=payload.name)
     impact = await _creation_impact(db, payload)
     protected = impact["cif"] == "yes" or impact["resulting_criticality"] == "critical"
     if not protected:

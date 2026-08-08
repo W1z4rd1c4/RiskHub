@@ -40,7 +40,11 @@ from .asset_identity import (
     ASSET_RELATIONSHIP_PREFIX,
 )
 from .asset_impact import existing_asset_impacts as _existing_asset_impacts
-from .asset_mutations import _creation_impact, acquire_asset_creation_name_lock
+from .asset_mutations import (
+    _creation_impact,
+    acquire_asset_name_lock,
+    duplicate_asset_display_name_exists,
+)
 from .asset_resolution_policy import (
     commit_asset_boundary as _commit_asset_boundary,
 )
@@ -77,7 +81,20 @@ async def approve_asset_mutation(
         except (KeyError, TypeError, ValueError):
             creation_payload = None
         if creation_payload is not None:
-            await acquire_asset_creation_name_lock(db, asset_name=creation_payload.name)
+            await acquire_asset_name_lock(db, asset_name=creation_payload.name)
+    if proposal.mutation_kind == ASSET_EDIT_KIND:
+        proposed_after = (
+            proposal.proposed_changes.get("after")
+            if isinstance(proposal.proposed_changes, dict)
+            else None
+        )
+        proposed_name = (
+            proposed_after.get("name") if isinstance(proposed_after, dict) else None
+        )
+        if isinstance(proposed_name, str):
+            # A governed rename serializes on the same name lock as direct
+            # creations and direct renames of that display name.
+            await acquire_asset_name_lock(db, asset_name=proposed_name)
     resolver, requester, policy_stale_reason = await _load_live_asset_resolution_policy(
         db,
         proposal=proposal,
@@ -468,6 +485,26 @@ async def approve_asset_mutation(
                     status=ApprovalStatus.EXPIRED,
                     resolution_notes="Governed Asset approved state changed after submission",
                 )
+            elif (
+                # typing narrowing only; non-dict diverted above
+                isinstance(proposed_updates, dict)
+                and "name" in proposed_updates
+                and await duplicate_asset_display_name_exists(
+                    db,
+                    asset_name=proposed_updates["name"],
+                    exclude_asset_id=asset.id,
+                )
+            ):
+                await finalize_governed_terminal_transition(
+                    db,
+                    approval=approval,
+                    proposal=proposal,
+                    impact_locks=locks,
+                    actor=current_user,
+                    department_id=asset.owning_department_id,
+                    status=ApprovalStatus.EXPIRED,
+                    resolution_notes="An Asset with this name already exists",
+                )
             else:
                 current_impact, proposed_impact = await _existing_asset_impacts(
                     db, asset=asset, updates=proposed_updates
@@ -725,7 +762,7 @@ async def approve_asset_mutation(
             reason="The proposed Asset Department is no longer active",
             department_id=requester.department_id,
         )
-    if await db.scalar(select(Asset.id).where(Asset.name == payload.name).limit(1)) is not None:
+    if await duplicate_asset_display_name_exists(db, asset_name=payload.name):
         return await _expire_asset_approval(
             db,
             approval=approval,

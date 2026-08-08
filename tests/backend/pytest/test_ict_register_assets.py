@@ -285,6 +285,60 @@ async def test_update_asset_round_trips_entered_fields(
         assert missing.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_rename_enforces_the_same_unique_display_name_semantics_as_create(
+    client_factory, test_user_cro: User
+):
+    """Ticket #106: renames share creation's duplicate-name contract, excluding self."""
+    async with client_factory(user=test_user_cro) as client:
+        first = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(test_user_cro, name="Rename target"),
+            )
+        ).json()
+        second = (
+            await client.post(
+                "/api/v1/assets",
+                json=_minimal_payload(test_user_cro, name="Rename source"),
+            )
+        ).json()
+
+        duplicate_create = await client.post(
+            "/api/v1/assets",
+            json=_minimal_payload(test_user_cro, name="Rename target"),
+        )
+        assert duplicate_create.status_code == 400, duplicate_create.text
+        assert duplicate_create.json() == {
+            "detail": "An Asset with this name already exists"
+        }
+
+        duplicate_rename = await client.patch(
+            f"/api/v1/assets/{second['id']}", json={"name": "Rename target"}
+        )
+        assert duplicate_rename.status_code == 400, duplicate_rename.text
+        # Identical error contract as the create path, verbatim.
+        assert duplicate_rename.json() == duplicate_create.json()
+
+        # Renaming an Asset to its own current name still succeeds.
+        self_rename = await client.patch(
+            f"/api/v1/assets/{second['id']}", json={"name": "Rename source"}
+        )
+        assert self_rename.status_code == 200, self_rename.text
+        assert self_rename.json()["name"] == "Rename source"
+
+        # A rename to a free display name still succeeds.
+        moved = await client.patch(
+            f"/api/v1/assets/{second['id']}", json={"name": "Rename source v2"}
+        )
+        assert moved.status_code == 200, moved.text
+        assert moved.json()["name"] == "Rename source v2"
+
+        # The first Asset is untouched by the rejected rename.
+        untouched = await client.get(f"/api/v1/assets/{first['id']}")
+        assert untouched.json()["name"] == "Rename target"
+
+
 # Derived 04_Aktiva fields (spec sections 1.2 and 2.2) arrive with the
 # derivation engine (ticket #48) and must never be writable. The primary
 # designation is entered on the Process<->Asset link, never on the Asset row.

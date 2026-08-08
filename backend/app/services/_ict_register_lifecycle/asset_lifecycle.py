@@ -61,11 +61,12 @@ async def create_asset_detail(
     await assert_asset_create_allowed(current_user=current_user)
 
     from app.services._governed_mutations.asset_mutations import (
-        acquire_asset_creation_name_lock,
+        acquire_asset_name_lock,
+        duplicate_asset_display_name_exists,
         submit_asset_creation_if_required,
     )
 
-    await acquire_asset_creation_name_lock(db, asset_name=payload.name)
+    await acquire_asset_name_lock(db, asset_name=payload.name)
     await acquire_asset_owner_identity_locks(
         db,
         user_ids=(payload.business_owner_user_id, payload.ict_owner_user_id),
@@ -100,7 +101,7 @@ async def create_asset_detail(
     # ``submit_asset_creation_if_required`` holds the rowless name lock even
     # when policy allows direct application. Recheck under that lock so a
     # concurrent approval resolution cannot create a duplicate display name.
-    if await db.scalar(select(Asset.id).where(Asset.name == payload.name).limit(1)) is not None:
+    if await duplicate_asset_display_name_exists(db, asset_name=payload.name):
         raise ValidationError("An Asset with this name already exists")
 
     asset = Asset(**payload.model_dump(exclude={"request_reason"}))
@@ -162,6 +163,16 @@ async def update_asset_detail(
             current_user=current_user,
         )
 
+    from app.services._governed_mutations.asset_mutations import (
+        acquire_asset_name_lock,
+        duplicate_asset_display_name_exists,
+    )
+
+    if "name" in updates:
+        # A rename shares the asset name lock so a concurrent creation or
+        # governed resolution cannot land the same display name.
+        await acquire_asset_name_lock(db, asset_name=updates["name"])
+
     proposed_business_owner_id = (
         int(updates["business_owner_user_id"]) if "business_owner_user_id" in updates else asset.business_owner_user_id
     )
@@ -191,6 +202,16 @@ async def update_asset_detail(
     )
     if queued is not None:
         return queued
+
+    # The rename holds the asset name lock even when policy allows
+    # direct application. Recheck under that lock, excluding the Asset itself,
+    # so a concurrent creation cannot land a duplicate display name.
+    if "name" in updates and await duplicate_asset_display_name_exists(
+        db,
+        asset_name=updates["name"],
+        exclude_asset_id=asset.id,
+    ):
+        raise ValidationError("An Asset with this name already exists")
 
     if "business_owner_user_id" in updates:
         asset.business_owner = await assert_active_asset_owner(
