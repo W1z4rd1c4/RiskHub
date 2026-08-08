@@ -9,7 +9,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
-from app.core.datetime_utils import coerce_utc
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.models import (
     ApprovalScenario,
     Asset,
@@ -1611,6 +1611,108 @@ async def _run_threat_orphan_stale_resource_version_expires_without_applying(
     assert orphan.new_owner_id is None
 
 
+async def _run_vendor_orphan_stale_proposal_expires_after_real_reassignment(
+    db: AsyncSession,
+    client_factory,
+    *,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    """LOAD-BEARING: a real HTTP orphan repair advances governance_version (proven
+    by inversion). BELT: the pre-existing proposal expires on approve via the
+    envelope-malformed branch, since its impact lock was released. The stale-version
+    branch (vendor_resolution.py "version changed after submission") is structurally
+    unreachable in full composition: the repair requires the lock released, and a
+    released lock already invalidates the envelope; manual-bump siblings pin it."""
+    await _accountability_scenario(db)
+    # The expiry path revalidates the fixed Vendor scenario once the
+    # proposal envelope is no longer intact, so it must exist.
+    await _protected_scenario(db, item_type="vendor", requires_approval=True)
+    # Threat mirror skipped: needs a third CISO actor (assert_active_ciso_steward); over budget — see note near :1415.
+    vendor, orphan, replacement_owner_id, owner_field = (
+        await _orphan_reassignment_case(
+            db,
+            item_type="vendor",
+            test_department=test_department,
+            test_user_cro=test_user_cro,
+            test_user_employee=test_user_employee,
+            test_user_risk_manager=test_user_risk_manager,
+        )
+    )
+    vendor_id = vendor.id
+    previous_owner_id = getattr(vendor, owner_field)
+    orphan_id = orphan.id
+    repaired_owner_id = test_user_cro.id
+
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.post(
+            f"/api/v1/orphaned-items/{orphan_id}/resolve",
+            json={
+                "new_owner_id": replacement_owner_id,
+                "request_reason": "Exercise composed stale proposal expiry",
+            },
+        )
+    assert submitted.status_code == 202, submitted.text
+    approval_id = submitted.json()["approval_id"]
+
+    # Drop governance for the follow-up repair and release the pending
+    # proposal's impact lock so the real repair is not rejected with 409.
+    scenario = await db.scalar(
+        select(ApprovalScenario).where(
+            ApprovalScenario.key == "accountability_reassignment"
+        )
+    )
+    assert scenario is not None
+    scenario.requires_approval = False
+    impact_lock = await db.scalar(
+        select(GovernedMutationImpactLock).where(
+            GovernedMutationImpactLock.resource_type == "vendor",
+            GovernedMutationImpactLock.resource_id == vendor_id,
+            GovernedMutationImpactLock.released_at.is_(None),
+        )
+    )
+    assert impact_lock is not None
+    impact_lock.released_at = utc_now()
+    impact_lock.release_reason = "test_continue_orphan_resolution"
+    await db.commit()
+
+    # A real reassignment through the public API advances governance_version.
+    async with client_factory(user=test_user_cro) as requester:
+        repaired = await requester.post(
+            f"/api/v1/orphaned-items/{orphan_id}/resolve",
+            json={
+                "new_owner_id": repaired_owner_id,
+                "request_reason": "Repair the orphan through the real seam",
+            },
+        )
+    assert repaired.status_code == 200, repaired.text
+    assert repaired.json()["status"] == "resolved"
+    await db.refresh(vendor)
+    assert vendor.outsourcing_owner_user_id == repaired_owner_id
+    assert vendor.governance_version == 2
+
+    # The original proposal is now stale and must expire without applying.
+    async with client_factory(user=test_user_risk_manager) as approver:
+        expired = await approver.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "Attempt stale reassignment"},
+        )
+    assert expired.status_code == 200, expired.text
+    assert expired.json()["status"] == "expired"
+    db.expire_all()
+    vendor = await db.get(Vendor, vendor_id)
+    orphan = await db.get(OrphanedItem, orphan_id)
+    assert vendor is not None and orphan is not None
+    assert vendor.outsourcing_owner_user_id == repaired_owner_id
+    assert vendor.outsourcing_owner_user_id != replacement_owner_id
+    assert vendor.governance_version == 2
+    assert orphan.status == "resolved"
+    assert orphan.previous_owner_id == previous_owner_id
+    assert orphan.new_owner_id == repaired_owner_id
+
+
 @pytest.mark.asyncio
 async def test_vendor_orphan_resolution_rejected_while_impact_lock_is_active(
     client_factory,
@@ -1676,6 +1778,25 @@ async def test_threat_orphan_stale_resource_version_expires_without_applying(
     test_user_risk_manager: User,
 ) -> None:
     await _run_threat_orphan_stale_resource_version_expires_without_applying(
+        db_session,
+        client_factory,
+        test_department=test_department,
+        test_user_cro=test_user_cro,
+        test_user_employee=test_user_employee,
+        test_user_risk_manager=test_user_risk_manager,
+    )
+
+
+@pytest.mark.asyncio
+async def test_vendor_orphan_stale_proposal_expires_after_real_reassignment(
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    await _run_vendor_orphan_stale_proposal_expires_after_real_reassignment(
         db_session,
         client_factory,
         test_department=test_department,
@@ -2539,6 +2660,29 @@ async def test_postgres_threat_orphan_stale_resource_version_expires_without_app
     if async_engine.dialect.name != "postgresql":
         pytest.skip("Requires PostgreSQL row and advisory locks")
     await _run_threat_orphan_stale_resource_version_expires_without_applying(
+        db_session,
+        client_factory,
+        test_department=test_department,
+        test_user_cro=test_user_cro,
+        test_user_employee=test_user_employee,
+        test_user_risk_manager=test_user_risk_manager,
+    )
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_postgres_vendor_orphan_stale_proposal_expires_after_real_reassignment(
+    async_engine,
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("Requires PostgreSQL row and advisory locks")
+    await _run_vendor_orphan_stale_proposal_expires_after_real_reassignment(
         db_session,
         client_factory,
         test_department=test_department,
