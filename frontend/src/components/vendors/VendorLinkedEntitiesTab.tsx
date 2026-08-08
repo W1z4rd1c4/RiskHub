@@ -131,7 +131,9 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                 ) : null}
             </div>
 
-            {mutationError ? (
+            {/* After-close visibility only: while the reason dialog is open the
+                error is announced inside it (#100 P2 — the shell traps focus). */}
+            {mutationError && pendingGovernedAction === null ? (
                 <div
                     role="alert"
                     data-testid={testId('mutation-error')}
@@ -185,6 +187,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                     existingLinks={entities.existingLinks}
                     onLink={async (targetId) => {
                         if (protectedChangeRequiresApproval) {
+                            setMutationError(null);
                             setPendingGovernedAction({ kind: 'link_add', targetId });
                             return;
                         }
@@ -192,6 +195,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                     }}
                     onUnlink={async (targetId) => {
                         if (protectedChangeRequiresApproval) {
+                            setMutationError(null);
                             setPendingGovernedAction({ kind: 'link_remove', targetId });
                             return;
                         }
@@ -211,6 +215,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                     namespace="vendors"
                     kind={pendingGovernedAction?.kind ?? 'link_add'}
                     isLoading={isGovernedSubmitting}
+                    errorText={mutationError}
                     onClose={() => setPendingGovernedAction(null)}
                     onConfirm={(reason) => {
                         void confirmGovernedAction(reason);

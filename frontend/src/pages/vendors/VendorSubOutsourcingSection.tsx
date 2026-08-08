@@ -278,6 +278,7 @@ export function VendorSubOutsourcingSection({
         onEdit: openEditForm,
         onArchive: (entry) => {
             if (protectedChangeRequiresApproval) {
+                setSectionError(null);
                 setPendingArchive(entry);
                 return;
             }
@@ -358,7 +359,9 @@ export function VendorSubOutsourcingSection({
                 ) : null}
             </div>
 
-            {sectionError ? (
+            {/* After-close visibility only: while the archive dialog is open the
+                error is announced inside it (#101 P2 — the shell traps focus). */}
+            {sectionError && pendingArchive === null ? (
                 <div
                     role="alert"
                     className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300"
@@ -498,6 +501,7 @@ export function VendorSubOutsourcingSection({
                 confirmLabel={t('sub_outsourcing.actions.archive')}
                 variant="danger"
                 isLoading={archiveEntry.isPending}
+                errorText={sectionError}
                 showInput
                 inputRequired
                 inputLabel={t('form.request_reason')}

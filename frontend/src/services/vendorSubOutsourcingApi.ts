@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { reasonBody, reasonField } from './api/governedReason';
 import {
     ictServiceTaxonomySchema,
     processApprovalQueuedResponseSchema,
@@ -11,14 +12,6 @@ import type { IctServiceType, VendorSubOutsourcing, VendorSubOutsourcingWritePay
 
 const entryResultSchema = vendorSubOutsourcingSchema.or(processApprovalQueuedResponseSchema);
 const archiveResultSchema = voidSchema.or(processApprovalQueuedResponseSchema);
-
-function reasonField(requestReason?: string) {
-    return requestReason?.trim() ? { request_reason: requestReason.trim() } : {};
-}
-
-function reasonBody(requestReason?: string) {
-    return requestReason?.trim() ? { body: JSON.stringify({ request_reason: requestReason.trim() }) } : {};
-}
 
 /**
  * ICT Register Sub-outsourcing chains, maintained inside a Vendor's detail

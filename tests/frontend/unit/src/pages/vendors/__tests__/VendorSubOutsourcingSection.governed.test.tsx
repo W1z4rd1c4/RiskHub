@@ -224,7 +224,13 @@ const matrix = [
             // open for retry. ConfirmDialog clears its reason input on confirm
             // by design (ConfirmDialog.tsx handleConfirm), so only the open
             // retry surface is locked here — not a retained reason value.
-            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+            const dialog = screen.getByRole('alertdialog');
+            // P2 (#101): the dialog traps focus, so the rejection must be
+            // announced INSIDE it — a page banner behind the overlay is
+            // unreachable while the dialog is open.
+            expect(within(dialog).getByRole('alert')).toHaveTextContent(
+                String(i18n.t('vendors:sub_outsourcing.errors.mutation_failed')),
+            );
         },
     },
 ] as const;
@@ -263,6 +269,24 @@ describe('protected Vendor sub-outsourcing governed UX (#101)', () => {
             expectRetryStateKept();
         },
     );
+
+    it('archive: keeps the rejected-mutation error visible on the page banner after the dialog closes (#101 P2)', async () => {
+        subOutsourcingApiMocks.archiveEntry.mockRejectedValue(
+            Object.assign(new Error('reason required'), { status: 422 }),
+        );
+
+        renderSection(true);
+        await archiveThroughDialog(REASON);
+
+        const dialog = await screen.findByRole('alertdialog');
+        await within(dialog).findByRole('alert');
+        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common:actions.cancel') }));
+
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            String(i18n.t('vendors:sub_outsourcing.errors.mutation_failed')),
+        );
+    });
 
     it('blocks a blank governed form reason locally with an accessible field error', async () => {
         renderSection(true);

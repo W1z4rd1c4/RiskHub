@@ -18,6 +18,12 @@ interface ConfirmDialogProps {
     inputLabel?: string;
     inputPlaceholder?: string;
     inputRequired?: boolean;
+    /**
+     * Rejected-mutation error announced INSIDE the dialog (#100/#101 P2): the
+     * shell traps focus, so a page-level banner behind the overlay is
+     * unreachable while the dialog stays open for retry.
+     */
+    errorText?: string | null;
 }
 
 // Status colours consume the semantic tokens (FR-P5-1 / ADR-015): danger →
@@ -63,6 +69,7 @@ export function ConfirmDialog({
     inputLabel,
     inputPlaceholder,
     inputRequired = true,
+    errorText = null,
 }: ConfirmDialogProps) {
     const { t } = useTranslation('common');
     const titleId = useId();
@@ -148,6 +155,18 @@ export function ConfirmDialog({
                     </label>
                 </div>
             )}
+
+            {/* In-dialog mutation error (#100/#101 P2) */}
+            {errorText ? (
+                <div className="px-6 pb-4">
+                    <p
+                        role="alert"
+                        className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+                    >
+                        {errorText}
+                    </p>
+                </div>
+            ) : null}
 
             {/* Actions */}
             <div className="confirm-dialog-actions flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5">

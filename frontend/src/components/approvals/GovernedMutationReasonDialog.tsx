@@ -17,6 +17,8 @@ interface GovernedMutationReasonDialogProps {
     kind: 'link_add' | 'link_remove' | 'link_update';
     namespace: GovernedMutationReasonNamespace;
     reasonRequired?: boolean;
+    /** Rejected-mutation error shown INSIDE the open dialog (#100/#101 P2). */
+    errorText?: string | null;
     onClose: () => void;
     onConfirm: (reason: string) => void;
 }
@@ -27,6 +29,7 @@ export function GovernedMutationReasonDialog({
     kind,
     namespace,
     reasonRequired = true,
+    errorText = null,
     onClose,
     onConfirm,
 }: GovernedMutationReasonDialogProps) {
@@ -45,6 +48,7 @@ export function GovernedMutationReasonDialog({
             inputRequired={reasonRequired}
             inputLabel={t(`${namespace}:form.request_reason`)}
             inputPlaceholder={t(`${namespace}:link_approval.reason_placeholder`)}
+            errorText={errorText}
         />
     );
 }

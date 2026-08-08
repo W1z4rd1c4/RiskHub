@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { reasonBody, reasonField } from './api/governedReason';
 import {
     linkStatusSchema,
     linkedControlArraySchema,
@@ -12,14 +13,6 @@ import type { LinkedControl, LinkedKRI, LinkedRisk, VendorLinkStatus } from '@/t
 
 const linkResultSchema = linkStatusSchema.or(processApprovalQueuedResponseSchema);
 const unlinkResultSchema = voidSchema.or(processApprovalQueuedResponseSchema);
-
-function reasonField(requestReason?: string) {
-    return requestReason?.trim() ? { request_reason: requestReason.trim() } : {};
-}
-
-function reasonBody(requestReason?: string) {
-    return requestReason?.trim() ? { body: JSON.stringify({ request_reason: requestReason.trim() }) } : {};
-}
 
 /**
  * Vendor Risk/Control/KRI link mutations follow the governed protected-Vendor
