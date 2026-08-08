@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react';
+import { motion } from 'framer-motion';
 import { ArchiveRestore, Pencil, Trash2 } from 'lucide-react';
 
 import type { Column } from '@/components/tables/SortableTable';
@@ -190,10 +191,12 @@ export function buildVendorSubOutsourcingColumns({
             label: t('vendors:sub_outsourcing.columns.sub_provider'),
             className: 'w-[280px] min-w-[200px]',
             render: ({ entry, depth }) => (
-                <div
+                <motion.div
                     data-testid={`vendor-sub-outsourcing-provider-${entry.id}`}
                     className="flex flex-col gap-0.5"
-                    style={{ paddingLeft: `${depth * DEPTH_INDENT_PX}px` }}
+                    initial={false}
+                    animate={{ paddingLeft: `${depth * DEPTH_INDENT_PX}px` }}
+                    transition={{ duration: 0 }}
                 >
                     <span className="text-sm font-bold text-white">
                         {depth > 0 ? <span className="text-slate-500">↳ </span> : null}
@@ -204,7 +207,7 @@ export function buildVendorSubOutsourcingColumns({
                             {[entry.identifier_type, entry.identifier_value].filter(Boolean).join(': ')}
                         </span>
                     ) : null}
-                </div>
+                </motion.div>
             ),
         },
         {

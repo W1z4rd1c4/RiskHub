@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { RefreshCw } from 'lucide-react';
@@ -362,10 +363,12 @@ function RoiTemplateRow({ template }: { template: IctRoiTemplateReadiness }) {
                         <>
                             <div className="flex items-center gap-3">
                                 <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
-                                    <div
+                                    <motion.div
                                         data-testid={`committee-roi-bar-${template.code}`}
                                         className={`h-full rounded-full ${roiReadinessBarClass(template.readiness_pct)}`}
-                                        style={{ width: `${template.readiness_pct ?? 0}%` }}
+                                        initial={false}
+                                        animate={{ width: `${template.readiness_pct ?? 0}%` }}
+                                        transition={{ duration: 0 }}
                                     />
                                 </div>
                                 <span className="text-white font-bold tabular-nums text-sm w-16 text-right">
