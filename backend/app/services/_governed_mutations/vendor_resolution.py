@@ -917,6 +917,8 @@ async def approve_vendor_mutation(
             model = VendorSubOutsourcing
             create_schema = VendorSubOutsourcingCreate
             update_schema = VendorSubOutsourcingUpdate
+            # Canonical-order anchor: Vendor row FOR UPDATE (taken in _live_policy) before the
+            # chain advisory lock; the direct lifecycle paths mirror it (sub_outsourcing_lifecycle.py).
             await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor.id)
         child = None
         if action != "create":

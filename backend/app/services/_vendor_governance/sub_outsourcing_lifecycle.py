@@ -37,10 +37,14 @@ async def create_vendor_sub_outsourcing_detail(
     payload: VendorSubOutsourcingCreate,
     current_user: User,
 ) -> VendorSubOutsourcingRead:
-    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     vendor = await assert_sub_outsourcing_mutation_vendor(
         db, vendor_id=vendor_id, current_user=current_user
     )
+    # Canonical lock order (matches approval resolution, vendor_resolution.py):
+    # Vendor row FOR UPDATE first, THEN the chain advisory lock. The reverse
+    # order deadlocks against a concurrent resolution on the same Vendor,
+    # which holds the row lock while requesting the chain lock.
+    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     await assert_chain_contract(db, vendor_id=vendor.id, contract_id=payload.contract_id)
     if payload.predecessor_id is not None:
         await assert_chain_predecessor(
@@ -107,10 +111,11 @@ async def update_vendor_sub_outsourcing_detail(
     payload: VendorSubOutsourcingUpdate,
     current_user: User,
 ) -> VendorSubOutsourcingRead:
-    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     entry = await assert_sub_outsourcing_update_allowed(
         db, vendor_id=vendor_id, entry_id=entry_id, current_user=current_user
     )
+    # Chain advisory lock AFTER the Vendor row lock (canonical order; see create).
+    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     vendor = await assert_sub_outsourcing_vendor_readable(
         db, vendor_id=vendor_id, current_user=current_user
     )
@@ -176,10 +181,11 @@ async def archive_vendor_sub_outsourcing_detail(
     current_user: User,
     request_reason: str | None = None,
 ) -> object | None:
-    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     entry = await assert_sub_outsourcing_archive_allowed(
         db, vendor_id=vendor_id, entry_id=entry_id, current_user=current_user
     )
+    # Chain advisory lock AFTER the Vendor row lock (canonical order; see create).
+    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     vendor = await assert_sub_outsourcing_vendor_readable(
         db, vendor_id=vendor_id, current_user=current_user
     )
@@ -216,10 +222,11 @@ async def restore_vendor_sub_outsourcing_detail(
     entry_id: int,
     current_user: User,
 ) -> VendorSubOutsourcingRead:
-    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     entry = await assert_sub_outsourcing_restore_allowed(
         db, vendor_id=vendor_id, entry_id=entry_id, current_user=current_user
     )
+    # Chain advisory lock AFTER the Vendor row lock (canonical order; see create).
+    await acquire_sub_outsourcing_chain_lock(db, vendor_id=vendor_id)
     vendor = await assert_sub_outsourcing_vendor_readable(
         db, vendor_id=vendor_id, current_user=current_user
     )

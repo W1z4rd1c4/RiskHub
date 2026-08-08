@@ -18,6 +18,8 @@ async def acquire_sub_outsourcing_chain_lock(db: AsyncSession, *, vendor_id: int
     PostgreSQL transaction-scoped advisory locks close the gap between reading
     the predecessor graph and committing its mutation. SQLite has no matching
     primitive and remains an intentional no-op for the default unit-test mode.
+    Canonical order: callers must already hold the Vendor row lock (see
+    sub_outsourcing_lifecycle and vendor_resolution) or they can deadlock.
     """
     bind = db.get_bind()
     if bind.dialect.name != "postgresql":
