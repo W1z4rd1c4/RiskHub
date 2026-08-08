@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KRIFormContainer as KRIForm } from '@/components/kri-form/KRIFormContainer';
@@ -8,6 +8,7 @@ import { ApiClientError } from '@/services/apiClient';
 const mockNavigate = vi.fn();
 const mockGetRisks = vi.fn();
 const mockGetLinkedRisks = vi.fn();
+const mockLinkRisk = vi.fn();
 const mockLinkKRI = vi.fn();
 const mockListVisibleUsers = vi.fn();
 const mockGetVendors = vi.fn();
@@ -43,6 +44,7 @@ vi.mock('@/services/vendorApi', () => ({
 vi.mock('@/services/vendorLinkApi', () => ({
     vendorLinkApi: {
         getLinkedRisks: (...args: unknown[]) => mockGetLinkedRisks(...args),
+        linkRisk: (...args: unknown[]) => mockLinkRisk(...args),
         linkKRI: (...args: unknown[]) => mockLinkKRI(...args),
     },
 }));
@@ -202,13 +204,13 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
         });
     });
 
-    it('excludes a protected vendor from the create payload and warns when the governed link does not apply', async () => {
+    it('excludes a protected vendor from the create payload and warns when another Vendor proposal is pending', async () => {
         mockLinkKRI.mockRejectedValueOnce(
             new ApiClientError({
-                status: 422,
-                code: 'governed_mutation_reason_required',
-                messageKey: 'errorKeys.governed_mutation_reason_required',
-                rawMessage: 'A request reason is mandatory for a protected Vendor mutation',
+                status: 409,
+                code: 'vendor_pending_mutation',
+                messageKey: 'errorKeys.vendor_pending_mutation',
+                rawMessage: 'A governed Vendor change is already pending',
             }),
         );
 
@@ -236,6 +238,12 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }));
 
+        const dialog = await screen.findByRole('alertdialog');
+        fireEvent.change(within(dialog).getByRole('textbox', { name: /Request reason|Žádost/i }), {
+            target: { value: 'Monitor this protected vendor' },
+        });
+        fireEvent.click(within(dialog).getByRole('button', { name: /Continue|Pokračovat/i }));
+
         await waitFor(() => {
             expect(mockCreateKri).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -246,7 +254,7 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
             );
         });
         await waitFor(() => {
-            expect(mockLinkKRI).toHaveBeenCalledWith(12, 55);
+            expect(mockLinkKRI).toHaveBeenCalledWith(12, 55, 'Monitor this protected vendor');
         });
         expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
             state: {
@@ -259,7 +267,7 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
         });
     });
 
-    it('warns on the queued governed link and succeeds when the protected link applies directly', async () => {
+    it('collects a reason and opens the queued approval for a protected vendor link', async () => {
         mockLinkKRI.mockResolvedValueOnce({
             status: 'approval_required',
             approval_id: 900,
@@ -291,17 +299,189 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }));
 
+        const dialog = await screen.findByRole('alertdialog');
+        expect(mockCreateKri).not.toHaveBeenCalled();
+        fireEvent.change(within(dialog).getByRole('textbox', { name: /Request reason|Žádost/i }), {
+            target: { value: '  Monitor this critical vendor signal  ' },
+        });
+        fireEvent.click(within(dialog).getByRole('button', { name: /Continue|Pokračovat/i }));
+
         await waitFor(() => {
-            expect(mockLinkKRI).toHaveBeenCalledWith(12, 55);
+            expect(mockLinkKRI).toHaveBeenCalledWith(12, 55, 'Monitor this critical vendor signal');
+        });
+        expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=900');
+    });
+
+    it('queues only the protected parent Risk link before creating the KRI', async () => {
+        mockLinkRisk.mockResolvedValueOnce({
+            status: 'approval_required',
+            approval_id: 899,
+            proposal_id: 'proposal-risk',
+            proposal_version: 1,
+        });
+
+        render(
+            <KRIForm
+                vendorContext={{
+                    vendorId: 12,
+                    returnTo: '/vendors/12',
+                    vendorName: 'Vendor Twelve',
+                    protectedChangeRequiresApproval: true,
+                }}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /All readable risks|Všechna dostupná rizika/i }));
+        await screen.findByText('Standalone risk');
+        fireEvent.click(screen.getByRole('button', { name: /Standalone risk/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Next|Další/i }));
+        fireEvent.change(screen.getByPlaceholderText(/Customer complaint rate|Míra stížností zákazníků/i), {
+            target: { value: 'Governed parent risk KRI' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/Describe what this KRI measures|Popište, co tento KRI měří/i), {
+            target: { value: 'Queues the parent Risk before KRI creation.' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }));
+        const mismatchDialog = await screen.findByRole('alertdialog');
+        expect(mismatchDialog).toHaveTextContent(
+            /KRI has not been created.*request approval to link the parent Risk.*protected Vendor/i,
+        );
+        expect(within(mismatchDialog).getByRole('button', {
+            name: /Request parent Risk link approval/i,
+        })).toBeVisible();
+        fireEvent.click(within(mismatchDialog).getByRole('button', {
+            name: /Request parent Risk link approval/i,
+        }));
+
+        const reasonDialog = await screen.findByRole('alertdialog');
+        expect(mockCreateKri).not.toHaveBeenCalled();
+        fireEvent.change(within(reasonDialog).getByRole('textbox', { name: /Request reason|Žádost/i }), {
+            target: { value: '  Govern the parent Risk first  ' },
+        });
+        fireEvent.click(within(reasonDialog).getByRole('button', { name: /Continue|Pokračovat/i }));
+
+        await waitFor(() => {
+            expect(mockLinkRisk).toHaveBeenCalledWith(12, 202, 'Govern the parent Risk first');
+            expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=899');
+        });
+        expect(mockCreateKri).not.toHaveBeenCalled();
+        expect(mockLinkKRI).not.toHaveBeenCalled();
+    });
+
+    it('continues KRI creation when the protected parent Risk link applies directly', async () => {
+        mockLinkRisk.mockResolvedValueOnce({ status: 'linked' });
+        mockLinkKRI.mockResolvedValueOnce({ status: 'linked' });
+
+        render(
+            <KRIForm
+                vendorContext={{
+                    vendorId: 12,
+                    returnTo: '/vendors/12',
+                    vendorName: 'Vendor Twelve',
+                    protectedChangeRequiresApproval: true,
+                }}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /All readable risks|Všechna dostupná rizika/i }));
+        await screen.findByText('Standalone risk');
+        fireEvent.click(screen.getByRole('button', { name: /Standalone risk/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Next|Další/i }));
+        fireEvent.change(screen.getByPlaceholderText(/Customer complaint rate|Míra stížností zákazníků/i), {
+            target: { value: 'Direct parent Risk link KRI' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/Describe what this KRI measures|Popište, co tento KRI měří/i), {
+            target: { value: 'Continues after the direct parent Risk link.' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }));
+        fireEvent.click(await screen.findByRole('button', { name: /Request parent Risk link approval/i }));
+
+        const reasonDialog = await screen.findByRole('alertdialog');
+        fireEvent.change(within(reasonDialog).getByRole('textbox', { name: /Request reason|Žádost/i }), {
+            target: { value: '  Link the parent Risk before creation  ' },
+        });
+        fireEvent.click(within(reasonDialog).getByRole('button', { name: /Continue|Pokračovat/i }));
+
+        await waitFor(() => {
+            expect(mockLinkRisk).toHaveBeenCalledWith(12, 202, 'Link the parent Risk before creation');
+            expect(mockCreateKri).toHaveBeenCalledWith(expect.objectContaining({
+                risk_id: 202,
+                linked_vendor_ids: [],
+                ensure_parent_risk_vendor_ids: undefined,
+            }));
+            expect(mockLinkKRI).toHaveBeenCalledWith(12, 55, 'Link the parent Risk before creation');
         });
         expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
             state: {
                 vendorFlash: expect.objectContaining({
-                    tone: 'warn',
+                    tone: 'success',
                     ctaHref: '/kris/55',
                 }),
             },
         });
+    });
+
+    it('creates the KRI before queuing its protected Vendor link when continuing without the Risk link', async () => {
+        mockLinkKRI.mockResolvedValueOnce({
+            status: 'approval_required',
+            approval_id: 900,
+            proposal_id: 'proposal-kri',
+            proposal_version: 1,
+        });
+
+        render(
+            <KRIForm
+                vendorContext={{
+                    vendorId: 12,
+                    returnTo: '/vendors/12',
+                    vendorName: 'Vendor Twelve',
+                    protectedChangeRequiresApproval: true,
+                }}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /All readable risks|Všechna dostupná rizika/i }));
+        await screen.findByText('Standalone risk');
+        fireEvent.click(screen.getByRole('button', { name: /Standalone risk/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Next|Další/i }));
+        fireEvent.change(screen.getByPlaceholderText(/Customer complaint rate|Míra stížností zákazníků/i), {
+            target: { value: 'Governed KRI only' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/Describe what this KRI measures|Popište, co tento KRI měří/i), {
+            target: { value: 'Leaves the parent Risk relationship unchanged.' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }));
+        const mismatchDialog = await screen.findByRole('alertdialog');
+        expect(mismatchDialog).toHaveTextContent(
+            /create the KRI and request approval for its Vendor link.*parent Risk unchanged/i,
+        );
+        expect(within(mismatchDialog).getByRole('button', {
+            name: /Create KRI and request Vendor link approval/i,
+        })).toBeVisible();
+        fireEvent.click(within(mismatchDialog).getByRole('button', {
+            name: /Create KRI and request Vendor link approval/i,
+        }));
+
+        const reasonDialog = await screen.findByRole('alertdialog');
+        expect(mockCreateKri).not.toHaveBeenCalled();
+        fireEvent.change(within(reasonDialog).getByRole('textbox', { name: /Request reason|Žádost/i }), {
+            target: { value: '  Govern only the KRI relationship  ' },
+        });
+        fireEvent.click(within(reasonDialog).getByRole('button', { name: /Continue|Pokračovat/i }));
+
+        await waitFor(() => {
+            expect(mockCreateKri).toHaveBeenCalledWith(expect.objectContaining({
+                risk_id: 202,
+                linked_vendor_ids: [],
+                ensure_parent_risk_vendor_ids: undefined,
+            }));
+            expect(mockLinkKRI).toHaveBeenCalledWith(12, 55, 'Govern only the KRI relationship');
+            expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=900');
+        });
+        expect(mockLinkRisk).not.toHaveBeenCalled();
     });
 
     it('surfaces the backend protected-vendor rejection as a form alert on the generic form', async () => {

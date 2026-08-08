@@ -218,9 +218,10 @@ Rules:
 - KRIs can also be linked to one or more vendors as secondary monitoring context
 - Vendor linkage does **not** replace the required `risk_id`; every KRI must still belong to exactly one parent risk
 - Vendor-context KRI create uses the same vendor-link authorization boundary as other vendor link mutations: vendor read + KRI/risk read for visibility, vendor write/owner rules for link changes
-- KRI create/update accepts the full desired vendor set via `linked_vendor_ids`; client-side follow-up reconciliation is not authoritative
-- Vendor-context KRI create may also request `ensure_parent_risk_vendor_ids` to create missing vendor-risk links in the same transaction before the KRI is saved
-- Vendor assignment failures roll back the whole KRI create/update request; there is no partial “created but not linked” KRI state
+- Direct KRI create/update accepts the full desired vendor set via `linked_vendor_ids`; client-side follow-up reconciliation is not authoritative
+- Direct vendor-context KRI create may also request `ensure_parent_risk_vendor_ids` to create missing vendor-risk links atomically before the KRI is saved
+- For a protected Vendor, the KRI is created without that Vendor and the Vendor link is submitted afterward through the governed relationship endpoint. If its parent Risk is not linked, the user may instead request that governed link first; a queued request stops before KRI creation, while a direct result continues the normal create flow. The alternative creates the KRI and requests its Vendor link while leaving the parent Risk unchanged.
+- Direct vendor assignment failures roll back the whole KRI create/update request; a protected post-create Vendor-link request is a separate boundary, so the KRI can remain created while its relationship awaits approval or if that link request fails
 
 **Canonical Monitoring Status:**
 - KRIs expose a derived `monitoring_status` for detail views, list filters, stats, and exports.
@@ -1104,7 +1105,7 @@ Vendor detail-specific behavior:
 - `Add Control` navigates to `/controls/new?vendor_id=:id&return_to=/vendors/:id`
 - `Add KRI` navigates to `/kris/new?vendor_id=:id&return_to=/vendors/:id`
 - successful create returns to vendor detail with a confirmation banner and deep link to the created entity
-- vendor-context KRI create is transactional: requested vendor assignment and optional parent vendor-risk linking succeed or fail as one save
+- direct vendor-context KRI create is transactional; a protected Vendor is linked through an independent governed request after KRI creation, or its missing parent Risk link is requested first without automatically resuming KRI creation after approval
 - KRI edit requests from detail preserve the current KRI state until approval resolves when the user is not allowed to mutate immediately
 
 Register grouped-view behavior:

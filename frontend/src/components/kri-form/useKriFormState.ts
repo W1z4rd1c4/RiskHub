@@ -12,6 +12,7 @@ interface KriFormState {
     formData: Partial<KRICreate>;
     isMismatchDialogOpen: boolean;
     isSubmitting: boolean;
+    pendingGovernedCreate: { linkRiskFirst?: boolean } | null;
     riskSearch: string;
     selectedCategory: string;
     selectedDeptId: string;
@@ -55,6 +56,7 @@ function createInitialState(
         },
         isMismatchDialogOpen: false,
         isSubmitting: false,
+        pendingGovernedCreate: null,
         riskSearch: '',
         selectedCategory: '',
         selectedDeptId: '',

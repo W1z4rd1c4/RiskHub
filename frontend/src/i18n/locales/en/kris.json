@@ -159,8 +159,11 @@
     "mismatch_dialog": {
       "title": "Selected risk is not linked to this vendor",
       "message": "You can link the risk to the vendor before creating the KRI, continue without linking the risk, or cancel and pick a different risk.",
+      "protected_message": "The KRI has not been created. You can request approval to link the parent Risk to this protected Vendor first, or create the KRI and request approval for its Vendor link while leaving the parent Risk unchanged.",
       "link_risk_and_continue": "Link risk and continue",
+      "request_parent_risk_approval": "Request parent Risk link approval",
       "continue_without_linking": "Continue without linking risk",
+      "create_and_request_vendor_link": "Create KRI and request Vendor link approval",
       "cancel": "Cancel"
     }
   },

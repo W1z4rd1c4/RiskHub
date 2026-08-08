@@ -2,6 +2,7 @@ import { type FormEvent, useCallback } from "react";
 import type { NavigateFunction } from "react-router-dom";
 
 import { parseUpdateResult } from "@/lib/approvalUi";
+import { navigateToApprovalRequest } from "@/pages/approvals/approvalNavigation";
 import { ApiClientError } from "@/services/apiClient";
 import { kriApi } from "@/services/kriApi";
 import { logError } from "@/services/logger";
@@ -29,6 +30,37 @@ interface UseKriSubmitArgs {
   vendorContext: KRIFormVendorContext | null;
 }
 
+interface KriCreateOptions {
+  linkRiskFirst?: boolean;
+  requestReason?: string;
+}
+
+async function submitProtectedParentRiskLink(
+  navigate: NavigateFunction,
+  vendorContext: KRIFormVendorContext | null,
+  riskId: number | null | undefined,
+  options: KriCreateOptions,
+): Promise<boolean> {
+  if (
+    !vendorContext?.protectedChangeRequiresApproval ||
+    !options.linkRiskFirst ||
+    !riskId
+  ) {
+    return false;
+  }
+
+  const result = await vendorLinkApi.linkRisk(
+    vendorContext.vendorId,
+    riskId,
+    options.requestReason,
+  );
+  if (isProcessApprovalQueuedResponse(result)) {
+    navigateToApprovalRequest(navigate, result.approval_id);
+    return true;
+  }
+  return false;
+}
+
 export function useKriSubmit({
   effectiveVendorIds,
   formData,
@@ -43,8 +75,12 @@ export function useKriSubmit({
   validateStep2,
   vendorContext,
 }: UseKriSubmitArgs) {
+  const isProtectedVendorContext = Boolean(
+    vendorContext?.protectedChangeRequiresApproval,
+  );
+
   const finalizeCreate = useCallback(
-    async (options?: { linkRiskFirst?: boolean }) => {
+    async (options: KriCreateOptions = {}) => {
       if (!validateStep1() || !validateStep2()) {
         return;
       }
@@ -52,12 +88,17 @@ export function useKriSubmit({
       // A protected Vendor must not be linked through the direct create
       // payload — the relationship goes through the governed
       // vendor.link.kri.add route after the KRI exists (#100).
-      const isProtectedVendorContext = Boolean(
-        vendorContext?.protectedChangeRequiresApproval,
-      );
-
       try {
         setStatePatch({ approvalQueued: null, error: null, isSubmitting: true });
+        const parentRiskLinkQueued = await submitProtectedParentRiskLink(
+          navigate,
+          vendorContext,
+          formData.risk_id,
+          options,
+        );
+        if (parentRiskLinkQueued) {
+          return;
+        }
         const newKRI = await kriApi.createKRI({
           ...(formData as KRICreate),
           linked_vendor_ids:
@@ -67,7 +108,7 @@ export function useKriSubmit({
                 )
               : effectiveVendorIds,
           ensure_parent_risk_vendor_ids:
-            vendorContext && options?.linkRiskFirst && !isProtectedVendorContext
+            vendorContext && options.linkRiskFirst && !isProtectedVendorContext
               ? [vendorContext.vendorId]
               : undefined,
         });
@@ -79,8 +120,12 @@ export function useKriSubmit({
               const result = await vendorLinkApi.linkKRI(
                 vendorContext.vendorId,
                 newKRI.id,
+                options.requestReason,
               );
-              linkedDirectly = !isProcessApprovalQueuedResponse(result);
+              if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+              }
             } catch (error) {
               logError("KRI created but failed to link vendor context.", error);
               linkedDirectly = false;
@@ -114,12 +159,17 @@ export function useKriSubmit({
           setStatePatch({ error: "errorKeys.save_kri_failed" });
         }
       } finally {
-        setStatePatch({ isMismatchDialogOpen: false, isSubmitting: false });
+        setStatePatch({
+          isMismatchDialogOpen: false,
+          isSubmitting: false,
+          pendingGovernedCreate: null,
+        });
       }
     },
     [
       effectiveVendorIds,
       formData,
+      isProtectedVendorContext,
       navigate,
       onSuccess,
       setStatePatch,
@@ -128,6 +178,20 @@ export function useKriSubmit({
       validateStep2,
       vendorContext,
     ],
+  );
+
+  const beginCreate = useCallback(
+    async (options: KriCreateOptions = {}) => {
+      if (isProtectedVendorContext) {
+        setStatePatch({
+          isMismatchDialogOpen: false,
+          pendingGovernedCreate: options,
+        });
+        return;
+      }
+      await finalizeCreate(options);
+    },
+    [finalizeCreate, isProtectedVendorContext, setStatePatch],
   );
 
   const handleSubmit = useCallback(
@@ -147,7 +211,7 @@ export function useKriSubmit({
           setStatePatch({ isMismatchDialogOpen: true });
           return;
         }
-        await finalizeCreate();
+        await beginCreate();
         return;
       }
 
@@ -187,7 +251,7 @@ export function useKriSubmit({
     },
     [
       effectiveVendorIds,
-      finalizeCreate,
+      beginCreate,
       formData,
       isEdit,
       isSelectedRiskLinkedToVendor,
@@ -201,6 +265,7 @@ export function useKriSubmit({
   );
 
   return {
+    beginCreate,
     finalizeCreate,
     handleSubmit,
   };

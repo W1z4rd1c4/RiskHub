@@ -5,6 +5,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { DialogShell } from '@/components/DialogShell';
 
 interface KriMismatchDialogProps {
+    isProtectedVendor?: boolean;
     isSubmitting: boolean;
     onCancel: () => void;
     onContinueWithoutLinking: () => void;
@@ -12,6 +13,7 @@ interface KriMismatchDialogProps {
 }
 
 export function KriMismatchDialog({
+    isProtectedVendor = false,
     isSubmitting,
     onCancel,
     onContinueWithoutLinking,
@@ -21,6 +23,15 @@ export function KriMismatchDialog({
     const titleId = useId();
     const messageId = useId();
     const cancelRef = useRef<HTMLButtonElement>(null);
+    const messageKey = isProtectedVendor
+        ? 'kris:vendor_assignment.mismatch_dialog.protected_message'
+        : 'kris:vendor_assignment.mismatch_dialog.message';
+    const linkRiskActionKey = isProtectedVendor
+        ? 'kris:vendor_assignment.mismatch_dialog.request_parent_risk_approval'
+        : 'kris:vendor_assignment.mismatch_dialog.link_risk_and_continue';
+    const continueActionKey = isProtectedVendor
+        ? 'kris:vendor_assignment.mismatch_dialog.create_and_request_vendor_link'
+        : 'kris:vendor_assignment.mismatch_dialog.continue_without_linking';
 
     return (
         <DialogShell
@@ -43,7 +54,7 @@ export function KriMismatchDialog({
                             {t('kris:vendor_assignment.mismatch_dialog.title')}
                         </h3>
                         <p id={messageId} className="mt-2 text-sm leading-relaxed text-slate-400">
-                            {t('kris:vendor_assignment.mismatch_dialog.message')}
+                            {t(messageKey)}
                         </p>
                     </div>
                 </div>
@@ -55,7 +66,7 @@ export function KriMismatchDialog({
                         className="btn-primary justify-center"
                         disabled={isSubmitting}
                     >
-                        {t('kris:vendor_assignment.mismatch_dialog.link_risk_and_continue')}
+                        {t(linkRiskActionKey)}
                     </button>
                     <button
                         type="button"
@@ -63,7 +74,7 @@ export function KriMismatchDialog({
                         className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-white/[0.06]"
                         disabled={isSubmitting}
                     >
-                        {t('kris:vendor_assignment.mismatch_dialog.continue_without_linking')}
+                        {t(continueActionKey)}
                     </button>
                     <button
                         ref={cancelRef}
