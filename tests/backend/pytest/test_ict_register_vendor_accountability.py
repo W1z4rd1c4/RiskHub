@@ -1,15 +1,24 @@
 from __future__ import annotations
 
 import asyncio
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
+from app.core.datetime_utils import utc_now
+from app.core.exceptions import ConflictError
 from app.models import (
+    ApprovalActionType,
+    ApprovalRequest,
+    ApprovalResourceType,
     ApprovalScenario,
+    ApprovalStatus,
     Department,
+    GovernedMutationImpactLock,
+    GovernedMutationProposal,
     OrphanedItem,
     Permission,
     Risk,
@@ -21,6 +30,7 @@ from app.models import (
 )
 from app.models.activity_log import ActivityAction, ActivityEntityType, ActivityLog
 from app.models.user import AccessScope
+from app.services._orphaned_items import flag_orphaned_items, resolve_orphan
 
 
 def _payload(*, owner_id: int, department_id: int) -> dict[str, object]:
@@ -581,6 +591,171 @@ async def test_vendor_owner_deactivation_surfaces_orphan_locks_mutation_and_reso
             "new": "[REDACTED]",
         }
     }
+
+
+@pytest.mark.asyncio
+async def test_vendor_orphan_resolution_honors_impact_lock_and_governance_version(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_platform_admin: User,
+):
+    """Vendor orphan repair mirrors the Process/Asset impact-lock safeguards."""
+    vendor = _vendor(
+        name="Impact-locked orphan Vendor",
+        owner_id=test_user_employee.id,
+        department_id=test_department.id,
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    vendor_id = vendor.id
+    initial_governance_version = vendor.governance_version
+    former_owner_id = test_user_employee.id
+    replacement_owner_id = test_user_platform_admin.id
+    resolver_id = test_user_cro.id
+
+    test_user_employee.is_active = False
+    await db_session.flush()
+    created_orphans = await flag_orphaned_items(db_session, test_user_employee.id)
+    await db_session.commit()
+    orphan = next(item for item in created_orphans if item.item_type == "vendor")
+    orphan_id = orphan.id
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.VENDOR,
+        resource_id=vendor_id,
+        resource_name="Impact-locked orphan Vendor",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"name": {"old": "a", "new": "b"}},
+        requested_by_id=resolver_id,
+        reason="Lock orphan reassignment",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.flush()
+    proposal = GovernedMutationProposal(
+        proposal_id=str(uuid4()),
+        proposal_version=1,
+        schema_version=1,
+        approval_request_id=approval.id,
+        mutation_kind="vendor.edit",
+        primary_resource_type="vendor",
+        primary_resource_id=vendor_id,
+        primary_resource_name="Impact-locked orphan Vendor",
+        scenario_snapshot={},
+        base_versions={"vendor": initial_governance_version},
+        before_snapshot={},
+        after_snapshot={},
+        derived_impact_snapshot={},
+        proposed_changes={},
+        impacted_resources_snapshot=[],
+        requested_by_id=resolver_id,
+    )
+    db_session.add(proposal)
+    await db_session.flush()
+    impact_lock = GovernedMutationImpactLock(
+        proposal_id=proposal.id,
+        resource_type="vendor",
+        resource_id=vendor_id,
+        base_governance_version=initial_governance_version,
+    )
+    db_session.add(impact_lock)
+    await db_session.commit()
+    impact_lock_id = impact_lock.id
+    approval_id = approval.id
+
+    with pytest.raises(ConflictError, match="governed Vendor change is already pending"):
+        await resolve_orphan(
+            db_session,
+            orphan_id,
+            resolved_by_id=resolver_id,
+            new_owner_id=replacement_owner_id,
+        )
+    await db_session.rollback()
+
+    vendor = await db_session.get(Vendor, vendor_id)
+    assert vendor is not None
+    assert vendor.outsourcing_owner_user_id == former_owner_id
+    assert vendor.governance_version == initial_governance_version
+    assert (
+        await db_session.scalar(
+            select(OrphanedItem.status).where(OrphanedItem.id == orphan_id)
+        )
+        == "pending"
+    )
+
+    impact_lock = await db_session.get(GovernedMutationImpactLock, impact_lock_id)
+    assert impact_lock is not None
+    impact_lock.released_at = utc_now()
+    impact_lock.release_reason = "test_continue_orphan_resolution"
+    approval = await db_session.get(ApprovalRequest, approval_id)
+    assert approval is not None
+    approval.status = ApprovalStatus.CANCELLED
+    await db_session.commit()
+
+    resolved = await resolve_orphan(
+        db_session,
+        orphan_id,
+        resolved_by_id=resolver_id,
+        new_owner_id=replacement_owner_id,
+    )
+    assert resolved.status == "resolved"
+    db_session.expire_all()
+    vendor = await db_session.get(Vendor, vendor_id)
+    assert vendor is not None
+    assert vendor.outsourcing_owner_user_id == replacement_owner_id
+    assert vendor.governance_version == initial_governance_version + 1
+
+
+@pytest.mark.asyncio
+async def test_vendor_orphan_same_owner_repick_is_noop_for_governance_version(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_cro: User,
+    test_user_employee: User,
+):
+    """Re-picking the reactivated previous owner must not advance governance_version."""
+    vendor = _vendor(
+        name="No-op repair Vendor",
+        owner_id=test_user_employee.id,
+        department_id=test_department.id,
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    vendor_id = vendor.id
+    initial_governance_version = vendor.governance_version
+    former_owner_id = test_user_employee.id
+    resolver_id = test_user_cro.id
+
+    test_user_employee.is_active = False
+    await db_session.flush()
+    created_orphans = await flag_orphaned_items(db_session, former_owner_id)
+    await db_session.commit()
+    orphan = next(item for item in created_orphans if item.item_type == "vendor")
+    orphan_id = orphan.id
+
+    test_user_employee.is_active = True
+    await db_session.commit()
+
+    resolved = await resolve_orphan(
+        db_session,
+        orphan_id,
+        resolved_by_id=resolver_id,
+        new_owner_id=former_owner_id,
+    )
+    assert resolved.status == "resolved"
+    db_session.expire_all()
+    vendor = await db_session.get(Vendor, vendor_id)
+    assert vendor is not None
+    assert vendor.outsourcing_owner_user_id == former_owner_id
+    assert vendor.governance_version == initial_governance_version
+    assert (
+        await db_session.scalar(
+            select(OrphanedItem.status).where(OrphanedItem.id == orphan_id)
+        )
+        == "resolved"
+    )
 
 
 @pytest.mark.postgres

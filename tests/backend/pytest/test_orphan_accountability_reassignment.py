@@ -1342,6 +1342,349 @@ async def test_threat_steward_orphan_waits_for_atomic_approval(
     assert orphan.new_owner_id == replacement_owner_id
 
 
+async def _run_vendor_orphan_resolution_rejected_while_impact_lock_is_active(
+    db: AsyncSession,
+    client_factory,
+    *,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    await _accountability_scenario(db)
+    vendor, orphan, replacement_owner_id, owner_field = (
+        await _orphan_reassignment_case(
+            db,
+            item_type="vendor",
+            test_department=test_department,
+            test_user_cro=test_user_cro,
+            test_user_employee=test_user_employee,
+            test_user_risk_manager=test_user_risk_manager,
+        )
+    )
+    vendor_id = vendor.id
+    previous_owner_id = getattr(vendor, owner_field)
+    orphan_id = orphan.id
+
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.post(
+            f"/api/v1/orphaned-items/{orphan_id}/resolve",
+            json={
+                "new_owner_id": replacement_owner_id,
+                "request_reason": "Queue the governed reassignment",
+            },
+        )
+    assert submitted.status_code == 202, submitted.text
+
+    scenario = await db.scalar(
+        select(ApprovalScenario).where(
+            ApprovalScenario.key == "accountability_reassignment"
+        )
+    )
+    assert scenario is not None
+    scenario.requires_approval = False
+    await db.commit()
+
+    async with client_factory(user=test_user_cro) as requester:
+        rejected = await requester.post(
+            f"/api/v1/orphaned-items/{orphan_id}/resolve",
+            json={
+                "new_owner_id": test_user_cro.id,
+                "request_reason": "Attempt bypass while proposal pending",
+            },
+        )
+    assert rejected.status_code == 409, rejected.text
+    assert rejected.json()["detail"]["code"] == "vendor_pending_mutation"
+    db.expire_all()
+    vendor = await db.get(Vendor, vendor_id)
+    orphan = await db.get(OrphanedItem, orphan_id)
+    assert vendor is not None and orphan is not None
+    assert vendor.outsourcing_owner_user_id == previous_owner_id
+    assert vendor.governance_version == 1
+    assert orphan.status == "pending"
+    assert orphan.new_owner_id is None
+
+
+async def _run_threat_orphan_resolution_rejected_while_impact_lock_is_active(
+    db: AsyncSession,
+    client_factory,
+    *,
+    test_department,
+    test_user_cro: User,
+) -> None:
+    # Hand-rolled arrangement: this scenario needs a third CISO (the bypass
+    # replacement), which _orphan_reassignment_case cannot supply.
+    await _accountability_scenario(db)
+    ciso_role = Role(
+        name="ciso",
+        display_name="Chief Information Security Officer",
+    )
+    db.add(ciso_role)
+    await db.flush()
+    former_steward = User(
+        name="Former impact-lock CISO",
+        email="former-impact-lock-ciso@test.local",
+        role_id=ciso_role.id,
+        department_id=test_department.id,
+        access_scope=AccessScope.GLOBAL,
+        is_active=True,
+    )
+    governed_replacement = User(
+        name="Governed replacement CISO",
+        email="governed-impact-lock-ciso@test.local",
+        role_id=ciso_role.id,
+        department_id=test_department.id,
+        access_scope=AccessScope.GLOBAL,
+        is_active=True,
+    )
+    bypass_replacement = User(
+        name="Bypass replacement CISO",
+        email="bypass-impact-lock-ciso@test.local",
+        role_id=ciso_role.id,
+        department_id=test_department.id,
+        access_scope=AccessScope.GLOBAL,
+        is_active=True,
+    )
+    db.add_all([former_steward, governed_replacement, bypass_replacement])
+    await db.flush()
+    threat = Threat(
+        name="Impact-locked Threat orphan",
+        threat_steward_user_id=former_steward.id,
+    )
+    db.add(threat)
+    await db.commit()
+    threat_id = threat.id
+    previous_owner_id = former_steward.id
+    bypass_replacement_id = bypass_replacement.id
+    former_steward.is_active = False
+    orphans = await flag_orphaned_items(db, previous_owner_id)
+    await db.commit()
+    orphan = next(item for item in orphans if item.item_type == "threat")
+    orphan_id = orphan.id
+
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.post(
+            f"/api/v1/orphaned-items/{orphan_id}/resolve",
+            json={
+                "new_owner_id": governed_replacement.id,
+                "request_reason": "Queue the governed reassignment",
+            },
+        )
+    assert submitted.status_code == 202, submitted.text
+
+    scenario = await db.scalar(
+        select(ApprovalScenario).where(
+            ApprovalScenario.key == "accountability_reassignment"
+        )
+    )
+    assert scenario is not None
+    scenario.requires_approval = False
+    await db.commit()
+
+    async with client_factory(user=test_user_cro) as requester:
+        rejected = await requester.post(
+            f"/api/v1/orphaned-items/{orphan_id}/resolve",
+            json={
+                "new_owner_id": bypass_replacement_id,
+                "request_reason": "Attempt bypass while proposal pending",
+            },
+        )
+    assert rejected.status_code == 409, rejected.text
+    assert rejected.json()["detail"]["code"] == "threat_pending_mutation"
+    db.expire_all()
+    threat = await db.get(Threat, threat_id)
+    orphan = await db.get(OrphanedItem, orphan_id)
+    assert threat is not None and orphan is not None
+    assert threat.threat_steward_user_id == previous_owner_id
+    assert threat.governance_version == 1
+    assert orphan.status == "pending"
+    assert orphan.new_owner_id is None
+
+
+async def _run_vendor_orphan_stale_resource_version_expires_without_applying(
+    db: AsyncSession,
+    client_factory,
+    *,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    await _accountability_scenario(db)
+    vendor, orphan, replacement_owner_id, owner_field = (
+        await _orphan_reassignment_case(
+            db,
+            item_type="vendor",
+            test_department=test_department,
+            test_user_cro=test_user_cro,
+            test_user_employee=test_user_employee,
+            test_user_risk_manager=test_user_risk_manager,
+        )
+    )
+    vendor_id = vendor.id
+    previous_owner_id = getattr(vendor, owner_field)
+    orphan_id = orphan.id
+
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.post(
+            f"/api/v1/orphaned-items/{orphan_id}/resolve",
+            json={
+                "new_owner_id": replacement_owner_id,
+                "request_reason": "Exercise stale proposal expiry",
+            },
+        )
+    assert submitted.status_code == 202, submitted.text
+    await db.refresh(vendor)
+    vendor.governance_version += 1
+    await db.commit()
+
+    async with client_factory(user=test_user_risk_manager) as approver:
+        expired = await approver.post(
+            f"/api/v1/approvals/{submitted.json()['approval_id']}/approve",
+            json={"resolution_notes": "Attempt stale reassignment"},
+        )
+    assert expired.status_code == 200, expired.text
+    assert expired.json()["status"] == "expired"
+    db.expire_all()
+    vendor = await db.get(Vendor, vendor_id)
+    orphan = await db.get(OrphanedItem, orphan_id)
+    assert vendor is not None and orphan is not None
+    assert vendor.outsourcing_owner_user_id == previous_owner_id
+    assert vendor.governance_version == 2
+    assert orphan.status == "pending"
+    assert orphan.previous_owner_id == previous_owner_id
+    assert orphan.new_owner_id is None
+
+
+async def _run_threat_orphan_stale_resource_version_expires_without_applying(
+    db: AsyncSession,
+    client_factory,
+    *,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    await _accountability_scenario(db)
+    threat, orphan, replacement_owner_id, owner_field = (
+        await _orphan_reassignment_case(
+            db,
+            item_type="threat",
+            test_department=test_department,
+            test_user_cro=test_user_cro,
+            test_user_employee=test_user_employee,
+            test_user_risk_manager=test_user_risk_manager,
+        )
+    )
+    threat_id = threat.id
+    previous_owner_id = getattr(threat, owner_field)
+    orphan_id = orphan.id
+
+    async with client_factory(user=test_user_cro) as requester:
+        submitted = await requester.post(
+            f"/api/v1/orphaned-items/{orphan_id}/resolve",
+            json={
+                "new_owner_id": replacement_owner_id,
+                "request_reason": "Exercise stale proposal expiry",
+            },
+        )
+    assert submitted.status_code == 202, submitted.text
+    await db.refresh(threat)
+    threat.governance_version += 1
+    await db.commit()
+
+    async with client_factory(user=test_user_risk_manager) as approver:
+        expired = await approver.post(
+            f"/api/v1/approvals/{submitted.json()['approval_id']}/approve",
+            json={"resolution_notes": "Attempt stale reassignment"},
+        )
+    assert expired.status_code == 200, expired.text
+    assert expired.json()["status"] == "expired"
+    db.expire_all()
+    threat = await db.get(Threat, threat_id)
+    orphan = await db.get(OrphanedItem, orphan_id)
+    assert threat is not None and orphan is not None
+    assert threat.threat_steward_user_id == previous_owner_id
+    assert threat.governance_version == 2
+    assert orphan.status == "pending"
+    assert orphan.previous_owner_id == previous_owner_id
+    assert orphan.new_owner_id is None
+
+
+@pytest.mark.asyncio
+async def test_vendor_orphan_resolution_rejected_while_impact_lock_is_active(
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    await _run_vendor_orphan_resolution_rejected_while_impact_lock_is_active(
+        db_session,
+        client_factory,
+        test_department=test_department,
+        test_user_cro=test_user_cro,
+        test_user_employee=test_user_employee,
+        test_user_risk_manager=test_user_risk_manager,
+    )
+
+
+@pytest.mark.asyncio
+async def test_threat_orphan_resolution_rejected_while_impact_lock_is_active(
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+) -> None:
+    del test_user_risk_manager
+    await _run_threat_orphan_resolution_rejected_while_impact_lock_is_active(
+        db_session,
+        client_factory,
+        test_department=test_department,
+        test_user_cro=test_user_cro,
+    )
+
+
+@pytest.mark.asyncio
+async def test_vendor_orphan_stale_resource_version_expires_without_applying(
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    await _run_vendor_orphan_stale_resource_version_expires_without_applying(
+        db_session,
+        client_factory,
+        test_department=test_department,
+        test_user_cro=test_user_cro,
+        test_user_employee=test_user_employee,
+        test_user_risk_manager=test_user_risk_manager,
+    )
+
+
+@pytest.mark.asyncio
+async def test_threat_orphan_stale_resource_version_expires_without_applying(
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    await _run_threat_orphan_stale_resource_version_expires_without_applying(
+        db_session,
+        client_factory,
+        test_department=test_department,
+        test_user_cro=test_user_cro,
+        test_user_employee=test_user_employee,
+        test_user_risk_manager=test_user_risk_manager,
+    )
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("item_type", ["process", "asset", "vendor", "threat"])
 async def test_deactivation_during_pending_reassignment_is_resolved_atomically(
@@ -2113,3 +2456,93 @@ async def test_postgres_threat_orphan_and_ordinary_reassignment_do_not_deadlock(
 
     assert orphan_response.status_code == 202, orphan_response.text
     assert ordinary_response.status_code == 409, ordinary_response.text
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_postgres_vendor_orphan_resolution_rejected_while_impact_lock_is_active(
+    async_engine,
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("Requires PostgreSQL row and advisory locks")
+    await _run_vendor_orphan_resolution_rejected_while_impact_lock_is_active(
+        db_session,
+        client_factory,
+        test_department=test_department,
+        test_user_cro=test_user_cro,
+        test_user_employee=test_user_employee,
+        test_user_risk_manager=test_user_risk_manager,
+    )
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_postgres_threat_orphan_resolution_rejected_while_impact_lock_is_active(
+    async_engine,
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+) -> None:
+    del test_user_risk_manager
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("Requires PostgreSQL row and advisory locks")
+    await _run_threat_orphan_resolution_rejected_while_impact_lock_is_active(
+        db_session,
+        client_factory,
+        test_department=test_department,
+        test_user_cro=test_user_cro,
+    )
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_postgres_vendor_orphan_stale_resource_version_expires_without_applying(
+    async_engine,
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("Requires PostgreSQL row and advisory locks")
+    await _run_vendor_orphan_stale_resource_version_expires_without_applying(
+        db_session,
+        client_factory,
+        test_department=test_department,
+        test_user_cro=test_user_cro,
+        test_user_employee=test_user_employee,
+        test_user_risk_manager=test_user_risk_manager,
+    )
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_postgres_threat_orphan_stale_resource_version_expires_without_applying(
+    async_engine,
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("Requires PostgreSQL row and advisory locks")
+    await _run_threat_orphan_stale_resource_version_expires_without_applying(
+        db_session,
+        client_factory,
+        test_department=test_department,
+        test_user_cro=test_user_cro,
+        test_user_employee=test_user_employee,
+        test_user_risk_manager=test_user_risk_manager,
+    )

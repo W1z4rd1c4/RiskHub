@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -10,6 +11,8 @@ from sqlalchemy.orm import selectinload
 
 from app.core.activity_logger import log_activity
 from app.core.config import Settings
+from app.core.datetime_utils import utc_now
+from app.core.exceptions import ConflictError
 from app.core.security import check_permission
 from app.db.rbac_seed_contract import RBAC_ROLE_PERMISSIONS, expand_permission_keys
 from app.models import (
@@ -20,6 +23,8 @@ from app.models import (
     ApprovalStatus,
     Control,
     Department,
+    GovernedMutationImpactLock,
+    GovernedMutationProposal,
     OrphanedItem,
     Permission,
     Risk,
@@ -741,6 +746,169 @@ async def test_inactive_ciso_role_is_rejected_for_orphan_resolution(
             resolved_by_id=test_user_cro.id,
             new_owner_id=ciso_user.id,
         )
+
+
+@pytest.mark.asyncio
+async def test_threat_orphan_resolution_honors_impact_lock_and_governance_version(
+    db_session: AsyncSession,
+    test_user_cro: User,
+    ciso_user: User,
+) -> None:
+    """Threat orphan repair mirrors the Process/Asset impact-lock safeguards."""
+    replacement = User(
+        name="Impact-lock replacement CISO",
+        email="impact.lock.replacement.ciso@test.local",
+        role_id=ciso_user.role_id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    threat = Threat(
+        name="Impact-locked orphan Threat",
+        threat_steward_user_id=ciso_user.id,
+    )
+    db_session.add_all([replacement, threat])
+    await db_session.commit()
+    threat_id = threat.id
+    initial_governance_version = threat.governance_version
+    previous_steward_id = ciso_user.id
+    replacement_id = replacement.id
+    cro_id = test_user_cro.id
+    orphan = (await flag_orphaned_items(db_session, ciso_user.id))[0]
+    await db_session.commit()
+    orphan_id = orphan.id
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.THREAT,
+        resource_id=threat_id,
+        resource_name="Impact-locked orphan Threat",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"threat_steward": {"old": "a", "new": "b"}},
+        requested_by_id=cro_id,
+        reason="Lock orphan reassignment",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.flush()
+    proposal = GovernedMutationProposal(
+        proposal_id=str(uuid4()),
+        proposal_version=1,
+        schema_version=1,
+        approval_request_id=approval.id,
+        mutation_kind="threat.edit",
+        primary_resource_type="threat",
+        primary_resource_id=threat_id,
+        primary_resource_name="Impact-locked orphan Threat",
+        scenario_snapshot={},
+        base_versions={"threat": initial_governance_version},
+        before_snapshot={},
+        after_snapshot={},
+        derived_impact_snapshot={},
+        proposed_changes={},
+        impacted_resources_snapshot=[],
+        requested_by_id=cro_id,
+    )
+    db_session.add(proposal)
+    await db_session.flush()
+    impact_lock = GovernedMutationImpactLock(
+        proposal_id=proposal.id,
+        resource_type="threat",
+        resource_id=threat_id,
+        base_governance_version=initial_governance_version,
+    )
+    db_session.add(impact_lock)
+    await db_session.commit()
+    impact_lock_id = impact_lock.id
+    approval_id = approval.id
+
+    with pytest.raises(ConflictError, match="governed Threat change is already pending"):
+        await resolve_orphan(
+            db_session,
+            orphan_id,
+            resolved_by_id=cro_id,
+            new_owner_id=replacement_id,
+        )
+    await db_session.rollback()
+
+    threat = await db_session.get(Threat, threat_id)
+    assert threat is not None
+    assert threat.threat_steward_user_id == previous_steward_id
+    assert threat.governance_version == initial_governance_version
+    assert (
+        await db_session.scalar(
+            select(OrphanedItem.status).where(OrphanedItem.id == orphan_id)
+        )
+        == "pending"
+    )
+
+    impact_lock = await db_session.get(GovernedMutationImpactLock, impact_lock_id)
+    assert impact_lock is not None
+    impact_lock.released_at = utc_now()
+    impact_lock.release_reason = "test_continue_orphan_resolution"
+    approval = await db_session.get(ApprovalRequest, approval_id)
+    assert approval is not None
+    approval.status = ApprovalStatus.CANCELLED
+    await db_session.commit()
+
+    resolved = await resolve_orphan(
+        db_session,
+        orphan_id,
+        resolved_by_id=cro_id,
+        new_owner_id=replacement_id,
+    )
+    assert resolved.status == "resolved"
+    db_session.expire_all()
+    threat = await db_session.get(Threat, threat_id)
+    assert threat is not None
+    assert threat.threat_steward_user_id == replacement_id
+    assert threat.governance_version == initial_governance_version + 1
+
+
+@pytest.mark.asyncio
+async def test_threat_orphan_same_steward_repick_is_noop_for_governance_version(
+    db_session: AsyncSession,
+    test_user_cro: User,
+    ciso_user: User,
+) -> None:
+    """Re-picking the restored previous CISO must not advance governance_version."""
+    threat = Threat(
+        name="No-op repair Threat",
+        threat_steward_user_id=ciso_user.id,
+    )
+    db_session.add(threat)
+    await db_session.commit()
+    threat_id = threat.id
+    initial_governance_version = threat.governance_version
+    previous_steward_id = ciso_user.id
+    cro_id = test_user_cro.id
+
+    ciso_user.is_active = False
+    await db_session.flush()
+    created_orphans = await flag_orphaned_items(db_session, previous_steward_id)
+    await db_session.commit()
+    orphan = next(item for item in created_orphans if item.item_type == "threat")
+    orphan_id = orphan.id
+
+    ciso_user.is_active = True
+    await db_session.commit()
+
+    resolved = await resolve_orphan(
+        db_session,
+        orphan_id,
+        resolved_by_id=cro_id,
+        new_owner_id=previous_steward_id,
+    )
+    assert resolved.status == "resolved"
+    db_session.expire_all()
+    threat = await db_session.get(Threat, threat_id)
+    assert threat is not None
+    assert threat.threat_steward_user_id == previous_steward_id
+    assert threat.governance_version == initial_governance_version
+    assert (
+        await db_session.scalar(
+            select(OrphanedItem.status).where(OrphanedItem.id == orphan_id)
+        )
+        == "resolved"
+    )
 
 
 @pytest.mark.asyncio

@@ -398,6 +398,12 @@ async def resolve_orphan(
         ).scalar_one_or_none()
         if not threat:
             raise ValueError(f"Threat {orphan.item_id} no longer exists")
+
+        from app.services._governed_mutations.threat_mutations import (
+            assert_no_pending_threat_mutation,
+        )
+
+        await assert_no_pending_threat_mutation(db, threat_id=threat.id)
         # Match ordinary Threat reassignment lock order: establish the exact
         # current steward under the Threat row lock, then acquire the current
         # and proposed identities once in deterministic order. Revalidate the
@@ -419,6 +425,8 @@ async def resolve_orphan(
             threat,
             {"threat_steward_user_id": new_owner_id},
         )
+        if threat.threat_steward_user_id != new_steward.id:
+            threat.governance_version += 1
         threat.threat_steward = new_steward
         await log_activity(
             db,
@@ -1137,6 +1145,12 @@ async def _resolve_vendor_orphan(
     if vendor is None:
         raise ValueError(f"Vendor {preview.item_id} no longer exists")
 
+    from app.services._governed_mutations.vendor_mutations import (
+        assert_no_pending_vendor_mutation,
+    )
+
+    await assert_no_pending_vendor_mutation(db, vendor_id=vendor.id)
+
     orphan = (
         await db.execute(select(OrphanedItem).where(OrphanedItem.id == orphan_id).with_for_update())
     ).scalar_one_or_none()
@@ -1166,6 +1180,8 @@ async def _resolve_vendor_orphan(
         vendor,
         {"outsourcing_owner_user_id": new_owner_id},
     )
+    if vendor.outsourcing_owner_user_id != new_owner_id:
+        vendor.governance_version += 1
     vendor.outsourcing_owner = new_owner
     vendor.outsourcing_owner_user_id = new_owner_id
 
