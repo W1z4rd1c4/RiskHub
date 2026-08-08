@@ -4,7 +4,10 @@ import type { NavigateFunction } from "react-router-dom";
 import { parseUpdateResult } from "@/lib/approvalUi";
 import { ApiClientError } from "@/services/apiClient";
 import { kriApi } from "@/services/kriApi";
+import { logError } from "@/services/logger";
+import { vendorLinkApi } from "@/services/vendorLinkApi";
 import type { KRICreate } from "@/types/kri";
+import { isProcessApprovalQueuedResponse } from "@/types/process";
 
 import type { KRIFormVendorContext } from "./kriForm.types";
 import type { KriFormStatePatch } from "./useKriFormState";
@@ -46,23 +49,50 @@ export function useKriSubmit({
         return;
       }
 
+      // A protected Vendor must not be linked through the direct create
+      // payload — the relationship goes through the governed
+      // vendor.link.kri.add route after the KRI exists (#100).
+      const isProtectedVendorContext = Boolean(
+        vendorContext?.protectedChangeRequiresApproval,
+      );
+
       try {
         setStatePatch({ approvalQueued: null, error: null, isSubmitting: true });
         const newKRI = await kriApi.createKRI({
           ...(formData as KRICreate),
-          linked_vendor_ids: effectiveVendorIds,
+          linked_vendor_ids:
+            vendorContext && isProtectedVendorContext
+              ? effectiveVendorIds.filter(
+                  (vendorId) => vendorId !== vendorContext.vendorId,
+                )
+              : effectiveVendorIds,
           ensure_parent_risk_vendor_ids:
-            vendorContext && options?.linkRiskFirst
+            vendorContext && options?.linkRiskFirst && !isProtectedVendorContext
               ? [vendorContext.vendorId]
               : undefined,
         });
 
         if (vendorContext) {
+          let linkedDirectly = true;
+          if (isProtectedVendorContext) {
+            try {
+              const result = await vendorLinkApi.linkKRI(
+                vendorContext.vendorId,
+                newKRI.id,
+              );
+              linkedDirectly = !isProcessApprovalQueuedResponse(result);
+            } catch (error) {
+              logError("KRI created but failed to link vendor context.", error);
+              linkedDirectly = false;
+            }
+          }
           void navigate(vendorContext.returnTo, {
             state: {
               vendorFlash: {
-                tone: "success",
-                message: t("vendors:links.kris.created_and_linked"),
+                tone: linkedDirectly ? "success" : "warn",
+                message: linkedDirectly
+                  ? t("vendors:links.kris.created_and_linked")
+                  : t("vendors:links.kris.created_but_not_linked"),
                 ctaHref: `/kris/${newKRI.id}`,
                 ctaLabel: t("vendors:links.actions.open_kri"),
               },

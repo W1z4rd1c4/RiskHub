@@ -233,7 +233,8 @@
     "kris": {
       "subtitle": "Attach KRIs that monitor vendor-related exposure and performance.",
       "empty": "No linked KRIs yet.",
-      "created_and_linked": "KRI created and linked to the vendor."
+      "created_and_linked": "KRI created and linked to the vendor.",
+      "created_but_not_linked": "KRI created, but the vendor link failed. Review the new KRI and link it manually."
     }
   },
   "form": {

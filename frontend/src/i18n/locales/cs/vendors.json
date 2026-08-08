@@ -233,7 +233,8 @@
     "kris": {
       "subtitle": "Připojte KRI, která monitorují expozici a výkonnost dodavatele.",
       "empty": "Zatím nejsou navázaná KRI.",
-      "created_and_linked": "KRI bylo vytvořeno a navázáno na dodavatele."
+      "created_and_linked": "KRI bylo vytvořeno a navázáno na dodavatele.",
+      "created_but_not_linked": "KRI bylo vytvořeno, ale navázání na dodavatele selhalo. Zkontrolujte nové KRI a propojte ho ručně."
     }
   },
   "form": {

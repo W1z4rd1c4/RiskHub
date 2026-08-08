@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from uuid import uuid4
 
 from fastapi.encoders import jsonable_encoder
@@ -10,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.approval_helpers import build_approval_queued_response
 from app.core.audit import governed_mutation as audit_governed
-from app.core.exceptions import ConflictError, ValidationError
+from app.core.exceptions import ApprovalScenarioConfigurationError, ConflictError, ValidationError
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
@@ -42,6 +43,7 @@ from .fixed_accountability_policy import (
 )
 from .fixed_vendor_policy import (
     VENDOR_SCENARIO_KEY,
+    load_fixed_vendor_scenario,
     load_fixed_vendor_scenario_for_update,
     validated_fixed_vendor_roles,
 )
@@ -108,6 +110,33 @@ async def _existing_vendor_impacts(
 
 def _is_protected(*impacts: dict[str, object]) -> bool:
     return any(impact.get("tier") in _PROTECTED_TIERS for impact in impacts)
+
+
+async def protected_vendor_ids_requiring_approval(
+    db: AsyncSession,
+    vendors: Sequence[Vendor],
+) -> list[int]:
+    """Vendor ids whose relationship mutations the fixed protection policy governs.
+
+    Same predicate as ``submit_vendor_relationship_mutation_if_required``: a
+    protected current tier plus an enabled fixed Vendor scenario. Like that
+    governed path, a missing scenario row fails closed for protected tiers
+    (``ApprovalScenarioConfigurationError``) instead of allowing the write.
+    """
+    if not vendors:
+        return []
+    blocks = await load_vendor_derived_blocks(db, list(vendors))
+    protected_ids = [vendor.id for vendor in vendors if _is_protected(_impact(blocks[vendor.id]))]
+    if not protected_ids:
+        return []
+    scenario = await load_fixed_vendor_scenario(db)
+    if scenario is None:
+        raise ApprovalScenarioConfigurationError(
+            "The fixed protected Vendor approval scenario is missing"
+        )
+    if not scenario.requires_approval:
+        return []
+    return protected_ids
 
 
 async def _has_independent_approver(
@@ -914,6 +943,7 @@ async def submit_vendor_relationship_mutation_if_required(
 __all__ = [
     "acquire_vendor_creation_name_lock",
     "assert_no_pending_vendor_mutation",
+    "protected_vendor_ids_requiring_approval",
     "submit_vendor_archive_if_required",
     "submit_vendor_creation_if_required",
     "submit_vendor_child_mutation_if_required",

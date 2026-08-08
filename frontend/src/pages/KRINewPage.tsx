@@ -28,6 +28,7 @@ export function KRINewPage() {
     );
     const isVendorContext = vendorId !== null && returnTo !== null;
     const [vendorName, setVendorName] = useState<string | undefined>(undefined);
+    const [vendorRequiresApproval, setVendorRequiresApproval] = useState(false);
     const [vendorContextState, setVendorContextState] = useState<'loading' | 'allowed' | 'denied'>(
         isVendorContext ? 'loading' : 'allowed',
     );
@@ -50,6 +51,9 @@ export function KRINewPage() {
                 const vendor = await vendorApi.getVendor(vendorId);
                 if (!isMounted) return;
                 setVendorName(vendor.name);
+                setVendorRequiresApproval(
+                    resolveCapabilityFlag(vendor.capabilities, 'protected_change_requires_approval'),
+                );
                 setVendorContextState(
                     resolveCapabilityFlag(vendor.capabilities, 'can_create_linked_kri') ? 'allowed' : 'denied',
                 );
@@ -57,6 +61,7 @@ export function KRINewPage() {
                 logError('Failed to load vendor context for KRI create.', error);
                 if (isMounted) {
                     setVendorName(undefined);
+                    setVendorRequiresApproval(false);
                     setVendorContextState('denied');
                 }
             }
@@ -115,6 +120,7 @@ export function KRINewPage() {
                         vendorId,
                         vendorName,
                         returnTo,
+                        protectedChangeRequiresApproval: vendorRequiresApproval,
                     } : null}
                 />
             )}
