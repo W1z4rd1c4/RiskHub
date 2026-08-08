@@ -149,10 +149,10 @@ describe('IctCommitteeSection — blocking-count priority (FR-P5-6 / S1)', () =>
         getCommittee.mockResolvedValue(makeCommittee());
         renderSection();
 
-        // A non-zero blocking register-state tile reads amber via the semantic
-        // warning token, not neutral white (#102 / ADR-015).
+        // A non-zero blocking register-state tile reads amber via the
+        // standalone-text warning token, not neutral white (#102 / ADR-015).
         const pending = await screen.findByTestId('committee-state-assets_pending_review_count');
-        expect(within(pending).getByText('7').className).toContain('text-warning');
+        expect(within(pending).getByText('7').className).toContain('text-warning-text');
 
         // A cleared blocking tile reads green via the standalone-text success
         // token (contrast-contract-tested in statusTokenContrast.test.ts).
@@ -165,13 +165,13 @@ describe('IctCommitteeSection — blocking-count priority (FR-P5-6 / S1)', () =>
 
         // Key-metrics table: blocking metric warning-token amber, inventory metric white.
         const toleranceMetric = screen.getByTestId('committee-metric-risks_above_tolerance_count');
-        expect(within(toleranceMetric).getByText('4').className).toContain('text-warning');
+        expect(within(toleranceMetric).getByText('4').className).toContain('text-warning-text');
         const cifMetric = screen.getByTestId('committee-metric-cif_process_count');
         expect(within(cifMetric).getByText('79').className).toContain('text-white');
 
         // CRO KPI strip: blocking KPI warning (> 0) / success-text (= 0), inventory white.
         const openDq = screen.getByTestId('committee-kpi-open_dq_finding_count');
-        expect(within(openDq).getByText('23').className).toContain('text-warning');
+        expect(within(openDq).getByText('23').className).toContain('text-warning-text');
         const accepted = screen.getByTestId('committee-kpi-accepted_above_tolerance_count');
         expect(within(accepted).getByText('0').className).toContain('text-success-text');
         const riskCount = screen.getByTestId('committee-kpi-risk_count');

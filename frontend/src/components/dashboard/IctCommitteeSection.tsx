@@ -102,13 +102,13 @@ const BLOCKING_KPI_KEYS = new Set<string>([
     'open_dq_finding_count',
 ]);
 
-// Status text derives from the semantic tokens (ADR-015 / FR-P5-1). --warning
-// already reads amber as text on the dark surfaces (the ConfirmDialog idiom);
-// --success is background-oriented (deep green) and unreadable as text there,
-// so the standalone-text variant --success-text is used — AA against
-// --background is contract-tested in statusTokenContrast.test.ts.
+// Status text derives from the semantic tokens (ADR-015 / FR-P5-1). The fill
+// tokens are surface-oriented (--warning fails AA as text on light surfaces,
+// --success on dark ones), so the standalone-text variants --warning-text /
+// --success-text are used — AA against --background in every theme is
+// contract-tested in statusTokenContrast.test.ts.
 function blockingCountClass(value: number): string {
-    return value > 0 ? 'text-warning' : 'text-success-text';
+    return value > 0 ? 'text-warning-text' : 'text-success-text';
 }
 
 interface DrilldownBarShapeProps {

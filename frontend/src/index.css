@@ -40,12 +40,15 @@
        --success-text is the standalone-text variant of --success (the fill token
        is too dark to read as text on the dark surfaces): the static HSL of
        color-mix(in srgb, hsl(var(--success)) 50%, white). AA against
-       --background is enforced by statusTokenContrast.test.ts. */
+       --background is enforced by statusTokenContrast.test.ts.
+       --warning-text is the same standalone-text derivation for --warning: the
+       static HSL of color-mix(in srgb, hsl(var(--warning)) 50%, white). */
     --success: 142 72% 26%;
     --success-foreground: 210 40% 98%;
     --success-text: 142 25% 63%;
     --warning: 38 92% 50%;
     --warning-foreground: 26 84% 6%;
+    --warning-text: 38 92% 75%;
     --info: 211 80% 38%;
     --info-foreground: 210 40% 98%;
 
@@ -232,6 +235,7 @@
   --success-text: 142 25% 63%;
   --warning: 38 92% 50%;
   --warning-foreground: 26 84% 6%;
+  --warning-text: 38 92% 75%;
   --info: 211 80% 38%;
   --info-foreground: 0 0% 100%;
 
@@ -353,12 +357,16 @@
   /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale.
      --success-text: on the light surfaces the deep-green fill token itself is
      the readable text shade (the vendorRoute.css light theme reuses it the
-     same way), so no lightening here. */
+     same way), so no lightening here.
+     --warning-text: unlike --success, the amber fill token fails as text on
+     the light surfaces (~2.05:1), so a darkened amber is used instead — AA
+     against --background is enforced by statusTokenContrast.test.ts. */
   --success: 142 72% 26%;
   --success-foreground: 0 0% 100%;
   --success-text: 142 72% 26%;
   --warning: 38 92% 50%;
   --warning-foreground: 26 84% 6%;
+  --warning-text: 38 92% 30%;
   --info: 211 80% 38%;
   --info-foreground: 0 0% 100%;
 

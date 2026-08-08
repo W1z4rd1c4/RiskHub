@@ -158,6 +158,19 @@ describe('semantic status tokens — WCAG AA contrast (FR-P1-3, N20)', () => {
     expect(tailwindConfig).toContain('hsl(var(--success-text))');
   });
 
+  it.each(THEMES)('warning-text clears AA against the $name background', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    const ratio = contrastRatio(readHsl(block, 'warning-text'), readHsl(block, 'background'));
+    expect(ratio, `text-warning-text @ ${name} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+  });
+
+  it('defines --warning-text in every theme and wires it into Tailwind', () => {
+    for (const { selector } of THEMES) {
+      expect(themeBlock(indexCss, selector), '--warning-text').toContain('--warning-text:');
+    }
+    expect(tailwindConfig).toContain('hsl(var(--warning-text))');
+  });
+
   it.each(THEMES)('90% destructive hover fill clears AA against its foreground in $name', ({ selector, name }) => {
     const block = themeBlock(indexCss, selector);
     const hoverFill = composite(readHsl(block, 'destructive'), readHsl(block, 'background'), 0.9);

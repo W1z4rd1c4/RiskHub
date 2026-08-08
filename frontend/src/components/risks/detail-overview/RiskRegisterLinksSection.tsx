@@ -95,7 +95,7 @@ function LinkBlock({
                         >
                             <span className="text-sm font-bold text-white truncate">{row.name}</span>
                             {row.processEditBlocked && processBlockedLabel ? (
-                                <p className="text-xs font-medium text-warning">{processBlockedLabel}</p>
+                                <p className="text-xs font-medium text-warning-text">{processBlockedLabel}</p>
                             ) : null}
                             {canManageLinks && row.canDelete ? (
                                 <button
@@ -144,7 +144,7 @@ function LinkBlock({
                         {addLabel}
                     </button>
                     {selectedTargetBlocked && processBlockedLabel ? (
-                        <p className="md:col-span-4 text-xs font-medium text-warning">
+                        <p className="md:col-span-4 text-xs font-medium text-warning-text">
                             {processBlockedLabel}
                         </p>
                     ) : null}
