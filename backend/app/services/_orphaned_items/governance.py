@@ -137,6 +137,12 @@ ORPHAN_ITEM_DEFINITIONS: dict[str, OrphanItemDefinition] = {
 }
 
 
+# Item types whose repair is an accountability reassignment — the same four
+# types project_orphan_request_reason_requirements below can govern; resolving
+# them must go through the governed reassignment workflow.
+GOVERNED_ACCOUNTABILITY_ITEM_TYPES = frozenset({"asset", "process", "threat", "vendor"})
+
+
 def orphan_item_definition(item_type: str) -> OrphanItemDefinition:
     try:
         return ORPHAN_ITEM_DEFINITIONS[item_type]

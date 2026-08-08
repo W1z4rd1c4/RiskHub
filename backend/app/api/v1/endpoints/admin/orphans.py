@@ -1,19 +1,33 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, User
+from app.models import Control, ControlRiskLink, KeyRiskIndicator, OrphanedItem, Risk, User
 from app.schemas.admin import OrphanFixRequest, OrphanFixResponse, OrphanFixResult, OrphanStatsResponse
 from app.services._orphaned_items import resolve_orphan as resolve_orphan_record
+from app.services._orphaned_items.governance import GOVERNED_ACCOUNTABILITY_ITEM_TYPES
 from app.services._orphaned_items.resolution_plan import OrphanResolutionRequest, build_resolution_plan
 from app.services._orphaned_items.workflow import OrphanResolutionConflict
 
 from ._deps import require_platform_admin
 
 router = APIRouter()
+
+
+def governed_refusal_detail(item_types: Iterable[str]) -> str:
+    """Build the 400 detail refusing accountability-bearing types in an admin batch."""
+    return (
+        "Accountability-bearing orphan types cannot be repaired via the admin "
+        f"batch endpoint (request contains: {', '.join(sorted(item_types))}). "
+        "Resolve each item through the governed reassignment workflow "
+        "(POST /api/v1/orphaned-items/{orphan_id}/resolve), which requires "
+        "a written reason and independent approval."
+    )
 
 
 @router.get("/orphan-stats", response_model=OrphanStatsResponse)
@@ -62,7 +76,26 @@ async def fix_orphan_mappings(
 ) -> OrphanFixResponse:
     """
     Fix orphaned items using explicit admin-supplied resolution targets.
+
+    Refuses accountability-bearing item types (Process, Asset, Vendor, Threat)
+    in both dry-run and execution modes; those repairs must go through the
+    governed reassignment workflow.
     """
+    governed_types = list(
+        (
+            await db.execute(
+                select(OrphanedItem.item_type)
+                .distinct()
+                .where(
+                    OrphanedItem.id.in_({resolution.orphan_id for resolution in payload.resolutions}),
+                    OrphanedItem.item_type.in_(GOVERNED_ACCOUNTABILITY_ITEM_TYPES),
+                )
+            )
+        ).scalars()
+    )
+    if governed_types:
+        raise HTTPException(status_code=400, detail=governed_refusal_detail(governed_types))
+
     plans = []
     results = []
     risks_fixed = 0
@@ -88,6 +121,11 @@ async def fix_orphan_mappings(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        # Fail-closed re-check: an orphan committed after the upfront guard's
+        # SELECT must still never reach the ungoverned resolve path.
+        if plan.item_type in GOVERNED_ACCOUNTABILITY_ITEM_TYPES:
+            raise HTTPException(status_code=400, detail=governed_refusal_detail([plan.item_type]))
 
         plans.append(plan)
 
