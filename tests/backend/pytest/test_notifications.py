@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import event
+from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
@@ -44,7 +44,9 @@ def test_governed_notification_visibility_bounds_strict_validation_to_candidate_
     source = inspect.getsource(notification_visibility.visible_notification_clause)
     assert "valid_asset_approval_ids" in source
     assert "valid_vendor_approvals" in source
-    assert source.count("approval_ids=notification_approval_ids") >= 2
+    assert "valid_threat_approvals" in source
+    assert source.count("approval_ids=notification_approval_ids") >= 3
+    assert "if approval_id in notification_approval_ids" not in source
 
     approval_clause = inspect.getsource(notification_visibility._approval_exists_clause)
     assert "_asset_approval_visibility_clause" not in approval_clause
@@ -119,6 +121,167 @@ async def test_asset_notification_resolver_queries_only_candidate_approval_ids(
         assert "approval_request_id IN" in statement or "approval_requests.id IN" in statement
         assert candidate.id in values
         assert historical.id not in values
+
+
+@pytest.mark.asyncio
+async def test_threat_notification_validation_receives_exactly_callers_candidate_ids(
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_cro: User,
+    test_user_employee: User,
+) -> None:
+    from app.services import notification_visibility
+    from app.services._approval_queue.threat import (
+        valid_threat_approvals as real_valid_threat_approvals,
+    )
+
+    candidate = ApprovalRequest(
+        id=910_001,
+        resource_type=ApprovalResourceType.THREAT,
+        resource_id=1,
+        resource_name="Candidate Threat",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Candidate threat notification approval",
+        status=ApprovalStatus.PENDING,
+    )
+    historical = ApprovalRequest(
+        id=910_002,
+        resource_type=ApprovalResourceType.THREAT,
+        resource_id=2,
+        resource_name="Historical Threat",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Threat approval with no linked notification",
+        status=ApprovalStatus.PENDING,
+    )
+    other_callers = ApprovalRequest(
+        id=910_003,
+        resource_type=ApprovalResourceType.THREAT,
+        resource_id=3,
+        resource_name="Other Caller Threat",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Threat approval notified to a different user",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add_all([candidate, historical, other_callers])
+    await db_session.flush()
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+        title="Candidate Threat approval",
+        message="Only this approval id may reach Threat validation",
+        resource_type="approval",
+        resource_id=candidate.id,
+    )
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_cro.id,
+        notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+        title="Other caller Threat approval",
+        message="Another caller's approval id must not leak in",
+        resource_type="approval",
+        resource_id=other_callers.id,
+    )
+    await db_session.commit()
+
+    captured: list[dict[str, object]] = []
+
+    async def spy(db, **kwargs):
+        captured.append(dict(kwargs))
+        return await real_valid_threat_approvals(db, **kwargs)
+
+    monkeypatch.setattr(notification_visibility, "valid_threat_approvals", spy)
+
+    response = await client.get(
+        "/api/v1/notifications",
+        headers=_headers_for(test_user_employee),
+    )
+    assert response.status_code == 200, response.text
+
+    expected_candidate_ids = set(
+        (
+            await db_session.execute(
+                select(Notification.resource_id).where(
+                    Notification.user_id == test_user_employee.id,
+                    func.lower(Notification.resource_type) == "approval",
+                    Notification.resource_id.is_not(None),
+                )
+            )
+        ).scalars()
+    )
+    assert expected_candidate_ids == {candidate.id}
+    assert captured, "valid_threat_approvals was never called"
+    for kwargs in captured:
+        assert "approval_ids" in kwargs, "Threat validation was not bounded to candidate ids"
+        received = set(kwargs["approval_ids"])
+        assert received == expected_candidate_ids
+        assert historical.id not in received
+        assert other_callers.id not in received
+
+
+@pytest.mark.asyncio
+async def test_threat_validation_with_empty_candidate_set_executes_no_query(
+    db_session: AsyncSession,
+) -> None:
+    from app.services._approval_queue.threat import valid_threat_approvals
+
+    statements: list[str] = []
+
+    def capture_statement(_connection, _cursor, statement, _parameters, _context, _executemany) -> None:
+        statements.append(statement)
+
+    sync_engine = db_session.bind.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", capture_statement)
+    try:
+        result = await valid_threat_approvals(db_session, approval_ids=frozenset())
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", capture_statement)
+
+    assert result == {}
+    assert statements == []
+
+
+@pytest.mark.asyncio
+async def test_notifications_without_approval_candidates_skip_threat_approval_scan(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_employee: User,
+) -> None:
+    from app.services._governed_mutations.threat_identity import THREAT_EDIT_KIND
+
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.GOVERNED_APPROVAL_REQUEST_UPDATES,
+        title="Unlinked notification",
+        message="No approval notifications exist for this caller",
+    )
+    await db_session.commit()
+
+    threat_scans: list[str] = []
+
+    def capture_threat_scan(_connection, _cursor, statement, parameters, _context, _executemany) -> None:
+        values = tuple(parameters.values()) if isinstance(parameters, dict) else tuple(parameters or ())
+        if "governed_mutation_proposals" in statement and THREAT_EDIT_KIND in values:
+            threat_scans.append(statement)
+
+    sync_engine = db_session.bind.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", capture_threat_scan)
+    try:
+        response = await client.get(
+            "/api/v1/notifications",
+            headers=_headers_for(test_user_employee),
+        )
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", capture_threat_scan)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert threat_scans == []
 
 
 def _headers_for(user) -> dict[str, str]:

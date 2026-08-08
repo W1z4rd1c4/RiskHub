@@ -940,8 +940,9 @@ async def visible_notification_clause(db: AsyncSession, current_user: User) -> C
     issue_clause = (
         await get_issue_scope_clause(db, current_user) if has_permission(current_user, "issues", "read") else false()
     )
-    notification_approval_ids = set(
-        (
+    notification_approval_ids = {
+        linked_approval_id
+        for linked_approval_id in (
             await db.execute(
                 select(Notification.resource_id).where(
                     Notification.user_id == current_user.id,
@@ -950,7 +951,8 @@ async def visible_notification_clause(db: AsyncSession, current_user: User) -> C
                 )
             )
         ).scalars()
-    )
+        if linked_approval_id is not None
+    }
     valid_extended_ids = await valid_extended_process_approval_ids(
         db,
         approval_ids=notification_approval_ids,
@@ -975,12 +977,10 @@ async def visible_notification_clause(db: AsyncSession, current_user: User) -> C
         current_user=current_user,
         proposals=valid_vendor_proposals,
     )
-    valid_threat_proposals = await valid_threat_approvals(db)
-    valid_threat_proposals = {
-        approval_id: proposal
-        for approval_id, proposal in valid_threat_proposals.items()
-        if approval_id in notification_approval_ids
-    }
+    valid_threat_proposals = await valid_threat_approvals(
+        db,
+        approval_ids=notification_approval_ids,
+    )
     live_threat_resolver_ids = await live_threat_resolver_approval_ids(
         db,
         current_user=current_user,

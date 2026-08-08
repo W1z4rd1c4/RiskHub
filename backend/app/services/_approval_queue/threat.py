@@ -23,6 +23,7 @@ async def valid_threat_approvals(
     db: AsyncSession,
     *,
     approval_statuses: Collection[ApprovalStatus] | None = None,
+    approval_ids: Collection[int] | None = None,
 ) -> dict[int, GovernedMutationProposal]:
     statement = (
         select(ApprovalRequest)
@@ -37,6 +38,10 @@ async def valid_threat_approvals(
         statement = statement.where(
             ApprovalRequest.status.in_(tuple(approval_statuses))
         )
+    if approval_ids is not None:
+        if not approval_ids:
+            return {}
+        statement = statement.where(ApprovalRequest.id.in_(tuple(approval_ids)))
     approvals = (await db.execute(statement)).scalars().all()
     return {
         approval.id: proposal

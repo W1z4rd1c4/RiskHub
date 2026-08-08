@@ -799,6 +799,96 @@ async def test_threat_steward_queue_and_notification_visibility_are_identity_bou
 
 
 @pytest.mark.asyncio
+async def test_threat_notification_visibility_is_equivalent_with_candidate_bounding(
+    client_factory,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+    test_user_employee: User,
+) -> None:
+    """Bounding Threat validation to notification-linked ids must not change visibility."""
+    await _seed_accountability_scenario(db_session)
+    _threat, _current, _target, submitted = await _pending_transfer(
+        client_factory=client_factory,
+        db=db_session,
+        requester=test_user_cro,
+        department_id=test_department.id,
+        suffix="equivalence",
+    )
+    ciso_role = (
+        await db_session.execute(select(Role).where(Role.name == "ciso"))
+    ).scalar_one()
+    current_two = await _create_ciso(
+        db_session,
+        role=ciso_role,
+        name="Current Steward equivalence-unlinked",
+        email="current-equivalence-unlinked@test.local",
+        department_id=test_department.id,
+    )
+    proposed_two = await _create_ciso(
+        db_session,
+        role=ciso_role,
+        name="Proposed Steward equivalence-unlinked",
+        email="proposed-equivalence-unlinked@test.local",
+        department_id=test_department.id,
+    )
+    threat_two = Threat(
+        name="Threat equivalence-unlinked",
+        threat_steward_user_id=current_two.id,
+    )
+    db_session.add(threat_two)
+    await db_session.commit()
+    async with client_factory(user=test_user_cro) as second_requester:
+        second_response = await second_requester.patch(
+            f"/api/v1/threats/{threat_two.id}",
+            json={
+                "threat_steward_user_id": proposed_two.id,
+                "request_reason": "Transfer equivalence-unlinked",
+            },
+        )
+    assert second_response.status_code == 202, second_response.text
+    unlinked = second_response.json()
+    assert unlinked["approval_id"] != submitted["approval_id"]
+    db_session.add_all(
+        [
+            Notification(
+                user_id=user.id,
+                type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+                title="Threat approval",
+                message="Threat Steward transfer requires review",
+                resource_type="approval",
+                resource_id=submitted["approval_id"],
+            )
+            for user in (
+                test_user_risk_manager,
+                test_user_cro,
+                test_user_employee,
+            )
+        ]
+    )
+    await db_session.commit()
+
+    async with client_factory(user=test_user_risk_manager) as reviewer:
+        reviewer_notifications = await reviewer.get("/api/v1/notifications")
+    async with client_factory(user=test_user_cro) as requester:
+        requester_notifications = await requester.get("/api/v1/notifications")
+    async with client_factory(user=test_user_employee) as excluded:
+        excluded_notifications = await excluded.get("/api/v1/notifications")
+
+    assert reviewer_notifications.status_code == 200
+    assert requester_notifications.status_code == 200
+    assert excluded_notifications.status_code == 200
+    reviewer_payload = reviewer_notifications.json()
+    requester_payload = requester_notifications.json()
+    assert reviewer_payload["total"] == 1
+    assert [row["resource_id"] for row in reviewer_payload["items"]] == [submitted["approval_id"]]
+    assert requester_payload["total"] == 1
+    assert [row["resource_id"] for row in requester_payload["items"]] == [submitted["approval_id"]]
+    assert excluded_notifications.json()["total"] == 0
+
+
+@pytest.mark.asyncio
 async def test_threat_read_projects_safe_pending_change_and_clears_after_cancel(
     client_factory,
     db_session: AsyncSession,
