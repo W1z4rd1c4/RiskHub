@@ -1,10 +1,11 @@
 # Release-hardening retrospective — commit `2425ecbe` (#108)
 
 Retrospective, auditable record required by remediation spec #98 and ticket #108.
-It documents the true scope of release-evidence commit `2425ecbe`, lists the four
-expiring security acceptances with their **release-level** accepting owner, and
-records the five refuted review findings as checked-and-cleared. No history is
-rewritten and no policy file is modified by this record.
+It documents the true scope of release-evidence commit `2425ecbe`, records the
+original four security acceptances with their **release-level** accepting owner,
+and records the five refuted review findings as checked-and-cleared. One npm
+acceptance has since been resolved; three Grype acceptances remain open. No
+history is rewritten.
 
 ## 1. Commit identity
 
@@ -41,25 +42,30 @@ remediation commit references a tracker ticket instead.
 ## 3. Security acceptances — release-level ownership
 
 Commit `2425ecbe` introduced or carried four time-bound security acceptances,
-**all expiring 2026-09-30**. The policy files name *team* owners; release-level
-acceptance was previously unrecorded. It is recorded here:
+originally **all expiring 2026-09-30**. The policy files name *team* owners;
+release-level acceptance was previously unrecorded. It is recorded here:
 
-> **Release-acceptance owner for all four acceptances: W1z4rd1c4** — accepted in
+> **Release-acceptance owner for all four original acceptances: W1z4rd1c4** — accepted in
 > the grilling session of 2026-08-06 that produced spec #98. This is distinct
 > from the team owners named inside the policy files (`Owner: Platform`,
 > `"owner": "Frontend Platform"`). Expiry follow-up is tracked as ticket #112
 > (due 2026-09-30).
 
-| Identity | Policy location | Team owner (in file) | Evidence summary | Expires |
+| Identity | Policy location | Team owner (in file) | Original evidence summary | Original expiry |
 |---|---|---|---|---|
 | npm advisory **GHSA-qwww-vcr4-c8h2** (high; `react-router`/`react-router-dom`) | `scripts/security/prod_readiness_audit/npm-audit-policy.json` | Frontend Platform | React Router RSC-mode CSRF advisory. Reachability: RiskHub uses client-side `BrowserRouter` only (no RSC routes/server actions). No compatible fixed `react-router-dom` 7.x exists (fix is `react-router` >= 8.3.0). Exit: upgrade to the first compatible release on react-router >= 8.3.0. | 2026-09-30 |
 | **CVE-2026-15308** (High; `python` 3.13.14 binary, `/usr/local/bin/python3.13`) | `backend/security/grype-ignore.yaml` | Platform | stdlib `html.parser` incremental-feed CPU DoS (gh-153030). No released fixed python:3.13 base image (backport merged after v3.13.14). Reachability: no `html.parser`/`HTMLParser` use in `backend/app` or `backend/scripts`. Exit: bump base image to first fixed 3.13-alpine. | 2026-09-30 |
 | **CVE-2026-11940** (`python` 3.13.14) | `backend/security/grype-ignore.yaml` | Platform | stdlib `tarfile.extractall` hardlink/symlink filter bypass (gh-151558). 3.13 backport not in any released tag. Reachability: no `tarfile` use in `backend/app` or `backend/scripts`. Exit: bump base image once 3.13.15+ is released. | 2026-09-30 |
 | **CVE-2026-11972** (`python` 3.13.14) | `backend/security/grype-ignore.yaml` | Platform | stdlib `tarfile` streaming-mode EOF DoS (gh-151981). Same no-released-fix and no-`tarfile`-use rationale as CVE-2026-11940. Exit: bump base image once 3.13.15+ is released. | 2026-09-30 |
 
+**Resolved disposition — GHSA-qwww-vcr4-c8h2 (2026-08-09):** A compatible
+7.18.2 fix became available, `react-router` and `react-router-dom` were upgraded,
+raw `npm audit --audit-level=high` reported zero vulnerabilities, and the npm
+policy entry was removed.
+
 Full per-entry evidence (Decision, Scanner evidence, No-fix proof, Reachability,
-Exit) lives verbatim in the two policy files above; this record does not
-duplicate or alter them.
+Exit) for the three remaining Grype acceptances lives in
+`backend/security/grype-ignore.yaml`. The npm policy is now explicitly empty.
 
 ## 4. Refuted review findings — checked and cleared
 
@@ -79,15 +85,16 @@ checked against.
 
 ## 5. Boundaries of this record
 
-- Retrospective and additive only: no history rewriting, no change to
-  `backend/security/grype-ignore.yaml` or
-  `scripts/security/prod_readiness_audit/npm-audit-policy.json`.
+- Retrospective and additive only: no history rewriting and no change to
+  `backend/security/grype-ignore.yaml`; the npm policy now records that no npm
+  advisory is accepted.
 - It does not check, satisfy, or modify any human-owned release gate in
   [`FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md`](./FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md)
   §5 (manual/AT matrix, C6 reproduction, ultrareview, merge decision).
-- The external release ledger must cite this record for the four owned security
-  acceptances and the release-acceptance owner, alongside the exact final
-  release SHA/tree identities it already requires.
+- The external release ledger must cite this record for the resolved npm
+  acceptance, the three remaining Grype acceptances, and their release-acceptance
+  owner, alongside the exact final release SHA/tree identities it already
+  requires.
 
 ## References
 

@@ -26,14 +26,18 @@ class NpmAuditPolicyError(ValueError):
     pass
 
 
-def _load_policy(policy_path: Path, today: date) -> dict[str, Any]:
+def _load_policy(policy_path: Path, today: date) -> dict[str, Any] | None:
     try:
         document = json.loads(policy_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise NpmAuditPolicyError(f"invalid npm audit policy: {exc}") from exc
     if not isinstance(document, dict) or document.get("schema_version") != 1:
         raise NpmAuditPolicyError("invalid npm audit policy schema_version")
-    policy = document.get("accepted_advisory")
+    if "accepted_advisory" not in document:
+        raise NpmAuditPolicyError("invalid npm audit policy accepted_advisory")
+    policy = document["accepted_advisory"]
+    if policy is None:
+        return None
     if not isinstance(policy, dict):
         raise NpmAuditPolicyError("invalid npm audit policy accepted_advisory")
     missing = sorted(REQUIRED_POLICY_FIELDS - policy.keys())
@@ -128,8 +132,8 @@ def evaluate_npm_audit(
     payload = _load_audit(raw_report)
     policy = _load_policy(policy_path, today or datetime.now(UTC).date())
     vulnerabilities = payload["vulnerabilities"]
-    accepted_id = policy["id"]
-    accepted_packages = set(policy["packages"])
+    accepted_id = policy["id"] if policy is not None else None
+    accepted_packages = set(policy["packages"]) if policy is not None else set()
 
     raw_packages: list[str] = []
     matching_policy: list[str] = []
@@ -143,7 +147,8 @@ def evaluate_npm_audit(
         raw_packages.append(package)
         advisories = _resolved_advisories(package, vulnerabilities, set())
         if (
-            package in accepted_packages
+            policy is not None
+            and package in accepted_packages
             and severity == policy["severity"]
             and advisories == {accepted_id}
         ):
@@ -159,7 +164,7 @@ def evaluate_npm_audit(
         "raw_high_critical_packages": len(raw_packages),
         "accepted_high_critical_packages": len(accepted),
         "open_high_critical_packages": len(open_packages),
-        "accepted_advisories": [accepted_id] if accepted else [],
+        "accepted_advisories": [accepted_id] if accepted_id and accepted else [],
         "open_packages": sorted(open_packages),
         "accepted_risk": policy if accepted else None,
     }

@@ -31,21 +31,20 @@ describe('live dialog render-site owner monitoring', () => {
     )).toBe('requestfailed: GET /api/v1/users/me/shell-summary (net::ERR_CONNECTION_RESET)');
   });
 
-  it('allows only the exact aborted dashboard handoff request', () => {
+  it('allows only the exact dashboard route-transition cancellation for every live driver', () => {
     const event = {
       method: 'GET',
       url: 'http://127.0.0.1:5174/api/v1/dashboard/overview',
       failureText: 'net::ERR_ABORTED',
     };
 
-    expect(describeLiveNetworkFailure(
-      event,
-      ['GET /api/v1/dashboard/overview net::ERR_ABORTED'],
-    )).toBeNull();
-    expect(describeLiveNetworkFailure(
-      { ...event, failureText: 'net::ERR_CONNECTION_RESET' },
-      ['GET /api/v1/dashboard/overview net::ERR_ABORTED'],
-    )).toBe('requestfailed: GET /api/v1/dashboard/overview (net::ERR_CONNECTION_RESET)');
+    expect(describeLiveNetworkFailure(event)).toBeNull();
+    expect(describeLiveNetworkFailure({ ...event, method: 'POST' }))
+      .toBe('requestfailed: POST /api/v1/dashboard/overview (net::ERR_ABORTED)');
+    expect(describeLiveNetworkFailure({ ...event, url: `${event.url}/recent` }))
+      .toBe('requestfailed: GET /api/v1/dashboard/overview/recent (net::ERR_ABORTED)');
+    expect(describeLiveNetworkFailure({ ...event, failureText: 'net::ERR_CONNECTION_RESET' }))
+      .toBe('requestfailed: GET /api/v1/dashboard/overview (net::ERR_CONNECTION_RESET)');
   });
 
   it('records application error responses and ignores successful responses', () => {

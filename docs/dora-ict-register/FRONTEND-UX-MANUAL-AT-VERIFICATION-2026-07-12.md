@@ -248,10 +248,11 @@ does not self-reference its own Wave 5 commit or tree identity.
 
 The retrospective record
 [`RELEASE-HARDENING-RETROSPECTIVE-2026-08-08.md`](./RELEASE-HARDENING-RETROSPECTIVE-2026-08-08.md)
-(#108) documents the true scope of release-evidence commit `2425ecbe`, the four
-time-bound security acceptances (npm GHSA-qwww-vcr4-c8h2; grype CVE-2026-15308,
-CVE-2026-11940, CVE-2026-11972 — all expiring 2026-09-30) with W1z4rd1c4 as
-release-acceptance owner, and the five refuted `eb7ca6f9` review findings as
-checked-and-cleared. When the §5 checklist is executed, the external release
-ledger MUST cite that record for the four owned security acceptances. This
-addendum does not check, satisfy, or modify any §2, §3, or §5 item.
+(#108) documents the true scope of release-evidence commit `2425ecbe`, the
+resolved npm GHSA-qwww-vcr4-c8h2 acceptance, the three remaining Grype
+acceptances (CVE-2026-15308, CVE-2026-11940, and CVE-2026-11972, expiring
+2026-09-30) with W1z4rd1c4 as release-acceptance owner, and the five refuted
+`eb7ca6f9` review findings as checked-and-cleared. When the §5 checklist is
+executed, the external release ledger MUST cite that record for the resolved npm
+acceptance and three remaining Grype acceptances. This addendum does not check,
+satisfy, or modify any §2, §3, or §5 item.

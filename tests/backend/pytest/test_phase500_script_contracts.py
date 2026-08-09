@@ -687,8 +687,7 @@ def test_package_dependent_runtime_probes_execute_as_riskhub_user() -> None:
     verify_script = _script_text("verify_runtime.sh")
 
     assert (
-        "docker exec -i --user riskhub \"$BACKEND_CONTAINER\" python - <<'PY'"
-        in smoke_script
+        '| docker exec -i --user riskhub "$BACKEND_CONTAINER" python -' in smoke_script
     )
     assert (
         "docker exec -i --user riskhub \"$BACKEND_CONTAINER\" python - <<'PY'"

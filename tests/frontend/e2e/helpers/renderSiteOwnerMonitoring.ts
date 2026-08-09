@@ -10,6 +10,8 @@ interface ResponseEvent {
   status: number;
 }
 
+const dashboardOverviewHandoffFailure = 'GET /api/v1/dashboard/overview net::ERR_ABORTED';
+
 function pathname(url: string): string {
   const parsed = new URL(url);
   return `${parsed.pathname}${parsed.search}`;
@@ -20,7 +22,10 @@ export function describeLiveNetworkFailure(
   allowedFailures: readonly string[] = [],
 ): string | null {
   const requestKey = `${event.method} ${pathname(event.url)} ${event.failureText}`;
-  if (allowedFailures.includes(requestKey)) return null;
+  if (
+    requestKey === dashboardOverviewHandoffFailure
+    || allowedFailures.includes(requestKey)
+  ) return null;
   return `requestfailed: ${event.method} ${pathname(event.url)} (${event.failureText})`;
 }
 

@@ -55,6 +55,7 @@
 - E2E workflow provisions Postgres service, runs backend + Playwright chromium suite (`.github/workflows/e2e.yml`)
 - Dedicated backend Postgres workflow runs `make -f scripts/Makefile test-postgres-ci` as a required PR signal for schema-sensitive behavior plus the named DB-sensitive regression pack (`.github/workflows/backend-postgres.yml`)
 - Frontend Vitest is a blocking PR signal in the lint workflow (`.github/workflows/lint.yml`)
+- Normal pull-request gates checkout the exact `pull_request.head.sha`; the separate `PR Merge Result Build` job builds the `github.sha` synthetic merge result.
 - Lint workflow enforces frontend debt/dead-code/no-inline-style gates with machine-readable validators, backend Ruff hard gate, backend suppression budget, docs topology consistency, and production contract doc parity (`.github/workflows/lint.yml`)
 - Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
 - Security workflow also runs nightly non-blocking Redis resilience integration checks (`redis_integration`) (`.github/workflows/security.yml`)

@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import textwrap
 import threading
 import time
 import uuid
@@ -24,6 +25,14 @@ def _smoke_backend_http_code_probe() -> str:
     script = (PROD_SCRIPTS_DIR / "smoke_test.sh").read_text(encoding="utf-8")
     marker = "backend_http_code_python() {\n  cat <<'PY'\n"
     return script.split(marker, 1)[1].split("\nPY\n}", 1)[0]
+
+
+def _smoke_reliability_runtime_classifier() -> str:
+    script = (PROD_SCRIPTS_DIR / "smoke_test.sh").read_text(encoding="utf-8")
+    classifier = script.split("    payload = {\n", 1)[1].split(
+        "\n\n\nasyncio.run(main())", 1
+    )[0]
+    return textwrap.dedent("    payload = {\n" + classifier)
 
 
 def _docker_available() -> bool:
@@ -411,6 +420,107 @@ def test_smoke_backend_http_code_probe_does_not_follow_redirects() -> None:
     assert direct_404_result.returncode == 0, direct_404_result.stderr
     assert direct_404_result.stdout == "404\n"
     assert requested_paths == ["/docs", "/missing"]
+
+
+@pytest.mark.parametrize(
+    ("missing_tables", "scheduler_runtime_rows", "dead_letter_count", "expected_code"),
+    (
+        ([], 0, 0, 75),
+        ([], 1, 0, 0),
+        (["scheduler_job_runs"], 0, 0, 1),
+        ([], 1, 1, 1),
+        ([], 2, 0, 1),
+    ),
+)
+def test_smoke_reliability_runtime_classifier_is_fail_closed(
+    missing_tables: list[str],
+    scheduler_runtime_rows: int,
+    dead_letter_count: int,
+    expected_code: int,
+) -> None:
+    program = "\n".join(
+        (
+            "import json",
+            f"missing_tables = {missing_tables!r}",
+            f"scheduler_runtime_rows = {scheduler_runtime_rows}",
+            f"dead_letter_count = {dead_letter_count}",
+            _smoke_reliability_runtime_classifier(),
+        )
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-"],
+        input=program,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == expected_code, result.stderr
+
+
+@pytest.mark.parametrize(
+    ("scheduler_ready_attempt", "expected_returncode"),
+    (("2", 0), ("never", 1)),
+)
+def test_smoke_scheduler_runtime_evidence_wait_is_bounded_and_fail_closed(
+    tmp_path: Path, scheduler_ready_attempt: str, expected_returncode: int
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    reliability_attempts = tmp_path / "reliability-attempts"
+    frontend_env = tmp_path / "frontend.env"
+    _write_frontend_env(frontend_env, host_port="18081", container_port="80")
+
+    curl = fake_bin / "curl"
+    curl.write_text(
+        "#!/usr/bin/env bash\n"
+        'if [[ "$*" == *"/api/v1/readyz"* ]]; then\n'
+        '  printf \'{"ready":true,"database":"connected"}\\n200\\n\'\n'
+        "else\n"
+        "  printf '<html></html>\\n200\\n'\n"
+        "fi\n",
+        encoding="utf-8",
+    )
+    curl.chmod(0o755)
+
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        'if [[ "${1:-}" == "ps" || "${1:-}" == "inspect" ]]; then exit 0; fi\n'
+        'if [[ "$*" == *"http://localhost:8000/"* ]]; then printf "404\\n"; exit 0; fi\n'
+        'attempts="${FAKE_RELIABILITY_ATTEMPTS:?}"\n'
+        'attempt="$(( $(cat "$attempts" 2>/dev/null || printf 0) + 1 ))"\n'
+        'printf "%s\\n" "$attempt" > "$attempts"\n'
+        'if [[ "$attempt" != "${FAKE_SCHEDULER_READY_ATTEMPT:?}" ]]; then\n'
+        '  printf \'{"dead_letter_count": 0, "missing_tables": [], "scheduler_runtime_rows": 0}\\n\'\n'
+        "  exit 75\n"
+        "fi\n"
+        'printf \'{"dead_letter_count": 0, "missing_tables": [], "scheduler_runtime_rows": 1}\\n\'\n',
+        encoding="utf-8",
+    )
+    docker.chmod(0o755)
+
+    result = _run_script(
+        "smoke_test.sh",
+        [
+            "--frontend-env",
+            str(frontend_env),
+            "--retries",
+            "2",
+            "--sleep",
+            "0",
+        ],
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            "FAKE_RELIABILITY_ATTEMPTS": str(reliability_attempts),
+            "FAKE_SCHEDULER_READY_ATTEMPT": scheduler_ready_attempt,
+        },
+    )
+
+    assert result.returncode == expected_returncode, f"{result.stdout}\n{result.stderr}"
+    assert reliability_attempts.read_text(encoding="utf-8").strip() == "2"
 
 
 @pytest.mark.skipif(

@@ -281,6 +281,21 @@ def test_lint_workflow_runs_blocking_frontend_vitest_job() -> None:
     assert "docs-topology-consistency" not in text
 
 
+def test_pr_workflow_keeps_exact_head_checks_and_a_merge_result_build() -> None:
+    text = LINT_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "ref: ${{ github.event.pull_request.head.sha || github.sha }}" in text
+    assert "pr-merge-result-build:" in text
+    merge_job_start = text.index("  pr-merge-result-build:")
+    merge_job_end = text.index("\n  backend-quality:", merge_job_start)
+    merge_job = text[merge_job_start:merge_job_end]
+    assert "if: github.event_name == 'pull_request'" in merge_job
+    assert "ref: ${{ github.sha }}" in merge_job
+    assert 'test "$(git rev-parse HEAD)" = "${{ github.sha }}"' in merge_job
+    assert "npm ci" in merge_job
+    assert "npm run build" in merge_job
+
+
 def test_lint_workflow_restores_blocking_backend_quality_gate() -> None:
     text = LINT_WORKFLOW.read_text(encoding="utf-8")
 

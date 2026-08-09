@@ -49,7 +49,6 @@ interface RenderSiteDriver {
 
 const contractPath = path.resolve(__dirname, '../contracts/dialog-surfaces.json');
 const loginHandoffFailure = 'GET /api/v1/users/me/shell-summary net::ERR_ABORTED';
-const dashboardOverviewHandoffFailure = 'GET /api/v1/dashboard/overview net::ERR_ABORTED';
 const governanceRefreshFailure = 'GET /api/v1/orphaned-items/overview?status=pending net::ERR_ABORTED';
 const adminSectionHandoffFailures = [
   'GET /api/v1/admin/health net::ERR_ABORTED',
@@ -610,8 +609,6 @@ Object.assign(drivers, {
     CRO,
     (page) => gotoOwnerRoute(page, '/approvals'),
     (page) => page.getByRole('button', { name: /approve/i }).first(),
-    undefined,
-    [dashboardOverviewHandoffFailure],
   ),
   'confirm.approvals-page': liveDriver(DEMO_ACCOUNTS.EMPLOYEE_OPERATIONS, async (page) => {
     await gotoOwnerRoute(page, '/approvals');
@@ -627,14 +624,11 @@ Object.assign(drivers, {
     expect(response.ok()).toBe(true);
   },
   (page) => page.getByRole('button', { name: /cancel request/i }).first(),
-  undefined,
-  [dashboardOverviewHandoffFailure]),
+  ),
   'confirm.asset-detail': liveDriver(
     RM,
     detail('/assets', /\/assets\/\d+$/),
     (page) => page.getByTestId('asset-detail-archive'),
-    undefined,
-    [dashboardOverviewHandoffFailure],
   ),
   'execution-log.control-detail': liveDriver(RM, async (page) => {
     await detail('/controls', /\/controls\/\d+$/)(page);

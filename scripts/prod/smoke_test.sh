@@ -70,9 +70,13 @@ async def main() -> None:
         "scheduler_runtime_rows": scheduler_runtime_rows,
         "dead_letter_count": dead_letter_count,
     }
-    if missing_tables or scheduler_runtime_rows != 1 or dead_letter_count != 0:
-        raise SystemExit(json.dumps(payload, sort_keys=True))
     print(json.dumps(payload, sort_keys=True))
+    if missing_tables or dead_letter_count != 0:
+        raise SystemExit(1)
+    if scheduler_runtime_rows == 0:
+        raise SystemExit(75)  # EX_TEMPFAIL: scheduler may still be starting.
+    if scheduler_runtime_rows != 1:
+        raise SystemExit(1)
 
 
 asyncio.run(main())
@@ -303,72 +307,29 @@ fi
 
 log "Smoke: backend /docs and /openapi.json disabled (production mode)"
 
-reliability_report="$(
-  docker exec -i --user riskhub "$BACKEND_CONTAINER" python - <<'PY'
-import asyncio
-import json
-import os
-from pathlib import Path
+reliability_attempt=1
+reliability_report=""
+while [[ "$reliability_attempt" -le "$retries" ]]; do
+  if reliability_report="$(
+    reliability_runtime_check_python \
+      | docker exec -i --user riskhub "$BACKEND_CONTAINER" python -
+  )"; then
+    break
+  else
+    reliability_status=$?
+  fi
+  if [[ "$reliability_status" -ne 75 ]]; then
+    die "Reliability runtime check failed: ${reliability_report:-no output}"
+  fi
+  reliability_attempt=$((reliability_attempt + 1))
+  if [[ "$reliability_attempt" -le "$retries" ]]; then
+    sleep "$sleep_seconds"
+  fi
+done
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
-
-REQUIRED_TABLES = {"scheduler_job_runs", "app_outbox_events"}
-
-
-async def main() -> None:
-    db_url = Path(os.environ["DATABASE_URL_FILE"]).read_text(encoding="utf-8").strip()
-    engine = create_async_engine(db_url)
-    try:
-        async with engine.connect() as conn:
-            table_names = set(
-                (
-                    await conn.execute(
-                        text(
-                            "SELECT tablename FROM pg_tables "
-                            "WHERE schemaname = 'public' "
-                            "AND tablename IN ('scheduler_job_runs', 'app_outbox_events')"
-                        )
-                    )
-                ).scalars()
-            )
-            missing_tables = sorted(REQUIRED_TABLES - table_names)
-            scheduler_runtime_rows = 0
-            dead_letter_count = 0
-            if not missing_tables:
-                scheduler_runtime_rows = int(
-                    (
-                        await conn.execute(
-                            text(
-                                "SELECT COUNT(*) FROM scheduler_job_runs "
-                                "WHERE job_name = '__scheduler_runtime__' AND status = 'running'"
-                            )
-                        )
-                    ).scalar_one()
-                )
-                dead_letter_count = int(
-                    (
-                        await conn.execute(
-                            text("SELECT COUNT(*) FROM app_outbox_events WHERE status = 'dead_letter'")
-                        )
-                    ).scalar_one()
-                )
-    finally:
-        await engine.dispose()
-
-    payload = {
-        "missing_tables": missing_tables,
-        "scheduler_runtime_rows": scheduler_runtime_rows,
-        "dead_letter_count": dead_letter_count,
-    }
-    if missing_tables or scheduler_runtime_rows != 1 or dead_letter_count != 0:
-        raise SystemExit(json.dumps(payload, sort_keys=True))
-    print(json.dumps(payload, sort_keys=True))
-
-
-asyncio.run(main())
-PY
-)" || die "Reliability runtime check failed: ${reliability_report:-no output}"
+if [[ "$reliability_attempt" -gt "$retries" ]]; then
+  die "Reliability runtime check failed: scheduler runtime evidence did not become ready (${reliability_report:-no output})"
+fi
 
 log "Smoke: reliability runtime OK ${reliability_report}"
 
