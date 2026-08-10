@@ -1142,7 +1142,7 @@
    "frontend_gate": "frontend/src/pages/DashboardPage.tsx computes committee-tab visibility from the ict_committee:read projection (authz.can('read', 'ict_committee')); frontend/src/pages/dashboard/DashboardViewTabs.tsx exposes the URL-addressable ?view=ict-committee tab and frontend/src/components/dashboard/IctCommitteeSection.tsx renders the backend read model and denies on backend 403; frontend/src/routing/business.tsx redirects the legacy /ict-register/committee route to /?view=ict-committee and exposes no sidebar entry; an unauthorized or unrecognized ?view is normalized to the overview default with no committee fetch",
    "tests": [
     "tests/backend/pytest/test_ict_register_committee.py",
-    "tests/frontend/unit/src/pages/__tests__/IctRegisterCommitteePage.presentation.test.tsx"
+    "tests/frontend/unit/src/pages/__tests__/IctCommitteeSection.presentation.test.tsx"
    ],
    "status": "authoritative",
    "findings": []

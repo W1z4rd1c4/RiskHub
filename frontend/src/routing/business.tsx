@@ -243,8 +243,7 @@ export const businessRoutes: AppRouteDef[] = [
     // ICT Committee (#51) migrated to a URL-addressable Dashboard tab (#64,
     // FR-P4-3/4). This route now redirects the legacy path to /?view=ict-committee
     // and carries NO sidebar nav (the transitional #63 entry is removed here, so
-    // the entry and its standalone route disappear atomically). The retained
-    // <IctRegisterCommitteePage> wrapper keeps a clean rollback target.
+    // the entry and its standalone route disappear atomically).
     key: 'ict-register-committee',
     path: 'ict-register/committee',
     element: <Navigate to="/?view=ict-committee" replace />,

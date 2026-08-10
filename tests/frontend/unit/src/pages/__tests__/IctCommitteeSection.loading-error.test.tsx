@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProviderWithReady } from '@test/authBootstrap';
+import { IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection';
 import i18n from '@/i18n';
 import type { IctCommittee } from '@/types/ictRegisterCommittee';
 
@@ -24,13 +25,12 @@ vi.mock('@/services/ictRegisterCommitteeApi', () => ({
 const EN_TABLE_ERROR = "We couldn't load this table. Please try again.";
 const CS_TABLE_ERROR = 'Tuto tabulku se nepodařilo načíst. Zkuste to prosím znovu.';
 
-async function renderPage() {
-    const { IctRegisterCommitteePage } = await import('@/pages/IctRegisterCommitteePage');
+function renderSection() {
     render(
         <MemoryRouter>
             <AuthProviderWithReady>
                 <ThemeProvider>
-                    <IctRegisterCommitteePage />
+                    <IctCommitteeSection />
                 </ThemeProvider>
             </AuthProviderWithReady>
         </MemoryRouter>
@@ -42,10 +42,10 @@ afterEach(async () => {
     await i18n.changeLanguage('en');
 });
 
-describe('IctRegisterCommitteePage loading + error branches (FR-P3-4)', () => {
+describe('IctCommitteeSection loading + error branches (FR-P3-4)', () => {
     it('renders an aria-busy loading branch and no dashboard tiles while the first fetch is in flight', async () => {
         getCommittee.mockReturnValue(new Promise<IctCommittee>(() => {}));
-        await renderPage();
+        renderSection();
 
         const loading = await screen.findByTestId('committee-loading');
         expect(loading).toHaveAttribute('aria-busy', 'true');
@@ -55,7 +55,7 @@ describe('IctRegisterCommitteePage loading + error branches (FR-P3-4)', () => {
 
     it('replaces the screen with the shared localized error + retry when the first fetch fails', async () => {
         getCommittee.mockRejectedValue(new Error('boom'));
-        await renderPage();
+        renderSection();
 
         const errorBlock = await screen.findByTestId('committee-error');
         expect(errorBlock).toHaveTextContent(EN_TABLE_ERROR);
@@ -67,7 +67,7 @@ describe('IctRegisterCommitteePage loading + error branches (FR-P3-4)', () => {
     it('re-invokes the fetch when Retry is clicked', async () => {
         getCommittee.mockRejectedValue(new Error('boom'));
         const user = userEvent.setup();
-        await renderPage();
+        renderSection();
 
         await user.click(await screen.findByRole('button', { name: 'Retry' }));
 
@@ -77,7 +77,7 @@ describe('IctRegisterCommitteePage loading + error branches (FR-P3-4)', () => {
     it('localizes the error message in Czech', async () => {
         await i18n.changeLanguage('cs');
         getCommittee.mockRejectedValue(new Error('boom'));
-        await renderPage();
+        renderSection();
 
         expect(await screen.findByTestId('committee-error')).toHaveTextContent(CS_TABLE_ERROR);
     });

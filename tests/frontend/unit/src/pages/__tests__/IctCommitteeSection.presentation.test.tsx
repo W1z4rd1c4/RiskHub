@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProviderWithReady } from '@test/authBootstrap';
+import { IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection';
 import { parseAssetSemanticFilters } from '@/pages/shared/ictRegisterSemanticFilters';
 import {
     heatmapCellFill,
@@ -32,8 +33,6 @@ vi.mock('@/services/ictRegisterCommitteeApi', () => ({
         getCommittee: (...args: unknown[]) => getCommittee(...args),
     },
 }));
-
-import { IctRegisterCommitteePage } from '@/pages/IctRegisterCommitteePage';
 
 function roiTemplate(overrides: Partial<IctRoiTemplateReadiness>): IctRoiTemplateReadiness {
     return {
@@ -414,13 +413,13 @@ describe('ICT Risk Committee presentation helpers', () => {
     });
 });
 
-describe('IctRegisterCommitteePage', () => {
-    function renderPage() {
+describe('IctCommitteeSection', () => {
+    function renderSection() {
         render(
             <MemoryRouter>
                 <AuthProviderWithReady>
                     <ThemeProvider>
-                        <IctRegisterCommitteePage />
+                        <IctCommitteeSection />
                     </ThemeProvider>
                 </AuthProviderWithReady>
             </MemoryRouter>,
@@ -429,7 +428,7 @@ describe('IctRegisterCommitteePage', () => {
 
     it('renders both sheets: tiles, matrices, tables, narratives, and drill-downs', async () => {
         getCommittee.mockResolvedValue(samplePayload());
-        renderPage();
+        renderSection();
 
         // 16_Dashboard register-state tiles carry their values and drill down.
         expect(await screen.findByTestId('committee-state-process_count')).toHaveTextContent('148');
@@ -505,7 +504,7 @@ describe('IctRegisterCommitteePage', () => {
 
     it('mutes the material KPI as not yet measurable — never a silent 0', async () => {
         getCommittee.mockResolvedValue(samplePayload());
-        renderPage();
+        renderSection();
 
         const materialTile = await screen.findByTestId('committee-kpi-material_risk_count');
         expect(materialTile).toHaveTextContent('—');
@@ -515,7 +514,7 @@ describe('IctRegisterCommitteePage', () => {
 
     it('renders the RoI-readiness element: per-template rows, coverage badges, gaps', async () => {
         getCommittee.mockResolvedValue(samplePayload());
-        renderPage();
+        renderSection();
 
         const section = await screen.findByTestId('committee-roi');
         expect(section).toHaveTextContent('90.4');
@@ -565,7 +564,7 @@ describe('IctRegisterCommitteePage', () => {
             },
         ];
         getCommittee.mockResolvedValue(payload);
-        renderPage();
+        renderSection();
 
         fireEvent.click(await screen.findByTestId('committee-roi-toggle-B_05.01'));
         const gaps = screen.getByTestId('committee-roi-gaps-B_05.01');
