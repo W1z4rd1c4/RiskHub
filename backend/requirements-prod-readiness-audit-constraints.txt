@@ -83,7 +83,7 @@ pydantic_core==2.41.5
 pydantic-settings==2.14.2
 Pygments==2.20.0
 pyparsing==3.3.2
-pytest==8.4.2
+pytest==9.0.3
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
 pytest-postgresql==6.1.1
