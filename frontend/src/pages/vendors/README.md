@@ -8,12 +8,17 @@ and `frontend/src/pages/VendorsPage.tsx`.
 
 ## Contents
 
+- `VendorContractsSection.tsx`
 - `VendorDetailHeader.tsx`
 - `VendorFormView.tsx`
 - `VendorOverviewTab.tsx`
-- `VendorsTableSection.tsx`
+- `VendorSubOutsourcingSection.tsx`
+- `VendorRegisterFilterBar.tsx`
+- `vendorColumns.tsx`
 - `useVendorDetailState.ts`
+- `vendorContractsPresentation.tsx`
 - `vendorDetailPresentation.ts`
+- `vendorSubOutsourcingPresentation.tsx`
 - `vendorsPagePresentation.ts`
 
 ## Notes

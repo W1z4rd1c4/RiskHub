@@ -8,11 +8,16 @@ from sqlalchemy.orm import selectinload
 
 from app.core.approval_display import approval_resource_label
 from app.models import ApprovalRequest, NotificationType, User
+from app.services._governed_mutations.notification_identity import (
+    InvalidGovernedProcessNotificationIdentity,
+    strict_governed_process_notification_identity,
+)
 from app.services.notification_service import NotificationService
 from app.services.outbox.handlers.common import run_notification_operation
 from app.services.outbox.payloads import (
     ApprovalRequestCancelledPayload,
     ApprovalRequestCreatedPayload,
+    ApprovalRequestExpiredPayload,
     ApprovalRequestResolvedPayload,
 )
 
@@ -24,15 +29,41 @@ async def _load_approval(db: AsyncSession, approval_id: int) -> ApprovalRequest 
             selectinload(ApprovalRequest.requested_by),
             selectinload(ApprovalRequest.resolved_by),
             selectinload(ApprovalRequest.primary_approver),
+            selectinload(ApprovalRequest.governed_mutation_proposal),
         )
         .where(ApprovalRequest.id == approval_id)
     )
     return result.scalar_one_or_none()
 
 
+def _proposal_dispatch_kind(approval: ApprovalRequest) -> str:
+    proposal = approval.governed_mutation_proposal
+    if proposal is None:
+        return "legacy"
+    try:
+        identity = strict_governed_process_notification_identity(proposal)
+    except InvalidGovernedProcessNotificationIdentity:
+        return "invalid"
+    return "governed" if identity is not None else "unsupported"
+
+
 async def handle_approval_request_created(db: AsyncSession, payload: ApprovalRequestCreatedPayload) -> None:
     approval = await _load_approval(db, payload.approval_id)
     if approval is None:
+        return
+
+    dispatch_kind = _proposal_dispatch_kind(approval)
+    if dispatch_kind == "governed":
+        await run_notification_operation(
+            NotificationService.notify_governed_action_required(
+                db,
+                approval,
+                event="submitted",
+                strict_errors=True,
+            )
+        )
+        return
+    if dispatch_kind != "legacy":
         return
 
     action_label = "delete" if approval.action_type.value == "delete" else "edit"
@@ -57,6 +88,19 @@ async def handle_approval_request_resolved(db: AsyncSession, payload: ApprovalRe
     approval = await _load_approval(db, payload.approval_id)
     if approval is None:
         return
+    dispatch_kind = _proposal_dispatch_kind(approval)
+    if dispatch_kind == "governed":
+        await run_notification_operation(
+            NotificationService.notify_governed_request_update(
+                db,
+                approval,
+                outcome="approved" if payload.approved else "rejected",
+                strict_errors=True,
+            )
+        )
+        return
+    if dispatch_kind != "legacy":
+        return
     await run_notification_operation(
         NotificationService.notify_requester_resolved(db, approval, approved=payload.approved, strict_errors=True)
     )
@@ -66,6 +110,27 @@ async def handle_approval_request_cancelled(db: AsyncSession, payload: ApprovalR
     approval = await _load_approval(db, payload.approval_id)
     if approval is None:
         return
+    dispatch_kind = _proposal_dispatch_kind(approval)
+    if dispatch_kind == "governed":
+        await run_notification_operation(
+            NotificationService.notify_governed_action_required(
+                db,
+                approval,
+                event="cancelled",
+                strict_errors=True,
+            )
+        )
+        await run_notification_operation(
+            NotificationService.notify_governed_request_update(
+                db,
+                approval,
+                outcome="cancelled",
+                strict_errors=True,
+            )
+        )
+        return
+    if dispatch_kind != "legacy":
+        return
     cancelled_by = await db.get(User, payload.cancelled_by_user_id)
     if cancelled_by is None:
         return
@@ -74,6 +139,28 @@ async def handle_approval_request_cancelled(db: AsyncSession, payload: ApprovalR
             db=db,
             approval=approval,
             cancelled_by_user=cancelled_by,
+            strict_errors=True,
+        )
+    )
+
+
+async def handle_approval_request_expired(db: AsyncSession, payload: ApprovalRequestExpiredPayload) -> None:
+    approval = await _load_approval(db, payload.approval_id)
+    if approval is None or _proposal_dispatch_kind(approval) != "governed":
+        return
+    await run_notification_operation(
+        NotificationService.notify_governed_action_required(
+            db,
+            approval,
+            event="expired",
+            strict_errors=True,
+        )
+    )
+    await run_notification_operation(
+        NotificationService.notify_governed_request_update(
+            db,
+            approval,
+            outcome="expired",
             strict_errors=True,
         )
     )

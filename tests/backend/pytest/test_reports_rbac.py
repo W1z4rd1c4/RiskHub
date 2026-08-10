@@ -1245,6 +1245,77 @@ class TestUnifiedExportEndpoints:
         assert "active" in csv_payload
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("locale", "replaceability_label", "sensitivity_label"),
+        [
+            ("en", "Highly complex substitutability", "High"),
+            ("cs", "Velmi obtížně nahraditelný", "Vysoká"),
+        ],
+    )
+    async def test_vendor_as_of_export_canonicalizes_replayed_legacy_values(
+        self,
+        auth_client: AsyncClient,
+        db_session: AsyncSession,
+        test_department: Department,
+        test_user: User,
+        locale: str,
+        replaceability_label: str,
+        sensitivity_label: str,
+    ):
+        vendor = Vendor(
+            name=f"Historical Alias Vendor {locale}",
+            process="IT",
+            department_id=test_department.id,
+            outsourcing_owner_user_id=test_user.id,
+            vendor_type="ict",
+            risk_score_1_5=2,
+            supports_important_core_insurance_function=False,
+            dora_relevant=False,
+            is_significant_vendor=False,
+            replaceability="easily_substitutable",
+            data_sensitivity="low",
+            has_alternative_providers=True,
+        )
+        db_session.add(vendor)
+        await db_session.flush()
+        db_session.add(
+            ActivityLog(
+                entity_type="vendor",
+                entity_id=vendor.id,
+                entity_name=vendor.name,
+                action="update",
+                actor_id=test_user.id,
+                actor_name=test_user.name,
+                department_id=test_department.id,
+                changes={
+                    "replaceability": {
+                        "old": "hard",
+                        "new": "easily_substitutable",
+                    },
+                    "data_sensitivity": {"old": "Vysoká", "new": "low"},
+                },
+                description="Canonicalized Vendor values",
+                created_at=datetime.now(UTC),
+            )
+        )
+        await db_session.commit()
+
+        yesterday = (datetime.now(UTC) - timedelta(days=1)).date().isoformat()
+        response = await auth_client.get(
+            "/api/v1/reports/vendors/export",
+            params={"format": "csv", "as_of_date": yesterday, "locale": locale},
+        )
+
+        assert response.status_code == 200, response.text
+        rows = list(csv.DictReader(StringIO(response.content.decode("utf-8"))))
+        row = next(item for item in rows if item["Name"] == vendor.name)
+        locale_header = locale.upper()
+        assert row["replaceability Code"] == "highly_complex"
+        assert row[f"replaceability Label ({locale_header})"] == replaceability_label
+        assert row["data_sensitivity Code"] == "high"
+        assert row[f"data_sensitivity Label ({locale_header})"] == sensitivity_label
+
+    @pytest.mark.asyncio
     async def test_risk_as_of_export_rehydrates_owner_and_department_names(
         self,
         auth_client: AsyncClient,

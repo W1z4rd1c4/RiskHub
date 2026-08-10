@@ -33,7 +33,7 @@ test.describe('Dashboard', () => {
             await waitForDataLoad(page);
 
             // Should show metrics like total risks, controls, KRIs
-            const metricsSection = page.locator('text=/Risk|Control|KRI|Total/i');
+            const metricsSection = page.locator('main').getByText(/Risk|Control|KRI|Total/i);
             await expect(metricsSection.first()).toBeVisible();
         });
     });

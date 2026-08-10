@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 from app.services._authorization_capabilities.approvals import approval_capabilities
+from app.services._authorization_capabilities.assets import asset_capabilities
 from app.services._authorization_capabilities.controls import control_capabilities
 from app.services._authorization_capabilities.issues import issue_capabilities, preload_issue_capabilities
 from app.services._authorization_capabilities.kris import kri_capabilities
 from app.services._authorization_capabilities.me import build_me_capabilities
 from app.services._authorization_capabilities.perimeter import Capabilities, has_capability, require_capability
+from app.services._authorization_capabilities.processes import process_capabilities
+from app.services._authorization_capabilities.register_vendor_links import (
+    asset_vendor_link_capabilities,
+    process_vendor_link_capabilities,
+)
 from app.services._authorization_capabilities.riskhub_config import (
     approval_scenario_capabilities,
     department_capabilities,
@@ -13,6 +19,16 @@ from app.services._authorization_capabilities.riskhub_config import (
     role_capabilities,
 )
 from app.services._authorization_capabilities.risks import risk_capabilities
+from app.services._authorization_capabilities.threats import (
+    risk_asset_link_capabilities,
+    risk_process_link_capabilities,
+    threat_capabilities,
+    threat_risk_link_capabilities,
+)
+from app.services._authorization_capabilities.vendor_contracts import vendor_contract_capabilities
+from app.services._authorization_capabilities.vendor_sub_outsourcing import (
+    vendor_sub_outsourcing_capabilities,
+)
 from app.services._authorization_capabilities.vendors import (
     can_view_loaded_vendor,
     can_view_vendor_link,
@@ -23,6 +39,8 @@ __all__ = [
     "Capabilities",
     "approval_capabilities",
     "approval_scenario_capabilities",
+    "asset_capabilities",
+    "asset_vendor_link_capabilities",
     "build_me_capabilities",
     "can_view_loaded_vendor",
     "can_view_vendor_link",
@@ -32,9 +50,17 @@ __all__ = [
     "issue_capabilities",
     "kri_capabilities",
     "preload_issue_capabilities",
+    "process_capabilities",
+    "process_vendor_link_capabilities",
+    "risk_asset_link_capabilities",
     "risk_capabilities",
+    "risk_process_link_capabilities",
     "risk_type_capabilities",
+    "threat_capabilities",
+    "threat_risk_link_capabilities",
     "require_capability",
     "role_capabilities",
     "vendor_capabilities",
+    "vendor_contract_capabilities",
+    "vendor_sub_outsourcing_capabilities",
 ]

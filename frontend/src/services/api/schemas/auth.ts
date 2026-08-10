@@ -48,6 +48,7 @@ export const meCapabilitiesSchema: z.ZodType<MeCapabilities> = passthroughObject
     can_view_access_users: z.boolean(),
     can_view_department_access_users: z.boolean(),
     can_view_users_route: z.boolean(),
+    can_view_approvals: z.boolean(),
     can_manage_access: z.boolean(),
     can_view_department_access: z.boolean(),
     can_view_admin_console: z.boolean(),

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { IssuesPage } from '@/pages/IssuesPage';
 
 const mockList = vi.fn();
@@ -23,7 +24,6 @@ vi.mock('react-router-dom', async () => {
     return {
         ...actual,
         useNavigate: () => mockNavigate,
-        useSearchParams: () => [new URLSearchParams(''), vi.fn()] as const,
     };
 });
 
@@ -60,7 +60,7 @@ describe('IssuesPage table navigation', () => {
     });
 
     it('navigates to detail page on row click', async () => {
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         const rowTitle = await screen.findByText('Patch Vulnerability');
         expect(await screen.findByText('Control Evidence Review')).toBeInTheDocument();
@@ -70,20 +70,20 @@ describe('IssuesPage table navigation', () => {
     });
 
     it('does not emit unsupported server sort keys for display-only columns', async () => {
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Patch Vulnerability');
         mockList.mockClear();
 
-        fireEvent.click(screen.getByText('Department'));
-        fireEvent.click(screen.getByText('Owner'));
-        fireEvent.click(screen.getByText('Source'));
+        expect(screen.queryByRole('button', { name: 'Department' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Owner' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Source' })).not.toBeInTheDocument();
 
         expect(mockList).not.toHaveBeenCalled();
     });
 
     it('emits supported server sort keys for sortable columns', async () => {
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Patch Vulnerability');
         mockList.mockClear();

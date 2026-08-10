@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "project": "ci",
+  "requirements": [
+    {
+      "id": "DORA-AUTH-CISO",
+      "description": "Demo authentication exposes the CISO journey.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/auth.spec.ts", "titleIncludes": "should display demo account picker" },
+        { "spec": "tests/frontend/e2e/auth.spec.ts", "titleIncludes": "should login as CISO via demo picker" }
+      ]
+    },
+    {
+      "id": "DORA-CISO-THREATS",
+      "description": "CISO stewardship changes use independent approval.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/threats.spec.ts", "titleIncludes": "CISO stewardship change queues in My Requests and applies only after independent approval" }
+      ]
+    },
+    {
+      "id": "DORA-PROCESS-REGISTER",
+      "description": "The Process register preserves shared URL, grouping, filtering, export, and failure behavior.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/process-register-framework.spec.ts", "titleIncludes": "six keyboard-operable views preserve unrelated URL state and restore a grouped drill-down" },
+        { "spec": "tests/frontend/e2e/process-register-framework.spec.ts", "titleIncludes": "search and two filter fields are URL-backed, ANDed by the server, and cleared together" },
+        { "spec": "tests/frontend/e2e/process-register-framework.spec.ts", "titleIncludes": "export uses the selected visible group but omits list pagination and carries code/label columns" },
+        { "spec": "tests/frontend/e2e/process-register-framework.spec.ts", "titleIncludes": "failure offers an accessible retry and a server-declared access denial reveals no register data" }
+      ]
+    },
+    {
+      "id": "DORA-ASSET-REGISTER",
+      "description": "The Asset register preserves shared URL, grouping, filtering, export, and capability behavior.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/asset-register-framework.spec.ts", "titleIncludes": "seven keyboard-operable views preserve unrelated URL state and restore grouped drill-down" },
+        { "spec": "tests/frontend/e2e/asset-register-framework.spec.ts", "titleIncludes": "search plus ownership and technology filters are URL-backed, ANDed, chipped, and cleared" },
+        { "spec": "tests/frontend/e2e/asset-register-framework.spec.ts", "titleIncludes": "export uses the selected visible Process group, omits pagination, and carries code/label columns" },
+        { "spec": "tests/frontend/e2e/asset-register-framework.spec.ts", "titleIncludes": "failure offers keyboard retry and server-declared capabilities; denial clears stale rows and groups" },
+        { "spec": "tests/frontend/e2e/asset-register-framework.spec.ts", "titleIncludes": "an assigned cross-Department owner sees the owned row and only backend-declared actions" }
+      ]
+    },
+    {
+      "id": "DORA-THREAT-REGISTER",
+      "description": "The Threat register preserves shared URL, grouping, filtering, and export behavior.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/threat-register-framework.spec.ts", "titleIncludes": "five keyboard-operable views preserve unrelated URL state and restore a grouped drill-down" },
+        { "spec": "tests/frontend/e2e/threat-register-framework.spec.ts", "titleIncludes": "search and every Threat filter are URL-backed, page-resetting, chipped, and cleared" },
+        { "spec": "tests/frontend/e2e/threat-register-framework.spec.ts", "titleIncludes": "export carries current search, filters, and group but omits pagination" }
+      ]
+    },
+    {
+      "id": "DORA-VENDOR-REGISTER",
+      "description": "The Vendor register preserves shared URL, grouping, filtering, and export behavior.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/vendor-register-framework.spec.ts", "titleIncludes": "six keyboard-operable views preserve URL state and restore a grouped drill-down" },
+        { "spec": "tests/frontend/e2e/vendor-register-framework.spec.ts", "titleIncludes": "search and representative remote, facet, boolean, lifecycle, and linked filters compose and reset page" },
+        { "spec": "tests/frontend/e2e/vendor-register-framework.spec.ts", "titleIncludes": "filtered export contains only the selected group and follows backend collection capabilities" }
+      ]
+    },
+    {
+      "id": "DORA-RISK-CONTROL-REGISTERS",
+      "description": "Risk and Control registers preserve their mature grouped views and URL contracts.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/risk-control-register-framework.spec.ts", "titleIncludes": "preserves every mature grouped view in URL state with keyboard and history support" }
+      ]
+    },
+    {
+      "id": "DORA-KRI-ISSUE-REGISTERS",
+      "description": "KRI and Issue registers preserve their lifecycle and filter contracts.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/kri-issue-register-framework.spec.ts", "titleIncludes": "KRI lifecycle, monitoring, timeliness, breach and restore remain distinct" },
+        { "spec": "tests/frontend/e2e/kri-issue-register-framework.spec.ts", "titleIncludes": "Issue status, severity, overdue, exception, remediation and closed filters compose" }
+      ]
+    },
+    {
+      "id": "DORA-EIGHT-REGISTER-PARITY",
+      "description": "All eight register shells preserve the shared URL, history, and capability contract.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/eight-register-parity.spec.ts", "titleIncludes": "processes preserves the shared URL/history/capability contract" },
+        { "spec": "tests/frontend/e2e/eight-register-parity.spec.ts", "titleIncludes": "assets preserves the shared URL/history/capability contract" },
+        { "spec": "tests/frontend/e2e/eight-register-parity.spec.ts", "titleIncludes": "threats preserves the shared URL/history/capability contract" },
+        { "spec": "tests/frontend/e2e/eight-register-parity.spec.ts", "titleIncludes": "vendors preserves the shared URL/history/capability contract" },
+        { "spec": "tests/frontend/e2e/eight-register-parity.spec.ts", "titleIncludes": "risks preserves the shared URL/history/capability contract" },
+        { "spec": "tests/frontend/e2e/eight-register-parity.spec.ts", "titleIncludes": "controls preserves the shared URL/history/capability contract" },
+        { "spec": "tests/frontend/e2e/eight-register-parity.spec.ts", "titleIncludes": "kris preserves the shared URL/history/capability contract" },
+        { "spec": "tests/frontend/e2e/eight-register-parity.spec.ts", "titleIncludes": "issues preserves the shared URL/history/capability contract" }
+      ]
+    },
+    {
+      "id": "DORA-GOVERNED-PROCESS",
+      "description": "Protected Process create, edit, and relationship changes preserve approved truth until independent approval.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-process-create.spec.ts", "titleIncludes": "requester sees a separate cancellable pending creation and no operational row" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-process-edit.spec.ts", "titleIncludes": "accountability delta requires a reason, queues once in My Requests, and cancellation preserves truth" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-process-relationships.spec.ts", "titleIncludes": "Risk, Asset, and Vendor ends preserve approved truth until independent approval" }
+      ]
+    },
+    {
+      "id": "DORA-GOVERNED-ASSET",
+      "description": "Protected Asset lifecycle and accountability changes activate only after independent approval.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-asset.spec.ts", "titleIncludes": "rowless creation, immutable edit, and archive activate only after approval" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-asset.spec.ts", "titleIncludes": "accountability reassignment requires a reason and applies only after independent approval" }
+      ]
+    },
+    {
+      "id": "DORA-GOVERNED-VENDOR",
+      "description": "Protected Vendor accountability, relationship, archive, and restore workflows preserve approved truth through resolution.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-vendor.spec.ts", "titleIncludes": "accountability delta queues once, preserves truth, and rejection keeps the original owner" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-vendor.spec.ts", "titleIncludes": "direct accountability edit preserves approved truth until an independent CRO approves it" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-vendor.spec.ts", "titleIncludes": "archive preserves approved truth until independent approval and restore stays direct" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-process-relationships.spec.ts", "titleIncludes": "Risk, Asset, and Vendor ends preserve approved truth until independent approval" }
+      ]
+    },
+    {
+      "id": "DORA-GOVERNED-VENDOR-LINKS",
+      "description": "Protected Vendor Risk/Control/KRI link changes collect a reason, queue for independent approval, and preserve link truth until approval.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-vendor-links.spec.ts", "titleIncludes": "Risk link on a protected Vendor queues with a reason and applies only after independent approval" }
+      ]
+    },
+    {
+      "id": "DORA-GOVERNED-VENDOR-SUB-OUTSOURCING",
+      "description": "Protected Vendor sub-outsourcing maintenance collects a reason, queues for independent approval, and preserves chain truth until approval, while restore stays direct.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-vendor-sub-outsourcing.spec.ts", "titleIncludes": "sub-outsourcing create on a protected Vendor queues with a reason and applies only after independent approval" }
+      ]
+    },
+    {
+      "id": "DORA-ACCOUNTABILITY-ORPHANS",
+      "description": "Vendor accountability actions are capability-gated and orphan reassignment remains pending until approval.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/vendors.spec.ts", "titleIncludes": "Record-only Vendor owner submits an ordinary field diff with accountability and link actions gated" },
+        { "spec": "tests/frontend/e2e/vendors.spec.ts", "titleIncludes": "Vendor orphan reassignment remains pending until independent approval" }
+      ]
+    },
+    {
+      "id": "DORA-COMPOSITE-IMPACT",
+      "description": "Composite approval review exposes Process, protected Asset, and downstream Vendor impact before atomic apply.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-asset.spec.ts", "titleIncludes": "Asset-only protected Process link exposes composite Asset impact before apply" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-process-edit.spec.ts", "titleIncludes": "Process edit reviews and atomically applies primary Asset and downstream Vendor impact" }
+      ]
+    },
+    {
+      "id": "DORA-GOVERNED-NOTIFICATIONS",
+      "description": "Governed notification preferences control delivery without changing authoritative approval queues or history.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-notification-preferences.spec.ts", "titleIncludes": "governed defaults persist while disabled delivery leaves Pending Queue, My Requests, and History authoritative" },
+        { "spec": "tests/frontend/e2e/approval-workflows/governed-notification-preferences.spec.ts", "titleIncludes": "enabled delivery reaches the resolver inbox before approval and requester inbox after approval" }
+      ]
+    },
+    {
+      "id": "DORA-LOCALE-JOURNEYS",
+      "description": "English and Czech register and governed approval journeys localize controlled labels while preserving user free text.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/dora-locale-journeys.spec.ts", "titleIncludes": "English register and governed approval keep controlled labels language-pure and free text unchanged" },
+        { "spec": "tests/frontend/e2e/dora-locale-journeys.spec.ts", "titleIncludes": "Czech register and governed approval keep controlled labels language-pure and free text unchanged" }
+      ]
+    },
+    {
+      "id": "DORA-DEPARTMENT-DRILLDOWN",
+      "description": "Department metrics retain contracted tabs, cards, filters, and locked scope.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/department-register-drilldown.spec.ts", "titleIncludes": "opens every metric family with its exact health filter and locked Department scope" }
+      ]
+    },
+    {
+      "id": "DORA-ICT-COMMITTEE",
+      "description": "The ICT Risk Committee surface and its semantic drill-downs remain accessible to authorized users.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/ict-register-committee.spec.ts", "titleIncludes": "semantic drill-downs retain exact filters and show a removable summary in every destination register" }
+      ]
+    },
+    {
+      "id": "DORA-DATA-QUALITY",
+      "description": "The ICT data-quality catalog reports and drills into known findings.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/ict-register-dq.spec.ts", "titleIncludes": "a known finding (DQ-38 chain error) shows its count and drills down to the vendor" }
+      ]
+    },
+    {
+      "id": "DORA-VENDOR-CONTRACTS",
+      "description": "Vendor contracts render governed flags and archived restore behavior.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/vendor-contracts.spec.ts", "titleIncludes": "Seeded contracts render with Main/RoI flags and the archived row keeps its restore affordance" }
+      ]
+    },
+    {
+      "id": "DORA-VENDOR-DEPENDENT-MUTATION",
+      "description": "Protected Vendor contract edit and archive mutations preserve approved child truth until independent approval, with direct restore after archive approval.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/vendor-contracts.spec.ts", "titleIncludes": "protected Vendor contract edit and archive preserve approved truth until independent approval" }
+      ]
+    },
+    {
+      "id": "DORA-SUB-OUTSOURCING",
+      "description": "Sub-outsourcing chains render their complete seeded hierarchy.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/vendor-sub-outsourcing.spec.ts", "titleIncludes": "Chain renders full depth: the rank-3 link is indented under its predecessor" }
+      ]
+    },
+    {
+      "id": "DORA-ACCESSIBILITY",
+      "description": "DORA surfaces, stateful workflows, and application dialogs retain automated accessibility evidence.",
+      "evidence": [
+        { "spec": "tests/frontend/e2e/accessibility-smoke.spec.ts", "titleIncludes": "business + DORA register surfaces have zero axe violations in riskhub" },
+        { "spec": "tests/frontend/e2e/dora-ux-stateful-a11y.spec.ts", "titleIncludes": "a real dialog keeps a portalled ThemedSelect in the active interaction layer" },
+        { "spec": "tests/frontend/e2e/dialog-render-sites.spec.ts", "titleIncludes": "driver registry exactly covers the machine inventory" }
+      ]
+    }
+  ]
+}

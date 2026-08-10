@@ -1,0 +1,353 @@
+import { useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { AlertCircle, Save, X } from 'lucide-react';
+
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from '@/i18n/hooks';
+import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
+import { ictRegisterKeys } from '@/lib/queryKeys';
+import { cn } from '@/lib/utils';
+import { lookupApi } from '@/services/lookupApi';
+import { threatApi } from '@/services/threatApi';
+import { logError } from '@/services/logger';
+import { isApprovalCreatedResponse, type ApprovalCreatedResponse } from '@/types/approval';
+import type { Threat } from '@/types/threat';
+
+import { buildThreatWritePayload, THREAT_CATEGORY_CODES } from './threatsPagePresentation';
+
+// Token-driven textarea styling matching the `Input` primitive (no `<Textarea>`
+// primitive shipped in #58); the `aria-[invalid=true]` hook lets `Field` drive
+// the error visual with no extra class.
+const TEXTAREA_CLASS =
+    'flex min-h-[4.5rem] w-full rounded-xl border border-input bg-input/40 px-4 py-2.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground hover:border-ring/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive resize-y';
+
+interface ThreatFormProps {
+    initialData?: Threat;
+    isEdit?: boolean;
+    onSaved: (threat: Threat) => void;
+    onApprovalQueued?: (response: ApprovalCreatedResponse) => void;
+    onCancel?: () => void;
+}
+
+type FormFields = {
+    name: string;
+    threat_steward_user_id: string;
+    category: string;
+    description: string;
+    typical_weaknesses: string;
+    relevant_subject: string;
+    notes: string;
+    request_reason: string;
+};
+
+function toFieldValue(value: string | null | undefined): string {
+    return value === null || value === undefined ? '' : value;
+}
+
+function initialFields(threat?: Threat): FormFields {
+    return {
+        name: toFieldValue(threat?.name),
+        threat_steward_user_id: threat?.threat_steward_user_id?.toString() ?? '',
+        category: toFieldValue(threat?.category),
+        description: toFieldValue(threat?.description),
+        typical_weaknesses: toFieldValue(threat?.typical_weaknesses),
+        relevant_subject: toFieldValue(threat?.relevant_subject),
+        notes: toFieldValue(threat?.notes),
+        request_reason: '',
+    };
+}
+
+export function ThreatForm({
+    initialData,
+    isEdit = false,
+    onSaved,
+    onApprovalQueued,
+    onCancel,
+}: ThreatFormProps) {
+    const { t } = useTranslation('threats');
+    const [fields, setFields] = useState<FormFields>(() => initialFields(initialData));
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormFields, string>>>({});
+    const [stewardSearch, setStewardSearch] = useState('');
+    const accountabilityScenario = useAccountabilityReassignmentScenario();
+
+    const stewardChanged = Boolean(
+        isEdit
+        && initialData
+        && fields.threat_steward_user_id !== (initialData.threat_steward_user_id?.toString() ?? ''),
+    );
+    const stewardChangeRequiresApproval = accountabilityScenario.isEnabled && stewardChanged;
+    const accountabilityScenarioUnavailable = stewardChanged
+        && (accountabilityScenario.isLoading || accountabilityScenario.isError);
+    let submitLabel = t('actions.create');
+    if (stewardChangeRequiresApproval) {
+        submitLabel = t('actions.submit_for_approval');
+    } else if (isEdit) {
+        submitLabel = t('actions.save');
+    }
+
+    // Required fields in DOM order — drives focus-first-invalid (N12).
+    const requiredFields: Array<keyof FormFields> = [
+        'name',
+        'threat_steward_user_id',
+        ...(stewardChangeRequiresApproval ? ['request_reason' as const] : []),
+    ];
+    const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLElement | null>>>({});
+    const registerFieldRef = (field: keyof FormFields) => (element: HTMLElement | null) => {
+        fieldRefs.current[field] = element;
+    };
+
+    const cisoQuery = useQuery({
+        queryKey: ictRegisterKeys.threatStewardLookup(stewardSearch),
+        queryFn: () => lookupApi.getThreatStewards({ q: stewardSearch || undefined, limit: 50 }),
+        staleTime: 5 * 60_000,
+    });
+
+    const categoryOptions = useMemo(() => {
+        return THREAT_CATEGORY_CODES.map((value) => ({
+            value,
+            label: t(`categories.${value}`),
+        }));
+    }, [t]);
+
+    const stewardOptions = useMemo(() => (cisoQuery.data ?? []).map((user) => ({
+        value: String(user.id),
+        label: `${user.name} — ${user.email}`,
+    })), [cisoQuery.data]);
+
+    const setField = (field: keyof FormFields, value: string) => {
+        setFields((current) => ({ ...current, [field]: value }));
+    };
+
+    const validate = (): Partial<Record<keyof FormFields, string>> => {
+        const nextErrors: Partial<Record<keyof FormFields, string>> = {};
+        if (!fields.name.trim()) {
+            nextErrors.name = t('form.errors.name_required');
+        }
+        if (!fields.threat_steward_user_id) {
+            nextErrors.threat_steward_user_id = t('form.errors.steward_required');
+        }
+        if (stewardChangeRequiresApproval && !fields.request_reason.trim()) {
+            nextErrors.request_reason = t('form.errors.request_reason_required');
+        }
+        return nextErrors;
+    };
+
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (accountabilityScenarioUnavailable) return;
+        const validationErrors = validate();
+        setFieldErrors(validationErrors);
+        const firstInvalid = requiredFields.find((field) => validationErrors[field]);
+        if (firstInvalid) {
+            fieldRefs.current[firstInvalid]?.focus();
+            return;
+        }
+
+        const payload = {
+            ...buildThreatWritePayload({
+            name: fields.name,
+            category: fields.category,
+            description: fields.description,
+            typical_weaknesses: fields.typical_weaknesses,
+            relevant_subject: fields.relevant_subject,
+            notes: fields.notes,
+            }),
+            threat_steward_user_id: Number(fields.threat_steward_user_id),
+            ...(fields.request_reason.trim() ? { request_reason: fields.request_reason.trim() } : {}),
+        };
+
+        try {
+            setIsSubmitting(true);
+            setError(null);
+            const saved = isEdit && initialData
+                ? await threatApi.updateThreat(initialData.id, payload)
+                : await threatApi.createThreat(payload);
+            if (isApprovalCreatedResponse(saved)) {
+                onApprovalQueued?.(saved);
+            } else {
+                onSaved(saved);
+            }
+        } catch (submitError) {
+            logError('Failed to save threat:', submitError);
+            setError(t('form.errors.save_failed'));
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const labelClassName = 'text-xs font-bold uppercase tracking-widest text-slate-500';
+
+    const textAreaField = (
+        field: keyof FormFields,
+        label: string,
+        testId: string,
+    ) => (
+        <Field label={label} error={fieldErrors[field]} labelClassName={labelClassName}>
+            {(control) => (
+                <textarea
+                    {...control}
+                    data-testid={testId}
+                    value={fields[field]}
+                    rows={3}
+                    onChange={(event) => setField(field, event.target.value)}
+                    className={TEXTAREA_CLASS}
+                />
+            )}
+        </Field>
+    );
+
+    const hasFieldErrors = Object.keys(fieldErrors).length > 0;
+
+    return (
+        <form noValidate onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
+            {error || hasFieldErrors ? (
+                <div role="alert" className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                    <p className="text-sm font-medium">{error ?? t('form.errors.fix_fields')}</p>
+                </div>
+            ) : null}
+
+            {cisoQuery.isError ? (
+                <div
+                    role="status"
+                    className="glass-card flex items-center justify-between gap-3 border border-amber-400/30 text-amber-200"
+                >
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                        <p className="text-sm font-medium">{t('form.errors.lists_failed')}</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => void cisoQuery.refetch()}
+                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-100 transition-colors hover:bg-white/10"
+                    >
+                        {t('actions.retry')}
+                    </button>
+                </div>
+            ) : null}
+
+            <section className="glass-card space-y-5">
+                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    {t('form.sections.identity')}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <Field label={t('form.name')} required error={fieldErrors.name} labelClassName={labelClassName}>
+                        {(control) => (
+                            <Input
+                                {...control}
+                                ref={registerFieldRef('name')}
+                                data-testid="threat-form-name"
+                                value={fields.name}
+                                required
+                                onChange={(event) => setField('name', event.target.value)}
+                            />
+                        )}
+                    </Field>
+                    <Field label={t('form.category')} labelClassName={labelClassName}>
+                        {(control) => (
+                            <ThemedSelect
+                                {...control}
+                                value={fields.category}
+                                onValueChange={(value) => setField('category', value)}
+                                options={categoryOptions}
+                                allowEmpty
+                                emptyLabel={t('form.not_set')}
+                                placeholder={t('form.not_set')}
+                                triggerTestId="threat-form-category"
+                            />
+                        )}
+                    </Field>
+                    <Field
+                        label={t('form.steward')}
+                        required
+                        error={fieldErrors.threat_steward_user_id}
+                        labelClassName={labelClassName}
+                    >
+                        {(control) => (
+                            <SearchableEntitySelect
+                                {...control}
+                                value={fields.threat_steward_user_id}
+                                onValueChange={(value) => setField('threat_steward_user_id', value)}
+                                options={stewardOptions}
+                                searchValue={stewardSearch}
+                                onSearchChange={setStewardSearch}
+                                placeholder={t('form.steward_placeholder')}
+                                searchPlaceholder={t('form.steward_search')}
+                                triggerTestId="threat-form-steward"
+                                triggerRef={registerFieldRef('threat_steward_user_id')}
+                            />
+                        )}
+                    </Field>
+                    <Field label={t('form.relevant_subject')} labelClassName={labelClassName}>
+                        {(control) => (
+                            <Input
+                                {...control}
+                                data-testid="threat-form-relevant-subject"
+                                value={fields.relevant_subject}
+                                onChange={(event) => setField('relevant_subject', event.target.value)}
+                            />
+                        )}
+                    </Field>
+                </div>
+            </section>
+
+            <section className="glass-card space-y-5">
+                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    {t('form.sections.details')}
+                </h2>
+                <div className="grid grid-cols-1 gap-5">
+                    {textAreaField('description', t('form.description'), 'threat-form-description')}
+                    {textAreaField('typical_weaknesses', t('form.typical_weaknesses'), 'threat-form-typical-weaknesses')}
+                    {textAreaField('notes', t('form.notes'), 'threat-form-notes')}
+                    <Field
+                        label={t('form.request_reason')}
+                        required={stewardChangeRequiresApproval}
+                        error={fieldErrors.request_reason}
+                        help={t('form.request_reason_help')}
+                        labelClassName={labelClassName}
+                    >
+                        {(control) => (
+                            <textarea
+                                {...control}
+                                ref={registerFieldRef('request_reason')}
+                                data-testid="threat-form-request-reason"
+                                value={fields.request_reason}
+                                rows={3}
+                                onChange={(event) => setField('request_reason', event.target.value)}
+                                className={TEXTAREA_CLASS}
+                            />
+                        )}
+                    </Field>
+                </div>
+            </section>
+
+            <div className="flex items-center justify-end gap-3">
+                {onCancel ? (
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        data-testid="threat-form-cancel"
+                        className="px-5 py-2.5 glass rounded-xl text-slate-300 hover:text-white transition-colors text-sm font-semibold flex items-center gap-2"
+                    >
+                        <X className="h-4 w-4" />
+                        {t('actions.cancel')}
+                    </button>
+                ) : null}
+                <button
+                    type="submit"
+                    disabled={isSubmitting || accountabilityScenarioUnavailable}
+                    data-testid="threat-form-submit"
+                    className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2 text-sm"
+                >
+                    <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
+                    {submitLabel}
+                </button>
+            </div>
+        </form>
+    );
+}

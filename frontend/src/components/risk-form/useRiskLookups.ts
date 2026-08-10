@@ -65,7 +65,7 @@ export function useRiskLookups() {
         const loadLookups = async () => {
             try {
                 const [userData, deptData, risksData] = await Promise.all([
-                    lookupApi.getUsers(),
+                    lookupApi.getRiskOwners({ limit: 200 }),
                     lookupApi.getDepartments(),
                     fetchAllRisksForLookups(),
                 ]);

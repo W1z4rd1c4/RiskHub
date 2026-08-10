@@ -1,6 +1,5 @@
 import type {
     CollectionCapabilities,
-    CollectionGroup,
     CollectionListResponse,
     CollectionSort,
 } from '@/types/collection';
@@ -17,32 +16,19 @@ interface BuildCollectionParamsOptions {
     groupValue?: string | null;
 }
 
-interface LoadCollectionPageRequest {
-    currentPage: number;
-    groupBy?: string | null;
-    groupValue?: string | null;
-}
-
-interface LoadCollectionPageOptions<TItem, TCapabilities extends object> {
-    currentPage: number;
-    groupBy?: string | null;
-    selectedGroupValue?: string | null;
-    loadPage: (request: LoadCollectionPageRequest) => Promise<CollectionListResponse<TItem, TCapabilities>>;
-    normalizeItems?: (items: TItem[]) => TItem[];
-}
-
-interface LoadedCollectionPage<TItem, TCapabilities extends object> {
-    items: TItem[];
-    groups: CollectionGroup[];
-    total: number;
-    capabilities: TCapabilities | null;
-}
-
 interface LegacyPaginationFields {
     skip?: number;
     page?: number;
     size?: number;
 }
+
+type CollectionResponseWithFacets<
+    TItem,
+    TCapabilities extends object,
+    TFacets,
+> = Omit<CollectionListResponse<TItem, TCapabilities>, 'facets'> & {
+    facets?: TFacets | null;
+};
 
 export function buildCollectionParams({
     offset,
@@ -81,20 +67,26 @@ export function buildCollectionParams({
     return params;
 }
 
-export function normalizeCollectionResponse<TItem, TCapabilities extends object = CollectionCapabilities>(
-    response: CollectionListResponse<TItem, TCapabilities> & LegacyPaginationFields
-): CollectionListResponse<TItem, TCapabilities> {
+export function normalizeCollectionResponse<
+    TItem,
+    TCapabilities extends object = CollectionCapabilities,
+    TFacets = Record<string, unknown>,
+>(
+    response: CollectionResponseWithFacets<TItem, TCapabilities, TFacets> & LegacyPaginationFields,
+): CollectionResponseWithFacets<TItem, TCapabilities, TFacets> {
     return {
+        ...response,
         items: response.items,
         total: response.total,
         offset: normalizeCollectionOffset(response),
         limit: normalizeCollectionLimit(response),
         groups: response.groups ?? null,
+        facets: response.facets ?? null,
         capabilities: response.capabilities ?? null,
     };
 }
 
-function normalizeCollectionOffset(response: CollectionListResponse<unknown, object> & LegacyPaginationFields): number {
+function normalizeCollectionOffset(response: { offset: number } & LegacyPaginationFields): number {
     if (typeof response.offset === 'number') {
         return response.offset;
     }
@@ -107,7 +99,7 @@ function normalizeCollectionOffset(response: CollectionListResponse<unknown, obj
     return 0;
 }
 
-function normalizeCollectionLimit(response: CollectionListResponse<unknown, object> & LegacyPaginationFields): number {
+function normalizeCollectionLimit(response: { limit: number } & LegacyPaginationFields): number {
     if (typeof response.limit === 'number') {
         return response.limit;
     }
@@ -115,44 +107,4 @@ function normalizeCollectionLimit(response: CollectionListResponse<unknown, obje
         return response.size;
     }
     return 0;
-}
-
-export async function loadCollectionPage<TItem, TCapabilities extends object = CollectionCapabilities>({
-    currentPage,
-    groupBy,
-    selectedGroupValue,
-    loadPage,
-    normalizeItems = (items) => items,
-}: LoadCollectionPageOptions<TItem, TCapabilities>): Promise<LoadedCollectionPage<TItem, TCapabilities>> {
-    if (!groupBy) {
-        const response = await loadPage({ currentPage });
-        return {
-            items: normalizeItems(response.items),
-            groups: [],
-            total: response.total,
-            capabilities: response.capabilities ?? null,
-        };
-    }
-
-    if (selectedGroupValue) {
-        const response = await loadPage({
-            currentPage,
-            groupBy,
-            groupValue: selectedGroupValue,
-        });
-        return {
-            items: normalizeItems(response.items),
-            groups: response.groups ?? [],
-            total: response.total,
-            capabilities: response.capabilities ?? null,
-        };
-    }
-
-    const response = await loadPage({ currentPage: 1, groupBy });
-    return {
-        items: [],
-        groups: response.groups ?? [],
-        total: response.total,
-        capabilities: response.capabilities ?? null,
-    };
 }

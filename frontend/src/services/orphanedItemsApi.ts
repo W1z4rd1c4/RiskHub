@@ -7,7 +7,7 @@ import {
     orphanedItemsOverviewSchema,
     resolveOrphanResponseSchema,
 } from '@/services/api/schemas';
-import type { ResolveOrphanRequest } from '../types/orphanedItem';
+import type { ResolveOrphanRequest, ResolveOrphanResponse } from '../types/orphanedItem';
 
 export const orphanedItemsApi = {
     getOrphanedItems: (params?: { item_type?: string; status?: string }) =>
@@ -29,7 +29,7 @@ export const orphanedItemsApi = {
     getOrphanDetail: (id: number) =>
         apiClient.get(`/orphaned-items/${id}`, { schema: orphanedItemSchema }),
 
-    resolveOrphan: (id: number, data: ResolveOrphanRequest) =>
+    resolveOrphan: (id: number, data: ResolveOrphanRequest): Promise<ResolveOrphanResponse> =>
         apiClient.post(`/orphaned-items/${id}/resolve`, data, {
             schema: resolveOrphanResponseSchema,
         }),

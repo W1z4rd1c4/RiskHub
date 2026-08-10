@@ -1,0 +1,224 @@
+{
+    "title": "ICT Risk Committee",
+    "subtitle": "Executive summary of the ICT register — the operational overview and the CRO / risk committee / board briefing, computed live",
+    "actions": {
+        "refresh": "Refresh"
+    },
+    "nav": {
+        "dq": "◀ Data quality checks",
+        "cro": "Continue: Executive summary ▶"
+    },
+    "dashboard": {
+        "title": "Register steward's operational overview",
+        "state_heading": "Register state",
+        "metrics_heading": "Key metrics",
+        "metrics_columns": {
+            "metric": "Metric",
+            "value": "Value",
+            "interpretation": "Interpretation",
+            "source": "Source",
+            "action": "Action"
+        }
+    },
+    "state": {
+        "process_count": "Processes",
+        "asset_count": "Assets",
+        "process_asset_link_count": "Process–asset links",
+        "vendor_count": "Vendors",
+        "assets_pending_review_count": "Asset records pending review",
+        "direct_process_vendor_link_count": "Direct links pending review",
+        "contracts_in_roi_scope_count": "Contracts (in RoI scope)",
+        "sub_outsourcing_link_count": "Sub-outsourcing links (chains)",
+        "assets_without_data_classification_count": "Assets without data classification",
+        "top_tier_vendors_without_orderly_exit_count": "Crit./sig. vendors without an exit plan"
+    },
+    "metrics": {
+        "cif_process_count": {
+            "label": "CIF functions",
+            "interpretation": "Critical or important functions (DORA art. 3(22))",
+            "source": "Processes",
+            "action": "Confirm with business + risk management"
+        },
+        "processes_without_impact_assessment_count": {
+            "label": "Processes without impact assessment",
+            "interpretation": "While the preliminary class applies",
+            "source": "Processes",
+            "action": "Step 2: assess the impacts"
+        },
+        "critical_asset_count": {
+            "label": "Critical assets",
+            "interpretation": "Critical-asset records per art. 8(4)",
+            "source": "Assets",
+            "action": "Priority protection and DR"
+        },
+        "critical_vendor_count": {
+            "label": "Critical vendors",
+            "interpretation": "Support CIF → art. 30(3) + exit plan",
+            "source": "Vendors",
+            "action": "Complete legal data, exit, ex-ante"
+        },
+        "risks_above_tolerance_count": {
+            "label": "Risks above tolerance",
+            "interpretation": "Net risk > P_Tolerance",
+            "source": "Risks",
+            "action": "Action plan or formal acceptance"
+        },
+        "open_dq_finding_count": {
+            "label": "Open checks",
+            "interpretation": "The register's working backlog",
+            "source": "Data quality",
+            "action": "Work off by owner"
+        }
+    },
+    "cro": {
+        "title": "Executive summary for the CRO / risk committee / board",
+        "heatmap_title": "Gross risk heatmap (probability × subject value, risk counts)",
+        "heatmap_axis": "Gross probability ↓ / Gross impact → (the app plots the risk's gross block where the workbook derived a subject value)",
+        "migration_title": "Migration matrix: gross band → net band (control effect)",
+        "migration_axis": "Gross ↓ / Net →",
+        "heatmap_legend": "Risks per cell",
+        "top_risks_title": "Top 10 risks by net risk",
+        "top_vendors_title": "Concentration: top 5 vendors by CIF links (art. 29)",
+        "narratives_title": "CIF coverage, BCM and management conclusions",
+        "assets_chart_title": "Assets by resulting criticality",
+        "risk_bands_chart_title": "Risks by band: gross vs. net",
+        "risk_bands_gross": "Gross",
+        "risk_bands_net": "Net"
+    },
+    "kpi": {
+        "risk_count": "Total risks",
+        "material_risk_count": "Material",
+        "risks_above_tolerance_count": "Above tolerance",
+        "accepted_above_tolerance_count": "Accepted above tolerance",
+        "cif_without_bcm_count": "CIF without BCM",
+        "open_dq_finding_count": "Open data-quality checks"
+    },
+    "kpi_not_measurable": "Not yet measurable",
+    "kpi_not_measurable_hint": "The app does not track risk materiality yet, so this KPI cannot count on production data.",
+    "roi": {
+        "title": "RoI readiness — Register of Information",
+        "subtitle": "Per-template field completeness across the 15 templates of CIR 2024/2956 (post-corrigendum field codes), with the concrete gaps to close before the RoI could be populated",
+        "overall": "Overall readiness",
+        "total_gaps": "Rows with gaps",
+        "columns": {
+            "template": "Template",
+            "coverage": "Coverage",
+            "rows": "Rows",
+            "readiness": "Readiness",
+            "gaps": "Gaps"
+        },
+        "coverage": {
+            "full": "Full",
+            "partial": "Partial",
+            "documentary": "Documentary"
+        },
+        "coverage_hint": {
+            "full": "Every column of this template can be emitted from the register.",
+            "partial": "The register carries a subset of this template's columns; the rest are recorded as not yet mapped.",
+            "documentary": "Note-only per the workbook — maintained as a documentary record, not computed from register rows."
+        },
+        "gate": {
+            "presence": "every register row",
+            "roi_scope": "contracts flagged in RoI scope only",
+            "unconditional": "every asset–vendor link, regardless of RoI scope",
+            "documentary": "documentary record"
+        },
+        "feed": {
+            "processes": "Processes",
+            "vendors": "Vendors",
+            "contracts": "Contracts",
+            "asset_vendor_links": "Asset–vendor links",
+            "supply_chain": "Asset–vendor links + sub-outsourcing chain",
+            "entity": "Entity level",
+            "none": "No register feed"
+        },
+        "notes": {
+            "B_01.01": "Entity master data from the workbook parameters (LEI, entity name, RoI as-of date).",
+            "B_01.02": "Single-entity scope — mirrors B_01.01; total assets stay a manual cell (Annex IV).",
+            "B_01.03": "Branches are maintained manually; the workbook flags the NL activity as to-be-confirmed.",
+            "B_02.03": "Note-only: solo entity, no intra-group arrangements.",
+            "B_03.03": "Note-only: no intra-group ICT service provision.",
+            "B_99.01": "Narrative definitions; the legal text's row R0070 targets B_06.01.0100 post-corrigendum (the OJ still prints the stale 0110 reference)."
+        },
+        "no_rows": "No feeding rows",
+        "row_count": "{{n}} rows",
+        "gap_count": "{{n}} with gaps",
+        "no_gaps": "No gaps",
+        "show_gaps": "Show gaps",
+        "hide_gaps": "Hide gaps",
+        "gap_rows_truncated": "Showing the first {{shown}} of {{total}} rows with gaps",
+        "missing_label": "Missing:",
+        "fields": {
+            "function_identifier": "Function Identifier",
+            "licensed_activity": "Licenced activity",
+            "function_name": "Function name",
+            "entity_lei": "LEI of the financial entity",
+            "criticality_assessment": "Criticality or importance assessment",
+            "criticality_reasons": "Reasons for criticality or importance",
+            "last_assessment_date": "Date of the last assessment of criticality or importance",
+            "rto_hours": "Recovery time objective of the function",
+            "rpo_hours": "Recovery point objective of the function",
+            "discontinuation_impact": "Impact of discontinuing the function",
+            "contractual_arrangement_reference": "Contractual arrangement reference number",
+            "arrangement_type": "Type of contractual arrangement",
+            "overarching_reference": "Overarching contractual arrangement reference number",
+            "currency": "Currency",
+            "annual_expense": "Annual expense or estimated cost",
+            "start_date": "Start date of the contractual arrangement",
+            "end_date": "End date of the contractual arrangement",
+            "notice_period_entity": "Notice period for the financial entity",
+            "notice_period_provider": "Notice period for the ICT third-party service provider",
+            "governing_law_country": "Country of the governing law",
+            "provider_identification_code": "Identification code of the ICT third-party service provider",
+            "provider_identification_type": "Type of code to identify the ICT third-party service provider",
+            "legal_name": "Legal name of the ICT third-party service provider",
+            "latin_name": "Name of the ICT third-party service provider in Latin alphabet",
+            "person_type": "Type of person of the ICT third-party service provider",
+            "headquarters_country": "Country of the ICT third-party service provider's headquarters",
+            "ict_service_type": "Type of ICT services",
+            "cif_support": "Supports a critical or important function",
+            "provisioning_country": "Country of provision of the ICT services",
+            "data_storage": "Storage of data",
+            "data_location": "Location of the data",
+            "data_sensitiveness": "Sensitiveness of the data",
+            "reliance_level": "Level of reliance on the ICT service",
+            "provider_name": "Name of the service provider",
+            "rank": "Rank",
+            "recipient": "Identification of the recipient of sub-contracted services",
+            "substitutability": "Substitutability of the ICT third-party service provider",
+            "substitutability_reason": "Reason if the ICT third-party service provider is considered not substitutable or difficult to be substitutable",
+            "last_audit_date": "Date of the last audit on the ICT third-party service provider",
+            "exit_plan": "Existence of an exit plan",
+            "reintegration": "Possibility of reintegration of the contracted ICT service",
+            "alternative_providers": "Are there alternative ICT third-party service providers identified?",
+            "alternative_providers_names": "Identification of alternative ICT third-party service providers",
+            "usage_nature": "Nature of the entity making use of the ICT services"
+        }
+    },
+    "top_risks_columns": {
+        "rank": "#",
+        "id": "ID",
+        "subject": "Subject",
+        "threat": "Threat",
+        "gross": "Gross",
+        "net": "Net",
+        "band": "Band",
+        "tolerance": "Tolerance",
+        "status": "Status"
+    },
+    "top_vendors_columns": {
+        "rank": "#",
+        "vendor": "Vendor",
+        "cif_processes": "CIF processes",
+        "tier": "Classification"
+    },
+    "narratives": {
+        "a34": "CIF functions: {{cif}} of {{total}} processes; with BCM evidence: {{bcm}}",
+        "a35": "Critical vendors: {{critical}}; with an approved or tested exit plan: {{exit}}; with completed legal data: {{legal}}",
+        "a36": "Risks above the tolerance ({{tolerance}}): {{above}}, of which formally accepted: {{accepted}}",
+        "a37": "Sub-outsourcing chains: {{links}} links; vendors in a sub-outsourcer role: {{subRole}} (RTS 2025/532: the chain must be identifiable).",
+        "a38": "Note: the risk tolerance (P_Tolerance = {{tolerance}}) is a default that the board must approve in line with the risk appetite (DORA art. 6(8)(b))."
+    },
+    "empty": "The register is empty — tiles fill in with data.",
+    "loading": "Loading…"
+}

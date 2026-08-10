@@ -1,10 +1,11 @@
 import type { FormEvent } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
+import { DialogShell } from '@/components/DialogShell';
 import type { PermissionRead, RoleHubCreate, RoleHubRead, RoleHubUpdate } from '@/services/riskHubApi';
 
 import {
@@ -31,6 +32,7 @@ export function RoleModal({
     role,
 }: RoleModalProps) {
     const { t } = useTranslation(['admin', 'common']);
+    const titleId = useId();
     const [description, setDescription] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -89,14 +91,15 @@ export function RoleModal({
         }
     }
 
-    if (!isOpen) {
-        return null;
-    }
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <h2 className="text-xl font-bold text-white mb-4">
+        <DialogShell
+            isOpen={isOpen}
+            onClose={onClose}
+            titleId={titleId}
+            backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
+        >
+                <h2 id={titleId} className="text-xl font-bold text-white mb-4">
                     {role ? t('admin:roles_panel.modal.edit_title') : t('admin:roles_panel.modal.new_title')}
                 </h2>
 
@@ -104,18 +107,20 @@ export function RoleModal({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {!role && (
                             <div>
-                                <label htmlFor="role-name" className="block text-sm font-medium text-slate-300 mb-1">
-                                    {t('admin:roles_panel.modal.fields.role_identifier')}
+                                <label htmlFor="role-name" className="block">
+                                    <span className="block text-sm font-medium text-slate-300 mb-1">
+                                        {t('admin:roles_panel.modal.fields.role_identifier')}
+                                    </span>
+                                    <input
+                                        id="role-name"
+                                        type="text"
+                                        value={name}
+                                        onChange={(event) => setName(normalizeRoleIdentifier(event.target.value))}
+                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent font-mono"
+                                        placeholder={t('admin:roles_panel.modal.placeholders.role_identifier')}
+                                        required
+                                    />
                                 </label>
-                                <input
-                                    id="role-name"
-                                    type="text"
-                                    value={name}
-                                    onChange={(event) => setName(normalizeRoleIdentifier(event.target.value))}
-                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent font-mono"
-                                    placeholder={t('admin:roles_panel.modal.placeholders.role_identifier')}
-                                    required
-                                />
                                 <p className="text-xs text-slate-500 mt-1">
                                     {t('admin:roles_panel.modal.hints.role_identifier')}
                                 </p>
@@ -123,33 +128,37 @@ export function RoleModal({
                         )}
 
                         <div className={cn(!role ? '' : 'md:col-span-2')}>
-                            <label htmlFor="role-display-name" className="block text-sm font-medium text-slate-300 mb-1">
-                                {t('admin:roles_panel.modal.fields.display_name')}
+                            <label htmlFor="role-display-name" className="block">
+                                <span className="block text-sm font-medium text-slate-300 mb-1">
+                                    {t('admin:roles_panel.modal.fields.display_name')}
+                                </span>
+                                <input
+                                    id="role-display-name"
+                                    type="text"
+                                    value={displayName}
+                                    onChange={(event) => setDisplayName(event.target.value)}
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
+                                    placeholder={t('admin:roles_panel.modal.placeholders.display_name')}
+                                    required
+                                />
                             </label>
-                            <input
-                                id="role-display-name"
-                                type="text"
-                                value={displayName}
-                                onChange={(event) => setDisplayName(event.target.value)}
-                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                                placeholder={t('admin:roles_panel.modal.placeholders.display_name')}
-                                required
-                            />
                         </div>
                     </div>
 
                     <div>
-                        <label htmlFor="role-description" className="block text-sm font-medium text-slate-300 mb-1">
-                            {t('common:labels.description')}
+                        <label htmlFor="role-description" className="block">
+                            <span className="block text-sm font-medium text-slate-300 mb-1">
+                                {t('common:labels.description')}
+                            </span>
+                            <textarea
+                                id="role-description"
+                                value={description}
+                                onChange={(event) => setDescription(event.target.value)}
+                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
+                                placeholder={t('admin:roles_panel.modal.placeholders.description')}
+                                rows={2}
+                            />
                         </label>
-                        <textarea
-                            id="role-description"
-                            value={description}
-                            onChange={(event) => setDescription(event.target.value)}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder={t('admin:roles_panel.modal.placeholders.description')}
-                            rows={2}
-                        />
                     </div>
 
                     <div>
@@ -167,8 +176,9 @@ export function RoleModal({
                                         <h4 className="text-xs font-bold text-accent uppercase mb-2 tracking-wider">{resource}</h4>
                                         <div className="space-y-2">
                                             {permissions.map((permission) => (
-                                                <label key={permission.id} className="flex items-start gap-2 cursor-pointer group">
+                                                <label key={permission.id} htmlFor={`role-perm-${permission.id}`} className="flex items-start gap-2 cursor-pointer group">
                                                     <input
+                                                        id={`role-perm-${permission.id}`}
                                                         type="checkbox"
                                                         checked={selectedPermissionIds.includes(permission.id)}
                                                         onChange={() => togglePermission(permission.id)}
@@ -217,7 +227,6 @@ export function RoleModal({
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+        </DialogShell>
     );
 }

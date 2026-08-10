@@ -12,11 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     Control,
+    ControlExecution,
     Department,
     Issue,
     IssueException,
     IssueLink,
     IssueRemediationPlan,
+    KeyRiskIndicator,
     Permission,
     Risk,
     Role,
@@ -319,6 +321,122 @@ async def test_export_issues_scope_no_leak(
 
 
 @pytest.mark.asyncio
+async def test_issue_exports_redact_hidden_link_identifiers_and_names_fail_closed(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    second_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    role_id = test_role_employee.id
+    department_id = test_department.id
+    hidden_department_id = second_department.id
+    user_id = test_user_employee.id
+    await _grant(db_session, role_id, "issues", "read")
+    await _grant(db_session, role_id, "reports", "read")
+
+    hidden_risk = Risk(
+        risk_id_code="ISS-EXPORT-HIDDEN-RISK",
+        name="Issue export hidden Risk",
+        process="Secret process",
+        description="Must not appear in Issue exports",
+        category="Operational",
+        department_id=hidden_department_id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    hidden_control = Control(
+        name="Issue export hidden Control",
+        description="Must not appear in Issue exports",
+        department_id=hidden_department_id,
+        status="active",
+    )
+    db_session.add_all([hidden_risk, hidden_control])
+    await db_session.flush()
+    hidden_kri = KeyRiskIndicator(
+        risk_id=hidden_risk.id,
+        metric_name="Issue export hidden KRI",
+        description="Must not appear in Issue exports",
+        current_value=5,
+        lower_limit=0,
+        upper_limit=10,
+        unit="%",
+    )
+    hidden_execution = ControlExecution(
+        control_id=hidden_control.id,
+        executed_by_id=user_id,
+        result="failed",
+    )
+    issue = Issue(
+        title="Visible Issue export redaction target",
+        description="Visible Issue with cross-department linked resources",
+        severity="high",
+        status="open",
+        source_type="kri_breach",
+        source_id=None,
+        department_id=department_id,
+        created_by_id=user_id,
+        opened_at=datetime.now(UTC),
+    )
+    db_session.add_all([hidden_kri, hidden_execution, issue])
+    await db_session.flush()
+    issue_id = issue.id
+    issue_title = issue.title
+    issue.source_id = hidden_kri.id
+    db_session.add_all(
+        [
+            IssueLink(issue_id=issue.id, risk_id=hidden_risk.id),
+            IssueLink(issue_id=issue.id, control_id=hidden_control.id),
+            IssueLink(issue_id=issue.id, execution_id=hidden_execution.id),
+            IssueLink(issue_id=issue.id, kri_id=hidden_kri.id, is_source_link=True),
+        ]
+    )
+    await db_session.commit()
+
+    as_of = datetime.now(UTC).date().isoformat()
+    historical = await client_employee.get(
+        f"/api/v1/reports/issues/export?format=csv&as_of_date={as_of}"
+    )
+    current = await client_employee.get(
+        "/api/v1/issues/export",
+        params={"search": issue_title, "locale": "en"},
+    )
+    assert historical.status_code == 200, historical.text
+    assert current.status_code == 200, current.text
+
+    historical_row = next(
+        row for row in _parse_csv(historical.text) if row["Issue ID"] == str(issue_id)
+    )
+    current_row = next(row for row in _parse_csv(current.text) if row["issue_id"] == str(issue_id))
+    for row, keys in (
+        (
+            historical_row,
+            (
+                "Source ID", "Source Display", "Source Link Label", "Linked Risk IDs", "Linked Risks",
+                "Linked Control IDs", "Linked Controls", "Linked Execution IDs", "Linked KRI IDs", "Linked KRIs",
+            ),
+        ),
+        (
+            current_row,
+            (
+                "source_id", "source_display", "source_link_label", "linked_risk_ids", "linked_risks",
+                "linked_control_ids", "linked_controls", "linked_execution_ids", "linked_kri_ids", "linked_kris",
+            ),
+        ),
+    ):
+        assert all(row[key] == "" for key in keys)
+        serialized = " ".join(row.values())
+        assert hidden_risk.name not in serialized
+        assert hidden_control.name not in serialized
+        assert hidden_kri.metric_name not in serialized
+
+
+@pytest.mark.asyncio
 async def test_export_issues_rejects_out_of_scope_department_filter(
     db_session: AsyncSession,
     client_employee: AsyncClient,
@@ -349,6 +467,61 @@ async def test_export_issues_overdue_only_filter(
     rows = _parse_csv(response.text)
     titles = {row["Title"] for row in rows}
     assert titles == {"Dept issue overdue", "Other dept overdue"}
+
+
+@pytest.mark.asyncio
+async def test_current_register_overdue_keeps_active_exception_while_historical_report_suppresses_it(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+):
+    now = datetime.now(UTC).replace(microsecond=0)
+    issue = Issue(
+        title="Active exception overdue mode split",
+        description="Current register and historical reporting intentionally differ",
+        severity="high",
+        status="in_progress",
+        source_type="manual",
+        department_id=test_department.id,
+        owner_user_id=test_user.id,
+        created_by_id=test_user.id,
+        opened_at=now - timedelta(days=10),
+        due_at=now - timedelta(days=2),
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    db_session.add(
+        IssueException(
+            issue_id=issue.id,
+            status="approved",
+            reason="Temporary accepted risk",
+            requested_by_id=test_user.id,
+            approved_by_id=test_user.id,
+            requested_at=now - timedelta(days=3),
+            approved_at=now - timedelta(days=2),
+            expires_at=now + timedelta(days=5),
+        )
+    )
+    await db_session.commit()
+
+    current = await auth_client.get(
+        "/api/v1/issues/export",
+        params={"search": issue.title, "overdue": True, "locale": "en"},
+    )
+    historical = await auth_client.get(
+        "/api/v1/reports/issues/export",
+        params={
+            "format": "csv",
+            "as_of_date": now.date().isoformat(),
+            "overdue_only": True,
+        },
+    )
+    assert current.status_code == 200, current.text
+    assert historical.status_code == 200, historical.text
+    current_row = next(row for row in _parse_csv(current.text) if row["issue_id"] == str(issue.id))
+    assert current_row["overdue_code"] == "yes"
+    assert issue.title not in {row["Title"] for row in _parse_csv(historical.text)}
 
 
 @pytest.mark.asyncio

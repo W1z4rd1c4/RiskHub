@@ -14,12 +14,14 @@ export const DIRECTORY_PAGE_SIZE = 50;
 
 interface UseUsersPageDataOptions {
     currentUserLoaded: boolean;
+    departmentId?: number;
     loadDirectoryCapabilities: boolean;
     pageMode: UsersPageMode;
 }
 
 export function useUsersPageData({
     currentUserLoaded,
+    departmentId,
     loadDirectoryCapabilities,
     pageMode,
 }: UseUsersPageDataOptions) {
@@ -71,7 +73,7 @@ export function useUsersPageData({
                 return;
             }
             if (pageMode === 'department-access') {
-                const data = await accessApi.listDepartmentAccessUsers();
+                const data = await accessApi.listDepartmentAccessUsers(departmentId);
                 setUsers(data);
                 resetDirectoryData();
                 if (loadDirectoryCapabilities) {
@@ -110,6 +112,7 @@ export function useUsersPageData({
         }
     }, [
         directoryPage,
+        departmentId,
         fetchDirectoryCapabilities,
         filters.roleFilter,
         filters.searchTerm,

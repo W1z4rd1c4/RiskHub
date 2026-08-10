@@ -22,12 +22,13 @@ export function LinkSearchResultItem({
     const presentation = buildLinkSearchResultPresentation(mode, result, t);
 
     return (
-        <button
-            key={result.id}
-            onClick={() => onSelect(result.id)}
-            className={`w-full flex items-center justify-between px-4 py-3 hover:bg-accent/10 transition-colors text-left group ${presentation.isArchived ? 'opacity-70' : ''}`}
-        >
-            <div className="flex flex-col flex-1 min-w-0 pr-4">
+        <div className={`w-full flex items-stretch group ${presentation.isArchived ? 'opacity-70' : ''}`}>
+            <button
+                type="button"
+                onClick={() => onSelect(result.id)}
+                className="min-w-0 flex-1 flex items-center justify-between px-4 py-3 hover:bg-accent/10 transition-colors text-left"
+            >
+                <span className="flex flex-col flex-1 min-w-0 pr-4">
                 <span className="text-xs font-bold text-white truncate group-hover:text-accent transition-colors text-balance flex items-center gap-2">
                     <span>{presentation.title}</span>
                     {presentation.isArchived && (
@@ -47,29 +48,8 @@ export function LinkSearchResultItem({
                         )}
                     </span>
                 </span>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-                {presentation.canUnarchive && (
-                    <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            void onUnarchive(result.id);
-                        }}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                void onUnarchive(result.id);
-                            }
-                        }}
-                        className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest"
-                    >
-                        {presentation.unarchiveLabel}
-                    </span>
-                )}
+                </span>
+                <span className="flex items-center gap-3 shrink-0">
                 {mode === 'risk-to-control' && (
                     <>
                         <div className="flex flex-col items-end">
@@ -82,10 +62,20 @@ export function LinkSearchResultItem({
                         </div>
                     </>
                 )}
-                <div className="p-1.5 rounded-lg bg-white/5 group-hover:bg-accent/20 transition-colors">
+                <span className="p-1.5 rounded-lg bg-white/5 group-hover:bg-accent/20 transition-colors">
                     <Plus className="h-3 w-3 text-slate-500 group-hover:text-accent" />
-                </div>
-            </div>
-        </button>
+                </span>
+                </span>
+            </button>
+            {presentation.canUnarchive && (
+                <button
+                    type="button"
+                    onClick={() => { void onUnarchive(result.id); }}
+                    className="m-3 ml-0 self-center px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest"
+                >
+                    {presentation.unarchiveLabel}
+                </button>
+            )}
+        </div>
     );
 }

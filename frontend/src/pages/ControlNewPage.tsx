@@ -10,6 +10,7 @@ import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';
 import { vendorApi } from '@/services/vendorApi';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
+import { isProcessApprovalQueuedResponse } from '@/types/process';
 
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { combineCapabilityGateStates, useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
@@ -84,7 +85,16 @@ export function ControlNewPage() {
         }
 
         try {
-            await vendorLinkApi.linkControl(vendorId, controlId);
+            const result = await vendorLinkApi.linkControl(vendorId, controlId);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToVendor({
+                    tone: 'warn',
+                    message: t('vendors:links.controls.created_but_not_linked'),
+                    ctaHref: `/controls/${controlId}`,
+                    ctaLabel: t('vendors:links.actions.open_control'),
+                });
+                return;
+            }
             navigateToVendor({
                 tone: 'success',
                 message: t('vendors:links.controls.created_and_linked'),

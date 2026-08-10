@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import String, and_, case, false, func, literal, or_, select
+from sqlalchemy import String, and_, asc, case, desc, false, func, literal, or_, select, true, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
 from app.core.approval_helpers import control_privileged_approval_requirements
 from app.core.datetime_utils import utc_now
+from app.core.exceptions import ValidationError
 from app.core.permissions import (
     can_read_vendor,
-    get_control_ids_where_owner,
     get_user_department_ids,
     risk_visibility_clause,
     visible_risk_ids,
@@ -32,7 +33,6 @@ from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._authorization_capabilities.common import pending_approvals_for_resources
 from app.services._collection_contracts import CollectionGroupEntry, build_grouped_collection_page
 from app.services._collection_filters import (
-    coerce_optional_bool,
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
@@ -42,7 +42,14 @@ from app.services._monitoring_status import ControlMonitoringStatus, apply_contr
 from app.services.authorization_capabilities import control_capabilities
 
 from .lifecycle import CollectionQuery, RegisterListingPlan, SerializeItems, build_register_listing_plan
-from .shared import GROUP_UNCATEGORIZED, GROUP_UNLINKED_VENDOR, parse_prefixed_group_value, visible_vendor_link_context
+from .shared import (
+    GROUP_UNCATEGORIZED,
+    GROUP_UNLINKED_VENDOR,
+    build_facet_options,
+    parse_prefixed_group_value,
+    resolve_register_lifecycle,
+    visible_vendor_link_context,
+)
 
 CONTROL_GROUP_UNLINKED_VENDOR = GROUP_UNLINKED_VENDOR
 CONTROL_GROUP_UNCATEGORIZED = GROUP_UNCATEGORIZED
@@ -51,6 +58,14 @@ CONTROL_GROUP_NO_PROCESS = "__no_process__"
 CONTROL_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
 CONTROL_GROUP_UNKNOWN_RISK = "__unknown_risk__"
 CONTROL_SQL_GROUPS = {"category", "department", "process", "risk", "risk_type", "type", "vendor"}
+
+
+def apply_control_lifecycle(query, lifecycle: str):
+    if lifecycle == "active":
+        return query.where(archived_clause(Control, archived=False))
+    if lifecycle == "archived":
+        return query.where(archived_clause(Control, archived=True))
+    return query
 
 
 @dataclass(frozen=True)
@@ -67,25 +82,29 @@ async def apply_control_department_scoping(
 ):
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:
-        control_owner_ids = await get_control_ids_where_owner(db, current_user.id)
-        if control_owner_ids:
-            return query.where(
-                or_(
-                    Control.department_id.in_(dept_ids),
-                    Control.id.in_(control_owner_ids),
-                )
+        return query.where(
+            or_(
+                Control.department_id.in_(dept_ids),
+                Control.control_owner_id == current_user.id,
             )
-        return query.where(Control.department_id.in_(dept_ids))
+        )
     if department_id_filter:
         return query.where(Control.department_id == department_id_filter)
     return query
 
 
-def apply_control_process_category_filters(query, process: str | None, category: str | None):
+def apply_control_process_category_filters(
+    query,
+    process: str | None,
+    category: str | None,
+    *,
+    risk_visibility,
+):
     if not process and not category:
         return query
 
     query = query.join(Control.risk_links).join(ControlRiskLink.risk)
+    query = query.where(risk_visibility if risk_visibility is not None else true())
     if process:
         query = query.where(Risk.process == process)
     if category:
@@ -128,6 +147,106 @@ def control_group_entries(control: ControlSummary, group_by: str) -> list[Collec
             )
         ]
     return []
+
+
+def _selected_facet_value(value: Any) -> set[str]:
+    if value is None or value == "":
+        return set()
+    return {str(getattr(value, "value", value))}
+
+
+async def _build_control_facets(
+    db: AsyncSession,
+    *,
+    scoped_ids,
+    filters: dict[str, Any],
+    monitoring_context,
+    risk_visibility,
+) -> dict[str, list[Any]]:
+    """Aggregate permission-scoped Control facets without materializing Controls."""
+
+    facet_keys = ("status", "department", "process", "category", "monitoring_status")
+    counts: dict[str, Counter[str]] = {key: Counter() for key in facet_keys}
+    catalogs: dict[str, dict[str, tuple[str, dict[str, Any]]]] = {key: {} for key in counts}
+
+    status_value = Control.status
+    direct_queries = [
+        select(
+            literal("status").label("facet_key"),
+            func.cast(status_value, String).label("value"),
+            func.cast(status_value, String).label("label"),
+            func.count(func.distinct(Control.id)).label("count"),
+        )
+        .select_from(Control)
+        .join(scoped_ids, scoped_ids.c.id == Control.id)
+        .group_by(status_value),
+        select(
+            literal("department").label("facet_key"),
+            func.cast(Control.department_id, String).label("value"),
+            func.coalesce(Department.name, "Unknown department").label("label"),
+            func.count(func.distinct(Control.id)).label("count"),
+        )
+        .select_from(Control)
+        .join(scoped_ids, scoped_ids.c.id == Control.id)
+        .outerjoin(Department, Department.id == Control.department_id)
+        .where(Control.department_id.is_not(None))
+        .group_by(Control.department_id, Department.name),
+    ]
+
+    for facet_key, risk_column in (("process", Risk.process), ("category", Risk.category)):
+        linked_query = (
+            select(
+                literal(facet_key).label("facet_key"),
+                func.cast(risk_column, String).label("value"),
+                func.cast(risk_column, String).label("label"),
+                func.count(func.distinct(ControlRiskLink.control_id)).label("count"),
+            )
+            .select_from(ControlRiskLink)
+            .join(scoped_ids, scoped_ids.c.id == ControlRiskLink.control_id)
+            .join(Risk, Risk.id == ControlRiskLink.risk_id)
+            .where(risk_column.is_not(None), risk_column != "")
+            .group_by(risk_column)
+        )
+        if risk_visibility is not None:
+            linked_query = linked_query.where(risk_visibility)
+        direct_queries.append(linked_query)
+
+    for row in (await db.execute(union_all(*direct_queries))).all():
+        value = str(row.value)
+        counts[row.facet_key][value] = int(row._mapping["count"] or 0)
+        catalogs[row.facet_key][value] = (str(row.label), {})
+
+    monitoring_queries = []
+    for monitoring_status in ControlMonitoringStatus:
+        matched_ids = apply_control_monitoring_status_filter(
+            select(Control.id)
+            .select_from(Control)
+            .join(scoped_ids, scoped_ids.c.id == Control.id),
+            monitoring_status=monitoring_status,
+            today=monitoring_context.today,
+            execution_stale_days=monitoring_context.control_config.execution_stale_days,
+        ).subquery()
+        monitoring_queries.append(
+            select(
+                literal(monitoring_status.value).label("value"),
+                func.count().label("count"),
+            ).select_from(matched_ids)
+        )
+    for row in (await db.execute(union_all(*monitoring_queries))).all():
+        value = str(row.value)
+        counts["monitoring_status"][value] = int(row._mapping["count"] or 0)
+        catalogs["monitoring_status"][value] = (value, {})
+
+    catalogs["status"].update({value.value: (value.value, {}) for value in ControlStatusEnum})
+    catalogs["monitoring_status"].update({value.value: (value.value, {}) for value in ControlMonitoringStatus})
+    selected_by_key = {
+        "status": _selected_facet_value(filters.get("status")),
+        "department": _selected_facet_value(filters.get("department_id")),
+        "process": _selected_facet_value(filters.get("process")),
+        "category": _selected_facet_value(filters.get("category")),
+        "monitoring_status": _selected_facet_value(filters.get("monitoring_status")),
+    }
+    return {key: build_facet_options(catalogs[key], counts[key], selected=selected_by_key[key]) for key in counts}
 
 
 def count_distinct_control_if(condition):
@@ -324,6 +443,7 @@ def plan_control_listing(
     serialize_items: SerializeItems[Control, ControlSummary],
     total: int,
     get_group_entries: Callable[[ControlSummary, str], list[CollectionGroupEntry]],
+    facets: dict[str, list[Any]],
 ) -> RegisterListingPlan[Control, ControlSummary]:
     async def load_sql_groups(group_by: str):
         return await load_control_sql_groups(
@@ -370,6 +490,7 @@ def plan_control_listing(
         load_sql_groups=load_sql_groups,
         build_sql_group_filter=build_sql_group_filter,
         build_in_memory_grouped_page=build_in_memory_grouped_page,
+        facets=facets,
     )
 
 
@@ -380,11 +501,18 @@ async def build_control_listing_plan(
     criteria: ControlListingCriteria,
 ) -> RegisterListingPlan[Control, ControlSummary]:
     filter_values = criteria.filters
+    if criteria.query.group_by is not None and criteria.query.group_by not in CONTROL_SQL_GROUPS:
+        raise ValidationError("Invalid Control group_by value")
+    if criteria.query.group_value is not None and criteria.query.group_by is None:
+        raise ValidationError("Control group_value requires group_by")
     department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
     status_value = filter_values.get("status")
-    archived_status_filter = str(status_value).lower() == "archived" if status_value is not None else False
-    status = None if archived_status_filter else coerce_optional_enum(ControlStatusEnum, status_value, "status")
-    include_archived = coerce_optional_bool("include_archived", filter_values.get("include_archived")) or False
+    lifecycle, consumed_legacy_archived_status = resolve_register_lifecycle(filter_values)
+    status = (
+        None
+        if consumed_legacy_archived_status
+        else coerce_optional_enum(ControlStatusEnum, status_value, "status")
+    )
     search = coerce_optional_string("search", filter_values.get("search"))
     process = coerce_optional_string("process", filter_values.get("process"))
     category = coerce_optional_string("category", filter_values.get("category"))
@@ -397,18 +525,15 @@ async def build_control_listing_plan(
     base_query = select(Control)
     base_query = await apply_control_department_scoping(db, base_query, current_user, department_id)
 
-    if archived_status_filter:
-        base_query = base_query.where(archived_clause(Control, archived=True))
-    elif status:
+    base_query = apply_control_lifecycle(base_query, lifecycle)
+    if status:
         base_query = base_query.where(Control.status == status.value)
-        base_query = base_query.where(archived_clause(Control, archived=False))
-    elif not include_archived:
-        base_query = base_query.where(archived_clause(Control, archived=False))
 
     risk_dept = aliased(Department)
     base_query = base_query.outerjoin(Control.department)
     base_query = base_query.outerjoin(Control.risk_links).outerjoin(ControlRiskLink.risk)
     base_query = base_query.outerjoin(risk_dept, Risk.department_id == risk_dept.id)
+    linked_risk_visibility = await risk_visibility_clause(db, current_user)
 
     if search:
         search_pattern = f"%{search}%"
@@ -417,15 +542,25 @@ async def build_control_listing_plan(
                 Control.name.ilike(search_pattern),
                 Control.description.ilike(search_pattern),
                 Department.name.ilike(search_pattern),
-                Risk.name.ilike(search_pattern),
-                Risk.description.ilike(search_pattern),
-                Risk.risk_id_code.ilike(search_pattern),
-                risk_dept.name.ilike(search_pattern),
+                and_(
+                    linked_risk_visibility if linked_risk_visibility is not None else true(),
+                    or_(
+                        Risk.name.ilike(search_pattern),
+                        Risk.description.ilike(search_pattern),
+                        Risk.risk_id_code.ilike(search_pattern),
+                        risk_dept.name.ilike(search_pattern),
+                    ),
+                ),
             )
         )
 
     base_query = base_query.distinct()
-    base_query = apply_control_process_category_filters(base_query, process, category)
+    base_query = apply_control_process_category_filters(
+        base_query,
+        process,
+        category,
+        risk_visibility=linked_risk_visibility,
+    )
 
     query_options = (
         selectinload(Control.department),
@@ -438,6 +573,24 @@ async def build_control_listing_plan(
     )
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    facet_scope_query = await apply_control_department_scoping(
+        db,
+        select(Control.id),
+        current_user,
+        department_id,
+    )
+    facet_scope_query = apply_control_lifecycle(facet_scope_query, lifecycle)
+    facets = await _build_control_facets(
+        db,
+        scoped_ids=facet_scope_query.subquery(),
+        filters=(
+            {**filter_values, "status": None}
+            if consumed_legacy_archived_status
+            else filter_values
+        ),
+        monitoring_context=monitoring_context,
+        risk_visibility=linked_risk_visibility,
+    )
 
     filtered_query = base_query
     if monitoring_status is not None:
@@ -477,7 +630,6 @@ async def build_control_listing_plan(
             resource_type=ApprovalResourceType.CONTROL,
             resource_ids=control_ids,
         )
-        owner_control_ids = set(await get_control_ids_where_owner(db, current_user.id))
         privileged_requirements = await control_privileged_approval_requirements(db, control_ids)
         candidate_risk_ids = {
             link.risk_id
@@ -495,7 +647,7 @@ async def build_control_listing_plan(
                 control=control,
                 preloaded_approvals=approvals_by_control.get(control.id, []),
                 can_read_override=True,
-                is_owner_override=control.id in owner_control_ids,
+                is_owner_override=control.control_owner_id == current_user.id,
                 requires_privileged_approval=privileged_requirements.get(control.id, False),
             )
             visible_linked_risks = [
@@ -538,9 +690,7 @@ async def build_control_listing_plan(
                     risk_description=first_risk.description if first_risk else None,
                     risk_name=first_risk.name if first_risk else None,
                     risk_owner_name=first_risk.owner.name if (first_risk and first_risk.owner) else None,
-                    risk_department_name=first_risk.department.name
-                    if (first_risk and first_risk.department)
-                    else None,
+                    risk_department_name=first_risk.department.name if (first_risk and first_risk.department) else None,
                     linked_vendors=[
                         LinkedVendorRead(
                             id=link.vendor.id,
@@ -571,7 +721,27 @@ async def build_control_listing_plan(
             )
         return control_group_entries(control, group_by)
 
-    ordered_query = filtered_query.options(*query_options).order_by(Control.name)
+    sortable_fields = {
+        "name": Control.name,
+        "status": Control.status,
+        "frequency": Control.frequency,
+        "risk_level": Control.risk_level,
+        "control_form": Control.control_form,
+        "department": Department.name,
+    }
+    sort_field = criteria.query.sort.field if criteria.query.sort else None
+    if sort_field is not None and sort_field not in sortable_fields:
+        raise ValidationError("Invalid Control sort field")
+    sort_column = sortable_fields[sort_field] if sort_field else Control.name
+    sort_direction = criteria.query.sort.direction if criteria.query.sort else "asc"
+    order_by = desc(sort_column) if sort_direction == "desc" else asc(sort_column)
+    id_order = desc(Control.id) if sort_direction == "desc" else asc(Control.id)
+    selected_query = filtered_query
+    if sort_field == "department":
+        # PostgreSQL requires every ORDER BY expression to be projected by a
+        # DISTINCT query. ``scalars()`` still yields Control from column zero.
+        selected_query = selected_query.add_columns(Department.name.label("_department_sort"))
+    ordered_query = selected_query.options(*query_options).order_by(order_by, id_order)
     filtered_ids = filtered_query.with_only_columns(Control.id).order_by(None).subquery()
 
     return plan_control_listing(
@@ -584,4 +754,5 @@ async def build_control_listing_plan(
         serialize_items=serialize_controls,
         total=total,
         get_group_entries=get_control_group_entries,
+        facets=facets,
     )

@@ -1,9 +1,9 @@
-"""OrphanedItem model for tracking orphaned risks/controls when users are deactivated."""
+"""Track owner-loss governance across supported business and ICT register entities."""
 
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -14,19 +14,40 @@ if TYPE_CHECKING:
 
 class OrphanedItem(Base):
     """
-    Tracks items (risks, controls) that have lost their owner due to user deactivation.
+    Track Risks, Controls, Processes, Assets, Threats, KRIs, and Vendors that
+    require governance review after an owner is deactivated or an orphan sweep.
 
-    When a user is deactivated and they owned risks or controls, those items
-    are flagged here for administrative review and reassignment.
+    Asset and Vendor records identify the affected responsibility explicitly;
+    other item types retain the legacy nullable responsibility role.
     """
 
     __tablename__ = "orphaned_items"
+    __table_args__ = (
+        CheckConstraint(
+            "responsibility_role IS NULL OR responsibility_role IN "
+            "('business_owner', 'ict_owner', 'outsourcing_owner')",
+            name="ck_orphaned_items_responsibility_role",
+        ),
+        Index(
+            "uq_orphaned_items_pending_item_role",
+            "item_type",
+            "item_id",
+            "responsibility_role",
+            unique=True,
+            sqlite_where=text("status = 'pending' AND responsibility_role IS NOT NULL"),
+            postgresql_where=text("status = 'pending' AND responsibility_role IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    # What type of item lost its owner
-    item_type: Mapped[str] = mapped_column(String(20), index=True)  # "risk" | "control"
-    item_id: Mapped[int] = mapped_column(Integer, index=True)  # FK to risks.id or controls.id
+    # Polymorphic target type: risk, control, process, asset, threat, kri, or vendor.
+    item_type: Mapped[str] = mapped_column(String(20), index=True)
+    # Target identifier in the table selected by item_type; intentionally no single FK.
+    item_id: Mapped[int] = mapped_column(Integer, index=True)
+    # Role-specific rows distinguish an Asset's business_owner/ict_owner and a
+    # Vendor's outsourcing_owner. Other orphan types keep this nullable.
+    responsibility_role: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
 
     # Who was the previous owner
     previous_owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)

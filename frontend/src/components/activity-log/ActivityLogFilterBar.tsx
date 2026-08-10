@@ -2,7 +2,7 @@ import { Search, Calendar, ArrowRight } from 'lucide-react';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { ACTION_LABELS } from '@/types/activityLog';
 import type { ViewMode } from '@/hooks/useActivityLogPageState';
-import type { UserLookupItem } from '@/services/lookupApi';
+import type { ActivityLogActorLookup } from '@/types/activityLog';
 import { useTranslation } from '@/i18n/hooks';
 
 export interface ActivityLogFilterBarProps {
@@ -34,7 +34,7 @@ export interface ActivityLogFilterBarProps {
     onRiskChange: (id: number | null) => void;
 
     // Lookup data for selectors
-    users: UserLookupItem[];
+    actors: ActivityLogActorLookup[];
     departments: { id: number; name: string }[];
     risks: { id: number; name: string }[];
     canFilterByDepartment: boolean;
@@ -63,7 +63,7 @@ export function ActivityLogFilterBar({
     onDepartmentChange,
     selectedRiskId,
     onRiskChange,
-    users,
+    actors,
     departments,
     risks,
     canFilterByDepartment,
@@ -106,7 +106,7 @@ export function ActivityLogFilterBar({
                         onValueChange={(v) => onActorChange(v ? Number(v) : null)}
                         placeholder={t('filters.select_person')}
                         className="flex-1 min-w-[200px]"
-                        options={users.map(u => ({ value: u.id.toString(), label: `${u.name} (${u.email})` }))}
+                        options={actors.map(actor => ({ value: actor.id.toString(), label: actor.name }))}
                     />
                 )}
 

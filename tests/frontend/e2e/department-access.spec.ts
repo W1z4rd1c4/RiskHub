@@ -16,7 +16,7 @@ test.describe('Department Access Rules', () => {
             await waitForDataLoad(croPage);
 
             // CRO has GLOBAL scope - should see departments page
-            await expect(croPage.locator('h1, h2').first()).toContainText(/department|odd[eě]len/i);
+            await expect(croPage.locator('main h1, main h2').first()).toContainText(/department|odd[eě]len/i);
 
             // Should show department list/grid/table
             const departmentCards = croPage.locator('[class*="card"], table tbody tr, [role="listitem"]');
@@ -29,7 +29,7 @@ test.describe('Department Access Rules', () => {
             await waitForDataLoad(riskManagerPage);
 
             // Risk Manager has GLOBAL scope
-            await expect(riskManagerPage.locator('h1, h2').first()).toContainText(/department|odd[eě]len/i);
+            await expect(riskManagerPage.locator('main h1, main h2').first()).toContainText(/department|odd[eě]len/i);
 
             const departmentCards = riskManagerPage.locator('[class*="card"], table tbody tr, [role="listitem"]');
             const count = await departmentCards.count();
@@ -51,7 +51,7 @@ test.describe('Department Access Rules', () => {
 
             if (onDepartmentsPage) {
                 // Should see some department content
-                await expect(deptHeadPage.locator('h1, h2').first()).toBeVisible();
+                await expect(deptHeadPage.locator('main h1, main h2').first()).toBeVisible();
             }
         });
 
@@ -79,7 +79,7 @@ test.describe('Department Access Rules', () => {
                 await waitForDataLoad(deptHeadPage);
 
                 // Should be on department detail page
-                await expect(deptHeadPage.locator('h1, h2').first()).toBeVisible();
+                await expect(deptHeadPage.locator('main h1, main h2').first()).toBeVisible();
             }
         });
 

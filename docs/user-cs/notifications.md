@@ -1,7 +1,7 @@
 ---
 title: Notifikace a schvalování
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + frontend/src/pages/NotificationsPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "Produkční workflow manuál pro schvalování, notifikace, rozhodovací poznámky, triage front a eskalační vzory."
@@ -99,6 +99,22 @@ Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka ří
 
 Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Obnovte inbox, porovnejte aktuální řádek se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
+Chráněná úprava procesu ukazuje neměnný návrh se schválenými hodnotami **před**, navrhovanými hodnotami **po** a dopadem na odvozený CIF. Schválený proces zůstává během čekání provozním stavem. Rozhodnout smí jeden nakonfigurovaný Risk Manager nebo CRO, který není žadatelem; seniorní role nemají výjimku pro vlastní návrh. Zamítnutí vyžaduje důvod a stale návrh expiruje bez aplikace hodnot.
+
+Chráněné změny dodavatele používají stejnou frontu a **Mé žádosti**. Rozbalený
+řádek ukazuje bezpečné hodnoty před/po, odvozenou úroveň a čitelné ovlivněné
+záznamy pro přímé změny, smlouvy, sub-outsourcing, vazby i složené návrhy.
+Uživatel bez oprávnění k návrhu omezený detail neuvidí. Žadatel může žádost
+zrušit, pokud to dovolí capability backendu; schválený dodavatel se do
+rozhodnutí nemění.
+
+Dvě preference governed schvalování jsou výchozím způsobem zapnuté:
+
+- **Žádosti o schválení vyžadující mou akci** řídí doručení při odeslání, zrušení a stale expiraci relevantní pro oprávněného schvalovatele.
+- **Aktualizace mých žádostí o schválení** řídí doručení výsledku žadateli při schválení, zamítnutí, zrušení a stale expiraci.
+
+Vypnutí preference ovlivní pouze notifikace. Nikdy neodstraní řádky ve frontě, Moje žádosti, capabilities ani počty práce. Chráněné schvalování procesů, aktiv a dodavatelů nemá termín, SLA, reminder, overdue štítek, automatické rozhodnutí ani časovou eskalaci.
+
 ## Vyhledávání, filtrování a evidence
 
 Používejte filtry a stavové signály pro triage notifikací a schválení. Stránky Notifikace a Schvalování nemají exportní tlačítko, proto slouží hlavně k rozhodnutí a rekonstrukci workflow kontextu.
@@ -125,6 +141,13 @@ Pro formální evidenci použijte Activity Log záznam a aktuální inbox nebo s
 Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
 Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
+
+## Oznámení k žádostem o změnu odpovědnosti
+
+Žádosti používají oznámení o požadované akci a aktualizacích žádosti. Předvolby
+mohou potlačit doručení, ale neodstraní žádost ze Schválení/Mých žádostí,
+nezmění počet práce ani neprovedou změnu odpovědnosti. Zdrojem pravdy je detail
+záznamu a řádek schválení.
 
 ## Související manuály
 

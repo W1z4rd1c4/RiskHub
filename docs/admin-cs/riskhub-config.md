@@ -1,7 +1,7 @@
 ---
 title: Podpora konfigurace Risk Hub a hranice odpovědnosti (admin runbook)
-version: "2.1"
-last_updated: "2026-04-25"
+version: "2.2"
+last_updated: "2026-07-16"
 audience: admin
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + backend/app/api/v1/endpoints/riskhub/* + authz role model"
 summary: "Admin runbook vymezující technickou podporu konfigurace Risk Hub vs business rozhodnutí, včetně triage postupů a evidence balíčku."
@@ -132,6 +132,26 @@ Podpora rolí a oddělení:
 - department manager musí být active user; bezpečnější je usera nahradit nebo řízeně reaktivovat než validaci obcházet
 - department delete je záměrně konzervativní, protože department scope ovlivňuje RBAC, reporty, vendory, KRIs a orphan governance
 
+Podpora chráněného schvalování procesů, aktiv, dodavatelů a odpovědnosti:
+
+- `protected_process_edit` je pevný scénář v Risk Hubu. CRO jej může zapnout nebo vypnout a vybrat neprázdnou podmnožinu rolí Risk Manager a CRO.
+- `protected_asset_edit` je také pevný. Pokrývá aktivum, jehož současné nebo
+  navrhované CIF je Ano nebo výsledná kritičnost je Critical, včetně řízeného
+  create/edit/archive a chráněného relationship dopadu. Práh, pokryté akce a
+  zákaz self-approval jsou read-only.
+- `protected_vendor_edit` je rovněž pevný scénář. Pokrývá vytvoření, úpravu a
+  archivaci dodavatele s aktuální nebo navrženou kritickou či významnou úrovní,
+  změny smluv a sub-outsourcingu a vazby na rizika, kontroly a KRI spravované z
+  detailu dodavatele. Vazby Asset–Vendor a Process–Vendor používají vlastní
+  kompozitní schvalovací cestu Assetu nebo Procesu.
+  Upravit lze pouze zapnutí a neprázdnou podmnožinu rolí Risk Manager/CRO;
+  práh, pokryté akce a zákaz self-approval jsou jen pro čtení.
+- Pravidlo ochrany (aktuální nebo navrhovaný CIF je Ano), pokrytá editace a zákaz self-approval jsou neměnné. Pokus o jejich změnu je neplatný request, ne důvod pro admin override.
+- Zapnutý scénář není řešitelný, pokud neexistuje aktivní nezávislý uživatel v některé nakonfigurované roli. Odeslání musí fail-closed místo vytvoření neřešitelné fronty.
+- Vypnutí scénáře mění pouze to, zda se autorizovaná chráněná změna odešle nebo aplikuje přímo. Neuděluje přístup k procesům a neobchází validace polí, vlastníka, útvaru ani derivace.
+- Governed žádosti procesů jsou event-driven. Nekonfigurujte termíny, reminder joby, overdue eskalaci ani automatická rozhodnutí.
+- Dvě uživatelské preference potlačují jen doručení notifikací. Chybějící notifikace při stále viditelném approval řádku nebo počtu může být očekávaným výsledkem preference.
+
 ### 4) Hranice: technické vs policy
 
 Použijte tuto hranici:
@@ -241,6 +261,14 @@ Balíček pro předání:
 - request IDs + log snippety
 - co jste ověřil/a a co jste změnil/a
 - jaké rozhodnutí je potřeba a kdo je owner
+
+## Pevný scénář změny odpovědnosti
+
+`accountability_reassignment` je čtvrtý pevný scénář. Spouští se při skutečné
+změně odpovědného uživatele nebo vlastnícího útvaru u procesu, aktiva, dodavatele
+či hrozby, včetně řešení osiřelé položky. CRO může scénář zapnout/vypnout a
+zvolit neprázdnou podmnožinu rolí Risk Manager/CRO. Spouštěč, akce Edit a zákaz
+vlastního schválení jsou pouze pro čtení.
 
 ## Související dokumentace
 

@@ -5,12 +5,14 @@ from typing import Literal
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings
 from app.core.email import email_equals
 from app.core.exceptions import ConflictError, ServiceFailure, ValidationError
 from app.models import Role, User
 from app.schemas.directory import DirectoryImportRequest, DirectoryUserRead
+from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
 from app.services._directory_identity import (
     DirectoryIdentityConflictError,
     apply_directory_profile,
@@ -19,8 +21,14 @@ from app.services._directory_identity import (
 from app.services._directory_identity import (
     resolve_safe_default_role as resolve_directory_safe_default_role,
 )
+from app.services._process_owner_lock import acquire_process_owner_identity_lock
+from app.services._threat_stewardship_lock import acquire_threat_steward_identity_lock
 from app.services.ad_deprovision_service import ADDeprovisionService
 
+from .ciso_stewardship import (
+    flag_orphaned_threats_for_ciso_role_loss,
+    role_change_removes_ciso_stewardship,
+)
 from .contracts import IdentityImportOutcome
 from .execution import commit_directory_import, load_directory_import_user
 from .projection import build_directory_import_response
@@ -90,8 +98,31 @@ async def import_directory_identity(
             import_status = "created"
             seed_directory_department = True
 
+    changes_existing_steward_identity = import_status == "updated" and (
+        payload.role_id is not None or not directory_user.account_enabled
+    )
+    if changes_existing_steward_identity:
+        await acquire_threat_steward_identity_lock(db, user_id=user.id)
+        if not directory_user.account_enabled:
+            await acquire_process_owner_identity_lock(db, user_id=user.id)
+            await acquire_asset_owner_identity_lock(db, user_id=user.id)
+        user = (
+            await db.execute(
+                select(User)
+                .options(selectinload(User.role), selectinload(User.department))
+                .where(User.id == user.id)
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one()
+
     if payload.role_id is not None and import_status == "updated":
         role = await resolve_role_for_directory_import(db, override_role_id=payload.role_id)
+        if directory_user.account_enabled and await role_change_removes_ciso_stewardship(
+            db,
+            user=user,
+            new_role=role,
+        ):
+            await flag_orphaned_threats_for_ciso_role_loss(db, user=user)
         user.role_id = role.id
 
     try:

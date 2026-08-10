@@ -1,3 +1,5 @@
+import type { ApprovalCreatedResponse } from './approval';
+
 export interface OrphanedItemCapabilities {
     can_resolve: boolean;
     can_view_detail: boolean;
@@ -8,8 +10,9 @@ export interface OrphanedItemCapabilities {
 
 export interface OrphanedItem {
     id: number;
-    item_type: "risk" | "control" | "kri";
+    item_type: "risk" | "control" | "kri" | "threat" | "process" | "asset" | "vendor";
     item_id: number;
+    responsibility_role?: "business_owner" | "ict_owner" | "outsourcing_owner" | null;
     item_name: string;
     item_description: string | null;
     item_identifier: string | null;
@@ -18,6 +21,7 @@ export interface OrphanedItem {
     previous_owner_email: string;
     orphaned_at: string;
     status: "pending" | "resolved";
+    request_reason_required: boolean;
     capabilities?: OrphanedItemCapabilities | null;
 }
 
@@ -25,6 +29,10 @@ export interface OrphanStats {
     risk_count: number;
     control_count: number;
     kri_count: number;
+    threat_count: number;
+    process_count: number;
+    asset_count: number;
+    vendor_count: number;
     total_count: number;
 }
 
@@ -32,7 +40,16 @@ export interface ResolveOrphanRequest {
     new_owner_id?: number;  // Optional for KRIs (they inherit owner from risk)
     department_id?: number;
     target_risk_id?: number;
+    request_reason?: string;
 }
+
+export interface ResolveOrphanDirectResponse {
+    status: 'resolved';
+    orphan_id: number;
+    new_owner_id?: number | null;
+}
+
+export type ResolveOrphanResponse = ResolveOrphanDirectResponse | ApprovalCreatedResponse;
 
 export interface OrphanedItemsOverview {
     stats: OrphanStats;

@@ -1,10 +1,10 @@
 ---
 title: Governance: Orphaned Items and Ownership Hygiene
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-15"
 audience: user
 source_of_truth: "frontend/src/pages/GovernancePage.tsx + frontend/src/components/governance/*"
-summary: "How to use Governance to detect and resolve orphaned Risks, Controls, and KRIs so ownership, scope, and reporting stay correct."
+summary: "How to use Governance to detect and resolve orphaned Risks, Controls, KRIs, and Threat stewardship so ownership, scope, and reporting stay correct."
 tags:
   - governance
   - workflow
@@ -57,10 +57,10 @@ You can usually reach this area from the left sidebar. The Governance page is a 
 Common navigation pattern:
 
 1. Open Governance.
-2. Choose the risk, control, or KRI queue.
+2. Choose the risk, control, KRI, or Threat queue.
 3. Review the summary counts and pending rows.
 4. Open quick view when you need more context.
-5. Use Resolve only after confirming the missing owner, department, or risk link.
+5. Use Resolve only after confirming the missing owner, department, risk link, or active CISO Threat Steward.
 
 ## What You Can See and Change
 
@@ -85,10 +85,15 @@ Follow this basic workflow unless your team has a stricter local procedure:
 1. Review the current governance queue.
 2. Open quick view or Resolve for an orphaned item.
 3. Select the right owner or department.
-4. Link a kri or control to a risk when required.
-5. Submit the resolution and verify it disappears from the queue.
+4. Link a KRI or control to a risk when required, or choose an active CISO for an orphaned Threat.
+5. Submit the resolution. For governed accountability, verify the approval in
+   My Requests and keep the queue item open until approval applies.
 
-After submitting, verify that the item disappears from the current queue and the summary counts update. If the page reports that the item changed while you were working, refresh and review the current row before trying again.
+After a direct resolution, verify that the item disappears and summary counts
+update. For governed Process, Asset, Vendor, or Threat accountability, the item
+must remain until independent approval; rejection or cancellation keeps it
+pending. For a Threat, verify the new eligible steward only after approval.
+If the page reports a concurrent change, refresh and review the current row.
 
 When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
@@ -126,6 +131,14 @@ Common mistakes are usually caused by stale queue data, unclear ownership, dupli
 If the page is empty, switch tabs and refresh the queue. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the queue, and check whether another user resolved the item first.
 
 If a related item is missing from the resolver, you may not have access to it or it may no longer be eligible. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the item name, the action you attempted, and the exact message shown on screen.
+
+## Governed accountability orphans
+
+Process, Asset, Vendor, and Threat reassignment requires a reason and normally
+queues an approval. Submission does not remove the Governance row: the orphan
+and ordinary-edit lock remain until an independent Risk Manager or CRO approves
+the complete replacement. Cancellation, rejection, or stale expiry preserves
+the orphan and former-owner evidence.
 
 ## Related Manuals
 

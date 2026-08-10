@@ -31,6 +31,30 @@ export const riskListCapabilitiesSchema = passthroughObject({
     can_create: z.boolean().optional(),
     can_view_vendor_contexts: z.boolean().optional(),
 });
+const riskFacetOptionSchema = passthroughObject({
+    value: z.string(),
+    label: z.string(),
+    count: z.number(),
+    selected: z.boolean(),
+    disabled: z.boolean(),
+    meta: z.record(z.string(), z.unknown()).nullable().optional(),
+});
+const riskFacetsSchema = passthroughObject({
+    status: z.array(riskFacetOptionSchema).optional(),
+    risk_type: z.array(riskFacetOptionSchema).optional(),
+    is_priority: z.array(riskFacetOptionSchema).optional(),
+    has_breach: z.array(riskFacetOptionSchema).optional(),
+    process: z.array(riskFacetOptionSchema).optional(),
+    category: z.array(riskFacetOptionSchema).optional(),
+    ict_linked: z.array(riskFacetOptionSchema).optional(),
+    above_tolerance: z.array(riskFacetOptionSchema).optional(),
+    response: z.array(riskFacetOptionSchema).optional(),
+    gross_probability: z.array(riskFacetOptionSchema).optional(),
+    gross_impact: z.array(riskFacetOptionSchema).optional(),
+    gross_band: z.array(riskFacetOptionSchema).optional(),
+    net_band: z.array(riskFacetOptionSchema).optional(),
+    department: z.array(riskFacetOptionSchema).optional(),
+});
 
 export const riskSummarySchema: z.ZodType<RiskSummary> = passthroughObject({
     id: z.number(),
@@ -61,6 +85,7 @@ export const riskSummarySchema: z.ZodType<RiskSummary> = passthroughObject({
 export const riskListResponseSchema: z.ZodType<RiskListResponse> =
     collectionPaginationSchema(riskSummarySchema).extend({
         capabilities: riskListCapabilitiesSchema.nullable().optional(),
+        facets: riskFacetsSchema.nullable().optional(),
     });
 
 export const riskSchema: z.ZodType<Risk> = passthroughObject({
@@ -89,6 +114,9 @@ export const riskSchema: z.ZodType<Risk> = passthroughObject({
     kri_threshold_green: z.string().optional(),
     kri_threshold_yellow: z.string().optional(),
     kri_threshold_red: z.string().optional(),
+    acceptance_approver: z.string().nullable().optional(),
+    acceptance_justification: z.string().nullable().optional(),
+    acceptance_date: z.string().nullable().optional(),
     created_at: z.string(),
     updated_at: z.string(),
     kris: keyRiskIndicatorArraySchema.optional(),

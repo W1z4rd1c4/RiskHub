@@ -108,7 +108,6 @@ export function useRiskQuestionnaireRisks(filters: RiskQuestionnaireFilters) {
                     process: filters.process,
                     category: filters.category,
                     status: filters.status,
-                    include_archived: false,
                 });
                 setRisks(response.items);
             } catch (error) {

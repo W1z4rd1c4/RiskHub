@@ -70,12 +70,38 @@ async def main() -> None:
         "scheduler_runtime_rows": scheduler_runtime_rows,
         "dead_letter_count": dead_letter_count,
     }
-    if missing_tables or scheduler_runtime_rows != 1 or dead_letter_count != 0:
-        raise SystemExit(json.dumps(payload, sort_keys=True))
     print(json.dumps(payload, sort_keys=True))
+    if missing_tables or dead_letter_count != 0:
+        raise SystemExit(1)
+    if scheduler_runtime_rows == 0:
+        raise SystemExit(75)  # EX_TEMPFAIL: scheduler may still be starting.
+    if scheduler_runtime_rows != 1:
+        raise SystemExit(1)
 
 
 asyncio.run(main())
+PY
+}
+
+backend_http_code_python() {
+  cat <<'PY'
+import sys
+import urllib.error
+import urllib.request
+
+class NoRedirect(urllib.request.HTTPErrorProcessor):
+    def http_response(self, request, response):
+        return response
+
+    https_response = http_response
+
+opener = urllib.request.build_opener(NoRedirect())
+request = urllib.request.Request(sys.argv[1], headers={"Host": sys.argv[2]})
+try:
+    with opener.open(request, timeout=10) as response:
+        print(response.status)
+except urllib.error.HTTPError as error:
+    print(error.code)
 PY
 }
 
@@ -206,9 +232,9 @@ fi
 if [[ "$DRY_RUN" == "true" ]]; then
   printf '+ curl -f -H "Host: %s" http://localhost:%s/\\n' "$resolved_host" "$host_port"
   printf '+ curl -f -H "Host: %s" http://localhost:%s/api/v1/readyz\\n' "$resolved_host" "$host_port"
-  printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/docs\\n' "$BACKEND_CONTAINER" "$resolved_host"
-  printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/openapi.json\\n' "$BACKEND_CONTAINER" "$resolved_host"
-  printf "+ docker exec -i %s python - <<'PY'\\n" "$BACKEND_CONTAINER"
+  printf "+ backend_http_code_python | docker exec -i %s python - http://localhost:8000/docs '%s'\\n" "$BACKEND_CONTAINER" "$resolved_host"
+  printf "+ backend_http_code_python | docker exec -i %s python - http://localhost:8000/openapi.json '%s'\\n" "$BACKEND_CONTAINER" "$resolved_host"
+  printf "+ docker exec -i --user riskhub %s python - <<'PY'\\n" "$BACKEND_CONTAINER"
   reliability_runtime_check_python
   printf 'PY\\n'
   exit 0
@@ -264,84 +290,46 @@ if ! container_exists "$BACKEND_CONTAINER"; then
   die "Backend container not found: $BACKEND_CONTAINER"
 fi
 
-docs_code="$(docker exec "$BACKEND_CONTAINER" curl -sS -H "Host: ${resolved_host}" -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null || true)"
+backend_http_code() {
+  local url="$1"
+  backend_http_code_python | docker exec -i "$BACKEND_CONTAINER" python - "$url" "$resolved_host"
+}
+
+docs_code="$(backend_http_code http://localhost:8000/docs 2>/dev/null || true)"
 if [[ "$docs_code" != "404" ]]; then
   die "Expected backend /docs to be disabled in production (404), got: $docs_code"
 fi
 
-openapi_code="$(docker exec "$BACKEND_CONTAINER" curl -sS -H "Host: ${resolved_host}" -o /dev/null -w "%{http_code}" http://localhost:8000/openapi.json 2>/dev/null || true)"
+openapi_code="$(backend_http_code http://localhost:8000/openapi.json 2>/dev/null || true)"
 if [[ "$openapi_code" != "404" ]]; then
   die "Expected backend /openapi.json to be disabled in production (404), got: $openapi_code"
 fi
 
 log "Smoke: backend /docs and /openapi.json disabled (production mode)"
 
-reliability_report="$(
-  docker exec -i "$BACKEND_CONTAINER" python - <<'PY'
-import asyncio
-import json
-import os
-from pathlib import Path
+reliability_attempt=1
+reliability_report=""
+while [[ "$reliability_attempt" -le "$retries" ]]; do
+  if reliability_report="$(
+    reliability_runtime_check_python \
+      | docker exec -i --user riskhub "$BACKEND_CONTAINER" python -
+  )"; then
+    break
+  else
+    reliability_status=$?
+  fi
+  if [[ "$reliability_status" -ne 75 ]]; then
+    die "Reliability runtime check failed: ${reliability_report:-no output}"
+  fi
+  reliability_attempt=$((reliability_attempt + 1))
+  if [[ "$reliability_attempt" -le "$retries" ]]; then
+    sleep "$sleep_seconds"
+  fi
+done
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
-
-REQUIRED_TABLES = {"scheduler_job_runs", "app_outbox_events"}
-
-
-async def main() -> None:
-    db_url = Path(os.environ["DATABASE_URL_FILE"]).read_text(encoding="utf-8").strip()
-    engine = create_async_engine(db_url)
-    try:
-        async with engine.connect() as conn:
-            table_names = set(
-                (
-                    await conn.execute(
-                        text(
-                            "SELECT tablename FROM pg_tables "
-                            "WHERE schemaname = 'public' "
-                            "AND tablename IN ('scheduler_job_runs', 'app_outbox_events')"
-                        )
-                    )
-                ).scalars()
-            )
-            missing_tables = sorted(REQUIRED_TABLES - table_names)
-            scheduler_runtime_rows = 0
-            dead_letter_count = 0
-            if not missing_tables:
-                scheduler_runtime_rows = int(
-                    (
-                        await conn.execute(
-                            text(
-                                "SELECT COUNT(*) FROM scheduler_job_runs "
-                                "WHERE job_name = '__scheduler_runtime__' AND status = 'running'"
-                            )
-                        )
-                    ).scalar_one()
-                )
-                dead_letter_count = int(
-                    (
-                        await conn.execute(
-                            text("SELECT COUNT(*) FROM app_outbox_events WHERE status = 'dead_letter'")
-                        )
-                    ).scalar_one()
-                )
-    finally:
-        await engine.dispose()
-
-    payload = {
-        "missing_tables": missing_tables,
-        "scheduler_runtime_rows": scheduler_runtime_rows,
-        "dead_letter_count": dead_letter_count,
-    }
-    if missing_tables or scheduler_runtime_rows != 1 or dead_letter_count != 0:
-        raise SystemExit(json.dumps(payload, sort_keys=True))
-    print(json.dumps(payload, sort_keys=True))
-
-
-asyncio.run(main())
-PY
-)" || die "Reliability runtime check failed: ${reliability_report:-no output}"
+if [[ "$reliability_attempt" -gt "$retries" ]]; then
+  die "Reliability runtime check failed: scheduler runtime evidence did not become ready (${reliability_report:-no output})"
+fi
 
 log "Smoke: reliability runtime OK ${reliability_report}"
 

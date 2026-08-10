@@ -128,6 +128,242 @@ export const E2E_VENDORS = {
         status: 'inactive',
         vendor_type: 'partner',
     },
+    NONPROTECTED_DIRECT: {
+        registration_id: 'E2E-VREG-006',
+        name: 'E2E-VENDOR-006 Finance Reporting SaaS',
+        status: 'active',
+    },
+} as const;
+
+/** Dedicated Vendor of the ICT Register vendor-domain suites (issues #44/#45). */
+export const E2E_ICT_VENDOR = {
+    registration_id: 'E2E-VREG-ICT-001',
+    name: 'E2E-VENDOR-ICT Core Hosting Provider',
+    owner_email: 'risk.manager@riskhub.local',
+    department: 'Operations',
+    identifier_type: 'LEI',
+    identifier_value: 'E2E00LEI00000000ICT1',
+    replaceability: 'highly_complex',
+    status: 'active',
+} as const;
+
+/** Contract matrix of E2E_ICT_VENDOR — TWO mains on purpose (DQ-39 owns uniqueness). */
+export const E2E_VENDOR_CONTRACTS = {
+    MAIN_ROI: {
+        contract_reference: 'E2E-CTR-001',
+        internal_contract_number: 'TAS-E2E-0001',
+        arrangement_type: 'Rámcové (master)',
+        main_contract: 'Ano',
+        roi_scope: 'Ano',
+        status: 'active',
+    },
+    SECOND_MAIN: {
+        contract_reference: 'E2E-CTR-002',
+        internal_contract_number: 'SAP-E2E-0002',
+        arrangement_type: 'Samostatné',
+        main_contract: 'Ano',
+        roi_scope: 'Ne',
+        status: 'active',
+    },
+    ARCHIVED: {
+        contract_reference: 'E2E-CTR-ARCH',
+        arrangement_type: 'Navazující',
+        main_contract: 'Ne',
+        status: 'archived',
+    },
+} as const;
+
+/** Sub-outsourcing chain on E2E-CTR-001: two directs + one deeper link (rank 3). */
+export const E2E_SUB_OUTSOURCING = {
+    DIRECT_PRIMARY: {
+        sub_provider_name: 'E2E-SUB-001 Primary DC Operator',
+        contract_reference: 'E2E-CTR-001',
+        country: 'CZ',
+        ict_service_code: 'S07',
+        status: 'active',
+    },
+    DIRECT_SECONDARY: {
+        sub_provider_name: 'E2E-SUB-002 Network Backbone',
+        contract_reference: 'E2E-CTR-001',
+        country: 'DE',
+        ict_service_code: 'S11',
+        status: 'active',
+    },
+    /** Hangs under DIRECT_PRIMARY — the indented rank-3 row of the chain render. */
+    RANK_3: {
+        sub_provider_name: 'E2E-SUB-003 Offsite Backup Facility',
+        contract_reference: 'E2E-CTR-001',
+        predecessor_name: 'E2E-SUB-001 Primary DC Operator',
+        country: 'SK',
+        ict_service_code: 'S09',
+        status: 'active',
+    },
+    /**
+     * Deliberately BROKEN (issue #49): sits on E2E-CTR-002 while its
+     * predecessor lives on E2E-CTR-001, so the derived Rank is the "?"
+     * sentinel and the chain check reads CHYBA ŘETĚZCE.
+     */
+    BROKEN: {
+        sub_provider_name: 'E2E-SUB-BROKEN Cross-Contract Orphan',
+        contract_reference: 'E2E-CTR-002',
+        predecessor_name: 'E2E-SUB-001 Primary DC Operator',
+        country: 'PL',
+        ict_service_code: 'S14',
+        status: 'active',
+    },
+} as const;
+
+/**
+ * Sheet-10 Asset<->Vendor links seeded onto E2E_ICT_VENDOR (issue #46).
+ * The S17 cloud link on E2E-ASSET-001 makes the vendor tier derivation
+ * deterministic (Kritický dodavatel via the CIF chain).
+ */
+export const E2E_ASSET_VENDOR_LINKS = {
+    CLAIMS_SYSTEM_S17: {
+        asset_name: 'E2E-ASSET-001 Core Claims System',
+        ict_service_code: 'S17',
+        vendor_role: 'Hostuje',
+        contract_reference: 'E2E-CTR-001',
+        reliance: 'Zásadní závislost',
+    },
+    CLAIMS_DATABASE_S05: {
+        asset_name: 'E2E-ASSET-002 Claims Database',
+        ict_service_code: 'S05',
+        vendor_role: 'Zpracovává data',
+    },
+} as const;
+
+/** Sheet-11 §1 manual Process<->Vendor pair seeded onto E2E_ICT_VENDOR (issue #46). */
+export const E2E_PROCESS_VENDOR_LINKS = {
+    REGULATORY_REPORTING: {
+        process_l1: 'E2E-PROC-003 Regulatory Reporting',
+        direct_service_description: 'Regulatory reporting platform hosting (§1 direct service).',
+    },
+} as const;
+
+/** 12_Hrozby Threats (issue #47); categories on the KategorieHrozeb closed list. */
+export const E2E_THREATS = {
+    RANSOMWARE: {
+        name: 'E2E-THREAT-001 Ransomware Encryption',
+        category: 'Availability',
+        status: 'active',
+    },
+    THIRD_PARTY_LEAK: {
+        name: 'E2E-THREAT-002 Third-Party Data Leak',
+        category: 'Third party',
+        status: 'active',
+    },
+} as const;
+
+/**
+ * The deterministic risk carrying the seeded ICT Register integration links
+ * (Threat E2E-THREAT-001, Process E2E-PROC-003, Asset E2E-ASSET-002).
+ * Seeded by seed_e2e_risks.py; owned by risk.manager (Risk Management).
+ */
+export const E2E_ICT_REGISTER_RISK = {
+    code: 'E2E-RISK-001',
+    name: 'Reinsurer Counterparty Default',
+    owner_email: 'risk.manager@riskhub.local',
+    department: 'Risk Management',
+    status: 'active',
+} as const;
+
+export const E2E_PROCESSES = {
+    /** Carries the seeded primary designation on E2E-ASSET-001. */
+    CLAIMS_INTAKE: {
+        l0_area: 'E2E Claims',
+        l1_process: 'E2E-PROC-001 Claims Intake',
+        owner_email: 'ops.analyst@riskhub.local',
+        owning_department: 'Operations',
+        mtpd_hours: 24,
+        preliminary_criticality: 'high',
+        status: 'active',
+    },
+    POLICY_ADMIN: {
+        l0_area: 'E2E Policy Admin',
+        l1_process: 'E2E-PROC-002 Policy Administration',
+        owner_email: 'fin.analyst@riskhub.local',
+        owning_department: 'Operations',
+        preliminary_criticality: 'medium',
+        status: 'active',
+    },
+    REGULATORY_REPORTING: {
+        l0_area: 'E2E Finance',
+        l1_process: 'E2E-PROC-003 Regulatory Reporting',
+        owner_email: 'fin.head@riskhub.local',
+        owning_department: 'Finance',
+        preliminary_criticality: 'critical',
+        status: 'active',
+    },
+    PORTAL_SUPPORT: {
+        l0_area: 'E2E Customer Service',
+        l1_process: 'E2E-PROC-004 Customer Portal Support',
+        owner_email: 'it.analyst@riskhub.local',
+        owning_department: 'Operations',
+        status: 'active',
+    },
+    ARCHIVED: {
+        l0_area: 'E2E Legacy',
+        l1_process: 'E2E-PROC-ARCH Batch Print Distribution',
+        owner_email: 'ops.head@riskhub.local',
+        owning_department: 'Operations',
+        status: 'archived',
+    },
+} as const;
+
+export const E2E_ASSETS = {
+    /** Linked to PROC-001 (primary) and PROC-002; depends on ASSET-002 and ASSET-003. */
+    CORE_CLAIMS_SYSTEM: {
+        name: 'E2E-ASSET-001 Core Claims System',
+        asset_type: 'application',
+        preliminary_criticality: 'high',
+        status: 'active',
+    },
+    CLAIMS_DATABASE: {
+        name: 'E2E-ASSET-002 Claims Database',
+        asset_type: 'database',
+        preliminary_criticality: 'critical',
+        status: 'active',
+    },
+    /** Dedicated target of the UI process-link management test (links reset in-test). */
+    INTEGRATION_BUS: {
+        name: 'E2E-ASSET-003 Integration Message Bus',
+        asset_type: 'infrastructure',
+        status: 'active',
+    },
+    /** Dedicated target of the UI asset-link management test (links reset in-test). */
+    REPORTING_WAREHOUSE: {
+        name: 'E2E-ASSET-004 Reporting Warehouse',
+        asset_type: 'data_storage',
+        status: 'active',
+    },
+    OWNER_SCOPED_ACTIVE: {
+        name: 'E2E-ASSET-005 Cross-Department Owner Scope',
+        asset_type: 'cloud_service',
+        business_owner_email: 'ops.analyst@riskhub.local',
+        business_owner_name: 'Jana Horáková',
+        ict_owner_email: 'it.analyst@riskhub.local',
+        ict_owner_name: 'Barbora Němcová',
+        owning_department: 'Finance',
+        owning_department_code: 'FIN',
+        status: 'active',
+    },
+    OWNER_SCOPED_ARCHIVED: {
+        name: 'E2E-ASSET-OWNER-ARCH Archived Owner Scope',
+        asset_type: 'cloud_service',
+        business_owner_email: 'ops.analyst@riskhub.local',
+        business_owner_name: 'Jana Horáková',
+        ict_owner_email: 'it.analyst@riskhub.local',
+        ict_owner_name: 'Barbora Němcová',
+        owning_department: 'Finance',
+        owning_department_code: 'FIN',
+        status: 'archived',
+    },
+    ARCHIVED: {
+        name: 'E2E-ASSET-ARCH Fax Gateway',
+        asset_type: 'hardware',
+        status: 'archived',
+    },
 } as const;
 
 export const E2E_APPROVALS = {
@@ -228,6 +464,10 @@ export const E2E_REQUIRED_FIXTURES = {
         E2E_RISKS.CROSS_DEPT_FIN_OWNS_OPS.code,
         E2E_RISKS.OPS_HEAD_CROSS_DEPT_EDITABLE.code,
         E2E_RISKS.ARCHIVE_RESTORE_TARGET.code,
+        // ICT Risk Committee page (#51): the only ICT-linked risk (its
+        // Risk<->Process/Asset links seed the committee's Top-10 + band
+        // visuals), so the committee spec fails fast without it.
+        E2E_ICT_REGISTER_RISK.code,
     ],
     controls: [
         E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name,
@@ -240,5 +480,20 @@ export const E2E_REQUIRED_FIXTURES = {
     vendors: [
         E2E_VENDORS.ACTIVE_PRIMARY.registration_id,
         E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id,
+        E2E_ICT_VENDOR.registration_id,
+    ],
+    processes: [
+        E2E_PROCESSES.CLAIMS_INTAKE.l1_process,
+        E2E_PROCESSES.ARCHIVED.l1_process,
+    ],
+    assets: [
+        E2E_ASSETS.CORE_CLAIMS_SYSTEM.name,
+        E2E_ASSETS.OWNER_SCOPED_ACTIVE.name,
+        E2E_ASSETS.OWNER_SCOPED_ARCHIVED.name,
+        E2E_ASSETS.ARCHIVED.name,
+    ],
+    threats: [
+        E2E_THREATS.RANSOMWARE.name,
+        E2E_THREATS.THIRD_PARTY_LEAK.name,
     ],
 } as const;

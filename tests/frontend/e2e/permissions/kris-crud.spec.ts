@@ -25,7 +25,7 @@ test.describe('KRI CRUD Permissions (Deterministic)', () => {
 
         await krisPage.openRowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
         await expect(riskManagerPage).toHaveURL(/\/kris\/\d+$/);
-        await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
+        await expect(riskManagerPage.locator('main h1, main h2').first()).toBeVisible();
     });
 
     test('Archived deterministic KRI is hidden by default until status is Archived', async ({ riskManagerPage }) => {

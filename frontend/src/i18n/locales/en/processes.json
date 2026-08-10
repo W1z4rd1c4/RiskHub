@@ -1,0 +1,302 @@
+{
+    "title": "Processes",
+    "subtitle": "ICT Register — business processes in the L0/L1/L2 hierarchy",
+    "actions": {
+        "new": "New Process",
+        "edit": "Edit Process",
+        "create": "Create Process",
+        "save": "Save Changes",
+        "submit_for_approval": "Submit for approval",
+        "cancel": "Cancel",
+        "restore": "Restore",
+        "export": "Export",
+        "retry": "Retry",
+        "resolve_in_governance": "Resolve in Governance",
+        "back_to_register": "Back to Processes"
+    },
+    "filters": {
+        "search_placeholder": "Search F-code, L0/L1/L2 name, owner, or department...",
+        "all_statuses": "All statuses"
+    },
+    "status": {
+        "active": "Active",
+        "archived": "Archived"
+    },
+    "columns": {
+        "f_code": "F-code",
+        "process": "Process",
+        "l0_area": "L0 area",
+        "owner": "Owner",
+        "mtpd": "MTPD (h)",
+        "criticality_class": "Criticality class",
+        "cif": "CIF",
+        "status": "Status"
+    },
+    "form": {
+        "sections": {
+            "identity": "Identification",
+            "ownership": "Ownership",
+            "impacts": "Impacts (1–5)",
+            "criticality": "Criticality and CIF",
+            "continuity": "Continuity (BCM/DR)",
+            "assessment": "Assessment and state",
+            "change_request": "Change approval"
+        },
+        "l0_area": "L0 area",
+        "l1_process": "L1 process",
+        "l2_subprocess": "L2 sub-process / variant",
+        "owner": "Process owner",
+        "owner_department": "Owning department",
+        "owner_context": "Owner department and role",
+        "owner_placeholder": "Select an active Process owner...",
+        "owner_search": "Search active users by name or email...",
+        "department_placeholder": "Select an active owning department...",
+        "department_search": "Search active departments...",
+        "owner_no_department": "No department",
+        "owner_no_role": "No role",
+        "impact_client": "Client impact (1–5)",
+        "impact_market_operations": "Market / operational impact (1–5)",
+        "impact_regulatory": "Regulatory impact (1–5)",
+        "impact_financial": "Financial impact (1–5)",
+        "impact_reputational": "Reputational impact (1–5, informative)",
+        "mtpd_hours": "MTPD (h)",
+        "preliminary_criticality": "Preliminary class",
+        "cif_override": "CIF override",
+        "licensed_activity": "Licensed activity",
+        "rto_hours": "RTO (h)",
+        "rpo_hours": "RPO (h)",
+        "bcm_link": "BCM link",
+        "last_dr_test_date": "Last DR test",
+        "dr_test_result": "DR test result",
+        "interruption_impact": "Function interruption impact",
+        "assessment_date": "Assessment date",
+        "notes": "Notes",
+        "request_reason": "Request reason",
+        "request_reason_help": "Protected Process changes and all owner or Owning Department changes are submitted for approval. Explain why the change is needed.",
+        "not_set": "Not set",
+        "errors": {
+            "l0_area_required": "L0 area is required.",
+            "l1_process_required": "L1 process is required.",
+            "process_owner_required": "Process owner is required.",
+            "owning_department_required": "Owning department is required.",
+            "request_reason_required": "A request reason is required for this governed Process change.",
+            "pending_change_exists": "This Process already has a pending change. Cancel or resolve it before submitting another.",
+            "save_failed": "Failed to save the process.",
+            "fix_fields": "Please correct the highlighted fields.",
+            "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."
+        }
+    },
+    "detail": {
+        "derived_fields_note": "Criticality score, class, and CIF are derived by the register engine and cannot be entered by hand."
+    },
+    "derived": {
+        "title": "Derived by the register engine",
+        "criticality_score": "Criticality score",
+        "criticality_class": "Criticality class",
+        "cif": "CIF — critical or important function",
+        "rto_mtpd_check": "RTO vs MTPD check",
+        "bcm_check": "BCM check",
+        "next_review_date": "Next assessment",
+        "linked_asset_count": "Assets (count)",
+        "linked_vendor_count": "Vendors (count)",
+        "completeness": "Complete?",
+        "complete": "Complete",
+        "incomplete": "Incomplete",
+        "checks": {
+            "ok": "OK",
+            "rto_exceeds_mtpd": "Gap: RTO exceeds MTPD",
+            "cif_without_bcm": "Gap: CIF without BCM"
+        },
+        "inputs": {
+            "title": "Why — the inputs behind it",
+            "impacts": "Impact axes (client / market / regulatory / financial)",
+            "mtpd_bonus": "MTPD bonus applied",
+            "thresholds": "Class thresholds (Critical / High / Medium)",
+            "class_source": "Class source",
+            "class_source_score": "Live score banding",
+            "class_source_preliminary": "Entered preliminary class (fallback)",
+            "cif_override": "CIF override",
+            "cif_class_critical": "CIF trigger: Critical class",
+            "cif_mtpd_within_critical": "CIF trigger: MTPD within the critical bound",
+            "cif_any_impact_maximal": "CIF trigger: an impact axis at 5",
+            "missing": "Missing for completeness",
+            "none": "None",
+            "manual_vendor_link_count": "Direct vendor links (§1)",
+            "transitive_vendor_pair_count": "Derived vendor pairs (§2)"
+        },
+        "transitive": {
+            "title": "Vendors via assets (derived)",
+            "vendor": "Vendor",
+            "via_asset": "Via asset",
+            "empty": "No derived vendor links."
+        }
+    },
+    "messages": {
+        "archive_confirm": "Archive process \"{{processName}}\"? It stays in the register history and can be restored.",
+        "owner_orphaned_governance": "This Process owner is no longer eligible. Business edits are locked until Governance explicitly reassigns ownership.",
+        "owner_orphaned_request": "This Process owner is no longer eligible. Ask a Governance user to reassign ownership before editing.",
+        "ownership_legacy_unassigned": "This pre-release legacy Process has no canonical owner or department yet. Assign both to repair the record.",
+        "ownership_invalid_assignment": "This Process has an invalid owner or department assignment. Select active replacements before saving."
+    },
+    "pending_change": {
+        "title": "Proposed Process change",
+        "badge": "Pending change",
+        "requested_by_at": "Requested by {{requester}} on {{date}} at {{time}}",
+        "unknown_requester": "Unknown user",
+        "cancel": "Cancel request",
+        "cancel_failed": "Failed to cancel the pending Process change.",
+    "diff_restricted": "The proposed values are hidden by your permission scope.",
+    "edit_blocked_title": "Business edits are temporarily locked",
+    "business_edits_blocked": "A governed Process change is pending. Comments and evidence remain available, but business fields and relationships cannot be edited until it is resolved.",
+    "link_action_blocked": "This Process has a pending governed change. Resolve it before changing relationships."
+    },
+    "pending_creation": {
+        "title": "Pending Process creations",
+        "description": "These proposals are not operational register records. Only the requester and eligible approvers can see them until a decision is made.",
+        "badge": "Pending creation",
+        "unnamed": "Unnamed Process proposal",
+        "requested_by_at": "Requested by {{requester}} on {{date}} at {{time}}",
+        "open_request": "Open request",
+        "cancel_failed": "Failed to cancel the pending Process creation. Try again."
+    },
+    "link_approval": {
+        "continue": "Continue",
+        "reason_placeholder": "Explain why this Process relationship change is needed...",
+        "link_add": {
+            "title": "Request Process link addition",
+            "message": "Provide a reason. A protected Process keeps its approved relationships until this request is approved."
+        },
+        "link_remove": {
+            "title": "Request Process link removal",
+            "message": "Provide a reason. The existing relationship remains active until this request is approved."
+        },
+        "link_update": {
+            "title": "Request Process link update",
+            "message": "Provide a reason. The approved relationship remains unchanged until this request is approved."
+        }
+    },
+    "values": {
+        "unknown": "Unknown",
+        "preliminary_criticality": {
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "critical": "Critical"
+        },
+        "cif_override": {
+            "yes": "Yes",
+            "no": "No"
+        },
+        "licensed_activity": {
+            "non_life_insurance": "Non-life insurance",
+            "support_functions": "Support functions"
+        },
+        "bcm_link": {
+            "yes": "Yes",
+            "no": "No",
+            "not_assessed": "Not assessed",
+            "not_applicable": "Not applicable"
+        },
+        "dr_test_result": {
+            "successful": "Successful",
+            "qualified": "Qualified",
+            "unsuccessful": "Unsuccessful",
+            "not_tested": "Not tested"
+        },
+        "interruption_impact": {
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "not_assessed": "Not assessed"
+        }
+    },
+    "ownership_display": {
+        "unknown_user": "Unknown user",
+        "unknown_department": "Unknown department",
+        "owner_context_unknown": "Owner context unavailable",
+        "owner_legacy_unassigned": "Owner not assigned (legacy record)",
+        "department_legacy_unassigned": "Department not assigned (legacy record)",
+        "owner_pending_governance": "Owner pending Governance resolution",
+        "department_pending_governance": "Department pending Governance resolution",
+        "owner_invalid_assignment": "Unknown user (invalid assignment)",
+        "department_invalid_assignment": "Unknown department (invalid assignment)"
+    },
+    "empty": {
+        "no_processes": "No processes in the register yet.",
+        "no_results": "No processes match your search."
+    },
+    "errors": {
+        "not_found": "Process not found.",
+        "load_failed": "Failed to load processes.",
+        "archive_failed": "Failed to archive the process."
+    },
+    "register": {
+        "views": {
+            "all": "All",
+            "department": "By Department",
+            "owner": "By Owner",
+            "l0": "By L0 Area",
+            "criticality": "By Criticality",
+            "vendor": "By Vendor"
+        },
+        "filters": {
+            "add": "Filters",
+            "active_count": "{{count}} active filters",
+            "clear_all": "Clear all",
+            "remove": "Remove {{label}} filter",
+            "lifecycle": "Lifecycle",
+            "department": "Owning Department",
+            "owner": "Process Owner",
+            "l0": "L0 Area",
+            "criticality": "Criticality class",
+            "cif": "CIF status",
+            "completeness": "Completeness",
+            "licensed_activity": "Licensed activity",
+            "bcm": "BCM linkage",
+            "dr_result": "DR test result",
+            "mtpd": "MTPD range",
+            "linked_asset": "Linked Asset",
+            "linked_vendor": "Linked Vendor",
+            "linked_risk": "Linked Risk",
+            "search_options": "Search visible options...",
+            "search_options_for": "Search {{label}} options",
+            "no_options": "No visible options",
+            "minimum": "Minimum {{label}}",
+            "maximum": "Maximum {{label}}",
+            "min": "Minimum",
+            "max": "Maximum"
+        },
+        "lifecycle": {
+            "active": "Active",
+            "archived": "Archived",
+            "all": "All records"
+        },
+        "boolean": {
+            "any": "Any",
+            "yes": "Yes",
+            "no": "No"
+        },
+        "groups": {
+            "unassigned": "Unassigned",
+            "unclassified": "Unclassified",
+            "no_linked_vendor": "No linked Vendor"
+        },
+        "export": {
+            "title": "Export matching Processes"
+        }
+    },
+    "links": {
+        "add": "Link",
+        "remove": "Remove link",
+        "errors": {
+            "mutation_failed": "Failed to update the link."
+        },
+        "vendors": {
+            "title": "Direct Vendor dependencies",
+            "empty": "No Vendors linked yet.",
+            "select_placeholder": "Select a Vendor...",
+            "description": "Direct service description",
+            "no_metadata": "No link details"
+        }
+    }
+}

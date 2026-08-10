@@ -9,7 +9,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, computed_field
 
 from app.core.datetime_utils import UtcAwareDatetime
-from app.schemas.collection import CollectionGroupRead
+from app.schemas.collection import CollectionFacetOption, CollectionGroupRead
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import KRIMonitoringReason, KRIMonitoringStatus
 
@@ -161,6 +161,7 @@ class KRIListResponse(BaseModel):
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
+    facets: dict[str, list[CollectionFacetOption]] = Field(default_factory=dict)
     capabilities: KRIListCapabilities | None = None
 
     @computed_field

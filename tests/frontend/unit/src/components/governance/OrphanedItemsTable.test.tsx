@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { OrphanedItemsTable } from '@/components/governance/OrphanedItemsTable';
 import type { OrphanedItem } from '@/types/orphanedItem';
@@ -29,6 +30,30 @@ const baseItem: OrphanedItem = {
 };
 
 describe('OrphanedItemsTable capabilities', () => {
+    it('renders a Process orphan through the shared type label and actions', () => {
+        const processItem: OrphanedItem = {
+            ...baseItem,
+            id: 74,
+            item_type: 'process',
+            item_id: 74,
+            item_name: 'Claims handling',
+            item_identifier: 'F74',
+            capabilities: {
+                can_resolve: true,
+                can_view_detail: true,
+                requires_owner: true,
+                requires_risk: false,
+                requires_department: true,
+            },
+        };
+
+        render(<OrphanedItemsTable items={[processItem]} onResolve={() => {}} />);
+
+        expect(screen.getByText('governance.type_process')).toBeInTheDocument();
+        expect(screen.getByText('Claims handling')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'governance.resolve' })).toBeInTheDocument();
+    });
+
     it('hides resolve action when backend capabilities deny it', () => {
         const onResolve = vi.fn();
         render(
@@ -53,5 +78,24 @@ describe('OrphanedItemsTable capabilities', () => {
         fireEvent.click(screen.getByRole('button', { name: 'governance.resolve' }));
 
         expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ id: baseItem.id }));
+    });
+
+    it('opens the detail from a native keyboard-activatable view button', async () => {
+        const user = userEvent.setup();
+        const onView = vi.fn();
+        const { container } = render(
+            <OrphanedItemsTable
+                items={[{ ...baseItem, capabilities: { can_resolve: true, can_view_detail: true, requires_owner: true, requires_risk: false, requires_department: true } }]}
+                onResolve={() => {}}
+                onView={onView}
+            />,
+        );
+
+        const view = screen.getByRole('button', { name: /common:actions.view customer data risk/i });
+        expect(view).toHaveAttribute('type', 'button');
+        expect(container.querySelector('tr[tabindex], tr[role="button"]')).toBeNull();
+        view.focus();
+        await user.keyboard('{Enter}');
+        expect(onView).toHaveBeenCalledWith(expect.objectContaining({ id: baseItem.id }));
     });
 });

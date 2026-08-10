@@ -63,6 +63,13 @@ export interface UserLookup {
     manager_id?: number | null;
 }
 
+/** Minimal active-CISO identity for the Threat Steward picker. */
+export interface ThreatStewardLookup {
+    id: number;
+    name: string;
+    email: string;
+}
+
 export interface UserDirectoryEntry {
     id: number;
     name: string;

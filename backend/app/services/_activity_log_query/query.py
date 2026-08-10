@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.datetime_utils import utc_now
 from app.models import ActivityLog, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.schemas.activity_log import ActivityLogListResponse
+from app.schemas.activity_log import ActivityLogActorLookup, ActivityLogListResponse
 
 from .criteria import ActivityLogQueryCriteria
 from .policy import activity_log_department_scope
@@ -79,3 +79,35 @@ def list_activity_log_entity_types() -> list[str]:
 
 def list_activity_log_actions() -> list[str]:
     return [action.value for action in ActivityAction]
+
+
+async def list_activity_log_actors(
+    *,
+    db: AsyncSession,
+    current_user: User,
+    q: str | None,
+    department_id: int | None,
+    limit: int,
+) -> list[ActivityLogActorLookup]:
+    """List distinct actors represented in activity rows visible to the caller."""
+    query = select(
+        ActivityLog.actor_id.label("id"),
+        func.min(ActivityLog.actor_name).label("name"),
+    ).where(ActivityLog.actor_id.is_not(None))
+
+    dept_ids = activity_log_department_scope(current_user)
+    if dept_ids is not None:
+        if not dept_ids:
+            return []
+        query = query.where(ActivityLog.department_id.in_(dept_ids))
+    if department_id is not None:
+        query = query.where(ActivityLog.department_id == department_id)
+    if q:
+        query = query.where(ActivityLog.actor_name.ilike(f"%{q}%"))
+
+    result = await db.execute(
+        query.group_by(ActivityLog.actor_id)
+        .order_by(func.min(ActivityLog.actor_name).asc(), ActivityLog.actor_id.asc())
+        .limit(limit)
+    )
+    return [ActivityLogActorLookup.model_validate(row) for row in result.mappings().all()]

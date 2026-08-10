@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import { apiClient } from '@/services/apiClient';
@@ -12,11 +13,18 @@ import { buildApprovalListParams, type ApprovalsFilter } from './approvalsPresen
 type ApprovalDialogMode = 'approve' | 'reject' | null;
 
 export function useApprovalsPageState() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const requestedTab = searchParams.get('tab');
+    const requestedApprovalId = Number(searchParams.get('approvalId'));
     const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
     const [questionnaires, setQuestionnaires] = useState<RiskQuestionnaireListItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [questionnairesLoading, setQuestionnairesLoading] = useState(false);
-    const [filter, setFilter] = useState<ApprovalsFilter>('pending');
+    const [filter, setFilterState] = useState<ApprovalsFilter>(
+        requestedTab === 'mine' || requestedTab === 'pending' || requestedTab === 'all'
+            ? requestedTab
+            : 'pending',
+    );
     const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);
     const [dialogMode, setDialogMode] = useState<ApprovalDialogMode>(null);
     const [resolutionNotes, setResolutionNotes] = useState('');
@@ -64,6 +72,21 @@ export function useApprovalsPageState() {
         }
         void fetchQuestionnaires();
     }, [fetchQuestionnaires, filter]);
+
+    useEffect(() => {
+        if (!Number.isSafeInteger(requestedApprovalId) || requestedApprovalId <= 0) return;
+        if (approvals.some((approval) => approval.id === requestedApprovalId)) {
+            setExpandedRows((current) => new Set(current).add(requestedApprovalId));
+        }
+    }, [approvals, requestedApprovalId]);
+
+    const setFilter = useCallback((nextFilter: ApprovalsFilter) => {
+        setFilterState(nextFilter);
+        const next = new URLSearchParams(searchParams);
+        next.set('tab', nextFilter);
+        next.delete('approvalId');
+        setSearchParams(next, { replace: true });
+    }, [searchParams, setSearchParams]);
 
     const closeDialog = useCallback(() => {
         setSelectedApproval(null);

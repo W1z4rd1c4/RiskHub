@@ -174,12 +174,12 @@ linux_run_db_tasks() {
   linux_run_release_command \
     "$db_workdir" \
     "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <admin> --role admin --access-scope global (pre-link)" \
-    "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_ADMIN_EMAIL\" --role admin --access-scope global"
+    "export PYTHONPATH=$(printf '%q' "$pythonpath"); admin_args=($(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_ADMIN_EMAIL\" --role admin --access-scope global); if [[ -n \"\${BOOTSTRAP_ADMIN_EXTERNAL_ID:-}\" ]]; then admin_args+=(--external-id \"\$BOOTSTRAP_ADMIN_EXTERNAL_ID\"); fi; \"\${admin_args[@]}\""
 
   linux_run_release_command \
     "$db_workdir" \
     "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <cro> --role cro --access-scope global (pre-link)" \
-    "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_CRO_EMAIL\" --role cro --access-scope global"
+    "export PYTHONPATH=$(printf '%q' "$pythonpath"); cro_args=($(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_CRO_EMAIL\" --role cro --access-scope global); if [[ -n \"\${BOOTSTRAP_CRO_EXTERNAL_ID:-}\" ]]; then cro_args+=(--external-id \"\$BOOTSTRAP_CRO_EXTERNAL_ID\"); fi; \"\${cro_args[@]}\""
 }
 
 linux_reload_services() {

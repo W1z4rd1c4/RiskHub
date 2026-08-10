@@ -1,21 +1,28 @@
+import { useId, type ReactNode } from 'react';
 import { AlertCircle } from 'lucide-react';
-import type { ReactNode } from 'react';
 
 import { useTranslation } from '@/i18n/hooks';
+import { DialogShell } from '@/components/DialogShell';
 
 interface RiskHubModalFrameProps {
     children: ReactNode;
     title: string;
+    onClose: () => void;
 }
 
-export function RiskHubModalFrame({ children, title }: RiskHubModalFrameProps) {
+export function RiskHubModalFrame({ children, title, onClose }: RiskHubModalFrameProps) {
+    const titleId = useId();
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-md p-6">
-                <h2 className="text-xl font-bold text-white mb-4">{title}</h2>
-                {children}
-            </div>
-        </div>
+        <DialogShell
+            isOpen
+            onClose={onClose}
+            titleId={titleId}
+            backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-md p-6"
+        >
+            <h2 id={titleId} className="text-xl font-bold text-white mb-4">{title}</h2>
+            {children}
+        </DialogShell>
     );
 }
 

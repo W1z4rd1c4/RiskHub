@@ -1,7 +1,7 @@
 ---
 title: Notifications and Approvals
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + frontend/src/pages/NotificationsPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "Production workflow manual for approvals, notifications, decision notes, queue triage, and escalation patterns."
@@ -99,6 +99,22 @@ Use approval notes to explain the business reason, not just the button you click
 
 If you receive a stale or rejected approval, do not immediately resubmit the same change. Refresh the inbox, compare the current row with your intended update, and submit a new focused change only if it is still needed.
 
+Protected Process edits show an immutable proposal with approved **before** values, proposed **after** values, and the derived CIF impact. The approved Process remains operational while the proposal is pending. Only one configured Risk Manager or CRO who is not the requester may decide it; there is no senior-role self-approval bypass. Rejection requires a reason, and stale proposals expire without applying their values.
+
+Protected Vendor rows use the same queue and **My Requests** workflow. The
+expanded row shows permission-safe Vendor before/after values, derived tier,
+and readable affected records for direct, Contract, Sub-outsourcing, link, and
+Composite requests. A reader without proposal authority sees no restricted
+detail. Cancellation is available to the requester when the backend capability
+permits it; the approved Vendor remains unchanged until approval.
+
+The two governed-approval preferences are default-on:
+
+- **Approval requests requiring my action** controls event delivery for submissions, cancellations, and stale expiry relevant to an eligible approver.
+- **Updates to my approval requests** controls outcome delivery to the requester for approval, rejection, cancellation, and stale expiry.
+
+Disabling either preference affects notifications only. It never removes queue rows, My Requests rows, capabilities, or work counts. Protected Process, Asset, and Vendor approvals have no due date, SLA, reminder, overdue label, automatic decision, or time-based escalation.
+
 ## Finding, Filtering, and Evidence
 
 Use filters and status cues to triage notifications and approvals. The Notifications and Approvals pages do not provide an export button, so use them to make decisions and reconstruct workflow context.
@@ -125,6 +141,13 @@ Common mistakes are usually caused by stale inbox data, unread filters, unclear 
 If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
 If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
+
+## Accountability request notifications
+
+Accountability proposals use the governed action-required and request-update
+notification families. Preferences may suppress delivery, but never remove the
+request from Approvals/My Requests, change its work count, or apply the
+reassignment. Treat the record detail and approval row as the source of truth.
 
 ## Related Manuals
 

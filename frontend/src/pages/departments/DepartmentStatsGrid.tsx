@@ -1,123 +1,152 @@
-import { AlertCircle, Shield, ShieldAlert, Target, TrendingDown, Users } from 'lucide-react';
+import {
+    Boxes,
+    Building2,
+    CircleGauge,
+    ClipboardCheck,
+    PackageSearch,
+    ShieldAlert,
+    Target,
+    Users,
+} from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
-import type { TabView } from '@/hooks/useDepartmentDetail';
-import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import type { KRIMonitoringStatus } from '@/types/kri';
 import type { DepartmentDetail } from '@/services/departmentApi';
+import type { TabView } from '@/hooks/useDepartmentDetail';
+import type { RegisterFilters } from '@/pages/shared/registerListQuery';
 
 interface DepartmentStatsGridProps {
-    activeTab: TabView;
     department: DepartmentDetail;
-    kriFilter: 'all' | KRIMonitoringStatus;
-    riskFilter: 'all' | 'high';
-    onSelectControls: () => void;
-    onSelectHighRisks: () => void;
-    onSelectKriBreach: () => void;
-    onSelectKris: () => void;
-    onSelectRisks: () => void;
-    onSelectUsers: () => void;
+    onSelectTab: (tab: TabView, filters?: RegisterFilters) => void;
 }
 
-export function DepartmentStatsGrid({
-    activeTab,
-    department,
-    kriFilter,
-    riskFilter,
-    onSelectControls,
-    onSelectHighRisks,
-    onSelectKriBreach,
-    onSelectKris,
-    onSelectRisks,
-    onSelectUsers,
-}: DepartmentStatsGridProps) {
-    const { t } = useTranslation(['common', 'dashboard']);
-    const { thresholds } = useRiskThresholds();
-    const breachCount = department.kri_monitoring_counts?.breach ?? 0;
-    const highRiskCount = department.high_risk_count;
+interface HealthAction {
+    key: string;
+    count: number | null | undefined;
+    labelKey: string;
+    filters?: RegisterFilters;
+}
+
+export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStatsGridProps) {
+    const { t } = useTranslation('common');
+    const cards: Array<{
+        key: Exclude<TabView, 'overview' | 'activity'>;
+        count: number | null | undefined;
+        health: HealthAction[];
+        icon: typeof ShieldAlert;
+    }> = [
+        {
+            key: 'risks',
+            count: department.risk_count,
+            health: [
+                { key: 'high', count: department.risk_distribution?.high, labelKey: 'department_detail.health.high_risks', filters: { net_band: 'Vysoké' } },
+                { key: 'critical', count: department.risk_distribution?.critical, labelKey: 'department_detail.health.critical_risks', filters: { net_band: 'Kritické' } },
+            ],
+            icon: ShieldAlert,
+        },
+        {
+            key: 'controls',
+            count: department.control_count,
+            health: [{ key: 'attention', count: department.attention_control_count, labelKey: 'department_detail.health.attention_controls', filters: { monitoring_status: 'needs_review' } }],
+            icon: ClipboardCheck,
+        },
+        {
+            key: 'kris',
+            count: department.kri_count,
+            health: [
+                { key: 'breach', count: department.kri_monitoring_counts?.breach, labelKey: 'department_detail.health.kri_breaches', filters: { monitoring_status: 'breach' } },
+                { key: 'overdue', count: department.kri_monitoring_counts?.not_submitted, labelKey: 'department_detail.health.kri_overdue', filters: { monitoring_status: 'not_submitted' } },
+            ],
+            icon: Target,
+        },
+        {
+            key: 'issues',
+            count: department.issue_count,
+            health: [
+                { key: 'open', count: department.open_issue_count, labelKey: 'department_detail.health.open_issues', filters: { status: 'open' } },
+                { key: 'overdue', count: department.overdue_issue_count, labelKey: 'department_detail.health.overdue_issues', filters: { overdue: true } },
+            ],
+            icon: CircleGauge,
+        },
+        {
+            key: 'processes',
+            count: department.process_count,
+            health: [
+                { key: 'critical', count: department.critical_process_count, labelKey: 'department_detail.health.critical_processes', filters: { criticality: ['critical'] } },
+                { key: 'cif', count: department.cif_process_count, labelKey: 'department_detail.health.cif_processes', filters: { cif: true } },
+            ],
+            icon: Boxes,
+        },
+        {
+            key: 'assets',
+            count: department.asset_count,
+            health: [
+                { key: 'critical', count: department.critical_asset_count, labelKey: 'department_detail.health.critical_assets', filters: { criticality: ['critical'] } },
+                { key: 'legacy', count: department.legacy_asset_count, labelKey: 'department_detail.health.legacy_assets', filters: { legacy: true } },
+            ],
+            icon: PackageSearch,
+        },
+        {
+            key: 'vendors',
+            count: department.vendor_count,
+            health: [
+                { key: 'critical', count: department.critical_vendor_count, labelKey: 'department_detail.health.critical_vendors', filters: { tiers: ['critical'] } },
+                { key: 'dora', count: department.dora_vendor_count, labelKey: 'department_detail.health.dora_vendors', filters: { dora_relevant: true } },
+            ],
+            icon: Building2,
+        },
+        {
+            key: 'users',
+            count: department.user_count,
+            health: [{ key: 'active', count: department.user_count, labelKey: 'department_detail.health.active_users' }],
+            icon: Users,
+        },
+    ];
 
     return (
-        <div className="grid grid-cols-6 gap-4">
-            <button
-                type="button"
-                onClick={onSelectRisks}
-                className={`glass-card cursor-pointer text-left hover:bg-white/5 transition-all group ${
-                    activeTab === 'risks' && riskFilter === 'all' ? 'border-accent/50 bg-accent/5' : ''
-                }`}
-            >
-                <div className="flex items-center gap-3 mb-2">
-                    <ShieldAlert className="h-5 w-5 text-amber-400 group-hover:scale-110 transition-transform" />
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">{t('common:labels.risk')}</p>
-                </div>
-                <p className="text-3xl font-black text-white">{department.risk_count}</p>
-            </button>
-            <button
-                type="button"
-                onClick={onSelectControls}
-                className={`glass-card cursor-pointer text-left hover:bg-white/5 transition-all group ${
-                    activeTab === 'controls' ? 'border-accent/50 bg-accent/5' : ''
-                }`}
-            >
-                <div className="flex items-center gap-3 mb-2">
-                    <Shield className="h-5 w-5 text-emerald-400 group-hover:scale-110 transition-transform" />
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">{t('common:labels.control')}</p>
-                </div>
-                <p className="text-3xl font-black text-white">{department.control_count}</p>
-            </button>
-            <button
-                type="button"
-                onClick={onSelectKris}
-                className={`glass-card cursor-pointer text-left hover:bg-white/5 transition-all group ${
-                    activeTab === 'kris' && kriFilter === 'all' ? 'border-accent/50 bg-accent/5' : ''
-                }`}
-            >
-                <div className="flex items-center gap-3 mb-2">
-                    <Target className="h-5 w-5 text-accent group-hover:scale-110 transition-transform" />
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">KRIs</p>
-                </div>
-                <p className="text-3xl font-black text-white">{department.kri_count}</p>
-            </button>
-            <button
-                type="button"
-                onClick={onSelectKriBreach}
-                className={`glass-card cursor-pointer text-left hover:bg-white/5 transition-all group ${
-                    activeTab === 'kris' && kriFilter === 'breach' ? 'border-rose-500/50 bg-rose-500/5' : ''
-                }`}
-                title={t('dashboard:kri_breaches')}
-            >
-                <div className="flex items-center gap-3 mb-2">
-                    <TrendingDown className="h-5 w-5 text-rose-400 group-hover:scale-110 transition-transform" />
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:kri_breaches')}</p>
-                </div>
-                <p className="text-3xl font-black text-rose-400">{breachCount}</p>
-            </button>
-            <button
-                type="button"
-                onClick={onSelectUsers}
-                className={`glass-card cursor-pointer text-left hover:bg-white/5 transition-all group ${
-                    activeTab === 'users' ? 'border-accent/50 bg-accent/5' : ''
-                }`}
-            >
-                <div className="flex items-center gap-3 mb-2">
-                    <Users className="h-5 w-5 text-blue-400 group-hover:scale-110 transition-transform" />
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:active_users')}</p>
-                </div>
-                <p className="text-3xl font-black text-white">{department.user_count}</p>
-            </button>
-            <button
-                type="button"
-                onClick={onSelectHighRisks}
-                className={`glass-card cursor-pointer text-left hover:bg-white/5 transition-all group ${
-                    activeTab === 'risks' && riskFilter === 'high' ? 'border-rose-500/50 bg-rose-500/5' : ''
-                }`}
-                title={`Net score >= ${thresholds.high}`}
-            >
-                <div className="flex items-center gap-3 mb-2">
-                    <AlertCircle className="h-5 w-5 text-rose-400 group-hover:scale-110 transition-transform" />
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:high_risk')}</p>
-                </div>
-                <p className="text-3xl font-black text-rose-400">{highRiskCount}</p>
-            </button>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" data-testid="department-stats-grid">
+            {cards.map(({ key, count, health, icon: Icon }) => (
+                <article
+                    key={key}
+                    data-testid={`department-overview-card-${key}`}
+                    className="glass-card group flex flex-col text-left transition-all hover:bg-white/5"
+                >
+                    <button
+                        type="button"
+                        data-testid={`department-overview-card-${key}-total`}
+                        aria-label={`${t(`department_detail.tabs.${key}`)} ${count ?? t('fallbacks.not_available')}`}
+                        onClick={() => onSelectTab(key)}
+                        className="w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                        <span className="mb-2 flex items-center gap-3">
+                            <Icon className="h-5 w-5 text-accent transition-transform group-hover:scale-110" aria-hidden="true" />
+                            <span className="text-xs uppercase tracking-wider text-slate-300">
+                                {t(`department_detail.tabs.${key}`)}
+                            </span>
+                        </span>
+                        <span className="block text-3xl font-black text-white">
+                            {count ?? t('fallbacks.not_available')}
+                        </span>
+                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {health.map((action) => (
+                            <button
+                                key={action.key}
+                                type="button"
+                                data-testid={`department-overview-card-${key}-${action.key}`}
+                                aria-label={`${t(`department_detail.tabs.${key}`)} ${t(action.labelKey, {
+                                    count: action.count ?? t('fallbacks.not_available'),
+                                })}`}
+                                onClick={() => onSelectTab(key, action.filters)}
+                                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-400 hover:border-accent/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            >
+                                {t(action.labelKey, {
+                                    count: action.count ?? t('fallbacks.not_available'),
+                                })}
+                            </button>
+                        ))}
+                    </div>
+                </article>
+            ))}
         </div>
     );
 }

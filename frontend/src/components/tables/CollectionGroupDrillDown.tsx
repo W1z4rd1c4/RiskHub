@@ -60,7 +60,7 @@ export function CollectionGroupDrillDown<T>({
     const selectedGroup = groupCards.find((group) => group.value === selectedGroupValue);
 
     if (selectedGroupValue) {
-        const label = selectedGroupLabel || selectedGroup?.label || t('empty.unknown_group', { defaultValue: 'Unknown group' });
+        const label = selectedGroup?.label || selectedGroupLabel || t('empty.unknown_group', { defaultValue: 'Unknown group' });
 
         return (
             <div className={cn('space-y-4', className)}>
@@ -115,6 +115,8 @@ export function CollectionGroupDrillDown<T>({
                     <button
                         key={card.value}
                         type="button"
+                        data-testid="register-group-card"
+                        data-group-value={card.value}
                         onClick={() => onSelectGroup(card.value, card.label)}
                         className="glass-card group text-left hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5 transition-all duration-300"
                     >
@@ -131,12 +133,12 @@ export function CollectionGroupDrillDown<T>({
                             <div className="flex items-center gap-6">
                                 <div>
                                     <p className="text-3xl font-black text-white">{card.count}</p>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wider">Items</p>
+                                    <p className="text-xs text-slate-500 uppercase tracking-wider">{t('tables.items')}</p>
                                 </div>
                                 {card.showActive && (
                                     <div>
                                         <p className="text-xl font-bold text-emerald-400">{card.activeCount}</p>
-                                        <p className="text-xs text-slate-500 uppercase tracking-wider">Active</p>
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('tables.active')}</p>
                                     </div>
                                 )}
                                 {card.showHighlighted && (

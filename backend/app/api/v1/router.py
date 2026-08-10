@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     activity_log,
     admin,
     approvals,
+    assets,
     auth,
     controls,
     dashboard,
@@ -12,20 +13,25 @@ from app.api.v1.endpoints import (
     directory,
     executions,
     health,
+    ict_register,
     issues,
     kris,
     lookups,
     notifications,
     orphaned_items,
     preferences,
+    processes,
     reports,
     risk_questionnaires,
     riskhub,
     riskhub_questionnaires,
     risks,
+    threats,
     users,
+    vendor_contracts,
     vendor_links,
     vendor_reports,
+    vendor_sub_outsourcing,
     vendors,
 )
 
@@ -39,7 +45,12 @@ api_router.include_router(controls.router, prefix="/controls", tags=["controls"]
 api_router.include_router(risks.router, prefix="/risks", tags=["risks"])
 api_router.include_router(issues.router, tags=["issues"])
 api_router.include_router(vendors.router, prefix="/vendors", tags=["vendors"])
+api_router.include_router(processes.router, prefix="/processes", tags=["processes"])
+api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
+api_router.include_router(threats.router, prefix="/threats", tags=["threats"])
 api_router.include_router(vendor_links.router, tags=["vendor-links"])
+api_router.include_router(vendor_contracts.router, tags=["vendor-contracts"])
+api_router.include_router(vendor_sub_outsourcing.router, tags=["vendor-sub-outsourcing"])
 api_router.include_router(vendor_reports.router, tags=["vendor-reports"])
 api_router.include_router(risk_questionnaires.risk_router, tags=["questionnaires"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
@@ -52,6 +63,7 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(directory.router, tags=["directory"])
 api_router.include_router(orphaned_items.router, prefix="/orphaned-items", tags=["governance"])
+api_router.include_router(ict_register.router, prefix="/ict-register", tags=["ict-register"])
 api_router.include_router(lookups.router, prefix="/lookups", tags=["lookups"])
 api_router.include_router(activity_log.router, prefix="/activity-log", tags=["activity-log"])
 api_router.include_router(riskhub.router, prefix="/riskhub", tags=["riskhub"])

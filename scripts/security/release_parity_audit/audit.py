@@ -24,38 +24,55 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from release_parity_audit.artifact_writer import sha256_audit_file, write_audit_json, write_audit_text
+from release_parity_audit.artifact_writer import (
+    sha256_audit_file,
+    write_audit_json,
+    write_audit_text,
+)
 from release_parity_audit.baseline import capture_release_baseline
-from release_parity_audit.cleanup import CleanupCommand, compose_down, stop_local_dev_processes
+from release_parity_audit.cleanup import compose_down, stop_local_dev_processes
 from release_parity_audit.command_runner import run_command
-from release_parity_audit.decision import evaluate_findings_and_decision
+from release_parity_audit.decision import (
+    evaluate_findings_and_decision,
+    release_decision_exit_code,
+)
 from release_parity_audit.dependencies import capture_dependencies
-from release_parity_audit.env_preparation import prepare_deploy_cli_prod_layout, prepare_prod_env_files
-from release_parity_audit.facade import ReleaseParityFacadePlan, release_parity_phases
+from release_parity_audit.env_preparation import (
+    prepare_deploy_cli_prod_layout,
+    prepare_prod_env_files,
+)
+from release_parity_audit.facade import release_parity_phases
 from release_parity_audit.fingerprints import (
-    RuntimeFingerprint,
     capture_backend_fingerprint,
+    docker_container_identity,
     ingest_latest_existing_prod_readiness,
     ingest_prod_readiness_by_running_worktree,
+    resolve_listener_source_identity,
     start_background_service,
 )
 from release_parity_audit.http_probe import http_json, wait_http
-from release_parity_audit.launch_classifier import build_launch_failure_fingerprint, classify_launch_failure
+from release_parity_audit.launch_classifier import (
+    build_launch_failure_fingerprint,
+    classify_launch_failure,
+)
 from release_parity_audit.phase_runner import ReleaseParityPhaseRunner
-from release_parity_audit.reporting import build_report, build_run_status, matrix_payload
-from release_parity_audit.run_state import ReleaseParityRunState
+from release_parity_audit.reporting import (
+    build_report,
+    build_run_status,
+    matrix_payload,
+)
+from release_parity_audit.run_state import ReleaseParityRunState, validate_run_id
 from release_parity_audit.runtime import run_dynamic_paths
-from release_parity_audit.screenshots import ScreenshotCapturePlan, capture_login_screenshot
+from release_parity_audit.screenshots import capture_login_screenshot
 from release_parity_audit.startup import build_startup_inventory
 from release_parity_audit.startup_preflight import (
     capture_startup_preflight,
     detect_dev_sh_effective_node,
-    docker_container_state,
     node_major_from_binary,
     port_listeners,
 )
 from release_parity_audit.static_resolution import extract_static_resolution
-from release_parity_audit.toolchain import ToolchainSnapshot, capture_toolchain
+from release_parity_audit.toolchain import capture_toolchain
 from release_parity_audit.types import CommandResult
 from release_parity_audit.ui_parity import evaluate_ui_parity
 
@@ -70,8 +87,8 @@ CRITICAL_BACKEND_PACKAGES = [
     "pydantic",
     "redis",
     "cryptography",
+    "pwdlib",
     "bcrypt",
-    "passlib",
 ]
 
 CORE_FRONTEND_PACKAGES = [
@@ -85,9 +102,14 @@ CORE_FRONTEND_PACKAGES = [
 
 class ReleaseParityAudit:
     def __init__(self, run_id: str, run_prod_readiness: bool = True) -> None:
-        self.run_id = run_id
+        self.run_id = validate_run_id(run_id)
         self.run_prod_readiness = run_prod_readiness
-        self.artifact_root = ROOT_DIR / "tests" / "results" / f"release-parity-audit-{run_id}"
+        results_root = (ROOT_DIR / "tests" / "results").resolve()
+        self.artifact_root = (
+            results_root / f"release-parity-audit-{self.run_id}"
+        ).resolve()
+        if not self.artifact_root.is_relative_to(results_root):
+            raise ValueError("run ID resolves outside tests/results")
         self.logs_dir = self.artifact_root / "logs"
         self.meta_dir = self.artifact_root / "meta"
         self.fingerprints_dir = self.artifact_root / "fingerprints"
@@ -181,8 +203,10 @@ class ReleaseParityAudit:
     def _http_json(self, url: str, timeout: float = 8.0) -> tuple[int, Any]:
         return http_json(url, timeout=timeout)
 
-    def _wait_http(self, url: str, timeout_sec: int = 90, expect_status: int | None = None) -> bool:
-        return wait_http(url, timeout_sec, expect_status, http_json_func=self._http_json)
+    def _wait_http(
+        self, url: str, timeout_sec: int = 90, expect_status: int | None = None
+    ) -> bool:
+        return wait_http(url, timeout_sec, expect_status)
 
     def _sha256_file(self, path: Path) -> str:
         return sha256_audit_file(path)
@@ -227,16 +251,20 @@ class ReleaseParityAudit:
         self._write_json(self.fingerprints_dir / "startup-preflight.json", preflight)
 
     @staticmethod
-    def _classify_launch_failure(startup_path_id: str, log_text: str, launch_rc: int) -> dict[str, Any]:
+    def _classify_launch_failure(
+        startup_path_id: str, log_text: str, launch_rc: int
+    ) -> dict[str, Any]:
         return classify_launch_failure(startup_path_id, log_text, launch_rc)
 
     def _stop_local_dev_processes(self) -> None:
         stop_local_dev_processes(self._run)
 
-    def _compose_down(self, command_id: str) -> None:
-        compose_down(self._run, command_id)
+    def _compose_down(self, command_id: str, *, required: bool = False):
+        return compose_down(self._run, command_id, required=required)
 
-    def _capture_backend_fingerprint(self, context_id: str, base_url: str) -> dict[str, Any]:
+    def _capture_backend_fingerprint(
+        self, context_id: str, base_url: str
+    ) -> dict[str, Any]:
         return capture_backend_fingerprint(
             context_id=context_id,
             base_url=base_url,
@@ -262,6 +290,7 @@ class ReleaseParityAudit:
         command: str,
         *,
         readiness_url: str,
+        listener_port: int,
         endpoint_base_url: str | None = None,
         screenshot_url: str | None = None,
         screenshot_file: Path | None = None,
@@ -274,6 +303,7 @@ class ReleaseParityAudit:
             root_dir=ROOT_DIR,
             baseline=self.baseline,
             readiness_url=readiness_url,
+            listener_port=listener_port,
             wait_http=self._wait_http,
             http_json=self._http_json,
             capture_screenshot=self._capture_screenshot,
@@ -290,10 +320,14 @@ class ReleaseParityAudit:
 
     def _extract_static_resolution(self) -> None:
         self.static_resolution = extract_static_resolution(root_dir=ROOT_DIR)
-        self._write_json(self.artifact_root / "static-resolution.json", self.static_resolution)
+        self._write_json(
+            self.artifact_root / "static-resolution.json", self.static_resolution
+        )
 
     def _capture_baseline(self) -> None:
-        self.baseline = capture_release_baseline(root_dir=ROOT_DIR, captured_at_utc=self._iso(self._utc_now()))
+        self.baseline = capture_release_baseline(
+            root_dir=ROOT_DIR, captured_at_utc=self._iso(self._utc_now())
+        )
         self._write_json(self.meta_dir / "baseline.json", self.baseline)
 
     def _capture_toolchain(self) -> None:
@@ -302,10 +336,18 @@ class ReleaseParityAudit:
         self._write_json(self.fingerprints_dir / "toolchain.json", toolchain)
 
     def _docker_container_state(self, names: list[str]) -> dict[str, Any]:
-        return docker_container_state(names, run_command=self._run)
+        return docker_container_identity(names, run_command=self._run)
 
-    def _prepare_prod_env_files(self) -> tuple[Path, Path]:
-        return prepare_prod_env_files(self.tmp_dir)
+    @staticmethod
+    def _listener_source_identity(port: int) -> dict[str, Any]:
+        return resolve_listener_source_identity(port)
+
+    def _prepare_prod_env_files(
+        self, *, secret_dir: Path, runtime_dir: Path
+    ) -> tuple[Path, Path]:
+        return prepare_prod_env_files(
+            self.tmp_dir, secret_dir=secret_dir, runtime_dir=runtime_dir
+        )
 
     def _prepare_deploy_cli_prod_layout(self) -> tuple[Path, Path, Path]:
         return prepare_deploy_cli_prod_layout(self.tmp_dir)
@@ -324,7 +366,9 @@ class ReleaseParityAudit:
             launch_result=launch_result,
             baseline=self.baseline,
             captured_at_utc=self._iso(self._utc_now()),
-            docker_state=self._docker_container_state(docker_containers) if docker_containers else None,
+            docker_state=self._docker_container_state(docker_containers)
+            if docker_containers
+            else None,
         )
         self.launch_failure_analysis.append(analysis)
         return fp
@@ -348,11 +392,15 @@ class ReleaseParityAudit:
                     "context_id": startup_id,
                     "captured_at_utc": self._iso(self._utc_now()),
                     "git_sha_expected": self.baseline.get("git_sha"),
-                    "git_sha_observed": self.baseline.get("git_sha"),
+                    "git_sha_observed_unavailable_reason": (
+                        "Static workflow evidence did not execute a runtime."
+                    ),
                     "source": "workflow-static",
                     "node_versions": ci_policy.get("node_versions", []),
                     "python_versions": ci_policy.get("python_versions", []),
-                    "frontend_ci_lockfile_install": ci_policy.get("frontend_ci_lockfile_install"),
+                    "frontend_ci_lockfile_install": ci_policy.get(
+                        "frontend_ci_lockfile_install"
+                    ),
                     "backend_ci_uses_pip_install_requirements": ci_policy.get(
                         "backend_ci_uses_pip_install_requirements"
                     ),
@@ -360,7 +408,11 @@ class ReleaseParityAudit:
             )
 
     def _ensure_startup_path_runtime_coverage(self) -> None:
-        existing_ids = {str(fp.get("startup_path_id")) for fp in self.runtime_fingerprints if fp.get("startup_path_id")}
+        existing_ids = {
+            str(fp.get("startup_path_id"))
+            for fp in self.runtime_fingerprints
+            if fp.get("startup_path_id")
+        }
         coverage_notes = {
             "dev_sh_backend": "Covered functionally by backend_runtime_dev; direct blocking invocation omitted.",
             "compose_sh_up_db_only": (
@@ -377,7 +429,9 @@ class ReleaseParityAudit:
                     "context_id": startup_id,
                     "captured_at_utc": self._iso(self._utc_now()),
                     "git_sha_expected": self.baseline.get("git_sha"),
-                    "git_sha_observed": self.baseline.get("git_sha"),
+                    "git_sha_observed_unavailable_reason": (
+                        "Startup path was not executed by this audit run."
+                    ),
                     "not_executed": True,
                     "reason": coverage_notes.get(
                         startup_id,
@@ -401,7 +455,6 @@ class ReleaseParityAudit:
             runtime_fingerprints=self.runtime_fingerprints,
             run_command=self._run,
             captured_at_utc=lambda: self._iso(self._utc_now()),
-            fallback_ingest=self._ingest_latest_existing_prod_readiness,
         )
 
     def _evaluate_ui_parity(self) -> None:
@@ -494,6 +547,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run release parity audit")
     parser.add_argument(
         "--run-id",
+        type=validate_run_id,
         default=datetime.now(UTC).strftime("%Y%m%d-%H%M%S"),
         help="Run identifier suffix (default: UTC timestamp)",
     )
@@ -510,10 +564,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    audit = ReleaseParityAudit(run_id=args.run_id, run_prod_readiness=not args.skip_prod_readiness)
+    audit = ReleaseParityAudit(
+        run_id=args.run_id, run_prod_readiness=not args.skip_prod_readiness
+    )
     audit.run()
     print(str(audit.artifact_root))
-    return 0
+    return release_decision_exit_code(audit.decision)
 
 
 if __name__ == "__main__":

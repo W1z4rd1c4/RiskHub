@@ -63,11 +63,12 @@ def test_amendment_uses_cross_cutting_not_core() -> None:
     assert "Core" not in {row["Category"] for row in rows.values()}
 
 
-def test_amendment_lists_eleven_workflow_pairs() -> None:
+def test_amendment_lists_twelve_workflow_pairs() -> None:
     rows = _classification_rows()
     assert rows["_orphaned_items"]["Category"] == "Workflow-paired (`_identity_access_lifecycle`)"
     assert rows["_notification_inbox"]["Category"] == "Workflow-paired (`_identity_access_lifecycle`)"
-    assert WORKFLOW_PAIRS.read_text().count("[[pairs]]") == 11
+    assert rows["_ict_register_lifecycle"]["Category"] == "Workflow-paired (`_vendor_governance`)"
+    assert WORKFLOW_PAIRS.read_text().count("[[pairs]]") == 12
 
 
 def test_amendment_cross_references_graph_directory_post_61() -> None:

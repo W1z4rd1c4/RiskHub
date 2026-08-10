@@ -18,29 +18,40 @@ interface ConfirmDialogProps {
     inputLabel?: string;
     inputPlaceholder?: string;
     inputRequired?: boolean;
+    /**
+     * Rejected-mutation error announced INSIDE the dialog (#100/#101 P2): the
+     * shell traps focus, so a page-level banner behind the overlay is
+     * unreachable while the dialog stays open for retry.
+     */
+    errorText?: string | null;
 }
 
+// Status colours consume the semantic tokens (FR-P5-1 / ADR-015): danger →
+// --destructive (canonical danger), warning → --warning, info → --info.
 const variantStyles = {
     danger: {
         icon: Trash2,
-        iconBg: 'bg-rose-500/20',
-        iconColor: 'text-rose-400',
-        buttonBg: 'bg-rose-500 hover:bg-rose-600',
-        buttonRing: 'focus:ring-rose-500/50',
+        iconBg: 'bg-destructive/20',
+        iconColor: 'text-destructive',
+        buttonBg: 'bg-destructive hover:bg-destructive/90',
+        buttonRing: 'focus:ring-destructive/50',
+        buttonText: 'text-destructive-foreground',
     },
     warning: {
         icon: AlertTriangle,
-        iconBg: 'bg-amber-500/20',
-        iconColor: 'text-amber-400',
-        buttonBg: 'bg-amber-500 hover:bg-amber-600',
-        buttonRing: 'focus:ring-amber-500/50',
+        iconBg: 'bg-warning/20',
+        iconColor: 'text-warning',
+        buttonBg: 'bg-warning hover:bg-warning/90',
+        buttonRing: 'focus:ring-warning/50',
+        buttonText: 'text-warning-foreground',
     },
     info: {
         icon: AlertTriangle,
-        iconBg: 'bg-accent/20',
-        iconColor: 'text-accent',
-        buttonBg: 'bg-accent hover:bg-accent/80',
-        buttonRing: 'focus:ring-accent/50',
+        iconBg: 'bg-info/20',
+        iconColor: 'text-info',
+        buttonBg: 'bg-info hover:bg-info/90',
+        buttonRing: 'focus:ring-info/50',
+        buttonText: 'text-info-foreground',
     },
 };
 
@@ -58,6 +69,7 @@ export function ConfirmDialog({
     inputLabel,
     inputPlaceholder,
     inputRequired = true,
+    errorText = null,
 }: ConfirmDialogProps) {
     const { t } = useTranslation('common');
     const titleId = useId();
@@ -95,6 +107,7 @@ export function ConfirmDialog({
             descriptionIds={[messageId]}
             initialFocusRef={showInput ? inputRef : confirmRef}
             closeDisabled={isLoading}
+            role="alertdialog"
             backdropClassName="confirm-dialog-backdrop absolute inset-0 backdrop-blur-sm"
             contentClassName="confirm-dialog-content w-full max-w-md glass-card !p-0 overflow-hidden shadow-2xl"
         >
@@ -123,26 +136,37 @@ export function ConfirmDialog({
             {/* Optional Input Field */}
             {showInput && (
                 <div className="px-6 pb-4">
-                    {inputLabel && (
-                        <label
-                            htmlFor={inputId}
-                            className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2"
-                        >
-                            {inputLabel} {inputRequired && <span className="text-rose-400">*</span>}
-                        </label>
-                    )}
-                    <textarea
-                        id={inputId}
-                        ref={inputRef}
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        placeholder={resolvedInputPlaceholder}
-                        rows={3}
-                        aria-label={inputLabel ? undefined : resolvedInputPlaceholder}
-                        className="confirm-dialog-input w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 outline-none focus:border-accent/50 transition-all resize-none"
-                    />
+                    <label htmlFor={inputId} className="block">
+                        {inputLabel && (
+                            <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                                {inputLabel} {inputRequired && <span className="text-destructive">*</span>}
+                            </span>
+                        )}
+                        <textarea
+                            id={inputId}
+                            ref={inputRef}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            placeholder={resolvedInputPlaceholder}
+                            rows={3}
+                            aria-label={inputLabel ? undefined : resolvedInputPlaceholder}
+                            className="confirm-dialog-input w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 outline-none focus:border-accent/50 transition-all resize-none"
+                        />
+                    </label>
                 </div>
             )}
+
+            {/* In-dialog mutation error (#100/#101 P2) */}
+            {errorText ? (
+                <div className="px-6 pb-4">
+                    <p
+                        role="alert"
+                        className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+                    >
+                        {errorText}
+                    </p>
+                </div>
+            ) : null}
 
             {/* Actions */}
             <div className="confirm-dialog-actions flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5">
@@ -159,7 +183,7 @@ export function ConfirmDialog({
                     ref={confirmRef}
                     onClick={handleConfirm}
                     disabled={isConfirmDisabled}
-                    className={`px-4 py-2.5 text-sm font-semibold text-white rounded-xl transition-all focus:outline-none focus:ring-2 disabled:opacity-50 ${styles.buttonBg} ${styles.buttonRing}`}
+                    className={`px-4 py-2.5 text-sm font-semibold ${styles.buttonText} rounded-xl transition-all focus:outline-none focus:ring-2 disabled:opacity-50 ${styles.buttonBg} ${styles.buttonRing}`}
                 >
                     {isLoading ? (
                         <span className="flex items-center gap-2">

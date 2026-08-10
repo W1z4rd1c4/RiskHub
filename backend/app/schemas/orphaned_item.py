@@ -6,13 +6,20 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.datetime_utils import UtcAwareDatetime
 
+OrphanResponsibilityRole = Literal[
+    "business_owner",
+    "ict_owner",
+    "outsourcing_owner",
+]
+
 
 class OrphanedItemRead(BaseModel):
     """Schema for reading orphaned item records."""
 
     id: int
-    item_type: str  # "risk" | "control"
+    item_type: str  # "risk" | "control" | "kri" | "threat" | "process"
     item_id: int
+    responsibility_role: OrphanResponsibilityRole | None = None
     previous_owner_id: int
     previous_owner_name: Optional[str] = None
     previous_owner_email: Optional[str] = None
@@ -21,6 +28,7 @@ class OrphanedItemRead(BaseModel):
     resolved_by_id: Optional[int] = None
     new_owner_id: Optional[int] = None
     status: str  # "pending" | "resolved"
+    request_reason_required: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -31,6 +39,7 @@ class OrphanedItemDetail(BaseModel):
     id: int
     item_type: str
     item_id: int
+    responsibility_role: OrphanResponsibilityRole | None = None
     item_name: str  # Risk name, Control name, or KRI name
     item_description: Optional[str] = None  # Brief description of the item
     item_identifier: Optional[str] = None  # risk_id_code, control ID, or KRI ID
@@ -39,6 +48,7 @@ class OrphanedItemDetail(BaseModel):
     previous_owner_email: str
     orphaned_at: UtcAwareDatetime
     status: str
+    request_reason_required: bool
     capabilities: Optional[dict[str, bool]] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -50,14 +60,19 @@ class OrphanedItemResolve(BaseModel):
     new_owner_id: Optional[int] = None
     department_id: Optional[int] = None  # Optional explicit department override
     target_risk_id: Optional[int] = None  # For linking controls/kris to a specific risk
+    request_reason: Optional[str] = None
 
 
 class OrphanedItemStats(BaseModel):
-    """Statistics about orphaned items for the 4-bar layout."""
+    """Statistics about orphaned items for the governance overview."""
 
     risk_count: int
     control_count: int
     kri_count: int
+    threat_count: int
+    process_count: int
+    asset_count: int = 0
+    vendor_count: int = 0
     total_count: int
 
 
@@ -79,6 +94,15 @@ class OrphanedItemsOverview(BaseModel):
 class OrphanedItemCreateInternal(BaseModel):
     """Internal schema for creating orphaned item records."""
 
-    item_type: Literal["risk", "control"]
+    item_type: Literal[
+        "risk",
+        "control",
+        "kri",
+        "threat",
+        "process",
+        "asset",
+        "vendor",
+    ]
     item_id: int
+    responsibility_role: OrphanResponsibilityRole | None = None
     previous_owner_id: int

@@ -11,8 +11,8 @@ from app.api.v1.endpoints._collection import (
     build_grouped_collection_page,
     merge_collection_filters,
 )
-from app.api.v1.endpoints._collection_execution import build_collection_page_kwargs
 from app.schemas.collection import CollectionGroupRead
+from app.services._collection_contracts import build_collection_page_kwargs
 from app.services._collection_filters import merge_collection_filters as service_merge_collection_filters
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -145,7 +145,7 @@ class ExampleCollectionResponse:
 
 @pytest.mark.asyncio
 async def test_execute_collection_listing_returns_sql_group_summary_without_serializing_items():
-    from app.api.v1.endpoints._collection_execution import (
+    from app.services._collection_contracts import (
         CollectionListingDefinition,
         execute_collection_listing_with_definition,
     )

@@ -279,6 +279,14 @@ export const mockDemoPersonas = [
         color: 'violet',
     },
     {
+        section: 'privileged',
+        name: 'Klára Černá',
+        email: 'ciso@riskhub.local',
+        role_key: 'auth:login_demo.roles.chief_information_security_officer',
+        dept_key: 'auth:login_demo.departments.it',
+        color: 'teal',
+    },
+    {
         section: 'department_heads',
         name: 'Eva Králová',
         email: 'ops.head@riskhub.local',
@@ -512,6 +520,18 @@ export const handlers = [
     http.get('*/api/v1/users/lookup', () => {
         return HttpResponse.json([]);
     }),
+    http.get('*/api/v1/users/lookup/risk-owners', () => {
+        return HttpResponse.json([]);
+    }),
+    http.get('*/api/v1/users/lookup/control-owners', () => {
+        return HttpResponse.json([]);
+    }),
+    http.get('*/api/v1/users/lookup/vendor-owners', () => {
+        return HttpResponse.json([]);
+    }),
+    http.get('*/api/v1/users/lookup/threat-stewards', () => {
+        return HttpResponse.json([]);
+    }),
     // Controls
     http.get('*/api/v1/controls', () => {
         return HttpResponse.json(paginateCollection(mockControlSummaries));
@@ -589,6 +609,19 @@ export const handlers = [
             key: config.key,
             value: parseInt(config.value, 10),
             value_type: config.value_type,
+        });
+    }),
+
+    // Vendor reports — the readiness-screen export link (FR-P5-8) probes this
+    // endpoint for `can_download_dora_register`. Deny by default so screens that
+    // don't opt into the capability render no link; tests that exercise the link
+    // mock `@/services/vendorReportApi` directly to control allowed vs denied.
+    http.get('*/api/v1/vendor-reports/capabilities', () => {
+        return HttpResponse.json({
+            can_read: false,
+            can_download_annual_report: false,
+            can_download_dora_register: false,
+            can_use_department_filter: false,
         });
     }),
 ];

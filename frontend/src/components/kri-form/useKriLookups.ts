@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { KRIVendorOption } from '@/components/kri/KRIVendorSelector';
+import { lookupApi } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
-import { userApi } from '@/services/userApi';
 import { vendorApi } from '@/services/vendorApi';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { RiskSummary } from '@/types/risk';
@@ -63,7 +63,7 @@ export function useKriLookups({
                     department_id: selectedDeptId ? parseInt(selectedDeptId, 10) : undefined,
                     process: selectedProcess || undefined,
                     category: selectedCategory || undefined,
-                    include_archived: false,
+                    lifecycle: 'active',
                 });
                 setGenericRisks(response?.items ?? []);
             } catch {
@@ -88,7 +88,7 @@ export function useKriLookups({
     useEffect(() => {
         const loadUsers = async () => {
             try {
-                const userList = await userApi.listVisibleUsers();
+                const userList = await lookupApi.getRiskOwners({ limit: 200 });
                 setUsers(userList);
             } catch {
                 setUsers([]);

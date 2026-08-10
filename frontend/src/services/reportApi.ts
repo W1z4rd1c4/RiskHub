@@ -39,6 +39,7 @@ type KRIExportFilters =
     });
 
 interface VendorExportFilters extends ReportFilters {
+    locale?: 'en' | 'cs';
     search?: string | null;
     vendorType?: string | null;
 }
@@ -207,6 +208,7 @@ export const reportApi = {
             status: filters.status,
             search: filters.search,
             vendor_type: filters.vendorType,
+            locale: filters.locale,
         });
     },
 

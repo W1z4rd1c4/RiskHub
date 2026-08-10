@@ -83,6 +83,7 @@ confirm_or_die "Run alembic migrations against external PostgreSQL?"
 
 log "Running migrations: alembic upgrade head"
 run docker run --rm \
+  --add-host host.docker.internal:host-gateway \
   -v "${SECRET_DIR}:${SECRET_DIR}:ro" \
   -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro" \
   --env-file "$BACKEND_ENV" "$backend_db_image" alembic upgrade head

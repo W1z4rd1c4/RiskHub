@@ -6,7 +6,9 @@ Folder for `tests/frontend/unit/src/e2e` implementation assets.
 
 ## Contents
 
+- `axeBaseline.zeroPolicy.test.ts`
 - `apiAuth.archive-state.test.ts`
+- `doraE2eCoverageContract.test.ts`
 
 ## Notes
 

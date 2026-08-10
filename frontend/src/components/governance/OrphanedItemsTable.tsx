@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2 } from 'lucide-react';
+import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2, Database, Eye, Workflow, Truck } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { formatRelativeDateValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -16,6 +16,10 @@ const typeIcons: Record<string, typeof ShieldAlert> = {
     risk: ShieldAlert,
     control: ClipboardList,
     kri: AlertTriangle,
+    threat: ShieldAlert,
+    process: Workflow,
+    asset: Database,
+    vendor: Truck,
 };
 
 export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTableProps) {
@@ -28,6 +32,10 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
         risk: t('governance.type_risk'),
         control: t('governance.type_control'),
         kri: t('governance.type_kri'),
+        threat: t('governance.type_threat'),
+        process: t('governance.type_process'),
+        asset: t('governance.type_asset'),
+        vendor: t('governance.type_vendor'),
     };
 
     const filteredItems = filter === 'all'
@@ -73,6 +81,10 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                             { value: 'risk', label: t('governance.risks_only') },
                             { value: 'control', label: t('governance.controls_only') },
                             { value: 'kri', label: t('governance.kris_only') },
+                            { value: 'threat', label: t('governance.threats_only') },
+                            { value: 'process', label: t('governance.processes_only') },
+                            { value: 'asset', label: t('governance.assets_only') },
+                            { value: 'vendor', label: t('governance.vendors_only') },
                         ]}
                     />
                 </div>
@@ -96,12 +108,12 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                             const Icon = typeIcons[item.item_type] || AlertTriangle;
                             const old = isOld(item.orphaned_at);
                             const canResolve = resolveCapabilityFlag(item.capabilities, 'can_resolve');
+                            const canView = resolveCapabilityFlag(item.capabilities, 'can_view_detail');
 
                             return (
                                 <tr
                                     key={item.id}
-                                    onClick={() => onView?.(item)}
-                                    className={`group hover:bg-white/5 transition-all cursor-pointer relative ${old ? 'bg-amber-500/5' : ''}`}
+                                    className={`group hover:bg-white/5 transition-all relative ${old ? 'bg-amber-500/5' : ''}`}
                                 >
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2">
@@ -116,6 +128,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                     <td className="px-4 py-3">
                                         <div>
                                             <p className="text-sm font-bold text-white group-hover:text-accent transition-colors">{item.item_name}</p>
+                                            {(item.item_type === 'asset' || item.item_type === 'vendor') && item.responsibility_role ? <p className="text-[10px] font-bold uppercase text-amber-300">{t(`governance.responsibility_role.${item.responsibility_role}`)}</p> : null}
                                         </div>
                                     </td>
                                     <td className="px-4 py-3">
@@ -150,18 +163,28 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        {canResolve && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onResolve(item);
-                                                }}
-                                                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-accent text-white hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 group-hover:border-accent/50 shadow-sm active:scale-95"
-                                            >
-                                                <UserCheck className="h-3.5 w-3.5" />
-                                                {t('governance.resolve')}
-                                            </button>
-                                        )}
+                                        <div className="flex items-center justify-end gap-2">
+                                            {canView && onView && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onView(item)}
+                                                    aria-label={`${t('common:actions.view')} ${item.item_name}`}
+                                                    className="inline-flex items-center justify-center p-2 bg-white/5 hover:bg-accent text-slate-300 hover:text-white rounded-xl transition-all border border-white/10 hover:border-accent/50 shadow-sm active:scale-95"
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                                                </button>
+                                            )}
+                                            {canResolve && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onResolve(item)}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-accent text-white hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 group-hover:border-accent/50 shadow-sm active:scale-95"
+                                                >
+                                                    <UserCheck className="h-3.5 w-3.5" />
+                                                    {t('governance.resolve')}
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             );

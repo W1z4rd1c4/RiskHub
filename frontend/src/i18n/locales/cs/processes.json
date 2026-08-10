@@ -1,0 +1,302 @@
+{
+    "title": "Procesy",
+    "subtitle": "ICT registr — business procesy v hierarchii L0/L1/L2",
+    "actions": {
+        "new": "Nový proces",
+        "edit": "Upravit proces",
+        "create": "Vytvořit proces",
+        "save": "Uložit změny",
+        "submit_for_approval": "Odeslat ke schválení",
+        "cancel": "Zrušit",
+        "restore": "Obnovit",
+        "export": "Exportovat",
+        "retry": "Zkusit znovu",
+        "resolve_in_governance": "Vyřešit ve správě",
+        "back_to_register": "Zpět na procesy"
+    },
+    "filters": {
+        "search_placeholder": "Hledat F-kód, název L0/L1/L2, vlastníka nebo útvar...",
+        "all_statuses": "Všechny stavy"
+    },
+    "status": {
+        "active": "Aktivní",
+        "archived": "Archivovaný"
+    },
+    "columns": {
+        "f_code": "F-kód",
+        "process": "Proces",
+        "l0_area": "L0 oblast",
+        "owner": "Vlastník",
+        "mtpd": "MTPD (hod)",
+        "criticality_class": "Třída kritičnosti",
+        "cif": "CIF",
+        "status": "Stav"
+    },
+    "form": {
+        "sections": {
+            "identity": "Identifikace",
+            "ownership": "Vlastnictví",
+            "impacts": "Dopady (1–5)",
+            "criticality": "Kritičnost a CIF",
+            "continuity": "Kontinuita (BCM/DR)",
+            "assessment": "Posouzení a stav",
+            "change_request": "Schválení změny"
+        },
+        "l0_area": "L0 oblast",
+        "l1_process": "L1 proces",
+        "l2_subprocess": "L2 podproces / varianta",
+        "owner": "Vlastník procesu",
+        "owner_department": "Vlastnický útvar",
+        "owner_context": "Útvar a role vlastníka",
+        "owner_placeholder": "Vyberte aktivního vlastníka procesu...",
+        "owner_search": "Hledat aktivní uživatele podle jména nebo e-mailu...",
+        "department_placeholder": "Vyberte aktivní vlastnický útvar...",
+        "department_search": "Hledat aktivní útvary...",
+        "owner_no_department": "Bez útvaru",
+        "owner_no_role": "Bez role",
+        "impact_client": "Dopad na klienta (1–5)",
+        "impact_market_operations": "Tržní / provozní dopad (1–5)",
+        "impact_regulatory": "Regulatorní dopad (1–5)",
+        "impact_financial": "Finanční dopad (1–5)",
+        "impact_reputational": "Reputační dopad (1–5, informativní)",
+        "mtpd_hours": "MTPD (hod)",
+        "preliminary_criticality": "Předběžná třída",
+        "cif_override": "CIF override (Ano/Ne)",
+        "licensed_activity": "Licencovaná činnost",
+        "rto_hours": "RTO (hod)",
+        "rpo_hours": "RPO (hod)",
+        "bcm_link": "BCM vazba",
+        "last_dr_test_date": "Poslední DR test",
+        "dr_test_result": "Výsledek DR testu",
+        "interruption_impact": "Dopad přerušení funkce",
+        "assessment_date": "Datum posouzení",
+        "notes": "Poznámka",
+        "request_reason": "Důvod žádosti",
+        "request_reason_help": "Změny chráněného Procesu a všechny změny vlastníka nebo vlastnícího oddělení se odesílají ke schválení. Vysvětlete důvod změny.",
+        "not_set": "Nevyplněno",
+        "errors": {
+            "l0_area_required": "L0 oblast je povinná.",
+            "l1_process_required": "L1 proces je povinný.",
+            "process_owner_required": "Vlastník procesu je povinný.",
+            "owning_department_required": "Vlastnický útvar je povinný.",
+            "request_reason_required": "U této řízené změny Procesu je důvod žádosti povinný.",
+            "pending_change_exists": "Tento Proces již má čekající změnu. Před odesláním další změny ji zrušte nebo vyřešte.",
+            "save_failed": "Uložení procesu se nezdařilo.",
+            "fix_fields": "Opravte prosím zvýrazněná pole.",
+            "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."
+        }
+    },
+    "detail": {
+        "derived_fields_note": "Skóre kritičnosti, třída a CIF jsou odvozovány registrem a nelze je zadat ručně."
+    },
+    "derived": {
+        "title": "Odvozeno registrem",
+        "criticality_score": "Skóre kritičnosti",
+        "criticality_class": "Třída kritičnosti",
+        "cif": "CIF – zásadní nebo důležitá funkce",
+        "rto_mtpd_check": "Kontrola RTO vs MTPD",
+        "bcm_check": "Kontrola BCM",
+        "next_review_date": "Příští posouzení",
+        "linked_asset_count": "Aktiva (počet)",
+        "linked_vendor_count": "Dodavatelé (počet)",
+        "completeness": "Hotovo?",
+        "complete": "Hotovo",
+        "incomplete": "Neúplné",
+        "checks": {
+            "ok": "V pořádku",
+            "rto_exceeds_mtpd": "Nedostatek: RTO překračuje MTPD",
+            "cif_without_bcm": "Nedostatek: CIF bez BCM"
+        },
+        "inputs": {
+            "title": "Proč — vstupy výpočtu",
+            "impacts": "Dopadové osy (klient / trh / regulace / finance)",
+            "mtpd_bonus": "Bonus za MTPD",
+            "thresholds": "Prahy tříd (Kritická / Vysoká / Střední)",
+            "class_source": "Zdroj třídy",
+            "class_source_score": "Živé skóre (pásma)",
+            "class_source_preliminary": "Předběžná třída (záložní)",
+            "cif_override": "CIF override",
+            "cif_class_critical": "CIF spouštěč: třída Kritická",
+            "cif_mtpd_within_critical": "CIF spouštěč: MTPD v kritickém limitu",
+            "cif_any_impact_maximal": "CIF spouštěč: dopadová osa = 5",
+            "missing": "Chybí pro úplnost",
+            "none": "Nic",
+            "manual_vendor_link_count": "Přímé vazby na dodavatele (§1)",
+            "transitive_vendor_pair_count": "Odvozené páry dodavatelů (§2)"
+        },
+        "transitive": {
+            "title": "Dodavatelé přes aktiva (odvozeno)",
+            "vendor": "Dodavatel",
+            "via_asset": "Přes aktivum",
+            "empty": "Žádné odvozené vazby na dodavatele."
+        }
+    },
+    "messages": {
+        "archive_confirm": "Archivovat proces „{{processName}}“? Zůstane v historii registru a lze jej obnovit.",
+        "owner_orphaned_governance": "Vlastník tohoto procesu již není způsobilý. Obchodní úpravy jsou uzamčeny, dokud správa výslovně nepřiřadí nové vlastnictví.",
+        "owner_orphaned_request": "Vlastník tohoto procesu již není způsobilý. Před úpravou požádejte správce o nové přiřazení.",
+        "ownership_legacy_unassigned": "Tento starší předprodukční proces zatím nemá kanonického vlastníka ani útvar. Pro opravu přiřaďte obojí.",
+        "ownership_invalid_assignment": "Proces má neplatného vlastníka nebo útvar. Před uložením vyberte aktivní náhrady."
+    },
+    "pending_change": {
+        "title": "Navrhovaná změna Procesu",
+        "badge": "Čekající změna",
+        "requested_by_at": "Požadavek zadal {{requester}} dne {{date}} v {{time}}",
+        "unknown_requester": "Neznámý uživatel",
+        "cancel": "Zrušit žádost",
+        "cancel_failed": "Čekající změnu Procesu se nepodařilo zrušit.",
+    "diff_restricted": "Navrhované hodnoty jsou skryté kvůli rozsahu vašich oprávnění.",
+    "edit_blocked_title": "Obchodní úpravy jsou dočasně uzamčeny",
+    "business_edits_blocked": "Řízená změna Procesu čeká na vyřízení. Komentáře a důkazy zůstávají dostupné, ale obchodní pole a vazby nelze do vyřízení upravovat.",
+    "link_action_blocked": "Tento Proces má čekající řízenou změnu. Před změnou vazeb ji nejprve vyřešte."
+    },
+    "pending_creation": {
+        "title": "Čekající vytvoření Procesů",
+        "description": "Tyto návrhy nejsou provozními záznamy registru. Do rozhodnutí je vidí pouze žadatel a způsobilí schvalovatelé.",
+        "badge": "Čekající vytvoření",
+        "unnamed": "Návrh Procesu bez názvu",
+        "requested_by_at": "Požadavek zadal {{requester}} dne {{date}} v {{time}}",
+        "open_request": "Otevřít žádost",
+        "cancel_failed": "Čekající vytvoření Procesu se nepodařilo zrušit. Zkuste to znovu."
+    },
+    "link_approval": {
+        "continue": "Pokračovat",
+        "reason_placeholder": "Vysvětlete důvod změny vazby Procesu...",
+        "link_add": {
+            "title": "Požádat o přidání vazby Procesu",
+            "message": "Uveďte důvod. Chráněný Proces si zachová schválené vazby do schválení této žádosti."
+        },
+        "link_remove": {
+            "title": "Požádat o odebrání vazby Procesu",
+            "message": "Uveďte důvod. Existující vazba zůstane aktivní do schválení této žádosti."
+        },
+        "link_update": {
+            "title": "Požádat o změnu vazby Procesu",
+            "message": "Uveďte důvod. Schválená vazba zůstane beze změny do schválení této žádosti."
+        }
+    },
+    "values": {
+        "unknown": "Neznámá hodnota",
+        "preliminary_criticality": {
+            "low": "Nízká",
+            "medium": "Střední",
+            "high": "Vysoká",
+            "critical": "Kritická"
+        },
+        "cif_override": {
+            "yes": "Ano",
+            "no": "Ne"
+        },
+        "licensed_activity": {
+            "non_life_insurance": "Neživotní pojištění",
+            "support_functions": "Podpůrné funkce"
+        },
+        "bcm_link": {
+            "yes": "Ano",
+            "no": "Ne",
+            "not_assessed": "Neposouzeno",
+            "not_applicable": "Nerelevantní"
+        },
+        "dr_test_result": {
+            "successful": "Úspěšný",
+            "qualified": "S výhradami",
+            "unsuccessful": "Neúspěšný",
+            "not_tested": "Netestováno"
+        },
+        "interruption_impact": {
+            "low": "Nízký",
+            "medium": "Střední",
+            "high": "Vysoký",
+            "not_assessed": "Neposouzeno"
+        }
+    },
+    "ownership_display": {
+        "unknown_user": "Neznámý uživatel",
+        "unknown_department": "Neznámý útvar",
+        "owner_context_unknown": "Kontext vlastníka není dostupný",
+        "owner_legacy_unassigned": "Vlastník není přiřazen (starší záznam)",
+        "department_legacy_unassigned": "Útvar není přiřazen (starší záznam)",
+        "owner_pending_governance": "Vlastník čeká na vyřešení správou",
+        "department_pending_governance": "Útvar čeká na vyřešení správou",
+        "owner_invalid_assignment": "Neznámý uživatel (neplatné přiřazení)",
+        "department_invalid_assignment": "Neznámý útvar (neplatné přiřazení)"
+    },
+    "empty": {
+        "no_processes": "V registru zatím nejsou žádné procesy.",
+        "no_results": "Vašemu hledání neodpovídají žádné procesy."
+    },
+    "errors": {
+        "not_found": "Proces nenalezen.",
+        "load_failed": "Načtení procesů se nezdařilo.",
+        "archive_failed": "Archivace procesu se nezdařila."
+    },
+    "register": {
+        "views": {
+            "all": "Vše",
+            "department": "Podle útvaru",
+            "owner": "Podle vlastníka",
+            "l0": "Podle L0 oblasti",
+            "criticality": "Podle kritičnosti",
+            "vendor": "Podle dodavatele"
+        },
+        "filters": {
+            "add": "Filtry",
+            "active_count": "Aktivní filtry: {{count}}",
+            "clear_all": "Vymazat vše",
+            "remove": "Odebrat filtr {{label}}",
+            "lifecycle": "Životní cyklus",
+            "department": "Vlastnický útvar",
+            "owner": "Vlastník procesu",
+            "l0": "L0 oblast",
+            "criticality": "Třída kritičnosti",
+            "cif": "Stav CIF",
+            "completeness": "Úplnost",
+            "licensed_activity": "Licencovaná činnost",
+            "bcm": "BCM vazba",
+            "dr_result": "Výsledek DR testu",
+            "mtpd": "Rozsah MTPD",
+            "linked_asset": "Propojené aktivum",
+            "linked_vendor": "Propojený dodavatel",
+            "linked_risk": "Propojené riziko",
+            "search_options": "Hledat ve viditelných možnostech...",
+            "search_options_for": "Hledat možnosti {{label}}",
+            "no_options": "Žádné viditelné možnosti",
+            "minimum": "Minimum pro {{label}}",
+            "maximum": "Maximum pro {{label}}",
+            "min": "Minimum",
+            "max": "Maximum"
+        },
+        "lifecycle": {
+            "active": "Aktivní",
+            "archived": "Archivované",
+            "all": "Všechny záznamy"
+        },
+        "boolean": {
+            "any": "Libovolné",
+            "yes": "Ano",
+            "no": "Ne"
+        },
+        "groups": {
+            "unassigned": "Nepřiřazeno",
+            "unclassified": "Bez klasifikace",
+            "no_linked_vendor": "Bez propojeného dodavatele"
+        },
+        "export": {
+            "title": "Export odpovídajících procesů"
+        }
+    },
+    "links": {
+        "add": "Propojit",
+        "remove": "Odebrat vazbu",
+        "errors": {
+            "mutation_failed": "Aktualizace vazby se nezdařila."
+        },
+        "vendors": {
+            "title": "Přímé závislosti na dodavatelích",
+            "empty": "Zatím žádní propojení dodavatelé.",
+            "select_placeholder": "Vyberte dodavatele...",
+            "description": "Popis přímé služby",
+            "no_metadata": "Bez detailů vazby"
+        }
+    }
+}

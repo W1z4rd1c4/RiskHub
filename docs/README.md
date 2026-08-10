@@ -1,7 +1,7 @@
 # RiskHub Documentation Index
 
-> **Version**: 1.5
-> **Last Updated**: 2026-04-25
+> **Version**: 1.6
+> **Last Updated**: 2026-07-31
 > **Audience**: Product, Engineering, QA, Operations
 
 This file is the primary documentation index for `docs/`.
@@ -22,6 +22,7 @@ This file is the primary documentation index for `docs/`.
 | Security | Security policy, reports, and closure records | [`docs/security/README.md`](./security/README.md) |
 | Architecture decisions | Accepted architecture decision records | [`docs/adr/README.md`](./adr/README.md) |
 | Audits | Point-in-time audit records for specific integrations or operating areas | [`docs/audits/README.md`](./audits/README.md) |
+| ICT Register (DORA) | ICT operational-resilience register build: specs, grilling captures, UX audit + remediation | [`docs/dora-ict-register/README.md`](./dora-ict-register/README.md) |
 | Deployment | Runtime and production deployment guidance | [`docs/deployment/README.md`](./deployment/README.md) |
 | Reference | Reference inventories and legacy path maps | [`docs/reference/README.md`](./reference/README.md) |
 | Quality | Lint/debt baseline and ratchet references | [`docs/quality/README.md`](./quality/README.md) |
@@ -54,6 +55,12 @@ Current workflow truth for directory lifecycle, break-glass enablement, cross-en
 - [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
 - [`docs/user/README.md`](./user/README.md) and [`docs/user-cs/README.md`](./user-cs/README.md)
 - [`docs/admin/README.md`](./admin/README.md) and [`docs/admin-cs/README.md`](./admin-cs/README.md)
+
+The bilingual ICT governance manuals are indexed from those four reader
+entrypoints. Dedicated Process, Asset, and Threat manuals are available for
+users and operational administrators; Vendor, Department, Approvals,
+Notifications, Risk Hub, and Getting Started guidance stays in the matching
+audience library.
 
 In-app user documentation is intentionally written as a user manual. Keep implementation details, source paths, and maintainer references in frontmatter, admin runbooks, or engineering docs rather than in user-facing manual body text.
 

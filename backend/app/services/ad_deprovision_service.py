@@ -4,15 +4,19 @@ from typing import Any
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.activity_logger import log_activity
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
 from app.services._directory_identity import DirectoryIdentityConflictError, apply_directory_profile
 from app.services._org_chart import acquire_org_chart_lock, clear_manager_references_for_inactive_user
 from app.services._orphaned_items import flag_orphaned_items
+from app.services._process_owner_lock import acquire_process_owner_identity_lock
+from app.services._threat_stewardship_lock import acquire_threat_steward_identity_lock
 from app.services.directory_provider_service import (
     DirectoryProviderError,
     DirectoryProviderService,
@@ -258,6 +262,17 @@ class ADDeprovisionService:
         sync_status: str,
         deprovision_reason: str,
     ) -> dict[str, Any]:
+        await acquire_threat_steward_identity_lock(db, user_id=user.id)
+        await acquire_process_owner_identity_lock(db, user_id=user.id)
+        await acquire_asset_owner_identity_lock(db, user_id=user.id)
+        user = (
+            await db.execute(
+                select(User)
+                .options(selectinload(User.role), selectinload(User.department))
+                .where(User.id == user.id)
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one()
         now = utc_now()
         user.directory_sync_status = sync_status
         user.deprovisioned_at = user.deprovisioned_at or now

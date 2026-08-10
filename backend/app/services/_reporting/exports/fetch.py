@@ -168,9 +168,16 @@ async def _fetch_issues_for_export(
         selectinload(Issue.department),
         selectinload(Issue.owner),
         selectinload(Issue.links).selectinload(IssueLink.risk),
-        selectinload(Issue.links).selectinload(IssueLink.control),
-        selectinload(Issue.links).selectinload(IssueLink.execution).selectinload(ControlExecution.control),
-        selectinload(Issue.links).selectinload(IssueLink.kri),
+        selectinload(Issue.links)
+        .selectinload(IssueLink.control)
+        .selectinload(Control.risk_links)
+        .selectinload(ControlRiskLink.risk),
+        selectinload(Issue.links)
+        .selectinload(IssueLink.execution)
+        .selectinload(ControlExecution.control)
+        .selectinload(Control.risk_links)
+        .selectinload(ControlRiskLink.risk),
+        selectinload(Issue.links).selectinload(IssueLink.kri).selectinload(KeyRiskIndicator.risk),
         selectinload(Issue.links).selectinload(IssueLink.vendor),
         selectinload(Issue.remediation_plan).selectinload(IssueRemediationPlan.owner),
         selectinload(Issue.exceptions),

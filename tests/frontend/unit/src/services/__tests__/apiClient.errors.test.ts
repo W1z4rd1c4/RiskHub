@@ -117,4 +117,30 @@ describe('apiClient error helpers', () => {
             rawMessage: 'upstream unavailable',
         });
     });
+
+    it.each(['code', 'error_code'] as const)(
+        'extracts nested FastAPI detail.%s errors and their safe message',
+        async (codeField) => {
+            vi.stubGlobal(
+                'fetch',
+                vi.fn().mockResolvedValue(
+                    new Response(JSON.stringify({
+                        detail: {
+                            [codeField]: 'process_pending_mutation',
+                            message: 'A governed Process change is already pending',
+                        },
+                    }), {
+                        status: 409,
+                        headers: { 'Content-Type': 'application/json' },
+                    }),
+                ),
+            );
+
+            await expect(apiClient.get('/nested-fastapi-error', { schema: okSchema })).rejects.toMatchObject({
+                status: 409,
+                code: 'process_pending_mutation',
+                rawMessage: 'A governed Process change is already pending',
+            });
+        },
+    );
 });

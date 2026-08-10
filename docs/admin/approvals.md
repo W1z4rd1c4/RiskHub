@@ -1,7 +1,7 @@
 ---
 title: Approvals Support (Admin Runbook)
-version: "2.1"
-last_updated: "2026-04-25"
+version: "2.2"
+last_updated: "2026-07-31"
 audience: admin
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + backend/app/api/v1/endpoints/approvals/* + backend/app/core/activity_logger.py"
 summary: "Admin support runbook for approvals incidents: stuck requests, transition failures, missing notifications, and evidence-backed escalation."
@@ -24,6 +24,12 @@ Approvals are the system’s guardrail for governance-sensitive changes. They ex
 - “rollback” can be handled through a new controlled change rather than manual edits
 
 As a platform admin, your job is to keep the workflow **reliable and legible**. You are not the business decision-maker by default.
+
+The governed ICT workflow has four fixed scenarios:
+`protected_process_edit`, `protected_asset_edit`, `protected_vendor_edit`, and
+`accountability_reassignment`. Use those exact identifiers when correlating a
+request with Risk Hub configuration. A scenario is separate from request
+status and resource lifecycle.
 
 An approvals incident is usually one of:
 
@@ -176,6 +182,16 @@ If you cannot explain the rollback in one paragraph, stop and escalate. Improvis
 
 ## Troubleshooting
 
+### Protected Vendor request remains pending
+
+Confirm that `protected_vendor_edit` is enabled and retains at least one active
+independent Risk Manager or CRO who is not the requester. Inspect the immutable
+Vendor proposal in Approvals/My Requests: direct, Contract, Sub-outsourcing,
+link, and Composite requests must show safe business labels and the Vendor tier
+impact without raw IDs. The approved Vendor is expected to remain unchanged
+while pending. Cancel through the requester capability or resolve the request;
+do not bypass the impact lock with a direct database update.
+
 ### Request appears frozen in `pending`
 
 Checks:
@@ -265,6 +281,15 @@ Handoff package:
 - what failed (action + error)
 - timestamps + request IDs (if available)
 - what you verified and what remains unknown
+
+### Accountability reassignment remains pending
+
+Confirm the `accountability_reassignment` scenario has an active independent
+Risk Manager or CRO. The requester should see exactly one My Requests row and
+the approved resource values must remain unchanged. For orphan resolution, the
+Governance row and ordinary-edit lock also remain until approval. Cancel,
+reject, or stale expiry preserves current truth; do not clear the orphan or
+write the proposed owner directly.
 
 ## Related Documentation
 

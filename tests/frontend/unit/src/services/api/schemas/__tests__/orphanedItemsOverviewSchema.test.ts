@@ -9,6 +9,10 @@ function overviewPayload(items: OverviewItem[]) {
             risk_count: items.filter((i) => i.item_type === 'risk').length,
             control_count: items.filter((i) => i.item_type === 'control').length,
             kri_count: items.filter((i) => i.item_type === 'kri').length,
+            threat_count: items.filter((i) => i.item_type === 'threat').length,
+            process_count: items.filter((i) => i.item_type === 'process').length,
+            asset_count: items.filter((i) => i.item_type === 'asset').length,
+            vendor_count: items.filter((i) => i.item_type === 'vendor').length,
             total_count: items.length,
         },
         items,
@@ -30,6 +34,7 @@ function orphanItem(overrides: OverviewItem): OverviewItem {
         previous_owner_email: 'admin@riskhub.local',
         orphaned_at: '2026-03-24T08:52:00+00:00',
         status: 'pending',
+        request_reason_required: false,
         capabilities: {
             can_resolve: true,
             can_view_detail: true,
@@ -68,6 +73,43 @@ describe('orphanedItemsOverviewSchema', () => {
         const payload = overviewPayload([orphanItem({ item_type: 'risk', id: 'not-a-number' })]);
 
         const result = orphanedItemsOverviewSchema.safeParse(payload);
+
+        expect(result.success).toBe(false);
+    });
+
+    it('decodes Process and Threat orphans returned by the backend overview', () => {
+        const payload = overviewPayload([
+            orphanItem({
+                item_type: 'process',
+                item_id: 74,
+                item_name: 'Claims handling',
+                item_identifier: 'F74',
+                request_reason_required: true,
+            }),
+            orphanItem({
+                item_type: 'threat',
+                item_id: 73,
+                item_name: 'Ransomware',
+                item_identifier: null,
+                request_reason_required: false,
+            }),
+        ]);
+
+        const result = orphanedItemsOverviewSchema.safeParse(payload);
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data.stats.process_count).toBe(1);
+            expect(result.data.items.map((item) => item.item_type)).toEqual(['process', 'threat']);
+            expect(result.data.items.map((item) => item.request_reason_required)).toEqual([true, false]);
+        }
+    });
+
+    it('rejects an orphan row without the authoritative request-reason decision', () => {
+        const item = orphanItem({ item_type: 'process' });
+        delete item.request_reason_required;
+
+        const result = orphanedItemsOverviewSchema.safeParse(overviewPayload([item]));
 
         expect(result.success).toBe(false);
     });

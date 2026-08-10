@@ -1,0 +1,7 @@
+{
+    "desktop_only": {
+        "title": "RiskHub je optimalizován pro počítače",
+        "body": "RiskHub je navržen a podporován na obrazovkách o šířce alespoň 1024 pixelů. Na menších obrazovkách se některá zobrazení nemusí zobrazit podle očekávání.",
+        "accessible_alternative": "Pokud při této velikosti obrazovky potřebujete přístupnou alternativu, obraťte se na správce RiskHubu, který může zajistit podporu."
+    }
+}

@@ -3,6 +3,20 @@ import { E2E_APPROVALS } from '../fixtures/e2e-data';
 import { ApprovalsPage } from '../pages/ApprovalsPage';
 
 test.describe('Approval Status Flow (Deterministic)', () => {
+    test('action type comes from the action badge, not request-reason prose', async ({ page }) => {
+        await page.setContent(`
+            <div class="space-y-4">
+                <article class="glass-card">
+                    <span class="rounded border">Create</span>
+                    <p>Re: Please edit this request after review.</p>
+                </article>
+            </div>
+        `);
+
+        const approvalsPage = new ApprovalsPage(page);
+        expect(await approvalsPage.getActionType(0)).toBe('create');
+    });
+
     test('Risk Manager sees seeded pending approval requests', async ({ riskManagerPage }) => {
         const approvalsPage = new ApprovalsPage(riskManagerPage);
         await approvalsPage.navigate();

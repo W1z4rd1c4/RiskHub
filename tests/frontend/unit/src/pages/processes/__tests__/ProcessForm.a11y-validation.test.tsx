@@ -1,0 +1,252 @@
+/**
+ * FR-P2b-1/2/3/5 (spec N11–N13, findings C1/C4/C5, S11) — ProcessForm migrated
+ * to `Field` with native `required` + `noValidate` + per-field JS validation.
+ * The two previously-collapsed identity errors (l0_area, l1_process) are now
+ * per-field, and focus moves to the first invalid control in DOM order.
+ */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import * as axe from 'axe-core';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mockGetClosedLists = vi.fn();
+const mockGetProcessOwners = vi.fn();
+const mockGetProcessDepartments = vi.fn();
+const mockCreateProcess = vi.fn();
+const mockUpdateProcess = vi.fn();
+const accountabilityScenario = vi.hoisted(() => ({
+    enabled: false,
+    error: false,
+    loading: false,
+}));
+
+vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
+    useAccountabilityReassignmentScenario: () => ({
+        isEnabled: accountabilityScenario.enabled,
+        isError: accountabilityScenario.error,
+        isLoading: accountabilityScenario.loading,
+        requiresApproval: () => accountabilityScenario.enabled,
+    }),
+}));
+
+vi.mock('@/services/processApi', () => ({
+    processApi: {
+        getClosedLists: (...args: unknown[]) => mockGetClosedLists(...args),
+        createProcess: (...args: unknown[]) => mockCreateProcess(...args),
+        updateProcess: (...args: unknown[]) => mockUpdateProcess(...args),
+    },
+}));
+vi.mock('@/services/lookupApi', () => ({
+    lookupApi: {
+        getProcessOwners: (...args: unknown[]) => mockGetProcessOwners(...args),
+        getProcessDepartments: (...args: unknown[]) => mockGetProcessDepartments(...args),
+    },
+}));
+vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
+
+import { ProcessForm } from '@/pages/processes/ProcessForm';
+import i18n from '@/i18n';
+
+const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+
+async function expectNoAxeViolations(node: Element): Promise<void> {
+    const results = await axe.run(node, {
+        runOnly: { type: 'tag', values: AXE_TAGS },
+        rules: { 'color-contrast': { enabled: false } },
+    });
+    const summary = results.violations.map((v) => `${v.id} (${v.nodes.length}): ${v.help}`).join('\n');
+    expect(summary, summary).toBe('');
+}
+
+function renderForm() {
+    const onSaved = vi.fn();
+    const onApprovalQueued = vi.fn();
+    const client = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const utils = render(
+        <QueryClientProvider client={client}>
+            <MemoryRouter>
+                <ProcessForm onSaved={onSaved} onApprovalQueued={onApprovalQueued} />
+            </MemoryRouter>
+        </QueryClientProvider>,
+    );
+    return { onSaved, onApprovalQueued, ...utils };
+}
+
+const l0Label = () => i18n.t('processes:form.l0_area');
+const l1Label = () => i18n.t('processes:form.l1_process');
+
+beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetClosedLists.mockResolvedValue({});
+    mockGetProcessOwners.mockResolvedValue([{
+        id: 17,
+        name: 'Clara Owner',
+        email: 'clara@example.test',
+        role_name: 'user',
+        department_id: 5,
+        department_name: 'Operations',
+    }]);
+    mockGetProcessDepartments.mockResolvedValue([
+        { id: 5, name: 'Operations', code: 'OPS' },
+        { id: 9, name: 'Finance', code: 'FIN' },
+    ]);
+});
+
+afterEach(async () => {
+    await i18n.changeLanguage('en');
+});
+
+describe('ProcessForm — Field migration + per-field validation (#59)', () => {
+    it('associates both required identity controls with distinct labels + aria-required', () => {
+        renderForm();
+        expect(screen.getByRole('textbox', { name: l0Label() })).toHaveAttribute('aria-required', 'true');
+        expect(screen.getByRole('textbox', { name: l1Label() })).toHaveAttribute('aria-required', 'true');
+    });
+
+    it('on empty submit: both fields are aria-invalid with per-field errors, focus on the first (l0)', async () => {
+        const user = userEvent.setup();
+        renderForm();
+
+        await user.click(screen.getByTestId('process-form-submit'));
+
+        const l0 = screen.getByRole('textbox', { name: l0Label() });
+        const l1 = screen.getByRole('textbox', { name: l1Label() });
+        expect(l0).toHaveAttribute('aria-invalid', 'true');
+        expect(l1).toHaveAttribute('aria-invalid', 'true');
+        expect(l0).toHaveFocus();
+        expect(screen.getByText(i18n.t('processes:form.errors.l0_area_required'))).toBeInTheDocument();
+        expect(screen.getByText(i18n.t('processes:form.errors.l1_process_required'))).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    it('moves focus to l1 when only l0 is filled', async () => {
+        const user = userEvent.setup();
+        renderForm();
+
+        await user.type(screen.getByRole('textbox', { name: l0Label() }), 'Payments');
+        await user.click(screen.getByTestId('process-form-submit'));
+
+        const l1 = screen.getByRole('textbox', { name: l1Label() });
+        expect(l1).toHaveAttribute('aria-invalid', 'true');
+        expect(l1).toHaveFocus();
+        expect(mockCreateProcess).not.toHaveBeenCalled();
+    });
+
+    it('submits successfully when both identity fields are filled', async () => {
+        const user = userEvent.setup();
+        mockCreateProcess.mockResolvedValue({ id: 3 });
+        const { onSaved } = renderForm();
+
+        await user.type(screen.getByRole('textbox', { name: l0Label() }), 'Payments');
+        await user.type(screen.getByRole('textbox', { name: l1Label() }), 'Settlement');
+        await user.click(screen.getByTestId('process-form-owner'));
+        await user.click(await screen.findByRole('option', { name: /Clara Owner/ }));
+        await user.click(screen.getByTestId('process-form-submit'));
+
+        await waitFor(() => expect(mockCreateProcess).toHaveBeenCalledTimes(1));
+        expect(mockCreateProcess).toHaveBeenCalledWith(expect.objectContaining({
+            process_owner_user_id: 17,
+            owning_department_id: 5,
+        }));
+        expect(onSaved).toHaveBeenCalledTimes(1);
+    });
+
+    it('routes protected creation to the approval callback without an operational Process id', async () => {
+        mockCreateProcess.mockResolvedValue({
+            status: 'approval_required',
+            message: 'Submitted',
+            approval_id: 85,
+            action_type: 'create',
+            pending_fields: ['l1_process'],
+            proposal_id: 'proposal-create-85',
+            proposal_version: 1,
+        });
+        const { onSaved, onApprovalQueued } = renderForm();
+
+        fireEvent.change(screen.getByRole('textbox', { name: l0Label() }), {
+            target: { value: 'Operations' },
+        });
+        fireEvent.change(screen.getByRole('textbox', { name: l1Label() }), {
+            target: { value: 'Critical settlement' },
+        });
+        const owner = screen.getByTestId('process-form-owner');
+        await waitFor(() => expect(owner).toBeEnabled());
+        fireEvent.click(owner);
+        fireEvent.click(await screen.findByRole('option', { name: /Clara Owner/ }));
+        fireEvent.change(screen.getByTestId('process-form-request-reason'), {
+            target: { value: 'New critical function' },
+        });
+        fireEvent.click(screen.getByTestId('process-form-submit'));
+
+        await waitFor(() => expect(onApprovalQueued).toHaveBeenCalledWith(expect.objectContaining({
+            approval_id: 85,
+            action_type: 'create',
+        })));
+        expect(mockCreateProcess).toHaveBeenCalledWith(expect.objectContaining({
+            request_reason: 'New critical function',
+        }));
+        expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it('never overwrites an independently selected Department when the owner changes', async () => {
+        mockCreateProcess.mockResolvedValue({ id: 3 });
+        renderForm();
+
+        fireEvent.change(screen.getByRole('textbox', { name: l0Label() }), {
+            target: { value: 'Payments' },
+        });
+        fireEvent.change(screen.getByRole('textbox', { name: l1Label() }), {
+            target: { value: 'Settlement' },
+        });
+        const department = screen.getByTestId('process-form-owner-department');
+        await waitFor(() => expect(department).toBeEnabled());
+        fireEvent.click(department);
+        fireEvent.click(await screen.findByRole('option', { name: /Finance/ }));
+        const owner = screen.getByTestId('process-form-owner');
+        await waitFor(() => expect(owner).toBeEnabled());
+        fireEvent.click(owner);
+        fireEvent.click(await screen.findByRole('option', { name: /Clara Owner/ }));
+        fireEvent.click(screen.getByTestId('process-form-submit'));
+
+        await waitFor(() => expect(mockCreateProcess).toHaveBeenCalledWith(expect.objectContaining({
+            process_owner_user_id: 17,
+            owning_department_id: 9,
+        })));
+    });
+
+    it('surfaces the save-failed banner when the request rejects', async () => {
+        const user = userEvent.setup();
+        mockCreateProcess.mockRejectedValue(new Error('boom'));
+        renderForm();
+
+        await user.type(screen.getByRole('textbox', { name: l0Label() }), 'Payments');
+        await user.type(screen.getByRole('textbox', { name: l1Label() }), 'Settlement');
+        await user.click(screen.getByTestId('process-form-owner'));
+        await user.click(await screen.findByRole('option', { name: /Clara Owner/ }));
+        await user.click(screen.getByTestId('process-form-submit'));
+
+        expect(await screen.findByText(i18n.t('processes:form.errors.save_failed'))).toBeInTheDocument();
+    });
+
+    it('reads .isError on the closed-lists fetch with a retry affordance', async () => {
+        mockGetClosedLists.mockRejectedValue(new Error('down'));
+        renderForm();
+
+        expect(await screen.findByText(i18n.t('processes:form.errors.lists_failed'))).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: i18n.t('processes:actions.retry') })).toBeInTheDocument();
+    });
+
+    it('has no axe violations in the validation-error state (N10)', async () => {
+        const user = userEvent.setup();
+        const { container } = renderForm();
+
+        await user.click(screen.getByTestId('process-form-submit'));
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+
+        await expectNoAxeViolations(container);
+    });
+});

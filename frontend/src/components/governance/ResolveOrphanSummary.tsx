@@ -1,6 +1,7 @@
-import { Calendar, ClipboardList, ShieldAlert, User } from 'lucide-react';
+import { Calendar, ClipboardList, Database, ShieldAlert, User, Workflow } from 'lucide-react';
 
 import { formatRelativeDateValue } from '@/i18n/formatters';
+import { useTranslation } from '@/i18n/hooks';
 import type { OrphanedItem } from '@/types/orphanedItem';
 
 interface ResolveOrphanSummaryProps {
@@ -9,7 +10,14 @@ interface ResolveOrphanSummaryProps {
 }
 
 export function ResolveOrphanSummary({ language, orphan }: ResolveOrphanSummaryProps) {
-    const Icon = orphan.item_type === 'risk' ? ShieldAlert : ClipboardList;
+    const { t } = useTranslation('admin');
+    const Icon = orphan.item_type === 'risk'
+        ? ShieldAlert
+        : orphan.item_type === 'asset'
+            ? Database
+        : orphan.item_type === 'process'
+            ? Workflow
+            : ClipboardList;
     const typeColor = orphan.item_type === 'risk' ? 'text-rose-400' : 'text-accent';
     const typeBg = orphan.item_type === 'risk' ? 'bg-rose-500/10' : 'bg-accent/10';
 
@@ -21,12 +29,15 @@ export function ResolveOrphanSummary({ language, orphan }: ResolveOrphanSummaryP
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-3 mb-1">
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${typeBg} ${typeColor}`}>
-                        {orphan.item_type}
+                        {t(`governance.type_${orphan.item_type}`)}
                     </span>
                 </div>
                 <h4 className="text-lg font-bold text-white mb-3 truncate">
                     {orphan.item_name}
                 </h4>
+                {(orphan.item_type === 'asset' || orphan.item_type === 'vendor') && orphan.responsibility_role ? (
+                    <p className="mb-3 text-xs font-bold text-amber-300">{t(`governance.responsibility_role.${orphan.responsibility_role}`)}</p>
+                ) : null}
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                         <User className="h-3.5 w-3.5 text-slate-500" />

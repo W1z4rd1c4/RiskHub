@@ -15,7 +15,7 @@ async function ensureAdminAccess(page: Page): Promise<void> {
         await page.goto('/admin');
         await waitForDataLoad(page);
         await expect(page).toHaveURL(/\/admin/, { timeout: 15000 });
-        await expect(page.locator('h1')).toHaveText(/Admin Console|Administrace/i, { timeout: 15000 });
+        await expect(page.locator('main h1')).toHaveText(/Admin Console|Administrace/i, { timeout: 15000 });
     }).toPass({ timeout: 90000 });
 }
 
@@ -52,7 +52,7 @@ test.describe('Admin Console', () => {
         test('should display admin navigation tabs', async ({ page }) => {
             await page.goto('/admin');
             await waitForDataLoad(page);
-            await expect(page.locator('h1')).toHaveText(/Admin Console|Administrace/i, { timeout: 15000 });
+            await expect(page.locator('main h1')).toHaveText(/Admin Console|Administrace/i, { timeout: 15000 });
 
             // Check that core admin tabs are present (locale-agnostic EN/CS labels)
             await expect(page.getByRole('button', { name: /System Health|Stav systému/i })).toBeVisible({ timeout: 15000 });
@@ -106,7 +106,7 @@ test.describe('Admin Console', () => {
             await page.goto('/admin');
             await waitForDataLoad(page);
             await expect(page).toHaveURL(/\/admin/, { timeout: 15000 });
-            await expect(page.locator('h1')).toHaveText(/Admin Console|Administrace/i, { timeout: 15000 });
+            await expect(page.locator('main h1')).toHaveText(/Admin Console|Administrace/i, { timeout: 15000 });
 
             await page.getByRole('button', { name: /Audit Logs|Auditní logy/i }).click();
 

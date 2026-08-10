@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/auth.fixture';
-import { E2E_RISKS } from './fixtures/e2e-data';
+import { readFile } from 'node:fs/promises';
+import { E2E_RISKS, E2E_VENDORS } from './fixtures/e2e-data';
 import { ensureRiskStatus, ensureVendorArchived, getRiskByCode, linkVendorToRisk } from './helpers/api-auth';
 import { RisksPage } from './pages/RisksPage';
 import { waitForDataLoad, waitForTableRowByText } from './helpers/wait';
@@ -11,15 +12,36 @@ function todayLocalIso(): string {
 }
 
 test.describe('Risk Management (Deterministic)', () => {
-    test('Single export button opens modal and exports selected format', async ({ riskManagerPage }) => {
+    test('Export dialog explicitly produces a mature point-in-time snapshot', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
-        await risksPage.navigate();
+        await Promise.all([
+            riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'GET'
+                && new URL(response.url()).pathname === '/api/v1/risks'
+                && response.status() === 200
+            )),
+            risksPage.navigate(),
+        ]);
 
         await expect(riskManagerPage.getByTestId('risks-export-button')).toHaveCount(1);
         await risksPage.openExportDialog();
-        await expect(risksPage.exportDateInput).toHaveValue(todayLocalIso());
+        await expect(risksPage.currentViewExportPurpose).toBeChecked();
+        await expect(risksPage.exportDateInput).not.toBeVisible();
+        await risksPage.selectPointInTimeExport();
+        const asOfDate = todayLocalIso();
+        await expect(risksPage.exportDateInput).toHaveValue(asOfDate);
         // Export dialog is CSV-only; format chooser is intentionally absent.
-        await risksPage.submitExport('csv');
+        const { response, download } = await risksPage.submitPointInTimeExport('csv');
+        const exportUrl = new URL(response.url());
+        expect(exportUrl.pathname).toBe('/api/v1/reports/risks/export');
+        expect(exportUrl.searchParams.get('format')).toBe('csv');
+        expect(exportUrl.searchParams.get('as_of_date')).toBe(asOfDate);
+        expect(response.ok()).toBe(true);
+        expect(response.headers()['content-type']).toContain('text/csv');
+        const downloadPath = await download.path();
+        expect(downloadPath).not.toBeNull();
+        const [header] = (await readFile(downloadPath!, 'utf8')).split(/\r?\n/, 1);
+        expect(header).toBe('Risk ID,Name,Process,Category,Type,Gross Score,Net Score,Status,Priority,Owner,Department,Controls,KRIs');
         await expect(risksPage.exportDialog).not.toBeVisible();
     });
 
@@ -36,7 +58,7 @@ test.describe('Risk Management (Deterministic)', () => {
         expect(rowVisible).toBe(true);
     });
 
-    test('Archived risk visibility follows archived status filter', async ({ riskManagerPage }) => {
+    test('Archived risk visibility follows archived lifecycle filter', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
         await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
@@ -94,7 +116,7 @@ test.describe('Risk Management (Deterministic)', () => {
     });
 
     test('Risk register groups linked risks by vendor', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorArchived('E2E-VREG-001', false);
+        const vendorId = await ensureVendorArchived(E2E_VENDORS.NONPROTECTED_DIRECT.registration_id, false);
         await ensureRiskStatus(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code, 'active');
         const risk = await getRiskByCode(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code);
         expect(risk).not.toBeNull();
@@ -105,7 +127,7 @@ test.describe('Risk Management (Deterministic)', () => {
         await risksPage.search(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name);
 
         await riskManagerPage.getByRole('button', { name: /By Vendor|Podle dodavatele/i }).click();
-        await riskManagerPage.getByRole('button', { name: /E2E-VENDOR-001 Claims Cloud Platform/i }).click();
+        await riskManagerPage.getByRole('button', { name: E2E_VENDORS.NONPROTECTED_DIRECT.name }).click();
 
         await expect(riskManagerPage.getByText(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name).first()).toBeVisible({
             timeout: 15000,

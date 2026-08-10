@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-05-25
+**Analysis Date:** 2026-07-18
 
 ## Test Stack Overview
 
@@ -55,6 +55,7 @@
 - E2E workflow provisions Postgres service, runs backend + Playwright chromium suite (`.github/workflows/e2e.yml`)
 - Dedicated backend Postgres workflow runs `make -f scripts/Makefile test-postgres-ci` as a required PR signal for schema-sensitive behavior plus the named DB-sensitive regression pack (`.github/workflows/backend-postgres.yml`)
 - Frontend Vitest is a blocking PR signal in the lint workflow (`.github/workflows/lint.yml`)
+- Normal pull-request gates checkout the exact `pull_request.head.sha`; the separate `PR Merge Result Build` job builds the `github.sha` synthetic merge result.
 - Lint workflow enforces frontend debt/dead-code/no-inline-style gates with machine-readable validators, backend Ruff hard gate, backend suppression budget, docs topology consistency, and production contract doc parity (`.github/workflows/lint.yml`)
 - Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
 - Security workflow also runs nightly non-blocking Redis resilience integration checks (`redis_integration`) (`.github/workflows/security.yml`)
@@ -66,6 +67,7 @@
 - Public local/demo install flows: `./scripts/install.sh demo`, `./scripts/install.sh demo --reset test`, and `./scripts/install.sh dev`
 - Public production install/lifecycle flows: `./scripts/install.sh production --target docker|linux`, `./scripts/install.sh upgrade --target docker|linux`, `./scripts/install.sh verify --mode production --target docker|linux --config PATH --secret-dir PATH`, `./scripts/install.sh status --mode production --target docker|linux [--json]`, `./scripts/install.sh logs --mode production --target docker|linux [--tail N] [--follow]`, and `./scripts/install.sh doctor --mode production --target docker|linux [--repair] [--deep] [--json]`
 - Backend tests: `make -f scripts/Makefile test` or `cd backend && pytest -v`
+- Backend ICT Register DQ bounded reads: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_ict_register_dq.py ../tests/backend/pytest/test_rate_limit_components.py ../tests/backend/pytest/test_rate_limit_redis_resilience.py`
 - Backend lint + suppression budget: `make -f scripts/Makefile lint-backend`
 - Backend suppression budget only: `make -f scripts/Makefile quality-suppression-budget`
 - Backend Postgres-sensitive tests: `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test make -f scripts/Makefile test-postgres-ci`
@@ -76,6 +78,10 @@
 - Backend deadline/notification scheduler: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_deadline_notifications.py ../tests/backend/pytest/test_kri_deadline_service.py ../tests/backend/pytest/test_issue_deadline_service.py ../tests/backend/pytest/api/v1/test_risk_questionnaires_notifications.py ../tests/backend/pytest/test_scheduler_runtime.py`
 - Backend report export scope/as-of: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_reports_rbac.py ../tests/backend/pytest/api/v1/test_reports_audit.py ../tests/backend/pytest/api/v1/test_reports_export_pipeline.py ../tests/backend/pytest/api/v1/test_reports_issues.py ../tests/backend/pytest/test_vendor_reports.py`
 - Backend vendor governance/reports: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_vendors.py ../tests/backend/pytest/test_vendor_reports.py ../tests/backend/pytest/test_vendor_links.py`
+- Backend governed Process mutations: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_governed_mutation_models.py ../tests/backend/pytest/test_governed_mutation_audit.py ../tests/backend/pytest/test_governed_mutation_outbox.py ../tests/backend/pytest/test_ict_register_processes.py ../tests/backend/pytest/test_notification_preferences.py ../tests/backend/pytest/test_notification_service.py`
+- Backend governed Process extended/relationship SQLite contract: `cd backend && ./venv/bin/pytest -q -m "not postgres" ../tests/backend/pytest/test_governed_process_extended.py ../tests/backend/pytest/test_governed_process_relationships.py`
+- Backend governed Process extended/relationship Postgres contract: `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test ./venv/bin/pytest -q -m postgres ../tests/backend/pytest/test_governed_process_extended.py ../tests/backend/pytest/test_governed_process_relationships.py`
+- Backend Vendor shared register: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_vendor_register_framework.py ../tests/backend/pytest/test_vendors.py ../tests/backend/pytest/test_ict_register_vendor_sub_outsourcing.py`
 - Backend vendor link module: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_vendor_link_workflow_module.py ../tests/backend/pytest/test_vendor_links.py`
 - Backend control execution/linking: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_executions.py ../tests/backend/pytest/test_controls.py ../tests/backend/pytest/test_cross_department_access.py`
 - Backend orphan governance: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_admin_orphans.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py ../tests/backend/pytest/test_user_deactivation_orphans.py`
@@ -91,7 +97,12 @@
 - Orphan governance regressions: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_admin_orphans.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py ../tests/backend/pytest/test_user_deactivation_orphans.py` and `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/governance/OrphanedItemsTable.test.tsx ../tests/frontend/unit/src/pages/__tests__/GovernancePage.overview.test.tsx`
 - Frontend targeted KRI routing regression: `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`
 - Frontend targeted vendor grouped-view regression: `cd frontend && npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx`
+- Frontend Vendor shared register: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/vendors/__tests__/VendorRegisterFilterBar.test.tsx ../tests/frontend/unit/src/pages/vendors/__tests__/useVendorsPageState.sharedState.test.tsx ../tests/frontend/unit/src/pages/vendors/__tests__/vendorRegisterConfig.test.ts ../tests/frontend/unit/src/services/vendorApi.collection.test.ts`
+- Frontend Vendor targeted browser: `cd frontend && npx playwright test -c playwright.config.ts --project=ci ../tests/frontend/e2e/vendor-register-framework.spec.ts`
 - Frontend collection state regression: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/shared/collectionPageState.test.ts ../tests/frontend/unit/src/services/__tests__/collectionApi.test.ts`
+- Frontend governed Process mutations: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/approvals/GovernedMutationDiff.test.tsx ../tests/frontend/unit/src/components/riskhub/ProtectedProcessScenario.test.tsx ../tests/frontend/unit/src/components/settings/NotificationSettings.governedApprovals.test.tsx ../tests/frontend/unit/src/pages/approvals/ApprovalList.governedMutation.test.tsx ../tests/frontend/unit/src/pages/processes/ProcessForm.protectedEdit.test.tsx ../tests/frontend/unit/src/pages/processes/ProcessPendingChangePanel.test.tsx ../tests/frontend/unit/src/pages/processes/processProtectedEdit.test.ts ../tests/frontend/unit/src/services/protectedProcessSchemas.test.ts`
+- Frontend governed Process browser flow: `cd frontend && npx playwright test -c playwright.config.ts --project=ci ../tests/frontend/e2e/approval-workflows/governed-process-edit.spec.ts`
+- Frontend governed Process create/relationship browser flows: `cd frontend && npx playwright test -c playwright.config.ts --project=ci ../tests/frontend/e2e/approval-workflows/governed-process-create.spec.ts ../tests/frontend/e2e/approval-workflows/governed-process-relationships.spec.ts`
 - Frontend questionnaire workflow state regression: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/risks/questionnaireWorkflowState.test.ts ../tests/frontend/unit/src/components/risks/__tests__/riskQuestionnaireOpenFlow.test.tsx`
 - Frontend vendor governance/report regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/VendorForm.test.tsx ../tests/frontend/unit/src/components/__tests__/VendorForm.payloads.test.ts ../tests/frontend/unit/src/pages/__tests__/VendorsPage.grouped-views.test.tsx ../tests/frontend/unit/src/pages/__tests__/VendorDetailPage.presentation.test.ts ../tests/frontend/unit/src/services/__tests__/vendorReportApi.test.ts`
 - Frontend control execution/detail regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/ExecutionHistory.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlDetailPage.execution-status.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlsPage.presentation.test.ts`

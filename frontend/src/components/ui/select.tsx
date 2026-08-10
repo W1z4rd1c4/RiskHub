@@ -20,11 +20,12 @@ const SelectTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       "flex h-10 w-full items-center justify-between whitespace-nowrap rounded-xl border px-4 py-2.5 text-sm shadow-sm transition-all",
-      "bg-white/5 border-white/10 text-slate-300",
-      "hover:bg-white/10 hover:border-white/20",
-      "focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50",
+      "border-input bg-input/40 text-foreground",
+      "hover:bg-input/60 hover:border-ring/40",
+      "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
       "disabled:cursor-not-allowed disabled:opacity-50",
-      "data-[placeholder]:text-slate-500",
+      "data-[placeholder]:text-muted-foreground",
+      "aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive",
       "[&>span]:line-clamp-1",
       className
     )}
@@ -82,9 +83,8 @@ const SelectContent = React.forwardRef<
       ref={ref}
       className={cn(
         "themed-select-content relative z-[10050] max-h-[--radix-select-content-available-height] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-xl border shadow-xl backdrop-blur-xl",
-        "bg-slate-900/95 border-white/10 text-slate-200",
+        "border-border bg-popover/95 text-popover-foreground",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
-        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2",
         "data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
@@ -132,8 +132,9 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       "themed-select-item relative flex w-full cursor-pointer select-none items-center rounded-lg py-2 pl-3 pr-8 text-sm outline-none transition-colors",
-      "text-slate-300 hover:bg-white/10 hover:text-white",
-      "focus:bg-white/10 focus:text-white",
+      "text-popover-foreground hover:bg-accent/15 hover:text-foreground",
+      "focus:bg-accent/15 focus:text-foreground",
+      "data-[highlighted]:bg-accent/15 data-[highlighted]:text-foreground",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}

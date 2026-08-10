@@ -1,183 +1,101 @@
-import { Download, Plus, RefreshCw, Search } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Building2, Shield, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
+import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import { ViewSwitcher } from '@/components/tables';
+import type { SortDirection } from '@/components/tables';
+import type { SupportedLanguage } from '@/i18n';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
+import type { KeyRiskIndicator } from '@/types/kri';
 
-import { KRIsTableSection } from '@/pages/kris/KRIsTableSection';
-import { useKrisPageState } from '@/pages/kris/useKrisPageState';
-import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
+import { KriRegisterFilterBar } from './kris/KriRegisterFilterBar';
+import { buildKriColumns } from './kris/kriColumns';
+import { formatKriGroupLabel } from './kris/kriPagePresentation';
+import { KRI_REGISTER_CONFIG, type KriRegisterView } from './kris/kriRegisterConfig';
+import { useKrisPageState } from './kris/useKrisPageState';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 export function KRIsPage() {
     const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const { t } = useTranslation('kris');
-
-    const {
-        capabilities,
-        currentPage,
-        errorKey,
-        fetchKris,
-        groups,
-        handleExport,
-        hasLoadedOnce,
-        isExportDialogOpen,
-        isExporting,
-        isAccessDenied,
-        isLoading,
-        items,
-        limit,
-        openExportDialog,
-        closeExportDialog,
-        restoreKri,
-        search,
-        selectedGroupLabel,
-        selectedGroupValue,
-        setCurrentPage,
-        statusFilter,
-        timelinessFilter,
-        totalCount,
-        totalPages,
-        updateRouteFilters,
-        updateSearch,
-        updateViewMode,
-        viewMode,
-        selectGroup,
-        clearSelectedGroup,
-    } = useKrisPageState({
-        searchParams,
-        setSearchParams,
+    const { t, i18n } = useTranslation(['kris', 'common']);
+    const language = i18n.language as SupportedLanguage;
+    const state = useKrisPageState(language);
+    const columns = buildKriColumns({
+        language,
+        t,
+        onRestore: (kriId, event) => { event.stopPropagation(); void state.restoreKri(kriId); },
     });
+    const views = KRI_REGISTER_CONFIG.views.filter((view) => view.value !== 'vendor' || resolveCapabilityFlag(state.capabilities, 'can_view_vendor_contexts'));
 
-    if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
-    }
-
-    return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-black text-white mb-2">{t('title')}</h2>
-                    <p className="text-slate-500 font-medium tracking-tight">{t('page_subtitle')}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    {resolveCapabilityFlag(capabilities, 'can_export') && (
-                        <button
-                            onClick={openExportDialog}
-                            data-testid="kris-export-button"
-                            disabled={isExporting}
-                            className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <Download className="h-4 w-4" />
-                            {t('actions.export')}
-                        </button>
-                    )}
-                    <button
-                        onClick={() => void fetchKris()}
-                        data-testid="kris-refresh-button"
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
-                        title={t('common:actions.refresh')}
-                        aria-label={t('common:actions.refresh')}
-                    >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
-                    </button>
-                    {resolveCapabilityFlag(capabilities, 'can_create') && (
-                        <button onClick={() => navigate('/kris/new')} data-testid="kris-create-button" className="btn-primary">
-                            <Plus className="h-5 w-5" /> {t('new_kri')}
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            <ViewSwitcher
-                value={viewMode}
-                onChange={updateViewMode}
-                exclude={['flag', ...(resolveCapabilityFlag(capabilities, 'can_view_vendor_contexts') ? [] : ['vendor' as const])]}
-            />
-
-            <div className="glass-card flex flex-col md:flex-row gap-4">
-                <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
-                    <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
-                    <input
-                        data-testid="kris-search-input"
-                        type="text"
-                        placeholder={t('filters.search_placeholder')}
-                        value={search}
-                        onChange={(event) => updateSearch(event.target.value)}
-                        className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
-                    />
-                </div>
-                <div className="flex gap-2 flex-wrap items-center">
-                    <button
-                        onClick={() => updateRouteFilters('all', 'due_soon')}
-                        data-testid="kris-status-filter-due_soon"
-                        className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${timelinessFilter === 'due_soon'
-                            ? 'bg-accent text-white shadow-lg shadow-accent/20'
-                            : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
-                            }`}
-                    >
-                        {t('filters.due_soon')}
-                    </button>
-                    {(['all', ...KRI_MONITORING_FILTER_VALUES, 'archived'] as const).map((option) => (
-                        <button
-                            key={option}
-                            onClick={() => updateRouteFilters(option, null)}
-                            data-testid={`kris-status-filter-${option}`}
-                            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${statusFilter === option && !timelinessFilter
-                                ? 'bg-accent text-white shadow-lg shadow-accent/20'
-                                : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
-                                }`}
-                        >
-                            {option === 'all' || option === 'archived' ? t(`filters.${option}`) : t(`monitoring.${option}`)}
-                        </button>
-                    ))}
-                    <button
-                        onClick={() => {
-                            updateSearch('');
-                            updateRouteFilters('all', null);
-                        }}
-                        data-testid="kris-clear-filters-button"
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
-                        aria-label={t('filters.clear')}
-                    >
-                        <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                </div>
-            </div>
-
-            <KRIsTableSection
-                currentPage={currentPage}
-                errorKey={errorKey}
-                groups={groups}
-                hasLoadedOnce={hasLoadedOnce}
-                isLoading={isLoading}
-                items={items}
-                itemsPerPage={limit}
-                onBackFromGroup={clearSelectedGroup}
-                onPageChange={setCurrentPage}
-                onRestoreKri={restoreKri}
-                onRetry={fetchKris}
-                onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
-                onSelectGroup={selectGroup}
-                selectedGroupLabel={selectedGroupLabel}
-                selectedGroupValue={selectedGroupValue}
-                totalCount={totalCount}
-                totalPages={totalPages}
-                viewMode={viewMode}
-            />
-
-            <ExportDialog
-                isOpen={isExportDialogOpen}
-                onClose={closeExportDialog}
-                onSubmit={handleExport}
-                isSubmitting={isExporting}
-                dataTestId="kris-export-dialog"
-            />
-        </div>
-    );
+    return <RegisterListShell<KeyRiskIndicator, KriRegisterView>
+        accessDeniedState={<ReadAccessDeniedState />}
+        allView="all"
+        title={t('title')}
+        subtitle={t('page_subtitle')}
+        views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
+        view={state.viewMode}
+        onViewChange={state.updateViewMode}
+        canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
+        canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
+        onCreate={() => void navigate('/kris/new')}
+        createLabel={t('new_kri')}
+        exportLabel={t('actions.export')}
+        exportDialog={({ isOpen, onClose }) => <ExportDialog
+            isOpen={isOpen}
+            onClose={onClose}
+            onCurrentViewSubmit={async () => { await state.exportCurrentKris(); onClose(); }}
+            onSubmit={async (payload) => { await state.exportKriSnapshot(payload); onClose(); }}
+            isSubmitting={state.isExporting}
+            dataTestId="kris-export-dialog"
+            title={t('register.export.title')}
+        />}
+        isAccessDenied={state.isAccessDenied}
+        isError={Boolean(state.errorKey)}
+        errorMessage={state.errorKey ? t(state.errorKey) : undefined}
+        isExporting={state.isExporting}
+        isLoading={state.isLoading}
+        items={state.items}
+        columns={columns}
+        table={{
+            keyExtractor: (kri) => kri.id,
+            onRowClick: (kri) => void navigate(`/kris/${kri.id}`),
+            rowHref: (kri) => `/kris/${kri.id}`,
+            rowLabel: (kri) => kri.metric_name,
+            sortKey: state.sortField,
+            sortDirection: state.sortDirection,
+            onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection),
+        }}
+        currentPage={state.currentPage}
+        totalPages={state.totalPages}
+        totalCount={state.totalCount}
+        itemsPerPage={state.limit}
+        onPageChange={state.setCurrentPage}
+        onRetry={() => void state.fetchKris()}
+        emptyMessage={state.hasLoadedOnce ? t('empty_state.no_kris') : t('common:loading.data')}
+        grouping={{
+            groups: state.groups,
+            onBack: state.clearSelectedGroup,
+            onSelectGroup: state.selectGroup,
+            selectedGroupLabel: state.selectedGroupLabel,
+            selectedGroupValue: state.selectedGroupValue,
+            groupLabel: (group) => formatKriGroupLabel(group, {
+                unlinkedVendor: t('grouping.unlinked_vendor'),
+                uncategorized: t('common:fallbacks.not_available'),
+                unknownDepartment: t('common:fallbacks.unassigned'),
+                noProcess: t('common:fallbacks.not_available'),
+                unknownRiskType: t('common:fallbacks.unknown_type'),
+                unknownRisk: t('common:fallbacks.unknown_risk'),
+            }),
+            renderGroupBody: state.viewMode === 'risk' ? (group) => <div className="grid grid-cols-2 gap-y-2 pb-2 border-b border-white/5">
+                <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"><Shield className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_type || '') || t('common:fallbacks.unknown_type')}</span></div>
+                <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"><Building2 className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_department_name || '') || t('common:fallbacks.unassigned')}</span></div>
+                <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"><User className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_owner_name || '') || t('common:fallbacks.no_owner')}</span></div>
+            </div> : undefined,
+        }}
+        testIdPrefix="kris"
+        toolbar={<KriRegisterFilterBar facets={state.facets} filters={state.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchKris()} onSearchChange={state.updateSearch} search={state.search} />}
+    />;
 }
 
 export default KRIsPage;

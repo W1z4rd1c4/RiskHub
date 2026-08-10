@@ -100,6 +100,10 @@ describe('LoginPage auth modes', () => {
         renderWithQuery(<LoginPage />);
 
         await screen.findByRole('button', { name: /system admin/i });
+        expect(screen.getByRole('button', { name: /klára černá/i })).toBeInTheDocument();
+        const grid = screen.getByTestId('demo-persona-grid');
+        expect(grid).toHaveClass('lg:grid-cols-5');
+        expect(grid.children).toHaveLength(10);
     });
 
     it('submits demo login using email payload and keeps 4xx failures on the normal error path', async () => {

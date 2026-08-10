@@ -1,8 +1,8 @@
 """
-Demo Seed Script - Seeds exactly 9 demo users matching the LoginPage configuration.
+Demo Seed Script - Seeds exactly 10 demo users matching the LoginPage configuration.
 
 Creates:
-- 9 users (IDs 1-9) with @riskhub.local emails
+- 10 users with @riskhub.local emails
 - 5 departments (Operations, Finance, IT, Compliance, Risk Management)
 - Roles and permissions
 - Sample risks, controls, and KRIs
@@ -10,7 +10,7 @@ Creates:
 
 import asyncio
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from app.core.config import get_settings
 from app.core.security import get_password_hash
@@ -96,6 +96,14 @@ DEMO_USERS = [
         "access": "department",
         "dept": "IT",
     },
+    {
+        "id": 10,
+        "name": "Klára Černá",
+        "email": "ciso@riskhub.local",
+        "role": "ciso",
+        "access": "global",
+        "dept": "IT",
+    },
 ]
 
 DEPARTMENTS = [
@@ -110,6 +118,7 @@ DEMO_ROLE_ORDER = (
     "admin",
     "cro",
     "risk_manager",
+    "ciso",
     "department_head",
     "employee",
 )
@@ -128,82 +137,128 @@ PERMISSIONS = [dict(PERMISSION_BY_KEY[key]) for key in DEMO_PERMISSION_KEYS]
 async def seed_all():
     async with session_context(get_settings()) as db:
         print("=" * 60)
-        print("🌱 DEMO SEED: Creating 9-user demo environment")
+        print("🌱 DEMO SEED: Creating 10-user demo environment")
         print("=" * 60)
 
-        # Reset sequences
-        await db.execute(text("ALTER SEQUENCE users_id_seq RESTART WITH 1"))
-        await db.execute(text("ALTER SEQUENCE departments_id_seq RESTART WITH 1"))
-        await db.execute(text("ALTER SEQUENCE roles_id_seq RESTART WITH 1"))
-        await db.execute(text("ALTER SEQUENCE permissions_id_seq RESTART WITH 1"))
+        # Align sequences with existing rows so demo inserts start at MAX(id)+1.
+        # On an EMPTY table this yields id 1 (the original intent: demo users
+        # land on IDs 1-10 to match LoginPage), but a blanket `RESTART WITH 1`
+        # collides on a freshly alembic-migrated database where the
+        # permission-sync migrations already inserted RBAC rows (roles /
+        # permissions / role_permissions) and consumed sequence values.
+        for table in ("users", "departments", "roles", "permissions"):
+            await db.execute(
+                text(
+                    f"SELECT setval('{table}_id_seq', COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, false)"
+                )
+            )
 
-        # === 1. CREATE DEPARTMENTS ===
+        # === 1. CREATE DEPARTMENTS (reuse existing by unique code) ===
         print("\n📁 Creating departments...")
+        existing_departments = {
+            dept.code: dept for dept in (await db.execute(select(Department))).scalars().all()
+        }
         dept_map = {}
         for d in DEPARTMENTS:
-            dept = Department(name=d["name"], code=d["code"], is_system=False)
-            db.add(dept)
-            await db.flush()
+            dept = existing_departments.get(d["code"])
+            if dept is None:
+                dept = Department(name=d["name"], code=d["code"], is_system=False)
+                db.add(dept)
+                await db.flush()
+                existing_departments[d["code"]] = dept
             dept_map[d["name"]] = dept.id
             print(f"   ✓ {d['name']} (ID: {dept.id})")
 
-        # === 2. CREATE PERMISSIONS ===
+        # === 2. CREATE PERMISSIONS (reuse existing by semantic (resource, action)) ===
+        # The permission-sync migrations pre-insert RBAC permissions on a
+        # freshly-migrated database, and (resource, action) has no unique
+        # constraint, so unconditional inserts would silently duplicate rows.
         print("\n🔐 Creating permissions...")
+        existing_permissions = {
+            (perm.resource, perm.action): perm
+            for perm in (await db.execute(select(Permission))).scalars().all()
+        }
         perm_map = {}
         for permission_data in PERMISSIONS:
-            perm = Permission(**permission_data)
-            db.add(perm)
-            await db.flush()
+            natural_key = (permission_data["resource"], permission_data["action"])
+            perm = existing_permissions.get(natural_key)
+            if perm is None:
+                perm = Permission(**permission_data)
+                db.add(perm)
+                await db.flush()
+                existing_permissions[natural_key] = perm
             perm_key = f"{permission_data['resource']}:{permission_data['action']}"
             perm_map[perm_key] = perm.id
-        print(f"   ✓ Created {len(PERMISSIONS)} permissions")
+        print(f"   ✓ Ensured {len(PERMISSIONS)} permissions")
 
-        # === 3. CREATE ROLES ===
+        # === 3. CREATE ROLES (reuse existing by unique name) ===
         print("\n👔 Creating roles...")
+        existing_roles = {
+            role.name: role for role in (await db.execute(select(Role))).scalars().all()
+        }
         role_map = {}
         for role_data in ROLES:
-            role = Role(**role_data)
-            db.add(role)
-            await db.flush()
+            role = existing_roles.get(role_data["name"])
+            if role is None:
+                role = Role(**role_data)
+                db.add(role)
+                await db.flush()
+                existing_roles[role_data["name"]] = role
             role_map[role_data["name"]] = role.id
             print(f"   ✓ {role_data['display_name']} (ID: {role.id})")
 
-        # === 4. ASSIGN ROLE PERMISSIONS ===
+        # === 4. ASSIGN ROLE PERMISSIONS (reuse existing by (role_id, permission_id)) ===
         print("\n🔗 Assigning role permissions...")
+        existing_grants = {
+            (rp.role_id, rp.permission_id)
+            for rp in (await db.execute(select(RolePermission))).scalars().all()
+        }
+
+        def _ensure_grant(role_id: int, permission_id: int) -> bool:
+            if (role_id, permission_id) in existing_grants:
+                return False
+            db.add(RolePermission(role_id=role_id, permission_id=permission_id))
+            existing_grants.add((role_id, permission_id))
+            return True
+
         for role_name, permission_keys in ROLE_PERMISSIONS.items():
             role_id = role_map[role_name]
             assigned_count = 0
             for perm_key in permission_keys:
                 if perm_key in perm_map:
-                    rp = RolePermission(role_id=role_id, permission_id=perm_map[perm_key])
-                    db.add(rp)
-                    assigned_count += 1
+                    if _ensure_grant(role_id, perm_map[perm_key]):
+                        assigned_count += 1
                 elif perm_key.endswith(":*"):
                     resource = perm_key.split(":", maxsplit=1)[0]
                     for candidate_key, permission_id in perm_map.items():
                         if candidate_key.startswith(f"{resource}:"):
-                            rp = RolePermission(role_id=role_id, permission_id=permission_id)
-                            db.add(rp)
-                            assigned_count += 1
+                            if _ensure_grant(role_id, permission_id):
+                                assigned_count += 1
             print(f"   ✓ {role_name}: {assigned_count} permissions")
 
-        # === 5. CREATE USERS ===
+        # === 5. CREATE USERS (reuse existing by unique email) ===
         print("\n👤 Creating users...")
+        existing_users = {
+            user.email: user for user in (await db.execute(select(User))).scalars().all()
+        }
         user_map = {}
         for u in DEMO_USERS:
             dept_id = dept_map.get(u["dept"]) if u["dept"] else dept_map["Risk Management"]
-            user = User(
-                name=u["name"],
-                email=u["email"],
-                hashed_password=DEMO_PASSWORD,
-                role_id=role_map[u["role"]],
-                department_id=dept_id,
-                access_scope=AccessScope(u["access"]),
-                is_active=True,
-                employee_type="employee",
-            )
-            db.add(user)
-            await db.flush()
+            user = existing_users.get(u["email"])
+            if user is None:
+                user = User(
+                    name=u["name"],
+                    email=u["email"],
+                    hashed_password=DEMO_PASSWORD,
+                    role_id=role_map[u["role"]],
+                    department_id=dept_id,
+                    access_scope=AccessScope(u["access"]),
+                    is_active=True,
+                    employee_type="employee",
+                )
+                db.add(user)
+                await db.flush()
+                existing_users[u["email"]] = user
             user_map[u["email"]] = user.id
             print(f"   ✓ {u['name']} (ID: {user.id}) - {u['role']}")
 
@@ -262,24 +317,31 @@ async def seed_all():
                 "priority": False,
             },
         ]
+        existing_risks = {
+            risk.risk_id_code: risk for risk in (await db.execute(select(Risk))).scalars().all()
+        }
         risk_map = {}
         for r in risks:
-            risk = Risk(
-                name=r["name"],
-                risk_id_code=f"{r['dept'][:3].upper()}-R{len(risk_map)+1:02d}",
-                risk_type=RiskType.operational,
-                process=r["process"],
-                category="General",
-                description=f"Sample risk: {r['name']}",
-                gross_score=r["gross"],
-                net_score=r["net"],
-                is_priority=r["priority"],
-                status=RiskStatus.active,
-                department_id=dept_map[r["dept"]],
-                owner_id=user_map[r["owner"]],
-            )
-            db.add(risk)
-            await db.flush()
+            risk_code = f"{r['dept'][:3].upper()}-R{len(risk_map)+1:02d}"
+            risk = existing_risks.get(risk_code)
+            if risk is None:
+                risk = Risk(
+                    name=r["name"],
+                    risk_id_code=risk_code,
+                    risk_type=RiskType.operational,
+                    process=r["process"],
+                    category="General",
+                    description=f"Sample risk: {r['name']}",
+                    gross_score=r["gross"],
+                    net_score=r["net"],
+                    is_priority=r["priority"],
+                    status=RiskStatus.active,
+                    department_id=dept_map[r["dept"]],
+                    owner_id=user_map[r["owner"]],
+                )
+                db.add(risk)
+                await db.flush()
+                existing_risks[risk_code] = risk
             risk_map[r["name"]] = risk.id
             print(f"   ✓ {r['name']} (ID: {risk.id})")
 
@@ -310,18 +372,24 @@ async def seed_all():
             "quarterly": ControlFrequency.quarterly,
             "ad_hoc": ControlFrequency.ad_hoc,
         }
+        existing_controls = {
+            control.name: control for control in (await db.execute(select(Control))).scalars().all()
+        }
         for c in controls:
-            control = Control(
-                name=c["name"],
-                description=f"Sample control: {c['name']}",
-                control_form=ControlForm.manual.value,
-                frequency=freq_map[c["freq"]].value,
-                status=ControlStatus.active.value,
-                department_id=dept_map[c["dept"]],
-                control_owner_id=user_map[c["owner"]],
-            )
-            db.add(control)
-            await db.flush()
+            control = existing_controls.get(c["name"])
+            if control is None:
+                control = Control(
+                    name=c["name"],
+                    description=f"Sample control: {c['name']}",
+                    control_form=ControlForm.manual.value,
+                    frequency=freq_map[c["freq"]].value,
+                    status=ControlStatus.active.value,
+                    department_id=dept_map[c["dept"]],
+                    control_owner_id=user_map[c["owner"]],
+                )
+                db.add(control)
+                await db.flush()
+                existing_controls[c["name"]] = control
             control_map[c["name"]] = control.id
             print(f"   ✓ {c['name']} (ID: {control.id})")
 
@@ -335,13 +403,22 @@ async def seed_all():
             ("Incident Response", "Data Breach Risk"),
             ("Incident Response", "Operational Downtime"),
         ]
+        existing_links = {
+            (link.control_id, link.risk_id)
+            for link in (await db.execute(select(ControlRiskLink))).scalars().all()
+        }
         for control_name, risk_name in links:
-            link = ControlRiskLink(
-                control_id=control_map[control_name],
-                risk_id=risk_map[risk_name],
-                effectiveness=ControlEffectiveness.high.value,
+            link_key = (control_map[control_name], risk_map[risk_name])
+            if link_key in existing_links:
+                continue
+            db.add(
+                ControlRiskLink(
+                    control_id=link_key[0],
+                    risk_id=link_key[1],
+                    effectiveness=ControlEffectiveness.high.value,
+                )
             )
-            db.add(link)
+            existing_links.add(link_key)
             print(f"   ✓ {control_name} → {risk_name}")
 
         # === 9. CREATE SAMPLE KRIs ===
@@ -380,11 +457,18 @@ async def seed_all():
                 "upper": 3,
             },
         ]
+        existing_kris = {
+            (kri.metric_name, kri.risk_id)
+            for kri in (await db.execute(select(KeyRiskIndicator))).scalars().all()
+        }
         for k in kris:
+            kri_risk_id = risk_map[k["risk"]]
+            if (k["name"], kri_risk_id) in existing_kris:
+                continue
             kri = KeyRiskIndicator(
                 metric_name=k["name"],
                 description=f"KRI: {k['name']}",
-                risk_id=risk_map[k["risk"]],
+                risk_id=kri_risk_id,
                 reporting_owner_id=user_map[k["owner"]],
                 current_value=k["value"],
                 lower_limit=k["lower"],
@@ -394,6 +478,7 @@ async def seed_all():
             )
             db.add(kri)
             await db.flush()
+            existing_kris.add((k["name"], kri_risk_id))
             print(f"   ✓ {k['name']} (ID: {kri.id})")
 
         await db.commit()

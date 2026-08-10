@@ -134,7 +134,19 @@ export interface IssueListCapabilities {
     can_view_vendor_contexts?: boolean;
 }
 
-export type IssueListResponse = CollectionListResponse<IssueSummary, IssueListCapabilities>;
+export interface IssueFacets {
+    status?: CollectionFacetOption[];
+    severity?: CollectionFacetOption[];
+    department?: CollectionFacetOption[];
+    owner?: CollectionFacetOption[];
+    overdue?: CollectionFacetOption[];
+    exception?: CollectionFacetOption[];
+    remediation_status?: CollectionFacetOption[];
+}
+
+export type IssueListResponse = CollectionListResponse<IssueSummary, IssueListCapabilities> & {
+    facets?: IssueFacets | null;
+};
 
 export interface IssueListFilters {
     offset?: number;
@@ -146,6 +158,8 @@ export interface IssueListFilters {
     department_id?: number;
     overdue?: boolean;
     exclude_active_exceptions?: boolean;
+    has_active_exception?: boolean;
+    remediation_status?: IssueRemediationStatus;
     linked_risk_id?: number;
     linked_control_id?: number;
     linked_vendor_id?: number;
@@ -153,6 +167,7 @@ export interface IssueListFilters {
     include_closed?: boolean;
     sort_by?: 'title' | 'severity' | 'status' | 'opened_at' | 'due_at' | 'updated_at' | 'created_at';
     sort_order?: 'asc' | 'desc';
+    sort?: CollectionSort | null;
     group_by?: string;
     group_value?: string;
 }
@@ -244,4 +259,4 @@ export interface IssueContextCreatePayload {
     due_at?: string;
     owner_user_id?: number;
 }
-import type { CollectionListResponse } from '@/types/collection';
+import type { CollectionFacetOption, CollectionListResponse, CollectionSort } from '@/types/collection';

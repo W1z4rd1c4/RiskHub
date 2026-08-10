@@ -10,6 +10,7 @@ from app.core.activity_logger import log_activity
 from app.core.approval_display import approval_resource_label
 from app.core.audit.approval import approval_cancelled, approval_rejected
 from app.core.datetime_utils import utc_now
+from app.core.exceptions import ValidationError
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services.outbox import OutboxService
@@ -42,6 +43,82 @@ async def approve_request_workflow(
     resolution_notes: str,
 ) -> ApprovalRequest:
     """Approve a pending approval request and return the refreshed model."""
+    from app.services._governed_mutations import (
+        approve_governed_mutation,
+        governed_proposal_dispatch_kind,
+    )
+
+    dispatch_kind = await governed_proposal_dispatch_kind(db, approval_id)
+    if dispatch_kind == "fixed_process":
+        try:
+            return await approve_governed_mutation(
+                db,
+                approval_id=approval_id,
+                current_user=current_user,
+                resolution_notes=resolution_notes,
+            )
+        except ValidationError as exc:
+            if exc.code != "governed_mutation_identity_invalid":
+                raise
+            from app.services._governed_mutations.resolution_extensions import (
+                approve_extended_process_mutation,
+            )
+
+            return await approve_extended_process_mutation(
+                db,
+                approval_id=approval_id,
+                current_user=current_user,
+                resolution_notes=resolution_notes,
+            )
+    if dispatch_kind == "fixed_process_extended":
+        from app.services._governed_mutations.resolution_extensions import (
+            approve_extended_process_mutation,
+        )
+
+        return await approve_extended_process_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "fixed_asset":
+        from app.services._governed_mutations.asset_mutations import (
+            approve_asset_mutation,
+        )
+
+        return await approve_asset_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "fixed_vendor":
+        from app.services._governed_mutations.vendor_resolution import (
+            approve_vendor_mutation,
+        )
+
+        return await approve_vendor_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "fixed_threat":
+        from app.services._governed_mutations.threat_resolution import (
+            approve_threat_mutation,
+        )
+
+        return await approve_threat_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "unsupported":
+        raise ValidationError(
+            "Unsupported governed mutation proposal",
+            code="governed_mutation_unsupported",
+        )
     approval = await load_approval(db, approval_id)
     is_privileged, is_primary_approver, is_scenario_approver = await assert_can_approve(db, approval, current_user)
     previous_status = approval.status
@@ -70,6 +147,68 @@ async def reject_request_workflow(
     resolution_notes: str,
 ) -> ApprovalRequest:
     """Reject a pending approval request and return the refreshed model."""
+    from app.services._governed_mutations import (
+        governed_proposal_dispatch_kind,
+        reject_governed_mutation,
+    )
+
+    dispatch_kind = await governed_proposal_dispatch_kind(db, approval_id)
+    if dispatch_kind == "fixed_process":
+        return await reject_governed_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "fixed_process_extended":
+        from app.services._governed_mutations.resolution_extensions import (
+            reject_extended_process_mutation,
+        )
+
+        return await reject_extended_process_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "fixed_asset":
+        from app.services._governed_mutations.asset_mutations import (
+            reject_asset_mutation,
+        )
+
+        return await reject_asset_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "fixed_vendor":
+        from app.services._governed_mutations.vendor_resolution import (
+            reject_vendor_mutation,
+        )
+
+        return await reject_vendor_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "fixed_threat":
+        from app.services._governed_mutations.threat_resolution import (
+            reject_threat_mutation,
+        )
+
+        return await reject_threat_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolution_notes,
+        )
+    if dispatch_kind == "unsupported":
+        raise ValidationError(
+            "Unsupported governed mutation proposal",
+            code="governed_mutation_unsupported",
+        )
     approval = await load_approval(db, approval_id)
     await assert_can_reject(db, approval, current_user)
     previous_status = approval.status
@@ -106,6 +245,63 @@ async def cancel_request_workflow(
     current_user: User,
 ) -> ApprovalRequest:
     """Cancel a pending approval request and return the refreshed model."""
+    from app.services._governed_mutations import (
+        cancel_governed_mutation,
+        governed_proposal_dispatch_kind,
+    )
+
+    dispatch_kind = await governed_proposal_dispatch_kind(db, approval_id)
+    if dispatch_kind == "fixed_process":
+        return await cancel_governed_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+        )
+    if dispatch_kind == "fixed_process_extended":
+        from app.services._governed_mutations.resolution_extensions import (
+            cancel_extended_process_mutation,
+        )
+
+        return await cancel_extended_process_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+        )
+    if dispatch_kind == "fixed_asset":
+        from app.services._governed_mutations.asset_mutations import (
+            cancel_asset_mutation,
+        )
+
+        return await cancel_asset_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+        )
+    if dispatch_kind == "fixed_vendor":
+        from app.services._governed_mutations.vendor_resolution import (
+            cancel_vendor_mutation,
+        )
+
+        return await cancel_vendor_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+        )
+    if dispatch_kind == "fixed_threat":
+        from app.services._governed_mutations.threat_resolution import (
+            cancel_threat_mutation,
+        )
+
+        return await cancel_threat_mutation(
+            db,
+            approval_id=approval_id,
+            current_user=current_user,
+        )
+    if dispatch_kind == "unsupported":
+        raise ValidationError(
+            "Unsupported governed mutation proposal",
+            code="governed_mutation_unsupported",
+        )
     approval = await load_approval(db, approval_id)
     tier = await assert_can_cancel(db, approval, current_user)
 

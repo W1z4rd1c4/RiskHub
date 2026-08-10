@@ -2,10 +2,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
     Check,
     CheckCircle2,
+    Archive,
     ChevronDown,
     ChevronUp,
     Clock,
     Edit,
+    Link2,
+    Plus,
     RotateCcw,
     Trash2,
     X,
@@ -17,7 +20,8 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
 import type { ApprovalRequest } from '@/types/approval';
 
-import { getApprovalActionBadge, getApprovalStatusBadge } from './approvalsPresentation';
+import { GovernedMutationDiff } from '@/components/approvals/GovernedMutationDiff';
+import { getApprovalActionBadge, getApprovalStatusBadge, getGovernedActionLabel } from './approvalsPresentation';
 import { approvalPendingChangeEntries, canViewApprovalPendingChanges } from './approvalPendingChanges';
 
 interface ApprovalListProps {
@@ -66,6 +70,17 @@ export function ApprovalList({
             {approvals.map((approval) => {
                 const canViewPendingChanges = canViewApprovalPendingChanges(approval);
                 const pendingChangeEntries = approvalPendingChangeEntries(approval);
+                const governedActionLabel = getGovernedActionLabel(
+                    approval.action_type,
+                    approval.governed_mutation?.mutation_kind,
+                );
+                const ActionIcon = governedActionLabel === 'create'
+                    ? Plus
+                    : governedActionLabel === 'archive'
+                        ? Archive
+                        : governedActionLabel.startsWith('link_')
+                            ? Link2
+                            : Edit;
 
                 return (
                     <motion.div
@@ -78,7 +93,7 @@ export function ApprovalList({
                         <div className="flex flex-col gap-2 min-w-[120px]">
                             <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                    {approval.resource_type}
+                                    {t(`entity_types.${approval.resource_type}`)}
                                 </span>
                             </div>
                             <div className="flex gap-2">
@@ -88,12 +103,12 @@ export function ApprovalList({
                                         getApprovalActionBadge(approval.action_type),
                                     )}
                                 >
-                                    {approval.action_type === 'delete' ? (
+                                    {approval.action_type === 'delete' && !approval.governed_mutation ? (
                                         <Trash2 className="h-3 w-3" />
                                     ) : (
-                                        <Edit className="h-3 w-3" />
+                                        <ActionIcon className="h-3 w-3" />
                                     )}
-                                    {approval.action_type}
+                                    {t(`request_types.${governedActionLabel}`)}
                                 </span>
                             </div>
                         </div>
@@ -101,7 +116,7 @@ export function ApprovalList({
                         <div className="flex-1">
                             <h3 className="text-base font-bold text-white mb-1">{approval.resource_name}</h3>
                             <p className="text-sm text-slate-400 mb-2">
-                                <span className="text-slate-600">Re:</span> {approval.reason}
+                                <span className="text-slate-600">{t('approvals:labels.re')}</span> {approval.reason}
                             </p>
                             <div className="flex items-center gap-4 text-xs text-slate-500">
                                 <span className="flex items-center gap-1">
@@ -109,7 +124,7 @@ export function ApprovalList({
                                     {formatDateValue(approval.created_at, locale)}
                                 </span>
                                 <span>
-                                    by <span className="text-accent">{approval.requested_by_name}</span>
+                                    {t('labels.by')} <span className="text-accent">{approval.requested_by_name}</span>
                                 </span>
                             </div>
 
@@ -135,7 +150,7 @@ export function ApprovalList({
                                         </span>
                                         {approval.resolved_by_name && (
                                             <span>
-                                                by <span className="text-accent">{approval.resolved_by_name}</span>
+                                                {t('labels.by')} <span className="text-accent">{approval.resolved_by_name}</span>
                                             </span>
                                         )}
                                     </div>
@@ -153,7 +168,7 @@ export function ApprovalList({
                                     getApprovalStatusBadge(approval.status),
                                 )}
                             >
-                                {approval.status}
+                                {t(`status.${approval.status}`)}
                             </span>
 
                             <div className="flex items-center gap-2">
@@ -199,7 +214,9 @@ export function ApprovalList({
 
                                 {resolveCapabilityFlag(
                                     approval.capabilities,
-                                    'can_cancel',
+                                    approval.governed_mutation
+                                        ? 'can_cancel_as_requester'
+                                        : 'can_cancel',
                                 ) && (
                                         <button
                                             onClick={() => onCancel(approval.id)}
@@ -215,7 +232,7 @@ export function ApprovalList({
                     </div>
 
                     <AnimatePresence>
-                        {approval.action_type === 'edit' &&
+                        {(approval.action_type === 'edit' || approval.governed_mutation != null) &&
                             expandedRows.has(approval.id) &&
                             canViewPendingChanges && (
                                 <motion.div
@@ -227,27 +244,39 @@ export function ApprovalList({
                                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
                                         {t('labels.proposed_changes')}
                                     </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {pendingChangeEntries.map(([field, change]) => (
-                                            <div
-                                                key={field}
-                                                className="bg-black/20 rounded-lg p-3 border border-white/5"
-                                            >
-                                                <span className="block text-[10px] text-accent font-bold uppercase mb-1">
-                                                    {field}
-                                                </span>
-                                                <div className="flex items-center gap-2 text-xs">
-                                                    <span className="text-rose-400 line-through opacity-70">
-                                                        {String(change.old)}
+                                    {approval.governed_mutation ? (
+                                        <GovernedMutationDiff
+                                            before={approval.governed_mutation.before}
+                                            after={approval.governed_mutation.after}
+                                            mutationKind={approval.governed_mutation.mutation_kind}
+                                            derivedImpact={approval.governed_mutation.derived_impact}
+                                            impactedResources={approval.governed_mutation.impacted_resources}
+                                            relationshipChange={approval.governed_mutation.relationship_change}
+                                            testId={`approval-governed-mutation-${approval.id}`}
+                                        />
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {pendingChangeEntries.map(([field, change]) => (
+                                                <div
+                                                    key={field}
+                                                    className="bg-black/20 rounded-lg p-3 border border-white/5"
+                                                >
+                                                    <span className="block text-[10px] text-accent font-bold uppercase mb-1">
+                                                        {field}
                                                     </span>
-                                                    <span className="text-slate-600">→</span>
-                                                    <span className="text-emerald-400 font-bold">
-                                                        {String(change.new)}
-                                                    </span>
+                                                    <div className="flex items-center gap-2 text-xs">
+                                                        <span className="text-rose-400 line-through opacity-70">
+                                                            {String(change.old)}
+                                                        </span>
+                                                        <span className="text-slate-600">→</span>
+                                                        <span className="text-emerald-400 font-bold">
+                                                            {String(change.new)}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
                     </AnimatePresence>

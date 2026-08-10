@@ -1,7 +1,7 @@
 ---
 title: Podpora schvalování (admin runbook)
-version: "2.1"
-last_updated: "2026-04-25"
+version: "2.2"
+last_updated: "2026-07-31"
 audience: admin
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + backend/app/api/v1/endpoints/approvals/* + backend/app/core/activity_logger.py"
 summary: "Admin runbook pro incidenty schvalování: stuck žádosti, chyby přechodů, chybějící notifikace a evidence-based eskalace."
@@ -24,6 +24,12 @@ Schvalování je guardrail pro governance-citlivé změny. Existuje proto, aby:
 - “rollback” šel řešit novou kontrolovanou změnou, ne ručními zásahy
 
 Jako platformní admin máte u schvalování úkol udržet workflow **spolehlivé a čitelné**. Business rozhodnutí nejste defaultně vy.
+
+Řízený ICT workflow má čtyři pevné scénáře: `protected_process_edit`,
+`protected_asset_edit`, `protected_vendor_edit` a
+`accountability_reassignment`. Při korelaci žádosti s konfigurací Risk Hub
+používejte přesně tyto identifikátory. Scénář je oddělený od statusu žádosti i
+od lifecycle resource.
 
 Schvalovací incident má typicky jednu z těchto podob:
 
@@ -174,6 +180,16 @@ Pokud rollback neumíte vysvětlit v jednom odstavci, zastavte se a eskalujte. I
 
 ## Troubleshooting
 
+### Chráněná žádost dodavatele zůstává čekající
+
+Ověřte, že je `protected_vendor_edit` zapnutý a obsahuje alespoň jednoho
+aktivního nezávislého Risk Managera nebo CRO, který není žadatelem. V
+Schvalování/Mých žádostech zkontrolujte neměnný návrh: přímé změny, smlouvy,
+sub-outsourcing, vazby a složené návrhy musí ukazovat bezpečné business popisky
+a dopad na úroveň dodavatele bez raw ID. Schválený dodavatel má během čekání
+zůstat beze změny. Žádost zrušte pomocí capability žadatele nebo ji vyřešte;
+impact lock neobcházejte přímým databázovým zásahem.
+
 ### Žádost “zamrzla” v `pending`
 
 Checks:
@@ -263,6 +279,14 @@ Balíček pro předání:
 - co selhalo (akce + error)
 - timestampy + request IDs (pokud jsou)
 - co jste ověřil/a a co zůstává neznámé
+
+### Změna odpovědnosti zůstává čekající
+
+Ověřte, že scénář `accountability_reassignment` má aktivního nezávislého Risk
+Managera nebo CRO. Žadatel má vidět právě jednu položku v Mých žádostech a
+schválené hodnoty zdroje se během čekání nesmějí změnit. U osiřelé položky
+zůstává řádek Governance i zámek běžných úprav do schválení. Neobcházejte
+workflow přímým zápisem vlastníka.
 
 ## Související dokumentace
 

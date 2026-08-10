@@ -43,8 +43,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             csp_directives = [
                 "default-src 'self'",
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-                "font-src 'self' https://fonts.gstatic.com",
+                "style-src 'self' 'unsafe-inline'",
+                "font-src 'self'",
                 "img-src 'self' data: https: blob:",
                 "connect-src 'self' http://localhost:* https://*",
                 "frame-ancestors 'none'",
@@ -56,8 +56,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             csp_directives = [
                 "default-src 'self'",
                 "script-src 'self'",
-                "style-src 'self' https://fonts.googleapis.com",
-                "font-src 'self' https://fonts.gstatic.com",
+                "style-src 'self'",
+                "font-src 'self'",
                 "img-src 'self' data: https: blob:",
                 "connect-src 'self'",
                 "frame-ancestors 'none'",

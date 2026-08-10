@@ -178,6 +178,13 @@
     "critical_only_clear": "Pouze kritické (kliknutím zrušíte)",
     "breached_only_clear": "Pouze překročené (kliknutím zrušíte)"
   },
+  "register": {
+    "views": { "all": "Vše", "category": "Podle kategorie", "department": "Podle oddělení", "process": "Podle procesu", "risk_type": "Podle typu rizika", "vendor": "Podle dodavatele" },
+    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "has_breach": "Překročení KRI", "critical": "Kritické riziko", "net_band": "Čisté pásmo" },
+    "net_bands": { "low": "Nízké", "medium": "Střední", "high": "Vysoké", "critical": "Kritické" },
+    "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Vše" },
+    "export": { "title": "Export filtrovaných rizik" }
+  },
   "grouping": {
     "unlinked_vendor": "Bez propojeného dodavatele"
   },
@@ -325,5 +332,35 @@
     "aggregated_kri_history": "Agregovaná historie KRI",
     "no_kri_values": "Zatím nejsou k dispozici žádné hodnoty KRI.",
     "no_kris_configured": "Pro toto riziko nejsou nakonfigurované žádné KRI."
+  },
+  "acceptance": {
+    "title": "Akceptace rizika",
+    "approver": "Akceptace: schvalovatel",
+    "justification": "Akceptace: odůvodnění",
+    "date": "Akceptace: datum",
+    "hint": "Při akceptaci rizika nad toleranci se vyžadují společně — hlídá kontrola kvality dat, zápis neblokuje."
+  },
+  "register_links": {
+    "title": "Vazby ICT registru",
+    "add": "Provázat",
+    "remove": "Odebrat vazbu",
+    "threats": {
+      "title": "Hrozby",
+      "empty": "K tomuto riziku zatím nejsou provázány žádné hrozby.",
+      "select_placeholder": "Vyberte hrozbu k provázání..."
+    },
+    "processes": {
+      "title": "Procesy",
+      "empty": "K tomuto riziku zatím nejsou provázány žádné procesy.",
+      "select_placeholder": "Vyberte proces k provázání..."
+    },
+    "assets": {
+      "title": "Aktiva",
+      "empty": "K tomuto riziku zatím nejsou provázána žádná aktiva.",
+      "select_placeholder": "Vyberte aktivum k provázání..."
+    },
+    "errors": {
+      "mutation_failed": "Změna vazby se nezdařila. Zkuste to prosím znovu."
+    }
   }
 }

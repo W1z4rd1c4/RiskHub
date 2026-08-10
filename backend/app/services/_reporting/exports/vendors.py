@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 
 from fastapi.responses import StreamingResponse
@@ -5,6 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import User
 from app.models.activity_log import ActivityEntityType
+from app.services._ict_register_reference.vendor_values import (
+    VENDOR_CONTROLLED_CODES_BY_FIELD,
+    VendorLocale,
+    vendor_controlled_value_code,
+    vendor_value_label,
+)
 from app.services.export_snapshot_service import ExportSnapshotService
 
 from .fetch import _fetch_vendors_for_export
@@ -19,6 +26,8 @@ from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .rows import _vendor_to_row
 from .shared import ExportFormat
 
+logger = logging.getLogger(__name__)
+
 
 async def _export_vendors(
     *,
@@ -30,6 +39,7 @@ async def _export_vendors(
     status_filter: str | None,
     search: str | None,
     vendor_type: str | None,
+    locale: VendorLocale = "en",
 ) -> StreamingResponse:
     fetch_department_id = _prefilter_department_id_for_as_of(as_of_date, department_id)
     models = await _fetch_vendors_for_export(db, current_user=current_user, department_id=fetch_department_id)
@@ -42,7 +52,8 @@ async def _export_vendors(
         headers=[
             "Name",
             "Legal Name",
-            "Type",
+            "Type Code",
+            f"Type Label ({locale.upper()})",
             "Process",
             "Subprocess",
             "Department",
@@ -51,6 +62,15 @@ async def _export_vendors(
             "DORA Relevant",
             "Significant",
             "Status",
+            *[
+                header
+                for field in VENDOR_CONTROLLED_CODES_BY_FIELD
+                if field != "vendor_type"
+                for header in (
+                    f"{field} Code",
+                    f"{field} Label ({locale.upper()})",
+                )
+            ],
         ],
         stages=(
             lambda current: ExportSnapshotService.apply_as_of_snapshot(
@@ -59,6 +79,7 @@ async def _export_vendors(
                 entity_type=ActivityEntityType.VENDOR,
                 as_of_date=as_of_date,
             ),
+            _canonicalize_vendor_export_values,
             _normalize_vendor_status,
             lambda current: _rehydrate_user_names(
                 db,
@@ -86,7 +107,7 @@ async def _export_vendors(
                 vendor_type=vendor_type,
             ),
         ),
-        row_values=_vendor_row_values,
+        row_values=lambda row: _vendor_row_values(row, locale=locale),
     )
 
     return await render_report_export_definition(
@@ -97,11 +118,45 @@ async def _export_vendors(
     )
 
 
-def _vendor_row_values(row: ExportRow) -> list[object]:
-    return [
+def _canonicalize_vendor_export_values(rows: list[ExportRow]) -> list[ExportRow]:
+    """Normalize snapshot-replayed Vendor values before localized rendering.
+
+    Current rows already contain canonical codes. Historical activity can replay
+    pre-cutover workbook labels or retired aliases, so this stage applies the
+    same deterministic boundary as the forward migration: recognized values
+    become codes, an unknown non-null Vendor type becomes ``other``, and an
+    unknown nullable controlled value becomes blank. Unknown values are logged
+    so the safe export fallback does not conceal corrupt historical evidence.
+    """
+
+    for row in rows:
+        vendor_id = row.get("id")
+        for field in VENDOR_CONTROLLED_CODES_BY_FIELD:
+            value = row.get(field)
+            if value is None or value == "":
+                continue
+            try:
+                row[field] = vendor_controlled_value_code(field, str(value))
+            except ValueError:
+                fallback = "other" if field == "vendor_type" else None
+                logger.warning(
+                    "Cleared unsupported historical Vendor export value: vendor_id=%s field=%s value=%r fallback=%r",
+                    vendor_id,
+                    field,
+                    value,
+                    fallback,
+                )
+                row[field] = fallback
+    return rows
+
+
+def _vendor_row_values(row: ExportRow, *, locale: VendorLocale = "en") -> list[object]:
+    vendor_type = str(row.get("vendor_type") or "")
+    values: list[object] = [
         row.get("name"),
         row.get("legal_name"),
-        row.get("vendor_type"),
+        vendor_type,
+        vendor_value_label("vendor_type", vendor_type, locale=locale) if vendor_type else "",
         row.get("process"),
         row.get("subprocess"),
         row.get("department_name"),
@@ -111,3 +166,9 @@ def _vendor_row_values(row: ExportRow) -> list[object]:
         "yes" if row.get("is_significant_vendor") else "no",
         row.get("status"),
     ]
+    for field in VENDOR_CONTROLLED_CODES_BY_FIELD:
+        if field == "vendor_type":
+            continue
+        code = str(row.get(field) or "")
+        values.extend([code, vendor_value_label(field, code, locale=locale) if code else ""])
+    return values

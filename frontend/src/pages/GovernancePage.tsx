@@ -1,19 +1,24 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateTimeValue } from '@/i18n/formatters';
 import {
     Scale,
     ClipboardList,
     AlertTriangle,
+    ShieldAlert,
     RefreshCw,
     TrendingUp,
-    Building2
+    Building2,
+    Workflow,
+    Database,
+    Truck,
 } from 'lucide-react';
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
+import type { ApprovalCreatedResponse } from '@/types/approval';
 import { OrphanedItemsTable, ResolveOrphanModal, OrphanQuickViewModal } from '@/components/governance';
 import { GOVERNANCE_POLL_MS } from '@/config/constants';
 import { governanceKeys } from '@/lib/queryKeys';
@@ -36,10 +41,29 @@ const item = {
 
 function GovernancePageInner() {
     const { t, i18n } = useTranslation('admin');
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [selectedOrphan, setSelectedOrphan] = useState<OrphanedItem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewingOrphan, setViewingOrphan] = useState<OrphanedItem | null>(null);
-    const [activeTab, setActiveTab] = useState<'risk' | 'control' | 'kri'>('risk');
+    type GovernanceItemType = 'risk' | 'control' | 'kri' | 'threat' | 'process' | 'asset' | 'vendor';
+    const requestedType = searchParams.get('type');
+    const activeTab: GovernanceItemType = requestedType === 'control'
+        || requestedType === 'kri'
+        || requestedType === 'threat'
+        || requestedType === 'process'
+        || requestedType === 'asset'
+        || requestedType === 'vendor'
+        ? requestedType
+        : 'risk';
+
+    const selectTab = (type: GovernanceItemType) => {
+        setSearchParams((current) => {
+            const next = new URLSearchParams(current);
+            next.set('type', type);
+            return next;
+        });
+    };
 
     const overviewQuery = useAdaptivePollingQuery({
         queryKey: governanceKeys.overview(),
@@ -61,6 +85,10 @@ function GovernancePageInner() {
         void overviewQuery.refresh();
     };
 
+    const handleApprovalQueued = (response: ApprovalCreatedResponse) => {
+        void navigate(`/approvals?tab=mine&approvalId=${String(response.approval_id)}`);
+    };
+
     if (overviewQuery.isLoading && !stats) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -68,6 +96,32 @@ function GovernancePageInner() {
                     <RefreshCw className="h-8 w-8 text-accent animate-spin" />
                     <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('governance.loading')}</p>
                 </div>
+            </div>
+        );
+    }
+
+    if (overviewQuery.isError && !stats) {
+        return (
+            <div
+                role="alert"
+                className="glass-card mx-auto flex min-h-[18rem] max-w-2xl flex-col items-center justify-center gap-4 p-8 text-center"
+            >
+                <ShieldAlert className="h-10 w-10 text-rose-400" aria-hidden="true" />
+                <h2 className="text-lg font-bold text-white">{t('governance.load_failed')}</h2>
+                <p className="text-sm text-slate-400">{t('governance.load_failed_help')}</p>
+                <button
+                    type="button"
+                    onClick={() => { void overviewQuery.refresh(); }}
+                    disabled={overviewQuery.isFetching}
+                    className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
+                    aria-label={t('governance.refresh')}
+                >
+                    <RefreshCw
+                        className={`h-4 w-4 ${overviewQuery.isFetching ? 'animate-spin' : ''}`}
+                        aria-hidden="true"
+                    />
+                    {t('governance.refresh')}
+                </button>
             </div>
         );
     }
@@ -109,6 +163,50 @@ function GovernancePageInner() {
             clickable: true,
         },
         {
+            id: 'threat' as const,
+            title: t('governance.orphaned_threats'),
+            subtitle: t('governance.threats'),
+            value: stats?.threat_count ?? 0,
+            icon: ShieldAlert,
+            color: 'text-teal-400',
+            bg: 'bg-teal-400/10',
+            trend: t('governance.action_required'),
+            clickable: true,
+        },
+        {
+            id: 'process' as const,
+            title: t('governance.orphaned_processes'),
+            subtitle: t('governance.processes'),
+            value: stats?.process_count ?? 0,
+            icon: Workflow,
+            color: 'text-sky-400',
+            bg: 'bg-sky-400/10',
+            trend: t('governance.action_required'),
+            clickable: true,
+        },
+        {
+            id: 'asset' as const,
+            title: t('governance.orphaned_assets'),
+            subtitle: t('governance.assets'),
+            value: stats?.asset_count ?? 0,
+            icon: Database,
+            color: 'text-violet-400',
+            bg: 'bg-violet-400/10',
+            trend: t('governance.action_required'),
+            clickable: true,
+        },
+        {
+            id: 'vendor' as const,
+            title: t('governance.orphaned_vendors'),
+            subtitle: t('governance.vendors'),
+            value: stats?.vendor_count ?? 0,
+            icon: Truck,
+            color: 'text-orange-400',
+            bg: 'bg-orange-400/10',
+            trend: t('governance.action_required'),
+            clickable: true,
+        },
+        {
             id: 'total' as const,
             title: t('governance.uncategorised'),
             subtitle: t('governance.total'),
@@ -120,6 +218,31 @@ function GovernancePageInner() {
             clickable: false,
         },
     ];
+
+    const statCardContents = (bar: typeof statBars[number], isActive: boolean): ReactNode => (
+        <>
+            {isActive && (
+                <motion.div
+                    layoutId="activeBar"
+                    className="absolute inset-0 bg-accent/5 pointer-events-none"
+                />
+            )}
+            <div className="flex justify-between items-start mb-6 relative z-10">
+                <div className={`${bar.bg} p-3 rounded-xl`}>
+                    <bar.icon className={`h-6 w-6 ${bar.color}`} aria-hidden="true" />
+                </div>
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" aria-hidden="true" />
+                    {bar.trend}
+                </div>
+            </div>
+            <div className="relative z-10">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">{bar.subtitle}</p>
+                <p className="text-sm font-bold text-white/70 mb-2">{bar.title}</p>
+                <h3 className="text-4xl font-black text-white tracking-tighter">{bar.value}</h3>
+            </div>
+        </>
+    );
 
     return (
         <div className="space-y-10">
@@ -154,40 +277,32 @@ function GovernancePageInner() {
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
+                className="grid gap-6 md:grid-cols-2 lg:grid-cols-6"
             >
                 {statBars.map((bar) => {
                     const isActive = activeTab === bar.id;
-                    return (
+                    const cardClassName = `glass-card group flex flex-col justify-between transition-all relative overflow-hidden ${isActive
+                        ? 'ring-2 ring-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                        : 'hover:bg-white/5 grayscale-[0.5] opacity-70 hover:opacity-100 hover:grayscale-0'
+                    }`;
+                    return bar.clickable ? (
+                        <motion.button
+                            key={bar.id}
+                            type="button"
+                            variants={item}
+                            onClick={() => selectTab(bar.id as GovernanceItemType)}
+                            aria-pressed={isActive}
+                            className={`${cardClassName} cursor-pointer text-left`}
+                        >
+                            {statCardContents(bar, isActive)}
+                        </motion.button>
+                    ) : (
                         <motion.div
                             key={bar.id}
                             variants={item}
-                            onClick={() => bar.clickable && setActiveTab(bar.id as 'risk' | 'control' | 'kri')}
-                            className={`glass-card group flex flex-col justify-between transition-all cursor-pointer relative overflow-hidden ${isActive
-                                ? 'ring-2 ring-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
-                                : 'hover:bg-white/5 grayscale-[0.5] opacity-70 hover:opacity-100 hover:grayscale-0'
-                                } ${!bar.clickable && 'cursor-default grayscale-0 opacity-100'}`}
+                            className={`${cardClassName} cursor-default grayscale-0 opacity-100`}
                         >
-                            {isActive && (
-                                <motion.div
-                                    layoutId="activeBar"
-                                    className="absolute inset-0 bg-accent/5 pointer-events-none"
-                                />
-                            )}
-                            <div className="flex justify-between items-start mb-6 relative z-10">
-                                <div className={`${bar.bg} p-3 rounded-xl`}>
-                                    <bar.icon className={`h-6 w-6 ${bar.color}`} />
-                                </div>
-                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                                    <TrendingUp className="h-3 w-3" />
-                                    {bar.trend}
-                                </div>
-                            </div>
-                            <div className="relative z-10">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">{bar.subtitle}</p>
-                                <p className="text-sm font-bold text-white/70 mb-2">{bar.title}</p>
-                                <h3 className="text-4xl font-black text-white tracking-tighter">{bar.value}</h3>
-                            </div>
+                            {statCardContents(bar, false)}
                         </motion.div>
                     );
                 })}
@@ -202,7 +317,19 @@ function GovernancePageInner() {
                 <div className="flex items-center gap-3 mb-6">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
-                        {activeTab === 'risk' ? t('governance.orphaned_risks_section') : activeTab === 'control' ? t('governance.orphaned_controls_section') : t('governance.orphaned_kris_section')}
+                        {activeTab === 'risk'
+                            ? t('governance.orphaned_risks_section')
+                            : activeTab === 'control'
+                                ? t('governance.orphaned_controls_section')
+                                : activeTab === 'kri'
+                                    ? t('governance.orphaned_kris_section')
+                                    : activeTab === 'threat'
+                                        ? t('governance.orphaned_threats_section')
+                                        : activeTab === 'process'
+                                            ? t('governance.orphaned_processes_section')
+                                            : activeTab === 'asset'
+                                                ? t('governance.orphaned_assets_section')
+                                                : t('governance.orphaned_vendors_section')}
                     </span>
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </div>
@@ -217,6 +344,7 @@ function GovernancePageInner() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 orphan={selectedOrphan}
+                onApprovalQueued={handleApprovalQueued}
                 onResolved={handleResolved}
             />
 

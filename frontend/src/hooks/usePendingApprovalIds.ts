@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { approvalsApi } from '@/services/approvalsApi';
 import { logError } from '@/services/logger';
+import type { ApprovalRequest } from '@/types/approval';
 
 type ResourceType = 'risk' | 'control' | 'kri';
 
@@ -19,8 +20,7 @@ export function usePendingApprovalIds(resourceType: ResourceType): Set<number> {
         const fetchPending = async () => {
             try {
                 const pageSize = 100;
-                type ApprovalItem = { resource_type: string; resource_id: number };
-                let allItems: ApprovalItem[] = [];
+                let allItems: ApprovalRequest[] = [];
                 let skip = 0;
                 let total = 0;
 
@@ -37,8 +37,10 @@ export function usePendingApprovalIds(resourceType: ResourceType): Set<number> {
 
                 const ids = new Set<number>(
                     allItems
-                        .filter((a) => a.resource_type === resourceType)
-                        .map((a) => a.resource_id)
+                        .filter((approval): approval is ApprovalRequest & { resource_id: number } => (
+                            approval.resource_type === resourceType && approval.resource_id !== null
+                        ))
+                        .map((approval) => approval.resource_id),
                 );
                 if (!cancelled) {
                     setPendingIds(ids);

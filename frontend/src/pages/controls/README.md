@@ -6,12 +6,15 @@ Controls register page modules and control-detail support helpers.
 
 ## Contents
 
-- `ControlsFilterBar.tsx`
-- `ControlsPageHeader.tsx`
-- `ControlsTableSection.tsx`
+- `ControlRegisterFilterBar.tsx`
+- `controlRegisterConfig.ts`
+- `controlColumns.tsx`
 - `controlsPagePresentation.ts`
 - `useControlsPageState.ts`
 - `ControlDetailOverviewTab.tsx`
+
+The route composes these domain modules through the shared `RegisterListShell`;
+do not reintroduce page-local header, view-switcher, or table-state owners.
 
 ## Notes
 

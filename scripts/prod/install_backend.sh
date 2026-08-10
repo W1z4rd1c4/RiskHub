@@ -149,6 +149,7 @@ docker_run_args=(
   --name "$container_name"
   --restart unless-stopped
   --security-opt no-new-privileges
+  --add-host host.docker.internal:host-gateway
   "${label_args[@]}"
   "${network_alias_args[@]}"
 )

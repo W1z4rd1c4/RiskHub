@@ -1,7 +1,8 @@
 """Seed script to populate database with initial data."""
 
 import asyncio
-from datetime import timedelta
+from collections.abc import Iterable
+from datetime import date, timedelta
 from typing import Any, cast
 
 from sqlalchemy import select
@@ -25,6 +26,7 @@ from app.models import (
     ControlExecution,
     ControlRiskLink,
     Department,
+    GlobalConfig,
     Permission,
     Risk,
     RiskTypeConfig,
@@ -33,6 +35,11 @@ from app.models import (
     User,
 )
 from app.models.user import AccessScope
+from app.services._ict_register_reference import (
+    ICT_APP_SCALE_RISK_BAND_DEFAULTS,
+    ICT_PARAMETER_CONFIG_CATEGORY,
+    ICT_WORKBOOK_PARAMETERS,
+)
 
 DEFAULT_RISK_TYPES = (
     {
@@ -111,58 +118,220 @@ async def seed_default_risk_types(db: AsyncSession) -> dict[str, int]:
     return summary
 
 
+def _ict_parameter_config_value(value: int | str | date) -> tuple[str, str]:
+    """Serialize one workbook parameter default to a (value, value_type) config pair."""
+    if isinstance(value, bool):  # defensive: bool is an int subclass, never expected
+        raise ValueError("ICT workbook parameters have no boolean values")
+    if isinstance(value, int):
+        return str(value), "int"
+    if isinstance(value, date):
+        return value.isoformat(), "string"
+    return value, "string"
+
+
+async def seed_ict_workbook_parameter_config(db: AsyncSession) -> int:
+    """Seed the 23 ICT Register workbook parameters into global_config.
+
+    Nineteen rows are seeded at the registry's verbatim workbook defaults.
+    The four risk-band parameters (P_RizStr/P_RizVys/P_RizKrit/P_Tolerance)
+    are seeded at their APP-SCALE values instead: the registry stays
+    workbook-verbatim (fidelity layer), while the seeded config row is the
+    app's adaptation layer — the workbook defaults 15/40/80/39 live on the
+    workbook's 1-125 three-factor risk scale, unreachable on the app's 1-25
+    net-score scale, so seeding them verbatim would structurally understate
+    the risk bands on any database that never ran the #53 cutover import.
+    Values and derivation (×1/5; tolerance ceiling floors) per
+    docs/dora-ict-register/cutover-record.md §4.
+
+    Idempotent: rows already present (by key) are left untouched, so
+    re-seeding never duplicates and never resets governed values. Rows are
+    seeded non-editable; the parameter set is read-only until explicit
+    governance ships.
+    """
+    result = await db.execute(
+        select(GlobalConfig.key).where(
+            GlobalConfig.key.in_([parameter.config_key for parameter in ICT_WORKBOOK_PARAMETERS])
+        )
+    )
+    existing_keys = set(result.scalars().all())
+
+    created = 0
+    for parameter in ICT_WORKBOOK_PARAMETERS:
+        if parameter.config_key in existing_keys:
+            continue
+        app_scale_override = ICT_APP_SCALE_RISK_BAND_DEFAULTS.get(parameter.name)
+        if app_scale_override is not None:
+            value, value_type = str(app_scale_override), "int"
+            description = (
+                f"{parameter.meaning} — app-scale value: the workbook default "
+                f"{parameter.default} is on the workbook's 1-125 three-factor risk scale; "
+                f"rescaled ×1/5 to the app's 1-25 net-score scale "
+                f"(docs/dora-ict-register/cutover-record.md §4)."
+            )
+        else:
+            value, value_type = _ict_parameter_config_value(parameter.default)
+            description = parameter.meaning
+        db.add(
+            GlobalConfig(
+                key=parameter.config_key,
+                value=value,
+                value_type=value_type,
+                category=ICT_PARAMETER_CONFIG_CATEGORY,
+                display_name=parameter.name,
+                description=description,
+                is_editable=False,
+            )
+        )
+        created += 1
+
+    if created:
+        await db.flush()
+    return created
+
+
+async def seed_missing_demo_users(
+    db: AsyncSession,
+    user_rows: Iterable[SeedPayload] = TEST_USERS,
+) -> int:
+    """Add missing canonical demo personas without changing existing Users.
+
+    This reconciliation is only invoked when mock authentication is enabled.
+    It lets an upgraded demo database gain newly introduced personas (such as
+    the CISO Threat Steward) while production seed runs remain untouched.
+    """
+    roles = {role.name: role for role in (await db.execute(select(Role))).scalars().all()}
+    departments = {
+        department.code: department for department in (await db.execute(select(Department))).scalars().all()
+    }
+    existing_emails = {
+        user.email.casefold() for user in (await db.execute(select(User))).scalars().all()
+    }
+    created = 0
+
+    for user_data in user_rows:
+        email = cast(str, user_data["email"])
+        if email.casefold() in existing_emails:
+            continue
+        role_name = cast(str, user_data["role"])
+        role = roles.get(role_name)
+        if role is None:
+            raise RuntimeError(f"Cannot seed demo User {email}: role {role_name!r} is missing")
+        department_code = cast(str | None, user_data["department"])
+        department = departments.get(department_code) if department_code else None
+        if department_code and department is None:
+            raise RuntimeError(
+                f"Cannot seed demo User {email}: department {department_code!r} is missing"
+            )
+        db.add(
+            User(
+                email=email,
+                name=cast(str, user_data["name"]),
+                role_id=role.id,
+                department_id=department.id if department else None,
+                is_active=True,
+                access_scope=AccessScope(
+                    cast(str, user_data.get("access_scope", AccessScope.DEPARTMENT))
+                ),
+            )
+        )
+        existing_emails.add(email.casefold())
+        created += 1
+
+    if created:
+        await db.flush()
+    return created
+
+
 async def seed_database():
     """Seed the database with initial data."""
-    async with session_context(get_settings()) as db:
-        # Check if already seeded
-        result = await db.execute(select(Role))
-        if result.scalars().first():
+    settings = get_settings()
+    async with session_context(settings) as db:
+        # Check if already seeded. Users are created ONLY by this seed, so
+        # they are the sentinel: on a freshly alembic-migrated database the
+        # permission-sync data migrations already inserted RBAC rows (and
+        # b3c4d5e6f7a8 creates the executive roles), so Role existence no
+        # longer means "seeded".
+        user_result = await db.execute(select(User))
+        if user_result.scalars().first():
             print("Database already seeded. Skipping roles/permissions/users.")
+            demo_users_created = 0
+            if settings.mock_auth_enabled:
+                demo_users_created = await seed_missing_demo_users(db)
+                if demo_users_created:
+                    print(f"Seeded {demo_users_created} missing demo users")
             risk_type_summary = await seed_default_risk_types(db)
             if risk_type_summary["created"] or risk_type_summary["repaired"]:
                 print(f"Reconciled default risk types ({_format_risk_type_seed_summary(risk_type_summary)})")
+            ict_parameters_created = await seed_ict_workbook_parameter_config(db)
+            if ict_parameters_created:
+                print(f"Seeded {ict_parameters_created} ICT Register workbook parameters")
             # Still check and seed controls/risks if missing
-            result = await db.execute(select(Control))
-            if not result.scalars().first():
+            control_result = await db.execute(select(Control))
+            if not control_result.scalars().first():
                 await seed_controls_and_risks(db)
-            elif risk_type_summary["created"] or risk_type_summary["repaired"]:
+            elif (
+                demo_users_created
+                or risk_type_summary["created"]
+                or risk_type_summary["repaired"]
+                or ict_parameters_created
+            ):
                 await db.commit()
             return
 
         print("Seeding database...")
 
-        # Create permissions
-        permissions = {}
+        # Create permissions missing by (resource, action): the permission-sync
+        # data migrations pre-insert rows on freshly migrated databases.
+        permission_result = await db.execute(select(Permission))
+        permissions = {f"{perm.resource}:{perm.action}": perm for perm in permission_result.scalars().all()}
+        created_permissions = 0
         for perm_data in PERMISSIONS:
+            perm_key = f"{perm_data['resource']}:{perm_data['action']}"
+            if perm_key in permissions:
+                continue
             perm = Permission(**perm_data)
             db.add(perm)
-            permissions[f"{perm_data['resource']}:{perm_data['action']}"] = perm
+            permissions[perm_key] = perm
+            created_permissions += 1
         await db.flush()
-        print(f"Created {len(PERMISSIONS)} permissions")
+        print(f"Created {created_permissions} permissions ({len(PERMISSIONS) - created_permissions} pre-existing)")
 
-        # Create roles
-        roles = {}
+        # Create roles missing by name (roles.name is unique; b3c4d5e6f7a8
+        # pre-creates the executive roles on freshly migrated databases).
+        role_result = await db.execute(select(Role))
+        roles = {role.name: role for role in role_result.scalars().all()}
+        created_roles = 0
         for role_data in ROLES:
+            if role_data["name"] in roles:
+                continue
             role = Role(**role_data)
             db.add(role)
-            roles[role_data["name"]] = role
+            roles[cast(str, role_data["name"])] = role
+            created_roles += 1
         await db.flush()
-        print(f"Created {len(ROLES)} roles")
+        print(f"Created {created_roles} roles ({len(ROLES) - created_roles} pre-existing)")
 
-        # Create role-permission mappings
+        # Create role-permission mappings missing by (role, permission).
+        grant_result = await db.execute(select(RolePermission))
+        existing_grants = {(rp.role_id, rp.permission_id) for rp in grant_result.scalars().all()}
+
+        def _grant(role_id: int, permission_id: int) -> None:
+            if (role_id, permission_id) in existing_grants:
+                return
+            db.add(RolePermission(role_id=role_id, permission_id=permission_id))
+            existing_grants.add((role_id, permission_id))
+
         for role_name, perm_keys in ROLE_PERMISSIONS.items():
             role = roles[role_name]
             for perm_key in perm_keys:
                 if perm_key in permissions:
-                    rp = RolePermission(role_id=role.id, permission_id=permissions[perm_key].id)
-                    db.add(rp)
+                    _grant(role.id, permissions[perm_key].id)
                 elif perm_key.endswith(":*"):
                     # Handle wildcard action permissions
                     resource = perm_key.split(":")[0]
                     for key, perm in permissions.items():
                         if key.startswith(f"{resource}:"):
-                            rp = RolePermission(role_id=role.id, permission_id=perm.id)
-                            db.add(rp)
+                            _grant(role.id, perm.id)
         await db.flush()
         print("Created role-permission mappings")
 
@@ -178,10 +347,12 @@ async def seed_database():
         risk_type_summary = await seed_default_risk_types(db)
         print(f"Reconciled default risk types ({_format_risk_type_seed_summary(risk_type_summary)})")
 
+        ict_parameters_created = await seed_ict_workbook_parameter_config(db)
+        print(f"Seeded {ict_parameters_created} ICT Register workbook parameters")
+
         # Create test users
         users = {}
-        for user_data_raw in TEST_USERS:
-            user_data = cast(SeedPayload, user_data_raw)
+        for user_data in TEST_USERS:
             role = roles[cast(str, user_data["role"])]
             department_code = cast(str | None, user_data["department"])
             user_department = departments.get(department_code) if department_code else None

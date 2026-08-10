@@ -14,14 +14,16 @@ bootstrap_email=""
 bootstrap_role=""
 bootstrap_scope=""
 bootstrap_department=""
+bootstrap_external_id=""
 cro_email=""
 cro_scope=""
+cro_external_id=""
 
 usage() {
   cat <<EOF
 Usage: scripts/prod/bootstrap_db.sh --backend-env PATH --backend-db-image IMAGE [options]
 
-Runs RBAC/departments seeding and bootstraps privileged SSO users by exact directory lookup.
+Runs RBAC/departments seeding. Omitted external IDs use exact email/UPN Graph lookup; supplied external IDs skip Graph lookup and are trusted operator assertions.
 
 Options:
   --backend-env PATH         Path to backend.env
@@ -31,8 +33,10 @@ Options:
   --role ROLE                Override BOOTSTRAP_ADMIN_ROLE (admin|cro)
   --access-scope SCOPE       Override BOOTSTRAP_ADMIN_ACCESS_SCOPE (global|department|manager)
   --department DEPT          Optional department code or name
+  --external-id ID           Optional Entra object ID for the admin pre-link
   --cro-email EMAIL          Optional override BOOTSTRAP_CRO_EMAIL (if set, CRO is bootstrapped)
   --cro-access-scope SCOPE   Optional override BOOTSTRAP_CRO_ACCESS_SCOPE (global|department|manager)
+  --cro-external-id ID       Optional Entra object ID for the CRO pre-link
   --dry-run                  Print commands without executing them
   --yes                      Non-interactive confirmation
   --verbose                  More logging
@@ -72,12 +76,20 @@ while [[ $# -gt 0 ]]; do
       bootstrap_department="${2:-}"
       shift 2
       ;;
+    --external-id)
+      bootstrap_external_id="${2:-}"
+      shift 2
+      ;;
     --cro-email)
       cro_email="${2:-}"
       shift 2
       ;;
     --cro-access-scope)
       cro_scope="${2:-}"
+      shift 2
+      ;;
+    --cro-external-id)
+      cro_external_id="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -122,6 +134,9 @@ fi
 if [[ -z "$bootstrap_scope" ]]; then
   bootstrap_scope="$(envfile_get "$BACKEND_ENV" "BOOTSTRAP_ADMIN_ACCESS_SCOPE" || true)"
 fi
+if [[ -z "$bootstrap_external_id" ]]; then
+  bootstrap_external_id="$(envfile_get "$BACKEND_ENV" "BOOTSTRAP_ADMIN_EXTERNAL_ID" || true)"
+fi
 
 if [[ -z "$bootstrap_email" || -z "$bootstrap_role" || -z "$bootstrap_scope" ]]; then
   die "Missing bootstrap admin config (BOOTSTRAP_ADMIN_EMAIL/ROLE/ACCESS_SCOPE) in backend env or flags."
@@ -132,6 +147,9 @@ if [[ -z "$cro_email" ]]; then
 fi
 if [[ -z "$cro_scope" ]]; then
   cro_scope="$(envfile_get "$BACKEND_ENV" "BOOTSTRAP_CRO_ACCESS_SCOPE" || true)"
+fi
+if [[ -z "$cro_external_id" ]]; then
+  cro_external_id="$(envfile_get "$BACKEND_ENV" "BOOTSTRAP_CRO_EXTERNAL_ID" || true)"
 fi
 
 if [[ -n "$cro_email" ]]; then
@@ -146,6 +164,9 @@ if [[ -n "$cro_email" ]]; then
   if [[ -n "$admin_email_lc" && "$admin_email_lc" == "$cro_email_lc" ]]; then
     die "BOOTSTRAP_CRO_EMAIL must be different from BOOTSTRAP_ADMIN_EMAIL (got the same email for both)."
   fi
+  if [[ -n "$bootstrap_external_id" && "$bootstrap_external_id" == "$cro_external_id" ]]; then
+    die "BOOTSTRAP_ADMIN_EXTERNAL_ID and BOOTSTRAP_CRO_EXTERNAL_ID must be different when both are set."
+  fi
 else
   warn "BOOTSTRAP_CRO_EMAIL is not set; skipping CRO bootstrap."
 fi
@@ -154,6 +175,7 @@ confirm_or_die "Run DB bootstrap (RBAC + departments + bootstrap privileged user
 
 docker_common_args=(
   docker run --rm
+  --add-host host.docker.internal:host-gateway
   -v "${SECRET_DIR}:${SECRET_DIR}:ro"
   -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro"
   --env-file "$BACKEND_ENV"
@@ -171,11 +193,17 @@ bootstrap_args=(python -m scripts.bootstrap_sso_user --email "$bootstrap_email" 
 if [[ -n "$bootstrap_department" ]]; then
   bootstrap_args+=(--department "$bootstrap_department")
 fi
+if [[ -n "$bootstrap_external_id" ]]; then
+  bootstrap_args+=(--external-id "$bootstrap_external_id")
+fi
 run "${docker_common_args[@]}" "${bootstrap_args[@]}"
 
 if [[ -n "$cro_email" ]]; then
   log "Bootstrapping CRO SSO user with pre-link (idempotent upsert)..."
   cro_args=(python -m scripts.bootstrap_sso_user --email "$cro_email" --role "cro" --access-scope "$cro_scope")
+  if [[ -n "$cro_external_id" ]]; then
+    cro_args+=(--external-id "$cro_external_id")
+  fi
   run "${docker_common_args[@]}" "${cro_args[@]}"
 fi
 

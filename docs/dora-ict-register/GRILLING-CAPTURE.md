@@ -108,7 +108,7 @@ source of truth. The regulator RoI **submission file is out of scope**.
   [dora-register-of-information-legal-spec.md](dora-register-of-information-legal-spec.md) — the
   confirmed legal reference (instruments, 15 templates, S01–S19, join keys, caveats).
 - **Source workbook:**
-  `/Users/stefanlesnak/Antigravity/Personal Assistant/exports/dora-registr-aktiv-2026/DORA_registr_aktiv_a_dodavatelu.xlsx`
+  `<external-workbook-export>/DORA_registr_aktiv_a_dodavatelu.xlsx`
   + its `builder/`.
 - **Field counts (scale):** Processes 34 · Assets 60 · Vendors 78 · Risks 41 · Contracts 25 ·
   Sub-outsourcing 17 · Threats 7 · + link sheets.

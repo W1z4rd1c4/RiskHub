@@ -24,6 +24,7 @@ class RoleType(StrEnum):
     CFO = "cfo"
     CRO = "cro"
     COO = "coo"
+    CISO = "ciso"
 
     # Governance
     RISK_MANAGER = "risk_manager"
@@ -53,6 +54,7 @@ class RoleType(StrEnum):
             cls.CEO,
             cls.CFO,
             cls.CRO,
+            cls.CISO,
             cls.RISK_MANAGER,
             cls.COMPLIANCE,
             cls.LEGAL,

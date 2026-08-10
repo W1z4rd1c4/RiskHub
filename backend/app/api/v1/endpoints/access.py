@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.config import Settings, get_settings
-from app.core.permissions import get_effective_permissions, get_scope_label, is_privileged_user
+from app.core.permissions import get_effective_permissions, get_scope_label, has_permission, is_privileged_user
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
@@ -15,19 +15,25 @@ from app.models.role import RoleType
 from app.models.user import AccessScope
 from app.schemas.access import AccessUserRead, AccessUserUpdate, PermissionRead, RoleWithPermissions
 from app.schemas.user import AccessScopeEnum, RoleRead
-from app.services._access_workflow import access_user_capabilities, is_cro, is_platform_admin
+from app.services._access_workflow import (
+    access_user_capabilities,
+    build_department_access_roster_query,
+    is_cro,
+    is_platform_admin,
+    resolve_department_access_roster_target,
+)
 from app.services._identity_access_lifecycle import update_access_profile
 
 router = APIRouter()
 
+
 def _require_privileged(user: User) -> None:
     """
-    Require that the user has global (privileged) access scope.
+    Require global scope plus explicit User-directory read authority.
 
-    Used for endpoints that are restricted to platform-wide admins.
-    Raises 403 if user lacks GLOBAL access scope.
+    Global business-data scope alone must not expose User administration.
     """
-    if not is_privileged_user(user):
+    if not is_privileged_user(user) or not has_permission(user, "users", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 
@@ -128,38 +134,24 @@ async def list_access_users(
 
 @router.get("/users/my-department", response_model=list[AccessUserRead])
 async def list_department_access_users(
+    department_id: int | None = None,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     List users in current user's department with their access info.
     Available to department heads and privileged users.
-    Returns only users in the caller's department.
+    Department heads are always limited to their own department. Privileged
+    callers with users:read may request another department for its roster.
     """
-    from app.models.role import RoleType
-
-    # Allow department heads and privileged users
-    is_dept_head = current_user.role and current_user.role.name == RoleType.DEPARTMENT_HEAD
-    is_priv = is_privileged_user(current_user)
-
-    if not is_dept_head and not is_priv:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only department heads or privileged users can view department access",
-        )
-
-    if not current_user.department_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You are not assigned to a department")
-
-    query = (
-        select(User)
-        .options(*user_selectinload_options(include_permissions=True))
-        .join(Role)
-        .where(User.department_id == current_user.department_id)
-        .where(User.is_active.is_(True))
+    target_department_id = resolve_department_access_roster_target(
+        current_user,
+        department_id,
     )
-    if not is_platform_admin(current_user):
-        query = query.where(Role.name != RoleType.ADMIN)
+    query = build_department_access_roster_query(
+        current_user,
+        department_id=target_department_id,
+    ).options(*user_selectinload_options(include_permissions=True))
 
     result = await db.execute(query)
     users = result.scalars().all()

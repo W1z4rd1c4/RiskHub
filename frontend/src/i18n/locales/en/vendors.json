@@ -14,6 +14,7 @@
     "new": "New Vendor",
     "edit": "Edit",
     "save": "Save",
+    "submit_for_approval": "Submit for approval",
     "create": "Create",
     "cancel": "Cancel",
     "export": "Export",
@@ -24,10 +25,71 @@
   "messages": {
     "archive_confirm": "Archive vendor {{vendorName}}?"
   },
+  "pending_change": {
+    "title": "Pending approval",
+    "badge": "Protected change",
+    "requested_by_at": "Requested by {{requester}} on {{date}} at {{time}}",
+    "unknown_requester": "Unknown requester",
+    "cancel": "Cancel request",
+    "cancel_failed": "The pending Vendor request could not be cancelled.",
+    "diff_restricted": "Proposal details are restricted."
+  },
   "filters": {
     "search_placeholder": "Search vendors...",
     "all_statuses": "All statuses",
     "all_types": "All types"
+  },
+  "register": {
+    "views": {
+      "all": "All",
+      "department": "By Department",
+      "process": "By Process",
+      "type": "By Type",
+      "risk": "By Risk",
+      "flag": "By Flag"
+    },
+    "filters": {
+      "add": "Add filter",
+      "active_count": "{{count}} active filters",
+      "clear_all": "Clear all",
+      "remove": "Remove {{label}}",
+      "lifecycle": "Lifecycle",
+      "department": "Owning Department",
+      "outsourcing_owner": "Outsourcing Owner",
+      "vendor_type": "Vendor type",
+      "risk_score": "Risk score",
+      "tier": "Vendor tier",
+      "dora_relevant": "DORA relevant",
+      "cif": "Supports CIF",
+      "is_significant_vendor": "Significant vendor",
+      "substitutability": "Substitutability",
+      "country": "Country",
+      "country_category": "Country category",
+      "has_roi_contract": "Has RoI Contract",
+      "has_sub_outsourcing": "Has Sub-outsourcing",
+      "has_direct_process_link": "Has direct Process link",
+      "linked_process": "Linked Process",
+      "linked_asset": "Linked Asset",
+      "linked_risk": "Linked Risk",
+      "linked_control": "Linked Control",
+      "linked_kri": "Linked KRI",
+      "search_options": "Search options",
+      "search_options_for": "Search options for {{label}}",
+      "no_options": "No matching options"
+    },
+    "lifecycle": {
+      "active": "Active",
+      "archived": "Archived",
+      "all": "All"
+    },
+    "boolean": {
+      "any": "Any",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "export": {
+      "title": "Export filtered Vendors"
+    }
   },
   "columns": {
     "name": "Vendor",
@@ -39,7 +101,8 @@
   },
   "status": {
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "archived": "Archived"
   },
   "type": {
     "ict": "ICT",
@@ -47,6 +110,58 @@
     "professional_services": "Professional services",
     "partner": "Partner",
     "other": "Other"
+  },
+  "ownership": {
+    "status": {
+      "assigned": "Assigned owner",
+      "legacy_unassigned": "Owner not assigned",
+      "pending_governance": "Former owner — reassignment pending",
+      "invalid_assignment": "Unknown user"
+    },
+    "context_unknown": "Owner details unavailable",
+    "pending_title": "Ownership reassignment required",
+    "pending_help": "This vendor is locked while Governance preserves the former-owner evidence and assigns an active replacement.",
+    "resolve_in_governance": "Resolve in Governance",
+    "ask_governance": "Ask a CRO or Governance administrator to assign an active replacement."
+  },
+  "values": {
+    "unknown": "Unknown value",
+    "tier": { "critical": "Critical provider", "significant": "Significant provider", "standard": "Standard provider", "unknown": "Unknown" },
+    "max_criticality": { "low": "Low", "medium": "Medium", "high": "High", "critical": "Critical", "unknown": "Unknown" },
+    "country": { "CZ": "Czechia", "SK": "Slovakia", "DE": "Germany", "AT": "Austria", "NL": "Netherlands", "PL": "Poland", "GB": "United Kingdom", "US": "United States", "IE": "Ireland", "FR": "France", "LU": "Luxembourg" },
+    "person_type": { "legal_person": "Legal person", "individual_acting_in_business_capacity": "Individual acting in a business capacity" },
+    "identifier_type": { "LEI": "LEI", "EUID": "EUID", "CRN": "CRN", "VAT": "VAT", "PNR": "PNR", "NIN": "NIN" },
+    "data_sensitivity": { "low": "Low", "medium": "Medium", "high": "High" },
+    "replaceability": { "not_substitutable": "Not substitutable", "highly_complex": "Highly complex substitutability", "medium_complexity": "Medium complexity of substitutability", "easily_substitutable": "Easily substitutable" },
+    "substitutability_reason": { "limited_market_alternatives": "Limited market alternatives", "migration_difficulties": "Migration difficulties", "both": "Both" },
+    "exit_plan_state": { "not_required": "Not required", "required_missing": "Required - missing", "draft": "Draft", "approved": "Approved", "tested": "Tested", "review_required": "Review required", "not_assessed": "Not assessed" },
+    "reintegration": { "easy": "Easy", "difficult": "Difficult", "highly_complex": "Highly complex" },
+    "service_disruption_impact": { "low": "Low", "medium": "Medium", "high": "High", "not_assessed": "Not assessed" },
+    "alternative_providers": { "yes": "Yes", "no": "No", "not_assessed": "Not assessed" },
+    "ctpp_designation": { "yes": "Yes", "no": "No", "undetermined": "Undetermined" },
+    "ex_ante_operational": { "ok": "OK", "risk": "Risk", "not_applicable": "Not applicable" },
+    "ex_ante_legal": { "ok": "OK", "risk": "Risk", "not_applicable": "Not applicable" },
+    "ex_ante_ict": { "ok": "OK", "risk": "Risk", "not_applicable": "Not applicable" },
+    "ex_ante_reputational": { "ok": "OK", "risk": "Risk", "not_applicable": "Not applicable" },
+    "ex_ante_data_confidentiality": { "ok": "OK", "risk": "Risk", "not_applicable": "Not applicable" },
+    "ex_ante_data_availability": { "ok": "OK", "risk": "Risk", "not_applicable": "Not applicable" },
+    "ex_ante_data_location": { "ok": "OK", "risk": "Risk", "not_applicable": "Not applicable" },
+    "ex_ante_provider_location": { "ok": "OK", "risk": "Risk", "not_applicable": "Not applicable" },
+    "ex_ante_ict_concentration": { "ok": "OK", "risk": "Risk", "not_applicable": "Not applicable" },
+    "assessment_phase": { "ex_ante": "Ex ante", "ongoing": "Ongoing", "not_applicable": "Not applicable" },
+    "due_diligence_state": { "not_applicable": "Not applicable", "not_started": "Not started", "in_progress": "In progress", "completed_without_reservations": "Completed without reservations", "completed_with_reservations": "Completed with reservations", "review_required": "Review required", "not_assessed": "Not assessed" },
+    "significance_authorization_conditions": { "yes": "Yes", "no": "No", "not_applicable": "Not applicable" },
+    "significance_regulatory_requirements": { "yes": "Yes", "no": "No", "not_applicable": "Not applicable" },
+    "significance_service_quality": { "yes": "Yes", "no": "No", "not_applicable": "Not applicable" },
+    "significance_financial_impact": { "yes": "Yes", "no": "No", "not_applicable": "Not applicable" },
+    "significance_reputation_continuity": { "yes": "Yes", "no": "No", "not_applicable": "Not applicable" },
+    "significance_cumulative_impact": { "yes": "Yes", "no": "No", "not_applicable": "Not applicable" },
+    "country_category": { "domestic": "Domestic", "eu": "EU", "non_eu": "Non-EU", "unknown": "Unknown" },
+    "cif": { "yes": "Yes", "no": "No", "unknown": "Unknown" },
+    "cif_chain": { "yes": "Yes", "no": "No", "unknown": "Unknown" },
+    "chain_level": { "A": "Own links", "B": "Direct sub-outsourcer", "C": "Deeper sub-outsourcer" },
+    "significance_outcome": { "yes": "Yes", "no": "No", "unknown": "Unknown" },
+    "main_contract_arrangement_type": { "standalone": "Standalone arrangement", "overarching_master": "Overarching (master) arrangement", "subsequent_associated": "Subsequent or associated arrangement", "unknown": "Unknown" }
   },
   "flags": {
     "supports_core_function": "Supports core function",
@@ -118,7 +233,8 @@
     "kris": {
       "subtitle": "Attach KRIs that monitor vendor-related exposure and performance.",
       "empty": "No linked KRIs yet.",
-      "created_and_linked": "KRI created and linked to the vendor."
+      "created_and_linked": "KRI created and linked to the vendor.",
+      "created_but_not_linked": "KRI created, but the vendor link failed. Review the new KRI and link it manually."
     }
   },
   "form": {
@@ -126,7 +242,8 @@
       "identity": "Identity",
       "ownership": "Ownership & Scope",
       "classification": "Classification",
-      "resilience": "Resilience & Monitoring"
+      "resilience": "Resilience & Monitoring",
+      "register": "ICT Register"
     },
     "name": "Vendor Name",
     "name_placeholder": "Acme Cloud Ltd.",
@@ -135,15 +252,20 @@
     "country": "Country",
     "website": "Website",
     "description": "Description",
+    "request_reason": "Request reason",
+    "request_reason_help": "Protected Vendor changes and all Outsourcing Owner changes are submitted for independent approval. Explain why this change is needed.",
     "department": "Department",
     "department_placeholder": "Select department",
     "owner": "Outsourcing Owner",
     "owner_placeholder": "Select owner",
+    "owner_search": "Search active owners by name or email",
+    "owner_help": "Any active user may own a vendor, including users in another department.",
     "process": "Process",
     "process_placeholder": "IT",
     "subprocess": "Subprocess",
     "subprocess_placeholder": "Cloud Operations",
     "risk_score": "Risk Score (1–5)",
+    "materiality": "Maximum materiality impact (% of own funds)",
     "status": "Status",
     "flags": "Flags",
     "vendor_type": {
@@ -163,6 +285,64 @@
     },
     "financial": {
       "no_loss": "No financial loss"
+    },
+    "register": {
+      "not_set": "Not set",
+      "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Refresh to reload them.",
+      "blocks": {
+        "identity": "Identification",
+        "data_location": "Data and locations",
+        "substitutability_exit": "Substitutability and exit",
+        "assessment": "Risk and significance assessment",
+        "status_notes": "Status and notes"
+      },
+      "fields": {
+        "latin_name": "Name in Latin script",
+        "person_type": "Person type",
+        "identifier_type": "ID code type",
+        "identifier_value": "ID code",
+        "address": "Address",
+        "contact_person": "Contact person",
+        "contact": "Contact",
+        "ultimate_parent_name": "Ultimate parent, name",
+        "ultimate_parent_lei": "Ultimate parent, LEI",
+        "data_storage": "Data storage",
+        "service_country": "Country of service provision",
+        "data_location": "Data location",
+        "processing_location": "Processing location",
+        "data_sensitivity": "Data sensitivity",
+        "substitutability_reason": "Reason for difficult substitution",
+        "last_audit_date": "Last audit",
+        "exit_plan_state": "Exit plan, state",
+        "reintegration": "Reintegration possibility",
+        "service_disruption_impact": "Service disruption impact",
+        "alternative_providers": "Alternative providers",
+        "alternative_providers_names": "Alternative providers, names",
+        "ctpp_designation": "CTPP per ESA",
+        "ex_ante_operational": "Ex-ante: operational",
+        "ex_ante_legal": "Ex-ante: legal",
+        "ex_ante_ict": "Ex-ante: ICT",
+        "ex_ante_reputational": "Ex-ante: reputational",
+        "ex_ante_data_confidentiality": "Ex-ante: data confidentiality",
+        "ex_ante_data_availability": "Ex-ante: data availability",
+        "ex_ante_data_location": "Ex-ante: data location",
+        "ex_ante_provider_location": "Ex-ante: provider location",
+        "ex_ante_ict_concentration": "Ex-ante: ICT concentration",
+        "ex_ante_assessment_date": "Ex-ante assessment (date)",
+        "assessment_phase": "Assessment phase",
+        "due_diligence_state": "Due diligence, state",
+        "last_monitoring_date": "Last monitoring (date)",
+        "significance_authorization_conditions": "Significance: authorization conditions",
+        "significance_regulatory_requirements": "Significance: regulatory requirements",
+        "significance_service_quality": "Significance: client service quality",
+        "significance_financial_impact": "Significance: financial and operational impact",
+        "significance_reputation_continuity": "Significance: reputation, stability, continuity",
+        "significance_cumulative_impact": "Significance: cumulative outsourcing impact",
+        "significance_justification": "Significance result justification",
+        "note": "Note",
+        "reference_occurrence_count": "Occurrences (reference)",
+        "reference_process_count": "Processes (reference)"
+      }
     }
   },
   "empty_state": {
@@ -179,6 +359,8 @@
     "process_required": "Process is required",
     "department_required": "Department is required",
     "owner_required": "Outsourcing owner is required",
+    "request_reason_required": "A request reason is required for this governed Vendor change.",
+    "owner_lookup_failed": "Active owners could not be loaded. Retry the protected owner lookup.",
     "score_required": "Risk score (1–5) is required"
   },
   "reports": {
@@ -194,6 +376,169 @@
       "title": "DORA Register of Information",
       "subtitle": "Export the minimum DORA register dataset for vendor arrangements.",
       "download": "Download CSV"
+    }
+  },
+  "contracts": {
+    "title": "Contracts",
+    "empty": "No contracts yet.",
+    "archived_heading": "Archived contracts ({{count}})",
+    "archive_confirm": "Archive contract {{reference}}? Approved data remains unchanged until any required approval is completed.",
+    "columns": {
+      "reference": "Contract reference (RoI)",
+      "arrangement_type": "Arrangement type",
+      "flags": "Flags",
+      "term": "Term",
+      "annual_cost": "Annual cost",
+      "status": "Status",
+      "main_flag": "Main",
+      "roi_flag": "RoI",
+      "cif": "CIF",
+      "duplicate_flag": "Duplicate",
+      "chain": "Sub-outsourcing chain (derived)"
+    },
+    "actions": {
+      "add": "Add contract",
+      "create": "Create contract",
+      "edit": "Edit contract",
+      "archive": "Archive contract",
+      "restore": "Restore contract"
+    },
+    "form": {
+      "not_set": "Not set",
+      "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Refresh to reload them.",
+      "contract_reference": "Contract reference (RoI)",
+      "internal_contract_number": "Internal contract number (TAS/SAP)",
+      "records_system": "Records system",
+      "arrangement_type": "Arrangement type",
+      "main_contract": "Main contract",
+      "overarching_arrangement_reference": "Overarching arrangement (ref.)",
+      "description": "Subject / description",
+      "roi_scope": "ICT service in RoI scope",
+      "start_date": "Start",
+      "end_date": "End",
+      "notice_period_entity_days": "Notice period, entity (days)",
+      "notice_period_provider_days": "Notice period, provider (days)",
+      "governing_law_country": "Governing law (ISO)",
+      "annual_cost": "Annual cost",
+      "currency": "Currency (ISO 4217)",
+      "note": "Note"
+    },
+    "errors": {
+      "mutation_failed": "Saving the contract failed."
+    }
+  },
+  "sub_outsourcing": {
+    "title": "Sub-outsourcing",
+    "empty": "No sub-outsourcing entries yet.",
+    "archive_confirm": "Archive sub-outsourcing entry {{name}}? Approved data remains unchanged until any required approval is completed.",
+    "columns": {
+      "sub_provider": "Sub-provider",
+      "contract": "Contract",
+      "country": "Country",
+      "ict_service": "ICT service (S-code)",
+      "status": "Status",
+      "rank": "Rank",
+      "critical_service": "Critical service"
+    },
+    "actions": {
+      "add": "Add sub-outsourcing entry",
+      "create": "Create entry",
+      "edit": "Edit entry",
+      "archive": "Archive entry",
+      "restore": "Restore entry"
+    },
+    "form": {
+      "not_set": "Not set",
+      "contract": "Contract",
+      "predecessor": "Predecessor provider (empty = direct)",
+      "sub_provider_name": "Sub-provider (name)",
+      "person_type": "Person type",
+      "identifier_type": "ID code type",
+      "identifier_value": "ID code",
+      "country": "Country",
+      "ict_service": "ICT service (S-code)",
+      "note": "Note"
+    },
+    "errors": {
+      "mutation_failed": "Saving the sub-outsourcing entry failed."
+    },
+    "chain_status": {
+      "chain_error": "Broken supply chain",
+      "duplicate": "Duplicate"
+    },
+    "chain_group": {
+      "count": "Providers ({{count}})"
+    }
+  },
+  "register_links": {
+    "title": "ICT Register links",
+    "assets_title": "Linked Assets",
+    "assets_empty": "No Assets depend on this Vendor yet.",
+    "processes_title": "Linked Processes (direct)",
+    "processes_empty": "No Processes are linked to this Vendor yet.",
+    "select_asset_placeholder": "Select an Asset...",
+    "select_process_placeholder": "Select a Process...",
+    "s_code": "ICT service (S-code)",
+    "add": "Link",
+    "remove": "Remove link",
+    "no_metadata": "No link details",
+    "errors": {
+      "mutation_failed": "Failed to update the link."
+    }
+  },
+  "derived": {
+    "title": "Derived classification (ICT Register)",
+    "tier": "Vendor tier",
+    "cif": "Supports CIF",
+    "cif_chain": "Supports CIF (chain)",
+    "max_criticality": "Max criticality of linked assets",
+    "country_category": "Country category",
+    "chain_level": "Level in chain",
+    "significance_outcome": "Significant outsourcing (outcome)",
+    "linked_asset_count": "Assets (count)",
+    "linked_process_count": "Processes (count)",
+    "cif_process_count": "CIF processes (count)",
+    "contract_count": "Contracts (count)",
+    "main_contract_count": "Main contracts (count)",
+    "main_contract_reference": "Main contract (reference)",
+    "direct_sub_providers": "Direct sub-providers",
+    "completeness": "Completeness",
+    "complete": "Complete",
+    "incomplete": "Incomplete",
+    "transitive": {
+      "title": "Processes via assets (derived)",
+      "process": "Process",
+      "process_cif": "Process CIF",
+      "process_criticality": "Process criticality",
+      "via_asset": "Via asset",
+      "empty": "No derived process links."
+    },
+    "inputs": {
+      "title": "Why — the inputs behind these values",
+      "none": "—",
+      "cif_asset_link_count": "CIF asset links",
+      "cif_process_link_count": "Direct CIF process links (§1)",
+      "cloud_service_link_count": "Cloud service links (S17–S19)",
+      "substitutability": "Substitutability (entered)",
+      "tier_max_rank_at_least_high": "Max asset rank at least Vysoká",
+      "tier_substitutability_match": "Substitutability trigger",
+      "manual_process_link_count": "Direct process links (§1)",
+      "transitive_process_pair_count": "Derived process pairs (§2)",
+      "missing": "Missing for completeness",
+      "yes": "Yes",
+      "no": "No"
+    }
+  },
+  "link_approval": {
+    "continue": "Continue",
+    "reason_placeholder": "Explain why this Vendor relationship change is needed...",
+    "link_add": {
+      "title": "Request Vendor link addition",
+      "message": "Provide a reason. A protected Vendor keeps its approved relationships until this request is approved."
+    },
+    "link_remove": {
+      "title": "Request Vendor link removal",
+      "message": "Provide a reason. The existing relationship remains active until this request is approved."
     }
   }
 }

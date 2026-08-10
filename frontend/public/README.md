@@ -7,6 +7,7 @@ Folder for `frontend/public` implementation assets.
 ## Contents
 
 - `docs/`
+- `fonts/licenses/` — font license notices copied into production builds
 - `vite.svg`
 
 ## Notes

@@ -1,7 +1,7 @@
 ---
 title: Departments: Admin Support and Access Integrity
-version: "2.1"
-last_updated: "2026-03-29"
+version: "2.2"
+last_updated: "2026-07-31"
 audience: admin
 source_of_truth: "docs/BUSINESS_LOGIC.md (scope/visibility) + backend/app/api/v1/endpoints/riskhub/departments.py + frontend/src/pages/UsersPage.tsx"
 summary: "Admin runbook for supporting department changes without breaking access integrity: scoping diagnosis, user reassignments, and safe handoff to business owners."
@@ -26,6 +26,12 @@ Departments are structural boundaries in RiskHub that influence:
 Important boundary: **department CRUD is a business-governance function** (typically CRO-owned). Platform admins usually do not “decide departments”. Admin responsibility is to keep access behavior predictable, to keep user assignments consistent, and to provide evidence when department changes create incidents.
 
 This runbook describes how an admin supports department work safely: diagnosing scope issues, applying user reassignments, and coordinating a clean handoff to the business owner for department create/update/archive actions.
+
+## Department Workspace Invariant
+
+Department detail is an operational review workspace with exactly ten tabs: Overview, Risks, Controls, KRIs, Issues, Processes, Assets, Vendors, Users, and Activity. There is no Threat tab because Threats remain globally stewarded. The eight entity tabs reuse the normal register pages under a locked Department constraint, so their search, filters, groups, sort, pagination, capability-driven actions, pending/archive presentation, and exports behave as they do at the top level.
+
+For support diagnosis, do not infer record membership from the Accountable User's home Department. Process and Asset use their Owning Department, KRI follows its Risk's Department, and the other entity registers use their canonical Department field. Clearing filters in a Department tab cannot remove this constraint. Facets, counts, linked summaries, Activity, and exports must remain within both the caller's permissions and the selected Department.
 
 ## When To Use This
 
@@ -183,6 +189,8 @@ Checks:
 
 - scope accidentally expanded (`global`)
 - ownership exceptions (record owner visibility) are behaving as designed
+- the record's canonical Owning Department differs from the Accountable User's home Department
+- the Department tab URL still identifies the expected Department and tab after Back/Forward navigation
 
 Actions:
 

@@ -64,7 +64,7 @@ describe('ArchiveConfirmDialog accessibility', () => {
 
         expect(container.firstChild).toBeNull();
 
-        const dialog = screen.getByRole('dialog', { name: 'Archive Control' });
+        const dialog = screen.getByRole('alertdialog', { name: 'Archive Control' });
         expect(dialog).toHaveAttribute('aria-modal', 'true');
         expect(dialog).toHaveAccessibleDescription(/This action can be undone by an administrator\./);
         expect(dialog).toHaveAccessibleDescription(/Quarterly access review/);
@@ -97,7 +97,7 @@ describe('ArchiveConfirmDialog accessibility', () => {
         const opener = screen.getByRole('button', { name: 'Open archive confirmation' });
         await user.click(opener);
 
-        const dialog = screen.getByRole('dialog', { name: 'Archive Control' });
+        const dialog = screen.getByRole('alertdialog', { name: 'Archive Control' });
         const closeButton = within(dialog).getByRole('button', { name: 'Close' });
         const archiveButton = within(dialog).getByRole('button', { name: 'Archive' });
         const reasonInput = within(dialog).getByRole('textbox', { name: /Reason for Archiving/ });
@@ -116,7 +116,7 @@ describe('ArchiveConfirmDialog accessibility', () => {
 
         expect(onClose).toHaveBeenCalledTimes(1);
         await waitFor(() => expect(opener).toHaveFocus());
-        expect(screen.queryByRole('dialog', { name: 'Archive Control' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog', { name: 'Archive Control' })).not.toBeInTheDocument();
     });
 
     it('keeps close semantics disabled while archive submission is loading', async () => {
@@ -126,7 +126,7 @@ describe('ArchiveConfirmDialog accessibility', () => {
             onConfirm: vi.fn(() => pendingSubmit.promise),
         });
 
-        const dialog = screen.getByRole('dialog', { name: 'Archive Control' });
+        const dialog = screen.getByRole('alertdialog', { name: 'Archive Control' });
         await user.type(within(dialog).getByRole('textbox', { name: /Reason for Archiving/ }), 'Retired control');
         await user.click(within(dialog).getByRole('button', { name: 'Archive' }));
 
@@ -147,7 +147,7 @@ describe('ArchiveConfirmDialog accessibility', () => {
     it('describes validation errors from the same dialog body', async () => {
         renderArchiveDialog();
 
-        const dialog = screen.getByRole('dialog', { name: 'Archive Control' });
+        const dialog = screen.getByRole('alertdialog', { name: 'Archive Control' });
         const reasonInput = within(dialog).getByRole('textbox', { name: /Reason for Archiving/ });
 
         fireEvent.submit(reasonInput.closest('form') as HTMLFormElement);

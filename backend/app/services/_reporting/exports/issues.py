@@ -1,11 +1,12 @@
 from datetime import date
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import User
 from app.models.issue import IssueSeverity, IssueStatus
+from app.services._issue_register.linked_context import build_issue_linked_visibility
 
 from .fetch import _fetch_issues_for_export
 from .lifecycle import ExportRow, ReportExportDefinition, render_report_export_definition
@@ -38,7 +39,20 @@ async def _export_issues(
         exclude_active_exceptions=exclude_active_exceptions,
     )
     as_of_dt = _as_of_datetime(as_of_date)
-    rows = [_issue_to_row(issue, as_of_dt=as_of_dt, current_user=current_user) for issue in models]
+    rows: list[dict[str, Any]] = []
+    for offset in range(0, len(models), 100):
+        batch = models[offset : offset + 100]
+        linked_visibility = await build_issue_linked_visibility(db, current_user, batch)
+        rows.extend(
+            _issue_to_row(
+                issue,
+                as_of_dt=as_of_dt,
+                current_user=current_user,
+                linked_visibility=linked_visibility,
+                overdue_mode="historical_report",
+            )
+            for issue in batch
+        )
 
     def apply_overdue_filter(current_rows: list[ExportRow]) -> list[ExportRow]:
         if overdue_only:

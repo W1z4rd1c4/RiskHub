@@ -149,7 +149,7 @@ test.describe('Role-Based Access', () => {
             await page.goto('/admin');
             await waitForDataLoad(page);
             // Should load admin page content
-            await expect(page.locator('h1, h2').first()).toBeVisible();
+            await expect(page.locator('main h1, main h2').first()).toBeVisible();
         });
     });
 
@@ -169,6 +169,27 @@ test.describe('Role-Based Access', () => {
             await dashboard.navigateToRiskHub();
             await expect(page).toHaveURL(/.*risk-hub/);
             await waitForDataLoad(page);
+        });
+
+        test('CRO sees the fixed accountability reassignment policy', async ({ page }) => {
+            await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
+            const dashboard = new DashboardPage(page);
+            await dashboard.navigateToRiskHub();
+            await page.getByRole('button', { name: /Approval Rules|Pravidla schvalování/ }).click();
+            await waitForDataLoad(page);
+
+            const scenario = page.locator('tbody tr').filter({
+                hasText: 'Accountability reassignments',
+            });
+            await scenario.getByRole('button', { name: /Configure|Nastavit/ }).click();
+            const fixedPolicy = page.getByTestId('accountability-reassignment-fixed-policy');
+            await expect(fixedPolicy).toBeVisible();
+            await expect(fixedPolicy).toContainText(
+                /Any accountable user or Owning Department changes|Změna odpovědného uživatele nebo vlastnícího oddělení/,
+            );
+            await expect(fixedPolicy).toContainText(
+                /Self-approval is always prohibited|Vlastní schválení je vždy zakázáno/,
+            );
         });
 
         test('Risk Manager cannot see Risk Hub configuration', async ({ page }) => {

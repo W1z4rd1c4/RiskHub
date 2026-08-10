@@ -10,6 +10,7 @@ import { ApiClientError } from '@/services/apiClient';
 
 const mockList = vi.fn();
 const mockGetActions = vi.fn();
+const mockGetActors = vi.fn();
 const mockGetUsers = vi.fn();
 const mockGetDepartments = vi.fn();
 const mockGetRisks = vi.fn();
@@ -29,6 +30,7 @@ vi.mock('@/services/activityLogApi', () => ({
     activityLogApi: {
         list: (...args: unknown[]) => mockList(...args),
         getActions: () => mockGetActions(),
+        getActors: () => mockGetActors(),
     },
 }));
 
@@ -197,6 +199,7 @@ describe('ActivityLogPage capability denial state', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockGetActions.mockResolvedValue([]);
+        mockGetActors.mockResolvedValue([]);
         mockGetUsers.mockResolvedValue([]);
         mockGetDepartments.mockResolvedValue([]);
         mockGetRisks.mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });

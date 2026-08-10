@@ -70,6 +70,17 @@ export const publicConfigValueSchema = passthroughObject({
     value_type: z.string(),
 });
 
+const approvalScenarioFixedPolicySchema = passthroughObject({
+    threshold: z.enum([
+        'current_or_proposed_cif_yes',
+        'current_or_proposed_cif_yes_or_resulting_criticality_critical',
+        'current_or_proposed_tier_critical_or_significant',
+        'accountable_user_or_owning_department_change',
+    ]),
+    covered_actions: z.array(z.enum(['create', 'edit', 'link', 'archive'])),
+    allow_self_approval: z.literal(false),
+});
+
 export const approvalScenarioSchema: z.ZodType<ApprovalScenario> = passthroughObject({
     id: z.number(),
     key: z.string(),
@@ -77,6 +88,8 @@ export const approvalScenarioSchema: z.ZodType<ApprovalScenario> = passthroughOb
     description: z.string(),
     requires_approval: z.boolean(),
     approver_roles: stringArraySchema,
+    fixed_policy: z.boolean(),
+    fixed_policy_definition: approvalScenarioFixedPolicySchema.nullable().optional(),
     updated_at: z.string(),
     updated_by_name: z.string().nullable(),
     capabilities: passthroughObject({

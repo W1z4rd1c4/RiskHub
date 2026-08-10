@@ -4,8 +4,33 @@ import os
 import re
 import socket
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
+
+from release_parity_audit.run_state import validate_run_id
+
+
+_REPORT_DATE_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+
+def validate_report_date(report_date: str) -> str:
+    if not _REPORT_DATE_PATTERN.fullmatch(report_date):
+        raise ValueError("report date must be a valid ISO date in YYYY-MM-DD format")
+    try:
+        date.fromisoformat(report_date)
+    except ValueError as exc:
+        raise ValueError(
+            "report date must be a valid ISO date in YYYY-MM-DD format"
+        ) from exc
+    return report_date
+
+
+def _resolved_child(path: Path, parent: Path, label: str) -> Path:
+    resolved_parent = parent.resolve()
+    resolved_path = path.resolve()
+    if not resolved_path.is_relative_to(resolved_parent):
+        raise ValueError(f"{label} must remain under {resolved_parent}")
+    return resolved_path
 
 
 def default_run_id() -> str:
@@ -37,10 +62,15 @@ class ProdReadinessRunState:
     artifact_root: Path
     report_path: Path
     postgres_port: int = field(default_factory=lambda: pick_free_port(55432, 55999))
-    frontend_host_port: int = field(default_factory=lambda: pick_free_port(28081, 28999))
+    frontend_host_port: int = field(
+        default_factory=lambda: pick_free_port(28081, 28999)
+    )
     registry_port: int = field(default_factory=lambda: pick_free_port(56000, 56499))
+    security_probe_port: int = 29000
+    python_executable: str = "python3.13"
     required_failures: int = 0
     planned_run_complete: bool = False
+    planned_command_ids: list[str] = field(default_factory=list)
     command_results: list[dict[str, object]] = field(default_factory=list)
 
     @property
@@ -78,6 +108,14 @@ class ProdReadinessRunState:
     @property
     def runtime_dir(self) -> Path:
         return self.tmp_dir / "runtime"
+
+    @property
+    def audit_venv(self) -> Path:
+        return self.tmp_dir / "audit-venv"
+
+    @property
+    def audit_python(self) -> Path:
+        return self.audit_venv / "bin" / "python"
 
     @property
     def config_path(self) -> Path:
@@ -144,27 +182,91 @@ class ProdReadinessRunState:
         return f"{self.local_registry}/riskhub-redis:{self.upgrade_tag}"
 
     def ensure_directories(self) -> None:
-        for path in (self.meta_dir, self.log_dir, self.reports_dir, self.tmp_dir, self.runtime_dir, self.secret_dir):
+        for path in (
+            self.meta_dir,
+            self.log_dir,
+            self.reports_dir,
+            self.tmp_dir,
+            self.runtime_dir,
+            self.secret_dir,
+        ):
             path.mkdir(parents=True, exist_ok=True)
-        (self.root_dir / "tests" / "results" / "prod").mkdir(parents=True, exist_ok=True)
-        (self.root_dir / "docs" / "security" / "reports").mkdir(parents=True, exist_ok=True)
+        (self.root_dir / "tests" / "results" / "prod").mkdir(
+            parents=True, exist_ok=True
+        )
+        self.report_path.parent.mkdir(parents=True, exist_ok=True)
         self.matrix_ndjson.write_text("", encoding="utf-8")
 
 
-def build_run_state(*, root_dir: Path, run_id: str | None = None) -> ProdReadinessRunState:
-    effective_run_id = run_id or os.environ.get("RUN_ID") or default_run_id()
-    report_date = os.environ.get("REPORT_DATE") or datetime.now(UTC).strftime("%Y-%m-%d")
-    artifact_root = Path(
-        os.environ.get(
-            "ARTIFACT_ROOT",
-            str(root_dir / "tests" / "results" / "prod" / f"prod-readiness-audit-{effective_run_id}"),
-        )
+def build_run_state(
+    *, root_dir: Path, run_id: str | None = None
+) -> ProdReadinessRunState:
+    resolved_root = root_dir.resolve()
+    effective_run_id = validate_run_id(
+        run_id or os.environ.get("RUN_ID") or default_run_id()
     )
-    report_path = root_dir / "docs" / "security" / "reports" / f"prod-readiness-deep-audit-{report_date}.md"
-    return ProdReadinessRunState(
-        root_dir=root_dir,
+    report_date = validate_report_date(
+        os.environ.get("REPORT_DATE") or datetime.now(UTC).strftime("%Y-%m-%d")
+    )
+    artifact_parent = resolved_root / "tests" / "results" / "prod"
+    artifact_value = os.environ.get("ARTIFACT_ROOT")
+    if artifact_value:
+        artifact_path = Path(artifact_value)
+        if not artifact_path.is_absolute():
+            artifact_path = resolved_root / artifact_path
+    else:
+        artifact_path = artifact_parent / f"prod-readiness-audit-{effective_run_id}"
+    artifact_root = _resolved_child(artifact_path, artifact_parent, "artifact root")
+    report_path = artifact_root / "reports" / "report.md"
+    return build_plan_state(
+        root_dir=resolved_root,
         run_id=effective_run_id,
         report_date=report_date,
         artifact_root=artifact_root,
         report_path=report_path,
+        postgres_port=pick_free_port(55432, 55999),
+        frontend_host_port=pick_free_port(28081, 28999),
+        registry_port=pick_free_port(56000, 56499),
+        security_probe_port=pick_free_port(29000, 29999),
     )
+
+
+def build_plan_state(
+    *,
+    root_dir: Path,
+    run_id: str,
+    report_date: str,
+    artifact_root: Path,
+    report_path: Path,
+    postgres_port: int,
+    frontend_host_port: int,
+    registry_port: int,
+    security_probe_port: int = 29000,
+) -> ProdReadinessRunState:
+    """Build the canonical command-plan state without probing the host."""
+    validated_run_id = validate_run_id(run_id)
+    validated_report_date = validate_report_date(report_date)
+    return ProdReadinessRunState(
+        root_dir=root_dir,
+        run_id=validated_run_id,
+        report_date=validated_report_date,
+        artifact_root=artifact_root,
+        report_path=report_path,
+        postgres_port=postgres_port,
+        frontend_host_port=frontend_host_port,
+        registry_port=registry_port,
+        security_probe_port=security_probe_port,
+    )
+
+
+def plan_inputs(state: ProdReadinessRunState) -> dict[str, object]:
+    return {
+        "root_dir": str(state.root_dir),
+        "artifact_root": str(state.artifact_root),
+        "report_path": str(state.report_path),
+        "report_date": state.report_date,
+        "postgres_port": state.postgres_port,
+        "frontend_host_port": state.frontend_host_port,
+        "registry_port": state.registry_port,
+        "security_probe_port": state.security_probe_port,
+    }

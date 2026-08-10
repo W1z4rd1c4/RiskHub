@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
     ArrowLeft,
     Edit,
@@ -16,6 +16,7 @@ import type { Control } from '@/types/control';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
+import { ControlRiskLoadingOverlay } from '@/components/controls/ControlRiskLoadingOverlay';
 import { useTranslation } from '@/i18n/hooks';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
@@ -287,22 +288,7 @@ export function ControlDetailPage() {
                 resourceName={control.name}
             />
 
-            {/* Global Loading Overlay for Risk Fetching */}
-            <AnimatePresence>
-                {workflow.isLoadingRisk && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/40 backdrop-blur-[2px]"
-                    >
-                        <div className="glass-card !p-6 shadow-2xl flex flex-col items-center gap-4">
-                            <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t('controls:detail.fetching_risk_details')}</p>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <ControlRiskLoadingOverlay isVisible={workflow.isLoadingRisk} />
         </div>
     );
 }

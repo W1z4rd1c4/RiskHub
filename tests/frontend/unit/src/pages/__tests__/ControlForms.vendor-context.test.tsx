@@ -99,6 +99,29 @@ describe('ControlNewPage vendor context', () => {
         });
     });
 
+    it('returns to the vendor with a warning when the link queues for approval', async () => {
+        mockLinkControl.mockResolvedValueOnce({
+            status: 'approval_required',
+            approval_id: 321,
+            proposal_id: 'proposal-321',
+            proposal_version: 1,
+        });
+
+        render(<ControlNewPage />);
+        fireEvent.click(await screen.findByRole('button', { name: 'submit' }));
+
+        await waitFor(() => {
+            expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
+                state: {
+                    vendorFlash: expect.objectContaining({
+                        tone: 'warn',
+                        ctaHref: '/controls/88',
+                    }),
+                },
+            });
+        });
+    });
+
     it('hides vendor-context creation when the vendor link capability is false', async () => {
         mockGetVendor.mockResolvedValueOnce({
             id: 12,

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import './assets/fonts/fonts.css';
 
 @tailwind base;
 @tailwind components;
@@ -29,8 +29,28 @@
     /* Electric Blue */
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 91% 71%;
+    --destructive-foreground: 222 47% 11%;
+
+    /* Semantic status tokens (ADR-015 / FR-P1-1). --destructive stays the
+       canonical danger token (no rename, no `danger`). Token pairs and
+       destructive text/hover states clear WCAG AA 4.5:1 — enforced by
+       tests/frontend/unit/src/design-system/statusTokenContrast.test.ts.
+       Amber warning uses a dark foreground on purpose: white on amber fails AA.
+       --success-text is the standalone-text variant of --success (the fill token
+       is too dark to read as text on the dark surfaces): the static HSL of
+       color-mix(in srgb, hsl(var(--success)) 50%, white). AA against
+       --background is enforced by statusTokenContrast.test.ts.
+       --warning-text is the same standalone-text derivation for --warning: the
+       static HSL of color-mix(in srgb, hsl(var(--warning)) 50%, white). */
+    --success: 142 72% 26%;
+    --success-foreground: 210 40% 98%;
+    --success-text: 142 25% 63%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 26 84% 6%;
+    --warning-text: 38 92% 75%;
+    --info: 211 80% 38%;
+    --info-foreground: 210 40% 98%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
@@ -47,7 +67,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter Variable', sans-serif;
   }
 
   h1,
@@ -56,7 +76,7 @@
   h4,
   h5,
   h6 {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Outfit Variable', sans-serif;
   }
 }
 
@@ -206,8 +226,18 @@
   --accent: 210 100% 50%;
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive: 0 91% 71%;
+  --destructive-foreground: 222 47% 11%;
+
+  /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale. */
+  --success: 142 72% 26%;
+  --success-foreground: 0 0% 100%;
+  --success-text: 142 25% 63%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 26 84% 6%;
+  --warning-text: 38 92% 75%;
+  --info: 211 80% 38%;
+  --info-foreground: 0 0% 100%;
 
   --border: 0 0% 15%;
   --input: 0 0% 15%;
@@ -321,8 +351,24 @@
   --accent: 210 100% 50%;
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 84.2% 60.2%;
+  --destructive: 0 74% 42%;
   --destructive-foreground: 0 0% 100%;
+
+  /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale.
+     --success-text: on the light surfaces the deep-green fill token itself is
+     the readable text shade (the vendorRoute.css light theme reuses it the
+     same way), so no lightening here.
+     --warning-text: unlike --success, the amber fill token fails as text on
+     the light surfaces (~2.05:1), so a darkened amber is used instead — AA
+     against --background is enforced by statusTokenContrast.test.ts. */
+  --success: 142 72% 26%;
+  --success-foreground: 0 0% 100%;
+  --success-text: 142 72% 26%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 26 84% 6%;
+  --warning-text: 38 92% 30%;
+  --info: 211 80% 38%;
+  --info-foreground: 0 0% 100%;
 
   --border: 220 13% 85%;
   --input: 220 13% 85%;
@@ -405,19 +451,12 @@
     radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.08) 0px, transparent 50%);
 }
 
-/* Light theme - Form inputs */
-.theme-light input,
-.theme-light select,
-.theme-light textarea {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  color: #1e293b !important;
-}
-
-.theme-light input::placeholder,
-.theme-light textarea::placeholder {
-  color: #94a3b8 !important;
-}
+/* Light theme - Form inputs are themed by the token-driven Input primitive
+   (bg-input/40, text-foreground), by the vendor route (.vendor-route inputs),
+   and by component rules (.confirm-dialog-input, [data-radix-select-trigger]).
+   The former blanket `.theme-light input {…!important}` rule was removed
+   (FR-P5-10 / P4): being `!important` it overrode both the design-system Input
+   and the vendor-route field theming in the light theme. */
 
 /* Light theme - Tables */
 .theme-light table {

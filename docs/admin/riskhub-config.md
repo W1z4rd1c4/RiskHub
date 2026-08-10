@@ -1,7 +1,7 @@
 ---
 title: Risk Hub Configuration Support Boundaries (Admin Runbook)
-version: "2.1"
-last_updated: "2026-04-25"
+version: "2.2"
+last_updated: "2026-07-16"
 audience: admin
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + backend/app/api/v1/endpoints/riskhub/* + authz role model"
 summary: "Admin runbook defining what admins support in Risk Hub configuration (technical enablement) vs what remains a business-owner decision, with incident triage procedures."
@@ -130,6 +130,26 @@ Role/department-specific support:
 - Department managers must be active users. Reactivating or replacing the user is safer than bypassing this validation.
 - Department deletes are intentionally conservative because department scope drives RBAC, reports, vendors, KRIs, and orphan governance.
 
+Protected Process, Asset, Vendor, and accountability approval support:
+
+- `protected_process_edit` is a fixed Risk Hub scenario. The CRO may enable or disable it and select a non-empty subset of Risk Manager and CRO approver roles.
+- `protected_asset_edit` is fixed as well. It covers an Asset when current or
+  proposed CIF is Yes or resulting criticality is Critical, including governed
+  create/edit/archive and protected relationship impact. Its threshold,
+  covered actions, and no-self-approval rule are read-only.
+- `protected_vendor_edit` is also fixed. It covers current-or-proposed Critical
+  or Significant Vendor create/edit/archive, Contract and Sub-outsourcing
+  mutations, and Vendor-managed Risk/Control/KRI links. Asset-to-Vendor and
+  Process-to-Vendor changes keep their Asset/Process composite approval paths.
+  Only enabled state and a non-empty
+  subset of Risk Manager/CRO approver roles are editable; threshold, covered
+  actions, and no-self approval are read-only.
+- The protection rule (current or proposed CIF is Yes), covered edit action, and no-self-approval rule are immutable. Treat attempts to patch them as invalid requests, not as a missing admin override.
+- Enabling the scenario is unsafe when no active independent User exists in a configured approver role. Submission must fail closed instead of creating unresolvable queue work.
+- Disabling the scenario affects only whether an authorized protected edit is submitted or applied directly. It does not grant Process access or bypass field, owner, Department, or derivation validation.
+- Governed Process requests are event-driven. Do not configure due dates, reminder jobs, overdue escalation, or automatic decisions.
+- The two User preferences suppress notification delivery only. A missing notification with a still-visible approval row or count can be an intentional preference outcome.
+
 ### 4) Boundary handling: technical vs policy
 
 Use this boundary rule:
@@ -239,6 +259,16 @@ Handoff package:
 - request IDs + log snippets
 - what you verified and what you changed
 - what decision is required (if any) and who owns it
+
+## Fixed accountability scenario
+
+`accountability_reassignment` is the fourth fixed scenario. It triggers on any
+actual accountable-user or Owning Department change for Process, Asset, Vendor,
+or Threat, including Governance orphan resolution. A CRO may enable or disable
+it and choose a non-empty Risk Manager/CRO resolver subset. Trigger, covered
+edit action, and no-self-approval are read-only. Disabled mode permits the typed
+direct result but never bypasses RBAC, active-user, Department, or resource
+validation.
 
 ## Related Documentation
 

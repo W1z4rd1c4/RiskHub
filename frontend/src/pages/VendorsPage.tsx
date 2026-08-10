@@ -1,189 +1,134 @@
 import { useNavigate } from 'react-router-dom';
-import { Download, Plus, RefreshCw, Search } from 'lucide-react';
 
+import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import { ViewSwitcher } from '@/components/tables';
+import type { SortDirection } from '@/components/tables';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import type { VendorType } from '@/types/vendor';
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import type { CollectionGroup } from '@/types/collection';
+import type { Vendor, VendorSortField } from '@/types/vendor';
 
-import { VendorsTableSection } from './vendors/VendorsTableSection';
-import { useVendorsPageState } from './vendors/useVendorsPageState';
-import type { VendorArchiveFilter } from './vendors/vendorsPagePresentation';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
+import { parseVendorSemanticFilters } from './shared/ictRegisterSemanticFilters';
+import { useIctRegisterSemanticPageState } from './shared/useIctRegisterPageState';
+import { VendorRegisterFilterBar } from './vendors/VendorRegisterFilterBar';
+import { buildVendorColumns } from './vendors/vendorColumns';
+import { VENDOR_REGISTER_CONFIG, type VendorRegisterView } from './vendors/vendorRegisterConfig';
+import { formatVendorGroupLabel } from './vendors/vendorsPagePresentation';
+import { useVendorsPageState } from './vendors/useVendorsPageState';
 
 export function VendorsPage() {
     const navigate = useNavigate();
-    const { t } = useTranslation('vendors');
-    const {
-        capabilities,
-        currentPage,
-        errorKey,
-        fetchVendors,
-        groups,
-        handleExport,
-        hasLoadedOnce,
-        isExportDialogOpen,
-        isExporting,
-        isAccessDenied,
-        isLoading,
-        items,
-        limit,
-        openExportDialog,
-        closeExportDialog,
-        restoreVendor,
-        search,
-        selectedGroupLabel,
-        selectedGroupValue,
-        setCurrentPage,
-        sortDirection,
-        sortField,
-        statusFilter,
-        totalCount,
-        totalPages,
-        typeFilter,
-        updateSearch,
-        updateSort,
-        updateStatusFilter,
-        updateTypeFilter,
-        updateViewMode,
-        viewMode,
-        selectGroup,
-        clearSelectedGroup,
-    } = useVendorsPageState();
-
-    if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
-    }
+    const { i18n, t } = useTranslation('vendors');
+    const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } =
+        useIctRegisterSemanticPageState(parseVendorSemanticFilters);
+    const state = useVendorsPageState(semanticFilters, i18n.language.startsWith('cs') ? 'cs' : 'en');
+    const columns = buildVendorColumns({
+        t,
+        onRestore: (vendorId, event) => {
+            event.stopPropagation();
+            void state.restoreVendor(vendorId);
+        },
+    });
+    const views = VENDOR_REGISTER_CONFIG.views.filter((view) => (
+        view.value !== 'risk' || resolveCapabilityFlag(state.capabilities, 'can_view_risk_contexts')
+    ));
+    const presentGroupLabel = (group: CollectionGroup) => formatVendorGroupLabel(group, {
+        noProcess: t('grouping.no_process'),
+        typeLabel: (value) => t(`type.${value}`, value),
+        unassigned: t('labels.unassigned'),
+        unlinkedRisk: t('grouping.unlinked_risk'),
+        doraRelevant: t('flags.dora_relevant'),
+        supportsCoreFunction: t('flags.supports_core_function'),
+        significantVendor: t('flags.significant_vendor'),
+        insignificantVendor: t('grouping.insignificant_vendor'),
+    });
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
-                    <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    {resolveCapabilityFlag(capabilities, 'can_export') && (
-                        <button
-                            type="button"
-                            onClick={openExportDialog}
-                            data-testid="vendors-export-button"
-                            disabled={isExporting}
-                            className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <Download className="h-4 w-4" />
-                            {t('actions.export')}
-                        </button>
-                    )}
-                    {resolveCapabilityFlag(capabilities, 'can_create') && (
-                        <button
-                            type="button"
-                            onClick={() => navigate('/vendors/new')}
-                            data-testid="vendors-create-button"
-                            className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all flex items-center gap-2"
-                        >
-                            <Plus className="h-5 w-5" />
-                            {t('actions.new')}
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            <ViewSwitcher
-                value={viewMode}
-                onChange={updateViewMode}
-                exclude={resolveCapabilityFlag(capabilities, 'can_view_risk_contexts') ? ['category', 'risk_type', 'vendor'] : ['category', 'risk_type', 'risk', 'vendor']}
-            />
-
-            <div className="glass-card flex flex-col md:flex-row gap-4">
-                <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
-                    <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
-                    <input
-                        data-testid="vendors-search-input"
-                        type="text"
-                        placeholder={t('filters.search_placeholder')}
-                        value={search}
-                        onChange={(event) => updateSearch(event.target.value)}
-                        className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
+        <RegisterListShell<Vendor, VendorRegisterView>
+            accessDeniedState={<ReadAccessDeniedState />}
+            allView="all"
+            title={t('title')}
+            subtitle={t('subtitle')}
+            views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
+            view={state.viewMode}
+            onViewChange={state.updateViewMode}
+            canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
+            canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
+            onCreate={() => void navigate('/vendors/new')}
+            createLabel={t('actions.new')}
+            exportLabel={t('actions.export')}
+            exportDialog={({ isOpen, onClose }) => (
+                <ExportDialog
+                    isOpen={isOpen}
+                    onClose={onClose}
+                    onSubmit={async () => {
+                        await state.exportVendors();
+                        onClose();
+                    }}
+                    isSubmitting={state.isExporting}
+                    dataTestId="vendors-export-dialog"
+                    title={t('register.export.title')}
+                />
+            )}
+            isAccessDenied={state.isAccessDenied}
+            isError={Boolean(state.errorKey)}
+            errorMessage={state.errorKey ? t(state.errorKey, { ns: 'errorKeys' }) : undefined}
+            isExporting={state.isExporting}
+            isLoading={state.isLoading}
+            items={state.items}
+            columns={columns}
+            table={{
+                keyExtractor: (vendor) => vendor.id,
+                onRowClick: (vendor) => void navigate(`/vendors/${vendor.id}`),
+                rowHref: (vendor) => `/vendors/${vendor.id}`,
+                rowLabel: (vendor) => vendor.name,
+                sortKey: state.sortField,
+                sortDirection: state.sortDirection,
+                onSort: (key, direction) => state.updateSort(
+                    direction ? key as VendorSortField : null,
+                    direction as SortDirection,
+                ),
+            }}
+            currentPage={state.currentPage}
+            totalPages={state.totalPages}
+            totalCount={state.totalCount}
+            itemsPerPage={state.limit}
+            onPageChange={state.setCurrentPage}
+            onRetry={() => void state.fetchVendors()}
+            emptyMessage={state.hasLoadedOnce ? t('empty_state.no_vendors') : t('common:loading.data')}
+            grouping={{
+                groups: state.groups,
+                onBack: state.clearSelectedGroup,
+                onSelectGroup: state.selectGroup,
+                selectedGroupLabel: state.selectedGroupLabel,
+                selectedGroupValue: state.selectedGroupValue,
+                hideActive: true,
+                hideHighlighted: true,
+                groupLabel: presentGroupLabel,
+            }}
+            testIdPrefix="vendors"
+            toolbar={(
+                <div className="space-y-4">
+                    <SemanticFilterSummary
+                        filters={presentedSemanticFilters}
+                        onRemove={removeSemanticFilter}
+                    />
+                    <VendorRegisterFilterBar
+                        facets={state.facets}
+                        filters={state.filters}
+                        isLifecycleLocked={semanticFilters.committee_scope === true}
+                        isLoading={state.isLoading}
+                        onClearAll={state.clearFilters}
+                        onFilterChange={state.updateFilter}
+                        onRefresh={() => void state.fetchVendors()}
+                        onSearchChange={state.updateSearch}
+                        search={state.search}
                     />
                 </div>
-                <div className="flex gap-4">
-                    <ThemedSelect
-                        value={statusFilter}
-                        onValueChange={(value) => updateStatusFilter(value as VendorArchiveFilter)}
-                        placeholder={t('filters.all_statuses')}
-                        allowEmpty
-                        emptyLabel={t('filters.all_statuses')}
-                        triggerTestId="vendors-status-filter-trigger"
-                        contentTestId="vendors-status-filter-content"
-                        optionTestIdPrefix="vendors-status-filter-option"
-                        options={[
-                            { value: 'active', label: t('status.active') },
-                            { value: 'inactive', label: t('status.inactive') },
-                        ]}
-                    />
-                    <ThemedSelect
-                        value={typeFilter}
-                        onValueChange={(value) => updateTypeFilter(value as VendorType | '')}
-                        placeholder={t('filters.all_types')}
-                        allowEmpty
-                        emptyLabel={t('filters.all_types')}
-                        triggerTestId="vendors-type-filter-trigger"
-                        contentTestId="vendors-type-filter-content"
-                        optionTestIdPrefix="vendors-type-filter-option"
-                        options={[
-                            { value: 'ict', label: t('type.ict') },
-                            { value: 'outsourcing', label: t('type.outsourcing') },
-                            { value: 'professional_services', label: t('type.professional_services') },
-                            { value: 'partner', label: t('type.partner') },
-                            { value: 'other', label: t('type.other') },
-                        ]}
-                    />
-                    <button
-                        type="button"
-                        onClick={() => void fetchVendors()}
-                        data-testid="vendors-refresh-button"
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
-                    >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
-                    </button>
-                </div>
-            </div>
-
-            <VendorsTableSection
-                currentPage={currentPage}
-                errorKey={errorKey}
-                groups={groups}
-                hasLoadedOnce={hasLoadedOnce}
-                isLoading={isLoading}
-                items={items}
-                itemsPerPage={limit}
-                onBackFromGroup={clearSelectedGroup}
-                onPageChange={setCurrentPage}
-                onRestoreVendor={(vendorId) => void restoreVendor(vendorId)}
-                onRetry={() => void fetchVendors()}
-                onRowClick={(vendor) => navigate(`/vendors/${vendor.id}`)}
-                onSelectGroup={selectGroup}
-                onSortChange={updateSort}
-                selectedGroupLabel={selectedGroupLabel}
-                selectedGroupValue={selectedGroupValue}
-                sortDirection={sortDirection}
-                sortField={sortField}
-                totalCount={totalCount}
-                totalPages={totalPages}
-                viewMode={viewMode}
-            />
-
-            <ExportDialog
-                isOpen={isExportDialogOpen}
-                onClose={closeExportDialog}
-                onSubmit={handleExport}
-                isSubmitting={isExporting}
-                dataTestId="vendors-export-dialog"
-            />
-        </div>
+            )}
+        />
     );
 }
 

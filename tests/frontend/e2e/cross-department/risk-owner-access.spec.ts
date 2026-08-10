@@ -62,7 +62,7 @@ test.describe('Risk Owner Cross-Department Access', () => {
                 await waitForDataLoad(page);
 
                 // Verify we can see the detail page (not redirected/blocked)
-                await expect(page.locator('h1, h2').first()).toBeVisible();
+                await expect(page.locator('main h1, main h2').first()).toBeVisible();
 
                 // Check that owner information is displayed
                 const pageContent = await page.textContent('main, [role="main"], .content');

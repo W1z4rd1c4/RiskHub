@@ -30,6 +30,14 @@ DEMO_PERSONAS: list[DemoPersonaRead] = [
         "color": "violet",
     },
     {
+        "section": "privileged",
+        "name": "Klára Černá",
+        "email": "ciso@riskhub.local",
+        "role_key": "auth:login_demo.roles.chief_information_security_officer",
+        "dept_key": "auth:login_demo.departments.it",
+        "color": "teal",
+    },
+    {
         "section": "department_heads",
         "name": "Eva Králová",
         "email": "ops.head@riskhub.local",

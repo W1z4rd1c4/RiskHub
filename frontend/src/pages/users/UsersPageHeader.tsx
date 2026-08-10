@@ -1,5 +1,4 @@
 import { Building2, RefreshCw, UserPlus, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 import { useTranslation } from '@/i18n/hooks';
 
@@ -9,6 +8,7 @@ interface UsersPageHeaderProps {
     isAccessMode: boolean;
     isCheckingAllDirectory: boolean;
     isDirectoryFirstMode: boolean;
+    onAddUser: () => void;
     onCheckAllDirectory: () => void;
 }
 
@@ -18,10 +18,10 @@ export function UsersPageHeader({
     isAccessMode,
     isCheckingAllDirectory,
     isDirectoryFirstMode,
+    onAddUser,
     onCheckAllDirectory,
 }: UsersPageHeaderProps) {
     const { t } = useTranslation('admin');
-    const navigate = useNavigate();
 
     return (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -38,6 +38,7 @@ export function UsersPageHeader({
                 <div className="flex flex-wrap items-center gap-2">
                     {canRunDirectoryCheck && (
                         <button
+                            type="button"
                             onClick={onCheckAllDirectory}
                             disabled={isCheckingAllDirectory}
                             className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sky-200 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
@@ -51,7 +52,8 @@ export function UsersPageHeader({
                         </button>
                     )}
                     <button
-                        onClick={() => navigate('/users/new')}
+                        type="button"
+                        onClick={onAddUser}
                         className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
                     >
                         {isDirectoryFirstMode ? <Building2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}

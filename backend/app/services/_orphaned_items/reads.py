@@ -9,6 +9,7 @@ from app.models.orphaned_item import OrphanedItem
 from app.models.user import User
 
 from .core import _get_item_details
+from .governance import project_orphan_request_reason_requirements
 from .workflow import can_view_orphan, orphan_capabilities
 
 
@@ -61,6 +62,10 @@ async def get_pending_orphans_with_details(
 
     result = await db.execute(query)
     orphans = result.scalars().all()
+    reason_requirements = await project_orphan_request_reason_requirements(
+        db,
+        list(orphans),
+    )
 
     details = []
     for orphan in orphans:
@@ -77,6 +82,7 @@ async def get_pending_orphans_with_details(
                 "id": orphan.id,
                 "item_type": orphan.item_type,
                 "item_id": orphan.item_id,
+                "responsibility_role": orphan.responsibility_role,
                 "item_name": item_name,
                 "item_description": item_description,
                 "item_identifier": item_identifier,
@@ -85,6 +91,7 @@ async def get_pending_orphans_with_details(
                 "previous_owner_email": orphan.previous_owner.email if orphan.previous_owner else "unknown@example.com",
                 "orphaned_at": orphan.orphaned_at,
                 "status": orphan.status,
+                "request_reason_required": reason_requirements[orphan.id],
                 "capabilities": orphan_capabilities(orphan),
             }
         )
@@ -107,6 +114,10 @@ async def get_orphan_detail(db: AsyncSession, orphan_id: int, current_user: User
         return None
     if current_user is not None and not await can_view_orphan(db, current_user, orphan):
         return None
+    reason_requirements = await project_orphan_request_reason_requirements(
+        db,
+        [orphan],
+    )
 
     item_name, item_description, item_identifier, department_name = await _get_item_details(
         db,
@@ -118,6 +129,7 @@ async def get_orphan_detail(db: AsyncSession, orphan_id: int, current_user: User
         "id": orphan.id,
         "item_type": orphan.item_type,
         "item_id": orphan.item_id,
+        "responsibility_role": orphan.responsibility_role,
         "item_name": item_name,
         "item_description": item_description,
         "item_identifier": item_identifier,
@@ -126,5 +138,6 @@ async def get_orphan_detail(db: AsyncSession, orphan_id: int, current_user: User
         "previous_owner_email": orphan.previous_owner.email if orphan.previous_owner else "unknown@example.com",
         "orphaned_at": orphan.orphaned_at,
         "status": orphan.status,
+        "request_reason_required": reason_requirements[orphan.id],
         "capabilities": orphan_capabilities(orphan),
     }

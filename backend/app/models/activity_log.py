@@ -47,6 +47,15 @@ class ActivityEntityType(str, PyEnum):
     RISK_QUESTIONNAIRE = "risk_questionnaire"
     VENDOR = "vendor"
     VENDOR_LINK = "vendor_link"
+    VENDOR_CONTRACT = "vendor_contract"
+    VENDOR_SUB_OUTSOURCING = "vendor_sub_outsourcing"
+    PROCESS = "process"
+    PROCESS_LINK = "process_link"
+    ASSET = "asset"
+    ASSET_LINK = "asset_link"
+    THREAT = "threat"
+    THREAT_LINK = "threat_link"
+    RISK_LINK = "risk_link"
     # Reserved: vendor extended domains are parked until the DORA feature set ships.
     VENDOR_ASSESSMENT = "vendor_assessment"
     VENDOR_INCIDENT = "vendor_incident"
@@ -79,7 +88,11 @@ class ActivityLog(Base):
 
     # What entity was affected
     entity_type: Mapped[str] = mapped_column(
-        SAEnum(ActivityEntityType, name="activity_entity_type", native_enum=False, validate_strings=True),
+        # length=64 mirrors the w0x1y2z3a4b5 widening migration: non-native
+        # Enum persistence stores member NAMES, and an implicit length sizes
+        # the VARCHAR to the longest CURRENT member — silently truncating on
+        # Postgres once a longer member ships (the #45 sub-outsourcing 500s).
+        SAEnum(ActivityEntityType, name="activity_entity_type", native_enum=False, validate_strings=True, length=64),
         nullable=False,
         index=True,
     )

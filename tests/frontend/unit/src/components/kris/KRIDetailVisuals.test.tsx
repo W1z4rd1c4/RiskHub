@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
@@ -143,7 +144,6 @@ describe('KRI detail visuals', () => {
                 linkedRisk={null}
                 dueDate={null}
                 formatNumber={(value) => String(value)}
-                onNavigateToRisk={vi.fn()}
             />
         );
 
@@ -152,5 +152,42 @@ describe('KRI detail visuals', () => {
             valuePct: 50,
             zones: [expect.objectContaining({ startPct: 0, endPct: 100 })],
         }));
+    });
+
+    it('exposes the linked risk as a native link with its destination', () => {
+        render(
+            <MemoryRouter>
+                <KRIDetailOverviewTab
+                    kri={{
+                        id: 1,
+                        risk_id: 2,
+                        metric_name: 'Loss Ratio',
+                        description: 'desc',
+                        current_value: 15,
+                        lower_limit: 10,
+                        upper_limit: 20,
+                        unit: '%',
+                        breach_status: 'within',
+                        last_updated: '2026-04-19T00:00:00Z',
+                        created_at: '2026-04-19T00:00:00Z',
+                        frequency: 'monthly',
+                        monitoring_status: 'optimal',
+                    }}
+                    linkedRisk={{
+                        id: 42,
+                        name: 'Cloud concentration risk',
+                        description: 'Concentration in one cloud provider',
+                        process: 'ICT operations',
+                    } as never}
+                    dueDate={null}
+                    formatNumber={(value) => String(value)}
+                />
+            </MemoryRouter>
+        );
+
+        const riskLink = screen.getByRole('link', { name: /Cloud concentration risk/i });
+        expect(riskLink).toHaveAttribute('href', '/risks/42');
+        expect(riskLink.className).toContain('focus-visible:ring-2');
+        expect(screen.queryByRole('button', { name: /Cloud concentration risk/i })).not.toBeInTheDocument();
     });
 });

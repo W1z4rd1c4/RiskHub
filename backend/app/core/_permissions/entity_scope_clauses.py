@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, overload
 
 from sqlalchemy import and_, false, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +30,22 @@ def _department_strict_clause(
     return department_column == department_id
 
 
+# With a concrete department_id the strict clause is always produced (false()
+# when out of scope, an equality clause otherwise), so None is impossible.
+@overload
+async def risk_visibility_clause(
+    db: AsyncSession,
+    user: User,
+    *,
+    department_id: int,
+) -> ColumnElement[bool]: ...
+@overload
+async def risk_visibility_clause(
+    db: AsyncSession,
+    user: User,
+    *,
+    department_id: int | None = None,
+) -> ColumnElement[bool] | None: ...
 async def risk_visibility_clause(
     db: AsyncSession,
     user: User,
@@ -66,6 +82,12 @@ async def risk_visibility_clause(
     return or_(*clauses) if clauses else false()
 
 
+@overload
+def control_visibility_clause(user: User, *, department_id: int) -> ColumnElement[bool]: ...
+@overload
+def control_visibility_clause(
+    user: User, *, department_id: int | None = None
+) -> ColumnElement[bool] | None: ...
 def control_visibility_clause(
     user: User,
     *,
@@ -92,6 +114,20 @@ def control_visibility_clause(
     return or_(*clauses)
 
 
+@overload
+async def kri_visibility_clause(
+    db: AsyncSession,
+    user: User,
+    *,
+    department_id: int,
+) -> ColumnElement[bool]: ...
+@overload
+async def kri_visibility_clause(
+    db: AsyncSession,
+    user: User,
+    *,
+    department_id: int | None = None,
+) -> ColumnElement[bool] | None: ...
 async def kri_visibility_clause(
     db: AsyncSession,
     user: User,
@@ -128,6 +164,12 @@ async def kri_visibility_clause(
     return or_(*clauses) if clauses else false()
 
 
+@overload
+def vendor_visibility_clause(user: User, *, department_id: int) -> ColumnElement[bool]: ...
+@overload
+def vendor_visibility_clause(
+    user: User, *, department_id: int | None = None
+) -> ColumnElement[bool] | None: ...
 def vendor_visibility_clause(
     user: User,
     *,

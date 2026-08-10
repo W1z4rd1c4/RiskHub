@@ -1,0 +1,261 @@
+{
+    "title": "Assets",
+    "subtitle": "ICT Register — ICT assets supporting the business Processes",
+    "actions": {
+        "new": "New Asset",
+        "edit": "Edit Asset",
+        "create": "Create Asset",
+        "save": "Save Changes",
+        "submit_for_approval": "Submit for approval",
+        "cancel": "Cancel",
+        "restore": "Restore",
+        "retry": "Retry",
+        "back_to_register": "Back to Assets",
+        "export": "Export"
+    },
+    "filters": {
+        "search_placeholder": "Search by name, type, or owner...",
+        "all_statuses": "All statuses"
+    },
+    "status": {
+        "active": "Active",
+        "archived": "Archived"
+    },
+    "columns": {
+        "name": "Asset",
+        "asset_type": "Type",
+        "owner": "Owner",
+        "resulting_criticality": "Resulting criticality",
+        "cif": "CIF",
+        "lifecycle_state": "Lifecycle",
+        "status": "Status"
+    },
+    "pending_change": {
+        "title": "Proposed Asset change",
+        "badge": "Pending change",
+        "requested_by_at": "Requested by {{requester}} on {{date}} at {{time}}",
+        "unknown_requester": "Unknown user",
+        "cancel": "Cancel request",
+        "cancel_failed": "Failed to cancel the pending Asset change.",
+        "before": "Current values",
+        "after": "Proposed values",
+        "diff_restricted": "The proposed values are hidden by your permission scope."
+    },
+    "form": {
+        "sections": {
+            "identity": "Identification",
+            "ownership": "Ownership and regulation",
+            "ratings": "Asset value — C/I/A/Auth (1–5)",
+            "impact_dependencies": "Business impact and dependencies",
+            "lifecycle": "Lifecycle and review"
+        },
+        "name": "Asset name",
+        "asset_type": "Asset type",
+        "asset_level": "Asset level",
+        "description": "Description / purpose",
+        "physical_location": "Physical location",
+        "deployment_model": "Deployment model",
+        "alternative_names": "Alternative names",
+        "business_owner": "Business owner",
+        "owner_department": "Owning department",
+        "ict_owner": "ICT owner",
+        "gdpr_relevance": "GDPR relevance",
+        "ai_relevance": "AI relevance",
+        "data_classification": "Data classification",
+        "confidentiality_rating": "Confidentiality (1–5)",
+        "integrity_rating": "Integrity (1–5)",
+        "availability_rating": "Availability (1–5)",
+        "authenticity_rating": "Authenticity (1–5)",
+        "impact_client": "Client impact (1–5)",
+        "impact_regulatory": "Regulatory impact (1–5)",
+        "substitutability_rating": "Substitutability of asset (1–5)",
+        "vendor_dependency_rating": "Vendor dependency (1–5)",
+        "internet_exposed": "Internet exposed",
+        "preliminary_criticality": "Preliminary criticality",
+        "lifecycle_state": "Lifecycle state",
+        "standard_support_end_date": "End of standard support",
+        "extended_support_end_date": "End of extended support",
+        "custom_support_end_date": "End of custom support",
+        "last_legacy_risk_assessment_date": "Last legacy risk assessment",
+        "review_state": "Review state",
+        "notes": "Notes",
+        "request_reason": "Request reason",
+        "request_reason_help": "Protected Asset changes and all Business Owner, ICT Owner, or Owning Department changes are submitted for independent approval. Explain why this change is needed.",
+        "not_set": "Not set",
+        "ratings_note": "The asset value (CIAA) is derived as the maximum of the four ratings.",
+        "business_owner_placeholder": "Select a Business Owner...",
+        "ict_owner_placeholder": "Select an ICT Owner...",
+        "owner_search": "Search active users...",
+        "department_placeholder": "Select a department...",
+        "department_search": "Search departments...",
+        "owner_no_department": "No department",
+        "owner_no_role": "No role",
+        "errors": {
+            "name_required": "Asset name is required.",
+            "request_reason_required": "A request reason is required for this governed Asset change.",
+            "business_owner_required": "Business Owner is required.",
+            "ict_owner_required": "ICT Owner is required.",
+            "owning_department_required": "Owning Department is required.",
+            "save_failed": "Failed to save the asset.",
+            "fix_fields": "Please correct the highlighted fields.",
+            "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."
+        }
+    },
+    "detail": {
+        "derived_fields_note": "Asset value, weighted score, resulting criticality, CIF, and SPOF are derived by the register engine and cannot be entered by hand.",
+        "ownership_pending": "A responsibility assignment is awaiting governance reassignment. Ordinary edits are blocked until it is resolved.",
+        "resolve_in_governance": "Resolve in Governance",
+        "unknown_owner": "Unknown user",
+        "unknown_department": "Unknown department"
+    },
+    "values": {
+        "asset_type": {"application":"Application","database":"Database","infrastructure":"Infrastructure","network_component":"Network component","hardware":"Hardware","cloud_service":"Cloud service","data_storage":"Data storage","information_asset":"Information asset","security_asset":"Security asset","bcm_dr_asset":"BCM/DR asset","other":"Other"},
+        "asset_level": {"primary":"Primary","supporting":"Supporting","infrastructure":"Infrastructure"},
+        "deployment_model": {"on_premise":"On-premise","cloud":"Cloud","saas":"SaaS","paas":"PaaS","iaas":"IaaS","hybrid":"Hybrid","externally_hosted":"Externally hosted","not_assessed":"Not assessed","not_applicable":"Not applicable"},
+        "gdpr_relevance": {"yes":"Yes","no":"No","undetermined":"Undetermined"},
+        "ai_relevance": {"yes":"Yes","no":"No","undetermined":"Undetermined"},
+        "data_classification": {"no_data_not_applicable":"No data / not applicable","public":"Public","internal":"Internal","confidential":"Confidential","highly_confidential_regulated":"Highly confidential / regulated","not_assessed":"Not assessed"},
+        "internet_exposed": {"yes":"Yes","no":"No"},
+        "preliminary_criticality": {"low":"Low","medium":"Medium","high":"High","critical":"Critical"},
+        "lifecycle_state": {"operational":"Operational","in_development":"In development","being_decommissioned":"Being decommissioned","legacy":"Legacy","retired":"Retired"},
+        "review_state": {"review_required":"Review required","reviewed":"Reviewed"},
+        "unknown": "Unknown value"
+    },
+    "register": {
+        "views": {
+            "all": "All",
+            "department": "By Department",
+            "business_owner": "By Business Owner",
+            "type": "By Type",
+            "criticality": "By Criticality",
+            "process": "By Process",
+            "vendor": "By Vendor"
+        },
+        "filters": {
+            "add": "Filters", "active_count": "{{count}} active filters", "clear_all": "Clear all",
+            "remove": "Remove {{label}} filter", "lifecycle": "Lifecycle", "department": "Owning Department",
+            "business_owner": "Business Owner", "ict_owner": "ICT Owner", "asset_type": "Asset type",
+            "asset_level": "Asset level", "deployment_model": "Deployment model", "criticality": "Resulting criticality",
+            "cif": "CIF support", "legacy": "Legacy system", "spof": "SPOF", "external_dependency": "External dependency",
+            "gdpr_relevance": "GDPR relevance", "ai_relevance": "AI relevance", "internet_exposed": "Internet exposure",
+            "data_classification": "Data classification", "completeness": "Completeness", "lifecycle_state": "Lifecycle state",
+            "linked_process": "Linked Process", "linked_asset": "Linked Asset", "linked_vendor": "Linked Vendor", "linked_risk": "Linked Risk",
+            "search_options": "Search visible options...", "search_options_for": "Search {{label}} options", "no_options": "No visible options"
+        },
+        "lifecycle": { "active": "Active", "archived": "Archived", "all": "All records" },
+        "boolean": { "any": "Any", "yes": "Yes", "no": "No" },
+        "groups": {
+            "unassigned": "Unassigned", "unclassified": "Unclassified", "no_linked_process": "No linked Process", "no_linked_vendor": "No linked Vendor"
+        },
+        "export": { "title": "Export matching Assets" }
+    },
+    "links": {
+        "add": "Link",
+        "remove": "Remove link",
+        "spof": "SPOF",
+        "remove_confirm": {
+            "title": "Remove link?",
+            "message": "Remove the link to {{name}}? You can re-link it at any time."
+        },
+        "errors": {
+            "mutation_failed": "Failed to update the link."
+        },
+        "processes": {
+            "title": "Supported Processes",
+            "empty": "No Processes linked yet.",
+            "primary": "Primary Process",
+            "set_primary": "Set as primary",
+            "select_placeholder": "Select a Process...",
+            "significance": "Link significance",
+            "no_metadata": "No link details"
+        },
+        "assets": {
+            "title": "Asset dependencies",
+            "empty": "No Asset links yet.",
+            "depends_on": "Depends on",
+            "supports": "Supports",
+            "direction_depends_on": "This asset depends on...",
+            "direction_supports": "This asset supports...",
+            "select_placeholder": "Select an Asset...",
+            "dependency_type": "Dependency type",
+            "no_metadata": "No link details"
+        },
+        "vendors": {
+            "title": "Vendor dependencies",
+            "empty": "No Vendors linked yet.",
+            "select_placeholder": "Select a Vendor...",
+            "s_code": "ICT service (S-code)",
+            "role": "Vendor role",
+            "reliance": "Reliance (for CIF)",
+            "contract_ref": "Contract reference",
+            "no_metadata": "No link details"
+        }
+    },
+    "messages": {
+        "archive_confirm": "Archive asset \"{{assetName}}\"? It stays in the register history and can be restored."
+    },
+    "empty": {
+        "no_assets": "No assets in the register yet.",
+        "no_results": "No assets match your search."
+    },
+    "errors": {
+        "not_found": "Asset not found.",
+        "load_failed": "Failed to load assets.",
+        "archive_failed": "Failed to archive the asset."
+    },
+    "derived": {
+        "values": {
+            "boolean": {"yes": "Yes", "no": "No"},
+            "article8": {"critical": "Critical", "non_critical": "Non-critical"}
+        },
+        "title": "Derived by the register engine",
+        "ciaa_value": "Asset value (CIAA)",
+        "weighted_score": "Weighted asset score",
+        "score_criticality": "Criticality from score",
+        "business_criticality": "Business criticality",
+        "resulting_criticality": "Resulting criticality",
+        "article8_classification": "Classification (Art. 8(1))",
+        "cif": "Supports CIF — derived",
+        "cif_process_count": "CIF processes (count)",
+        "cif_process_names": "Supported CIF processes",
+        "spof": "SPOF",
+        "external_dependency": "External dependency",
+        "legacy": "Legacy system",
+        "primary_process_name": "Primary process (name)",
+        "primary_process_criticality": "Primary process criticality",
+        "inherited_impact_operations": "Operational impact (from process)",
+        "inherited_impact_financial": "Financial impact (from process)",
+        "inherited_rto_hours": "RTO inherited from process (h)",
+        "linked_process_count": "Processes (count)",
+        "linked_vendor_count": "Vendors (count)",
+        "linked_asset_names": "Links to other assets (derived)",
+        "inputs": {
+            "title": "Why — the h_rank signals behind the resulting criticality",
+            "rank_primary": "Primary process class (rank)",
+            "rank_score": "Weighted score class (rank)",
+            "rank_preliminary": "Preliminary criticality (rank)",
+            "rank_business": "Business criticality (rank)",
+            "rank_cif_floor": "CIF floor (rank)",
+            "h_rank": "h_rank (MAX)",
+            "reference_date": "Reference date (P_RefDatum)",
+            "thresholds": "Score thresholds (Low / Medium / High)",
+            "none": "None",
+            "missing": "Missing for completeness"
+        },
+        "is_complete": "Complete (hotovo)",
+        "complete": "Complete",
+        "incomplete": "Incomplete"
+    },
+    "link_approval": {
+        "continue": "Continue",
+        "reason_placeholder": "Explain why this Asset relationship change is needed...",
+        "link_add": {
+            "title": "Request Asset link addition",
+            "message": "Provide a reason. A protected Asset keeps its approved relationships until this request is approved."
+        },
+        "link_remove": {
+            "title": "Request Asset link removal",
+            "message": "Provide a reason. The existing relationship remains active until this request is approved."
+        }
+    }
+}

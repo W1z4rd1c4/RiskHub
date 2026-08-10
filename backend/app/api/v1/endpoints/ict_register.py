@@ -1,0 +1,379 @@
+"""ICT Register reference-data, data-quality, and committee endpoints (read-only).
+
+Serves the workbook's closed lists, ICT service taxonomy, country categories,
+CZ->EN RoI maps, the versioned workbook parameter set, the 52-check
+data-quality read model (issue #50), and the ICT Risk Committee read model
+(issue #51) to the frontend. The surface is read-only; reference data is
+maintained in the reference registry and DQ findings and committee tiles are
+computed on read, never persisted.
+"""
+
+from __future__ import annotations
+
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import require_permission
+from app.db.session import get_db
+from app.models import User
+from app.schemas.ict_register import (
+    IctClosedListCollectionRead,
+    IctClosedListRead,
+    IctCommitteeBandCountRead,
+    IctCommitteeCroKpiRead,
+    IctCommitteeCroRead,
+    IctCommitteeDashboardRead,
+    IctCommitteeHeatmapRead,
+    IctCommitteeHeatmapRowRead,
+    IctCommitteeKeyMetricsRead,
+    IctCommitteeMigrationMatrixRead,
+    IctCommitteeMigrationRowRead,
+    IctCommitteeNarrativesRead,
+    IctCommitteeRead,
+    IctCommitteeRegisterStateRead,
+    IctCommitteeRiskBandCountsRead,
+    IctCommitteeTopRiskRead,
+    IctCommitteeTopVendorRead,
+    IctCountryCategoryCollectionRead,
+    IctCountryCategoryRead,
+    IctDqCheckRead,
+    IctDqViolatingRowRead,
+    IctDqViolationsPageRead,
+    IctRegisterDqRead,
+    IctRoiGapRowRead,
+    IctRoiMapCollectionRead,
+    IctRoiMapRead,
+    IctRoiMissingFieldRead,
+    IctRoiReadinessRead,
+    IctRoiTemplateReadinessRead,
+    IctRoiTranslationRead,
+    IctServiceTaxonomyRead,
+    IctServiceTypeRead,
+    IctWorkbookParameterRead,
+    IctWorkbookParameterSetRead,
+)
+from app.services._ict_register_lifecycle.committee import derive_ict_register_committee
+from app.services._ict_register_lifecycle.derivation_inputs import (
+    load_dq_viewer_scope,
+    load_ict_register_committee_graph,
+)
+from app.services._ict_register_lifecycle.dq import visible_dq_result
+from app.services._ict_register_lifecycle.dq_cache import (
+    get_cached_global_dq_result,
+)
+from app.services._ict_register_reference.closed_lists import CLOSED_LISTS, closed_list_values
+from app.services._ict_register_reference.country_categories import COUNTRY_CATEGORIES
+from app.services._ict_register_reference.ict_service_taxonomy import (
+    CLOUD_SERVICE_S_CODES,
+    ICT_SERVICE_TAXONOMY,
+)
+from app.services._ict_register_reference.parameters import (
+    ICT_WORKBOOK_PARAMETERS,
+    IctParameterValue,
+    load_ict_workbook_parameter_set,
+)
+from app.services._ict_register_reference.roi_maps import ROI_CZ_EN_MAPS, roi_map_entries
+
+router = APIRouter()
+
+
+@router.get("/reference/closed-lists", response_model=IctClosedListCollectionRead)
+async def list_closed_lists(
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctClosedListCollectionRead:
+    """Return all 45 workbook closed lists, verbatim and in workbook order."""
+    return IctClosedListCollectionRead(
+        lists=[IctClosedListRead(name=name, values=list(values)) for name, values in CLOSED_LISTS.items()]
+    )
+
+
+@router.get("/reference/closed-lists/{list_name}", response_model=IctClosedListRead)
+async def get_closed_list(
+    list_name: str,
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctClosedListRead:
+    """Return one workbook closed list; unknown names are rejected with 404."""
+    return IctClosedListRead(name=list_name, values=list(closed_list_values(list_name)))
+
+
+@router.get("/reference/ict-service-taxonomy", response_model=IctServiceTaxonomyRead)
+async def get_ict_service_taxonomy(
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctServiceTaxonomyRead:
+    """Return the S01-S19 ICT service taxonomy with the S17-S19 cloud trigger codes."""
+    return IctServiceTaxonomyRead(
+        services=[IctServiceTypeRead(code=code, label=label) for code, label in ICT_SERVICE_TAXONOMY.items()],
+        cloud_service_codes=list(CLOUD_SERVICE_S_CODES),
+    )
+
+
+@router.get("/reference/country-categories", response_model=IctCountryCategoryCollectionRead)
+async def list_country_categories(
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctCountryCategoryCollectionRead:
+    """Return the workbook country categories paired 1:1 with ZemeList order."""
+    return IctCountryCategoryCollectionRead(
+        countries=[
+            IctCountryCategoryRead(country=country, category=category)
+            for country, category in COUNTRY_CATEGORIES.items()
+        ]
+    )
+
+
+@router.get("/reference/roi-maps", response_model=IctRoiMapCollectionRead)
+async def list_roi_maps(
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctRoiMapCollectionRead:
+    """Return all 10 CZ->EN RoI closed-list conversion maps, verbatim."""
+    return IctRoiMapCollectionRead(
+        maps=[IctRoiMapRead(name=name, entries=dict(entries)) for name, entries in ROI_CZ_EN_MAPS.items()]
+    )
+
+
+@router.get("/reference/roi-maps/{map_name}", response_model=IctRoiMapRead)
+async def get_roi_map(
+    map_name: str,
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctRoiMapRead:
+    """Return one CZ->EN RoI map; unknown names are rejected with 404."""
+    return IctRoiMapRead(name=map_name, entries=dict(roi_map_entries(map_name)))
+
+
+@router.get("/reference/roi-maps/{map_name}/translation", response_model=IctRoiTranslationRead)
+async def get_roi_translation(
+    map_name: str,
+    value: str = Query(..., description="CZ closed-list value to translate"),
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctRoiTranslationRead:
+    """Translate one CZ value to its EN RoI value.
+
+    Reproduces the workbook rule verbatim: values without an EN mapping fall
+    back to the source value (never blank).
+    """
+    entries = roi_map_entries(map_name)
+    return IctRoiTranslationRead(
+        map=map_name,
+        source=value,
+        value=entries.get(value, value),
+        mapped=value in entries,
+    )
+
+
+@router.get("/dq", response_model=IctRegisterDqRead)
+async def get_data_quality_checks(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctRegisterDqRead:
+    """Return all 52 workbook DQ checks with bounded violation previews (#50).
+
+    Computed on read over the whole register graph (compute-on-read, parent
+    spec #38): threshold 0, OK/NÁLEZ status, and per-check drill-down to the
+    violating rows. Mandatory-if rules surface here as findings only — the
+    write paths never block them.
+
+    Counts and statuses are GLOBAL (oversight semantics), but the listed
+    violating rows are filtered per caller through each entity's canonical
+    read predicate (permission gates; Vendor/Risk row visibility): a
+    dept-scoped user sees that a check found N rows without learning
+    anything a browse of that entity's own endpoints would not show them.
+    Each summary exposes at most 10 viewer-visible preview rows; the paginated
+    detail endpoint serves the remaining visible rows in pages of at most 100.
+    Checks marked ``production_inert`` have no app column feeding their
+    trigger (DQ-23) and read "not yet measurable" rather than a false OK.
+    """
+    result = await get_cached_global_dq_result(db)
+    viewer_scope = await load_dq_viewer_scope(db, current_user, result)
+    result = visible_dq_result(result, viewer_scope)
+    return IctRegisterDqRead(
+        checks=[
+            IctDqCheckRead(
+                check_id=check.check_id,
+                area=check.area,
+                title_cs=check.title_cs,
+                severity=check.severity,
+                threshold=check.threshold,
+                count=check.count,
+                status=check.status,
+                production_inert=check.production_inert,
+                production_inert_reason=check.production_inert_reason,
+                visible_count=len(check.violating_rows),
+                violating_rows_truncated=len(check.violating_rows) > 10,
+                violating_rows=[
+                    IctDqViolatingRowRead(
+                        entity_type=row.entity_type,
+                        entity_id=row.entity_id,
+                        label=row.label,
+                        route_entity_type=row.route_entity_type,
+                        route_entity_id=row.route_entity_id,
+                    )
+                    for row in check.violating_rows[:10]
+                ],
+            )
+            for check in result.checks
+        ],
+        finding_count=result.finding_count,
+    )
+
+
+@router.get("/dq/{check_id}/violations", response_model=IctDqViolationsPageRead)
+async def get_data_quality_violations(
+    check_id: str,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctDqViolationsPageRead:
+    """Return one bounded page of viewer-visible rows for a DQ check."""
+    global_result = await get_cached_global_dq_result(db)
+    check = next(
+        (entry for entry in global_result.checks if entry.check_id == check_id),
+        None,
+    )
+    if check is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Data-quality check not found",
+        )
+
+    viewer_scope = await load_dq_viewer_scope(db, current_user, global_result)
+    visible_result = visible_dq_result(global_result, viewer_scope)
+    visible_check = next(
+        entry for entry in visible_result.checks if entry.check_id == check_id
+    )
+    rows = visible_check.violating_rows
+    return IctDqViolationsPageRead(
+        items=[
+            IctDqViolatingRowRead(
+                entity_type=row.entity_type,
+                entity_id=row.entity_id,
+                label=row.label,
+                route_entity_type=row.route_entity_type,
+                route_entity_id=row.route_entity_id,
+            )
+            for row in rows[offset : offset + limit]
+        ],
+        total=len(rows),
+        offset=offset,
+        limit=limit,
+    )
+
+
+def _serialize_parameter_value(value: IctParameterValue) -> int | str:
+    return value.isoformat() if isinstance(value, date) else value
+
+
+@router.get("/parameters", response_model=IctWorkbookParameterSetRead)
+async def get_workbook_parameter_set(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("vendors", "read")),
+) -> IctWorkbookParameterSetRead:
+    """Return the versioned workbook parameter set (23 parameters, read-only).
+
+    Effective values follow the ADR-008 SSOT: seeded global_config rows are
+    authoritative when present, verbatim workbook defaults otherwise.
+    """
+    parameter_set = await load_ict_workbook_parameter_set(db)
+    return IctWorkbookParameterSetRead(
+        version=parameter_set.version,
+        parameters=[
+            IctWorkbookParameterRead(
+                name=parameter.name,
+                value=_serialize_parameter_value(parameter_set.value(parameter.name)),
+                value_type=parameter.value_type,
+                meaning=parameter.meaning,
+            )
+            for parameter in ICT_WORKBOOK_PARAMETERS
+        ],
+    )
+
+
+@router.get("/committee", response_model=IctCommitteeRead)
+async def get_committee_overview(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("ict_committee", "read")),
+) -> IctCommitteeRead:
+    """Return the ICT Risk Committee read model (issues #51/#52).
+
+    Reproduces the workbook's 16_Dashboard and 18_CRO_přehled per the tile
+    inventory contract, plus the RoI-readiness element — per-template field
+    completeness across the 15 CIR 2024/2956 templates with the concrete
+    gaps — computed on read over the whole register graph.
+    Gated by the committee's OWN resource permission (executive/oversight
+    roles; platform admins hold no business permissions): every figure is a
+    register-global aggregate — the workbook sheets the committee saw — so no
+    per-row scoping applies here; drill-downs land on row-scoped surfaces.
+    """
+    committee_graph = await load_ict_register_committee_graph(db)
+    parameter_set = await load_ict_workbook_parameter_set(db)
+    committee = derive_ict_register_committee(committee_graph, parameter_set)
+    return IctCommitteeRead(
+        dashboard=IctCommitteeDashboardRead(
+            register_state=IctCommitteeRegisterStateRead(
+                **vars(committee.dashboard.register_state)
+            ),
+            key_metrics=IctCommitteeKeyMetricsRead(**vars(committee.dashboard.key_metrics)),
+        ),
+        cro=IctCommitteeCroRead(
+            kpi=IctCommitteeCroKpiRead(**vars(committee.cro.kpi)),
+            heatmap=IctCommitteeHeatmapRead(
+                rows=[
+                    IctCommitteeHeatmapRowRead(probability=row.probability, cells=list(row.cells))
+                    for row in committee.cro.heatmap.rows
+                ]
+            ),
+            migration_matrix=IctCommitteeMigrationMatrixRead(
+                rows=[
+                    IctCommitteeMigrationRowRead(gross_band=row.gross_band, cells=list(row.cells))
+                    for row in committee.cro.migration_matrix.rows
+                ]
+            ),
+            top_risks=[IctCommitteeTopRiskRead(**vars(entry)) for entry in committee.cro.top_risks],
+            top_vendors=[
+                IctCommitteeTopVendorRead(**vars(entry)) for entry in committee.cro.top_vendors
+            ],
+            narratives=IctCommitteeNarrativesRead(**vars(committee.cro.narratives)),
+            assets_by_criticality=[
+                IctCommitteeBandCountRead(**vars(entry))
+                for entry in committee.cro.assets_by_criticality
+            ],
+            risks_by_band=[
+                IctCommitteeRiskBandCountsRead(**vars(entry)) for entry in committee.cro.risks_by_band
+            ],
+        ),
+        roi_readiness=IctRoiReadinessRead(
+            templates=[
+                IctRoiTemplateReadinessRead(
+                    code=template.code,
+                    name_en=template.name_en,
+                    name_cs=template.name_cs,
+                    feed=template.feed,
+                    gate=template.gate,
+                    coverage=template.coverage,
+                    row_count=template.row_count,
+                    required_field_count=template.required_field_count,
+                    populated_field_count=template.populated_field_count,
+                    readiness_pct=template.readiness_pct,
+                    gap_row_count=template.gap_row_count,
+                    gap_rows=[
+                        IctRoiGapRowRead(
+                            entity_type=row.entity_type,
+                            entity_id=row.entity_id,
+                            label=row.label,
+                            route_entity_type=row.route_entity_type,
+                            route_entity_id=row.route_entity_id,
+                            missing=[
+                                IctRoiMissingFieldRead(key=missing.key, code=missing.code)
+                                for missing in row.missing
+                            ],
+                        )
+                        for row in template.gap_rows
+                    ],
+                )
+                for template in committee.roi_readiness.templates
+            ],
+            overall_readiness_pct=committee.roi_readiness.overall_readiness_pct,
+            total_gap_row_count=committee.roi_readiness.total_gap_row_count,
+        ),
+    )

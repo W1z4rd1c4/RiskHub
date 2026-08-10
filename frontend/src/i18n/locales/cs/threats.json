@@ -1,0 +1,160 @@
+{
+    "title": "Hrozby",
+    "subtitle": "ICT registr — zdroje hrozeb za registrem rizik",
+    "actions": {
+        "new": "Nová hrozba",
+        "edit": "Upravit hrozbu",
+        "create": "Vytvořit hrozbu",
+        "save": "Uložit změny",
+        "submit_for_approval": "Odeslat ke schválení",
+        "cancel": "Zrušit",
+        "restore": "Obnovit",
+        "retry": "Zkusit znovu",
+        "resolve_in_governance": "Vyřešit v Governance",
+    "back_to_register": "Zpět na hrozby",
+    "export": "Exportovat"
+    },
+    "filters": {
+    "search_placeholder": "Hledat v názvu, popisu, zranitelnostech, subjektu nebo správci...",
+        "all_statuses": "Všechny stavy"
+    },
+    "status": {
+        "active": "Aktivní",
+    "archived": "Archivováno",
+    "pending_governance": "Čeká na Governance"
+    },
+    "categories": {
+        "availability": "Dostupnost",
+        "integrity": "Integrita",
+        "confidentiality": "Důvěrnost",
+        "authenticity": "Hodnověrnost",
+        "physical": "Fyzická",
+        "personnel": "Personální",
+        "third_party": "Třetí strany"
+    },
+    "columns": {
+        "name": "Hrozba",
+    "category": "Kategorie",
+    "threat_steward": "Správce hrozby",
+        "typical_weaknesses": "Typické zranitelnosti",
+        "relevant_subject": "Relevantní subjekt",
+    "linked_risks": "Propojená rizika",
+    "status": "Stav"
+    },
+    "pending_change": {
+        "title": "Navrhovaná změna správce hrozby",
+        "badge": "Čeká na schválení",
+        "requested_by_at": "Požadavek od {{requester}} dne {{date}} v {{time}}",
+        "unknown_requester": "Neznámý žadatel",
+        "cancel": "Zrušit žádost",
+        "cancel_failed": "Čekající žádost o změnu správce hrozby se nepodařilo zrušit.",
+        "diff_restricted": "Navrhovaná změna správce je skryta kvůli rozsahu vašich oprávnění."
+    },
+    "form": {
+        "sections": {
+            "identity": "Identifikace",
+            "details": "Popis"
+        },
+        "name": "Hrozba",
+        "category": "Kategorie",
+        "steward": "Správce hrozby",
+        "steward_placeholder": "Vyberte aktivního CISO",
+        "steward_search": "Hledat CISO podle jména nebo e-mailu...",
+        "description": "Popis",
+        "typical_weaknesses": "Typické zranitelnosti",
+        "relevant_subject": "Relevantní subjekt",
+        "notes": "Poznámka",
+        "request_reason": "Důvod žádosti",
+        "request_reason_help": "Všechny změny správce hrozby se odesílají k nezávislému schválení. Vysvětlete důvod změny.",
+        "not_set": "Nevyplněno",
+        "errors": {
+            "name_required": "Název hrozby je povinný.",
+            "steward_required": "Je vyžadován aktivní CISO jako správce hrozby.",
+            "request_reason_required": "U této řízené změny hrozby je důvod žádosti povinný.",
+            "save_failed": "Uložení hrozby se nezdařilo. Zkuste to prosím znovu.",
+            "fix_fields": "Opravte prosím zvýrazněná pole.",
+            "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."
+        }
+    },
+    "links": {
+        "add": "Provázat",
+        "remove": "Odebrat vazbu",
+        "risks": {
+            "title": "Provázaná rizika",
+            "empty": "K této hrozbě zatím nejsou provázána žádná rizika.",
+            "select_placeholder": "Vyberte riziko k provázání..."
+        },
+        "errors": {
+            "mutation_failed": "Změna vazby se nezdařila. Zkuste to prosím znovu."
+        }
+    },
+    "empty": {
+        "no_threats": "V registru zatím nejsou žádné hrozby.",
+        "no_results": "Vašemu hledání neodpovídají žádné hrozby."
+    },
+    "errors": {
+        "not_found": "Hrozba nenalezena.",
+        "load_failed": "Načtení hrozeb se nezdařilo.",
+        "archive_failed": "Archivace hrozby se nezdařila. Zkuste to prosím znovu."
+    },
+  "register": {
+    "views": {
+      "all": "Vše",
+      "category": "Podle kategorie",
+      "threat_steward": "Podle správce hrozby",
+      "relevant_subject": "Podle relevantního subjektu",
+      "linked_risk": "Podle propojeného rizika"
+    },
+    "filters": {
+      "add": "Filtry",
+      "active_count": "Aktivní filtry: {{count}}",
+      "clear_all": "Vymazat vše",
+      "remove": "Odebrat filtr {{label}}",
+      "lifecycle": "Životní cyklus",
+      "category": "Kategorie",
+      "threat_steward": "Správce hrozby",
+      "relevant_subject": "Relevantní subjekt",
+      "has_linked_risk": "Přítomnost propojeného rizika",
+      "linked_risk": "Propojené riziko",
+      "linked_risk_type": "Typ propojeného rizika",
+      "linked_risk_department": "Útvar propojeného rizika",
+      "search_options": "Hledat ve viditelných možnostech...",
+      "search_options_for": "Hledat možnosti {{label}}",
+      "no_options": "Žádné viditelné možnosti"
+    },
+    "lifecycle": {
+      "active": "Aktivní",
+      "archived": "Archivované",
+      "all": "Všechny záznamy"
+    },
+    "boolean": {
+      "any": "Libovolné",
+      "yes": "Ano",
+      "no": "Ne"
+    },
+    "risk_types": {
+      "strategic": "Strategické",
+      "operational": "Operační"
+    },
+    "groups": {
+      "uncategorized": "Bez kategorie",
+      "unassigned": "Nepřiřazeno",
+      "unspecified": "Neuvedeno",
+      "no_linked_risk": "Bez propojeného rizika"
+    },
+    "values": {
+      "unknown": "Neznámé"
+    },
+    "export": {
+      "title": "Export odpovídajících hrozeb"
+    }
+  },
+  "messages": {
+        "archive_confirm": "Archivovat hrozbu „{{threatName}}“? Zůstane dostupná v archivovaném zobrazení.",
+        "steward_orphaned": "Přiřazený správce hrozby je neaktivní nebo již nemá roli CISO. Hrozbu explicitně přeřaďte.",
+        "steward_orphaned_governance": "Zachovaný správce hrozby je neaktivní nebo již nemá roli CISO. Úpravy jsou po dobu otevřené mezery uzamčené. Přiřaďte aktivního CISO přes Governance.",
+        "steward_orphaned_request": "Zachovaný správce hrozby je neaktivní nebo již nemá roli CISO. Úpravy jsou po dobu otevřené mezery uzamčené. Požádejte CRO o přiřazení aktivního CISO přes Governance.",
+        "stewardship_legacy_unassigned": "Tato migrovaná hrozba nemá správce. Pomocí Upravit hrozbu přiřaďte aktivního CISO.",
+        "stewardship_invalid_assignment": "Současné přiřazení není aktivní CISO. V Upravit hrozbu před uložením vyberte způsobilého správce; původní vazba zůstane zachovaná, dokud se změna úspěšně neuloží."
+    }
+}

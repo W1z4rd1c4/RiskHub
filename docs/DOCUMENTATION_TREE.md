@@ -20,6 +20,7 @@ AGENTS.md
 │   ├── docs/security/README.md
 │   ├── docs/adr/README.md
 │   ├── docs/audits/README.md
+│   ├── docs/dora-ict-register/README.md
 │   ├── docs/deployment/README.md
 │   ├── docs/migrations/README.md
 │   ├── docs/reference/README.md
@@ -45,6 +46,20 @@ AGENTS.md
   - [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
   - [`docs/user/README.md`](./user/README.md)
   - [`docs/admin/README.md`](./admin/README.md)
+  - Dedicated user ICT manuals:
+    [`docs/user/processes.md`](./user/processes.md),
+    [`docs/user/assets.md`](./user/assets.md),
+    [`docs/user/threats.md`](./user/threats.md),
+    [`docs/user-cs/processes.md`](./user-cs/processes.md),
+    [`docs/user-cs/assets.md`](./user-cs/assets.md), and
+    [`docs/user-cs/threats.md`](./user-cs/threats.md).
+  - Dedicated admin ICT runbooks:
+    [`docs/admin/processes.md`](./admin/processes.md),
+    [`docs/admin/assets.md`](./admin/assets.md),
+    [`docs/admin/threats.md`](./admin/threats.md),
+    [`docs/admin-cs/processes.md`](./admin-cs/processes.md),
+    [`docs/admin-cs/assets.md`](./admin-cs/assets.md), and
+    [`docs/admin-cs/threats.md`](./admin-cs/threats.md).
   - Current workflow coverage includes directory lifecycle and break-glass recovery, cross-entity link management, KRI history/value governance, risk questionnaires, issue remediation, report export scope/as-of behavior, committee snapshots, and approval execution semantics.
   - User manuals are task-oriented product content. Admin docs are operator runbooks. Engineering details belong in `docs/`, `.planning/codebase/`, and frontmatter metadata rather than user-facing manual body text.
 - Security posture and audits:
@@ -55,17 +70,30 @@ AGENTS.md
   - [`docs/adr/README.md`](./adr/README.md)
 - Point-in-time subsystem audits:
   - [`docs/audits/README.md`](./audits/README.md)
+- ICT Register (DORA) build — specs, captures, audit + remediation:
+  - [`docs/dora-ict-register/README.md`](./dora-ict-register/README.md)
+  - [`docs/dora-ict-register/ICT-GOV-00-BASELINE-2026-07-15.md`](./dora-ict-register/ICT-GOV-00-BASELINE-2026-07-15.md)
+  - [`docs/dora-ict-register/SHARED-REGISTER-CONTRACT.md`](./dora-ict-register/SHARED-REGISTER-CONTRACT.md)
+  - [`docs/dora-ict-register/REGISTER-LISTING-CONTRACTION-2026-07-16.md`](./dora-ict-register/REGISTER-LISTING-CONTRACTION-2026-07-16.md)
+  - [`docs/dora-ict-register/FRONTEND-DIALOG-INTERACTION-INVENTORY.md`](./dora-ict-register/FRONTEND-DIALOG-INTERACTION-INVENTORY.md)
+  - [`docs/dora-ict-register/FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md`](./dora-ict-register/FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md)
+  - [`docs/dora-ict-register/RELEASE-HARDENING-RETROSPECTIVE-2026-08-08.md`](./dora-ict-register/RELEASE-HARDENING-RETROSPECTIVE-2026-08-08.md)
 - Development startup and local workflows:
   - [`docs/development/README.md`](./development/README.md)
 - Documentation screenshots and support assets:
   - [`docs/assets/README.md`](./assets/README.md)
   - [`docs/assets/readme/README.md`](./assets/readme/README.md)
+- Generated report artifacts:
+  - [`docs/reports/README.md`](./reports/README.md) — checked-in third-party dependency/license report.
+- DORA ICT-register specifications:
+  - [`docs/dora-ict-register/README.md`](./dora-ict-register/README.md)
 - Deployment and operations:
   - [`docs/deployment/README.md`](./deployment/README.md)
 - Migration notes:
   - [`docs/migrations/README.md`](./migrations/README.md)
 - Agent governance and execution:
   - [`docs/agent/README.md`](./agent/README.md)
+  - [`docs/agents/README.md`](./agents/README.md) — agent domain glossary, issue-tracker workflow, and triage-label vocabulary.
   - [`AGENTS.md`](../AGENTS.md)
 - Architecture Locks:
   - `tests/backend/pytest/architecture/`
@@ -91,6 +119,7 @@ AGENTS.md
   - [`docs/adr/ADR-002-service-owned-transactions.md`](./adr/ADR-002-service-owned-transactions.md)
   - [`docs/adr/ADR-005-archivable-mixin-schema-contract.md`](./adr/ADR-005-archivable-mixin-schema-contract.md)
   - [`docs/adr/ADR-010-postgres-migration-rehearsal-contract.md`](./adr/ADR-010-postgres-migration-rehearsal-contract.md)
+  - [`docs/adr/ADR-016-governed-mutation-proposals.md`](./adr/ADR-016-governed-mutation-proposals.md)
 - client_factory:
   - `tests/backend/pytest/conftest.py`
   - `tests/backend/pytest/_get_db_override_whitelist.toml`

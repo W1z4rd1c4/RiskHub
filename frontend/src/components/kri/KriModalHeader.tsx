@@ -28,7 +28,7 @@ export function KriModalHeader({ isCreate, onClose, t }: KriModalHeaderProps) {
                     </p>
                 </div>
             </div>
-            <button onClick={onClose} className="p-2 text-slate-500 hover:text-white transition-colors">
+            <button type="button" onClick={onClose} aria-label={t('actions.close', { ns: 'common' })} className="p-2 text-slate-500 hover:text-white transition-colors">
                 <X className="h-6 w-6" />
             </button>
         </div>

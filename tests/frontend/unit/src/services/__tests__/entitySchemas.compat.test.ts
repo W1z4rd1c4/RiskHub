@@ -8,6 +8,7 @@ import {
     executionListResponseSchema,
     issueOrApprovalSchema,
     keyRiskIndicatorOrApprovalSchema,
+    riskListResponseSchema,
     riskOrApprovalSchema,
     userPreferencesSchema,
     userReadSchema,
@@ -27,5 +28,35 @@ describe('entity schema barrel exports', () => {
         expect(riskOrApprovalSchema).toBeDefined();
         expect(controlOrApprovalSchema).toBeDefined();
         expect(keyRiskIndicatorOrApprovalSchema).toBeDefined();
+    });
+
+    it.each([
+        ['control', controlListResponseSchema, 'status'],
+        ['risk', riskListResponseSchema, 'risk_type'],
+        ['vendor', vendorListResponseSchema, 'lifecycle'],
+    ] as const)('parses %s collection facets while preserving response extensions', (_name, schema, facetKey) => {
+        const response = schema.parse({
+            items: [],
+            total: 0,
+            offset: 0,
+            limit: 25,
+            facets: {
+                [facetKey]: [{
+                    value: 'active',
+                    label: 'Active',
+                    count: 3,
+                    selected: false,
+                    disabled: false,
+                }],
+            },
+            response_extension: 'preserved',
+        });
+
+        expect(response).toMatchObject({
+            facets: {
+                [facetKey]: [{ value: 'active', count: 3 }],
+            },
+            response_extension: 'preserved',
+        });
     });
 });

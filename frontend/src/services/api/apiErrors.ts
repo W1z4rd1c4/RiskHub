@@ -47,6 +47,10 @@ export function parseErrorMessage(errorData: unknown, status: number): string {
             })
             .join('; ');
     }
+    if (detail && typeof detail === 'object') {
+        const message = (detail as { message?: unknown }).message;
+        if (typeof message === 'string') return message;
+    }
     if (detail) return JSON.stringify(detail);
 
     return `Request failed with status ${status}`;

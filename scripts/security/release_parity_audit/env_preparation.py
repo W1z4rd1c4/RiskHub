@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 
-def prepare_prod_env_files(tmp_dir: Path) -> tuple[Path, Path]:
+def prepare_prod_env_files(
+    tmp_dir: Path, *, secret_dir: Path, runtime_dir: Path
+) -> tuple[Path, Path]:
     backend_env = tmp_dir / "backend.env"
     frontend_env = tmp_dir / "frontend.env"
     backend_env.write_text(
@@ -12,20 +14,24 @@ def prepare_prod_env_files(tmp_dir: Path) -> tuple[Path, Path]:
                 "DEBUG=false",
                 "MOCK_AUTH_ENABLED=false",
                 "AUTH_MODE=microsoft_sso",
-                "SECRET_KEY=release-parity-audit-secret-key-32-characters",
-                "DATABASE_URL=postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub",
+                "DIRECTORY_PROVIDER=graph",
+                f"SECRET_KEY_FILE={secret_dir / 'secret_key'}",
+                f"DATABASE_URL_FILE={secret_dir / 'database_url'}",
                 'CORS_ORIGINS=["https://riskhub.example.com"]',
                 'ALLOWED_HOSTS=["riskhub.example.com"]',
-                "REDIS_PASSWORD=release_parity_redis_password",
-                "REDIS_URL=",
+                f"REDIS_URL_FILE={runtime_dir / 'redis_url'}",
                 "ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000",
                 "ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111",
-                "ENTRA_CLIENT_SECRET=release-parity-entra-client-secret",
+                f"ENTRA_CLIENT_SECRET_FILE={secret_dir / 'entra_client_secret'}",
+                "ENTRA_JIT_PROVISIONING_ENABLED=false",
+                "AUTH_SSO_ALLOW_EMAIL_LINK=false",
                 "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
                 "BOOTSTRAP_ADMIN_ROLE=admin",
                 "BOOTSTRAP_ADMIN_ACCESS_SCOPE=global",
+                "BOOTSTRAP_ADMIN_EXTERNAL_ID=11111111-2222-4333-8444-555555555555",
                 "BOOTSTRAP_CRO_EMAIL=cro@example.com",
                 "BOOTSTRAP_CRO_ACCESS_SCOPE=global",
+                "BOOTSTRAP_CRO_EXTERNAL_ID=66666666-7777-4888-8999-aaaaaaaaaaaa",
             ]
         )
         + "\n",
@@ -57,7 +63,9 @@ def prepare_deploy_cli_prod_layout(tmp_dir: Path) -> tuple[Path, Path, Path]:
                 "ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000",
                 "ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111",
                 "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
+                "BOOTSTRAP_ADMIN_EXTERNAL_ID=11111111-2222-4333-8444-555555555555",
                 "BOOTSTRAP_CRO_EMAIL=cro@example.com",
+                "BOOTSTRAP_CRO_EXTERNAL_ID=66666666-7777-4888-8999-aaaaaaaaaaaa",
                 "API_WORKERS=4",
                 "FRONTEND_BIND_PORT=28081",
             ]
@@ -81,5 +89,10 @@ def prepare_deploy_cli_prod_layout(tmp_dir: Path) -> tuple[Path, Path, Path]:
         path = secret_dir / name
         path.write_text(value, encoding="utf-8")
         path.chmod(0o440)
+    redis_url = runtime_dir / "redis_url"
+    redis_url.write_text(
+        "redis://:release_parity_redis_password@redis:6379/0\n", encoding="utf-8"
+    )
+    redis_url.chmod(0o440)
 
     return config_path, secret_dir, runtime_dir

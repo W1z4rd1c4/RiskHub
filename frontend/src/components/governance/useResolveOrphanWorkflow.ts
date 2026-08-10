@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { apiClient } from '@/services/apiClient';
+import { apiClient, ApiClientError } from '@/services/apiClient';
 import { controlApi } from '@/services/controlApi';
-import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
+import { departmentApi } from '@/services/departmentApi';
+import { lookupApi } from '@/services/lookupApi';
 import { logError } from '@/services/logger';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import { riskApi } from '@/services/riskApi';
 import { userApi } from '@/services/userApi';
+import { isApprovalCreatedResponse, type ApprovalCreatedResponse } from '@/types/approval';
 import type { ControlRiskLink } from '@/types/control';
-import type { OrphanedItem } from '@/types/orphanedItem';
+import type { OrphanedItem, ResolveOrphanRequest } from '@/types/orphanedItem';
 import type { RiskSummary } from '@/types/risk';
 
 import { buildOrphanResolutionLabel, resolveOrphanStaleTarget } from './orphanResolutionState';
@@ -20,19 +22,34 @@ import {
     toActiveUserOptions,
     uniqueRiskDepartments,
     type OrphanUserOption,
+    type OrphanDepartmentOption,
     type OrphanUserRead,
 } from './resolveOrphanHelpers';
 
 interface UseResolveOrphanWorkflowOptions {
     isOpen: boolean;
     onClose: () => void;
+    onApprovalQueued?: (response: ApprovalCreatedResponse) => void;
     onResolved: () => void;
     orphan: OrphanedItem | null;
+}
+
+function ownerLookupFailureMessage(itemType: OrphanedItem['item_type'] | undefined): string {
+    let entityName = 'Process';
+    if (itemType === 'asset') {
+        entityName = 'Asset';
+    } else if (itemType === 'vendor') {
+        entityName = 'Vendor';
+    } else if (itemType === 'threat') {
+        entityName = 'Threat Steward';
+    }
+    return `Failed to search ${entityName} owners:`;
 }
 
 export function useResolveOrphanWorkflow({
     isOpen,
     onClose,
+    onApprovalQueued,
     onResolved,
     orphan,
 }: UseResolveOrphanWorkflowOptions) {
@@ -40,17 +57,29 @@ export function useResolveOrphanWorkflow({
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
     const [selectedRiskId, setSelectedRiskId] = useState<number | null>(null);
-    const [allDepartments, setAllDepartments] = useState<DepartmentSummary[]>([]);
+    const [allDepartments, setAllDepartments] = useState<OrphanDepartmentOption[]>([]);
     const [allRisks, setAllRisks] = useState<RiskSummary[]>([]);
     const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [departmentSearchQuery, setDepartmentSearchQuery] = useState('');
     const [riskSearchQuery, setRiskSearchQuery] = useState('');
     const [selectedDeptFilter, setSelectedDeptFilter] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [selectedRiskDept, setSelectedRiskDept] = useState('');
+    const [requestReason, setRequestReason] = useState('');
+    const [requestReasonInvalid, setRequestReasonInvalid] = useState(false);
+    const [reasonRequiredOverride, setReasonRequiredOverride] = useState(false);
+    const requestReasonRequired = orphan?.request_reason_required === true
+        || reasonRequiredOverride;
+    const requestReasonRef = useRef<HTMLTextAreaElement | null>(null);
     const initTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const ownerSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const ownerRequestRef = useRef(0);
+    const departmentSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const departmentRequestRef = useRef(0);
+    const modalGenerationRef = useRef(0);
 
     const clearInitTimer = useCallback(() => {
         if (initTimerRef.current) {
@@ -66,24 +95,117 @@ export function useResolveOrphanWorkflow({
         }
     }, [orphan?.item_id, orphan?.item_type]);
 
-    const loadDepartments = useCallback(async () => {
+    const loadDepartments = useCallback(async (query?: string, generation = modalGenerationRef.current) => {
+        if (orphan?.item_type === 'vendor' || orphan?.item_type === 'threat') {
+            if (generation === modalGenerationRef.current) setAllDepartments([]);
+            return;
+        }
+        if (orphan?.item_type === 'process' || orphan?.item_type === 'asset') {
+            const requestId = ++departmentRequestRef.current;
+            const params = {
+                limit: 50,
+                q: query?.trim() || undefined,
+            };
+            const departments = orphan.item_type === 'asset'
+                ? await lookupApi.getAssetDepartments(params)
+                : await lookupApi.getProcessDepartments(params);
+            if (generation === modalGenerationRef.current && requestId === departmentRequestRef.current) {
+                setAllDepartments(departments);
+            }
+            return;
+        }
         const departments = await departmentApi.getDepartments();
-        setAllDepartments(departments);
-    }, []);
+        if (generation === modalGenerationRef.current) setAllDepartments(departments);
+    }, [orphan?.item_type]);
 
     const loadRisks = useCallback(async () => {
         const response = await riskApi.getRisks({ limit: 100 });
         setAllRisks(response.items);
     }, []);
 
-    const loadUsers = useCallback(async () => {
+    const loadUsers = useCallback(async (query?: string, generation = modalGenerationRef.current) => {
+        if (orphan?.item_type === 'threat') {
+            const requestId = ++ownerRequestRef.current;
+            const stewards = await lookupApi.getThreatStewards({
+                limit: 50,
+                q: query?.trim() || undefined,
+            });
+            if (generation === modalGenerationRef.current && requestId === ownerRequestRef.current) {
+                setUsers(stewards.map((user) => ({
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    department_id: null,
+                    role_name: 'ciso',
+                })));
+            }
+            return;
+        }
+        if (orphan?.item_type === 'process' || orphan?.item_type === 'asset' || orphan?.item_type === 'vendor') {
+            const requestId = ++ownerRequestRef.current;
+            const params = { limit: 50, q: query?.trim() || undefined };
+            let owners;
+            if (orphan.item_type === 'asset') {
+                owners = await lookupApi.getAssetOwners(params);
+            } else if (orphan.item_type === 'vendor') {
+                owners = await lookupApi.getVendorOwners(params);
+            } else {
+                owners = await lookupApi.getProcessOwners(params);
+            }
+            if (generation === modalGenerationRef.current && requestId === ownerRequestRef.current) {
+                setUsers(owners.map((user) => ({
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    department_id: user.department_id ?? null,
+                    department_name: user.department_name ?? undefined,
+                    role_name: user.role_name ?? undefined,
+                })));
+            }
+            return;
+        }
         const activeUsers = (await userApi.listUsers(0, 100)) as OrphanUserRead[];
-        setUsers(toActiveUserOptions(activeUsers));
-    }, []);
+        if (generation === modalGenerationRef.current) setUsers(toActiveUserOptions(activeUsers));
+    }, [orphan?.item_type]);
 
-    const initializeData = useCallback(async () => {
+    useEffect(() => {
+        if (!isOpen || !isInitialized || !['process', 'asset', 'vendor', 'threat'].includes(orphan?.item_type ?? '')) return;
+        const generation = modalGenerationRef.current;
+        if (ownerSearchTimerRef.current) clearTimeout(ownerSearchTimerRef.current);
+        ownerSearchTimerRef.current = setTimeout(() => {
+            void loadUsers(searchQuery, generation).catch((err) => {
+                if (generation !== modalGenerationRef.current) return;
+                logError(ownerLookupFailureMessage(orphan?.item_type), err);
+                setErrorKey(apiClient.toUiMessageKey(err));
+            });
+        }, 200);
+        return () => {
+            if (ownerSearchTimerRef.current) clearTimeout(ownerSearchTimerRef.current);
+        };
+    }, [isInitialized, isOpen, loadUsers, orphan?.item_type, searchQuery]);
+
+    useEffect(() => {
+        if (!isOpen || !isInitialized || (orphan?.item_type !== 'process' && orphan?.item_type !== 'asset')) return;
+        const generation = modalGenerationRef.current;
+        if (departmentSearchTimerRef.current) clearTimeout(departmentSearchTimerRef.current);
+        departmentSearchTimerRef.current = setTimeout(() => {
+            void loadDepartments(departmentSearchQuery, generation).catch((err) => {
+                if (generation !== modalGenerationRef.current) return;
+                logError('Failed to search Process departments:', err);
+                setErrorKey(apiClient.toUiMessageKey(err));
+            });
+        }, 200);
+        return () => {
+            if (departmentSearchTimerRef.current) clearTimeout(departmentSearchTimerRef.current);
+        };
+    }, [departmentSearchQuery, isInitialized, isOpen, loadDepartments, orphan?.item_type]);
+
+    const initializeData = useCallback(async (generation: number) => {
         try {
-            const promises: Promise<unknown>[] = [loadUsers(), loadDepartments()];
+            const promises: Promise<unknown>[] = [
+                loadUsers(undefined, generation),
+                loadDepartments(undefined, generation),
+            ];
 
             if (orphan?.item_type === 'control' || orphan?.item_type === 'kri') {
                 promises.push(loadRisks());
@@ -94,18 +216,25 @@ export function useResolveOrphanWorkflow({
             }
 
             await Promise.all(promises);
+            if (generation !== modalGenerationRef.current) return;
             clearInitTimer();
-            initTimerRef.current = setTimeout(() => setIsInitialized(true), 150);
+            initTimerRef.current = setTimeout(() => {
+                if (generation === modalGenerationRef.current) setIsInitialized(true);
+            }, 150);
         } catch (err) {
+            if (generation !== modalGenerationRef.current) return;
             logError('Failed to initialize resolution data:', err);
             setErrorKey(apiClient.toUiMessageKey(err));
         }
     }, [clearInitTimer, fetchControlStatus, loadDepartments, loadRisks, loadUsers, orphan?.item_type]);
 
     useEffect(() => {
+        const generation = ++modalGenerationRef.current;
         if (!isOpen) {
             clearInitTimer();
-            return;
+            return () => {
+                if (modalGenerationRef.current === generation) modalGenerationRef.current += 1;
+            };
         }
 
         setIsInitialized(false);
@@ -115,15 +244,22 @@ export function useResolveOrphanWorkflow({
         setSelectedRiskId(null);
         setErrorKey(null);
         setSearchQuery('');
+        setDepartmentSearchQuery('');
         setRiskSearchQuery('');
         setSelectedDeptFilter(null);
         setSelectedRiskDept('');
+        setRequestReason('');
+        setRequestReasonInvalid(false);
+        setReasonRequiredOverride(false);
 
         if (orphan) {
-            void initializeData();
+            void initializeData(generation);
         }
 
-        return clearInitTimer;
+        return () => {
+            if (modalGenerationRef.current === generation) modalGenerationRef.current += 1;
+            clearInitTimer();
+        };
     }, [clearInitTimer, initializeData, isOpen, orphan]);
 
     const requirements = useMemo(() => {
@@ -156,27 +292,62 @@ export function useResolveOrphanWorkflow({
 
     function handleSelectUser(user: OrphanUserOption) {
         setSelectedUserId(user.id);
-        setSelectedDepartmentId(user.department_id);
+        if (orphan?.item_type !== 'vendor') {
+            setSelectedDepartmentId((current) => (
+                orphan?.item_type === 'process' || orphan?.item_type === 'asset' ? current ?? user.department_id : user.department_id
+            ));
+        }
+    }
+
+    function handleRequestReasonChange(value: string) {
+        setRequestReason(value);
+        if (value.trim()) setRequestReasonInvalid(false);
     }
 
     async function handleSubmit() {
         if (!orphan) {
             return;
         }
+        if (requestReasonRequired && !requestReason.trim()) {
+            setRequestReasonInvalid(true);
+            requestReasonRef.current?.focus();
+            return;
+        }
         setIsSubmitting(true);
         setErrorKey(null);
 
         try {
-            await orphanedItemsApi.resolveOrphan(orphan.id, {
+            const request: ResolveOrphanRequest = {
                 new_owner_id: selectedUserId || undefined,
-                department_id: selectedDepartmentId || undefined,
+                department_id: orphan.item_type === 'threat' || orphan.item_type === 'vendor'
+                    ? undefined
+                    : selectedDepartmentId || undefined,
                 target_risk_id: selectedRiskId || undefined,
-            });
+            };
+            if (requestReasonRequired) {
+                request.request_reason = requestReason.trim();
+            }
+            const response = await orphanedItemsApi.resolveOrphan(orphan.id, request);
+            if (isApprovalCreatedResponse(response)) {
+                onApprovalQueued?.(response);
+                return;
+            }
             onResolved();
             onClose();
         } catch (err: unknown) {
             logError('Failed to resolve orphan:', err);
-            setErrorKey(apiClient.toUiMessageKey(err));
+            if (
+                err instanceof ApiClientError
+                && err.status === 422
+                && err.code === 'governed_mutation_reason_required'
+            ) {
+                setReasonRequiredOverride(true);
+                setRequestReasonInvalid(true);
+                setErrorKey(null);
+                requestAnimationFrame(() => requestReasonRef.current?.focus());
+            } else {
+                setErrorKey(apiClient.toUiMessageKey(err));
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -185,13 +356,19 @@ export function useResolveOrphanWorkflow({
     return {
         allDepartments,
         canSubmit,
+        departmentSearchQuery,
         errorKey,
         filteredRisks,
         handleSelectUser,
+        handleRequestReasonChange,
         handleSubmit,
         isInitialized,
         isSubmitting,
         requirements,
+        requestReason,
+        requestReasonInvalid,
+        requestReasonRef,
+        requestReasonRequired,
         riskSearchQuery,
         safeOrphanLabel,
         searchQuery,
@@ -202,6 +379,7 @@ export function useResolveOrphanWorkflow({
         selectedUserId,
         setRiskSearchQuery,
         setSearchQuery,
+        setDepartmentSearchQuery,
         setSelectedDepartmentId,
         setSelectedDeptFilter,
         setSelectedRiskDept,

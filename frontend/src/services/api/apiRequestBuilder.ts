@@ -50,7 +50,7 @@ export function buildPreparedRequest(
 
     if (
         !headers.has('Content-Type')
-        && (init.method === 'POST' || init.method === 'PUT' || init.method === 'PATCH')
+        && (init.method === 'POST' || init.method === 'PUT' || init.method === 'PATCH' || init.method === 'DELETE')
     ) {
         headers.set('Content-Type', 'application/json');
     }

@@ -33,16 +33,22 @@ from tests.backend.pytest.factories import create_test_kri, create_test_risk
 # ---------------------------------------------------------------------------
 # Frequency-aware overdue: a KRI's overdue-ness depends on its frequency, not a
 # flat day window. All expected values below are dialect-invariant (Python-side
-# compute over the period SSOT) and stable regardless of the calendar run date.
+# compute over the period SSOT). Staleness-boundary cases pin clock.today to a
+# fixed TODAY: under the ADR-012 backtracking anchor a 20-day-stale WEEKLY KRI
+# flips overdue-ness with the weekday (overdue Tue-Fri, current Sat-Mon), so a
+# live calendar clock would rot the expectations. Same vantage date as
+# test_char_kri_overdue_backtracking.py.
 # ---------------------------------------------------------------------------
-DAYS_STALE = 20  # both KRIs' last_period_end is this many days before "today"
+# A fixed "today" (a Monday) so calendar-aligned periods are deterministic.
+TODAY = date(2026, 7, 6)
+DAYS_STALE = 20  # both KRIs' last_period_end is this many days before TODAY
 
 
 async def _seed_weekly_and_annual_stale(db: AsyncSession, *, department_id: int, owner_id: int) -> None:
-    """One weekly + one annual live KRI, each last reported DAYS_STALE days ago."""
-    # last_period_end is computed relative to "now" so the KRIs are always exactly
-    # DAYS_STALE days stale on the run date; the frequency-aware result is stable.
-    stale_period_end = (datetime.now(UTC) - timedelta(days=DAYS_STALE)).date()
+    """One weekly + one annual live KRI, each last reported DAYS_STALE days before TODAY."""
+    # last_period_end is derived from the pinned TODAY so the KRIs are exactly
+    # DAYS_STALE days stale at the monkeypatched vantage on every run date.
+    stale_period_end = TODAY - timedelta(days=DAYS_STALE)
 
     risk = await create_test_risk(db, department_id=department_id, owner_id=owner_id, risk_id_code="R-OVERDUE-001")
     await create_test_kri(
@@ -61,15 +67,19 @@ async def _seed_weekly_and_annual_stale(db: AsyncSession, *, department_id: int,
 
 @pytest.mark.asyncio
 async def test_snapshot_overdue_is_frequency_aware_for_20_day_stale_kris(
-    db_session: AsyncSession, test_department, test_user
+    db_session: AsyncSession, test_department, test_user, monkeypatch
 ):
-    """Neither a weekly nor an annual KRI 20 days stale is overdue.
+    """Neither a weekly nor an annual KRI 20 days stale is overdue at TODAY.
 
-    A weekly KRI reports every ~7 days; 20 days stale means its most recent owed
-    period is only just past due, still inside period + 15-day grace on any run
-    date, so it is NOT counted. An annual KRI 20 days stale is trivially current.
-    -> 0. (Under the old flat/SQLite-no-op predicate BOTH counted -> 2.)
+    At TODAY (Mon 2026-07-06) the latest weekly period whose due date has
+    strictly passed ends 2026-06-14, and the weekly KRI's last_period_end
+    2026-06-16 is not before it (the week ending 2026-06-21 is due exactly
+    TODAY, so not yet strictly past). The annual KRI owes only 2025 ->
+    trivially current. -> 0. (Under the old flat/SQLite-no-op predicate BOTH
+    counted -> 2.) Pinned because one weekday later the backtracking anchor
+    tips the weekly KRI overdue.
     """
+    monkeypatch.setattr(clock, "today", lambda: TODAY)
     await _seed_weekly_and_annual_stale(db_session, department_id=test_department.id, owner_id=test_user.id)
 
     assert await count_overdue_kris(db_session, None) == 0
@@ -136,8 +146,8 @@ async def _seed_frequency_mix(db: AsyncSession, *, department_id: int, owner_id:
     Only the clearly-stale weekly KRI is overdue; the annual (20 days stale) and the
     within-grace weekly (5 days stale) are not. Under the old SQLite no-op ALL THREE
     counted (any non-null last_period_end), which is exactly what this test now rules out.
+    Staleness is measured back from the pinned TODAY.
     """
-    now = datetime.now(UTC)
     risk = await create_test_risk(db, department_id=department_id, owner_id=owner_id, risk_id_code="R-OVERDUE-FREQ")
     await create_test_kri(
         db,
@@ -145,7 +155,7 @@ async def _seed_frequency_mix(db: AsyncSession, *, department_id: int, owner_id:
         metric_name="Weekly overdue",
         overrides={
             "frequency": "weekly",
-            "last_period_end": (now - timedelta(days=WEEKLY_OVERDUE_STALE_DAYS)).date(),
+            "last_period_end": TODAY - timedelta(days=WEEKLY_OVERDUE_STALE_DAYS),
         },
     )
     await create_test_kri(
@@ -154,7 +164,7 @@ async def _seed_frequency_mix(db: AsyncSession, *, department_id: int, owner_id:
         metric_name="Annual not overdue",
         overrides={
             "frequency": "annually",
-            "last_period_end": (now - timedelta(days=ANNUAL_NOT_OVERDUE_STALE_DAYS)).date(),
+            "last_period_end": TODAY - timedelta(days=ANNUAL_NOT_OVERDUE_STALE_DAYS),
         },
     )
     await create_test_kri(
@@ -163,21 +173,25 @@ async def _seed_frequency_mix(db: AsyncSession, *, department_id: int, owner_id:
         metric_name="Weekly within grace",
         overrides={
             "frequency": "weekly",
-            "last_period_end": (now - timedelta(days=WEEKLY_WITHIN_GRACE_DAYS)).date(),
+            "last_period_end": TODAY - timedelta(days=WEEKLY_WITHIN_GRACE_DAYS),
         },
     )
 
 
 @pytest.mark.asyncio
-async def test_frequency_aware_overdue_is_portable(db_session: AsyncSession, test_department, test_user):
+async def test_frequency_aware_overdue_is_portable(db_session: AsyncSession, test_department, test_user, monkeypatch):
     """Overdue is frequency-aware and correct on SQLite (no flat +15 no-op).
 
-    Semantics (reusing app.services._kri_history period algebra):
-      - weekly KRI 30 days stale  -> OVERDUE
+    Semantics at the pinned TODAY (reusing app.services._kri_history period algebra):
+      - weekly KRI 30 days stale  -> OVERDUE (last 2026-06-06 < required 2026-06-14)
       - annual KRI 20 days stale  -> NOT overdue
       - weekly KRI  5 days stale  -> NOT overdue (within grace)
     So exactly ONE of the three seeded KRIs is overdue, on either backend.
+    (Pinned: on a live clock the annual case reads overdue every Jan 17-19,
+    when the prior-year period end becomes required while the KRI's report
+    still predates it.)
     """
+    monkeypatch.setattr(clock, "today", lambda: TODAY)
     await _seed_frequency_mix(db_session, department_id=test_department.id, owner_id=test_user.id)
 
     assert await count_overdue_kris(db_session, None) == 1

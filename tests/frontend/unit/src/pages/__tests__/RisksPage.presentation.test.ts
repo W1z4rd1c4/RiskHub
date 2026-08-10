@@ -4,58 +4,14 @@ import { describe, expect, it } from 'vitest';
 
 import { buildRiskColumns } from '@/pages/risks/riskColumns';
 import {
-    buildRiskListParams,
     formatRiskGroupLabel,
     getRiskDisplayStatus,
-    getRiskGroupBy,
     normalizeRiskSummary,
-    parseRisksPageQueryParams,
 } from '@/pages/risks/risksPagePresentation';
 import type { RiskSummary } from '@/types/risk';
 
 describe('Risks page presentation helpers', () => {
-    it('parses one-time inbound breached and critical query params', () => {
-        const parsed = parseRisksPageQueryParams(
-            new URLSearchParams('breached=true&critical=true')
-        );
-
-        expect(parsed).toEqual({
-            hasBreachFilter: true,
-            criticalFilter: true,
-        });
-    });
-
-    it('builds archived risk list params and normalizes missing counts', () => {
-        expect(
-            buildRiskListParams({
-                criticalMinNetScore: 20,
-                currentPage: 1,
-                criticalFilter: true,
-                hasBreachFilter: true,
-                limit: 20,
-                priorityFilter: true,
-                search: '  priority  ',
-                sortDirection: 'desc',
-                sortField: 'net_score',
-                statusFilter: 'archived',
-                typeFilter: 'operational',
-            })
-        ).toEqual({
-            offset: 0,
-            limit: 20,
-            search: 'priority',
-            status: 'archived',
-            risk_type: 'operational',
-            is_priority: true,
-            has_breach: true,
-            min_net_score: 20,
-            sort_by: 'net_score',
-            sort_order: 'desc',
-            include_archived: true,
-            group_by: undefined,
-            group_value: undefined,
-        });
-
+    it('normalizes missing collection counts', () => {
         expect(
             normalizeRiskSummary({
                 id: 1,
@@ -80,10 +36,7 @@ describe('Risks page presentation helpers', () => {
         });
     });
 
-    it('maps server grouped views and fallback labels', () => {
-        expect(getRiskGroupBy('vendor')).toBe('vendor');
-        expect(getRiskGroupBy('risk_type')).toBe('risk_type');
-        expect(getRiskGroupBy('all')).toBeNull();
+    it('maps server group fallback labels', () => {
         expect(
             formatRiskGroupLabel(
                 { value: '__unlinked_vendor__', label: '__unlinked_vendor__', count: 1 },

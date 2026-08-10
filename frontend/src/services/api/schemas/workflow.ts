@@ -3,8 +3,11 @@ import type {
     ApprovalCreatedResponse,
     ApprovalListResponse,
     ApprovalRequest,
+    GovernedDerivedImpact,
+    GovernedMutationRead,
     PendingChange,
 } from '@/types/approval';
+import { GOVERNED_MUTATION_KINDS } from '@/types/approval';
 import type {
     Notification,
     NotificationListResponse,
@@ -14,6 +17,8 @@ import type {
     OrphanedItem,
     OrphanedItemsOverview,
     OrphanStats,
+    ResolveOrphanDirectResponse,
+    ResolveOrphanResponse,
 } from '@/types/orphanedItem';
 import type {
     RiskQuestionnaireClarification,
@@ -47,6 +52,206 @@ const pendingChangeSchema: z.ZodType<PendingChange> = z.preprocess(
     }),
 );
 
+const governedDerivedStateSchema = z.strictObject({
+    cif: z.string(),
+    criticality_class: z.string().nullable(),
+});
+
+const governedAssetDerivedStateSchema = z.strictObject({
+    cif: z.string(),
+    resulting_criticality: z.string().nullable(),
+});
+
+const governedVendorDerivedStateSchema = z.strictObject({
+    tier: z.string().nullable(),
+});
+
+const governedEditDerivedImpactSchema = z.strictObject({
+    before: governedDerivedStateSchema,
+    after: governedDerivedStateSchema,
+});
+
+const governedCreateDerivedImpactSchema = z.strictObject({
+    before: z.null(),
+    after: governedDerivedStateSchema,
+});
+
+const governedRelationshipDerivedImpactSchema = z.strictObject({
+    processes: z.array(z.strictObject({
+        resource_name: z.string(),
+        before: governedDerivedStateSchema,
+        after: governedDerivedStateSchema,
+    })).optional(),
+    assets: z.array(z.strictObject({
+        resource_name: z.string(),
+        before: governedAssetDerivedStateSchema,
+        after: governedAssetDerivedStateSchema,
+    })).optional(),
+    vendors: z.array(z.strictObject({
+        resource_name: z.string(),
+        before: governedVendorDerivedStateSchema,
+        after: governedVendorDerivedStateSchema,
+    })).optional(),
+}).refine(
+    (impact) => (
+        impact.processes !== undefined
+        || impact.assets !== undefined
+        || impact.vendors !== undefined
+    ),
+    { message: 'Composite governed impact must contain Process, Asset, or Vendor rows' },
+);
+
+const governedAssetEditDerivedImpactSchema = z.strictObject({
+    before: governedAssetDerivedStateSchema,
+    after: governedAssetDerivedStateSchema,
+});
+
+const governedAssetCreateDerivedImpactSchema = z.strictObject({
+    before: z.null(),
+    after: governedAssetDerivedStateSchema,
+});
+
+const governedVendorEditDerivedImpactSchema = z.strictObject({
+    before: governedVendorDerivedStateSchema,
+    after: governedVendorDerivedStateSchema,
+});
+
+const governedVendorCreateDerivedImpactSchema = z.strictObject({
+    before: z.null(),
+    after: governedVendorDerivedStateSchema,
+});
+
+const governedThreatEditDerivedImpactSchema = z.strictObject({
+    before: z.strictObject({}),
+    after: z.strictObject({}),
+});
+
+export const governedDerivedImpactSchema: z.ZodType<GovernedDerivedImpact> = z.union([
+    governedEditDerivedImpactSchema,
+    governedCreateDerivedImpactSchema,
+    governedAssetEditDerivedImpactSchema,
+    governedAssetCreateDerivedImpactSchema,
+    governedVendorEditDerivedImpactSchema,
+    governedVendorCreateDerivedImpactSchema,
+    governedThreatEditDerivedImpactSchema,
+    governedRelationshipDerivedImpactSchema,
+]);
+
+const governedRelationshipSnapshotValueSchema = z.union([
+    z.string(),
+    z.boolean(),
+    z.null(),
+]);
+
+const governedRelationshipSnapshotSchema = z.record(
+    z.string(),
+    governedRelationshipSnapshotValueSchema,
+).refine(
+    (snapshot) => Object.keys(snapshot).every((field) => !field.endsWith('_id') && field !== 'id'),
+    { message: 'Relationship display snapshots cannot contain identifiers' },
+);
+
+export const governedRelationshipChangeSchema = z.strictObject({
+    target_resource_type: z.enum(['risk', 'asset', 'vendor', 'control', 'kri']),
+    target_resource_name: z.string(),
+    action: z.enum(['add', 'update', 'remove']),
+    before: governedRelationshipSnapshotSchema,
+    after: governedRelationshipSnapshotSchema,
+});
+
+export const governedImpactedResourceSchema = z.strictObject({
+    resource_type: z.enum(['process', 'asset', 'vendor', 'threat']),
+    resource_name: z.string(),
+});
+
+const governedRelationshipContract = {
+    'process.link.risk.add': ['risk', 'add'],
+    'process.link.risk.remove': ['risk', 'remove'],
+    'process.link.asset.add': ['asset', 'add'],
+    'process.link.asset.update': ['asset', 'update'],
+    'process.link.asset.remove': ['asset', 'remove'],
+    'process.link.vendor.add': ['vendor', 'add'],
+    'process.link.vendor.remove': ['vendor', 'remove'],
+    'asset.link.asset.add': ['asset', 'add'],
+    'asset.link.asset.remove': ['asset', 'remove'],
+    'asset.link.vendor.add': ['vendor', 'add'],
+    'asset.link.vendor.remove': ['vendor', 'remove'],
+    'asset.link.risk.add': ['risk', 'add'],
+    'asset.link.risk.remove': ['risk', 'remove'],
+    'vendor.link.risk.add': ['risk', 'add'],
+    'vendor.link.risk.remove': ['risk', 'remove'],
+    'vendor.link.control.add': ['control', 'add'],
+    'vendor.link.control.remove': ['control', 'remove'],
+    'vendor.link.kri.add': ['kri', 'add'],
+    'vendor.link.kri.remove': ['kri', 'remove'],
+} as const;
+
+const isIdenticalTierVendorPointImpact = (derivedImpact: unknown): boolean => {
+    const vendorPointImpact = governedVendorEditDerivedImpactSchema.safeParse(derivedImpact);
+    return vendorPointImpact.success
+        && vendorPointImpact.data.before.tier === vendorPointImpact.data.after.tier;
+};
+
+export const governedMutationReadSchema: z.ZodType<GovernedMutationRead> = z.strictObject({
+    proposal_id: z.string(),
+    proposal_version: z.number(),
+    mutation_kind: z.enum(GOVERNED_MUTATION_KINDS),
+    before: unknownRecordSchema,
+    after: unknownRecordSchema,
+    derived_impact: governedDerivedImpactSchema,
+    impacted_resources: z.array(governedImpactedResourceSchema),
+    relationship_change: governedRelationshipChangeSchema.nullable(),
+}).superRefine((value, context) => {
+    const relationshipContract = governedRelationshipContract[
+        value.mutation_kind as keyof typeof governedRelationshipContract
+    ];
+    const hasCompositeImpact = (
+        'processes' in value.derived_impact
+        || 'assets' in value.derived_impact
+        || 'vendors' in value.derived_impact
+    );
+
+    if (relationshipContract === undefined) {
+        if (value.relationship_change != null) {
+            context.addIssue({
+                code: 'custom',
+                message: 'Non-relationship governed mutations cannot expose relationship data',
+            });
+        }
+        const isCreationImpact = !hasCompositeImpact
+            && 'before' in value.derived_impact
+            && value.derived_impact.before === null;
+        const isCreationKind = value.mutation_kind === 'process.create'
+            || value.mutation_kind === 'asset.create'
+            || value.mutation_kind === 'vendor.create';
+        if (isCreationKind !== isCreationImpact) {
+            context.addIssue({
+                code: 'custom',
+                message: 'Governed mutation kind does not match its derived impact',
+            });
+        }
+        return;
+    }
+
+    const [expectedResourceType, expectedAction] = relationshipContract;
+    // Vendor relationship kinds carry the backend's point impact — an identical
+    // before/after Vendor tier block — instead of a composite cascade (#99).
+    const hasExpectedImpact = value.mutation_kind.startsWith('vendor.link.')
+        ? isIdenticalTierVendorPointImpact(value.derived_impact)
+        : hasCompositeImpact;
+    if (
+        value.relationship_change == null
+        || value.relationship_change.target_resource_type !== expectedResourceType
+        || value.relationship_change.action !== expectedAction
+        || !hasExpectedImpact
+    ) {
+        context.addIssue({
+            code: 'custom',
+            message: 'Governed relationship projection does not match its mutation kind',
+        });
+    }
+});
+
 export const activityLogEntrySchema: z.ZodType<ActivityLogEntry> = passthroughObject({
     id: z.number(),
     entity_type: z.string(),
@@ -72,12 +277,13 @@ export const activityLogListResponseSchema: z.ZodType<ActivityLogListResponse> =
 
 export const approvalRequestSchema: z.ZodType<ApprovalRequest> = passthroughObject({
     id: z.number(),
-    resource_type: z.enum(['risk', 'control', 'kri']),
-    resource_id: z.number(),
+    resource_type: z.enum(['risk', 'control', 'kri', 'process', 'asset', 'vendor', 'threat']),
+    resource_id: z.number().nullable(),
     resource_name: z.string(),
-    action_type: z.enum(['delete', 'edit']),
+    action_type: z.enum(['delete', 'edit', 'create', 'archive']),
     pending_changes: z.record(z.string(), pendingChangeSchema).nullable(),
-    status: z.enum(['pending', 'pending_privileged', 'approved', 'rejected', 'cancelled']),
+    governed_mutation: governedMutationReadSchema.nullable().optional(),
+    status: z.enum(['pending', 'pending_privileged', 'approved', 'rejected', 'cancelled', 'expired']),
     reason: z.string(),
     requested_by_id: z.number(),
     requested_by_name: z.string().nullable(),
@@ -109,17 +315,17 @@ export const approvalRequestSchema: z.ZodType<ApprovalRequest> = passthroughObje
 });
 export const approvalListResponseSchema: z.ZodType<ApprovalListResponse> =
     offsetPaginationSchema(approvalRequestSchema);
-export const approvalCreatedResponseSchema: z.ZodType<ApprovalCreatedResponse> =
-    passthroughObject({
+export const approvalCreatedResponseSchema = passthroughObject({
         status: z.literal('approval_required'),
         message: z.string(),
         approval_id: z.number(),
-        action_type: z.enum(['delete', 'edit']),
+        action_type: z.enum(['delete', 'edit', 'create', 'archive']),
+        resource_id: z.number().nullable().optional(),
         pending_fields: z.array(z.string()),
         pending_changes: unknownRecordSchema.nullable().optional(),
         primary_approver_id: z.number().nullable().optional(),
         requires_privileged_approval: z.boolean().optional(),
-    });
+    }) satisfies z.ZodType<ApprovalCreatedResponse>;
 
 export const notificationSchema: z.ZodType<Notification> = passthroughObject({
     id: z.number(),
@@ -127,6 +333,8 @@ export const notificationSchema: z.ZodType<Notification> = passthroughObject({
         'approval_pending',
         'approval_resolved',
         'approval_cancelled',
+        'governed_approval_action_required',
+        'governed_approval_request_updates',
         'kri_due_soon',
         'kri_due_tomorrow',
         'kri_overdue',
@@ -164,6 +372,8 @@ export const notificationPreferencesSchema: z.ZodType<NotificationPreferences> =
         approval_pending: z.boolean(),
         approval_resolved: z.boolean(),
         approval_cancelled: z.boolean(),
+        governed_approval_action_required: z.boolean(),
+        governed_approval_request_updates: z.boolean(),
         kri_due_soon: z.boolean(),
         kri_due_tomorrow: z.boolean(),
         kri_overdue: z.boolean(),
@@ -178,8 +388,9 @@ export const notificationPreferencesSchema: z.ZodType<NotificationPreferences> =
 
 export const orphanedItemSchema: z.ZodType<OrphanedItem> = passthroughObject({
     id: z.number(),
-    item_type: z.enum(['risk', 'control', 'kri']),
+    item_type: z.enum(['risk', 'control', 'kri', 'threat', 'process', 'asset', 'vendor']),
     item_id: z.number(),
+    responsibility_role: z.enum(['business_owner', 'ict_owner', 'outsourcing_owner']).nullable().optional(),
     item_name: z.string(),
     item_description: z.string().nullable(),
     item_identifier: z.string().nullable(),
@@ -188,6 +399,7 @@ export const orphanedItemSchema: z.ZodType<OrphanedItem> = passthroughObject({
     previous_owner_email: z.string(),
     orphaned_at: z.string(),
     status: z.enum(['pending', 'resolved']),
+    request_reason_required: z.boolean(),
     capabilities: passthroughObject({
         can_resolve: z.boolean(),
         can_view_detail: z.boolean(),
@@ -201,6 +413,10 @@ export const orphanStatsSchema: z.ZodType<OrphanStats> = passthroughObject({
     risk_count: z.number(),
     control_count: z.number(),
     kri_count: z.number(),
+    threat_count: z.number(),
+    process_count: z.number(),
+    asset_count: z.number(),
+    vendor_count: z.number().default(0),
     total_count: z.number(),
 });
 export const orphanedItemsOverviewSchema: z.ZodType<OrphanedItemsOverview> =
@@ -213,11 +429,13 @@ export const orphanedItemsOverviewSchema: z.ZodType<OrphanedItemsOverview> =
 export const orphanScanResponseSchema = passthroughObject({
     flagged: z.number(),
 });
-export const resolveOrphanResponseSchema = passthroughObject({
-    status: z.string(),
+const resolveOrphanDirectResponseSchema: z.ZodType<ResolveOrphanDirectResponse> = passthroughObject({
+    status: z.literal('resolved'),
     orphan_id: z.number(),
     new_owner_id: z.number().nullable().optional(),
 });
+export const resolveOrphanResponseSchema: z.ZodType<ResolveOrphanResponse> =
+    resolveOrphanDirectResponseSchema.or(approvalCreatedResponseSchema);
 
 export const riskQuestionnairePreviousSubmissionSchema: z.ZodType<RiskQuestionnairePreviousSubmission> =
     passthroughObject({

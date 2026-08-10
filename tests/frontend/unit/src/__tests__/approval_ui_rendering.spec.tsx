@@ -43,7 +43,8 @@ vi.mock('@/services/kriApi', () => ({
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
         getRiskTypes: vi.fn().mockResolvedValue([]),
-        getUsers: vi.fn().mockResolvedValue([]),
+        getRiskOwners: vi.fn().mockResolvedValue([]),
+        getControlOwners: vi.fn().mockResolvedValue([]),
         getDepartments: vi.fn().mockResolvedValue([]),
     },
 }));
@@ -78,12 +79,16 @@ import { lookupApi } from '@/services/lookupApi';
 
 async function flushInitialFormEffects() {
     await waitFor(() => {
-        expect(vi.mocked(lookupApi.getUsers)).toHaveBeenCalled();
+        expect(
+            vi.mocked(lookupApi.getRiskOwners).mock.calls.length
+            + vi.mocked(lookupApi.getControlOwners).mock.calls.length,
+        ).toBeGreaterThan(0);
         expect(vi.mocked(lookupApi.getDepartments)).toHaveBeenCalled();
         expect(vi.mocked(riskApi.getRisks)).toHaveBeenCalled();
     });
 
-    const usersPromise = vi.mocked(lookupApi.getUsers).mock.results[0]?.value;
+    const usersPromise = vi.mocked(lookupApi.getRiskOwners).mock.results[0]?.value
+        ?? vi.mocked(lookupApi.getControlOwners).mock.results[0]?.value;
     const departmentsPromise = vi.mocked(lookupApi.getDepartments).mock.results[0]?.value;
     const risksPromise = vi.mocked(riskApi.getRisks).mock.results[0]?.value;
 

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import time
 from collections.abc import Mapping
 
+from jwt import InvalidTokenError
 from redis.exceptions import RedisError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
@@ -11,8 +13,14 @@ from starlette.responses import Response
 from app.core.client_ip import DEFAULT_TRUSTED_PROXIES, ClientIPResolver, resolve_request_client_ip
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.security import decode_access_token
 from app.middleware.rate_limit.backend import InMemoryRateLimitBackend, RateLimitState, RedisRateLimitBackend
-from app.middleware.rate_limit.policy import RateLimitRule, get_limit_for_path, resolve_rate_limit_rules
+from app.middleware.rate_limit.policy import (
+    RateLimitRule,
+    get_bucket_for_path,
+    get_limit_for_path,
+    resolve_rate_limit_rules,
+)
 from app.middleware.rate_limit.responses import (
     build_rate_limit_backend_unavailable_response,
     build_rate_limit_response,
@@ -81,6 +89,29 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def _get_limit_for_path(self, path: str) -> RateLimitRule:
         return get_limit_for_path(self.limits, path)
 
+    def _get_rate_limit_identity(self, request: Request, client_ip: str) -> str:
+        """Bind one DQ reader to its IP without retaining the raw user id."""
+        settings = getattr(request.app.state, "settings", self._default_settings)
+        principal: str | None = None
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            try:
+                payload = decode_access_token(auth_header[7:], settings=settings)
+                subject = payload.get("sub")
+                if subject is not None:
+                    principal = str(subject)
+            except InvalidTokenError:
+                principal = None
+        elif settings.mock_auth_enabled:
+            mock_user_id = request.headers.get("X-Mock-User-Id")
+            if mock_user_id and mock_user_id.isdigit():
+                principal = mock_user_id
+
+        if principal is None:
+            return client_ip
+        digest = hashlib.sha256(principal.encode("utf-8")).hexdigest()[:24]
+        return f"{client_ip}:principal:{digest}"
+
     def _is_fail_closed_path(self, *, request: Request, path: str) -> bool:
         settings = getattr(request.app.state, "settings", self._default_settings)
         prefixes = settings.redis.rate_limit_fail_closed_prefixes
@@ -110,6 +141,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         now = time.time()
         client_ip = self._get_client_ip(request)
         path = request.url.path
+        is_dq_family = path.startswith("/api/v1/ict-register/dq")
+        rate_limit_identity = (
+            self._get_rate_limit_identity(request, client_ip)
+            if is_dq_family
+            else client_ip
+        )
+        bucket = get_bucket_for_path(self.limits, path) if is_dq_family else path
         max_requests, window = self._get_limit_for_path(path)
 
         redis = getattr(request.app.state, "redis", None)
@@ -118,8 +156,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 allowed, retry_after = await self._redis_backend.check(
                     redis=redis,
                     redis_key_prefix=self.redis_key_prefix,
-                    client_ip=client_ip,
-                    path=path,
+                    client_ip=rate_limit_identity,
+                    path=bucket,
                     max_requests=max_requests,
                     window_seconds=window,
                 )
@@ -140,8 +178,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     return build_rate_limit_backend_unavailable_response()
 
         allowed, retry_after = self._memory_backend.check(
-            client_ip=client_ip,
-            path=path,
+            client_ip=rate_limit_identity,
+            path=bucket,
             max_requests=max_requests,
             window=window,
             now=now,

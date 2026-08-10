@@ -10,7 +10,8 @@ const risksAdapter = {
     errorLogPrefix: 'Failed to load linked risks:',
     fetch: (vendorId: number) => vendorLinkApi.getLinkedRisks(vendorId),
     isArchived: (risk: LinkedRisk) => Boolean(risk.is_archived),
-    link: (vendorId: number, riskId: number) => vendorLinkApi.linkRisk(vendorId, riskId),
+    link: (vendorId: number, riskId: number, requestReason?: string) =>
+        vendorLinkApi.linkRisk(vendorId, riskId, requestReason),
     toExistingLink: (risk: LinkedRisk) => ({
         control_id: undefined,
         display_name: `${risk.risk_id_code}: ${risk.name}`,
@@ -18,23 +19,26 @@ const risksAdapter = {
         id: risk.id,
         risk_id: risk.id,
     }),
-    unlink: (vendorId: number, riskId: number) => vendorLinkApi.unlinkRisk(vendorId, riskId),
+    unlink: (vendorId: number, riskId: number, requestReason?: string) =>
+        vendorLinkApi.unlinkRisk(vendorId, riskId, requestReason),
 };
 
 interface VendorLinkedRisksTabProps {
     vendorId: number;
     canCreateRisk: boolean;
     canEdit: boolean;
+    protectedChangeRequiresApproval: boolean;
     onAddRisk: () => void;
     onNavigateToRisk: (riskId: number) => void;
 }
 
-export function VendorLinkedRisksTab({ vendorId, canCreateRisk, canEdit, onAddRisk, onNavigateToRisk }: VendorLinkedRisksTabProps) {
+export function VendorLinkedRisksTab({ vendorId, canCreateRisk, canEdit, protectedChangeRequiresApproval, onAddRisk, onNavigateToRisk }: VendorLinkedRisksTabProps) {
     return (
         <VendorLinkedEntitiesTab
             adapter={risksAdapter}
             canCreate={canCreateRisk}
             canEdit={canEdit}
+            protectedChangeRequiresApproval={protectedChangeRequiresApproval}
             headerColorClass="text-white"
             i18nKeys={{ addAction: 'links.actions.add_risk', archived: 'links.archived_risks', dialogTitle: 'links.dialogs.link_risks_title', empty: 'links.risks.empty', subtitle: 'links.risks.subtitle', tabTitle: 'tabs.linked_risks' }}
             icon={<LinkIcon className="h-5 w-5 text-indigo-400" />}

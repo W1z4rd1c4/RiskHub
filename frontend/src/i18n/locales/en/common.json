@@ -47,13 +47,32 @@
       "format": "Format",
       "date": "As of date"
     },
+    "purpose": {
+      "label": "Export purpose",
+      "current_view": {
+        "title": "Current register view",
+        "description": "Export every record matching the current filters, sorting, and selected group."
+      },
+      "point_in_time": {
+        "title": "Point-in-time audit snapshot",
+        "description": "Reconstruct the audited register state for a selected date."
+      }
+    },
     "formats": {
       "xlsx": "CSV (.csv)",
       "csv": "CSV (.csv)"
     },
     "actions": {
       "submit": "Export",
+      "submit_current": "Export current view",
+      "submit_snapshot": "Export snapshot",
       "cancel": "Cancel"
+    },
+    "errors": {
+      "failed": "Export failed. Try again."
+    },
+    "dora_register": {
+      "link": "Download DORA register"
     }
   },
   "labels": {
@@ -145,7 +164,8 @@
     "to": "to",
     "entries": "entries",
     "per_page": "per page",
-    "showing_range": "Showing {{start}} to {{end}} of {{total}} entries"
+    "showing_range": "Showing {{start}} to {{end}} of {{total}} entries",
+    "go_to_page": "Go to page {{page}}"
   },
   "date": {
     "today": "Today",
@@ -320,11 +340,42 @@
   },
   "department_detail": {
     "tabs": {
+      "label": "Department workspace",
+      "overview": "Overview",
       "risks": "Risks",
       "users": "Users",
       "controls": "Controls",
       "kris": "KRIs",
+      "issues": "Issues",
+      "processes": "Processes",
+      "assets": "Assets",
+      "vendors": "Vendors",
+      "activity": "Activity",
       "recent_activity": "Recent Activity"
+    },
+    "health": {
+      "high_risk": "{{count}} high risk",
+      "high_risks": "{{count}} high",
+      "critical_risks": "{{count}} critical",
+      "attention_controls": "{{count}} attention",
+      "inactive_controls": "{{count}} inactive",
+      "kri_breaches": "{{count}} breaches",
+      "kri_overdue": "{{count}} overdue",
+      "open_issues": "{{count}} open",
+      "overdue_issues": "{{count}} overdue",
+      "critical_processes": "{{count}} critical",
+      "cif_processes": "{{count}} CIF",
+      "critical_assets": "{{count}} critical",
+      "legacy_assets": "{{count}} legacy",
+      "critical_vendors": "{{count}} critical",
+      "dora_vendors": "{{count}} DORA",
+      "active_users": "{{count}} active",
+      "accountability_gaps": "{{count}} accountability gaps",
+      "significant_vendors": "{{count}} significant"
+    },
+    "recent_activity": {
+      "title": "Recent activity",
+      "empty": "No recent activity"
     }
   },
   "documentation": {
@@ -342,9 +393,18 @@
     "maintainer_reference": "Maintainer reference:"
   },
   "tables": {
+    "items": "Items",
+    "active": "Active",
     "items_count": "{{count}} items",
     "high_risk": "High risk",
-    "inherited_risk_heatmap": "Inherited risk heatmap"
+    "inherited_risk_heatmap": "Inherited risk heatmap",
+    "error": {
+      "message": "We couldn't load this table. Please try again.",
+      "retry": "Retry"
+    },
+    "view_entity": "View {{entity}}",
+    "view_row": "View details",
+    "row_actions": "Actions"
   },
   "fallbacks": {
     "unknown": "Unknown",
@@ -360,7 +420,12 @@
     "unknown_control": "Unknown control",
     "not_set": "Not set",
     "unknown_department": "Unknown department",
-    "unknown_link": "Unknown link"
+    "unknown_link": "Unknown link",
+    "unknown_process": "Unknown process",
+    "unknown_asset": "Unknown asset",
+    "unknown_threat": "Unknown threat",
+    "unknown_contract": "Unknown contract",
+    "unknown_sub_outsourcing": "Unknown sub-outsourcing provider"
   },
   "audit": {
     "columns": {
@@ -469,6 +534,32 @@
   "sections": {
     "recent_activity": "Recent activity",
     "risk_exposure_by_dept": "Risk exposure by department"
+  },
+  "semantic_filters": {
+    "filtered_by": "Filtered by",
+    "remove": "Remove {{key}} filter",
+    "keys": {
+      "committee_scope": "ICT Committee population",
+      "cif": "Critical or important function",
+      "has_process_link": "Linked to a process",
+      "criticality": "Criticality",
+      "has_direct_process_link": "Direct process link",
+      "has_roi_contract": "RoI contract",
+      "has_sub_outsourcing": "Sub-outsourcing",
+      "tier": "Vendor tier",
+      "ict_linked": "ICT-linked",
+      "above_tolerance": "Above tolerance",
+      "response": "Risk response",
+      "gross_probability": "Gross probability",
+      "gross_impact": "Gross impact",
+      "gross_band": "Gross band",
+      "net_band": "Net band",
+      "unknown": "Register filter"
+    },
+    "values": {
+      "yes": "Yes",
+      "acceptance": "Acceptance"
+    }
   },
   "stats": {
     "active_depts": "Active departments",

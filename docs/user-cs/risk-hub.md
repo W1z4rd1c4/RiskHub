@@ -1,7 +1,7 @@
 ---
 title: Risk Hub (konfigurační pracovní prostor pro CRO)
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-31"
 audience: user
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + frontend/src/components/riskhub/*"
 summary: "Manuál pro CRO: konfigurace taxonomie, thresholdů, schvalovacích scénářů, rolí, oddělení a hromadné odesílání risk dotazníků."
@@ -98,6 +98,21 @@ Při nastavování pravidel, rolí, oddělení nebo dotazníků vybírejte změn
 ## Schvalování a notifikace
 
 Změny v Risk Hubu mohou ovlivnit mnoho lidí. Dělejte soustředěné úpravy, kontrolujte viditelný dopad a sledujte Schvalování nebo Notifikace u citlivých změn.
+
+Scénáře chráněného procesu, aktiva a dodavatele jsou pevné politiky. U
+dodavatele je práh aktuální nebo navržená kritická/významná úroveň; pokryté
+akce nad dodavatelem, child záznamy a vazbami ani zákaz self-approval nelze
+měnit. Oprávněný správce může změnit pouze zapnutí a neprázdnou podmnožinu rolí
+Risk Manager/CRO.
+
+Čtyři pevné identifikátory scénářů jsou `protected_process_edit`,
+`protected_asset_edit`, `protected_vendor_edit` a
+`accountability_reassignment`. Čtvrtý scénář pokrývá skutečnou změnu Vlastníka
+procesu nebo Vlastnického oddělení, Business vlastníka aktiva, ICT vlastníka
+aktiva nebo Vlastnického oddělení, Outsourcing Ownera dodavatele a Správce
+hrozby. CRO může každý scénář zapnout nebo vypnout a vybrat neprázdnou
+podmnožinu rolí Risk Manager/CRO; prahy, pokryté mutace a zákaz self-approval
+zůstávají read-only politikou.
 
 Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; Risk Hub panely a Activity Log ukazují aktuální kontext.
 

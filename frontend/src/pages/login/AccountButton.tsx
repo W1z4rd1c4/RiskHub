@@ -44,7 +44,8 @@ export function AccountButton({
         <button
             onClick={() => onSelect(account.email)}
             disabled={disabled}
-            className={`w-full p-3 flex items-center justify-between bg-white/[0.03] border border-white/10 rounded-xl transition-all group disabled:opacity-50 ${colorClasses[account.color]}`}
+            data-testid={`demo-persona-${account.email}`}
+            className={`min-h-28 w-full p-3 flex items-center justify-between bg-white/[0.03] border border-white/10 rounded-xl transition-all group disabled:opacity-50 ${colorClasses[account.color]}`}
         >
             <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold ${badgeClasses[account.color]}`}>
@@ -53,6 +54,9 @@ export function AccountButton({
                 <div className="text-left">
                     <p className="text-sm font-bold text-white">{account.name}</p>
                     <p className="text-[10px] text-slate-500 font-medium">{translate(account.role_key)}</p>
+                    <p className="text-[10px] text-slate-600 font-medium">
+                        {account.dept_key ? translate(account.dept_key) : '—'}
+                    </p>
                 </div>
             </div>
             {isLoading ? (

@@ -1,4 +1,6 @@
-from sqlalchemy import case, func, or_, select, union_all
+from typing import Any
+
+from sqlalchemy import ColumnElement, SQLColumnExpression, String, case, func, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import risk_visibility_clause, vendor_visibility_clause
@@ -22,7 +24,18 @@ ISSUE_GROUP_UNCATEGORIZED = "__uncategorized__"
 ISSUE_GROUP_UNKNOWN_DEPARTMENT = "__unknown_department__"
 ISSUE_GROUP_NO_PROCESS = "__no_process__"
 ISSUE_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
-ISSUE_SQL_GROUPS = {"category", "department", "process", "risk_type", "type", "vendor"}
+ISSUE_GROUP_UNASSIGNED_OWNER = "__unassigned_owner__"
+ISSUE_SQL_GROUPS = {
+    "category",
+    "department",
+    "owner",
+    "process",
+    "risk_type",
+    "severity",
+    "status",
+    "type",
+    "vendor",
+}
 
 
 def issue_context_values(issue, *, group_by: str) -> set[str]:
@@ -44,6 +57,18 @@ def issue_context_values(issue, *, group_by: str) -> set[str]:
 def issue_group_entries(issue, group_by: str) -> list[CollectionGroupEntry]:
     if group_by == "department":
         value = issue.department_name or ISSUE_GROUP_UNKNOWN_DEPARTMENT
+        return [CollectionGroupEntry(value, value)]
+
+    if group_by == "owner":
+        value = issue.owner_user_name or ISSUE_GROUP_UNASSIGNED_OWNER
+        return [CollectionGroupEntry(value, value)]
+
+    if group_by == "severity":
+        value = str(getattr(issue.severity, "value", issue.severity))
+        return [CollectionGroupEntry(value, value)]
+
+    if group_by == "status":
+        value = str(getattr(issue.status, "value", issue.status))
         return [CollectionGroupEntry(value, value)]
 
     if group_by == "vendor":
@@ -153,8 +178,26 @@ async def load_issue_sql_groups(
     active_expr = Issue.status != IssueStatus.closed.value
     highlighted_expr = Issue.severity.in_((IssueSeverity.high.value, IssueSeverity.critical.value))
 
-    if group_by == "department":
-        value_expr = func.coalesce(Department.name, ISSUE_GROUP_UNKNOWN_DEPARTMENT)
+    if group_by in {"department", "owner", "severity", "status"}:
+        value_expr: SQLColumnExpression[Any]
+        join_target: type[Department] | type[User] | None
+        join_on: ColumnElement[bool] | None
+        if group_by == "department":
+            value_expr = func.coalesce(Department.name, ISSUE_GROUP_UNKNOWN_DEPARTMENT)
+            join_target = Department
+            join_on = Department.id == Issue.department_id
+        elif group_by == "owner":
+            value_expr = func.coalesce(User.name, ISSUE_GROUP_UNASSIGNED_OWNER)
+            join_target = User
+            join_on = User.id == Issue.owner_user_id
+        elif group_by == "severity":
+            value_expr = Issue.severity
+            join_target = None
+            join_on = None
+        else:
+            value_expr = Issue.status
+            join_target = None
+            join_on = None
         label_expr = value_expr
         query = (
             select(
@@ -166,10 +209,10 @@ async def load_issue_sql_groups(
             )
             .select_from(Issue)
             .join(filtered_ids, filtered_ids.c.id == Issue.id)
-            .outerjoin(Department, Department.id == Issue.department_id)
-            .group_by(value_expr, label_expr)
-            .order_by(func.lower(label_expr))
         )
+        if join_target is not None:
+            query = query.outerjoin(join_target, join_on)
+        query = query.group_by(value_expr, label_expr).order_by(func.lower(func.cast(label_expr, String)))
     elif group_by == "vendor":
         vendor_context = issue_vendor_context_subquery(current_user, filtered_ids)
         value_expr = func.coalesce(vendor_context.c.vendor_name, ISSUE_GROUP_UNLINKED_VENDOR)
@@ -213,8 +256,8 @@ async def load_issue_sql_groups(
     rows = (await db.execute(query)).mappings().all()
     return [
         CollectionGroupRead(
-            value=str(row["value"]),
-            label=str(row["label"]),
+            value=str(getattr(row["value"], "value", row["value"])),
+            label=str(getattr(row["label"], "value", row["label"])),
             count=row["count"],
             active_count=row["active_count"],
             highlighted_count=row["highlighted_count"],
@@ -237,6 +280,12 @@ def issue_group_fallback_value(group_by: str) -> str:
 def issue_group_filter(group_by: str, group_value: str, *, risk_context=None, vendor_context=None):
     if group_by == "department":
         return func.coalesce(Department.name, ISSUE_GROUP_UNKNOWN_DEPARTMENT) == group_value
+    if group_by == "owner":
+        return func.coalesce(User.name, ISSUE_GROUP_UNASSIGNED_OWNER) == group_value
+    if group_by == "severity":
+        return Issue.severity == group_value
+    if group_by == "status":
+        return Issue.status == group_value
     if group_by == "vendor" and vendor_context is not None:
         if group_value == ISSUE_GROUP_UNLINKED_VENDOR:
             return ~Issue.id.in_(select(vendor_context.c.issue_id))

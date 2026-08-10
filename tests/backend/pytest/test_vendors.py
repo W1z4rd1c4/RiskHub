@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.vendors import crud as vendor_crud
 from app.core.user_query_options import user_selectinload_options
-from app.models import Department, Permission, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
+from app.models import Asset, Department, Permission, Process, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
 from app.models.user import AccessScope
 from app.schemas.vendor import VendorCreate, VendorUpdate
 from app.services._register_listings import vendors as vendor_listing
@@ -180,6 +180,10 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
     await _grant(db_session, test_role_employee, "controls", "read")
     await _grant(db_session, test_role_employee, "controls", "write")
     await _grant(db_session, test_role_employee, "issues", "write")
+    await _grant(db_session, test_role_employee, "assets", "read")
+    await _grant(db_session, test_role_employee, "assets", "write")
+    await _grant(db_session, test_role_employee, "processes", "read")
+    await _grant(db_session, test_role_employee, "processes", "write")
 
     vendor = Vendor(
         name="Inactive Mutation Vendor",
@@ -196,7 +200,20 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
         status="active",
         is_archived=True,
     )
-    db_session.add(vendor)
+    process = Process(
+        f_code="F-VENDOR-CAPABILITY",
+        l0_area="Operations",
+        l1_process="Editable Process for Vendor capability",
+        process_owner_user_id=test_user_employee.id,
+        owning_department_id=test_department.id,
+    )
+    asset = Asset(
+        name="Editable Asset for Vendor capability",
+        business_owner_user_id=test_user_employee.id,
+        ict_owner_user_id=test_user_employee.id,
+        owning_department_id=test_department.id,
+    )
+    db_session.add_all([vendor, process, asset])
     await db_session.commit()
     await db_session.refresh(vendor)
 
@@ -214,6 +231,9 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
     assert capabilities["can_link_control"] is False
     assert capabilities["can_link_kri"] is False
     assert capabilities["can_create_issue"] is False
+    assert capabilities["can_view_asset_links"] is True
+    assert capabilities["can_manage_asset_links"] is False
+    assert capabilities["can_manage_process_links"] is False
     assert capabilities["can_restore"] is True
 
     restore_resp = await client_employee.post(f"/api/v1/vendors/{vendor.id}/restore")
@@ -221,10 +241,13 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
     restored_capabilities = restore_resp.json()["capabilities"]
     assert restored_capabilities["can_update"] is True
     assert restored_capabilities["can_create_issue"] is True
+    assert restored_capabilities["can_view_asset_links"] is True
+    assert restored_capabilities["can_manage_asset_links"] is True
+    assert restored_capabilities["can_manage_process_links"] is True
 
 
 @pytest.mark.asyncio
-async def test_vendor_governance_owner_must_match_department_for_scoped_writer(
+async def test_vendor_governance_owner_can_be_cross_department_for_scoped_writer(
     db_session: AsyncSession,
     client_department_head: AsyncClient,
     test_department: Department,
@@ -267,8 +290,8 @@ async def test_vendor_governance_owner_must_match_department_for_scoped_writer(
             "status": "active",
         },
     )
-    assert resp.status_code == 400
-    assert "selected department" in resp.json()["detail"]
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["outsourcing_owner_user_id"] == other_owner.id
 
 
 @pytest.mark.asyncio
@@ -851,3 +874,40 @@ async def test_list_vendors_rejects_invalid_sort_by(auth_client: AsyncClient):
     response = await auth_client.get("/api/v1/vendors", params={"sort_by": "unknown_field"})
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid sort_by value"
+
+
+@pytest.mark.asyncio
+async def test_vendor_sort_ties_use_id_as_deterministic_secondary_key(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+):
+    vendors = [
+        Vendor(
+            name="Stable tie vendor",
+            process="IT",
+            department_id=test_department.id,
+            outsourcing_owner_user_id=test_user.id,
+            vendor_type="ict",
+            risk_score_1_5=3,
+            supports_important_core_insurance_function=False,
+            dora_relevant=False,
+            is_significant_vendor=False,
+            has_alternative_providers=False,
+            status="active",
+        )
+        for _ in range(3)
+    ]
+    db_session.add_all(vendors)
+    await db_session.commit()
+
+    response = await auth_client.get(
+        "/api/v1/vendors",
+        params={"search": "Stable tie vendor", "sort_by": "name", "sort_order": "desc"},
+    )
+
+    assert response.status_code == 200
+    assert [row["id"] for row in response.json()["items"]] == sorted(
+        (vendor.id for vendor in vendors), reverse=True
+    )

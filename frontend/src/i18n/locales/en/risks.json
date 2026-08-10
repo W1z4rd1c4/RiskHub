@@ -178,6 +178,13 @@
     "critical_only_clear": "Critical Only (click to clear)",
     "breached_only_clear": "Breached Only (click to clear)"
   },
+  "register": {
+    "views": { "all": "All", "category": "By Category", "department": "By Department", "process": "By Process", "risk_type": "By Risk Type", "vendor": "By Vendor" },
+    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "has_breach": "KRI breach", "critical": "Critical risk", "net_band": "Net band" },
+    "net_bands": { "low": "Low", "medium": "Medium", "high": "High", "critical": "Critical" },
+    "lifecycle": { "active": "Active", "archived": "Archived", "all": "All" },
+    "export": { "title": "Export filtered risks" }
+  },
   "grouping": {
     "unlinked_vendor": "Unlinked Vendor"
   },
@@ -325,5 +332,35 @@
     "aggregated_kri_history": "Aggregated KRI History",
     "no_kri_values": "No KRI values available yet.",
     "no_kris_configured": "No KRIs are configured for this risk."
+  },
+  "acceptance": {
+    "title": "Risk acceptance",
+    "approver": "Acceptance approver",
+    "justification": "Acceptance justification",
+    "date": "Acceptance date",
+    "hint": "Required together when accepting a risk above tolerance — flagged by data quality, not blocked here."
+  },
+  "register_links": {
+    "title": "ICT Register links",
+    "add": "Link",
+    "remove": "Remove link",
+    "threats": {
+      "title": "Threats",
+      "empty": "No threats are linked to this risk yet.",
+      "select_placeholder": "Select a threat to link..."
+    },
+    "processes": {
+      "title": "Processes",
+      "empty": "No processes are linked to this risk yet.",
+      "select_placeholder": "Select a process to link..."
+    },
+    "assets": {
+      "title": "Assets",
+      "empty": "No assets are linked to this risk yet.",
+      "select_placeholder": "Select an asset to link..."
+    },
+    "errors": {
+      "mutation_failed": "Updating the link failed. Please try again."
+    }
   }
 }

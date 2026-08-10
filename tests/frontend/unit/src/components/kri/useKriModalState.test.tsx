@@ -2,7 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useKriModalState } from '@/components/kri/useKriModalState';
-import { userApi } from '@/services/userApi';
+import { lookupApi } from '@/services/lookupApi';
 import { vendorApi } from '@/services/vendorApi';
 import type { KeyRiskIndicator } from '@/types/kri';
 
@@ -32,7 +32,7 @@ describe('useKriModalState', () => {
     });
 
     it('syncs server fields when the same KRI record is refreshed with a new object reference', async () => {
-        vi.spyOn(userApi, 'listVisibleUsers').mockResolvedValue([]);
+        vi.spyOn(lookupApi, 'getRiskOwners').mockResolvedValue([]);
         vi.spyOn(vendorApi, 'getVendors').mockResolvedValue({
             items: [],
             total: 0,

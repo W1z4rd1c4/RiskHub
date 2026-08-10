@@ -97,6 +97,7 @@ class MeCapabilities(BaseModel):
     can_view_access_users: bool = False
     can_view_department_access_users: bool = False
     can_view_users_route: bool = False
+    can_view_approvals: bool = False
     can_manage_access: bool = False
     can_view_department_access: bool = False
     can_view_admin_console: bool = False
@@ -143,6 +144,29 @@ class UserLookup(BaseModel):
     department_id: int | None = None
     department_name: str | None = None
     manager_id: int | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class AssignableOwnerLookup(BaseModel):
+    """Minimal scoped identity returned to business-assignment writers."""
+
+    id: int
+    name: str
+    email: str
+    role_name: str | None = None
+    department_id: int | None = None
+    department_name: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ThreatStewardLookup(BaseModel):
+    """Minimal active-CISO identity returned to Threat writers."""
+
+    id: int
+    name: str
+    email: str
 
     model_config = {"from_attributes": True}
 

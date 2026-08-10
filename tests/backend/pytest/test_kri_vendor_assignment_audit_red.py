@@ -60,8 +60,8 @@ async def _kri_link_events(db: AsyncSession) -> list[ActivityLog]:
     return [
         event
         for event in rows.scalars().all()
-        if ((event.changes or {}).get("link_kind") or {}).get("new") == "kri"
-        or ((event.changes or {}).get("link_kind") or {}).get("old") == "kri"
+        if ((event.changes or {}).get("relationship_type") or {}).get("new") == "kri"
+        or ((event.changes or {}).get("relationship_type") or {}).get("old") == "kri"
     ]
 
 

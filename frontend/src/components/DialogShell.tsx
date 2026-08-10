@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -10,6 +10,14 @@ interface DialogShellProps {
     children: ReactNode;
     initialFocusRef?: { current: HTMLElement | null };
     closeDisabled?: boolean;
+    /**
+     * ARIA role for the modal surface. `"dialog"` (default) preserves today's
+     * behaviour. `"alertdialog"` is for confirmations / destructive decisions:
+     * absent an explicit `initialFocusRef`, initial focus lands on the dialog
+     * container (so the labelled + described alert message is announced) rather
+     * than auto-focusing the first — often destructive — control.
+     */
+    role?: 'dialog' | 'alertdialog';
     containerClassName?: string;
     backdropClassName?: string;
     contentClassName?: string;
@@ -37,6 +45,16 @@ function getFocusableElements(container: HTMLElement) {
     ));
 }
 
+function isTopmostModal(dialog: HTMLElement) {
+    const openModalSurfaces = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]'));
+    return openModalSurfaces.at(-1) === dialog;
+}
+
+function isInActiveInteractionLayer(dialog: HTMLElement, target: EventTarget | null) {
+    return target instanceof HTMLElement
+        && (dialog.contains(target) || Boolean(target.closest('.themed-select-content')));
+}
+
 export function DialogShell({
     isOpen,
     onClose,
@@ -45,6 +63,7 @@ export function DialogShell({
     children,
     initialFocusRef,
     closeDisabled = false,
+    role = 'dialog',
     containerClassName = 'fixed inset-0 z-[9999] flex items-center justify-center p-4',
     backdropClassName = 'absolute inset-0 bg-slate-950/70 backdrop-blur-sm',
     contentClassName = 'relative w-full max-w-md glass-card !p-0 overflow-hidden shadow-2xl',
@@ -52,6 +71,8 @@ export function DialogShell({
 }: DialogShellProps) {
     const dialogRef = useRef<HTMLDivElement>(null);
     const openerRef = useRef<HTMLElement | null>(null);
+    const openerStableIdentityRef = useRef<{ id?: string; testId?: string; ariaLabel?: string }>({});
+    const lastFocusedWhileClosedRef = useRef<HTMLElement | null>(null);
     const describedBy = descriptionIds.filter(Boolean).join(' ') || undefined;
 
     const focusInitialElement = useCallback(() => {
@@ -68,6 +89,14 @@ export function DialogShell({
             return;
         }
 
+        // alertdialog: without an explicit target, focus the container so the
+        // labelled + described alert is announced instead of auto-focusing the
+        // first (often destructive) control. Focus stays trapped either way.
+        if (role === 'alertdialog') {
+            dialog.focus();
+            return;
+        }
+
         const [firstFocusable] = getFocusableElements(dialog);
         if (firstFocusable) {
             firstFocusable.focus();
@@ -75,7 +104,7 @@ export function DialogShell({
         }
 
         dialog.focus();
-    }, [initialFocusRef]);
+    }, [initialFocusRef, role]);
 
     const handleClose = useCallback(() => {
         if (closeDisabled) return;
@@ -85,7 +114,23 @@ export function DialogShell({
     const handleKeyDown = useCallback((event: KeyboardEvent) => {
         if (!isOpen) return;
 
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+        if (!isTopmostModal(dialog)) return;
+
         if (event.key === 'Escape') {
+            const eventTarget = event.target;
+            // Radix Select renders its active listbox outside the dialog DOM.
+            // That top interaction layer owns the first Escape; closing the
+            // parent here would collapse both layers in a single keystroke.
+            if (
+                eventTarget instanceof HTMLElement
+                && eventTarget.closest('.themed-select-content')
+            ) return;
+
+            // Only the topmost modal owns keyboard handling. This makes Escape
+            // peel stacked dialogs one at a time and prevents the outer trap
+            // from stealing Tab after the inner trap has moved focus.
             event.preventDefault();
             handleClose();
             return;
@@ -93,8 +138,9 @@ export function DialogShell({
 
         if (event.key !== 'Tab') return;
 
-        const dialog = dialogRef.current;
-        if (!dialog) return;
+        if (isInActiveInteractionLayer(dialog, event.target) && !dialog.contains(event.target as Node)) {
+            return;
+        }
 
         const focusableElements = getFocusableElements(dialog);
         if (focusableElements.length === 0) {
@@ -125,23 +171,100 @@ export function DialogShell({
         }
     }, [handleClose, isOpen]);
 
+    const handleFocusIn = useCallback((event: FocusEvent) => {
+        if (!isOpen) return;
+
+        const dialog = dialogRef.current;
+        const target = event.target;
+        if (!dialog || !(target instanceof HTMLElement)) return;
+        if (!isTopmostModal(dialog)) return;
+        if (isInActiveInteractionLayer(dialog, target)) return;
+
+        focusInitialElement();
+    }, [focusInitialElement, isOpen]);
+
     useEffect(() => {
+        if (isOpen || typeof document === 'undefined') return undefined;
+
+        const recordFocusedElement = (event: FocusEvent) => {
+            if (event.target instanceof HTMLElement) {
+                lastFocusedWhileClosedRef.current = event.target;
+            }
+        };
+        if (document.activeElement instanceof HTMLElement) {
+            lastFocusedWhileClosedRef.current = document.activeElement;
+        }
+        document.addEventListener('focusin', recordFocusedElement);
+        return () => document.removeEventListener('focusin', recordFocusedElement);
+    }, [isOpen]);
+
+    useLayoutEffect(() => {
         if (!isOpen || typeof document === 'undefined') return undefined;
 
-        openerRef.current = document.activeElement instanceof HTMLElement
-            ? document.activeElement
-            : null;
+        if (openerRef.current === null) {
+            openerRef.current = lastFocusedWhileClosedRef.current
+                ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+            openerStableIdentityRef.current = openerRef.current ? {
+                id: openerRef.current.id || undefined,
+                testId: openerRef.current.dataset.testid || undefined,
+                ariaLabel: openerRef.current.getAttribute('aria-label') || undefined,
+            } : {};
+        }
 
-        const focusTimer = window.setTimeout(focusInitialElement, 0);
+        const focusTimer = window.setTimeout(() => {
+            const dialog = dialogRef.current;
+            // A busy event loop may let the user move focus into the dialog
+            // before this initial-focus task runs. Never overwrite that valid
+            // choice (especially in an alertdialog, whose default target is
+            // the container).
+            if (
+                dialog
+                && isTopmostModal(dialog)
+                && !isInActiveInteractionLayer(dialog, document.activeElement)
+            ) {
+                focusInitialElement();
+            }
+        }, 0);
+        // Native form activation can finish after the first zero-delay focus
+        // task and put focus back on the submitter. Re-check after that event
+        // cycle, but never override focus that is already inside the dialog.
+        const focusGuardTimer = window.setTimeout(() => {
+            const dialog = dialogRef.current;
+            if (
+                dialog
+                && isTopmostModal(dialog)
+                && !isInActiveInteractionLayer(dialog, document.activeElement)
+            ) {
+                focusInitialElement();
+            }
+        }, 50);
 
         return () => {
             window.clearTimeout(focusTimer);
+            window.clearTimeout(focusGuardTimer);
             const opener = openerRef.current;
+            const stableIdentity = openerStableIdentityRef.current;
             openerRef.current = null;
+            openerStableIdentityRef.current = {};
 
-            if (opener?.isConnected) {
-                opener.focus();
-            }
+            const restoreOpenerFocus = () => {
+                let target = opener?.isConnected ? opener : null;
+                if (!target && stableIdentity.id) {
+                    target = document.getElementById(stableIdentity.id);
+                }
+                if (!target && stableIdentity.testId) {
+                    target = Array.from(document.querySelectorAll<HTMLElement>('[data-testid]'))
+                        .find((element) => element.dataset.testid === stableIdentity.testId) ?? null;
+                }
+                if (!target && stableIdentity.ariaLabel) {
+                    target = Array.from(document.querySelectorAll<HTMLElement>('[aria-label]'))
+                        .find((element) => element.getAttribute('aria-label') === stableIdentity.ariaLabel) ?? null;
+                }
+                target?.focus();
+            };
+
+            restoreOpenerFocus();
+            window.setTimeout(restoreOpenerFocus, 0);
         };
     }, [focusInitialElement, isOpen]);
 
@@ -149,8 +272,12 @@ export function DialogShell({
         if (!isOpen || typeof document === 'undefined') return undefined;
 
         document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [handleKeyDown, isOpen]);
+        document.addEventListener('focusin', handleFocusIn);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            document.removeEventListener('focusin', handleFocusIn);
+        };
+    }, [handleFocusIn, handleKeyDown, isOpen]);
 
     if (!isOpen || typeof document === 'undefined') return null;
 
@@ -169,11 +296,21 @@ export function DialogShell({
 
                 <motion.div
                     ref={dialogRef}
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    initial={{ scale: 0.95, y: 10 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.95, y: 10 }}
                     transition={{ duration: 0.2, ease: 'easeOut' }}
-                    role="dialog"
+                    onAnimationComplete={() => {
+                        const dialog = dialogRef.current;
+                        if (
+                            dialog
+                            && isTopmostModal(dialog)
+                            && !isInActiveInteractionLayer(dialog, document.activeElement)
+                        ) {
+                            focusInitialElement();
+                        }
+                    }}
+                    role={role}
                     aria-modal="true"
                     aria-labelledby={titleId}
                     aria-describedby={describedBy}

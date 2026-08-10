@@ -66,6 +66,8 @@ export function ExistingLinksPanel({
                                     )}
                                 </div>
                                 <button
+                                    type="button"
+                                    aria-label={`${t('risks:actions.unlink')} ${presentation.displayName}`}
                                     onClick={() => onUnlink(presentation.targetId)}
                                     disabled={isCurrentlyUnlinking}
                                     className="p-2 text-slate-600 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-500/10"

@@ -114,6 +114,14 @@ export const keyRiskIndicatorArraySchema = z.array(keyRiskIndicatorSchema);
 export const kriListResponseSchema: z.ZodType<KRIListResponse> =
     collectionPaginationSchema(keyRiskIndicatorSchema).extend({
         capabilities: kriListCapabilitiesSchema.nullable().optional(),
+        facets: z.record(z.string(), z.array(passthroughObject({
+            value: z.string(),
+            label: z.string(),
+            count: z.number(),
+            selected: z.boolean(),
+            disabled: z.boolean(),
+            meta: z.record(z.string(), z.unknown()).nullable().optional(),
+        }))).nullable().optional(),
     });
 
 export const kriHistoryEntrySchema: z.ZodType<KRIHistoryEntry> = passthroughObject({

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { IssuesPage } from '@/pages/IssuesPage';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 
@@ -62,7 +63,7 @@ describe('IssuesPage URL filter initialization', () => {
     it('initializes supported filters from URL query params', async () => {
         mockQueryString = '?status=open&severity=critical&overdue=true&include_closed=true';
 
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await waitFor(() => {
             expect(mockList).toHaveBeenCalledWith(
@@ -80,7 +81,7 @@ describe('IssuesPage URL filter initialization', () => {
         mockQueryString =
             '?status=invalid&severity=bad&severity_group=wrong&overdue=maybe&exclude_active_exceptions=whatever&include_closed=whatever&sort_by=hack&sort_order=nope';
 
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await waitFor(() => {
             expect(mockList).toHaveBeenCalledWith({
@@ -94,7 +95,7 @@ describe('IssuesPage URL filter initialization', () => {
     it('initializes high+critical severity group and actionable parity filter from URL', async () => {
         mockQueryString = '?severity_group=high_critical&include_closed=false&exclude_active_exceptions=true';
 
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await waitFor(() => {
             expect(mockList).toHaveBeenCalledWith(
@@ -121,7 +122,7 @@ describe('IssuesPage URL filter initialization', () => {
             capabilities: { can_export: true },
         });
 
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await waitFor(() => {
             expect(mockList).toHaveBeenCalled();

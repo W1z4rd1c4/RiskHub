@@ -1,4 +1,5 @@
 import { useTranslation } from '@/i18n/hooks';
+import { vendorValueOptions } from '@/lib/vendorValues';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import {
     VendorSectionHeader,
@@ -6,7 +7,6 @@ import {
 } from '@/components/vendors/vendorRouteUi';
 
 import type { VendorFormField } from './vendorForm.types';
-import { replaceabilityOptions } from './vendorForm.types';
 
 interface VendorResilienceSectionProps {
     formData: {
@@ -32,10 +32,7 @@ export function VendorResilienceSection({ formData, onChange }: VendorResilience
                         placeholder={t('form.replaceability.placeholder')}
                         allowEmpty
                         emptyLabel={t('form.replaceability.placeholder')}
-                        options={replaceabilityOptions.map((option) => ({
-                            value: option.value,
-                            label: t(option.labelKey),
-                        }))}
+                        options={vendorValueOptions(t, 'replaceability')}
                     />
                 </div>
                 <div className="vendor-field md:col-span-2">

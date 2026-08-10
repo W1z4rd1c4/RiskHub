@@ -50,7 +50,6 @@ export function KriDetailsStep({
                     <input
                         type="text"
                         required
-                        autoFocus
                         value={formData.metric_name}
                         onChange={(event) => onInputChange('metric_name', event.target.value)}
                         className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-all focus:border-accent/50"

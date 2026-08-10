@@ -44,6 +44,9 @@ export function createInitialRiskFormData(risk?: Risk): Partial<Risk> {
         kri_threshold_green: '',
         kri_threshold_yellow: '',
         kri_threshold_red: '',
+        acceptance_approver: null,
+        acceptance_justification: null,
+        acceptance_date: null,
         ...risk,
     };
 }

@@ -270,8 +270,8 @@ describe('RBAC UI gating', () => {
         expect(croAuthz.canViewRiskHub).toBe(true);
         expect(croAuthz.canViewGovernance).toBe(false);
         expect(croAuthz.canViewAdminConsole).toBe(false);
-        expect(croAuthz.canViewAccessUsers).toBe(true);
-        expect(croAuthz.canViewUsersRoute).toBe(true);
+        expect(croAuthz.canViewAccessUsers).toBe(false);
+        expect(croAuthz.canViewUsersRoute).toBe(false);
         expect(croAuthz.canReadRisks).toBe(true);
         expect(croAuthz.canReadControls).toBe(false);
         expect(croAuthz.canReadDepartments).toBe(false);
@@ -328,6 +328,7 @@ describe('RBAC UI gating', () => {
             can_view_access_users: false,
             can_view_department_access_users: false,
             can_view_users_route: false,
+            can_view_approvals: true,
             can_manage_access: false,
             can_view_department_access: false,
             can_view_admin_console: false,
@@ -822,8 +823,8 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Archived Risk');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('risks-status-filter-trigger'));
-        await uiUser.click(screen.getByTestId('risks-status-filter-option-archived'));
+        await uiUser.click(screen.getByTestId('risks-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('risks-lifecycle-filter-option-archived'));
         expect(await screen.findByTestId('risk-unarchive-1')).toBeInTheDocument();
     });
 
@@ -867,8 +868,8 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Archived Risk');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('risks-status-filter-trigger'));
-        await uiUser.click(screen.getByTestId('risks-status-filter-option-archived'));
+        await uiUser.click(screen.getByTestId('risks-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('risks-lifecycle-filter-option-archived'));
         expect(screen.queryByTestId('risk-unarchive-1')).not.toBeInTheDocument();
     });
 
@@ -1049,8 +1050,8 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Archived Control');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('controls-status-filter-trigger'));
-        await uiUser.click(screen.getByTestId('controls-status-filter-option-archived'));
+        await uiUser.click(screen.getByTestId('controls-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('controls-lifecycle-filter-option-archived'));
         expect(await screen.findByTestId('control-unarchive-1')).toBeInTheDocument();
     });
 
@@ -1088,8 +1089,8 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Archived Control');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('controls-status-filter-trigger'));
-        await uiUser.click(screen.getByTestId('controls-status-filter-option-archived'));
+        await uiUser.click(screen.getByTestId('controls-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('controls-lifecycle-filter-option-archived'));
         expect(screen.queryByTestId('control-unarchive-1')).not.toBeInTheDocument();
     });
 

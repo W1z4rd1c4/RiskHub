@@ -1,9 +1,11 @@
 """Tests for notification API endpoints."""
 
+import inspect
 from datetime import timedelta
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
@@ -11,20 +13,275 @@ from app.models import (
     ApprovalRequest,
     Department,
     Issue,
+    Notification,
     Permission,
+    Process,
     Risk,
     RiskQuestionnaire,
     Role,
     RolePermission,
     User,
 )
-from app.models.approval_request import ApprovalActionType, ApprovalResourceType, ApprovalStatus
+from app.models.approval_request import (
+    ApprovalActionType,
+    ApprovalResourceType,
+    ApprovalStatus,
+)
 from app.models.notification import NotificationType
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.user import AccessScope
+from app.services._governed_mutations.process_identity import (
+    new_governed_process_proposal,
+)
 from app.services.kri_deadline_service import KRIDeadlineService
 from app.services.notification_service import NotificationService
+
+
+def test_governed_notification_visibility_bounds_strict_validation_to_candidate_ids() -> None:
+    from app.services import notification_visibility
+
+    source = inspect.getsource(notification_visibility.visible_notification_clause)
+    assert "valid_asset_approval_ids" in source
+    assert "valid_vendor_approvals" in source
+    assert "valid_threat_approvals" in source
+    assert source.count("approval_ids=notification_approval_ids") >= 3
+    assert "if approval_id in notification_approval_ids" not in source
+
+    approval_clause = inspect.getsource(notification_visibility._approval_exists_clause)
+    assert "_asset_approval_visibility_clause" not in approval_clause
+    assert "_vendor_approval_visibility_clause" not in approval_clause
+
+
+@pytest.mark.asyncio
+async def test_asset_notification_resolver_queries_only_candidate_approval_ids(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_cro: User,
+    test_user_employee: User,
+) -> None:
+    candidate = ApprovalRequest(
+        id=900_001,
+        resource_type=ApprovalResourceType.ASSET,
+        resource_id=1,
+        resource_name="Candidate Asset",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Candidate notification approval",
+        status=ApprovalStatus.PENDING,
+    )
+    historical = ApprovalRequest(
+        id=900_002,
+        resource_type=ApprovalResourceType.ASSET,
+        resource_id=2,
+        resource_name="Historical Asset",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Unrelated historical approval",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add_all([candidate, historical])
+    await db_session.flush()
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+        title="Candidate Asset approval",
+        message="Only this approval should reach strict Asset validation",
+        resource_type="approval",
+        resource_id=candidate.id,
+    )
+    await db_session.commit()
+
+    asset_queries: list[tuple[str, object]] = []
+
+    def capture_asset_query(
+        _connection, _cursor, statement, parameters, _context, _executemany
+    ) -> None:
+        if (
+            "FROM governed_mutation_proposals JOIN approval_requests" in statement
+            and "governed_mutation_proposals.primary_resource_type" in statement
+        ):
+            asset_queries.append((statement, parameters))
+
+    sync_engine = db_session.bind.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", capture_asset_query)
+    try:
+        response = await client.get(
+            "/api/v1/notifications",
+            headers=_headers_for(test_user_employee),
+        )
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", capture_asset_query)
+
+    assert response.status_code == 200, response.text
+    assert len(asset_queries) >= 2
+    for statement, parameters in asset_queries:
+        values = tuple(parameters.values()) if isinstance(parameters, dict) else tuple(parameters)
+        assert "approval_request_id IN" in statement or "approval_requests.id IN" in statement
+        assert candidate.id in values
+        assert historical.id not in values
+
+
+@pytest.mark.asyncio
+async def test_threat_notification_validation_receives_exactly_callers_candidate_ids(
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_cro: User,
+    test_user_employee: User,
+) -> None:
+    from app.services import notification_visibility
+    from app.services._approval_queue.threat import (
+        valid_threat_approvals as real_valid_threat_approvals,
+    )
+
+    candidate = ApprovalRequest(
+        id=910_001,
+        resource_type=ApprovalResourceType.THREAT,
+        resource_id=1,
+        resource_name="Candidate Threat",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Candidate threat notification approval",
+        status=ApprovalStatus.PENDING,
+    )
+    historical = ApprovalRequest(
+        id=910_002,
+        resource_type=ApprovalResourceType.THREAT,
+        resource_id=2,
+        resource_name="Historical Threat",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Threat approval with no linked notification",
+        status=ApprovalStatus.PENDING,
+    )
+    other_callers = ApprovalRequest(
+        id=910_003,
+        resource_type=ApprovalResourceType.THREAT,
+        resource_id=3,
+        resource_name="Other Caller Threat",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Threat approval notified to a different user",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add_all([candidate, historical, other_callers])
+    await db_session.flush()
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+        title="Candidate Threat approval",
+        message="Only this approval id may reach Threat validation",
+        resource_type="approval",
+        resource_id=candidate.id,
+    )
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_cro.id,
+        notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+        title="Other caller Threat approval",
+        message="Another caller's approval id must not leak in",
+        resource_type="approval",
+        resource_id=other_callers.id,
+    )
+    await db_session.commit()
+
+    captured: list[dict[str, object]] = []
+
+    async def spy(db, **kwargs):
+        captured.append(dict(kwargs))
+        return await real_valid_threat_approvals(db, **kwargs)
+
+    monkeypatch.setattr(notification_visibility, "valid_threat_approvals", spy)
+
+    response = await client.get(
+        "/api/v1/notifications",
+        headers=_headers_for(test_user_employee),
+    )
+    assert response.status_code == 200, response.text
+
+    expected_candidate_ids = set(
+        (
+            await db_session.execute(
+                select(Notification.resource_id).where(
+                    Notification.user_id == test_user_employee.id,
+                    func.lower(Notification.resource_type) == "approval",
+                    Notification.resource_id.is_not(None),
+                )
+            )
+        ).scalars()
+    )
+    assert expected_candidate_ids == {candidate.id}
+    assert captured, "valid_threat_approvals was never called"
+    for kwargs in captured:
+        assert "approval_ids" in kwargs, "Threat validation was not bounded to candidate ids"
+        received = set(kwargs["approval_ids"])
+        assert received == expected_candidate_ids
+        assert historical.id not in received
+        assert other_callers.id not in received
+
+
+@pytest.mark.asyncio
+async def test_threat_validation_with_empty_candidate_set_executes_no_query(
+    db_session: AsyncSession,
+) -> None:
+    from app.services._approval_queue.threat import valid_threat_approvals
+
+    statements: list[str] = []
+
+    def capture_statement(_connection, _cursor, statement, _parameters, _context, _executemany) -> None:
+        statements.append(statement)
+
+    sync_engine = db_session.bind.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", capture_statement)
+    try:
+        result = await valid_threat_approvals(db_session, approval_ids=frozenset())
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", capture_statement)
+
+    assert result == {}
+    assert statements == []
+
+
+@pytest.mark.asyncio
+async def test_notifications_without_approval_candidates_skip_threat_approval_scan(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_employee: User,
+) -> None:
+    from app.services._governed_mutations.threat_identity import THREAT_EDIT_KIND
+
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.GOVERNED_APPROVAL_REQUEST_UPDATES,
+        title="Unlinked notification",
+        message="No approval notifications exist for this caller",
+    )
+    await db_session.commit()
+
+    threat_scans: list[str] = []
+
+    def capture_threat_scan(_connection, _cursor, statement, parameters, _context, _executemany) -> None:
+        values = tuple(parameters.values()) if isinstance(parameters, dict) else tuple(parameters or ())
+        if "governed_mutation_proposals" in statement and THREAT_EDIT_KIND in values:
+            threat_scans.append(statement)
+
+    sync_engine = db_session.bind.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", capture_threat_scan)
+    try:
+        response = await client.get(
+            "/api/v1/notifications",
+            headers=_headers_for(test_user_employee),
+        )
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", capture_threat_scan)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["total"] == 1
+    assert threat_scans == []
 
 
 def _headers_for(user) -> dict[str, str]:
@@ -128,6 +385,60 @@ async def test_list_notifications_empty(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_list_notifications_combines_total_and_unread_aggregate(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_employee,
+):
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.KRI_DUE_SOON,
+        title="Unread notification",
+        message="Unread pagination evidence",
+    )
+    read_notification = await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.KRI_DUE_SOON,
+        title="Read notification",
+        message="Read pagination evidence",
+    )
+    read_notification.is_read = True
+    await db_session.commit()
+
+    statements: list[str] = []
+
+    def capture_statement(_connection, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    sync_engine = db_session.bind.sync_engine
+    event.listen(sync_engine, "before_cursor_execute", capture_statement)
+    try:
+        response = await client.get(
+            "/api/v1/notifications?skip=0&limit=1",
+            headers=_headers_for(test_user_employee),
+        )
+    finally:
+        event.remove(sync_engine, "before_cursor_execute", capture_statement)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert data["unread_count"] == 1
+    assert len(data["items"]) == 1
+
+    aggregate_queries = [
+        statement
+        for statement in statements
+        if statement.lstrip().lower().startswith("select count(")
+        and "FROM notifications" in statement
+    ]
+    assert len(aggregate_queries) == 1
+    assert aggregate_queries[0].split("\n", 1)[0].lower().count("count(") == 2
+
+
+@pytest.mark.asyncio
 async def test_list_notifications_filters_linked_resources_without_current_visibility(
     db_session: AsyncSession,
     client: AsyncClient,
@@ -156,7 +467,9 @@ async def test_list_notifications_filters_linked_resources_without_current_visib
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -164,7 +477,9 @@ async def test_list_notifications_filters_linked_resources_without_current_visib
     assert data["unread_count"] == 1
     assert [item["title"] for item in data["items"]] == ["Generic reminder"]
 
-    count_response = await client.get("/api/v1/notifications/unread/count", headers=_headers_for(test_user_employee))
+    count_response = await client.get(
+        "/api/v1/notifications/unread/count", headers=_headers_for(test_user_employee)
+    )
     assert count_response.status_code == 200
     assert count_response.json() == {"count": 1}
 
@@ -215,7 +530,9 @@ async def test_notifications_and_shell_summary_support_manager_derived_scope(
 
     headers = {"X-Mock-User-Id": str(manager_scoped_user_id)}
     response = await client.get("/api/v1/notifications", headers=headers)
-    count_response = await client.get("/api/v1/notifications/unread/count", headers=headers)
+    count_response = await client.get(
+        "/api/v1/notifications/unread/count", headers=headers
+    )
     shell_response = await client.get("/api/v1/users/me/shell-summary", headers=headers)
 
     assert response.status_code == 200
@@ -263,14 +580,18 @@ async def test_issue_notifications_require_issues_read_for_list_count_and_shell_
 
     headers = _headers_for(test_user_employee)
     response = await client.get("/api/v1/notifications", headers=headers)
-    count_response = await client.get("/api/v1/notifications/unread/count", headers=headers)
+    count_response = await client.get(
+        "/api/v1/notifications/unread/count", headers=headers
+    )
     shell_response = await client.get("/api/v1/users/me/shell-summary", headers=headers)
 
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 1
     assert data["unread_count"] == 1
-    assert [item["title"] for item in data["items"]] == ["Generic issue-adjacent reminder"]
+    assert [item["title"] for item in data["items"]] == [
+        "Generic issue-adjacent reminder"
+    ]
     assert count_response.status_code == 200
     assert count_response.json() == {"count": 1}
     assert shell_response.status_code == 200
@@ -290,7 +611,9 @@ async def test_privileged_user_can_trigger_manual_kri_deadline_check(
         assert db is not None
         return {"total_kris_checked": 3, "notifications_created": 1}
 
-    monkeypatch.setattr(KRIDeadlineService, "check_kri_deadlines", fake_check_kri_deadlines)
+    monkeypatch.setattr(
+        KRIDeadlineService, "check_kri_deadlines", fake_check_kri_deadlines
+    )
 
     response = await client_cro.post("/api/v1/notifications/trigger-kri-check")
 
@@ -345,13 +668,17 @@ async def test_issue_notifications_visible_with_issues_read_and_matching_scope(
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 1
     assert data["unread_count"] == 1
-    assert [item["title"] for item in data["items"]] == ["Visible issue linked notification"]
+    assert [item["title"] for item in data["items"]] == [
+        "Visible issue linked notification"
+    ]
 
 
 @pytest.mark.asyncio
@@ -392,7 +719,9 @@ async def test_global_scope_does_not_bypass_issue_notification_read_permission(
     global_user_id = global_user.id
     db_session.expunge_all()
 
-    response = await client.get("/api/v1/notifications", headers={"X-Mock-User-Id": str(global_user_id)})
+    response = await client.get(
+        "/api/v1/notifications", headers={"X-Mock-User-Id": str(global_user_id)}
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -433,14 +762,18 @@ async def test_notification_list_and_count_do_not_use_per_row_visibility_checks(
     await db_session.commit()
 
     async def fail_per_row_visibility(*_args, **_kwargs) -> bool:
-        raise AssertionError("list/count paths must use set-based notification visibility")
+        raise AssertionError(
+            "list/count paths must use set-based notification visibility"
+        )
 
     monkeypatch.setattr(
         "app.services.notification_visibility.can_view_notification_resource",
         fail_per_row_visibility,
     )
 
-    response = await client.get("/api/v1/notifications?limit=1", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications?limit=1", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -448,9 +781,73 @@ async def test_notification_list_and_count_do_not_use_per_row_visibility_checks(
     assert data["unread_count"] == 1
     assert [item["title"] for item in data["items"]] == ["Visible generic reminder"]
 
-    count_response = await client.get("/api/v1/notifications/unread/count", headers=_headers_for(test_user_employee))
+    count_response = await client.get(
+        "/api/v1/notifications/unread/count", headers=_headers_for(test_user_employee)
+    )
     assert count_response.status_code == 200
     assert count_response.json() == {"count": 1}
+
+
+@pytest.mark.asyncio
+async def test_large_linked_approval_notification_set_preserves_list_count_and_read_parity(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_cro: User,
+    test_user_employee: User,
+) -> None:
+    approvals = [
+        ApprovalRequest(
+            resource_type=ApprovalResourceType.ASSET,
+            resource_id=index + 1,
+            resource_name=f"Untrusted Asset approval {index}",
+            action_type=ApprovalActionType.EDIT,
+            requested_by_id=test_user_cro.id,
+            reason="No governed proposal exists",
+            status=ApprovalStatus.PENDING,
+        )
+        for index in range(1_025)
+    ]
+    db_session.add_all(approvals)
+    await db_session.flush()
+    hidden = [
+        Notification(
+            user_id=test_user_employee.id,
+            type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+            title=f"Hidden approval {index}",
+            message="Must stay hidden without a correlated valid proposal",
+            resource_type="approval",
+            resource_id=approval.id,
+        )
+        for index, approval in enumerate(approvals)
+    ]
+    db_session.add_all(hidden)
+    generic = Notification(
+        user_id=test_user_employee.id,
+        type=NotificationType.KRI_DUE_SOON,
+        title="Visible generic notification",
+        message="Large linked sets must not change generic visibility",
+    )
+    db_session.add(generic)
+    await db_session.commit()
+
+    headers = _headers_for(test_user_employee)
+    page = await client.get("/api/v1/notifications?limit=1", headers=headers)
+    count = await client.get("/api/v1/notifications/unread/count", headers=headers)
+    hidden_read = await client.post(
+        f"/api/v1/notifications/{hidden[-1].id}/read", headers=headers
+    )
+    generic_read = await client.post(
+        f"/api/v1/notifications/{generic.id}/read", headers=headers
+    )
+
+    assert page.status_code == 200, page.text
+    assert page.json()["total"] == 1
+    assert page.json()["unread_count"] == 1
+    assert [item["id"] for item in page.json()["items"]] == [generic.id]
+    assert count.json() == {"count": 1}
+    assert hidden_read.status_code == 404
+    assert generic_read.status_code == 200
+    assert generic_read.json() == {"unread_count": 0}
 
 
 @pytest.mark.asyncio
@@ -479,7 +876,9 @@ async def test_notifications_hide_unknown_linked_resources_with_ids(
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -563,12 +962,211 @@ async def test_scenario_approval_notifications_require_resource_visibility(
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 1
     assert [item["title"] for item in data["items"]] == ["Visible scenario approval"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scope_kind", ["department", "manager"])
+async def test_governed_process_notification_inbox_uses_fixed_resolver_policy(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_department: Department,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+    test_user_cro: User,
+    scope_kind: str,
+):
+    hidden_department = Department(
+        name=f"Hidden Notification Requester {scope_kind}",
+        code=f"NOTIF-REQUESTER-{scope_kind.upper()}",
+        description="Requester deliberately lacks Process scope",
+    )
+    excluded_role = Role(
+        name=f"excluded_notification_approver_{scope_kind}",
+        display_name="Excluded Notification Approver",
+        description="Global approval writer outside fixed Process roles",
+    )
+    approval_permission = Permission(
+        resource="approvals",
+        action="write",
+        description="Resolve approvals",
+    )
+    db_session.add_all([hidden_department, excluded_role, approval_permission])
+    await db_session.flush()
+    db_session.add(
+        RolePermission(
+            role_id=excluded_role.id,
+            permission_id=approval_permission.id,
+        )
+    )
+    excluded_user = User(
+        name="Excluded Notification Approver",
+        email=f"excluded.notification.{scope_kind}@test.com",
+        department_id=test_department.id,
+        role_id=excluded_role.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    db_session.add(excluded_user)
+
+    test_user_employee.access_scope = AccessScope.DEPARTMENT
+    test_user_employee.department_id = hidden_department.id
+    test_user_cro.access_scope = (
+        AccessScope.DEPARTMENT if scope_kind == "department" else AccessScope.MANAGER
+    )
+    test_user_cro.department_id = (
+        test_department.id if scope_kind == "department" else None
+    )
+    test_user_cro.manager_id = (
+        test_user_risk_manager.id if scope_kind == "manager" else None
+    )
+
+    process = Process(
+        f_code=f"F-NOTIF-{scope_kind.upper()}",
+        l0_area="Operations",
+        l1_process="Notification approval parity",
+        process_owner_user_id=test_user_risk_manager.id,
+        owning_department_id=test_department.id,
+    )
+    db_session.add(process)
+    await db_session.flush()
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.PROCESS,
+        resource_id=process.id,
+        resource_name=process.f_code,
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Notification SQL must match fixed resolver policy",
+        status=ApprovalStatus.PENDING,
+        scenario_key="protected_process_edit",
+        scenario_approver_roles=["cro"],
+    )
+    db_session.add(approval)
+    await db_session.flush()
+    db_session.add(
+        new_governed_process_proposal(
+            approval_request_id=approval.id,
+            requested_by_id=test_user_employee.id,
+            process_id=process.id,
+            process_name=process.f_code,
+            approver_roles=["cro"],
+            base_governance_version=1,
+            before_snapshot={"notes": None},
+            after_snapshot={"notes": "Reviewed"},
+            raw_before={"notes": None},
+            raw_after={"notes": "Reviewed"},
+            derived_impact_snapshot={
+                "before": {"cif": "yes", "criticality_class": "critical"},
+                "after": {"cif": "yes", "criticality_class": "critical"},
+            },
+        )
+    )
+    await db_session.commit()
+    await db_session.refresh(approval, ["governed_mutation_proposal"])
+
+    reviewer_notifications = await NotificationService.notify_governed_action_required(
+        db_session,
+        approval,
+        event="submitted",
+    )
+    requester_notification = await NotificationService.notify_governed_request_update(
+        db_session,
+        approval,
+        outcome="cancelled",
+    )
+    hidden_governed_notification = await NotificationService.create_notification(
+        db=db_session,
+        user_id=excluded_user.id,
+        notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+        title="Hidden governed Process notification",
+        message="Excluded role must not recover this linked notification",
+        resource_type="approval",
+        resource_id=approval.id,
+    )
+    legacy_approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=987_655,
+        resource_name="Legacy notification approval",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Legacy privileged notification visibility",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(legacy_approval)
+    await db_session.flush()
+    legacy_notification = await NotificationService.create_notification(
+        db=db_session,
+        user_id=excluded_user.id,
+        notification_type=NotificationType.APPROVAL_PENDING,
+        title="Visible legacy approval notification",
+        message="Non-Process privileged behavior remains unchanged",
+        resource_type="approval",
+        resource_id=legacy_approval.id,
+    )
+    await db_session.commit()
+
+    assert len(reviewer_notifications) == 1
+    reviewer_notification = reviewer_notifications[0]
+    assert requester_notification is not None
+    assert hidden_governed_notification is not None
+    assert legacy_notification is not None
+
+    reviewer_headers = _headers_for(test_user_cro)
+    reviewer_page = await client.get("/api/v1/notifications", headers=reviewer_headers)
+    reviewer_count = await client.get(
+        "/api/v1/notifications/unread/count", headers=reviewer_headers
+    )
+    assert reviewer_page.json()["total"] == 1
+    assert reviewer_page.json()["unread_count"] == 1
+    assert reviewer_count.json() == {"count": 1}
+    reviewer_read = await client.post(
+        f"/api/v1/notifications/{reviewer_notification.id}/read",
+        headers=reviewer_headers,
+    )
+    assert reviewer_read.status_code == 200, reviewer_read.text
+    assert reviewer_read.json() == {"unread_count": 0}
+
+    requester_headers = _headers_for(test_user_employee)
+    requester_page = await client.get(
+        "/api/v1/notifications", headers=requester_headers
+    )
+    assert requester_page.json()["total"] == 1
+    assert requester_page.json()["unread_count"] == 1
+    requester_read = await client.post(
+        f"/api/v1/notifications/{requester_notification.id}/read",
+        headers=requester_headers,
+    )
+    assert requester_read.status_code == 200, requester_read.text
+
+    excluded_headers = _headers_for(excluded_user)
+    excluded_page = await client.get("/api/v1/notifications", headers=excluded_headers)
+    excluded_count = await client.get(
+        "/api/v1/notifications/unread/count", headers=excluded_headers
+    )
+    assert excluded_page.json()["total"] == 1
+    assert excluded_page.json()["unread_count"] == 1
+    assert [item["id"] for item in excluded_page.json()["items"]] == [
+        legacy_notification.id
+    ]
+    assert excluded_count.json() == {"count": 1}
+    hidden_read = await client.post(
+        f"/api/v1/notifications/{hidden_governed_notification.id}/read",
+        headers=excluded_headers,
+    )
+    assert hidden_read.status_code == 404, hidden_read.text
+    legacy_read = await client.post(
+        f"/api/v1/notifications/{legacy_notification.id}/read",
+        headers=excluded_headers,
+    )
+    assert legacy_read.status_code == 200, legacy_read.text
+    assert legacy_read.json() == {"unread_count": 0}
 
 
 @pytest.mark.asyncio
@@ -663,7 +1261,9 @@ async def test_approval_notifications_follow_detail_visibility(
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -707,7 +1307,9 @@ async def test_questionnaire_notifications_require_questionnaire_read_visibility
     )
     await db_session.commit()
 
-    response = await client.get("/api/v1/notifications", headers=_headers_for(test_user_employee))
+    response = await client.get(
+        "/api/v1/notifications", headers=_headers_for(test_user_employee)
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -786,7 +1388,9 @@ async def test_mark_as_read(
     assert response.status_code == 200
     data = response.json()
     assert "unread_count" in data
-    assert data["unread_count"] == 0  # Should be 0 after marking the only notification as read
+    assert (
+        data["unread_count"] == 0
+    )  # Should be 0 after marking the only notification as read
 
     # Verify via separate endpoint too
     count_response = await auth_client.get("/api/v1/notifications/unread/count")

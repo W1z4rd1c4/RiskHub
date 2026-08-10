@@ -1,16 +1,65 @@
+import type { ReactElement } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import * as axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VendorForm } from '@/components/VendorForm';
+import { processApprovalQueuedResponseSchema } from '@/services/api/schemas';
+import type { Vendor } from '@/types/vendor';
 
-const getUsersMock = vi.fn();
-const getDepartmentsMock = vi.fn();
+const getVendorOwnersMock = vi.fn();
+const getVendorDepartmentsMock = vi.fn();
 const getVendorsMock = vi.fn();
 const createVendorMock = vi.fn();
+const updateVendorMock = vi.fn();
+const accountabilityScenario = vi.hoisted(() => ({
+    enabled: true,
+    error: false,
+    loading: false,
+    protectedVendorEnabled: false,
+}));
+
+vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
+    useAccountabilityReassignmentScenario: () => ({
+        isEnabled: accountabilityScenario.enabled,
+        isError: accountabilityScenario.error,
+        isLoading: accountabilityScenario.loading,
+        requiresApproval: (key: string) => (
+            key === 'accountability_reassignment'
+                ? accountabilityScenario.enabled
+                : key === 'protected_vendor_edit' && accountabilityScenario.protectedVendorEnabled
+        ),
+    }),
+}));
+
+function renderWithQueryClient(ui: ReactElement) {
+    const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+    });
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
+async function expectNoAxeViolations(node: Element): Promise<void> {
+    const results = await axe.run(node, {
+        runOnly: {
+            type: 'tag',
+            values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'],
+        },
+        rules: { 'color-contrast': { enabled: false } },
+    });
+    const summary = results.violations
+        .map((violation) => `${violation.id} (${violation.nodes.length}): ${violation.help}`)
+        .join('\n');
+    expect(summary, summary).toBe('');
+}
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string, fallback?: string) => fallback ?? key,
+        t: (key: string, options?: string | { defaultValue?: string }) => {
+            if (typeof options === 'string') return options;
+            return options?.defaultValue ?? key;
+        },
     }),
 }));
 
@@ -20,8 +69,8 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getUsers: (...args: unknown[]) => getUsersMock(...args),
-        getDepartments: (...args: unknown[]) => getDepartmentsMock(...args),
+        getVendorOwners: (...args: unknown[]) => getVendorOwnersMock(...args),
+        getVendorDepartments: (...args: unknown[]) => getVendorDepartmentsMock(...args),
     },
 }));
 
@@ -29,7 +78,7 @@ vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
         getVendors: (...args: unknown[]) => getVendorsMock(...args),
         createVendor: (...args: unknown[]) => createVendorMock(...args),
-        updateVendor: vi.fn(),
+        updateVendor: (...args: unknown[]) => updateVendorMock(...args),
     },
 }));
 
@@ -40,17 +89,23 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
         options,
         placeholder,
         allowEmpty,
+        disabled,
         emptyLabel,
+        triggerTestId,
     }: {
         value: string;
         onValueChange: (value: string) => void;
         options: Array<{ value: string; label: string }>;
         placeholder?: string;
         allowEmpty?: boolean;
+        disabled?: boolean;
         emptyLabel?: string;
+        triggerTestId?: string;
     }) => (
         <select
             aria-label={placeholder ?? 'select'}
+            data-testid={triggerTestId}
+            disabled={disabled}
             value={value}
             onChange={(event) => onValueChange(event.target.value)}
         >
@@ -67,15 +122,25 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 describe('VendorForm', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        getUsersMock.mockResolvedValue([
+        accountabilityScenario.enabled = true;
+        accountabilityScenario.error = false;
+        accountabilityScenario.loading = false;
+        accountabilityScenario.protectedVendorEnabled = false;
+        getVendorOwnersMock.mockResolvedValue([
             {
                 id: 7,
                 name: 'Owner User',
                 department_id: 99,
                 department_name: 'Operations',
             },
+            {
+                id: 8,
+                name: 'Replacement Owner',
+                department_id: 101,
+                department_name: 'Finance',
+            },
         ]);
-        getDepartmentsMock.mockResolvedValue([
+        getVendorDepartmentsMock.mockResolvedValue([
             {
                 id: 99,
                 name: 'Operations',
@@ -99,10 +164,14 @@ describe('VendorForm', () => {
             id: 10,
             name: 'New Vendor',
         });
+        updateVendorMock.mockResolvedValue({
+            id: 10,
+            name: 'Renamed Vendor',
+        });
     });
 
     it('validates required fields before submit', async () => {
-        render(<VendorForm onSaved={vi.fn()} onCancel={vi.fn()} />);
+        renderWithQueryClient(<VendorForm onSaved={vi.fn()} onCancel={vi.fn()} />);
 
         fireEvent.click(screen.getByRole('button', { name: 'actions.create' }));
 
@@ -112,9 +181,10 @@ describe('VendorForm', () => {
 
     it('autofills the department from the selected owner and submits the mapped payload', async () => {
         const onSaved = vi.fn();
-        render(<VendorForm onSaved={onSaved} onCancel={vi.fn()} />);
+        renderWithQueryClient(<VendorForm onSaved={onSaved} onCancel={vi.fn()} />);
 
-        await waitFor(() => expect(getUsersMock).toHaveBeenCalled());
+        await waitFor(() => expect(getVendorOwnersMock).toHaveBeenCalledWith({ q: undefined, limit: 50 }));
+        expect(getVendorDepartmentsMock).toHaveBeenCalledWith({ limit: 200 });
 
         fireEvent.change(screen.getByPlaceholderText('form.name_placeholder'), {
             target: { value: 'New Vendor' },
@@ -152,5 +222,324 @@ describe('VendorForm', () => {
                 name: 'New Vendor',
             }),
         );
+    });
+
+    it('lets a record-only owner edit ordinary fields without sending accountability keys', async () => {
+        const initialData = {
+            id: 42,
+            name: 'Owned Vendor',
+            process: 'Claims',
+            department_id: 99,
+            department_name: 'Operations',
+            outsourcing_owner_user_id: 7,
+            outsourcing_owner: {
+                name: 'Owner User',
+                email: 'owner@example.test',
+                role_name: 'employee',
+                department_name: 'Operations',
+            },
+            vendor_type: 'ict',
+            risk_score_1_5: 3,
+            supports_important_core_insurance_function: false,
+            dora_relevant: false,
+            is_significant_vendor: false,
+            has_alternative_providers: false,
+            capabilities: {
+                can_update: true,
+                can_manage_accountability: false,
+            },
+        } as Vendor;
+
+        renderWithQueryClient(
+            <VendorForm
+                initialData={initialData}
+                isEdit
+                onSaved={vi.fn()}
+                onCancel={vi.fn()}
+            />,
+        );
+
+        expect(await screen.findByTestId('vendor-form-department')).toBeDisabled();
+        expect(screen.getByTestId('vendor-form-owner')).toBeDisabled();
+        expect(screen.getByTestId('vendor-form-owner-search')).toBeDisabled();
+        await waitFor(() => expect(getVendorsMock).toHaveBeenCalledTimes(1));
+        expect(getVendorOwnersMock).not.toHaveBeenCalled();
+        expect(getVendorDepartmentsMock).not.toHaveBeenCalled();
+
+        fireEvent.change(screen.getByTestId('vendor-form-name'), {
+            target: { value: 'Renamed Vendor' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'actions.save' }));
+
+        await waitFor(() => expect(updateVendorMock).toHaveBeenCalledTimes(1));
+        expect(updateVendorMock).toHaveBeenCalledWith(42, { name: 'Renamed Vendor' });
+    });
+
+    it('submits the business reason and routes a protected edit to the queued callback', async () => {
+        const onSaved = vi.fn();
+        const onApprovalQueued = vi.fn();
+        updateVendorMock.mockResolvedValue({
+            status: 'approval_required',
+            approval_id: 87,
+            proposal_id: 55,
+            proposal_version: 1,
+        });
+        const initialData = {
+            id: 42,
+            name: 'Protected Vendor',
+            process: 'Claims',
+            department_id: 99,
+            department_name: 'Operations',
+            outsourcing_owner_user_id: 7,
+            vendor_type: 'ict',
+            risk_score_1_5: 5,
+            supports_important_core_insurance_function: true,
+            dora_relevant: true,
+            is_significant_vendor: true,
+            has_alternative_providers: false,
+            capabilities: {
+                can_update: true,
+                protected_change_requires_approval: true,
+            },
+        } as Vendor;
+
+        renderWithQueryClient(
+            <VendorForm
+                initialData={initialData}
+                isEdit
+                onSaved={onSaved}
+                onApprovalQueued={onApprovalQueued}
+            />,
+        );
+
+        fireEvent.change(screen.getByTestId('vendor-form-name'), {
+            target: { value: 'Protected Vendor v2' },
+        });
+        fireEvent.change(screen.getByLabelText('form.request_reason'), {
+            target: { value: 'Material service change' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'actions.save' }));
+
+        await waitFor(() => expect(updateVendorMock).toHaveBeenCalledTimes(1));
+        expect(updateVendorMock).toHaveBeenCalledWith(42, {
+            name: 'Protected Vendor v2',
+            request_reason: 'Material service change',
+        });
+        expect(onApprovalQueued).toHaveBeenCalledWith(expect.objectContaining({ approval_id: 87 }));
+        expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    const nonProtectedVendor = {
+        id: 42,
+        name: 'Ordinary Vendor',
+        process: 'Claims',
+        department_id: 99,
+        department_name: 'Operations',
+        outsourcing_owner_user_id: 7,
+        outsourcing_owner: {
+            name: 'Owner User',
+            email: 'owner@example.test',
+            role_name: 'employee',
+            department_name: 'Operations',
+        },
+        vendor_type: 'ict',
+        risk_score_1_5: 3,
+        supports_important_core_insurance_function: false,
+        dora_relevant: false,
+        is_significant_vendor: false,
+        has_alternative_providers: false,
+        capabilities: {
+            can_update: true,
+            can_manage_accountability: true,
+            protected_change_requires_approval: false,
+        },
+    } as Vendor;
+    const protectedVendor = {
+        ...nonProtectedVendor,
+        derived: {
+            tier: 'critical',
+        },
+    } as Vendor;
+
+    describe('governed Outsourcing Owner edit (#88)', () => {
+        it('requires and focuses a localized reason for an actual Outsourcing Owner delta', async () => {
+            const { container } = renderWithQueryClient(
+                <VendorForm initialData={nonProtectedVendor} isEdit onSaved={vi.fn()} />,
+            );
+            await waitFor(() => expect(getVendorOwnersMock).toHaveBeenCalledTimes(1));
+
+            fireEvent.change(screen.getByTestId('vendor-form-owner'), {
+                target: { value: '8' },
+            });
+
+            expect(screen.getByRole('button', { name: 'actions.submit_for_approval' })).toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'actions.submit_for_approval' }));
+
+            const reason = screen.getByTestId('vendor-form-request-reason');
+            expect(await screen.findAllByText('vendors:errors.request_reason_required')).toHaveLength(2);
+            expect(reason).toHaveAttribute('aria-invalid', 'true');
+            await waitFor(() => expect(reason).toHaveFocus());
+            expect(updateVendorMock).not.toHaveBeenCalled();
+            await expectNoAxeViolations(reason.parentElement ?? container);
+        });
+
+        it('hands a typed owner reassignment 202 to the existing approval callback', async () => {
+            const onSaved = vi.fn();
+            const onApprovalQueued = vi.fn();
+            updateVendorMock.mockResolvedValue(
+                processApprovalQueuedResponseSchema.parse({
+                    status: 'approval_required',
+                    message: 'Submitted',
+                    approval_id: 88,
+                    action_type: 'edit',
+                    pending_fields: ['outsourcing_owner_user_id'],
+                    proposal_id: 'proposal-vendor-accountability-88',
+                    proposal_version: 1,
+                }),
+            );
+            renderWithQueryClient(
+                <VendorForm
+                    initialData={nonProtectedVendor}
+                    isEdit
+                    onSaved={onSaved}
+                    onApprovalQueued={onApprovalQueued}
+                />,
+            );
+            await waitFor(() => expect(getVendorOwnersMock).toHaveBeenCalledTimes(1));
+
+            fireEvent.change(screen.getByTestId('vendor-form-owner'), {
+                target: { value: '8' },
+            });
+            fireEvent.change(screen.getByTestId('vendor-form-request-reason'), {
+                target: { value: 'Transfer accountability to the service owner' },
+            });
+            fireEvent.click(screen.getByRole('button', { name: 'actions.submit_for_approval' }));
+
+            await waitFor(() =>
+                expect(updateVendorMock).toHaveBeenCalledWith(42, {
+                    outsourcing_owner_user_id: 8,
+                    request_reason: 'Transfer accountability to the service owner',
+                }),
+            );
+            expect(onApprovalQueued).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    approval_id: 88,
+                    proposal_id: 'proposal-vendor-accountability-88',
+                }),
+            );
+            expect(onSaved).not.toHaveBeenCalled();
+        });
+
+        it('requires approval when protected Vendor governance is enabled but accountability governance is disabled', async () => {
+            accountabilityScenario.enabled = false;
+            accountabilityScenario.protectedVendorEnabled = true;
+            renderWithQueryClient(
+                <VendorForm initialData={protectedVendor} isEdit onSaved={vi.fn()} />,
+            );
+            await waitFor(() => expect(getVendorOwnersMock).toHaveBeenCalledTimes(1));
+
+            fireEvent.change(screen.getByTestId('vendor-form-owner'), {
+                target: { value: '8' },
+            });
+
+            expect(screen.getByRole('button', {
+                name: 'actions.submit_for_approval',
+            })).toBeInTheDocument();
+            expect(screen.getByTestId('vendor-form-request-reason')).toHaveAttribute(
+                'aria-required',
+                'true',
+            );
+            fireEvent.click(screen.getByRole('button', {
+                name: 'actions.submit_for_approval',
+            }));
+            expect(updateVendorMock).not.toHaveBeenCalled();
+        });
+
+        it('keeps the same owner and an unrelated non-protected edit direct', async () => {
+            const onSaved = vi.fn();
+            const onApprovalQueued = vi.fn();
+            updateVendorMock.mockResolvedValue({
+                ...nonProtectedVendor,
+                name: 'Ordinary Vendor renamed',
+            });
+            renderWithQueryClient(
+                <VendorForm
+                    initialData={nonProtectedVendor}
+                    isEdit
+                    onSaved={onSaved}
+                    onApprovalQueued={onApprovalQueued}
+                />,
+            );
+            await waitFor(() => expect(getVendorOwnersMock).toHaveBeenCalledTimes(1));
+
+            expect(screen.getByTestId('vendor-form-owner')).toHaveValue('7');
+            fireEvent.change(screen.getByTestId('vendor-form-name'), {
+                target: { value: 'Ordinary Vendor renamed' },
+            });
+            expect(screen.getByRole('button', { name: 'actions.save' })).toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'actions.save' }));
+
+            await waitFor(() =>
+                expect(updateVendorMock).toHaveBeenCalledWith(
+                    42,
+                    expect.not.objectContaining({
+                        outsourcing_owner_user_id: expect.anything(),
+                        request_reason: expect.anything(),
+                    }),
+                ),
+            );
+            expect(onSaved).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'Ordinary Vendor renamed',
+                }),
+            );
+            expect(onApprovalQueued).not.toHaveBeenCalled();
+        });
+
+        it('saves a protected Vendor owner reassignment without reason only when both scenarios are disabled', async () => {
+            accountabilityScenario.enabled = false;
+            accountabilityScenario.protectedVendorEnabled = false;
+            const onSaved = vi.fn();
+            updateVendorMock.mockResolvedValue({ ...protectedVendor, outsourcing_owner_user_id: 8 });
+            renderWithQueryClient(
+                <VendorForm initialData={protectedVendor} isEdit onSaved={onSaved} />,
+            );
+            await waitFor(() => expect(getVendorOwnersMock).toHaveBeenCalledTimes(1));
+
+            fireEvent.change(screen.getByTestId('vendor-form-owner'), { target: { value: '8' } });
+            expect(screen.getByRole('button', { name: 'actions.save' })).toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'actions.save' }));
+
+            await waitFor(() => expect(updateVendorMock).toHaveBeenCalledWith(
+                42,
+                expect.not.objectContaining({ request_reason: expect.anything() }),
+            ));
+            expect(onSaved).toHaveBeenCalled();
+        });
+
+        it.each([
+            ['loading', true, false],
+            ['error', false, true],
+        ])('fails closed while relevant approval scenarios are %s', async (
+            _state,
+            loading,
+            error,
+        ) => {
+            accountabilityScenario.enabled = false;
+            accountabilityScenario.protectedVendorEnabled = false;
+            accountabilityScenario.loading = loading;
+            accountabilityScenario.error = error;
+            renderWithQueryClient(
+                <VendorForm initialData={protectedVendor} isEdit onSaved={vi.fn()} />,
+            );
+            await waitFor(() => expect(getVendorOwnersMock).toHaveBeenCalledTimes(1));
+
+            fireEvent.change(screen.getByTestId('vendor-form-owner'), {
+                target: { value: '8' },
+            });
+
+            expect(screen.getByRole('button', { name: 'actions.save' })).toBeDisabled();
+            expect(updateVendorMock).not.toHaveBeenCalled();
+        });
     });
 });

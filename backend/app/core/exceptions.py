@@ -131,8 +131,13 @@ def audit_log_payload(exc: DomainError) -> dict[str, Any]:
 
 async def domain_error_handler(_request: Request, exc: DomainError) -> JSONResponse:
     http_exc = to_http_exception(exc)
+    detail: str | dict[str, str]
+    if exc.code is not None:
+        detail = {"code": exc.code, "message": exc.detail}
+    else:
+        detail = exc.detail
     return JSONResponse(
         status_code=http_exc.status_code,
-        content={"detail": http_exc.detail},
+        content={"detail": detail},
         headers=http_exc.headers,
     )

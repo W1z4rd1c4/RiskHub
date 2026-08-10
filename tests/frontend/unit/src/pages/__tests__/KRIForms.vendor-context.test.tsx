@@ -37,13 +37,21 @@ vi.mock('@/components/kri-form/KRIFormContainer', () => ({
     }: {
         firstStepBackLabel?: string;
         onCancel?: () => void;
-        vendorContext?: { vendorId: number; vendorName?: string; returnTo: string } | null;
+        vendorContext?: {
+            vendorId: number;
+            vendorName?: string;
+            returnTo: string;
+            protectedChangeRequiresApproval?: boolean;
+        } | null;
     }) => (
         <div>
             <div data-testid="kri-back-label">{firstStepBackLabel}</div>
             <div data-testid="kri-vendor-id">{vendorContext?.vendorId}</div>
             <div data-testid="kri-vendor-name">{vendorContext?.vendorName}</div>
             <div data-testid="kri-return-to">{vendorContext?.returnTo}</div>
+            <div data-testid="kri-vendor-protected">
+                {String(vendorContext?.protectedChangeRequiresApproval ?? false)}
+            </div>
             <button type="button" onClick={() => onCancel?.()}>
                 cancel
             </button>
@@ -93,6 +101,31 @@ describe('KRINewPage vendor context', () => {
         fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
 
         expect(mockNavigate).toHaveBeenCalledWith('/vendors/12');
+    });
+
+    it('passes the protected-change capability through to the KRI form vendor context', async () => {
+        mockGetVendor.mockResolvedValueOnce({
+            id: 12,
+            name: 'Vendor Twelve',
+            capabilities: {
+                can_create_linked_kri: true,
+                protected_change_requires_approval: true,
+            },
+        });
+
+        render(<KRINewPage />);
+
+        await waitFor(() => expect(mockGetVendor).toHaveBeenCalledWith(12));
+        await waitFor(() => {
+            expect(screen.getByTestId('kri-vendor-protected')).toHaveTextContent('true');
+        });
+    });
+
+    it('defaults the protected-change capability to false when the vendor does not require approval', async () => {
+        render(<KRINewPage />);
+
+        await waitFor(() => expect(mockGetVendor).toHaveBeenCalledWith(12));
+        expect(await screen.findByTestId('kri-vendor-protected')).toHaveTextContent('false');
     });
 
     it('hides vendor-context creation when the vendor link capability is false', async () => {

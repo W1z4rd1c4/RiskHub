@@ -1,7 +1,7 @@
 # RiskHub Czech/English Glossary
 
-> **Version**: 1.1
-> **Last Updated**: 2026-02-16
+> **Version**: 1.2
+> **Last Updated**: 2026-07-31
 > **Audience**: Product, Documentation, Localization Owners
 > **Source of Truth**: `frontend/src/i18n/locales/`, `backend/app/i18n/`, `docs/BUSINESS_LOGIC.md`
 
@@ -13,6 +13,7 @@ This glossary standardizes the most common RiskHub domain terms used in UI, docs
 |---|---|
 | Administrator | Administrátor |
 | CRO (Chief Risk Officer) | CRO |
+| CISO (Chief Information Security Officer) | CISO |
 | Risk Manager | Risk manažer |
 | Department Head | Vedoucí oddělení |
 | Employee | Zaměstnanec |
@@ -32,6 +33,20 @@ This glossary standardizes the most common RiskHub domain terms used in UI, docs
 | Approval Request | Žádost o schválení |
 | Issue | Nález |
 | Remediation Plan | Nápravný plán |
+| Process | Proces |
+| Asset | Aktivum |
+| Threat | Hrozba |
+
+## ICT Accountability
+
+| English | Czech |
+|---|---|
+| Process Owner | Vlastník procesu |
+| Owning Department | Vlastnické oddělení |
+| Asset Business Owner | Business vlastník aktiva |
+| Asset ICT Owner | ICT vlastník aktiva |
+| Vendor Outsourcing Owner | Vlastník outsourcingu dodavatele |
+| Threat Steward | Správce hrozby |
 
 ## Access and Scope
 
@@ -55,6 +70,9 @@ This glossary standardizes the most common RiskHub domain terms used in UI, docs
 | Escalation | Eskalace |
 | Sensitive Field | Citlivé pole |
 | Audit Trail | Auditní stopa |
+| Composite approval | Kompozitní schválení |
+| Accountability reassignment | Změna odpovědnosti |
+| Pending change | Čekající změna |
 
 ## Documentation Terms
 

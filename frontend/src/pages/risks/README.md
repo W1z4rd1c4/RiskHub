@@ -6,12 +6,14 @@ Risk register page support modules extracted for maintainability.
 
 ## Contents
 
-- `RisksFilterBar.tsx`
-- `RisksPageHeader.tsx`
-- `RisksTableSection.tsx`
+- `RiskRegisterFilterBar.tsx`
+- `riskRegisterConfig.ts`
 - `risksPagePresentation.ts`
 - `useRisksPageState.ts`
 - `riskColumns.tsx`
+
+The route composes these domain modules through the shared `RegisterListShell`;
+do not reintroduce page-local header, view-switcher, or table-state owners.
 
 ## Notes
 

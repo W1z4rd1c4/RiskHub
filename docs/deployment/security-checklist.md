@@ -55,6 +55,8 @@ RiskHub production deploys must satisfy these invariants:
 - The Entra verifier cache must be scoped by tenant, client, discovery URL, clock skew, allowed email domains, and business-role token claim; discovery/JWKS calls remain protected by the outbound egress guard.
 - Cookie-authenticated auth endpoints require same-origin browser requests via explicit Origin/Referer validation plus double-submit CSRF.
 - Keep bootstrap admin/CRO emails distinct.
+- Confirm bootstrap admin/CRO external IDs are distinct when both are supplied.
+- For every supplied bootstrap external ID, confirm its correspondence to the configured email/UPN is verified independently against the configured Entra tenant.
 
 ## Scheduler
 

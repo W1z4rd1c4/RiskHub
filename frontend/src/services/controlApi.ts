@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { buildCollectionParams, normalizeCollectionResponse } from './collectionApi';
+import { normalizeCollectionResponse } from './collectionApi';
 import {
     approvalCreatedResponseSchema,
     controlExecutionArraySchema,
@@ -14,50 +14,69 @@ import {
 import type {
     Control,
     ControlCreate,
-    ControlMonitoringStatus,
     ControlUpdate,
     ControlRiskLink,
-    ControlListResponse
+    ControlListParams,
+    ControlListResponse,
 } from '@/types/control';
 import type { ControlEffectiveness } from '@/types/risk';
 import type { ApprovalCreatedResponse } from '@/types/approval';
 import type { ControlExecution, ControlExecutionCreate } from '@/types/execution';
 
+function compactControlFilters(params: ControlListParams): Record<string, unknown> {
+    return Object.fromEntries(Object.entries({
+        department_id: params.department_id,
+        lifecycle: params.lifecycle,
+        status: params.status,
+        search: params.search,
+        process: params.process,
+        category: params.category,
+        monitoring_status: params.monitoring_status,
+    }).filter(([, value]) => value !== undefined && value !== ''));
+}
+
+export function buildControlCollectionQuery(params: ControlListParams & { skip?: number }): URLSearchParams {
+    const query = new URLSearchParams();
+    const offset = params.offset ?? params.skip;
+    if (offset !== undefined) query.set('offset', String(offset));
+    if (params.limit !== undefined) query.set('limit', String(params.limit));
+    const filters = compactControlFilters(params);
+    if (Object.keys(filters).length > 0) query.set('filters', JSON.stringify(filters));
+    const sort = params.sort ?? (params.sort_by ? { field: params.sort_by, direction: params.sort_order ?? 'asc' as const } : null);
+    if (sort) query.set('sort', JSON.stringify(sort));
+    if (params.group_by) query.set('group_by', params.group_by);
+    if (params.group_value) query.set('group_value', params.group_value);
+    return query;
+}
+
+async function downloadControlExport(params: ControlListParams, locale: 'en' | 'cs'): Promise<void> {
+    const query = buildControlCollectionQuery(params);
+    query.delete('offset');
+    query.delete('limit');
+    query.set('format', 'csv');
+    query.set('locale', locale);
+    const { blob, headers } = await apiClient.getBlob(`/controls/export?${query.toString()}`, { timeoutMs: null });
+    const match = headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = match?.[1] ?? 'controls.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+}
+
 export const controlApi = {
-    async getControls(params: {
-        skip?: number;
-        offset?: number;
-        limit?: number;
-        department_id?: number;
-        status?: string;
-        search?: string;
-        process?: string;
-        category?: string;
-        include_archived?: boolean;
-        monitoring_status?: ControlMonitoringStatus;
-        group_by?: string;
-        group_value?: string;
-    }): Promise<ControlListResponse> {
+    async getControls(params: ControlListParams & { skip?: number }): Promise<ControlListResponse> {
         const response = await apiClient.get('/controls', {
-            params: buildCollectionParams({
-                offset: params.offset ?? params.skip,
-                limit: params.limit,
-                filters: {
-                    department_id: params.department_id,
-                    status: params.status,
-                    search: params.search,
-                    process: params.process,
-                    category: params.category,
-                    include_archived: params.include_archived,
-                    monitoring_status: params.monitoring_status,
-                },
-                groupBy: params.group_by,
-                groupValue: params.group_value,
-            }),
+            params: buildControlCollectionQuery(params),
             schema: controlListResponseSchema,
         });
         return normalizeCollectionResponse(response);
     },
+
+    downloadExport: downloadControlExport,
 
     async getControl(id: number): Promise<Control> {
         return apiClient.get(`/controls/${id}`, { schema: controlSchema });

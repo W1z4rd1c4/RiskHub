@@ -25,6 +25,8 @@ class TestNotificationPreferencesAPI:
         # All should default to True
         assert data["approval_pending"] is True
         assert data["approval_resolved"] is True
+        assert data["governed_approval_action_required"] is True
+        assert data["governed_approval_request_updates"] is True
         assert data["kri_due_soon"] is True
         assert data["kri_due_tomorrow"] is True
         assert data["kri_overdue"] is True
@@ -49,6 +51,8 @@ class TestNotificationPreferencesAPI:
         assert data["approval_pending"] is False
         # Others should still be True
         assert data["approval_resolved"] is True
+        assert data["governed_approval_action_required"] is True
+        assert data["governed_approval_request_updates"] is True
         assert data["kri_due_soon"] is True
 
         # Verify persisted in DB
@@ -122,3 +126,32 @@ class TestNotificationServicePreferences:
         # Should create notification (default is enabled)
         assert notification is not None
         assert notification.id is not None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "notification_type",
+        [
+            NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+            NotificationType.GOVERNED_APPROVAL_REQUEST_UPDATES,
+        ],
+    )
+    async def test_governed_approval_notification_preferences_are_enforced(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        notification_type: NotificationType,
+    ):
+        test_user.notification_preferences = {notification_type.value: False}
+        await db_session.commit()
+
+        notification = await NotificationService.create_notification(
+            db=db_session,
+            user_id=test_user.id,
+            notification_type=notification_type,
+            title="Governed approval update",
+            message="This delivery is disabled without changing queue visibility.",
+            resource_type="approval",
+            resource_id=42,
+        )
+
+        assert notification is None

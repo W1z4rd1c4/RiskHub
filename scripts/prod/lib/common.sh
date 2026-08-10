@@ -169,7 +169,8 @@ container_exists() {
 rm_container_if_exists() {
   local name="$1"
   if container_exists "$name"; then
-    run docker rm -f "$name" >/dev/null
+    run docker stop --time 30 "$name" >/dev/null || return $?
+    run docker rm "$name" >/dev/null || return $?
     log "Removed existing container: $name"
   fi
 }

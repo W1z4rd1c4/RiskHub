@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from app.api.mappers.risk import active_kris_for_risk
 from app.core.datetime_utils import coerce_utc
 from app.models import Control, Issue, KeyRiskIndicator, Risk, User, Vendor
 from app.models.issue import IssueStatus
+from app.services._issue_register.linked_context import IssueLinkedVisibility
 from app.services._issue_register.serialization import _issue_source_link, _link_display
 from app.services._monitoring_status import build_control_monitoring_facts
 from app.services._monitoring_status.kris import classify_kri_breach
@@ -109,7 +110,7 @@ def _kri_to_row(kri: KeyRiskIndicator) -> dict[str, Any]:
 
 
 def _vendor_to_row(vendor: Vendor) -> dict[str, Any]:
-    return {
+    row = {
         "id": vendor.id,
         "name": vendor.name,
         "legal_name": vendor.legal_name,
@@ -130,17 +131,88 @@ def _vendor_to_row(vendor: Vendor) -> dict[str, Any]:
         "created_at": vendor.created_at,
         "updated_at": vendor.updated_at,
     }
+    for field in (
+        "country",
+        "person_type",
+        "identifier_type",
+        "data_sensitivity",
+        "replaceability",
+        "substitutability_reason",
+        "exit_plan_state",
+        "reintegration",
+        "service_disruption_impact",
+        "alternative_providers",
+        "ctpp_designation",
+        "ex_ante_operational",
+        "ex_ante_legal",
+        "ex_ante_ict",
+        "ex_ante_reputational",
+        "ex_ante_data_confidentiality",
+        "ex_ante_data_availability",
+        "ex_ante_data_location",
+        "ex_ante_provider_location",
+        "ex_ante_ict_concentration",
+        "assessment_phase",
+        "due_diligence_state",
+        "significance_authorization_conditions",
+        "significance_regulatory_requirements",
+        "significance_service_quality",
+        "significance_financial_impact",
+        "significance_reputation_continuity",
+        "significance_cumulative_impact",
+    ):
+        row[field] = getattr(vendor, field)
+    return row
 
 
-def _issue_to_row(issue: Issue, *, as_of_dt: datetime, current_user: User) -> dict[str, Any]:
+def _issue_to_row(
+    issue: Issue,
+    *,
+    as_of_dt: datetime,
+    current_user: User,
+    linked_visibility: IssueLinkedVisibility,
+    overdue_mode: Literal["current_register", "historical_report"],
+) -> dict[str, Any]:
     links = issue.links or []
-    risk_ids = [str(link.risk_id) for link in links if link.risk_id is not None]
-    control_ids = [str(link.control_id) for link in links if link.control_id is not None]
-    execution_ids = [str(link.execution_id) for link in links if link.execution_id is not None]
-    kri_ids = [str(link.kri_id) for link in links if link.kri_id is not None]
-    risk_names = [link.risk.name for link in links if link.risk is not None]
-    control_names = [link.control.name for link in links if link.control is not None]
-    kri_names = [link.kri.metric_name for link in links if link.kri is not None]
+    visible_risk_ids = linked_visibility.risk_ids
+    visible_control_ids = linked_visibility.control_ids
+    visible_kri_ids = linked_visibility.kri_ids
+    risk_ids = [
+        str(link.risk_id)
+        for link in links
+        if link.risk_id is not None and link.risk_id in visible_risk_ids
+    ]
+    control_ids = [
+        str(link.control_id)
+        for link in links
+        if link.control_id is not None and link.control_id in visible_control_ids
+    ]
+    execution_ids = [
+        str(link.execution_id)
+        for link in links
+        if link.execution_id is not None
+        and getattr(getattr(link, "execution", None), "control_id", None) in visible_control_ids
+    ]
+    kri_ids = [
+        str(link.kri_id)
+        for link in links
+        if link.kri_id is not None and link.kri_id in visible_kri_ids
+    ]
+    risk_names = [
+        link.risk.name
+        for link in links
+        if link.risk is not None and link.risk.id in visible_risk_ids
+    ]
+    control_names = [
+        link.control.name
+        for link in links
+        if link.control is not None and link.control.id in visible_control_ids
+    ]
+    kri_names = [
+        link.kri.metric_name
+        for link in links
+        if link.kri is not None and link.kri.id in visible_kri_ids
+    ]
 
     remediation = issue.remediation_plan
     latest_exception = _latest_exception(issue)
@@ -149,12 +221,18 @@ def _issue_to_row(issue: Issue, *, as_of_dt: datetime, current_user: User) -> di
     opened_at = coerce_utc(issue.opened_at)
     age_days = (as_of_dt - opened_at).days if opened_at is not None else 0
     age_days = max(age_days, 0)
-    is_overdue = (
-        issue.status != IssueStatus.closed.value and not active_exception and due_at is not None and due_at < as_of_dt
-    )
+    is_overdue = issue.status != IssueStatus.closed.value and due_at is not None and due_at < as_of_dt
+    if overdue_mode == "historical_report" and active_exception:
+        is_overdue = False
     source_link = _issue_source_link(issue)
     source_link_type, source_link_label = (
-        _link_display(source_link, current_user=current_user) if source_link is not None else (None, None)
+        _link_display(
+            source_link,
+            current_user=current_user,
+            linked_visibility=linked_visibility,
+        )
+        if source_link is not None
+        else (None, None)
     )
 
     return {
@@ -163,7 +241,7 @@ def _issue_to_row(issue: Issue, *, as_of_dt: datetime, current_user: User) -> di
         "status": _enum_value(issue.status),
         "severity": _enum_value(issue.severity),
         "source_type": _enum_value(issue.source_type),
-        "source_id": issue.source_id,
+        "source_id": issue.source_id if source_link_label is not None else None,
         "source_display": source_link_label,
         "source_link_type": source_link_type,
         "source_link_label": source_link_label,

@@ -19,6 +19,7 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
             r"return buildLegacyAuthz\(user, hasPermission\);",
             r"const can = \(action: string, resource: string\): boolean => hasPermission\(resource, action\);",
             r"const canViewUserDirectory = hasPermission\('users', 'read'\);",
+            r"const canViewAccessUsers = hasGlobalScope && hasPermission\('users', 'read'\);",
             r"canViewGovernance: !isPlatformAdmin && hasGlobalScope && hasPermission\('users', 'write'\),",
             r"canViewActivityLog: !isPlatformAdmin && hasPermission\('activity_log', 'read'\),",
             r"canReadRisks: hasPermission\('risks', 'read'\),",
@@ -64,14 +65,14 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
         "reason": "Navigation visibility only.",
         "allowed_patterns": (
             r"const \{ user, logout, logoutPending, logoutErrorKey, hasPermission \} = useAuth\(\);",
-            r"const navigation = getSidebarNavRoutes\(\{ authz, hasPermission \}\)\.map\(\(route\) => \{",
+            r"const navGroups = getGroupedSidebarNav\(\{ authz, hasPermission \}\)\.map\(\(section\) => \(\{",
         ),
     },
 }
 
 
 BUSINESS_ROUTE_NAV_EXPECTATIONS: dict[str, str] = {
-    "approvals": "({ authz }) => !authz.isPlatformAdmin",
+    "approvals": "({ authz }) => authz.canViewApprovals",
     "controls": "({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'controls')",
     "risks": "({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'risks')",
     "issues": "({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'issues')",

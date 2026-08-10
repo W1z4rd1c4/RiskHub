@@ -1,0 +1,5 @@
+{
+  "_comment": "ADR-013 FR-P1-4 strict-zero audit evidence. This file is not an exception mechanism and must always contain zero entries.",
+  "count": 0,
+  "entries": []
+}

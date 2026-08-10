@@ -7,7 +7,7 @@ from app.core.exceptions import AuthorizationError, ValidationError
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.services.approval_scenario_policy import (
     ApprovalPrivilegeTier,
-    can_view_approval_resource,
+    can_resolve_scenario_approval,
     resolve_approval_privilege_tier,
 )
 
@@ -37,8 +37,7 @@ async def assert_can_approve(
         if (
             tier.scenario_match is True
             and not tier.is_primary_approver
-            and not tier.is_privileged
-            and not await can_view_approval_resource(db, current_user, approval)
+            and not await can_resolve_scenario_approval(db, current_user, approval)
         ):
             raise AuthorizationError("Access denied")
         if tier.scenario_match is None and not tier.is_primary_approver and not tier.is_privileged:
@@ -65,7 +64,7 @@ async def assert_can_reject(db: AsyncSession, approval: ApprovalRequest, current
     elif approval.status == ApprovalStatus.PENDING:
         if not tier.scenario_match:
             raise AuthorizationError("This approval scenario does not allow your role to reject this request")
-        if not tier.is_privileged and not await can_view_approval_resource(db, current_user, approval):
+        if not await can_resolve_scenario_approval(db, current_user, approval):
             raise AuthorizationError("Access denied")
     elif not tier.is_privileged or tier.privileged_scenario_match is not True:
         raise AuthorizationError("This request requires approval-resolution authority")

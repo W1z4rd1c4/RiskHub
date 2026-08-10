@@ -1,7 +1,7 @@
 ---
 title: Správa rizik
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.1, §6, §7 + frontend/src/pages/RisksPage.tsx"
 summary: "Kompletní manuál pro registr rizik: scoring, ownership, scope pravidla, propojení kontrol, exporty a schvalování citlivých změn."
@@ -105,16 +105,31 @@ Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu zn
 
 ## Vyhledávání, filtrování a evidence
 
-Před exportem nastavte filtry, pohledy a detail. U evidence přidejte kontext kontrol, KRI a dodavatelů.
+Registr rizik nyní používá společný způsob práce se seznamy napříč ICT Registrem. Pokud URL neobsahuje stav seznamu, otevře se pohled **Vše** s aktivními riziky a deterministickým řazením podle business klíče na backendu. Stávající rychlé filtry rizik zůstávají dostupné, včetně typu rizika, pouze prioritních, pouze kritických a kontextu porušení KRI. Seskupené pohledy umožňují členění podle kategorie, útvaru, procesu, typu rizika nebo dodavatele; riziko se může objevit ve všech odpovídajících skupinách vazeb, které smíte číst.
+
+Hledání, pohled, řazení, filtry a vybraná skupina se ukládají do URL. Tlačítka Zpět a Vpřed v prohlížeči proto obnoví pracovní pohled a zkopírovaná URL jej může otevřít jinému uživateli, který má přístup ke stejným záznamům. Číslo stránky je záměrně dočasné a neobnovuje se; změna filtru vrací seznam na stránku 1. Neznámé parametry URL zůstanou zachované pro bezpečnou navigaci, ale neposílají se do API ani exportu.
+
+Filtry se skládají předvídatelně: různá pole používají **AND**, více hodnot v jednom poli používá **OR**, pokud je daný filtr podporuje, a hledání se navíc připojuje pomocí AND. Jednu podmínku odeberete jejím čipem; **Vyčistit vše** vrátí aktivní základ bez smazání hledání. Volby filtrů, jejich počty a skupiny vazeb poskytuje backend z rozsahu, který smíte vidět. Chybějící volba tedy může znamenat omezený přístup, ne chybějící data.
+
+Lifecycle určuje, zda je záznam živý nebo archivovaný; stav rizika popisuje jeho doménový stav (`Aktivní` nebo `Vznikající`). Jde o nezávislé podmínky spojené pomocí AND. Například lifecycle **Vše** a stav rizika **Vznikající** znamená vznikající rizika mezi živými i archivovanými záznamy, zatímco lifecycle **Archivované** a stav **Vznikající** znamená jen archivovaná vznikající rizika. Oba viditelné čipy se posílají do seznamu i exportu **Aktuální zobrazení registru**.
+
+Před exportem použijte lifecycle, stav rizika, typ rizika, prioritu, porušení KRI a kritičnost spolu se seskupenými pohledy a kontrolou detailu. U evidence přidejte kontext kontrol, KRI a dodavatelů. Tlačítko **Export** se zobrazí jen tehdy, když backend poskytne capability pro kolekci. Dialog výslovně rozlišuje dva účely evidence:
+
+- **Aktuální zobrazení registru** je výchozí. Exportuje všechna odpovídající rizika, která smíte číst, podle aktuálního hledání, filtrů, řazení, pohledu a vybrané skupiny. Výsledek nikdy neomezuje na právě zobrazenou stránku a nevyžaduje datum.
+- **Auditní snímek k datu** vyžaduje rozhodné datum a používá historický report. Zvolte jej, když auditní evidence musí ukázat registr rizik k určitému dni. Jeho zavedené CSV schéma zachovává sloupce s ID rizika, skóre, vlastníkem, útvarem a počty kontrol a KRI; nejde o export seskupeného pohledu.
+
+**Aktuální zobrazení registru** použijte pro provozní evidenci, která má odpovídat tomu, co jste zúžili na obrazovce. **Auditní snímek k datu** použijte pro historickou evidenci označenou datem. Tyto dva soubory nepovažujte za zaměnitelné.
 
 Pro spolehlivý výsledek filtrujte v tomto pořadí:
 
 1. Začněte dost široce, abyste ověřili existenci záznamu.
 2. Zužte pohled podle oddělení, vlastníka, stavu, dodavatele nebo data.
 3. Otevřete vzorek záznamu a ověřte, že filtr odpovídá záměru.
-4. Exportujte jen filtrovaný pohled potřebný pro review.
+4. Vědomě zvolte Aktuální zobrazení registru nebo Auditní snímek k datu a exportujte jen evidenci potřebnou pro review.
 
 Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílejte zbytečné osobní nebo citlivé informace.
+
+Archivovaná rizika zůstávají mimo výchozí aktivní seznam. Pro jejich kontrolu vyberte archivovaný lifecycle. Obnovení se zobrazí jen tehdy, když ho povoluje capability konkrétního řádku; oprávnění k archivaci nebo obnovení se neodvozuje z pouhé viditelnosti záznamu.
 
 ## Tipy a časté chyby
 

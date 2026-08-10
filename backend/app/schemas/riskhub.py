@@ -108,6 +108,19 @@ class GlobalConfigUpdate(BaseModel):
 # ============================================================================
 
 
+class ApprovalScenarioFixedPolicyRead(BaseModel):
+    """Read-only definition of a system-enforced approval policy."""
+
+    threshold: Literal[
+        "accountable_user_or_owning_department_change",
+        "current_or_proposed_cif_yes",
+        "current_or_proposed_cif_yes_or_resulting_criticality_critical",
+        "current_or_proposed_tier_critical_or_significant",
+    ]
+    covered_actions: list[Literal["create", "edit", "link", "archive"]]
+    allow_self_approval: Literal[False]
+
+
 class ApprovalScenarioRead(BaseModel):
     """Approval scenario response schema."""
 
@@ -120,6 +133,8 @@ class ApprovalScenarioRead(BaseModel):
     updated_at: str
     updated_by_name: str | None = None
     capabilities: "ApprovalScenarioCapabilities | None" = None
+    fixed_policy: bool = False
+    fixed_policy_definition: ApprovalScenarioFixedPolicyRead | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -135,6 +150,8 @@ class ApprovalScenarioUpdate(BaseModel):
 
     requires_approval: bool | None = None
     approver_roles: list[Literal["risk_owner", "risk_manager", "cro"]] | None = None
+
+    model_config = ConfigDict(extra="forbid")
 
 
 # ============================================================================

@@ -95,7 +95,12 @@ Rendered production runtime config is intentionally opinionated:
 
 That 15-minute deprovision interval is the current Entra disablement revocation SLA floor. A disabled Entra user is revoked in RiskHub on the next deprovision check plus any remaining access-token lifetime.
 
-Bootstrap users are now pre-linked to Entra before first login. The bootstrap script resolves an exact directory match by email or UPN, sets `external_id`, and fails closed when zero or multiple exact matches are found.
+Bootstrap users are pre-linked to Entra before first login:
+
+- Without `BOOTSTRAP_ADMIN_EXTERNAL_ID` or `BOOTSTRAP_CRO_EXTERNAL_ID`, RiskHub uses an exact email/UPN Graph lookup and fails closed unless exactly one match is found.
+- When an external ID is supplied, Graph lookup is skipped and the value is treated as a trusted operator assertion. RiskHub does not verify its correspondence to the configured email/UPN.
+
+Before deployment, source each supplied `oid` from the configured Entra tenant and independently verify its correspondence to the configured email/UPN.
 
 ## 3. Run Preflight
 

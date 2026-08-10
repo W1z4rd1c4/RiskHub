@@ -48,10 +48,10 @@ def test_dev_script_enables_outbox_only_scheduler_for_local_e2e_parity() -> None
     assert "outbox-only scheduler for E2E notification parity" in text
 
 
-def test_makefile_e2e_gate_uses_single_worker_for_shared_seed_data() -> None:
+def test_makefile_e2e_gate_uses_isolated_matrix_runner() -> None:
     text = MAKEFILE.read_text(encoding="utf-8")
 
-    assert "npx playwright test --workers=1" in text
+    assert "venv/bin/python -m scripts.run_playwright_matrix" in text
 
 
 def test_makefile_postgres_ci_uses_resolved_python_runner() -> None:

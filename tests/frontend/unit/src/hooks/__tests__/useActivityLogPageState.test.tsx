@@ -4,10 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildActivityLogFilters, transitionActivityLogViewMode } from '@/hooks/activityLogPageWorkflow';
 import { useActivityLogPageState } from '@/hooks/useActivityLogPageState';
 import type { ActivityLogListResponse } from '@/types/activityLog';
+import { DepartmentRegisterScopeProvider } from '@/pages/departments/DepartmentRegisterScope';
 
 const mockList = vi.fn();
 const mockGetActions = vi.fn();
-const mockGetUsers = vi.fn();
+const mockGetActors = vi.fn();
 const mockGetDepartments = vi.fn();
 const mockGetRisks = vi.fn();
 
@@ -19,12 +20,12 @@ vi.mock('@/services/activityLogApi', () => ({
     activityLogApi: {
         list: (...args: unknown[]) => mockList(...args),
         getActions: () => mockGetActions(),
+        getActors: (...args: unknown[]) => mockGetActors(...args),
     },
 }));
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getUsers: () => mockGetUsers(),
         getDepartments: () => mockGetDepartments(),
     },
 }));
@@ -65,6 +66,10 @@ function HookHarness() {
             </button>
             <span data-testid="entries-count">{state.entries.length}</span>
             <span data-testid="needs-risk-selection">{String(state.needsRiskSelection)}</span>
+            <span data-testid="actions">{state.actions.join(',')}</span>
+            <span data-testid="actors">{state.actors.map((actor) => actor.name).join(',')}</span>
+            <span data-testid="departments">{state.departments.map((department) => department.name).join(',')}</span>
+            <span data-testid="risks">{state.risks.map((risk) => risk.name).join(',')}</span>
         </div>
     );
 }
@@ -73,9 +78,29 @@ describe('useActivityLogPageState', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockGetActions.mockResolvedValue([]);
-        mockGetUsers.mockResolvedValue([]);
+        mockGetActors.mockResolvedValue([]);
         mockGetDepartments.mockResolvedValue([]);
         mockGetRisks.mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+    });
+
+    it('keeps independent filter options when the actor lookup fails', async () => {
+        mockList.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 50 });
+        mockGetActions.mockResolvedValue(['create']);
+        mockGetActors.mockRejectedValue(new Error('actor lookup unavailable'));
+        mockGetDepartments.mockResolvedValue([{ id: 2, name: 'Security' }]);
+        mockGetRisks.mockResolvedValue({
+            items: [{ id: 7, name: 'Cyber risk' }],
+            total: 1,
+            offset: 0,
+            limit: 100,
+        });
+
+        render(<HookHarness />);
+
+        await waitFor(() => expect(screen.getByTestId('actions')).toHaveTextContent('create'));
+        expect(screen.getByTestId('actors')).toBeEmptyDOMElement();
+        expect(screen.getByTestId('departments')).toHaveTextContent('Security');
+        expect(screen.getByTestId('risks')).toHaveTextContent('Cyber risk');
     });
 
     it('ignores stale risk responses after clearing the selected risk', async () => {
@@ -195,6 +220,23 @@ describe('useActivityLogPageState', () => {
         render(<CapabilityHarness />);
 
         await waitFor(() => expect(screen.getByTestId('department-filter')).toHaveTextContent('true'));
+    });
+
+    it('locks entries and lookups to the Department workspace', async () => {
+        mockList.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 50 });
+
+        render(
+            <DepartmentRegisterScopeProvider value={{ departmentId: 7, departmentName: 'Compliance' }}>
+                <HookHarness />
+            </DepartmentRegisterScopeProvider>,
+        );
+
+        await waitFor(() => expect(mockList).toHaveBeenCalled());
+        expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ department_id: 7 }));
+        expect(mockGetActors).toHaveBeenCalledWith(7);
+        expect(mockGetDepartments).not.toHaveBeenCalled();
+        expect(mockGetRisks).toHaveBeenCalledWith(expect.objectContaining({ department_id: 7 }));
+        expect(screen.getByTestId('departments')).toHaveTextContent('Compliance');
     });
 
     it('uses workflow helpers for view transitions and filter payloads', () => {

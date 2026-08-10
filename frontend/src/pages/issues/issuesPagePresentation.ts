@@ -1,4 +1,4 @@
-import type { SortDirection, ViewMode } from '@/components/tables';
+import type { SortDirection } from '@/components/tables';
 import type { CollectionGroup } from '@/types/collection';
 import type {
     IssueListFilters,
@@ -7,8 +7,6 @@ import type {
     IssueSeverityGroup,
     IssueStatus,
 } from '@/types/issue';
-
-import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
 
 export const ISSUE_STATUSES: IssueStatus[] = [
     'open',
@@ -39,21 +37,6 @@ export interface IssuesPageInitialState {
     statusFilter: IssueStatus | '';
 }
 
-interface BuildIssueListFiltersOptions {
-    currentPage: number;
-    debouncedSearch: string;
-    excludeActiveExceptions: boolean;
-    includeClosed: boolean;
-    limit: number;
-    overdueOnly: boolean;
-    severityFilter: IssueSeverityFilter | '';
-    sortDirection: SortDirection;
-    sortField: IssueListFilters['sort_by'] | null;
-    statusFilter: IssueStatus | '';
-    groupBy?: string | null;
-    groupValue?: string | null;
-}
-
 interface BuildIssueExportFiltersOptions {
     excludeActiveExceptions: boolean;
     overdueOnly: boolean;
@@ -74,14 +57,6 @@ export const ISSUE_GROUP_UNCATEGORIZED = '__uncategorized__';
 export const ISSUE_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
 export const ISSUE_GROUP_NO_PROCESS = '__no_process__';
 export const ISSUE_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
-const ISSUE_VIEW_MODE_GROUPS = {
-    category: 'category',
-    department: 'department',
-    process: 'process',
-    risk_type: 'risk_type',
-    vendor: 'vendor',
-} as const satisfies Partial<Record<ViewMode, string>>;
-
 function parseBooleanQueryParam(value: string | null): boolean | null {
     if (value === 'true') {
         return true;
@@ -154,59 +129,6 @@ export function parseIssuesPageQueryParams(searchParams: URLSearchParams): Issue
     };
 }
 
-export function buildIssueListFilters({
-    currentPage,
-    debouncedSearch,
-    excludeActiveExceptions,
-    includeClosed,
-    limit,
-    overdueOnly,
-    severityFilter,
-    sortDirection,
-    sortField,
-    statusFilter,
-    groupBy,
-    groupValue,
-}: BuildIssueListFiltersOptions): IssueListFilters {
-    const filters: IssueListFilters = {
-        offset: (currentPage - 1) * limit,
-        limit,
-        include_closed: statusFilter === 'closed' ? true : includeClosed,
-    };
-
-    if (statusFilter) {
-        filters.status = statusFilter;
-    }
-    if (severityFilter) {
-        if (severityFilter === 'high_critical') {
-            filters.severity_group = 'high_critical';
-        } else {
-            filters.severity = severityFilter;
-        }
-    }
-    if (overdueOnly) {
-        filters.overdue = true;
-    }
-    if (excludeActiveExceptions) {
-        filters.exclude_active_exceptions = true;
-    }
-    if (debouncedSearch.trim()) {
-        filters.search = debouncedSearch.trim();
-    }
-    if (sortField && sortDirection) {
-        filters.sort_by = sortField;
-        filters.sort_order = sortDirection;
-    }
-    if (groupBy) {
-        filters.group_by = groupBy;
-    }
-    if (groupValue) {
-        filters.group_value = groupValue;
-    }
-
-    return filters;
-}
-
 export function buildIssueExportFilters({
     excludeActiveExceptions,
     overdueOnly,
@@ -220,10 +142,6 @@ export function buildIssueExportFilters({
         overdueOnly: overdueOnly ? true : null,
         excludeActiveExceptions: excludeActiveExceptions ? true : null,
     };
-}
-
-export function getIssueGroupBy(viewMode: ViewMode): string | null {
-    return getCollectionGroupBy(viewMode, ISSUE_VIEW_MODE_GROUPS);
 }
 
 export function formatIssueGroupLabel(

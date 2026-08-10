@@ -326,3 +326,105 @@ Where this document states something as **[PRIMARY]**, it means the underlying f
 5. **Relational model:** four linking keys per the ITS recitals — contract reference number, entity/provider identifier, function identifier, ICT-service-type code — connecting entity ↔ contract ↔ provider (↔ subcontract chain) ↔ service ↔ function, as diagrammed in §5.
 
 **Could not verify / flagged:** exact Annex III wording word-for-word (PDF extraction failures — used triangulated secondary corroboration instead); precise current field codes for B_06.01's critical-function flag and neighboring fields post-corrigendum; full verbatim text of DORA Art. 28 paragraphs 4–8 and Art. 30; the substantive content of the ESAs' 15 Oct 2024 Opinion; reconciliation of "Taxonomy 4.0" vs "taxonomy architecture v2.0" labels; and the complete per-country national deadline table for 2025 (indicative only, not verified NCA-by-NCA).
+
+---
+
+## Addendum — primary-annex verification (2026-07-09, ticket #40)
+
+This addendum resolves §7 items 1 and 2 (S-code count; post-corrigendum B_06.01 field codes) and spot-verifies the §1.2 corrigendum claims, **against the legal text itself**. Method note: the earlier pass failed because it fetched EUR-Lex/ESA *PDFs* through a generic web-fetch. This pass fetched the **EUR-Lex HTML renders** (Formex-XML-derived official renders of the OJ acts) with a plain `curl` + browser user-agent and parsed them locally, and parsed the EBA's machine-readable artifacts (`.xlsx`/`.zip`) with `openpyxl`. Every fetch below succeeded; no claim in this addendum rests on secondary commentary. Everything is **[PRIMARY]** unless explicitly marked otherwise.
+
+### A.1 The corrigendum, precisely identified [PRIMARY]
+
+- **CELEX 32024R2956R(01)**, *Corrigendum to Commission Implementing Regulation (EU) 2024/2956*, OJ L, **2025/90725, 19.9.2025**, ELI `http://data.europa.eu/eli/reg_impl/2024/2956/corrigendum/2025-09-19/oj`. Full text fetched and read.
+- It is the **only** corrigendum to date: the EUR-Lex "All versions" page for 32024R2956 lists exactly one corrigendum, R(01), and exactly one consolidated version, **02024R2956-20241202** (base date retained; corrigenda apply ab initio). Checked 2026-07-09.
+- The corrigendum contains **exactly nine corrections**: B_05.01.0020 (p. 24), B_05.01.0090 (p. 25), six B_06.01 code renumberings (pp. 30–31), and B_07.01.0110 (p. 35). Nothing else — no Annex II/III/IV changes, no B_99.01 change (see A.5.3).
+
+### A.2 Post-corrigendum B_06.01 — the verified field-code table [PRIMARY]
+
+The spec's §1.2 claim is **CONFIRMED exactly**: the corrigendum renumbers the six codes B_06.01.0060–B_06.01.0110 down by 10 ("for: 'B_06.01.0060' read: 'B_06.01.0050'", and so on for 0070→0060, 0080→0070, 0090→0080, 0100→0090, 0110→0100). Root cause, visible in the original OJ text: the December 2024 numbering had a **gap at 0050** (columns ran 0010–0040, then 0060–0110); the corrigendum closes the gap. The consolidated text (02024R2956-20241202) shows all six renumbered codes inside `►C1 … ◄` corrigendum markers. Column names, types and option lists below are verbatim from the consolidated Annex I instruction table (the normative template definition — see A.5.1):
+
+| Post-corr. code | Pre-corr. code (OJ 2.12.2024) | Column name | Type | Fill-in |
+|---|---|---|---|---|
+| B_06.01.0010 | 0010 (unchanged) | Function Identifier | Pattern ("F" + natural number) | Mandatory |
+| B_06.01.0020 | 0020 (unchanged) | Licenced activity | Closed set of options (Annex II lists) | Mandatory |
+| B_06.01.0030 | 0030 (unchanged) | Function name | Alphanumerical | Mandatory |
+| B_06.01.0040 | 0040 (unchanged) | LEI of the financial entity | Alphanumerical (ISO 17442) | Mandatory |
+| **B_06.01.0050** | **0060** | Criticality or importance assessment | Closed set: 1. Yes; 2. No; 3. Assessment not performed | Mandatory |
+| **B_06.01.0060** | **0070** | Reasons for criticality or importance | Alphanumerical (300 characters maximum) | Optional |
+| **B_06.01.0070** | **0080** | Date of the last assessment of criticality or importance | Date, ISO 8601; '9999-12-31' where assessment not performed | Mandatory |
+| **B_06.01.0080** | **0090** | Recovery time objective of the function | Natural number of hours; '1' where < 1 hour; '0' where not defined | Mandatory |
+| **B_06.01.0090** | **0100** | Recovery point objective of the function | Natural number of hours; '1' where < 1 hour; '0' where not defined | Mandatory |
+| **B_06.01.0100** | **0110** | Impact of discontinuing the function | Closed set: 1. Low; 2. Medium; 3. High; 4. Assessment not performed | Mandatory |
+
+Post-corrigendum, B_06.01 is a contiguous 10-column template, 0010–0100. **B_06.01.0110 no longer exists.** The critical/important flag (§4.3) is **B_06.01.0050**. The function-identifier rule is now primary-verified verbatim: "The function identifier shall be composed by the letter F (capital letter) followed by a natural number", unique per combination of B_06.01.0040 (LEI) × B_06.01.0020 (licenced activity) × B_06.01.0030 (function name).
+
+### A.3 ICT-service taxonomy: settled at 19 codes, S01–S19 [PRIMARY]
+
+Annex III, fetched from both the original and the consolidated EUR-Lex text (the corrigendum does not touch Annex III), opens: **"When referring to a type of ICT services in the templates of the register of information, only the identifier (from S01 to S19) of the relevant type of ICT services shall be reported."** The table contains **exactly 19 rows**. The one-source "18 distinct categories" claim (CMS Law, §7.1) is definitively a miscount — resolved and closed. Official labels verbatim (several §4.2 paraphrases differ; label-relevant deltas in bold):
+
+| Code | Official label (Annex III, "Type of ICT services" column) |
+|---|---|
+| S01 | ICT project management |
+| S02 | ICT Development |
+| S03 | ICT help desk and first level support |
+| S04 | ICT security management services |
+| S05 | Provision of data |
+| S06 | Data analysis |
+| S07 | **ICT, facilities and hosting services (excluding Cloud services)** — "infrastructure" appears only in the description, not the label |
+| S08 | Computation |
+| S09 | **Non-Cloud Data storage** |
+| S10 | Telecom carrier |
+| S11 | Network infrastructure |
+| S12 | **Hardware and physical devices** — "in a form of a service" is description text |
+| S13 | **Software licencing (excluding SaaS)** — official spelling "licencing" |
+| S14 | ICT operation management (including maintenance) |
+| S15 | ICT Consulting |
+| S16 | ICT Risk management |
+| S17 | **Cloud services: IaaS** |
+| S18 | **Cloud services: PaaS** |
+| S19 | **Cloud services: SaaS** |
+
+Machine-readable corroboration: the EBA's "List of possible values for all data fields with drop downs" (3 March 2025) carries exactly the 19 members S01–S19 **[PRIMARY — official EBA artifact, not legal text]**.
+
+### A.4 Spot-verified corrigendum items [PRIMARY]
+
+1. **B_05.01.0020 — CONFIRMED.** The corrigendum replaces the three-option structure whose option 3 was a composed "Country Code+Underscore+Type of Code" pattern with a flat six-option list: 1. 'LEI'; 2. 'EUID'; 3. 'CRN' (corporate registration number); 4. 'VAT'; 5. 'PNR' (passport number); 6. 'NIN' (national identity number). Unchanged rules, verbatim: "Only LEI or EUID shall be used for legal persons, as identified in B_05.01.0070, whereas alternative code may be used only for an individual acting in a business capacity. Only LEI shall be used for legal persons that are not established in the Union."
+2. **B_05.01.0090 — CONFIRMED.** Column name corrected from "Currency of the amount reported in B_05.01.0070" to "…in **B_05.01.0100**". Context: 0070 is "Type of person of the ICT third-party service provider" (not an amount); 0100 is "Total annual expense or estimated cost of the ICT third-party service provider"; the 0090 instruction text already pointed at 0100 — only the column-name cross-reference was wrong.
+3. **B_07.01.0110 option renumbering — CONFIRMED.** Field is "Are there alternative ICT third-party service providers identified?"; its closed list read "1. Yes; 2. No; 7. Assessment not performed" and now reads "1. Yes; 2. No; **3.** Assessment not performed".
+
+### A.5 New findings beyond the spec's claims
+
+1. **Annex I's instruction tables are the normative template definitions [PRIMARY].** Article 5(1) enumerates all fifteen templates, points (a)–(o), each "as specified in template B_xx.xx of Annex I"; Article 4(1) defines each template as "a table with a predefined number of columns and an indefinite number of rows". There is no separate layout annex in the OJ act — so the corrigendum's edits to the instruction tables' Column Codes *are* the complete fix. The §3 fifteen-template list is confirmed against Article 5(1)(a)–(o) and Annex I Part 1's "List of the templates".
+2. **The corrigendum aligned the law to the already-shipped EBA reporting framework, not vice versa [PRIMARY — official EBA artifacts].** The EBA DPM 4.0 annotated table layout for DORA (17 Dec 2024 — nine months *before* the corrigendum) already numbered B_06.01 contiguously 0010–0100 with "Criticality or importance assessment" at 0050, and the current validation rules ("Overview of the RoI reporting technical checks and validation rules", updated 28 Apr 2025) reference B_06.01 columns c0020–c0100 (criticality checks on c0050). Only the EBA's *superseded draft* validation-rules file (Nov 2024) used the OJ's erroneous "b_06_01_0060" for the criticality flag. Consequence: data that already flows through the EBA xBRL-CSV pipeline has been on post-corrigendum-equivalent numbering all along.
+3. **The corrigendum left one dangling cross-reference in the legal text [PRIMARY].** B_99.01's instruction table, row **B_99.01.R0070**, still labels its subject field "B_06.01.0110 — Impact of discontinuing the function" — in both the corrigendum (no B_99.01 entry) and the consolidated text (checked). Post-corrigendum that code does not exist; the reference substantively means **B_06.01.0100**. The DPM's B_99.01 (a wide 0010–0190 column layout keyed on dimension members, not B-codes) is unaffected.
+4. **§4.3 upgrades:** the F-identifier pattern and its uniqueness triple, and the three-way criticality closed list (Yes / No / Assessment not performed), are now [PRIMARY] (previously flagged moderate-confidence secondary).
+
+### A.6 Consequences for the RoI-readiness template mapping (ticket #52) and the F-code surface
+
+1. **B_06.01 mapping: build on post-corrigendum codes 0010–0100.** The criticality flag is **B_06.01.0050** (not 0060); the highest valid code is **0100** — any mapping row citing B_06.01.0110 is stale by construction. When extracting the PA workbook's RoI field-code mapping, first determine which vintage it encodes: if it carries the Dec-2024 OJ codes, shift the six affected codes down by 10; if it carries DPM-style codes (c0010…c0100), it already matches.
+2. **S-codes: no change needed.** The closed list S01–S19 (19 values) stands as implemented. For the EN display strings surfaced in-app, prefer the official Annex III labels verbatim (A.3) over §4.2's paraphrases — deltas at S07, S09, S12, S13, S17–S19.
+3. **F-code surface: no change needed**, now primary-grounded ("F" + natural number, B_06.01.0010). Dormant assumption to record: RoI function identifiers are unique per (LEI × licenced activity × function name), so one RiskHub Process expands to multiple B_06.01 rows if more than one licenced activity is ever reported; readiness counting for B_06.01 should key on that triple, not on Process count, if that case arises.
+4. **Completeness-gate sentinels:** B_06.01.0080/0090 use '0' = not defined and '1' = sub-hour (a reported '0' is a *valid* value, not a gap); B_06.01.0070 uses '9999-12-31' when assessment is not performed. Readiness field-completeness checks must not treat these sentinels as missing data.
+5. **B_99.01 mapping:** where #52 reproduces the legal text's row structure, record R0070's target as B_06.01.0100 with a note on the uncorrected OJ cross-reference (A.5.3).
+6. **Template inventory: no change needed** — the 15-template list used by the readiness view is confirmed against Article 5(1)(a)–(o).
+
+### A.7 Spec-body impact
+
+§7 item 1 (19 vs 18) — **resolved: 19** (A.3). §7 item 2 (post-corrigendum B_06.01 codes) — **resolved** (A.2). §1.2 corrigendum bullets — all confirmed; B_07.01.0110's field name now known (A.4.3). §4.2 table — replace labels with A.3 verbatim where surfaced to users. §4.3 — critical/important flag is B_06.01.0050 post-corrigendum; F-pattern claim upgraded to [PRIMARY]. §3 confidence note — template codes now [PRIMARY] via Article 5(1). The body text above is left unedited; this addendum supersedes it where they differ.
+
+### A.8 Sources and access methods for this addendum
+
+| Source | URL | Access method | Tier |
+|---|---|---|---|
+| CIR 2024/2956, original act (2.12.2024) | https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32024R2956 | curl (browser UA) → local HTML parse; 468 KB Formex-derived XHTML | [PRIMARY] |
+| Corrigendum, CELEX 32024R2956R(01), OJ L 2025/90725 | https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32024R2956R%2801%29 | curl → full text read verbatim | [PRIMARY] |
+| Consolidated text 02024R2956-20241202 (corrigendum integrated, ►C1◄ markers) | https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:02024R2956-20241202 | curl → local HTML parse | [PRIMARY] |
+| Version inventory (one corrigendum, one consolidation) | https://eur-lex.europa.eu/legal-content/EN/ALL/?uri=CELEX:32024R2956 | curl → link scan | [PRIMARY] |
+| EBA annotated table layouts, DPM 4.0 DORA (17 Dec 2024) | https://www.eba.europa.eu/sites/default/files/2024-12/7ae0363a-ad3d-42d9-a192-34711416c039/annotated_templates.zip | curl → openpyxl | [PRIMARY — EBA artifact, not legal text] |
+| EBA RoI technical checks & validation rules (28 Apr 2025) | linked from https://eba.europa.eu/activities/direct-supervision-and-oversight/digital-operational-resilience-act/preparation-dora-application | curl → openpyxl | [PRIMARY — EBA artifact, not legal text] |
+| EBA list of possible values / dropdowns (3 Mar 2025) | linked from the same EBA page | curl → openpyxl (19 S-members) | [PRIMARY — EBA artifact, not legal text] |
+| EBA draft validation rules (Nov 2024) — historical only | https://www.eba.europa.eu/sites/default/files/2024-11/2506bbcd-f8d6-4710-a273-46d812b154f3/Draft%20validation%20rules%20for%20DORA%20reporting%20of%20RoI.xlsx | curl → openpyxl | [PRIMARY — EBA artifact, superseded draft] |
+
+### A.9 Unverified residue
+
+None of the claims this ticket set out to verify remains open at primary tier. Two honesty notes: (1) verification used EUR-Lex's official HTML renders, not the digitally-signed OJ PDF editions — the authentic electronic OJ is the signed edition at the same ELI addresses; divergence risk between the two official renders is negligible but noted; (2) the EBA "Data Model for DORA RoI" PDF (§8) was again not text-extracted — it was not needed, because the annotated-table-layout workbook supplies the same field-level model in machine-readable form.

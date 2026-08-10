@@ -28,11 +28,7 @@ def local_dev_cleanup_command() -> CleanupCommand:
 def compose_down_command(command_id: str) -> CleanupCommand:
     return build_cleanup_command(
         command_id=command_id,
-        command=(
-            "if command -v docker-compose >/dev/null 2>&1; then "
-            "docker-compose -f docker-compose.yml down --remove-orphans; "
-            "else docker compose -f docker-compose.yml down --remove-orphans; fi"
-        ),
+        command="./scripts/compose.sh down",
     )
 
 
@@ -41,6 +37,11 @@ def stop_local_dev_processes(run_command) -> None:
     run_command(command.command_id, command.command, required=False)
 
 
-def compose_down(run_command, command_id: str) -> None:
+def compose_down(run_command, command_id: str, *, required: bool = False):
     command = compose_down_command(command_id)
-    run_command(command.command_id, command.command, required=False, timeout_sec=240)
+    return run_command(
+        command.command_id,
+        command.command,
+        required=required,
+        timeout_sec=240,
+    )

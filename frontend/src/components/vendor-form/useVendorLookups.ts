@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { ictRegisterKeys } from '@/lib/queryKeys';
 import { lookupApi } from '@/services/lookupApi';
 import type { UserLookupItem } from '@/services/lookupApi';
 import { vendorApi } from '@/services/vendorApi';
@@ -10,23 +13,34 @@ import {
 } from './vendorForm.mappers';
 import type { DepartmentLookup } from './vendorForm.types';
 
-export function useVendorLookups() {
-    const [users, setUsers] = useState<UserLookupItem[]>([]);
+export function useVendorLookups({ accountabilityEnabled }: { accountabilityEnabled: boolean }) {
+    const [ownerSearch, setOwnerSearch] = useState('');
     const [departments, setDepartments] = useState<DepartmentLookup[]>([]);
     const [existingProcesses, setExistingProcesses] = useState<string[]>([]);
     const [subprocessesByProcess, setSubprocessesByProcess] = useState<Record<string, string[]>>({});
 
+    const debouncedOwnerSearch = useDebouncedValue(ownerSearch, 250);
+    const ownerQuery = useQuery({
+        queryKey: ictRegisterKeys.vendorOwnerLookup(debouncedOwnerSearch),
+        queryFn: () => lookupApi.getVendorOwners({
+            q: debouncedOwnerSearch.trim() || undefined,
+            limit: 50,
+        }),
+        enabled: accountabilityEnabled,
+        staleTime: 5 * 60_000,
+    });
+
     useEffect(() => {
         const loadLookups = async () => {
-            try {
-                const [userData, departmentData, vendorData] = await Promise.all([
-                    lookupApi.getUsers(),
-                    lookupApi.getDepartments(),
-                    vendorApi.getVendors({ offset: 0, limit: 100 }),
-                ]);
-                setUsers(userData);
-                setDepartments(departmentData);
-
+            const [departmentsResult, vendorsResult] = await Promise.allSettled([
+                accountabilityEnabled
+                    ? lookupApi.getVendorDepartments({ limit: 200 })
+                    : Promise.resolve([] as DepartmentLookup[]),
+                vendorApi.getVendors({ offset: 0, limit: 100 }),
+            ]);
+            setDepartments(departmentsResult.status === 'fulfilled' ? departmentsResult.value : []);
+            if (vendorsResult.status === 'fulfilled') {
+                const vendorData = vendorsResult.value;
                 const processes = [...new Set(vendorData.items.map((vendor) => vendor.process).filter(Boolean))];
                 setExistingProcesses(processes);
 
@@ -43,17 +57,16 @@ export function useVendorLookups() {
                     }
                 });
                 setSubprocessesByProcess(subprocMap);
-            } catch {
-                setUsers([]);
-                setDepartments([]);
+            } else {
                 setExistingProcesses([]);
                 setSubprocessesByProcess({});
             }
         };
 
         void loadLookups();
-    }, []);
+    }, [accountabilityEnabled]);
 
+    const users: UserLookupItem[] = useMemo(() => ownerQuery.data ?? [], [ownerQuery.data]);
     const ownerOptions = useMemo(() => buildOwnerOptions(users), [users]);
     const departmentOptions = useMemo(() => buildDepartmentOptions(departments), [departments]);
 
@@ -61,7 +74,11 @@ export function useVendorLookups() {
         departmentOptions,
         departments,
         existingProcesses,
+        isOwnerLookupError: ownerQuery.isError,
+        ownerSearch,
         ownerOptions,
+        refetchOwners: ownerQuery.refetch,
+        setOwnerSearch,
         subprocessesByProcess,
         users,
     };

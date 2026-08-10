@@ -70,6 +70,7 @@ export function ArchiveConfirmDialog({
             descriptionIds={descriptionIds}
             initialFocusRef={reasonRef}
             closeDisabled={isSubmitting}
+            role="alertdialog"
             backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
             contentClassName="glass-card w-full max-w-md overflow-hidden"
         >
@@ -120,18 +121,20 @@ export function ArchiveConfirmDialog({
                     )}
 
                     <div className="space-y-2">
-                        <label htmlFor={reasonId} className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                            {t('labels.archive_reason')} <span className="text-rose-400">*</span>
+                        <label htmlFor={reasonId} className="block">
+                            <span className="block mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                                {t('labels.archive_reason')} <span className="text-rose-400">*</span>
+                            </span>
+                            <textarea
+                                id={reasonId}
+                                ref={reasonRef}
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                placeholder={t('labels.archive_reason_placeholder')}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-400/50 min-h-[100px] transition-all resize-none"
+                                disabled={isSubmitting}
+                            />
                         </label>
-                        <textarea
-                            id={reasonId}
-                            ref={reasonRef}
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            placeholder={t('labels.archive_reason_placeholder')}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-400/50 min-h-[100px] transition-all resize-none"
-                            disabled={isSubmitting}
-                        />
                     </div>
                 </div>
 

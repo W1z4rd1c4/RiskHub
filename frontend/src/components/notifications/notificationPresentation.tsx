@@ -20,6 +20,8 @@ export const notificationTypePresentation: Record<NotificationType, { iconToken:
     approval_cancelled: { iconToken: 'alert-triangle', tone: 'orange' },
     approval_pending: { iconToken: 'clock', tone: 'amber' },
     approval_resolved: { iconToken: 'check-circle', tone: 'emerald' },
+    governed_approval_action_required: { iconToken: 'clock', tone: 'amber' },
+    governed_approval_request_updates: { iconToken: 'check-circle', tone: 'emerald' },
     issue_assigned: { iconToken: 'bell', tone: 'sky' },
     issue_due_soon: { iconToken: 'clock', tone: 'amber' },
     issue_exception_approved: { iconToken: 'check-circle', tone: 'emerald' },

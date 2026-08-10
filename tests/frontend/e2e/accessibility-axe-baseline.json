@@ -1,0 +1,43 @@
+{
+  "ci": {
+    "riskhub": {
+      "/": [],
+      "/controls": [],
+      "/risks": [],
+      "/settings": [],
+      "/vendors": [],
+      "/processes": [],
+      "/assets": [],
+      "/threats": [],
+      "/ict-register/data-quality": [],
+      "/?view=ict-committee": [],
+      "/admin": []
+    },
+    "light": {
+      "/": [],
+      "/controls": [],
+      "/risks": [],
+      "/settings": [],
+      "/vendors": [],
+      "/processes": [],
+      "/assets": [],
+      "/threats": [],
+      "/ict-register/data-quality": [],
+      "/?view=ict-committee": [],
+      "/admin": []
+    },
+    "dark": {
+      "/": [],
+      "/controls": [],
+      "/risks": [],
+      "/settings": [],
+      "/vendors": [],
+      "/processes": [],
+      "/assets": [],
+      "/threats": [],
+      "/ict-register/data-quality": [],
+      "/?view=ict-committee": [],
+      "/admin": []
+    }
+  }
+}

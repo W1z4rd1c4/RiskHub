@@ -133,6 +133,54 @@ action = "DELETE"
 rationale = "Vendor unlink mutations are auditable relationship changes, emitted at the workflow layer."
 
 [[adapter]]
+module = "vendor_contract"
+function = "vendor_contract_created"
+entity_type = "VENDOR_CONTRACT"
+action = "CREATE"
+
+[[adapter]]
+module = "vendor_contract"
+function = "vendor_contract_updated"
+entity_type = "VENDOR_CONTRACT"
+action = "UPDATE"
+
+[[adapter]]
+module = "vendor_contract"
+function = "vendor_contract_archived"
+entity_type = "VENDOR_CONTRACT"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "vendor_contract"
+function = "vendor_contract_restored"
+entity_type = "VENDOR_CONTRACT"
+action = "UPDATE"
+
+[[adapter]]
+module = "vendor_sub_outsourcing"
+function = "vendor_sub_outsourcing_created"
+entity_type = "VENDOR_SUB_OUTSOURCING"
+action = "CREATE"
+
+[[adapter]]
+module = "vendor_sub_outsourcing"
+function = "vendor_sub_outsourcing_updated"
+entity_type = "VENDOR_SUB_OUTSOURCING"
+action = "UPDATE"
+
+[[adapter]]
+module = "vendor_sub_outsourcing"
+function = "vendor_sub_outsourcing_archived"
+entity_type = "VENDOR_SUB_OUTSOURCING"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "vendor_sub_outsourcing"
+function = "vendor_sub_outsourcing_restored"
+entity_type = "VENDOR_SUB_OUTSOURCING"
+action = "UPDATE"
+
+[[adapter]]
 module = "issue"
 function = "issue_created"
 entity_type = "ISSUE"
@@ -227,3 +275,168 @@ module = "approval"
 function = "approval_cancelled"
 entity_type = "APPROVAL"
 action = "CANCEL"
+
+[[adapter]]
+module = "governed_mutation"
+function = "proposal_submitted"
+entity_type = "APPROVAL"
+action = "CREATE"
+
+[[adapter]]
+module = "governed_mutation"
+function = "proposal_applied"
+entity_type = "APPROVAL"
+action = "APPROVE"
+
+[[adapter]]
+module = "governed_mutation"
+function = "proposal_rejected"
+entity_type = "APPROVAL"
+action = "REJECT"
+
+[[adapter]]
+module = "governed_mutation"
+function = "proposal_cancelled"
+entity_type = "APPROVAL"
+action = "CANCEL"
+
+[[adapter]]
+module = "governed_mutation"
+function = "proposal_expired"
+entity_type = "APPROVAL"
+action = "STATUS_CHANGE"
+
+[[adapter]]
+module = "process"
+function = "process_created"
+entity_type = "PROCESS"
+action = "CREATE"
+
+[[adapter]]
+module = "process"
+function = "process_updated"
+entity_type = "PROCESS"
+action = "UPDATE"
+
+[[adapter]]
+module = "process"
+function = "process_archived"
+entity_type = "PROCESS"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "process"
+function = "process_restored"
+entity_type = "PROCESS"
+action = "UPDATE"
+
+[[adapter]]
+module = "process"
+function = "process_link_created"
+entity_type = "PROCESS_LINK"
+action = "CREATE"
+rationale = "Process link mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "process"
+function = "process_link_deleted"
+entity_type = "PROCESS_LINK"
+action = "DELETE"
+rationale = "Process unlink mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "asset"
+function = "asset_created"
+entity_type = "ASSET"
+action = "CREATE"
+
+[[adapter]]
+module = "asset"
+function = "asset_updated"
+entity_type = "ASSET"
+action = "UPDATE"
+
+[[adapter]]
+module = "asset"
+function = "asset_archived"
+entity_type = "ASSET"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "asset"
+function = "asset_restored"
+entity_type = "ASSET"
+action = "UPDATE"
+
+[[adapter]]
+module = "asset"
+function = "asset_link_created"
+entity_type = "ASSET_LINK"
+action = "CREATE"
+rationale = "Asset link mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "asset"
+function = "asset_link_updated"
+entity_type = "ASSET_LINK"
+action = "UPDATE"
+rationale = "Link field edits and the primary-Process designation swap are auditable relationship changes."
+
+[[adapter]]
+module = "asset"
+function = "asset_link_deleted"
+entity_type = "ASSET_LINK"
+action = "DELETE"
+rationale = "Asset unlink mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "threat"
+function = "threat_created"
+entity_type = "THREAT"
+action = "CREATE"
+
+[[adapter]]
+module = "threat"
+function = "threat_updated"
+entity_type = "THREAT"
+action = "UPDATE"
+
+[[adapter]]
+module = "threat"
+function = "threat_archived"
+entity_type = "THREAT"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "threat"
+function = "threat_restored"
+entity_type = "THREAT"
+action = "UPDATE"
+
+[[adapter]]
+module = "threat"
+function = "threat_link_created"
+entity_type = "THREAT_LINK"
+action = "CREATE"
+rationale = "Threat link mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "threat"
+function = "threat_link_deleted"
+entity_type = "THREAT_LINK"
+action = "DELETE"
+rationale = "Threat unlink mutations are auditable relationship changes, emitted at the lifecycle service layer."
+
+[[adapter]]
+module = "risk"
+function = "risk_link_created"
+entity_type = "RISK_LINK"
+action = "CREATE"
+rationale = "ICT Register link mutations managed from the Risk end are auditable relationship changes."
+
+[[adapter]]
+module = "risk"
+function = "risk_link_deleted"
+entity_type = "RISK_LINK"
+action = "DELETE"
+rationale = "ICT Register unlink mutations managed from the Risk end are auditable relationship changes."

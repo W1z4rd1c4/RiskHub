@@ -9,6 +9,9 @@ from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError
 from app.core.permissions import can_read_vendor, is_vendor_owner
 from app.models import User, Vendor, VendorControlLink, VendorKRILink, VendorRiskLink
 from app.services._authorization_capabilities import has_capability, require_capability
+from app.services._vendor_governance.policy import (
+    assert_vendor_ordinary_mutation_allowed,
+)
 
 VendorLink: TypeAlias = VendorRiskLink | VendorControlLink | VendorKRILink
 VendorLinkModel: TypeAlias = type[VendorRiskLink] | type[VendorControlLink] | type[VendorKRILink]
@@ -40,6 +43,13 @@ async def require_vendor_access(
         has_capability(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
     ):
         raise AuthorizationError("Permission denied: vendors:write")
+
+    if require_write:
+        vendor = await assert_vendor_ordinary_mutation_allowed(
+            db,
+            vendor_id=vendor_id,
+            current_user=current_user,
+        )
 
     if require_write and vendor.is_archived:
         raise ConflictError("Cannot mutate links for archived vendor")

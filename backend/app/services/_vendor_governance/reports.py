@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.services._ict_register_reference.vendor_values import vendor_regulatory_value
+
 
 def annual_report_rows(report) -> tuple[list[str], list[list[object]]]:
     headers = [
@@ -80,7 +82,7 @@ def dora_register_rows(rows) -> tuple[list[str], list[list[object]]]:
                 row.department_name or "",
                 row.process,
                 row.subprocess or "",
-                row.replaceability or "",
+                (vendor_regulatory_value("replaceability", row.replaceability) if row.replaceability else ""),
                 bool(row.has_alternative_providers),
             ]
         )

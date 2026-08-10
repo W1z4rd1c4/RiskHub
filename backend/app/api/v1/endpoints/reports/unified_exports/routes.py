@@ -119,6 +119,7 @@ async def export_vendors(
     status_filter: Optional[str] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
     vendor_type: Optional[str] = Query(None),
+    locale: Literal["en", "cs"] = Query("en"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
@@ -134,6 +135,7 @@ async def export_vendors(
         status_filter=status_filter,
         search=search,
         vendor_type=vendor_type,
+        locale=locale,
     )
 
 

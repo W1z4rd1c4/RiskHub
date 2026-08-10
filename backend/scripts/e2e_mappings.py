@@ -13,6 +13,7 @@ from app.core.email import email_equals
 
 # User email -> ID mappings (populated at runtime)
 USERS = {
+    "admin@riskhub.local": None,
     "cro@riskhub.local": None,
     "risk.manager@riskhub.local": None,
     "ops.head@riskhub.local": None,
@@ -21,6 +22,7 @@ USERS = {
     "ops.analyst@riskhub.local": None,
     "fin.analyst@riskhub.local": None,
     "it.analyst@riskhub.local": None,
+    "ciso@riskhub.local": None,
 }
 
 # Department name -> ID mappings (populated at runtime)

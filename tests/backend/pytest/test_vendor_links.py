@@ -824,11 +824,16 @@ async def test_vendor_risk_link_creation_writes_activity_log(
     )
     activity_log = log_result.scalar_one_or_none()
     assert activity_log is not None
+    risk_label = f"{risk.risk_id_code}: {risk.name}"
     assert activity_log.changes == {
-        "link_kind": {"old": None, "new": "risk"},
-        "target_id": {"old": None, "new": risk.id},
-        "vendor_id": {"old": None, "new": vendor.id},
+        "relationship_type": {"old": None, "new": "risk"},
+        "relationship_target": {"old": None, "new": risk_label},
     }
+    assert activity_log.entity_name == (
+        f"{vendor.name} risk link {risk_label}"
+    )
+    assert "target_id" not in activity_log.changes
+    assert "vendor_id" not in activity_log.changes
 
 
 @pytest.mark.asyncio
@@ -878,11 +883,16 @@ async def test_vendor_risk_link_deletion_writes_activity_log(
     )
     activity_log = log_result.scalar_one_or_none()
     assert activity_log is not None
+    risk_label = f"{risk.risk_id_code}: {risk.name}"
     assert activity_log.changes == {
-        "link_kind": {"old": "risk", "new": None},
-        "target_id": {"old": risk.id, "new": None},
-        "vendor_id": {"old": vendor.id, "new": None},
+        "relationship_type": {"old": "risk", "new": None},
+        "relationship_target": {"old": risk_label, "new": None},
     }
+    assert activity_log.entity_name == (
+        f"{vendor.name} risk link {risk_label}"
+    )
+    assert "target_id" not in activity_log.changes
+    assert "vendor_id" not in activity_log.changes
 
 
 @pytest.mark.asyncio

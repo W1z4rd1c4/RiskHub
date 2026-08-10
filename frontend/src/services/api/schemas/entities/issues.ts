@@ -98,6 +98,14 @@ export const issueSummarySchema = passthroughObject({
 export const issueListResponseSchema: z.ZodType<IssueListResponse> =
     collectionPaginationSchema(issueSummarySchema).extend({
         capabilities: issueListCapabilitiesSchema.nullable().optional(),
+        facets: z.record(z.string(), z.array(passthroughObject({
+            value: z.string(),
+            label: z.string(),
+            count: z.number(),
+            selected: z.boolean(),
+            disabled: z.boolean(),
+            meta: z.record(z.string(), z.unknown()).nullable().optional(),
+        }))).nullable().optional(),
     });
 export const issueRemediationPlanSchema: z.ZodType<IssueRemediationPlan> = passthroughObject({
     id: z.number(),

@@ -16,17 +16,24 @@
         "pending_privileged": "Pending Privileged Review",
         "approved": "Approved",
         "rejected": "Rejected",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "expired": "Expired"
     },
     "request_types": {
         "create": "Create",
         "update": "Update",
-        "delete": "Delete"
+        "delete": "Delete",
+        "archive": "Archive",
+        "link_add": "Add link",
+        "link_update": "Update link",
+        "link_remove": "Remove link"
     },
     "entity_types": {
         "risk": "Risk",
         "control": "Control",
-        "kri": "KRI"
+        "kri": "KRI",
+        "process": "Process",
+        "threat": "Threat"
     },
     "fields": {
         "request_type": "Request Type",
@@ -87,6 +94,97 @@
         "rejected_on": "Rejected on {{date}} at {{time}}",
         "by": "by",
         "re": "Re:"
+    },
+    "governed": {
+        "business_changes": "Before and after",
+        "derived_impact": "Derived impact",
+        "impacted_resources": "Impacted resources",
+        "not_set": "Not set",
+        "redacted_change": "Restricted change",
+        "redacted_value": "Hidden by permission scope",
+        "yes": "Yes",
+        "no": "No",
+    "derived": {
+      "cif": "CIF",
+      "criticality_class": "Criticality class",
+      "resulting_criticality": "Resulting criticality",
+      "vendor_tier": "Vendor tier"
+    },
+    "relationship": {
+      "title": "Relationship change",
+      "target": "Target record",
+      "type": "Relationship type",
+      "action_label": "Action",
+      "resource_type": {
+        "risk": "Risk",
+        "asset": "Asset",
+        "vendor": "Vendor",
+        "process": "Process",
+        "control": "Control",
+        "kri": "KRI"
+      },
+      "action": {
+        "add": "Add relationship",
+        "update": "Update relationship",
+        "remove": "Remove relationship"
+      }
+    },
+    "mutation_kind": {
+            "process_create": "Protected Process creation",
+            "process_edit": "Protected Process update",
+            "process_archive": "Protected Process archive",
+            "process_link_risk_add": "Add Process and Risk link",
+            "process_link_risk_remove": "Remove Process and Risk link",
+            "process_link_asset_add": "Add Process and Asset link",
+            "process_link_asset_update": "Update Process and Asset link",
+            "process_link_asset_remove": "Remove Process and Asset link",
+            "process_link_vendor_add": "Add Process and Vendor link",
+            "process_link_vendor_remove": "Remove Process and Vendor link",
+            "asset_create": "Protected Asset creation",
+            "asset_edit": "Protected Asset update",
+            "asset_archive": "Protected Asset archive",
+            "asset_link_asset_add": "Add Asset relationship",
+            "asset_link_asset_remove": "Remove Asset relationship",
+            "asset_link_vendor_add": "Add Asset and Vendor link",
+            "asset_link_vendor_remove": "Remove Asset and Vendor link",
+            "asset_link_risk_add": "Add Asset and Risk link",
+            "asset_link_risk_remove": "Remove Asset and Risk link",
+            "vendor_create": "Protected Vendor creation",
+            "vendor_edit": "Protected Vendor update",
+            "vendor_archive": "Protected Vendor archive",
+            "vendor_contract_create": "Create Vendor contract",
+            "vendor_contract_edit": "Update Vendor contract",
+            "vendor_contract_archive": "Archive Vendor contract",
+            "vendor_sub_outsourcing_create": "Create Vendor sub-outsourcing",
+            "vendor_sub_outsourcing_edit": "Update Vendor sub-outsourcing",
+            "vendor_sub_outsourcing_archive": "Archive Vendor sub-outsourcing",
+            "vendor_link_asset_add": "Add Vendor and Asset link",
+            "vendor_link_asset_remove": "Remove Vendor and Asset link",
+            "vendor_link_process_add": "Add Vendor and Process link",
+            "vendor_link_process_remove": "Remove Vendor and Process link",
+            "vendor_link_risk_add": "Add Vendor and Risk link",
+            "vendor_link_risk_remove": "Remove Vendor and Risk link",
+            "vendor_link_control_add": "Add Vendor and Control link",
+            "vendor_link_control_remove": "Remove Vendor and Control link",
+            "vendor_link_kri_add": "Add Vendor and KRI link",
+            "vendor_link_kri_remove": "Remove Vendor and KRI link",
+            "threat_edit": "Protected Threat Steward update"
+        },
+        "link_fields": {
+            "linked": "Linked",
+            "related_resource": "Related record",
+            "significance": "Significance",
+            "spof": "Single point of failure",
+            "is_primary": "Primary relationship",
+            "note": "Relationship note",
+            "direct_service_description": "Direct service description",
+            "archived": "Archived",
+            "dependency_type": "Dependency type",
+            "vendor_role": "Vendor role",
+            "ict_service_code": "ICT service code",
+            "contract_reference": "Contract reference",
+            "reliance": "Reliance"
+        }
     },
     "notifications": {
         "submitted_for_approval": "Submitted for approval",

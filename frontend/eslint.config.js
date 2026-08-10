@@ -1,9 +1,40 @@
 import js from "@eslint/js";
 import globals from "globals";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
+
+// ADR-013 (N4): eslint-plugin-jsx-a11y is added to the lint gate. Each recommended
+// rule KEEPS the severity the plugin ships and we upgrade ONLY `warn` -> `error`;
+// rules the plugin ships as `off` STAY off. In particular the two `off` rules
+// `jsx-a11y/label-has-for` (deprecated) and `jsx-a11y/control-has-associated-label`
+// are NOT force-promoted — doing so would manufacture violations the plugin itself
+// disables, while the modern `jsx-a11y/label-has-associated-control` (shipped
+// `error`) already covers real control labeling. Option tuples are preserved.
+// The precise invariant is: every enabled recommended rule is enforced as an
+// error. The strict-zero gate in scripts/a11y/jsx-a11y-baseline.mjs rejects every
+// finding, non-empty baseline, or suppression entry. There is no update path;
+// future exceptions require a separate policy change and tracked approval.
+
+/**
+ * Preserve a jsx-a11y recommended rule's SHIPPED severity, upgrading only `warn`
+ * (or numeric `1`) to `error`; `off`/`error` pass through unchanged and any options
+ * tuple is preserved. Exported for the config-normalization unit test.
+ */
+export function promoteJsxA11yWarnToError(value) {
+  const [severity, ...options] = Array.isArray(value) ? value : [value];
+  const upgraded = severity === "warn" || severity === 1 ? "error" : severity;
+  return options.length > 0 ? [upgraded, ...options] : upgraded;
+}
+
+const jsxA11yBaselineRules = Object.fromEntries(
+  Object.entries(jsxA11y.flatConfigs.recommended.rules).map(([rule, value]) => [
+    rule,
+    promoteJsxA11yWarnToError(value),
+  ]),
+);
 
 const maintainedModulePaths = [
   "src/components/kri-form/**/*.{ts,tsx}",
@@ -18,6 +49,11 @@ const maintainedModulePaths = [
 
 export default defineConfig([
   globalIgnores(["dist"]),
+  {
+    linterOptions: {
+      noInlineConfig: true,
+    },
+  },
   {
     files: ["src/**/*.{ts,tsx}"],
     extends: [
@@ -80,6 +116,14 @@ export default defineConfig([
         },
       ],
     },
+  },
+  {
+    // ADR-013 (FR-P1-4, N4): author-time accessibility rules. Scoped to the same
+    // application source the primary lint pass covers. Every enabled recommended
+    // rule is an error, with direct strict-zero enforcement in the a11y gate.
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "jsx-a11y": jsxA11y },
+    rules: jsxA11yBaselineRules,
   },
   {
     files: [

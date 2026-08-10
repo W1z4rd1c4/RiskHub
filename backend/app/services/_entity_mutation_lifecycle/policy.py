@@ -18,8 +18,13 @@ from app.models import (
     Risk,
     RiskTypeConfig,
     User,
+    Vendor,
 )
-from app.services._vendor_links.kri_bridge import normalize_vendor_ids, validate_assignable_vendors
+from app.services._vendor_links.kri_bridge import (
+    assert_no_direct_protected_vendor_links,
+    normalize_vendor_ids,
+    validate_assignable_vendors,
+)
 
 
 def raise_missing_permission(resource: str, action: str) -> None:
@@ -224,7 +229,19 @@ async def prepare_kri_update(
     normalized_vendor_ids = normalize_vendor_ids(requested_vendor_ids) if requested_vendor_ids is not None else None
     current_vendor_ids = sorted(link.vendor_id for link in getattr(kri, "vendor_links", []) or [])
     if normalized_vendor_ids is not None:
-        await validate_assignable_vendors(db, current_user=current_user, vendor_ids=normalized_vendor_ids)
+        assignable_vendors = await validate_assignable_vendors(
+            db, current_user=current_user, vendor_ids=normalized_vendor_ids
+        )
+        added_vendor_ids = set(normalized_vendor_ids) - set(current_vendor_ids)
+        await assert_no_direct_protected_vendor_links(
+            db, [vendor for vendor in assignable_vendors if vendor.id in added_vendor_ids]
+        )
+        removed_vendor_ids = set(current_vendor_ids) - set(normalized_vendor_ids)
+        if removed_vendor_ids:
+            removed_vendors = (
+                (await db.execute(select(Vendor).where(Vendor.id.in_(removed_vendor_ids)))).scalars().all()
+            )
+            await assert_no_direct_protected_vendor_links(db, list(removed_vendors), removing=True)
 
     if "current_value" in update_data:
         raise ValidationError("Cannot update current_value via PUT. Use POST /kris/{id}/values to record new values.")

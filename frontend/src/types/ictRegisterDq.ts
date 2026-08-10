@@ -1,0 +1,42 @@
+// ICT Register data-quality read model (issue #50) — the workbook's
+// 15_Kontroly_kvality sheet computed on read: 52 checks, threshold 0,
+// OK/NÁLEZ status, violating rows with drill-down anchors.
+
+export type IctDqStatus = 'OK' | 'NÁLEZ';
+
+export interface IctDqViolatingRow {
+    entity_type: string;
+    entity_id: number;
+    label: string;
+    route_entity_type: string;
+    route_entity_id: number;
+}
+
+export interface IctDqCheck {
+    check_id: string;
+    area: string;
+    title_cs: string;
+    severity: string;
+    threshold: number;
+    count: number;
+    status: string;
+    /** True when the check's trigger has no app column (DQ-23): permanently
+     * quiet on production data — render "not yet measurable", not OK. */
+    production_inert?: boolean;
+    production_inert_reason?: string | null;
+    visible_count?: number;
+    violating_rows_truncated?: boolean;
+    violating_rows: IctDqViolatingRow[];
+}
+
+export interface IctRegisterDq {
+    checks: IctDqCheck[];
+    finding_count: number;
+}
+
+export interface IctDqViolationsPage {
+    items: IctDqViolatingRow[];
+    total: number;
+    offset: number;
+    limit: number;
+}

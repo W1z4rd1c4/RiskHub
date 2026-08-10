@@ -5,10 +5,10 @@ import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 
+import { KriCreateDialogs } from './KriCreateDialogs';
 import { KriFormErrorAlert } from './KriFormErrorAlert';
 import { KriFormNavigation } from './KriFormNavigation';
 import { KriFormStepContent } from './KriFormStepContent';
-import { KriMismatchDialog } from './KriMismatchDialog';
 import { KriVendorContextBanner } from './KriVendorContextBanner';
 import { buildDepartmentOptions, filterRisksForSelection, getDisplayedRisks, getEffectiveVendorIds, getKnownRisks, getUniqueCategories, getUniqueProcesses, isRiskLinkedToVendor } from './kriForm.selectors';
 import type { KRIFormProps } from './kriForm.types';
@@ -164,7 +164,7 @@ export function KRIFormContainer({
         });
     };
 
-    const { finalizeCreate, handleSubmit } = useKriSubmit({
+    const { beginCreate, finalizeCreate, handleSubmit } = useKriSubmit({
         effectiveVendorIds,
         formData: state.formData,
         isEdit,
@@ -244,14 +244,16 @@ export function KRIFormContainer({
                 </div>
             </form>
 
-            {state.isMismatchDialogOpen ? (
-                <KriMismatchDialog
-                    isSubmitting={state.isSubmitting}
-                    onCancel={() => setStatePatch({ isMismatchDialogOpen: false })}
-                    onContinueWithoutLinking={() => void finalizeCreate({ linkRiskFirst: false })}
-                    onLinkRiskAndContinue={() => void finalizeCreate({ linkRiskFirst: true })}
-                />
-            ) : null}
+            <KriCreateDialogs
+                isMismatchDialogOpen={state.isMismatchDialogOpen}
+                isProtectedVendor={Boolean(vendorContext?.protectedChangeRequiresApproval)}
+                isSubmitting={state.isSubmitting}
+                pendingGovernedCreate={state.pendingGovernedCreate}
+                onCancelGoverned={() => setStatePatch({ pendingGovernedCreate: null })}
+                onCancelMismatch={() => setStatePatch({ isMismatchDialogOpen: false })}
+                onConfirmGoverned={(requestReason) => void finalizeCreate({ ...state.pendingGovernedCreate, requestReason })}
+                onCreate={(options) => void beginCreate(options)}
+            />
         </>
     );
 }

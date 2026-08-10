@@ -43,22 +43,6 @@ docs = "docs/BUSINESS_LOGIC.md#11-role-definitions"
 
 [[reserved]]
 kind = "permission"
-name = "vendor_contracts:read"
-surface = "Vendor contract governance"
-reason = "Reserved until DORA vendor contract governance ships."
-code = "backend/app/db/rbac_seed_contract.py"
-docs = "docs/BUSINESS_LOGIC.md#41-resource-permissions"
-
-[[reserved]]
-kind = "permission"
-name = "vendor_contracts:write"
-surface = "Vendor contract governance"
-reason = "Reserved until DORA vendor contract governance ships."
-code = "backend/app/db/rbac_seed_contract.py"
-docs = "docs/BUSINESS_LOGIC.md#41-resource-permissions"
-
-[[reserved]]
-kind = "permission"
 name = "controls:approve"
 surface = "Control approvals"
 reason = "Reserved until granular control approval workflow ships."

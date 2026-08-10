@@ -1,0 +1,512 @@
+import { useCallback, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Network, Plus, Save, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { SortableTable } from '@/components/tables';
+import { Field } from '@/components/ui/field';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from '@/i18n/hooks';
+import { ictRegisterKeys } from '@/lib/queryKeys';
+import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { assetApi } from '@/services/assetApi';
+import { logError } from '@/services/logger';
+import { vendorContractApi } from '@/services/vendorContractApi';
+import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
+import { isProcessApprovalQueuedResponse } from '@/types/process';
+import type { VendorSubOutsourcing } from '@/types/vendorSubOutsourcing';
+
+import { VendorSubOutsourcingChainTable } from './VendorSubOutsourcingChainTable';
+import {
+    buildSubOutsourcingChainRows,
+    buildVendorSubOutsourcingColumns,
+    buildVendorSubOutsourcingPayload,
+    groupSubOutsourcingChainRows,
+    resolveSubOutsourcingContractLabel,
+} from './vendorSubOutsourcingPresentation';
+
+interface VendorSubOutsourcingSectionProps {
+    vendorId: number;
+    canManageSubOutsourcing: boolean;
+    /**
+     * Backend-declared `protected_change_requires_approval` capability from
+     * the Vendor read payload (ADR-016, #101). It is the ONLY switch between
+     * the direct create/edit/archive path and the governed reason-then-queue
+     * path — no local re-derivation. Restore stays direct by design.
+     */
+    protectedChangeRequiresApproval: boolean;
+}
+
+type SubOutsourcingFormFields = {
+    contract_id: string;
+    predecessor_id: string;
+    sub_provider_name: string;
+    person_type: string;
+    identifier_type: string;
+    identifier_value: string;
+    country: string;
+    ict_service_code: string;
+    note: string;
+};
+
+function toFieldValue(value: string | number | null | undefined): string {
+    return value === null || value === undefined ? '' : String(value);
+}
+
+function initialSubOutsourcingFields(entry?: VendorSubOutsourcing): SubOutsourcingFormFields {
+    return {
+        contract_id: toFieldValue(entry?.contract_id),
+        predecessor_id: toFieldValue(entry?.predecessor_id),
+        sub_provider_name: toFieldValue(entry?.sub_provider_name),
+        person_type: toFieldValue(entry?.person_type),
+        identifier_type: toFieldValue(entry?.identifier_type),
+        identifier_value: toFieldValue(entry?.identifier_value),
+        country: toFieldValue(entry?.country),
+        ict_service_code: toFieldValue(entry?.ict_service_code),
+        note: toFieldValue(entry?.note),
+    };
+}
+
+function toNullableInt(value: string): number | null {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+        return null;
+    }
+    const parsed = Number.parseInt(trimmed, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function VendorSubOutsourcingSection({
+    vendorId,
+    canManageSubOutsourcing,
+    protectedChangeRequiresApproval,
+}: VendorSubOutsourcingSectionProps) {
+    const { t } = useTranslation(['vendors', 'common']);
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+
+    const [formOpen, setFormOpen] = useState(false);
+    const [editingEntry, setEditingEntry] = useState<VendorSubOutsourcing | null>(null);
+    const [fields, setFields] = useState<SubOutsourcingFormFields>(() => initialSubOutsourcingFields());
+    const [requestReason, setRequestReason] = useState('');
+    const [requestReasonError, setRequestReasonError] = useState<string | null>(null);
+    const [pendingArchive, setPendingArchive] = useState<VendorSubOutsourcing | null>(null);
+    const [sectionError, setSectionError] = useState<string | null>(null);
+
+    const entriesQuery = useQuery({
+        queryKey: ictRegisterKeys.vendorSubOutsourcing(vendorId),
+        queryFn: () => vendorSubOutsourcingApi.getEntries(vendorId),
+    });
+    const contractsQuery = useQuery({
+        queryKey: ictRegisterKeys.vendorContracts(vendorId),
+        queryFn: () => vendorContractApi.getContracts(vendorId),
+    });
+    const closedListsQuery = useQuery({
+        queryKey: ictRegisterKeys.closedLists(),
+        queryFn: () => assetApi.getClosedLists(),
+        staleTime: 5 * 60_000,
+    });
+    const taxonomyQuery = useQuery({
+        queryKey: ictRegisterKeys.ictServiceTaxonomy(),
+        queryFn: () => vendorSubOutsourcingApi.getIctServiceTaxonomy(),
+        staleTime: 5 * 60_000,
+    });
+
+    const entries = useMemo(() => entriesQuery.data ?? [], [entriesQuery.data]);
+    const contracts = useMemo(() => contractsQuery.data ?? [], [contractsQuery.data]);
+
+    // Real labels only: the contract reference when entered, the i18n'd
+    // unknown label otherwise — never a raw `#<id>` fallback (guardrail).
+    const contractLabelById = useMemo(() => {
+        const labels = new Map<number, string>();
+        for (const contract of contracts) {
+            labels.set(contract.id, contract.contract_reference || t('common:fallbacks.unknown_contract'));
+        }
+        return labels;
+    }, [contracts, t]);
+
+    const listOptions = useMemo(() => {
+        const lists = closedListsQuery.data ?? {};
+        const toOptions = (name: string) =>
+            (lists[name] ?? []).map((value) => ({ value: String(value), label: String(value) }));
+        const identifierTypes = toOptions('TypKodu');
+        if (
+            fields.identifier_type &&
+            !identifierTypes.some((option) => option.value === fields.identifier_type)
+        ) {
+            identifierTypes.unshift({ value: fields.identifier_type, label: fields.identifier_type });
+        }
+        return {
+            personTypes: toOptions('TypOsoby'),
+            identifierTypes,
+            countries: toOptions('ZemeList'),
+            contracts: contracts
+                .filter((contract) => !contract.is_archived || String(contract.id) === fields.contract_id)
+                .map((contract) => ({
+                    value: String(contract.id),
+                    label: contract.contract_reference || t('common:fallbacks.unknown_contract'),
+                })),
+            ictServices: (taxonomyQuery.data ?? []).map((service) => ({
+                value: service.code,
+                label: `${service.code} — ${service.label}`,
+            })),
+        };
+    }, [closedListsQuery.data, contracts, taxonomyQuery.data, fields.contract_id, fields.identifier_type, t]);
+
+    // Predecessors live on the SAME Contract; the entry can never precede itself.
+    const predecessorOptions = useMemo(
+        () =>
+            entries
+                .filter(
+                    (entry) =>
+                        String(entry.contract_id) === fields.contract_id &&
+                        entry.id !== editingEntry?.id,
+                )
+                .map((entry) => ({
+                    value: String(entry.id),
+                    label: entry.sub_provider_name || t('common:fallbacks.unknown_sub_outsourcing'),
+                })),
+        [entries, fields.contract_id, editingEntry, t],
+    );
+
+    const refreshEntries = async () => {
+        await queryClient.invalidateQueries({ queryKey: ictRegisterKeys.vendorSubOutsourcing(vendorId) });
+    };
+
+    const handleMutationError = (mutationError: unknown) => {
+        logError('Vendor sub-outsourcing mutation failed:', mutationError);
+        setSectionError(t('sub_outsourcing.errors.mutation_failed'));
+    };
+
+    const closeForm = () => {
+        setFormOpen(false);
+        setEditingEntry(null);
+        setFields(initialSubOutsourcingFields());
+        setRequestReason('');
+        setRequestReasonError(null);
+    };
+
+    const openCreateForm = () => {
+        setEditingEntry(null);
+        setFields(initialSubOutsourcingFields());
+        setRequestReason('');
+        setRequestReasonError(null);
+        setFormOpen(true);
+    };
+
+    const openEditForm = (entry: VendorSubOutsourcing) => {
+        setEditingEntry(entry);
+        setFields(initialSubOutsourcingFields(entry));
+        setRequestReason('');
+        setRequestReasonError(null);
+        setFormOpen(true);
+    };
+
+    const buildPayload = () =>
+        buildVendorSubOutsourcingPayload({
+            contract_id: toNullableInt(fields.contract_id),
+            predecessor_id: toNullableInt(fields.predecessor_id),
+            sub_provider_name: fields.sub_provider_name,
+            person_type: fields.person_type,
+            identifier_type: fields.identifier_type,
+            identifier_value: fields.identifier_value,
+            country: fields.country,
+            ict_service_code: fields.ict_service_code,
+            note: fields.note,
+        });
+
+    const saveEntry = useMutation({
+        mutationFn: () =>
+            editingEntry
+                ? vendorSubOutsourcingApi.updateEntry(vendorId, editingEntry.id, buildPayload(), requestReason)
+                : vendorSubOutsourcingApi.createEntry(vendorId, buildPayload(), requestReason),
+        onSuccess: async (result) => {
+            setSectionError(null);
+            closeForm();
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
+            await refreshEntries();
+        },
+        onError: handleMutationError,
+    });
+
+    const archiveEntry = useMutation({
+        mutationFn: ({ entry, reason }: { entry: VendorSubOutsourcing; reason: string }) =>
+            vendorSubOutsourcingApi.archiveEntry(vendorId, entry.id, reason),
+        onSuccess: async (result) => {
+            setSectionError(null);
+            setPendingArchive(null);
+            if (isProcessApprovalQueuedResponse(result)) {
+                navigateToApprovalRequest(navigate, result.approval_id);
+                return;
+            }
+            await refreshEntries();
+        },
+        onError: handleMutationError,
+    });
+
+    const restoreEntry = useMutation({
+        mutationFn: (entry: VendorSubOutsourcing) => vendorSubOutsourcingApi.restoreEntry(vendorId, entry.id),
+        onSuccess: async () => {
+            setSectionError(null);
+            await refreshEntries();
+        },
+        onError: handleMutationError,
+    });
+
+    // Real contract label (never a raw `#id`) — shared by the per-row Contract
+    // column and the per-Contract chain-group header (FR-P4-7).
+    const getContractLabel = useCallback(
+        (entry: VendorSubOutsourcing) =>
+            resolveSubOutsourcingContractLabel(
+                entry,
+                contractLabelById,
+                t('common:fallbacks.unknown_contract'),
+            ),
+        [contractLabelById, t],
+    );
+
+    // Columns are rebuilt each render (matching AssetsPage/ProcessesPage): the
+    // handlers close over current state and the array is cheap, so memoizing it
+    // would only add an exhaustive-deps burden without a real stability win.
+    const columns = buildVendorSubOutsourcingColumns({
+        t: (key, options) => t(key, options),
+        getContractLabel,
+        onEdit: openEditForm,
+        onArchive: (entry) => {
+            if (protectedChangeRequiresApproval) {
+                setSectionError(null);
+                setPendingArchive(entry);
+                return;
+            }
+            archiveEntry.mutate({ entry, reason: '' });
+        },
+        onRestore: (entry) => restoreEntry.mutate(entry),
+    });
+
+    // Full-depth chain render: group by Contract, indent by predecessor depth.
+    const chainRows = useMemo(() => buildSubOutsourcingChainRows(entries), [entries]);
+    // FR-P4-7: fold the ordered rows into per-Contract, collapsible groups.
+    const chainGroups = useMemo(
+        () => groupSubOutsourcingChainRows(chainRows, getContractLabel),
+        [chainRows, getContractLabel],
+    );
+
+    const setField = (field: keyof SubOutsourcingFormFields) => (value: string) =>
+        setFields((previous) => ({ ...previous, [field]: value }));
+
+    const textInput = (
+        field: keyof SubOutsourcingFormFields,
+        label: string,
+        props: Record<string, unknown> = {},
+    ) => (
+        <div className="vendor-field">
+            <span id={`vendor-sub-outsourcing-label-${field}`} className="vendor-label">{label}</span>
+            <input
+                type="text"
+                aria-labelledby={`vendor-sub-outsourcing-label-${field}`}
+                data-testid={`vendor-sub-outsourcing-field-${field}`}
+                value={fields[field]}
+                onChange={(event) => setField(field)(event.target.value)}
+                className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
+                {...props}
+            />
+        </div>
+    );
+
+    const selectInput = (
+        field: keyof SubOutsourcingFormFields,
+        label: string,
+        options: Array<{ value: string; label: string }>,
+    ) => (
+        <div className="vendor-field">
+            <span id={`vendor-sub-outsourcing-label-${field}`} className="vendor-label">{label}</span>
+            <ThemedSelect
+                aria-labelledby={`vendor-sub-outsourcing-label-${field}`}
+                value={fields[field]}
+                onValueChange={setField(field)}
+                options={options}
+                allowEmpty
+                emptyLabel={t('sub_outsourcing.form.not_set')}
+                placeholder={t('sub_outsourcing.form.not_set')}
+                triggerTestId={`vendor-sub-outsourcing-field-${field}`}
+            />
+        </div>
+    );
+
+    return (
+        <div className="glass-card space-y-5">
+            <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-4">
+                <div className="flex items-center gap-3">
+                    <Network className="h-5 w-5 text-cyan-400" />
+                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                        {t('sub_outsourcing.title')}
+                    </h2>
+                </div>
+                {canManageSubOutsourcing && !formOpen ? (
+                    <button
+                        type="button"
+                        data-testid="vendor-sub-outsourcing-add"
+                        onClick={openCreateForm}
+                        className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all flex items-center gap-2"
+                    >
+                        <Plus className="h-4 w-4" />
+                        {t('sub_outsourcing.actions.add')}
+                    </button>
+                ) : null}
+            </div>
+
+            {/* After-close visibility only: while the archive dialog is open the
+                error is announced inside it (#101 P2 — the shell traps focus). */}
+            {sectionError && pendingArchive === null ? (
+                <div
+                    role="alert"
+                    className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300"
+                >
+                    {sectionError}
+                </div>
+            ) : null}
+
+            {formOpen ? (
+                <form
+                    noValidate
+                    data-testid="vendor-sub-outsourcing-form"
+                    className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        if (protectedChangeRequiresApproval && !requestReason.trim()) {
+                            setRequestReasonError(t('errors.request_reason_required'));
+                            return;
+                        }
+                        setRequestReasonError(null);
+                        saveEntry.mutate();
+                    }}
+                >
+                    <div className="vendor-form-grid">
+                        {selectInput('contract_id', t('sub_outsourcing.form.contract'), listOptions.contracts)}
+                        {selectInput(
+                            'predecessor_id',
+                            t('sub_outsourcing.form.predecessor'),
+                            predecessorOptions,
+                        )}
+                        {textInput('sub_provider_name', t('sub_outsourcing.form.sub_provider_name'))}
+                        {selectInput(
+                            'person_type',
+                            t('sub_outsourcing.form.person_type'),
+                            listOptions.personTypes,
+                        )}
+                        {selectInput(
+                            'identifier_type',
+                            t('sub_outsourcing.form.identifier_type'),
+                            listOptions.identifierTypes,
+                        )}
+                        {textInput('identifier_value', t('sub_outsourcing.form.identifier_value'))}
+                        {selectInput('country', t('sub_outsourcing.form.country'), listOptions.countries)}
+                        {selectInput(
+                            'ict_service_code',
+                            t('sub_outsourcing.form.ict_service'),
+                            listOptions.ictServices,
+                        )}
+                    </div>
+                    <div className="vendor-field">
+                        <span id="vendor-sub-outsourcing-note-label" className="vendor-label">{t('sub_outsourcing.form.note')}</span>
+                        <textarea
+                            aria-labelledby="vendor-sub-outsourcing-note-label"
+                            data-testid="vendor-sub-outsourcing-field-note"
+                            value={fields.note}
+                            onChange={(event) => setField('note')(event.target.value)}
+                            rows={2}
+                            className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
+                        />
+                    </div>
+                    {protectedChangeRequiresApproval ? (
+                        <Field
+                            label={t('form.request_reason')}
+                            required
+                            help={t('form.request_reason_help')}
+                            error={requestReasonError}
+                            labelClassName="vendor-label"
+                            className="vendor-field space-y-0"
+                        >
+                            {(control) => (
+                                <textarea
+                                    {...control}
+                                    data-testid="vendor-sub-outsourcing-request-reason"
+                                    value={requestReason}
+                                    onChange={(event) => {
+                                        setRequestReason(event.target.value);
+                                        setRequestReasonError(null);
+                                    }}
+                                    rows={2}
+                                    required
+                                    className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
+                                />
+                            )}
+                        </Field>
+                    ) : null}
+                    <div className="flex items-center justify-end gap-3">
+                        <button
+                            type="button"
+                            data-testid="vendor-sub-outsourcing-form-cancel"
+                            onClick={closeForm}
+                            className="px-4 py-2 glass rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+                        >
+                            <X className="h-4 w-4" />
+                            {t('actions.cancel')}
+                        </button>
+                        <button
+                            type="submit"
+                            data-testid="vendor-sub-outsourcing-form-save"
+                            disabled={saveEntry.isPending || fields.contract_id === ''}
+                            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                        >
+                            <Save className="h-4 w-4" />
+                            {editingEntry ? t('actions.save') : t('sub_outsourcing.actions.create')}
+                        </button>
+                    </div>
+                </form>
+            ) : null}
+
+            {/* Loading / error / empty keep #61's SortableTable contract verbatim;
+                only the populated state switches to the grouped, collapsible render. */}
+            {entriesQuery.isLoading || entriesQuery.isError || chainGroups.length === 0 ? (
+                <SortableTable
+                    data={chainRows}
+                    columns={columns}
+                    keyExtractor={(row) => row.entry.id}
+                    isLoading={entriesQuery.isLoading}
+                    isError={entriesQuery.isError}
+                    onRetry={() => void entriesQuery.refetch()}
+                    emptyMessage={t('sub_outsourcing.empty')}
+                />
+            ) : (
+                <VendorSubOutsourcingChainTable groups={chainGroups} columns={columns} />
+            )}
+
+            <ConfirmDialog
+                isOpen={pendingArchive !== null}
+                onClose={() => setPendingArchive(null)}
+                onConfirm={(reason) => {
+                    if (pendingArchive && reason?.trim()) {
+                        archiveEntry.mutate({ entry: pendingArchive, reason: reason.trim() });
+                    }
+                }}
+                title={t('sub_outsourcing.actions.archive')}
+                message={t('sub_outsourcing.archive_confirm', {
+                    name: pendingArchive?.sub_provider_name || t('common:fallbacks.unknown_sub_outsourcing'),
+                })}
+                confirmLabel={t('sub_outsourcing.actions.archive')}
+                variant="danger"
+                isLoading={archiveEntry.isPending}
+                errorText={sectionError}
+                showInput
+                inputRequired
+                inputLabel={t('form.request_reason')}
+                inputPlaceholder={t('form.request_reason_help')}
+            />
+        </div>
+    );
+}

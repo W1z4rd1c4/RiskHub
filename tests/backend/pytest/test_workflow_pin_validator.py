@@ -17,15 +17,30 @@ BACKEND_DOCKERFILE = REPO_ROOT / "backend" / "Dockerfile"
 GITLEAKS_CONFIG = REPO_ROOT / ".gitleaks.toml"
 GITLEAKS_IGNORE = REPO_ROOT / ".gitleaksignore"
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
-RELEASE_PARITY_PR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
-MAINTENANCE_GOVERNANCE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "maintenance-governance.yml"
+SECURITY_README = REPO_ROOT / "docs" / "security" / "README.md"
+DORA_VERIFICATION_RECORD = (
+    REPO_ROOT
+    / "docs"
+    / "dora-ict-register"
+    / "FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md"
+)
+RELEASE_PARITY_PR_WORKFLOW = (
+    REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
+)
+MAINTENANCE_GOVERNANCE_WORKFLOW = (
+    REPO_ROOT / ".github" / "workflows" / "maintenance-governance.yml"
+)
 LINT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "lint.yml"
 BACKEND_POSTGRES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "backend-postgres.yml"
 E2E_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "e2e.yml"
 PLAYWRIGHT_CONFIG = REPO_ROOT / "frontend" / "playwright.config.ts"
 STARTUP_SMOKE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "startup-smoke.yml"
-LOCAL_PROD_AUDIT = REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
-PROD_READINESS_PHASES = REPO_ROOT / "scripts" / "security" / "prod_readiness_audit" / "phases.py"
+LOCAL_PROD_AUDIT = (
+    REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
+)
+PROD_READINESS_PHASES = (
+    REPO_ROOT / "scripts" / "security" / "prod_readiness_audit" / "phases.py"
+)
 PUBLIC_LEAK_AUDIT = REPO_ROOT / "scripts" / "security" / "run_public_repo_leak_audit.sh"
 MAKEFILE = REPO_ROOT / "scripts" / "Makefile"
 
@@ -45,7 +60,9 @@ def _grype_ignore_entry(text: str, vulnerability: str) -> str:
 
 
 def _load_validator_module():
-    spec = importlib.util.spec_from_file_location("validate_workflow_pins", VALIDATOR_PATH)
+    spec = importlib.util.spec_from_file_location(
+        "validate_workflow_pins", VALIDATOR_PATH
+    )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -121,10 +138,14 @@ def test_validator_rejects_mutable_scanner_docker_run_refs(tmp_path: Path) -> No
     validator = _load_validator_module()
     errors = validator.validate_workflow(workflow)
 
-    assert any("scanner image" in error and "aquasec/trivy:0.57.1" in error for error in errors)
+    assert any(
+        "scanner image" in error and "aquasec/trivy:0.57.1" in error for error in errors
+    )
 
 
-def test_validator_accepts_digest_pinned_scanner_docker_run_refs(tmp_path: Path) -> None:
+def test_validator_accepts_digest_pinned_scanner_docker_run_refs(
+    tmp_path: Path,
+) -> None:
     workflow = tmp_path / "security.yml"
     workflow.write_text(
         "\n".join(
@@ -147,7 +168,9 @@ def test_validator_accepts_digest_pinned_scanner_docker_run_refs(tmp_path: Path)
     assert not errors
 
 
-def test_validator_scans_python_shell_makefile_and_workflow_scanner_refs(tmp_path: Path) -> None:
+def test_validator_scans_python_shell_makefile_and_workflow_scanner_refs(
+    tmp_path: Path,
+) -> None:
     files = {
         "security.yml": "run: docker run --rm aquasec/trivy:0.57.1 image riskhub-backend:scan\n",
         "phases.py": '"docker run --rm zricethezav/gitleaks:v8.18.2 detect"\n',
@@ -197,13 +220,41 @@ def test_security_and_release_workflows_invoke_directory_wide_validator() -> Non
         assert ".github/workflows/release.yml" not in text
 
 
-def test_local_prod_readiness_audit_pins_syft_and_grype_images() -> None:
-    package_text = (
-        LOCAL_PROD_AUDIT.read_text(encoding="utf-8")
-        + (REPO_ROOT / "scripts" / "security" / "prod_readiness_audit" / "phases.py").read_text(
-            encoding="utf-8"
-        )
+def test_release_evidence_docs_match_workflow_retention() -> None:
+    workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+    security_readme = SECURITY_README.read_text(encoding="utf-8")
+    dora_record = DORA_VERIFICATION_RECORD.read_text(encoding="utf-8")
+
+    upload_step = workflow.split("- name: Upload parity artifacts", maxsplit=1)[1]
+    retention_match = re.search(r"retention-days:\s*(\d+)", upload_step)
+    assert retention_match is not None
+    retention_days = retention_match.group(1)
+
+    assert (
+        f"retained by the release workflow for {retention_days} days" in security_readme
     )
+    assert not re.search(
+        r"immutable\s+`tests/results/release-parity-audit-<run-id>/`\s+evidence artifacts",
+        security_readme,
+    )
+    assert re.search(
+        r"do not make the generated\s+artifact bytes permanently retrievable",
+        dora_record,
+    )
+
+
+def test_dora_legacy_automated_evidence_is_historical_non_acceptance_context() -> None:
+    dora_record = DORA_VERIFICATION_RECORD.read_text(encoding="utf-8")
+
+    assert "Historical context only - not current acceptance evidence" in dora_record
+    assert "## 1. Historical automated evidence (non-acceptance context)" in dora_record
+    assert "924442ac..HEAD" not in dora_record
+
+
+def test_local_prod_readiness_audit_pins_syft_and_grype_images() -> None:
+    package_text = LOCAL_PROD_AUDIT.read_text(encoding="utf-8") + (
+        REPO_ROOT / "scripts" / "security" / "prod_readiness_audit" / "phases.py"
+    ).read_text(encoding="utf-8")
 
     assert "anchore/syft:latest" not in package_text
     assert "anchore/grype:latest" not in package_text
@@ -230,6 +281,21 @@ def test_lint_workflow_runs_blocking_frontend_vitest_job() -> None:
     assert "docs-topology-consistency" not in text
 
 
+def test_pr_workflow_keeps_exact_head_checks_and_a_merge_result_build() -> None:
+    text = LINT_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "ref: ${{ github.event.pull_request.head.sha || github.sha }}" in text
+    assert "pr-merge-result-build:" in text
+    merge_job_start = text.index("  pr-merge-result-build:")
+    merge_job_end = text.index("\n  backend-quality:", merge_job_start)
+    merge_job = text[merge_job_start:merge_job_end]
+    assert "if: github.event_name == 'pull_request'" in merge_job
+    assert "ref: ${{ github.sha }}" in merge_job
+    assert 'test "$(git rev-parse HEAD)" = "${{ github.sha }}"' in merge_job
+    assert "npm ci" in merge_job
+    assert "npm run build" in merge_job
+
+
 def test_lint_workflow_restores_blocking_backend_quality_gate() -> None:
     text = LINT_WORKFLOW.read_text(encoding="utf-8")
 
@@ -252,7 +318,9 @@ def test_lint_workflow_restores_blocking_backend_quality_gate() -> None:
         assert forbidden not in text
 
 
-def test_lint_workflow_installs_repo_contract_python_dependencies_before_contract_gate() -> None:
+def test_lint_workflow_installs_repo_contract_python_dependencies_before_contract_gate() -> (
+    None
+):
     text = LINT_WORKFLOW.read_text(encoding="utf-8")
 
     install_step = "Install repo contract Python dependencies"
@@ -287,7 +355,9 @@ def test_maintenance_workflow_keeps_backend_job_informational_only() -> None:
     assert "continue-on-error: true" in text
 
 
-def test_release_parity_contract_workflow_is_manual_only_and_keeps_contract_validators() -> None:
+def test_release_parity_contract_workflow_is_manual_only_and_keeps_contract_validators() -> (
+    None
+):
     text = RELEASE_PARITY_PR_WORKFLOW.read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in text
@@ -312,13 +382,19 @@ def test_backend_postgres_workflow_uses_named_postgres_ci_contract() -> None:
 
 def test_e2e_workflow_uses_canonical_health_route_and_no_fixed_sleep() -> None:
     text = E2E_WORKFLOW.read_text(encoding="utf-8")
+    start_backend = text[
+        text.index("      - name: Start backend") : text.index(
+            "      - name: Run E2E tests"
+        )
+    ]
 
     assert "sleep 10" not in text
     assert "http://localhost:8000/api/v1/readyz" in text
     assert "http://localhost:8000/health" not in text
-    assert "ENABLE_SCHEDULER: 'true'" in text
-    assert "SCHEDULER_JOB_PROFILE: outbox_only" in text
-    assert "CORS_ORIGINS: '[\"http://localhost:5173\"]'" in text
+    assert "E2E_SQLALCHEMY_ECHO: 'false'" in start_backend
+    assert "ENABLE_SCHEDULER: 'true'" in start_backend
+    assert "SCHEDULER_JOB_PROFILE: outbox_only" in start_backend
+    assert "CORS_ORIGINS: '[\"http://localhost:5173\"]'" in start_backend
 
 
 def test_e2e_workflow_has_manual_dispatch_and_no_path_ignore() -> None:
@@ -339,6 +415,7 @@ def test_e2e_workflow_classifies_scope_before_expensive_playwright_steps() -> No
         "backend/*",
         "frontend/*",
         "tests/frontend/e2e/*",
+        "tests/frontend/contracts/*",
         "backend/scripts/seed_e2e_*",
         "scripts/install.sh",
         "scripts/dev.sh",
@@ -357,7 +434,10 @@ def test_e2e_workflow_caches_playwright_browsers_and_uses_shell_only_chromium() 
 
     assert "actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830" in text
     assert "path: ~/.cache/ms-playwright" in text
-    assert "key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}" in text
+    assert (
+        "key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}"
+        in text
+    )
     assert "PLAYWRIGHT_BROWSERS_PATH:" in text
     assert "ms-playwright" in text
     assert "npx playwright install --with-deps --only-shell chromium" in text
@@ -367,7 +447,9 @@ def test_e2e_workflow_caches_playwright_browsers_and_uses_shell_only_chromium() 
 def test_e2e_workflow_prefers_system_chrome_with_bounded_browser_fallback() -> None:
     text = E2E_WORKFLOW.read_text(encoding="utf-8")
     install_step = text[
-        text.index("      - name: Install Playwright browsers") : text.index("      - name: Start backend")
+        text.index("      - name: Install Playwright browsers") : text.index(
+            "      - name: Start backend"
+        )
     ]
 
     assert "id: system-chrome" in text
@@ -375,8 +457,16 @@ def test_e2e_workflow_prefers_system_chrome_with_bounded_browser_fallback() -> N
     assert "command -v google-chrome-stable" in text
     assert "steps.system-chrome.outputs.available != 'true'" in install_step
     assert "timeout-minutes: 8" in install_step
-    assert "--project=ci" in text
-    assert "--project=chromium" in text
+    run_step = text[
+        text.index("      - name: Run E2E tests") : text.index(
+            "      - name: Upload test results"
+        )
+    ]
+    assert "npm run e2e:a11y:collect" in run_step
+    assert "npm run e2e:a11y:results" in run_step
+    assert "--project=ci" in run_step
+    assert "--project=chromium" not in run_step
+    assert "unset PLAYWRIGHT_CHROMIUM_CHANNEL" in run_step
     assert "PLAYWRIGHT_CHROMIUM_CHANNEL: chrome" in text
 
 
@@ -385,11 +475,14 @@ def test_playwright_ci_project_allows_workflow_selected_chromium_channel() -> No
 
     assert "PLAYWRIGHT_CHROMIUM_CHANNEL" in text
     assert "process.env.PLAYWRIGHT_CHROMIUM_CHANNEL" in text
+    assert "process.platform === 'darwin'" not in text
 
 
 def test_e2e_workflow_allows_runtime_headroom_for_cache_misses() -> None:
     text = E2E_WORKFLOW.read_text(encoding="utf-8")
-    playwright_job = text[text.index("  e2e-tests:") : text.index("  production-profile-smoke:")]
+    playwright_job = text[
+        text.index("  e2e-tests:") : text.index("  production-profile-smoke:")
+    ]
 
     assert "timeout-minutes: 45" in playwright_job
     assert "timeout-minutes: 30" not in playwright_job
@@ -419,7 +512,9 @@ def test_security_workflow_runs_container_scan_in_pull_requests() -> None:
 
     assert "pull_request:" in text
     assert "container-security:" in text
-    assert "if: github.event_name == 'push' || github.event_name == 'schedule'" not in text
+    assert (
+        "if: github.event_name == 'push' || github.event_name == 'schedule'" not in text
+    )
 
 
 def _grype_python_runtime_suppressed_cves(text: str) -> list[str]:
@@ -437,10 +532,16 @@ def test_grype_python_runtime_suppressions_are_time_bound() -> None:
     expiry_dates = re.findall(r"\n    expires-on: (\d{4}-\d{2}-\d{2})", text)
     assert len(expiry_dates) == len(suppressed)
     assert len(set(expiry_dates)) == 1, "suppressions must share one review date"
-    assert date.fromisoformat(expiry_dates[0]) > date.today(), "grype suppressions have expired; re-review them"
+    assert (
+        date.fromisoformat(expiry_dates[0]) > date.today()
+    ), "grype suppressions have expired; re-review them"
     # Every suppression targets the CPython runtime at one shared shipped version.
-    python_versions = set(re.findall(r"\n      name: python\n      version: (\S+)", text))
-    assert len(python_versions) == 1, f"suppressions must pin one python version, saw {python_versions}"
+    python_versions = set(
+        re.findall(r"\n      name: python\n      version: (\S+)", text)
+    )
+    assert (
+        len(python_versions) == 1
+    ), f"suppressions must pin one python version, saw {python_versions}"
     assert text.count("\n      name: python") == len(suppressed)
     assert "\n    fix-state:" not in text
 
@@ -468,7 +569,9 @@ def test_backend_dockerfile_pins_python_alpine_base_digest() -> None:
     assert len(digests) == 1, "all base stages must pin one shared digest"
     digest = digests.pop()
     assert text.count(f"FROM python:3.13-alpine@sha256:{digest}") == 3
-    assert not re.search(r"FROM python:3\.13-alpine(?!@)", text), "unpinned base image stage found"
+    assert not re.search(
+        r"FROM python:3\.13-alpine(?!@)", text
+    ), "unpinned base image stage found"
 
 
 def test_security_workflow_audits_runtime_python_requirements() -> None:
@@ -497,7 +600,9 @@ def test_backend_runtime_fastapi_pin_avoids_mal_2026_4750() -> None:
         assert "fastar" not in manifest_text
 
 
-def test_ci_health_python_audit_manifest_interface_covers_runtime_requirements() -> None:
+def test_ci_health_python_audit_manifest_interface_covers_runtime_requirements() -> (
+    None
+):
     module = _load_ci_health_module()
 
     manifests = module.python_audit_manifests()
@@ -531,7 +636,9 @@ def test_gitleaks_legacy_doctor_placeholder_ignores_are_exact_fingerprints() -> 
 
     assert ignored_fingerprints == DOCTOR_PLACEHOLDER_GITLEAKS_FINGERPRINTS
     assert "scripts/install_lib/doctor.py" not in allowed_paths
-    assert "doctor.py:generic-api-key" not in GITLEAKS_CONFIG.read_text(encoding="utf-8")
+    assert "doctor.py:generic-api-key" not in GITLEAKS_CONFIG.read_text(
+        encoding="utf-8"
+    )
 
 
 def test_security_workflow_keeps_scheduled_full_history_gitleaks_scan() -> None:
@@ -569,7 +676,9 @@ def test_maintenance_governance_workflow_owns_docs_and_maintenance_only_gates() 
     assert "mypy --config-file mypy.ini app" in text
 
 
-def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure() -> None:
+def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure() -> (
+    None
+):
     text = STARTUP_SMOKE_WORKFLOW.read_text(encoding="utf-8")
 
     assert "pull_request:" not in text

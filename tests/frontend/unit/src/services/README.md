@@ -7,6 +7,7 @@ Folder for `tests/frontend/unit/src/services` implementation assets.
 ## Contents
 
 - `__tests__/`
+- `fixtures/`
 
 ## Notes
 

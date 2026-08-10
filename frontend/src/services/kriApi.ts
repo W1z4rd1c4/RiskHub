@@ -21,8 +21,7 @@ import type {
     KRIHistoryListResponse,
     KRIRecordValue,
     KRIHistoryEdit,
-    KRIMonitoringStatus,
-    KRITimelinessStatus,
+    KRIListParams,
     OverdueKRI,
     DueSoonKRI,
 } from '../types/kri';
@@ -43,43 +42,66 @@ function legacyPageToOffset(
     return (params.page - 1) * (params.limit ?? params.size ?? defaultLimit);
 }
 
+function compactKriFilters(params: KRIListParams): Record<string, string | number | boolean | undefined> {
+    return {
+        risk_id: params.risk_id,
+        breach_only: params.breach_only,
+        include_archived: params.include_archived,
+        is_archived: params.is_archived,
+        lifecycle: params.lifecycle,
+        search: params.search,
+        monitoring_status: params.monitoring_status,
+        timeliness_status: params.timeliness_status,
+        frequency: params.frequency,
+        department_id: params.department_id,
+        reporting_owner_id: params.reporting_owner_id,
+    };
+}
+
+export function buildKriCollectionQuery(params: KRIListParams = {}): URLSearchParams {
+    const built = buildCollectionParams({
+        offset: legacyPageToOffset(params, DEFAULT_KRI_LEGACY_PAGE_SIZE),
+        limit: params.limit ?? params.size,
+        filters: compactKriFilters(params),
+        sort: params.sort ?? (params.sort_by
+            ? { field: params.sort_by, direction: params.sort_order ?? 'asc' }
+            : null),
+        groupBy: params.group_by,
+        groupValue: params.group_value,
+    });
+    const query = new URLSearchParams();
+    Object.entries(built).forEach(([key, value]) => query.set(key, String(value)));
+    return query;
+}
+
+async function downloadKriExport(params: KRIListParams, locale: 'en' | 'cs'): Promise<void> {
+    const query = buildKriCollectionQuery(params);
+    query.delete('offset');
+    query.delete('limit');
+    query.set('format', 'csv');
+    query.set('locale', locale);
+    const { blob, headers } = await apiClient.getBlob(`/kris/export?${query.toString()}`, { timeoutMs: null });
+    const match = headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = match?.[1] ?? 'kris.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+}
+
 export const kriApi = {
-    async getKRIs(params?: {
-        risk_id?: number;
-        breach_only?: boolean;
-        offset?: number;
-        limit?: number;
-        page?: number;
-        size?: number;
-        include_archived?: boolean;
-        is_archived?: boolean;
-        search?: string;
-        monitoring_status?: KRIMonitoringStatus;
-        timeliness_status?: KRITimelinessStatus;
-        group_by?: string;
-        group_value?: string;
-    }): Promise<KRIListResponse> {
-        const offset = legacyPageToOffset(params, DEFAULT_KRI_LEGACY_PAGE_SIZE);
+    async getKRIs(params: KRIListParams = {}): Promise<KRIListResponse> {
         const response = await apiClient.get('/kris', {
-            params: buildCollectionParams({
-                offset,
-                limit: params?.limit ?? params?.size,
-                filters: {
-                    risk_id: params?.risk_id,
-                    breach_only: params?.breach_only,
-                    include_archived: params?.include_archived,
-                    is_archived: params?.is_archived,
-                    search: params?.search,
-                    monitoring_status: params?.monitoring_status,
-                    timeliness_status: params?.timeliness_status,
-                },
-                groupBy: params?.group_by,
-                groupValue: params?.group_value,
-            }),
+            params: buildKriCollectionQuery(params),
             schema: kriListResponseSchema,
         });
         return normalizeCollectionResponse(response);
     },
+
+    downloadExport: downloadKriExport,
 
     async getBreaches(params?: { department_id?: number; include_archived?: boolean }): Promise<KeyRiskIndicator[]> {
         return apiClient.get('/kris/breaches', { params, schema: keyRiskIndicatorArraySchema });

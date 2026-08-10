@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.core.config import Settings, get_settings
 from app.core.security import verify_password
 from app.main import app
-from app.models import Department, Role, User
+from app.models import Department, Permission, Role, RolePermission, User
 from app.schemas import UserUpdate
 from app.services._identity_access_lifecycle.profile_updates import update_user_profile
 
@@ -19,6 +19,23 @@ async def auth_client_sso(client_factory, test_user: User):
     settings = Settings(mock_auth_enabled=True, debug=True, auth_mode="microsoft_sso")
     async with client_factory(current_user=test_user, settings=settings) as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def users_read_employee_role(
+    db_session: AsyncSession, test_role_employee: Role
+) -> Role:
+    """Canonical employee role with the explicit grant these lookup tests require."""
+    users_read = Permission(
+        resource="users", action="read", description="View users"
+    )
+    db_session.add(users_read)
+    await db_session.flush()
+    db_session.add(
+        RolePermission(role_id=test_role_employee.id, permission_id=users_read.id)
+    )
+    await db_session.commit()
+    return test_role_employee
 
 
 @pytest.mark.asyncio
@@ -246,6 +263,34 @@ async def test_update_user_fields(auth_client: AsyncClient, test_user: User):
     assert data["name"] == "Updated Name"
     # Email should remain unchanged
     assert data["email"] == test_user.email
+
+
+@pytest.mark.asyncio
+async def test_update_user_rejects_inactive_role_assignment(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee: User,
+):
+    inactive_role = Role(
+        name="inactive_profile_role",
+        display_name="Inactive Profile Role",
+        description="Inactive role must not be assignable through user lifecycle",
+        is_active=False,
+    )
+    db_session.add(inactive_role)
+    await db_session.commit()
+    await db_session.refresh(inactive_role)
+
+    original_role_id = test_user_employee.role_id
+    response = await auth_client.patch(
+        f"/api/v1/users/{test_user_employee.id}",
+        json={"role_id": inactive_role.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid role_id"
+    await db_session.refresh(test_user_employee)
+    assert test_user_employee.role_id == original_role_id
 
 
 @pytest.mark.asyncio
@@ -787,7 +832,7 @@ async def test_lookup_users_by_ids_rejects_oversized_id_lists(auth_client: Async
 async def test_lookup_department_scoping(
     client: AsyncClient,
     db_session: AsyncSession,
-    test_role_employee,
+    users_read_employee_role: Role,
 ):
     """Test that department-scoped users cannot see users from other departments."""
     from app.models import Department
@@ -805,7 +850,7 @@ async def test_lookup_department_scoping(
     user_a = User(
         name="Scope User A",
         email="scope-user-a@example.com",
-        role_id=test_role_employee.id,
+        role_id=users_read_employee_role.id,
         department_id=dept_a.id,
         access_scope=AccessScope.DEPARTMENT,
         is_active=True,
@@ -827,7 +872,7 @@ async def test_lookup_department_scoping(
 async def test_lookup_manager_department_filter_narrows_to_own_department(
     client: AsyncClient,
     db_session: AsyncSession,
-    test_role_employee,
+    users_read_employee_role: Role,
 ):
     """Managers can optionally narrow lookup to their own department only."""
     from app.models import Department
@@ -843,7 +888,7 @@ async def test_lookup_manager_department_filter_narrows_to_own_department(
     manager = User(
         name="Manager Scope User",
         email="manager-scope@example.com",
-        role_id=test_role_employee.id,
+        role_id=users_read_employee_role.id,
         department_id=dept_a.id,
         access_scope=AccessScope.MANAGER,
         is_active=True,
@@ -855,7 +900,7 @@ async def test_lookup_manager_department_filter_narrows_to_own_department(
     same_dept_report = User(
         name="Manager Same Dept Report",
         email="manager-scope-same-dept@example.com",
-        role_id=test_role_employee.id,
+        role_id=users_read_employee_role.id,
         department_id=dept_a.id,
         manager_id=manager.id,
         is_active=True,
@@ -863,7 +908,7 @@ async def test_lookup_manager_department_filter_narrows_to_own_department(
     cross_dept_report = User(
         name="Manager Cross Dept Report",
         email="manager-scope-cross-dept@example.com",
-        role_id=test_role_employee.id,
+        role_id=users_read_employee_role.id,
         department_id=dept_b.id,
         manager_id=manager.id,
         is_active=True,
@@ -871,7 +916,7 @@ async def test_lookup_manager_department_filter_narrows_to_own_department(
     unrelated_user = User(
         name="Manager Unrelated User",
         email="manager-scope-unrelated@example.com",
-        role_id=test_role_employee.id,
+        role_id=users_read_employee_role.id,
         department_id=dept_a.id,
         is_active=True,
     )

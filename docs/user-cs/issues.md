@@ -1,7 +1,7 @@
 ---
 title: Správa nálezů (Issues)
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/IssuesPage.tsx + frontend/src/pages/issues/* + issue workflows in backend"
 summary: "Jak zakládat, třídit, řešit a uzavírat nálezy (Issues) s jasným ownership, termíny, výjimkami a exporty připravenými pro audit."
@@ -107,14 +107,25 @@ Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu zn
 
 ## Vyhledávání, filtrování a evidence
 
-Používejte pohledy podle vlastníka, závažnosti, stavu, termínu nebo dodavatele. Pro audit použijte detailní historii.
+Registr ukládá hledání, filtry, řazení, pohled a vybranou skupinu do URL. Zkopírovaný odkaz, navigace Zpět/Vpřed i obnovení stránky proto vrátí stejný kontext. Změna některého z těchto ovládacích prvků vrátí lokální stránkování na první stránku.
+
+Jako hlavní filtry používejte stav a závažnost. Stav zahrnuje Otevřené, Vyhodnocené, V řešení, Připravené k ověření a Uzavřené. Výběr Uzavřené automaticky zahrne uzavřené záznamy; vypnutí Zahrnout uzavřené zároveň zruší filtr pouze Uzavřené. Závažnost nabízí Nízkou, Střední, Vysokou, Kritickou a společný pohled Vysoká/Kritická. Pro užší pracovní frontu přidejte oddělení, vlastníka nebo stav remediation. **Pouze po termínu** vylučuje uzavřené záznamy a **Vyloučit aktivní výjimky** odstraní případy s právě platnou schválenou výjimkou.
+
+Přepínejte mezi pohledem Vše a skupinami podle kategorie, oddělení, vlastníka, procesu, typu rizika, závažnosti, stavu, typu nebo dodavatele. Výběrem karty skupiny otevřete její přesné řádky. Kontext dodavatele je dostupný jen s odpovídajícím přístupem. Tlačítka Vytvořit a Export se také zobrazují podle capabilities vrácených serverem.
+
+Dialog Export má dva režimy evidence:
+
+- **Aktuální pohled** stáhne všechny řádky odpovídající aktuálnímu hledání, filtrům, řazení, pohledu a vybrané skupině bez stránkování seznamu. CSV zachová ID a název nálezu, kódy a popisky stavu a závažnosti, zdrojový kontext, oddělení, vlastníka, termín, prodlení a stáří, čitelné vazby na rizika/kontroly/exekuce/KRI, stav a postup remediation, remediation ownera a cílové datum i stav a expiraci výjimky.
+- **Historický snapshot** používá zvolené datum a reports službu. Použijte ho pro evidenci stavu k datu, ne jako živou pracovní frontu.
+
+Pro audit konkrétního záznamu použijte v detailu záložky Přehled, Workflow a Historie.
 
 Pro spolehlivý výsledek filtrujte v tomto pořadí:
 
 1. Začněte dost široce, abyste ověřili existenci záznamu.
 2. Zužte pohled podle oddělení, vlastníka, stavu, dodavatele nebo data.
 3. Otevřete vzorek záznamu a ověřte, že filtr odpovídá záměru.
-4. Exportujte jen filtrovaný pohled potřebný pro review.
+4. Pro živou frontu zvolte Aktuální pohled, pro stav k datu Historický snapshot, a exportujte jen potřebnou evidenci.
 
 Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílejte zbytečné osobní nebo citlivé informace.
 

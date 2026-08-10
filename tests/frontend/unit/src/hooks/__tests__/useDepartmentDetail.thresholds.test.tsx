@@ -78,6 +78,7 @@ describe('useDepartmentDetail thresholds', () => {
             () => useDepartmentDetail({
                 departmentId: 3,
                 activeTab: 'risks',
+                canViewUsers: true,
                 riskFilter: 'high',
                 kriFilter: 'all',
                 riskPage: 1,
@@ -114,6 +115,7 @@ describe('useDepartmentDetail thresholds', () => {
             () => useDepartmentDetail({
                 departmentId: 3,
                 activeTab: 'risks',
+                canViewUsers: true,
                 riskFilter: 'high',
                 kriFilter: 'all',
                 riskPage: 1,
@@ -129,5 +131,42 @@ describe('useDepartmentDetail thresholds', () => {
         });
 
         expect(result.current.getRiskCount()).toBe(3);
+    });
+
+    it('normalizes unavailable department risk totals to zero', async () => {
+        departmentApiMock.getDepartment.mockResolvedValueOnce({
+            id: 3,
+            name: 'Operations',
+            risk_count: null,
+            high_risk_count: null,
+            risk_distribution: {
+                critical: 0,
+                high: 0,
+                medium: 0,
+                low: 0,
+            },
+        });
+
+        const { result } = renderHook(
+            () => useDepartmentDetail({
+                departmentId: 3,
+                activeTab: 'risks',
+                canViewUsers: true,
+                riskFilter: 'high',
+                kriFilter: 'all',
+                riskPage: 1,
+                controlPage: 1,
+                kriPage: 1,
+                userPage: 1,
+            }),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => {
+            expect(result.current.department).not.toBeNull();
+        });
+
+        expect(result.current.getRiskCount()).toBe(0);
+        expect(result.current.riskTotalPages).toBe(1);
     });
 });

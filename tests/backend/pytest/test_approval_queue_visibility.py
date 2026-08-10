@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus, Department, Risk, User
 from app.schemas.approval_request import ApprovalStatusEnum
-from app.services import approval_queue_visibility
 from app.services._approval_queue.queries import list_approval_queue_page, list_my_approval_queue_page
 
 
@@ -18,7 +17,6 @@ async def test_visibility_filter_applies_before_pagination(
     test_user: User,
     test_user_employee: User,
     seed_risk_types,
-    monkeypatch: pytest.MonkeyPatch,
 ):
     other_department = Department(name="Approval Queue Budget Other", code="AQB-OTHER")
     db_session.add(other_department)
@@ -91,15 +89,6 @@ async def test_visibility_filter_applies_before_pagination(
     db_session.add_all([*approvals, visible_approval])
     await db_session.commit()
 
-    post_filter_checks: list[int] = []
-    original_check = approval_queue_visibility.can_view_pending_approval_queue_item
-
-    async def counting_check(*args, approval: ApprovalRequest, **kwargs):
-        post_filter_checks.append(approval.id)
-        return await original_check(*args, approval=approval, **kwargs)
-
-    monkeypatch.setattr(approval_queue_visibility, "can_view_pending_approval_queue_item", counting_check)
-
     response = await list_approval_queue_page(
         db=db_session,
         current_user=test_user_employee,
@@ -112,7 +101,6 @@ async def test_visibility_filter_applies_before_pagination(
 
     assert response.total == 1
     assert [item.id for item in response.items] == [visible_approval.id]
-    assert post_filter_checks == []
 
 
 @pytest.mark.asyncio

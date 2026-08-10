@@ -1,3 +1,4 @@
+from datetime import date
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
@@ -5,7 +6,7 @@ from pydantic import BaseModel, Field, computed_field, field_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
 from app.models.global_config import ConfigDefaults
-from app.schemas.collection import CollectionGroupRead
+from app.schemas.collection import CollectionFacetOption, CollectionGroupRead
 from app.schemas.execution import ExecutionResultEnum
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import ControlMonitoringReason, ControlMonitoringStatus
@@ -74,6 +75,14 @@ class RiskBase(BaseModel):
     status: RiskStatusEnum = Field(RiskStatusEnum.active)
     is_priority: bool = Field(False, description="In Risk Catalog (high priority)")
 
+    # ICT Register acceptance governance (issue #47; workbook 13_Rizika block
+    # E: akc_schval / akc_oduv / akc_datum). Entered, always optional — the
+    # required-together rule above tolerance is a DQ finding (#50), not a
+    # write block.
+    acceptance_approver: Optional[str] = Field(None, max_length=255, description="Acceptance approver")
+    acceptance_justification: Optional[str] = Field(None, description="Acceptance justification")
+    acceptance_date: Optional[date] = Field(None, description="Acceptance date")
+
     @field_validator("gross_probability", "gross_impact", "net_probability", "net_impact")
     @classmethod
     def validate_score_range(cls, v):
@@ -106,6 +115,9 @@ class RiskUpdate(BaseModel):
     net_impact: Optional[int] = Field(None, ge=1, le=5)
     status: Optional[RiskStatusEnum] = None
     is_priority: Optional[bool] = None
+    acceptance_approver: Optional[str] = Field(None, max_length=255)
+    acceptance_justification: Optional[str] = None
+    acceptance_date: Optional[date] = None
 
 
 class UserBriefForRisk(BaseModel):
@@ -219,6 +231,7 @@ class RiskListResponse(BaseModel):
     limit: int
     groups: list[CollectionGroupRead] | None = None
     capabilities: RiskListCapabilities | None = None
+    facets: dict[str, list[CollectionFacetOption]] = Field(default_factory=dict)
 
     @computed_field
     def skip(self) -> int:
@@ -289,6 +302,70 @@ class ControlRiskLinkRead(BaseModel):
     notes: Optional[str] = None
     control: Optional[ControlBriefForLink] = None
     risk: Optional[RiskBriefForLink] = None
+    created_at: UtcAwareDatetime
+
+    model_config = {"from_attributes": True}
+
+
+# ============== ICT Register Risk Link Schemas (issue #47) ==============
+
+
+class RiskProcessLinkCreate(BaseModel):
+    """Risk-end create payload: link this Risk to a Process."""
+
+    model_config = {"extra": "forbid"}
+
+    process_id: int = Field(..., ge=1)
+    request_reason: str | None = Field(None, max_length=1000)
+
+
+class RiskProcessLinkCapabilities(BaseModel):
+    """Per-row link actions: mutations follow the Risk end (risks:write)."""
+
+    can_delete: bool
+
+
+class RiskProcessLinkRead(BaseModel):
+    id: int
+    risk_id: int
+    process_id: int
+    # Display names for both ends, embedded by the list/create services so the
+    # UI never falls back to raw ids (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+    process_name: Optional[str] = None
+    risk_id_code: Optional[str] = None
+    risk_name: Optional[str] = None
+    capabilities: Optional[RiskProcessLinkCapabilities] = None
+    process_business_edit_blocked: bool = False
+    created_at: UtcAwareDatetime
+
+    model_config = {"from_attributes": True}
+
+
+class RiskAssetLinkCreate(BaseModel):
+    """Risk-end create payload: link this Risk to an Asset."""
+
+    model_config = {"extra": "forbid"}
+
+    asset_id: int = Field(..., ge=1)
+    request_reason: str | None = Field(None, max_length=1000)
+
+
+class RiskAssetLinkCapabilities(BaseModel):
+    """Per-row link actions: mutations follow the Risk end (risks:write)."""
+
+    can_delete: bool
+
+
+class RiskAssetLinkRead(BaseModel):
+    id: int
+    risk_id: int
+    asset_id: int
+    # Display names for both ends, embedded by the list/create services so the
+    # UI never falls back to raw ids (docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md).
+    asset_name: Optional[str] = None
+    risk_id_code: Optional[str] = None
+    risk_name: Optional[str] = None
+    capabilities: Optional[RiskAssetLinkCapabilities] = None
     created_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}

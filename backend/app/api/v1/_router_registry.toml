@@ -43,9 +43,34 @@ prefix = "/vendors"
 tags = ["vendors"]
 
 [[modules]]
+module = "processes"
+prefix = "/processes"
+tags = ["processes"]
+
+[[modules]]
+module = "assets"
+prefix = "/assets"
+tags = ["assets"]
+
+[[modules]]
+module = "threats"
+prefix = "/threats"
+tags = ["threats"]
+
+[[modules]]
 module = "vendor_links"
 prefix = "/vendors"
 tags = ["vendor-links"]
+
+[[modules]]
+module = "vendor_contracts"
+prefix = "/vendors"
+tags = ["vendor-contracts"]
+
+[[modules]]
+module = "vendor_sub_outsourcing"
+prefix = "/vendors"
+tags = ["vendor-sub-outsourcing"]
 
 [[modules]]
 module = "vendor_reports"
@@ -111,6 +136,11 @@ tags = ["directory"]
 module = "orphaned_items"
 prefix = "/orphaned-items"
 tags = ["governance"]
+
+[[modules]]
+module = "ict_register"
+prefix = "/ict-register"
+tags = ["ict-register"]
 
 [[modules]]
 module = "lookups"

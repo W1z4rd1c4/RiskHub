@@ -47,13 +47,32 @@
       "format": "Formát",
       "date": "Stav k datu"
     },
+    "purpose": {
+      "label": "Účel exportu",
+      "current_view": {
+        "title": "Aktuální zobrazení registru",
+        "description": "Exportuje všechny záznamy odpovídající aktuálním filtrům, řazení a vybrané skupině."
+      },
+      "point_in_time": {
+        "title": "Auditní snímek k datu",
+        "description": "Rekonstruuje auditovaný stav registru k vybranému datu."
+      }
+    },
     "formats": {
       "xlsx": "CSV (.csv)",
       "csv": "CSV (.csv)"
     },
     "actions": {
       "submit": "Exportovat",
+      "submit_current": "Exportovat aktuální zobrazení",
+      "submit_snapshot": "Exportovat snímek",
       "cancel": "Zrušit"
+    },
+    "errors": {
+      "failed": "Export se nezdařil. Zkuste to znovu."
+    },
+    "dora_register": {
+      "link": "Stáhnout registr DORA"
     }
   },
   "labels": {
@@ -145,7 +164,8 @@
     "to": "až",
     "entries": "záznamů",
     "per_page": "na stránku",
-    "showing_range": "Zobrazeno {{start}} až {{end}} z {{total}} záznamů"
+    "showing_range": "Zobrazeno {{start}} až {{end}} z {{total}} záznamů",
+    "go_to_page": "Přejít na stránku {{page}}"
   },
   "date": {
     "today": "Dnes",
@@ -320,11 +340,42 @@
   },
   "department_detail": {
     "tabs": {
+      "label": "Pracovní prostor oddělení",
+      "overview": "Přehled",
       "risks": "Rizika",
       "users": "Uživatelé",
       "controls": "Kontroly",
       "kris": "KRI",
+      "issues": "Problémy",
+      "processes": "Procesy",
+      "assets": "Aktiva",
+      "vendors": "Dodavatelé",
+      "activity": "Aktivita",
       "recent_activity": "Nedávná aktivita"
+    },
+    "health": {
+      "high_risk": "{{count}} vysokých rizik",
+      "high_risks": "{{count}} vysokých",
+      "critical_risks": "{{count}} kritických",
+      "attention_controls": "{{count}} vyžaduje pozornost",
+      "inactive_controls": "{{count}} neaktivních",
+      "kri_breaches": "{{count}} překročení",
+      "kri_overdue": "{{count}} po termínu",
+      "open_issues": "{{count}} otevřených",
+      "overdue_issues": "{{count}} po termínu",
+      "critical_processes": "{{count}} kritických",
+      "cif_processes": "{{count}} CIF",
+      "critical_assets": "{{count}} kritických",
+      "legacy_assets": "{{count}} legacy",
+      "critical_vendors": "{{count}} kritických",
+      "dora_vendors": "{{count}} DORA",
+      "active_users": "{{count}} aktivních",
+      "accountability_gaps": "{{count}} mezer v odpovědnosti",
+      "significant_vendors": "{{count}} významných"
+    },
+    "recent_activity": {
+      "title": "Nedávná aktivita",
+      "empty": "Žádná nedávná aktivita"
     }
   },
   "documentation": {
@@ -342,9 +393,18 @@
     "maintainer_reference": "Reference správce:"
   },
   "tables": {
+    "items": "Položky",
+    "active": "Aktivní",
     "items_count": "{{count}} položek",
     "high_risk": "Vysoké riziko",
-    "inherited_risk_heatmap": "Heatmapa zděděného rizika"
+    "inherited_risk_heatmap": "Heatmapa zděděného rizika",
+    "error": {
+      "message": "Tuto tabulku se nepodařilo načíst. Zkuste to prosím znovu.",
+      "retry": "Zkusit znovu"
+    },
+    "view_entity": "Zobrazit {{entity}}",
+    "view_row": "Zobrazit detail",
+    "row_actions": "Akce"
   },
   "fallbacks": {
     "unknown": "Neznámé",
@@ -360,7 +420,12 @@
     "unknown_control": "Neznámá kontrola",
     "not_set": "Nenastaveno",
     "unknown_department": "Neznámé oddělení",
-    "unknown_link": "Neznámé propojení"
+    "unknown_link": "Neznámé propojení",
+    "unknown_process": "Neznámý proces",
+    "unknown_asset": "Neznámé aktivum",
+    "unknown_threat": "Neznámá hrozba",
+    "unknown_contract": "Neznámá smlouva",
+    "unknown_sub_outsourcing": "Neznámý subdodavatel"
   },
   "audit": {
     "columns": {
@@ -469,6 +534,32 @@
   "sections": {
     "recent_activity": "Nedávná aktivita",
     "risk_exposure_by_dept": "Riziková expozice podle oddělení"
+  },
+  "semantic_filters": {
+    "filtered_by": "Filtrováno podle",
+    "remove": "Odebrat filtr {{key}}",
+    "keys": {
+      "committee_scope": "Populace Výboru pro ICT",
+      "cif": "Kritická nebo důležitá funkce",
+      "has_process_link": "Propojeno s procesem",
+      "criticality": "Kritičnost",
+      "has_direct_process_link": "Přímé propojení s procesem",
+      "has_roi_contract": "Smlouva v RoI",
+      "has_sub_outsourcing": "Subdodávky",
+      "tier": "Úroveň dodavatele",
+      "ict_linked": "Propojeno s ICT",
+      "above_tolerance": "Nad tolerancí",
+      "response": "Reakce na riziko",
+      "gross_probability": "Hrubá pravděpodobnost",
+      "gross_impact": "Hrubý dopad",
+      "gross_band": "Hrubé pásmo",
+      "net_band": "Čisté pásmo",
+      "unknown": "Filtr registru"
+    },
+    "values": {
+      "yes": "Ano",
+      "acceptance": "Akceptace"
+    }
   },
   "stats": {
     "active_depts": "Aktivní oddělení",

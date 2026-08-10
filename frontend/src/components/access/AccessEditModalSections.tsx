@@ -2,6 +2,7 @@ import { Building2, Check, Crown, Loader2, Mail, Shield, User, UserCircle, X } f
 import type { Dispatch, SetStateAction } from 'react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from '@/i18n/hooks';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { AccessUserRead, RoleWithPermissions } from '@/types/access';
 
@@ -17,6 +18,7 @@ function updateSelection(
 }
 
 export function AccessEditModalHeader({ title, userName, onClose }: { title: string; userName: string; onClose: () => void }) {
+    const { t } = useTranslation('common');
     return (
         <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
             <div>
@@ -24,7 +26,9 @@ export function AccessEditModalHeader({ title, userName, onClose }: { title: str
                 <p className="text-xs text-slate-500 font-medium">{userName}</p>
             </div>
             <button
+                type="button"
                 onClick={onClose}
+                aria-label={t('actions.close')}
                 className="p-2 glass rounded-lg text-slate-500 hover:text-white transition-colors"
             >
                 <X className="h-5 w-5" />

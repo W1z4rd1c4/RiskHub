@@ -1,7 +1,7 @@
 ---
 title: KRI (Key Risk Indicators)
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "Jak navrhovat a provozovat KRI: thresholdy, breach/overdue logika, zápis hodnot, přiřazení dodavatelů, historie, exporty a monitoring přes notifikace."
@@ -106,14 +106,30 @@ Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu zn
 
 ## Vyhledávání, filtrování a evidence
 
-Filtrujte podle vlastníka, stavu, včasnosti a monitoringu. Tlačítko exportu vytvoří filtrovaný seznam KRI s poli jako metrika, navázané riziko, aktuální hodnota, limity, breach stav, frekvence, stav, monitoring, termín, reporting owner a poslední report. Pro evidenci historie hodnot použijte history záložku v detailu KRI nebo Activity Log; samostatný export detailu nebo historie neexistuje.
+Registr ukládá hledání, filtry, řazení, pohled a vybranou skupinu do URL. Zkopírovaný odkaz, navigace Zpět/Vpřed i obnovení stránky proto vrátí stejný kontext. Změna některého z těchto ovládacích prvků vrátí lokální stránkování na první stránku.
+
+Lifecycle používejte nezávisle na monitoringu:
+
+- **Aktivní**, **Archivované** nebo **Vše** řídí lifecycle záznamu. Archivovaný řádek nabízí Obnovit jen tehdy, když to dovoluje vaše oprávnění pro daný řádek.
+- **Nové**, **Neodevzdané**, **Breach**, **Warning** a **Optimal** popisují monitoring aktivní práce.
+- **Brzy splatné** je stav včasnosti. Jeho výběr vyčistí monitoring; výběr monitoringu vyčistí Brzy splatné.
+- Jako další filtry lze přidat pouze breach, frekvenci, oddělení a reporting ownera. Volba Archivované vyčistí monitoring, včasnost a filtr breach, protože tyto signály patří k aktivnímu monitoringu.
+
+Přepínejte mezi pohledem Vše a skupinami podle kategorie, oddělení, procesu, typu rizika, rizika nebo dodavatele. Kontext dodavatele se zobrazí jen s odpovídajícím přístupem. Výběrem karty skupiny otevřete její řádky; Zpět vrátí souhrn skupin.
+
+Dialog Export má dva odlišné režimy evidence:
+
+- **Aktuální pohled** stáhne všechny řádky odpovídající aktuálnímu hledání, filtrům, řazení, pohledu a vybrané skupině. Stránkování seznamu se nepoužije. CSV obsahuje metriku, popis, navázané riziko a oddělení, hodnoty a limity, breach kód i popisek, frekvenci, monitoring, termín a prodlení, reporting ownera, poslední report a lifecycle.
+- **Historický snapshot** používá zvolené datum a reports službu. Použijte ho, když důkaz musí reprodukovat stav známý k minulému datu; nejde o export živého registru.
+
+Pro evidenci historie hodnot použijte záložku Historie v detailu KRI nebo Activity Log; samostatný export detailu nebo historie neexistuje.
 
 Pro spolehlivý výsledek filtrujte v tomto pořadí:
 
 1. Začněte dost široce, abyste ověřili existenci záznamu.
 2. Zužte pohled podle oddělení, vlastníka, stavu, dodavatele nebo data.
 3. Otevřete vzorek záznamu a ověřte, že filtr odpovídá záměru.
-4. Exportujte jen filtrovaný pohled potřebný pro review.
+4. Pro živý registr zvolte Aktuální pohled, pro stav k datu Historický snapshot, a exportujte jen potřebnou evidenci.
 
 Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílejte zbytečné osobní nebo citlivé informace.
 

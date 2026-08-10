@@ -1,4 +1,4 @@
-import type { CollectionListResponse } from '@/types/collection';
+import type { CollectionFacetOption, CollectionListResponse, CollectionSort } from '@/types/collection';
 import type { ExecutionResult } from '@/types/execution';
 import type { LinkedVendorSummary } from '@/types/vendorLink';
 export { ExecutionResult } from '@/types/execution';
@@ -139,6 +139,32 @@ export interface ControlListCapabilities {
     can_view_vendor_contexts?: boolean;
 }
 
+export interface ControlFacets {
+    status?: CollectionFacetOption[];
+    process?: CollectionFacetOption[];
+    category?: CollectionFacetOption[];
+    monitoring_status?: CollectionFacetOption[];
+    department?: CollectionFacetOption[];
+}
+
+export interface ControlListParams {
+    offset?: number;
+    limit?: number;
+    search?: string;
+    lifecycle?: 'active' | 'archived' | 'all';
+    status?: ControlStatus;
+    process?: string;
+    category?: string;
+    monitoring_status?: ControlMonitoringStatus;
+    department_id?: number;
+    sort?: CollectionSort | null;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+    view?: string;
+    group_by?: string;
+    group_value?: string;
+}
+
 export type ControlCreate = Omit<
     Control,
     'id' | 'is_archived' | 'created_at' | 'updated_at' | 'control_owner' | 'department'
@@ -179,4 +205,6 @@ export interface ControlRiskLink {
     };
 }
 
-export type ControlListResponse = CollectionListResponse<ControlSummary, ControlListCapabilities>;
+export type ControlListResponse = Omit<CollectionListResponse<ControlSummary, ControlListCapabilities>, 'facets'> & {
+    facets?: ControlFacets | null;
+};

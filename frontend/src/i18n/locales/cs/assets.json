@@ -1,0 +1,261 @@
+{
+    "title": "Aktiva",
+    "subtitle": "ICT registr — ICT aktiva podporující business procesy",
+    "actions": {
+        "new": "Nové aktivum",
+        "edit": "Upravit aktivum",
+        "create": "Vytvořit aktivum",
+        "save": "Uložit změny",
+        "submit_for_approval": "Odeslat ke schválení",
+        "cancel": "Zrušit",
+        "restore": "Obnovit",
+        "retry": "Zkusit znovu",
+        "back_to_register": "Zpět na aktiva",
+        "export": "Export"
+    },
+    "filters": {
+        "search_placeholder": "Hledat podle názvu, typu nebo vlastníka...",
+        "all_statuses": "Všechny stavy"
+    },
+    "status": {
+        "active": "Aktivní",
+        "archived": "Archivované"
+    },
+    "columns": {
+        "name": "Aktivum",
+        "asset_type": "Typ aktiva",
+        "owner": "Vlastník",
+        "resulting_criticality": "Výsledná kritičnost",
+        "cif": "CIF",
+        "lifecycle_state": "Životní cyklus",
+        "status": "Stav"
+    },
+    "pending_change": {
+        "title": "Navrhovaná změna aktiva",
+        "badge": "Čekající změna",
+        "requested_by_at": "Požadavek zadal {{requester}} dne {{date}} v {{time}}",
+        "unknown_requester": "Neznámý uživatel",
+        "cancel": "Zrušit žádost",
+        "cancel_failed": "Čekající změnu aktiva se nepodařilo zrušit.",
+        "before": "Aktuální hodnoty",
+        "after": "Navrhované hodnoty",
+        "diff_restricted": "Navrhované hodnoty jsou skryté kvůli rozsahu vašich oprávnění."
+    },
+    "form": {
+        "sections": {
+            "identity": "Identifikace",
+            "ownership": "Vlastnictví a regulace",
+            "ratings": "Hodnota aktiva — CIAA (1–5)",
+            "impact_dependencies": "Business dopad a závislosti",
+            "lifecycle": "Životní cyklus a revize"
+        },
+        "name": "Název aktiva",
+        "asset_type": "Typ aktiva",
+        "asset_level": "Úroveň aktiva",
+        "description": "Popis / účel",
+        "physical_location": "Umístění (fyzické)",
+        "deployment_model": "Model nasazení",
+        "alternative_names": "Alternativní názvy",
+        "business_owner": "Business vlastník",
+        "owner_department": "Vlastnický útvar",
+        "ict_owner": "ICT vlastník",
+        "gdpr_relevance": "GDPR relevance",
+        "ai_relevance": "AI relevance",
+        "data_classification": "Klasifikace dat",
+        "confidentiality_rating": "Důvěrnost (1–5)",
+        "integrity_rating": "Integrita (1–5)",
+        "availability_rating": "Dostupnost (1–5)",
+        "authenticity_rating": "Autenticita (1–5)",
+        "impact_client": "Dopad na klienta (1–5)",
+        "impact_regulatory": "Regulatorní dopad (1–5)",
+        "substitutability_rating": "Nahraditelnost (1–5)",
+        "vendor_dependency_rating": "Závislost na dodavateli (1–5)",
+        "internet_exposed": "Vystaveno internetu",
+        "preliminary_criticality": "Předběžná kritičnost",
+        "lifecycle_state": "Stav / životní cyklus",
+        "standard_support_end_date": "Konec řádné podpory",
+        "extended_support_end_date": "Konec rozšířené podpory",
+        "custom_support_end_date": "Konec přizpůsobené podpory",
+        "last_legacy_risk_assessment_date": "Poslední posouzení rizika legacy",
+        "review_state": "Stav revize",
+        "notes": "Poznámka",
+        "request_reason": "Důvod žádosti",
+        "request_reason_help": "Změny chráněného Aktiva a všechny změny Business vlastníka, ICT vlastníka nebo vlastnícího oddělení se odesílají k nezávislému schválení. Vysvětlete důvod změny.",
+        "not_set": "Nevyplněno",
+        "ratings_note": "Hodnota aktiva (CIAA) se odvozuje jako maximum ze čtyř hodnocení.",
+        "business_owner_placeholder": "Vyberte Business vlastníka...",
+        "ict_owner_placeholder": "Vyberte ICT vlastníka...",
+        "owner_search": "Hledat aktivní uživatele...",
+        "department_placeholder": "Vyberte útvar...",
+        "department_search": "Hledat útvary...",
+        "owner_no_department": "Bez útvaru",
+        "owner_no_role": "Bez role",
+        "errors": {
+            "name_required": "Název aktiva je povinný.",
+            "request_reason_required": "U této řízené změny Aktiva je důvod žádosti povinný.",
+            "business_owner_required": "Business vlastník je povinný.",
+            "ict_owner_required": "ICT vlastník je povinný.",
+            "owning_department_required": "Vlastnický útvar je povinný.",
+            "save_failed": "Uložení aktiva se nezdařilo.",
+            "fix_fields": "Opravte prosím zvýrazněná pole.",
+            "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."
+        }
+    },
+    "detail": {
+        "derived_fields_note": "Hodnota aktiva, vážené skóre, výsledná kritičnost, CIF a SPOF jsou odvozovány registrem a nelze je zadat ručně.",
+        "ownership_pending": "Přiřazení odpovědnosti čeká na změnu v Governance. Běžné úpravy jsou do vyřešení zablokovány.",
+        "resolve_in_governance": "Vyřešit v Governance",
+        "unknown_owner": "Neznámý uživatel",
+        "unknown_department": "Neznámý útvar"
+    },
+    "values": {
+        "asset_type": {"application":"Aplikace","database":"Databáze","infrastructure":"Infrastruktura","network_component":"Síťový prvek","hardware":"Hardware","cloud_service":"Cloud služba","data_storage":"Datové úložiště","information_asset":"Informační aktivum","security_asset":"Bezpečnostní aktivum","bcm_dr_asset":"BCM/DR aktivum","other":"Jiné"},
+        "asset_level": {"primary":"Primární","supporting":"Podpůrné","infrastructure":"Infrastrukturní"},
+        "deployment_model": {"on_premise":"On-premise","cloud":"Cloud","saas":"SaaS","paas":"PaaS","iaas":"IaaS","hybrid":"Hybrid","externally_hosted":"Externě hostováno","not_assessed":"Neposouzeno","not_applicable":"Nerelevantní"},
+        "gdpr_relevance": {"yes":"Ano","no":"Ne","undetermined":"Neurčeno"},
+        "ai_relevance": {"yes":"Ano","no":"Ne","undetermined":"Neurčeno"},
+        "data_classification": {"no_data_not_applicable":"Bez dat / nerelevantní","public":"Veřejná data","internal":"Interní data","confidential":"Důvěrná data","highly_confidential_regulated":"Vysoce důvěrná / regulovaná data","not_assessed":"Neposouzeno"},
+        "internet_exposed": {"yes":"Ano","no":"Ne"},
+        "preliminary_criticality": {"low":"Nízká","medium":"Střední","high":"Vysoká","critical":"Kritická"},
+        "lifecycle_state": {"operational":"V provozu","in_development":"Ve vývoji","being_decommissioned":"Utlumováno","legacy":"Legacy","retired":"Vyřazeno"},
+        "review_state": {"review_required":"K revizi","reviewed":"Zkontrolováno"},
+        "unknown": "Neznámá hodnota"
+    },
+    "register": {
+        "views": {
+            "all": "Vše",
+            "department": "Podle útvaru",
+            "business_owner": "Podle Business vlastníka",
+            "type": "Podle typu",
+            "criticality": "Podle kritičnosti",
+            "process": "Podle procesu",
+            "vendor": "Podle dodavatele"
+        },
+        "filters": {
+            "add": "Filtry", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše",
+            "remove": "Odebrat filtr {{label}}", "lifecycle": "Životní cyklus", "department": "Vlastnický útvar",
+            "business_owner": "Business vlastník", "ict_owner": "ICT vlastník", "asset_type": "Typ aktiva",
+            "asset_level": "Úroveň aktiva", "deployment_model": "Model nasazení", "criticality": "Výsledná kritičnost",
+            "cif": "Podpora CIF", "legacy": "Legacy systém", "spof": "SPOF", "external_dependency": "Externí závislost",
+            "gdpr_relevance": "GDPR relevance", "ai_relevance": "AI relevance", "internet_exposed": "Vystavení internetu",
+            "data_classification": "Klasifikace dat", "completeness": "Úplnost", "lifecycle_state": "Stav životního cyklu",
+            "linked_process": "Propojený proces", "linked_asset": "Propojené aktivum", "linked_vendor": "Propojený dodavatel", "linked_risk": "Propojené riziko",
+            "search_options": "Hledat ve viditelných možnostech...", "search_options_for": "Hledat možnosti {{label}}", "no_options": "Žádné viditelné možnosti"
+        },
+        "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Všechny záznamy" },
+        "boolean": { "any": "Libovolné", "yes": "Ano", "no": "Ne" },
+        "groups": {
+            "unassigned": "Nepřiřazeno", "unclassified": "Bez klasifikace", "no_linked_process": "Bez propojeného procesu", "no_linked_vendor": "Bez propojeného dodavatele"
+        },
+        "export": { "title": "Export odpovídajících aktiv" }
+    },
+    "links": {
+        "add": "Propojit",
+        "remove": "Odebrat vazbu",
+        "spof": "SPOF",
+        "remove_confirm": {
+            "title": "Odebrat vazbu?",
+            "message": "Odebrat vazbu na {{name}}? Vazbu lze kdykoli znovu vytvořit."
+        },
+        "errors": {
+            "mutation_failed": "Úpravu vazby se nepodařilo uložit."
+        },
+        "processes": {
+            "title": "Podporované procesy",
+            "empty": "Zatím žádné vazby na procesy.",
+            "primary": "Primární proces",
+            "set_primary": "Nastavit jako primární",
+            "select_placeholder": "Vyberte proces...",
+            "significance": "Význam vazby",
+            "no_metadata": "Bez podrobností vazby"
+        },
+        "assets": {
+            "title": "Vazby na jiná aktiva",
+            "empty": "Zatím žádné vazby mezi aktivy.",
+            "depends_on": "Závisí na",
+            "supports": "Podporuje",
+            "direction_depends_on": "Toto aktivum závisí na...",
+            "direction_supports": "Toto aktivum podporuje...",
+            "select_placeholder": "Vyberte aktivum...",
+            "dependency_type": "Typ závislosti",
+            "no_metadata": "Bez podrobností vazby"
+        },
+        "vendors": {
+            "title": "Závislosti na dodavatelích",
+            "empty": "Zatím žádní propojení dodavatelé.",
+            "select_placeholder": "Vyberte dodavatele...",
+            "s_code": "ICT služba (S-kód)",
+            "role": "Role dodavatele",
+            "reliance": "Míra závislosti (u CIF)",
+            "contract_ref": "Ref. smlouvy",
+            "no_metadata": "Bez detailů vazby"
+        }
+    },
+    "messages": {
+        "archive_confirm": "Archivovat aktivum „{{assetName}}“? Zůstane v historii registru a lze jej obnovit."
+    },
+    "empty": {
+        "no_assets": "V registru zatím nejsou žádná aktiva.",
+        "no_results": "Vašemu hledání neodpovídají žádná aktiva."
+    },
+    "errors": {
+        "not_found": "Aktivum nenalezeno.",
+        "load_failed": "Načtení aktiv se nezdařilo.",
+        "archive_failed": "Archivace aktiva se nezdařila."
+    },
+    "derived": {
+        "values": {
+            "boolean": {"yes": "Ano", "no": "Ne"},
+            "article8": {"critical": "Kritické", "non_critical": "Nekritické"}
+        },
+        "title": "Odvozeno registrem",
+        "ciaa_value": "Hodnota aktiva (CIAA)",
+        "weighted_score": "Vážené skóre aktiva",
+        "score_criticality": "Kritičnost ze skóre",
+        "business_criticality": "Business kritičnost",
+        "resulting_criticality": "Výsledná kritičnost",
+        "article8_classification": "Klasifikace (čl. 8 odst. 1)",
+        "cif": "Podporuje CIF – odvozeno",
+        "cif_process_count": "Počet CIF procesů",
+        "cif_process_names": "Podporované CIF procesy",
+        "spof": "SPOF",
+        "external_dependency": "Externí závislost",
+        "legacy": "Legacy systém",
+        "primary_process_name": "Primární proces (název)",
+        "primary_process_criticality": "Kritičnost primárního procesu",
+        "inherited_impact_operations": "Provozní dopad (z procesu)",
+        "inherited_impact_financial": "Finanční dopad (z procesu)",
+        "inherited_rto_hours": "RTO děděné z procesu (hod)",
+        "linked_process_count": "Procesy (počet)",
+        "linked_vendor_count": "Dodavatelé (počet)",
+        "linked_asset_names": "Vazby na jiná aktiva (odvozeno)",
+        "inputs": {
+            "title": "Proč — signály h_rank za výslednou kritičností",
+            "rank_primary": "Třída primárního procesu (rank)",
+            "rank_score": "Třída z váženého skóre (rank)",
+            "rank_preliminary": "Předběžná kritičnost (rank)",
+            "rank_business": "Business kritičnost (rank)",
+            "rank_cif_floor": "CIF minimum (rank)",
+            "h_rank": "h_rank (MAX)",
+            "reference_date": "Referenční datum (P_RefDatum)",
+            "thresholds": "Prahy skóre (Nízká / Střední / Vysoká)",
+            "none": "Nic",
+            "missing": "Chybí pro úplnost"
+        },
+        "is_complete": "Hotovo?",
+        "complete": "Kompletní",
+        "incomplete": "Nekompletní"
+    },
+    "link_approval": {
+        "continue": "Pokračovat",
+        "reason_placeholder": "Vysvětlete důvod změny vazby Aktiva...",
+        "link_add": {
+            "title": "Požádat o přidání vazby Aktiva",
+            "message": "Uveďte důvod. Chráněné Aktivum si zachová schválené vazby do schválení této žádosti."
+        },
+        "link_remove": {
+            "title": "Požádat o odebrání vazby Aktiva",
+            "message": "Uveďte důvod. Existující vazba zůstane aktivní do schválení této žádosti."
+        }
+    }
+}

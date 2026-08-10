@@ -199,6 +199,15 @@ describe('LinkManagementDialog', () => {
         mockRestoreKRI.mockResolvedValue({});
     });
 
+    it('gives the existing-link removal control an accessible name', () => {
+        render(<LinkManagementDialog {...defaultProps({
+            showSearch: false,
+            existingLinks: [{ id: 4, control_id: 204, display_name: 'Existing control', effectiveness: 'medium' }],
+        })} />);
+
+        expect(screen.getByRole('button', { name: /unlink existing control/i })).toBeInTheDocument();
+    });
+
     afterEach(() => {
         vi.runOnlyPendingTimers();
         vi.useRealTimers();

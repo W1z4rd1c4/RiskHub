@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import date
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, User
+from app.models.key_risk_indicator import KRIFrequency
+from app.services._kri_history import clock
+from app.services._kri_history.periods import latest_closed_period_for_date
 from app.services._kri_history.service import KRIHistoryService
 from tests.backend.pytest.factories import create_test_kri, create_test_risk
 
@@ -31,8 +32,16 @@ async def test_kri_due_window_department_scope_matches_inline_baseline(
 ) -> None:
     other_department_id = test_department.id + 10_000
     service_payload = [
-        {"kri_id": 101, "department_id": test_department.id, "metric_name": "Visible KRI"},
-        {"kri_id": 202, "department_id": other_department_id, "metric_name": "Hidden KRI"},
+        {
+            "kri_id": 101,
+            "department_id": test_department.id,
+            "metric_name": "Visible KRI",
+        },
+        {
+            "kri_id": 202,
+            "department_id": other_department_id,
+            "metric_name": "Hidden KRI",
+        },
     ]
 
     async def fake_due_window(db):
@@ -70,6 +79,7 @@ async def test_kri_breaches_department_scope_matches_due_window_paths(
     test_user_employee: User,
     test_user_cro: User,
 ) -> None:
+    _, latest_period_end = latest_closed_period_for_date(clock.today(), KRIFrequency.quarterly.value)
     other_department = Department(name="KRI Scope Other Department", code="KRI-SCOPE-OTHER")
     db_session.add(other_department)
     await db_session.commit()
@@ -93,13 +103,21 @@ async def test_kri_breaches_department_scope_matches_due_window_paths(
         db_session,
         risk_id=own_risk.id,
         metric_name="Own Breached KRI",
-        overrides={"current_value": 150.0, "upper_limit": 100.0, "last_period_end": date(2026, 3, 31)},
+        overrides={
+            "current_value": 150.0,
+            "upper_limit": 100.0,
+            "last_period_end": latest_period_end,
+        },
     )
     other_kri = await create_test_kri(
         db_session,
         risk_id=other_risk.id,
         metric_name="Other Breached KRI",
-        overrides={"current_value": 150.0, "upper_limit": 100.0, "last_period_end": date(2026, 3, 31)},
+        overrides={
+            "current_value": 150.0,
+            "upper_limit": 100.0,
+            "last_period_end": latest_period_end,
+        },
     )
 
     async with client_factory(current_user=test_user_employee) as employee_client:

@@ -16,17 +16,24 @@
         "pending_privileged": "Čeká na privilegované schválení",
         "approved": "Schváleno",
         "rejected": "Zamítnuto",
-        "cancelled": "Zrušeno"
+        "cancelled": "Zrušeno",
+        "expired": "Vypršelo"
     },
     "request_types": {
         "create": "Vytvoření",
         "update": "Aktualizace",
-        "delete": "Smazání"
+        "delete": "Smazání",
+        "archive": "Archivace",
+        "link_add": "Přidání vazby",
+        "link_update": "Aktualizace vazby",
+        "link_remove": "Odebrání vazby"
     },
     "entity_types": {
         "risk": "Riziko",
         "control": "Kontrola",
-        "kri": "KRI"
+        "kri": "KRI",
+        "process": "Proces",
+        "threat": "Hrozba"
     },
     "fields": {
         "request_type": "Typ žádosti",
@@ -87,6 +94,97 @@
         "rejected_on": "Zamítnuto {{date}} v {{time}}",
         "by": "od",
         "re": "Ohledně:"
+    },
+    "governed": {
+        "business_changes": "Před změnou a po změně",
+        "derived_impact": "Dopad na odvozené hodnoty",
+        "impacted_resources": "Ovlivněné záznamy",
+        "not_set": "Nenastaveno",
+        "redacted_change": "Omezená změna",
+        "redacted_value": "Skryto kvůli rozsahu oprávnění",
+        "yes": "Ano",
+        "no": "Ne",
+    "derived": {
+      "cif": "CIF",
+      "criticality_class": "Třída kritičnosti",
+      "resulting_criticality": "Výsledná kritičnost",
+      "vendor_tier": "Úroveň dodavatele"
+    },
+    "relationship": {
+      "title": "Změna vazby",
+      "target": "Cílový záznam",
+      "type": "Typ vazby",
+      "action_label": "Akce",
+      "resource_type": {
+        "risk": "Riziko",
+        "asset": "Aktivum",
+        "vendor": "Dodavatel",
+        "process": "Proces",
+        "control": "Kontrola",
+        "kri": "KRI"
+      },
+      "action": {
+        "add": "Přidat vazbu",
+        "update": "Aktualizovat vazbu",
+        "remove": "Odebrat vazbu"
+      }
+    },
+    "mutation_kind": {
+            "process_create": "Vytvoření chráněného Procesu",
+            "process_edit": "Aktualizace chráněného Procesu",
+            "process_archive": "Archivace chráněného Procesu",
+            "process_link_risk_add": "Přidání vazby Procesu a Rizika",
+            "process_link_risk_remove": "Odebrání vazby Procesu a Rizika",
+            "process_link_asset_add": "Přidání vazby Procesu a Aktiva",
+            "process_link_asset_update": "Aktualizace vazby Procesu a Aktiva",
+            "process_link_asset_remove": "Odebrání vazby Procesu a Aktiva",
+            "process_link_vendor_add": "Přidání vazby Procesu a Dodavatele",
+            "process_link_vendor_remove": "Odebrání vazby Procesu a Dodavatele",
+            "asset_create": "Vytvoření chráněného Aktiva",
+            "asset_edit": "Aktualizace chráněného Aktiva",
+            "asset_archive": "Archivace chráněného Aktiva",
+            "asset_link_asset_add": "Přidání vazby Aktiva",
+            "asset_link_asset_remove": "Odebrání vazby Aktiva",
+            "asset_link_vendor_add": "Přidání vazby Aktiva a Dodavatele",
+            "asset_link_vendor_remove": "Odebrání vazby Aktiva a Dodavatele",
+            "asset_link_risk_add": "Přidání vazby Aktiva a Rizika",
+            "asset_link_risk_remove": "Odebrání vazby Aktiva a Rizika",
+            "vendor_create": "Vytvoření chráněného Dodavatele",
+            "vendor_edit": "Aktualizace chráněného Dodavatele",
+            "vendor_archive": "Archivace chráněného Dodavatele",
+            "vendor_contract_create": "Vytvoření smlouvy Dodavatele",
+            "vendor_contract_edit": "Aktualizace smlouvy Dodavatele",
+            "vendor_contract_archive": "Archivace smlouvy Dodavatele",
+            "vendor_sub_outsourcing_create": "Vytvoření sub-outsourcingu Dodavatele",
+            "vendor_sub_outsourcing_edit": "Aktualizace sub-outsourcingu Dodavatele",
+            "vendor_sub_outsourcing_archive": "Archivace sub-outsourcingu Dodavatele",
+            "vendor_link_asset_add": "Přidání vazby Dodavatele a Aktiva",
+            "vendor_link_asset_remove": "Odebrání vazby Dodavatele a Aktiva",
+            "vendor_link_process_add": "Přidání vazby Dodavatele a Procesu",
+            "vendor_link_process_remove": "Odebrání vazby Dodavatele a Procesu",
+            "vendor_link_risk_add": "Přidání vazby Dodavatele a Rizika",
+            "vendor_link_risk_remove": "Odebrání vazby Dodavatele a Rizika",
+            "vendor_link_control_add": "Přidání vazby Dodavatele a Kontroly",
+            "vendor_link_control_remove": "Odebrání vazby Dodavatele a Kontroly",
+            "vendor_link_kri_add": "Přidání vazby Dodavatele a KRI",
+            "vendor_link_kri_remove": "Odebrání vazby Dodavatele a KRI",
+            "threat_edit": "Aktualizace správce chráněné hrozby"
+        },
+        "link_fields": {
+            "linked": "Propojeno",
+            "related_resource": "Související záznam",
+            "significance": "Význam vazby",
+            "spof": "Jediný bod selhání",
+            "is_primary": "Primární vazba",
+            "note": "Poznámka k vazbě",
+            "direct_service_description": "Popis přímé služby",
+            "archived": "Archivováno",
+            "dependency_type": "Typ závislosti",
+            "vendor_role": "Role dodavatele",
+            "ict_service_code": "Kód ICT služby",
+            "contract_reference": "Reference smlouvy",
+            "reliance": "Míra závislosti"
+        }
     },
     "notifications": {
         "submitted_for_approval": "Odesláno ke schválení",

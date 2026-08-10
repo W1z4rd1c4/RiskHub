@@ -256,6 +256,23 @@ def test_resolve_approval_privilege_tier_canonical() -> None:
     assert hasattr(policy, "ApprovalPrivilegeTier")
 
 
+def test_fixed_vendor_policy_uses_canonical_approval_authority() -> None:
+    """Vendor governance must not create a second direct permission seam."""
+    import ast
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[3]
+        / "backend/app/services/_governed_mutations/fixed_vendor_policy.py"
+    )
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    referenced_names = {
+        node.id for node in ast.walk(tree) if isinstance(node, ast.Name)
+    }
+    assert "can_resolve_approvals" not in referenced_names
+    assert "approval_privilege_tier" in referenced_names
+
+
 def test_control_execution_split_modules_own_link_governance() -> None:
     assert {
         "load_control_for_link",
@@ -341,10 +358,16 @@ def test_identity_access_lifecycle_split_modules_own_decisions() -> None:
         "import_directory_identity",
         "resolve_role_for_directory_import",
     } <= _defined_function_names("backend/app/services/_identity_access_lifecycle/directory_import.py")
+    assert "update_user_profile" in _defined_function_names(
+        "backend/app/services/_identity_access_lifecycle/profile_updates.py"
+    )
     assert {
-        "update_user_profile",
         "flag_orphaned_items_for_deactivation",
-    } <= _defined_function_names("backend/app/services/_identity_access_lifecycle/profile_updates.py")
+        "flag_orphaned_threats_for_ciso_role_loss",
+        "role_change_removes_ciso_stewardship",
+    } <= _defined_function_names(
+        "backend/app/services/_identity_access_lifecycle/ciso_stewardship.py"
+    )
     assert {
         "update_access_profile",
         "normalize_access_scope_update",
@@ -808,7 +831,6 @@ def test_collection_contracts_have_one_canonical_definition() -> None:
     duplicate_contracts = []
     for relative_path in (
         "backend/app/api/v1/endpoints/_collection.py",
-        "backend/app/api/v1/endpoints/_collection_execution.py",
         "backend/app/services/_collection_contracts.py",
     ):
         class_names = _defined_class_names(relative_path)

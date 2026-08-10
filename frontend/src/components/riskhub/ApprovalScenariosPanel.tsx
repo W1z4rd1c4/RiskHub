@@ -8,6 +8,7 @@ import {
     APPROVAL_SCENARIO_APPROVER_ROLES,
     type ApprovalScenario,
     type ApprovalScenarioApproverRole,
+    type ApprovalScenarioFixedPolicyDefinition,
     type ApprovalScenarioUpdate,
 } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,18 @@ import { useRiskHubConfigResource } from './useRiskHubConfigResource';
 // Special dynamic role entry for risk owner (not a system role in roles table)
 const SPECIAL_ROLE_VALUES = ['risk_owner'] as const;
 const APPROVER_ROLE_CODES = new Set<string>(APPROVAL_SCENARIO_APPROVER_ROLES);
+const FIXED_PROTECTED_SCENARIO_KEYS = new Set([
+    'protected_process_edit',
+    'protected_asset_edit',
+    'protected_vendor_edit',
+    'accountability_reassignment',
+]);
+const FIXED_PROTECTED_APPROVER_ROLES = new Set<string>(['risk_manager', 'cro']);
+const LEGACY_PROTECTED_PROCESS_FIXED_POLICY: ApprovalScenarioFixedPolicyDefinition = {
+    threshold: 'current_or_proposed_cif_yes',
+    covered_actions: ['edit'],
+    allow_self_approval: false,
+};
 
 function isApprovalScenarioApproverRole(role: string): role is ApprovalScenarioApproverRole {
     return APPROVER_ROLE_CODES.has(role);
@@ -46,11 +59,22 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
     const [saving, setSaving] = useState(false);
     const [showRoleDropdown, setShowRoleDropdown] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const isFixedProtectedScenario = scenario != null && FIXED_PROTECTED_SCENARIO_KEYS.has(scenario.key);
+    const fixedPolicyDefinition = isFixedProtectedScenario && scenario?.fixed_policy
+        ? scenario.fixed_policy_definition ?? LEGACY_PROTECTED_PROCESS_FIXED_POLICY
+        : null;
+    const selectableRoles = isFixedProtectedScenario
+        ? availableRoles.filter((role) => FIXED_PROTECTED_APPROVER_ROLES.has(role.value))
+        : availableRoles;
 
     useEffect(() => {
         if (isOpen && scenario) {
             setRequiresApproval(scenario.requires_approval);
-            setSelectedRoles(scenario.approver_roles);
+            setSelectedRoles(
+                FIXED_PROTECTED_SCENARIO_KEYS.has(scenario.key)
+                    ? scenario.approver_roles.filter((role) => FIXED_PROTECTED_APPROVER_ROLES.has(role))
+                    : scenario.approver_roles,
+            );
             setShowRoleDropdown(false);
             setErrorKey(null);
         }
@@ -71,7 +95,9 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
         try {
             await onSave({
                 requires_approval: requiresApproval,
-                approver_roles: selectedRoles.filter(isApprovalScenarioApproverRole),
+                approver_roles: selectedRoles
+                    .filter(isApprovalScenarioApproverRole)
+                    .filter((role) => !isFixedProtectedScenario || FIXED_PROTECTED_APPROVER_ROLES.has(role)),
             });
             onClose();
         } catch (error: unknown) {
@@ -90,12 +116,15 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
     if (!isOpen || !scenario) return null;
 
     return (
-        <RiskHubModalFrame title={t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}>
+        <RiskHubModalFrame onClose={onClose} title={t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="flex items-center justify-between">
                         <span className="text-slate-300">{t('admin:approval_scenarios.requires_approval')}</span>
                         <button
                             type="button"
+                            role="switch"
+                            aria-checked={requiresApproval}
+                            aria-label={t('admin:approval_scenarios.requires_approval')}
                             onClick={() => setRequiresApproval(!requiresApproval)}
                             className={cn(
                                 "w-12 h-6 rounded-full transition-colors relative",
@@ -111,9 +140,57 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                         </button>
                     </div>
 
+                    {fixedPolicyDefinition ? (
+                        <div
+                            className="rounded-xl border border-white/10 bg-white/5 p-4"
+                            data-testid={
+                                scenario.key === 'accountability_reassignment'
+                                    ? 'accountability-reassignment-fixed-policy'
+                                    : scenario.key === 'protected_vendor_edit'
+                                        ? 'protected-vendor-fixed-policy'
+                                        : 'protected-process-fixed-policy'
+                            }
+                        >
+                            <h3 className="text-sm font-bold text-white">
+                                {t('admin:approval_scenarios.fixed_policy.title')}
+                            </h3>
+                            <p className="mt-1 text-xs text-slate-500">
+                                {t('admin:approval_scenarios.fixed_policy.immutable_help')}
+                            </p>
+                            <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                                <div>
+                                    <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        {t('admin:approval_scenarios.fixed_policy.threshold')}
+                                    </dt>
+                                    <dd className="mt-1 text-slate-200">
+                                        {t(`admin:approval_scenarios.fixed_policy.triggers.${fixedPolicyDefinition.threshold}`)}
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        {t('admin:approval_scenarios.fixed_policy.actions')}
+                                    </dt>
+                                    <dd className="mt-1 text-slate-200">
+                                        {fixedPolicyDefinition.covered_actions
+                                            .map((action) => t(`admin:approval_scenarios.fixed_policy.covered_action_values.${action}`))
+                                            .join(', ')}
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        {t('admin:approval_scenarios.fixed_policy.separation')}
+                                    </dt>
+                                    <dd className="mt-1 text-slate-200">
+                                        {t(`admin:approval_scenarios.fixed_policy.self_approval.${String(fixedPolicyDefinition.allow_self_approval)}`)}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+                    ) : null}
+
                     {requiresApproval && (
                         <div className="space-y-2">
-                            <label className="text-white font-medium">{t('admin:approval_scenarios.approver_roles')}</label>
+                            <span className="block text-white font-medium">{t('admin:approval_scenarios.approver_roles')}</span>
                             {rolesLoading ? (
                                 <div className="text-slate-400 text-sm py-2">{t('common:loading.roles')}</div>
                             ) : (
@@ -122,6 +199,8 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                                         <button
                                             type="button"
                                             onClick={() => setShowRoleDropdown(!showRoleDropdown)}
+                                            aria-expanded={showRoleDropdown}
+                                            aria-haspopup="listbox"
                                             className="w-full flex items-center justify-between px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-left"
                                         >
                                             <span className="text-slate-300">
@@ -134,7 +213,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
 
                                         {showRoleDropdown && (
                                             <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                                                {availableRoles.map(role => (
+                                                {selectableRoles.map(role => (
                                                     <button
                                                         key={role.value}
                                                         type="button"
@@ -163,7 +242,8 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                                                     onClick={() => handleToggleRole(role)}
                                                     className="hover:text-white"
                                                 >
-                                                    <X className="h-3 w-3" />
+                                                    <span className="sr-only">{t('common:actions.delete')} {getRoleLabel(role)}</span>
+                                                    <X className="h-3 w-3" aria-hidden="true" />
                                                 </button>
                                             </span>
                                         ))}
@@ -175,7 +255,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
 
                     <RiskHubFieldError errorKey={errorKey} />
                     <RiskHubModalActions
-                        disableSave={rolesLoading}
+                        disableSave={rolesLoading || (requiresApproval && selectedRoles.length === 0)}
                         onCancel={onClose}
                         saving={saving}
                     />
@@ -188,6 +268,18 @@ export function ApprovalScenariosPanel() {
     const { t } = useTranslation(['admin', 'common']);
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canUpdateScenarios = riskHubCapabilityEnabled(riskHubCapabilities?.approval_scenarios, 'can_update');
+
+    const fixedPolicySummary = (scenario: ApprovalScenario): string | null => {
+        if (!scenario.fixed_policy) return null;
+        const policy = scenario.fixed_policy_definition ?? LEGACY_PROTECTED_PROCESS_FIXED_POLICY;
+        return [
+            t(`admin:approval_scenarios.fixed_policy.triggers.${policy.threshold}`),
+            ...policy.covered_actions.map((action) =>
+                t(`admin:approval_scenarios.fixed_policy.covered_action_values.${action}`),
+            ),
+            t(`admin:approval_scenarios.fixed_policy.self_approval.${String(policy.allow_self_approval)}`),
+        ].join(' · ');
+    };
 
     const scenariosResource = useRiskHubConfigResource<ApprovalScenario, ApprovalScenarioUpdate, ApprovalScenarioUpdate>({
         queryKey: riskHubKeys.approvalScenarios(),
@@ -273,6 +365,11 @@ export function ApprovalScenariosPanel() {
                                 </td>
                                 <td className="py-3 px-4 text-slate-400 text-sm max-w-xs">
                                     {scenario.description}
+                                    {fixedPolicySummary(scenario) ? (
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {fixedPolicySummary(scenario)}
+                                        </p>
+                                    ) : null}
                                 </td>
                                 <td className="py-3 px-4 text-center">
                                     {scenario.requires_approval ? (

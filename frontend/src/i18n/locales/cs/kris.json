@@ -159,8 +159,11 @@
     "mismatch_dialog": {
       "title": "Vybrané riziko není navázáno na tohoto dodavatele",
       "message": "Před vytvořením KRI můžete riziko navázat na dodavatele, pokračovat bez propojení rizika, nebo akci zrušit a vybrat jiné riziko.",
+      "protected_message": "KRI zatím nebylo vytvořeno. Nejprve můžete požádat o schválení navázání nadřazeného Rizika na tohoto chráněného Dodavatele, nebo vytvořit KRI a požádat o schválení jeho vazby na Dodavatele beze změny nadřazeného Rizika.",
       "link_risk_and_continue": "Navázat riziko a pokračovat",
+      "request_parent_risk_approval": "Požádat o schválení vazby nadřazeného Rizika",
       "continue_without_linking": "Pokračovat bez navázání rizika",
+      "create_and_request_vendor_link": "Vytvořit KRI a požádat o schválení vazby na Dodavatele",
       "cancel": "Zrušit"
     }
   },
@@ -253,6 +256,26 @@
     "entries_count": "{{count}} záznamů",
     "compare_periods": "Porovnat období",
     "need_two_entries_compare": "Pro porovnání vyberte alespoň dva záznamy."
+  },
+  "register": {
+    "filters": {
+      "lifecycle": "Životní cyklus",
+      "add": "Přidat filtr",
+      "active_count": "Aktivní filtry: {{count}}",
+      "clear_all": "Vymazat vše",
+      "remove": "Odebrat {{label}}",
+      "frequency": "Frekvence",
+      "department": "Oddělení",
+      "reporting_owner": "Vlastník reportování"
+    },
+    "lifecycle": {
+      "active": "Aktivní",
+      "archived": "Archivované",
+      "all": "Vše"
+    },
+    "export": {
+      "title": "Export filtrovaných KRI"
+    }
   },
   "delete_dialog": {
     "title": "Smazat KRI",

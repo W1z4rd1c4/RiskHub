@@ -65,7 +65,7 @@ describe('ControlsPage archived visibility', () => {
         clearBootstrapSession();
     });
 
-    it('hides archived controls by default and shows them when status filter is set to Archived', async () => {
+    it('hides archived controls by default and shows them when lifecycle is set to Archived', async () => {
         const user = makeUser();
 
         const activeControl = {
@@ -92,9 +92,7 @@ describe('ControlsPage archived visibility', () => {
             http.get('*/api/v1/controls', ({ request }) => {
                 const url = new URL(request.url);
                 const filters = JSON.parse(url.searchParams.get('filters') ?? '{}') as Record<string, unknown>;
-                const includeArchived = filters.include_archived === true;
-                const status = filters.status;
-                const items = includeArchived || status === 'archived' ? [archivedControl] : [activeControl];
+                const items = filters.lifecycle === 'archived' ? [archivedControl] : [activeControl];
                 return HttpResponse.json({
                     items,
                     total: items.length,
@@ -110,8 +108,8 @@ describe('ControlsPage archived visibility', () => {
         expect(screen.queryByText('Archived Control')).not.toBeInTheDocument();
 
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('controls-status-filter-trigger'));
-        await uiUser.click(screen.getByTestId('controls-status-filter-option-archived'));
+        await uiUser.click(screen.getByTestId('controls-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('controls-lifecycle-filter-option-archived'));
 
         await screen.findByText('Archived Control');
     });

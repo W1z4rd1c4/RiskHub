@@ -9,13 +9,16 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.asset import Asset
     from app.models.control import Control
     from app.models.control_execution import ControlExecution
     from app.models.department import Department
     from app.models.notification import Notification
+    from app.models.process import Process
     from app.models.refresh_token import RefreshToken
     from app.models.risk import Risk
     from app.models.role import Role
+    from app.models.threat import Threat
     from app.models.vendor import Vendor
 
 
@@ -109,6 +112,22 @@ class User(Base):
 
     # Risk relationships
     owned_risks: Mapped[list["Risk"]] = relationship("Risk", foreign_keys="Risk.owner_id", back_populates="owner")
+    stewarded_threats: Mapped[list["Threat"]] = relationship(
+        "Threat", foreign_keys="Threat.threat_steward_user_id", back_populates="threat_steward"
+    )
+    owned_processes: Mapped[list["Process"]] = relationship(
+        "Process", foreign_keys="Process.process_owner_user_id", back_populates="process_owner"
+    )
+    business_owned_assets: Mapped[list["Asset"]] = relationship(
+        "Asset",
+        foreign_keys="Asset.business_owner_user_id",
+        back_populates="business_owner",
+    )
+    ict_owned_assets: Mapped[list["Asset"]] = relationship(
+        "Asset",
+        foreign_keys="Asset.ict_owner_user_id",
+        back_populates="ict_owner",
+    )
 
     # Vendor relationships (Phase 18)
     owned_vendors: Mapped[list["Vendor"]] = relationship(

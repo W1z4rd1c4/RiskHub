@@ -37,14 +37,37 @@ describe('useVendorLinkedEntities', () => {
         expect(adapter.fetch).toHaveBeenCalledWith(7);
     });
 
-    it('refreshes after link', async () => {
+    it('refreshes after link and reports a direct success as null', async () => {
         const { result } = renderHook(() => useVendorLinkedEntities(7, adapter));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         await act(async () => {
-            await result.current.link(99);
+            expect(await result.current.link(99)).toBeNull();
         });
-        expect(adapter.link).toHaveBeenCalledWith(7, 99);
+        expect(adapter.link).toHaveBeenCalledWith(7, 99, undefined);
         expect(adapter.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('skips the refresh when a governed mutation is queued (#100)', async () => {
+        const queuedAdapter: VendorLinkedEntitiesAdapter<FakeItem> = {
+            ...adapter,
+            link: vi.fn(async () => ({
+                status: 'approval_required',
+                message: 'Queued',
+                approval_id: 186,
+                action_type: 'edit',
+                pending_fields: ['relationship'],
+                proposal_id: 'proposal-186',
+                proposal_version: 1,
+            })),
+        };
+        const { result } = renderHook(() => useVendorLinkedEntities(7, queuedAdapter));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        await act(async () => {
+            expect(await result.current.link(99, 'Material register change'))
+                .toMatchObject({ status: 'approval_required', approval_id: 186 });
+        });
+        expect(queuedAdapter.link).toHaveBeenCalledWith(7, 99, 'Material register change');
+        expect(queuedAdapter.fetch).toHaveBeenCalledTimes(1);
     });
 
     it('exposes error state when fetch throws', async () => {

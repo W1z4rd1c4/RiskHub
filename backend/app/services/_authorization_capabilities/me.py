@@ -13,6 +13,11 @@ _RESOURCE_PERMISSION_CHECKS: tuple[tuple[str, str], ...] = (
     ("controls", "read"),
     ("issues", "read"),
     ("vendors", "read"),
+    ("vendor_contracts", "read"),
+    ("processes", "read"),
+    ("assets", "read"),
+    ("threats", "read"),
+    ("ict_committee", "read"),
     ("departments", "read"),
     ("users", "read"),
     ("users", "write"),
@@ -43,9 +48,10 @@ def build_me_capabilities(user: User) -> MeCapabilities:
     }
 
     can_view_user_directory = resource_permissions["users:read"]
-    can_view_access_users = has_global_scope
+    can_view_access_users = has_global_scope and resource_permissions["users:read"]
     can_view_department_access_users = is_department_head
     can_view_users_route = can_view_access_users or can_view_department_access_users or can_view_user_directory
+    can_manage_access = bool(can_view_access_users and role_name in {RoleType.ADMIN.value, RoleType.CRO.value})
     can_view_department_access = can_view_department_access_users or can_view_access_users
 
     return MeCapabilities(
@@ -53,7 +59,8 @@ def build_me_capabilities(user: User) -> MeCapabilities:
         can_view_access_users=can_view_access_users,
         can_view_department_access_users=can_view_department_access_users,
         can_view_users_route=can_view_users_route,
-        can_manage_access=can_view_access_users,
+        can_view_approvals=not is_platform_admin,
+        can_manage_access=can_manage_access,
         can_view_department_access=can_view_department_access,
         can_view_admin_console=is_platform_admin,
         can_view_riskhub=role_name == RoleType.CRO.value,

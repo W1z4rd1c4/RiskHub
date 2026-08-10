@@ -87,9 +87,21 @@ export interface ApprovalScenario {
     description: string;
     requires_approval: boolean;
     approver_roles: string[];
+    fixed_policy: boolean;
+    fixed_policy_definition?: ApprovalScenarioFixedPolicyDefinition | null;
     updated_at: string;
     updated_by_name: string | null;
     capabilities?: ApprovalScenarioCapabilities | null;
+}
+
+export interface ApprovalScenarioFixedPolicyDefinition {
+    threshold:
+        | 'current_or_proposed_cif_yes'
+        | 'current_or_proposed_cif_yes_or_resulting_criticality_critical'
+        | 'current_or_proposed_tier_critical_or_significant'
+        | 'accountable_user_or_owning_department_change';
+    covered_actions: ('create' | 'edit' | 'link' | 'archive')[];
+    allow_self_approval: false;
 }
 
 export interface ApprovalScenarioCapabilities {

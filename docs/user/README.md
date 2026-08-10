@@ -1,7 +1,7 @@
 ---
 title: RiskHub User Manual
 version: "2.4"
-last_updated: "2026-04-25"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
 summary: "Production-grade manuals for day-to-day RiskHub usage: navigation, permissions, risk/control/KRI workflows, approvals, exports, and troubleshooting."
@@ -50,6 +50,9 @@ Use your first week to build habits rather than speed. When you open a record, r
 - [KRIs](./kris.md): define indicators, submit values, and review warnings.
 - [Issues](./issues.md): track remediation, exceptions, and closure evidence.
 - [Vendors](./vendors.md): manage third-party context and linked work.
+- [Processes](./processes.md): govern Process Owners, Owning Departments, continuity inputs, and derived criticality.
+- [Assets](./assets.md): manage Business and ICT Owners, Owning Departments, canonical classifications, and derived Asset results.
+- [Threats](./threats.md): maintain the global CISO-stewarded Threat catalog and Risk links.
 - [Departments](./departments.md): review exposure by organizational area.
 - [Governance](./governance.md): resolve missing ownership or context.
 - [Access Management](./access-management.md): review users, directory status, and allowed lifecycle actions.
@@ -61,6 +64,20 @@ Use your first week to build habits rather than speed. When you open a record, r
 If you cannot see a page, start with [Getting Started](./getting-started.md) and [Access Management](./access-management.md). If your change did not apply, read [Notifications and Approvals](./notifications.md). If you need evidence, use [Dashboard](./dashboard.md), [Activity Log](./activity-log.md), and the manual for the affected record type.
 
 For third-party work, start with [Vendors](./vendors.md), then follow links to risks, controls, KRIs, or issues. For questionnaire work, start with [Risk Hub](./risk-hub.md) if you send or review questionnaires, and [Managing Risks](./risks.md) if you answer from a risk detail page.
+
+The Process, Asset, Threat, Vendor, Risk, Control, KRI, and Issue registers share
+one working pattern. Search, view, sort, filters, and a selected group are kept
+in the URL, so reload, copied links, and browser Back/Forward restore the same
+working set when the recipient has equivalent access. Changing that working set
+returns pagination to page 1. Filter choices, counts, groups, rows, and actions
+are always limited by server scope and capabilities; a missing value or action
+can therefore be an access result rather than missing data.
+
+Use **Current view** export for all matching rows in the live filtered register,
+not only the visible page. Risk, Control, KRI, and Issue also offer a separate
+historical snapshot for as-of evidence. Lifecycle and pending approval remain
+separate: an approved record can stay Active while a proposed change waits for
+review, and Archive or Restore appears only when the row capability allows it.
 
 ## How Your Role Affects What You See
 

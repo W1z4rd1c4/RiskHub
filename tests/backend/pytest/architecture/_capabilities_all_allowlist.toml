@@ -11,6 +11,14 @@ name = "approval_scenario_capabilities"
 expires_at = "2026-09-01"
 
 [[public_names]]
+name = "asset_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "asset_vendor_link_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
 name = "build_me_capabilities"
 expires_at = "2026-09-01"
 
@@ -47,11 +55,35 @@ name = "preload_issue_capabilities"
 expires_at = "2026-09-01"
 
 [[public_names]]
+name = "process_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "process_vendor_link_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "risk_asset_link_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
 name = "risk_capabilities"
 expires_at = "2026-09-01"
 
 [[public_names]]
+name = "risk_process_link_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
 name = "risk_type_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "threat_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "threat_risk_link_capabilities"
 expires_at = "2026-09-01"
 
 [[public_names]]
@@ -64,4 +96,12 @@ expires_at = "2026-09-01"
 
 [[public_names]]
 name = "vendor_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "vendor_contract_capabilities"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "vendor_sub_outsourcing_capabilities"
 expires_at = "2026-09-01"

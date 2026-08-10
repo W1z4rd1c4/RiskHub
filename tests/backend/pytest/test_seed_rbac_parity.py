@@ -12,9 +12,10 @@ from app.db.rbac_seed_contract import (
     RBAC_ROLES,
     expand_permission_keys,
 )
+from app.models import Department, RolePermission, User
 from app.models import Role as RoleModel
-from app.models import RolePermission
-from scripts import seed_demo
+from app.models.user import AccessScope
+from scripts import e2e_mappings, seed_demo
 from scripts.add_granular_permissions import TARGET_PERMISSIONS
 
 
@@ -32,6 +33,24 @@ def test_demo_seed_role_permissions_match_canonical_contract() -> None:
         demo_expanded = expand_permission_keys(demo_permission_keys)
         canonical_expanded = expand_permission_keys(canonical_permission_keys)
         assert demo_expanded == canonical_expanded
+
+
+def test_all_ten_demo_personas_are_required_e2e_mappings() -> None:
+    canonical_demo_emails = tuple(user["email"] for user in app_seed.TEST_USERS)
+
+    assert canonical_demo_emails == (
+        "admin@riskhub.local",
+        "cro@riskhub.local",
+        "risk.manager@riskhub.local",
+        "ops.head@riskhub.local",
+        "fin.head@riskhub.local",
+        "it.head@riskhub.local",
+        "ops.analyst@riskhub.local",
+        "fin.analyst@riskhub.local",
+        "it.analyst@riskhub.local",
+        "ciso@riskhub.local",
+    )
+    assert e2e_mappings.REQUIRED_USER_EMAILS == canonical_demo_emails
 
 
 def test_controls_execute_contract_and_convergence_mapping() -> None:
@@ -55,6 +74,28 @@ def test_controls_execute_contract_and_convergence_mapping() -> None:
 
     assert set(TARGET_PERMISSIONS["controls:execute"]["roles_to_grant"]) == roles_with_controls_execute
     assert "admin" not in roles_with_controls_execute
+
+
+@pytest.mark.asyncio
+async def test_demo_seed_reconciles_new_ciso_persona_idempotently(
+    db_session: AsyncSession,
+) -> None:
+    ciso_role = RoleModel(name="ciso", display_name="Chief Information Security Officer")
+    it_department = Department(name="Information Technology", code="IT")
+    db_session.add_all([ciso_role, it_department])
+    await db_session.flush()
+    ciso_row = next(row for row in app_seed.TEST_USERS if row["email"] == "ciso@riskhub.local")
+
+    assert await app_seed.seed_missing_demo_users(db_session, [ciso_row]) == 1
+    assert await app_seed.seed_missing_demo_users(db_session, [ciso_row]) == 0
+
+    ciso = (
+        await db_session.execute(select(User).where(User.email == "ciso@riskhub.local"))
+    ).scalar_one()
+    assert ciso.role_id == ciso_role.id
+    assert ciso.department_id == it_department.id
+    assert ciso.access_scope == AccessScope.GLOBAL
+    assert ciso.is_active is True
 
 
 @pytest.mark.asyncio

@@ -49,6 +49,7 @@ Use this document as policy truth. Use the guides below for operational workflow
 | `ceo` | CEO | C-Suite | ✅ Privileged | ❌ | ❌ |
 | `cfo` | CFO | C-Suite | ✅ Privileged | ❌ | ❌ |
 | `cro` | CRO | C-Suite | ✅ Privileged | ❌ | ✅ **Only CRO** |
+| `ciso` | Chief Information Security Officer | C-Suite | ✅ Threat stewardship and contextual read | ❌ | ❌ |
 | `coo` | COO | C-Suite | ❌ | ❌ | ❌ |
 | `risk_manager` | Risk Manager | Governance | ✅ Privileged | ❌ | ❌ |
 | `compliance` | Compliance | Governance | ✅ Privileged | ❌ | ❌ |
@@ -63,6 +64,8 @@ Use this document as policy truth. Use the guides below for operational workflow
 
 > [!NOTE]
 > Some deployments do not use a separate `legal` role. `CONTROL_OWNER` is reserved for a future granular control ownership workflow and is not seeded as an active role today. Vendor contract governance permissions are reserved for a future DORA contract-governance workflow.
+
+The CISO role is deliberately narrow: it owns the full Threat lifecycle and Threat-to-Risk links, with read-only context across related ICT registers, reports, the committee view, Departments, and activity history. It has no User/platform administration, approval authority, or write access to non-Threat registers. Because Threat Steward eligibility depends on this canonical role, its permission contract is protected from runtime role editing or deletion. Every new Threat names one active CISO as Threat Steward. CISO deactivation or role loss preserves the former assignment, raises an orphan-governance record, and requires explicit reassignment to another active CISO.
 
 ### 1.2 Access Scopes
 
@@ -215,9 +218,10 @@ Rules:
 - KRIs can also be linked to one or more vendors as secondary monitoring context
 - Vendor linkage does **not** replace the required `risk_id`; every KRI must still belong to exactly one parent risk
 - Vendor-context KRI create uses the same vendor-link authorization boundary as other vendor link mutations: vendor read + KRI/risk read for visibility, vendor write/owner rules for link changes
-- KRI create/update accepts the full desired vendor set via `linked_vendor_ids`; client-side follow-up reconciliation is not authoritative
-- Vendor-context KRI create may also request `ensure_parent_risk_vendor_ids` to create missing vendor-risk links in the same transaction before the KRI is saved
-- Vendor assignment failures roll back the whole KRI create/update request; there is no partial “created but not linked” KRI state
+- Direct KRI create/update accepts the full desired vendor set via `linked_vendor_ids`; client-side follow-up reconciliation is not authoritative
+- Direct vendor-context KRI create may also request `ensure_parent_risk_vendor_ids` to create missing vendor-risk links atomically before the KRI is saved
+- For a protected Vendor, the KRI is created without that Vendor and the Vendor link is submitted afterward through the governed relationship endpoint. If its parent Risk is not linked, the user may instead request that governed link first; a queued request stops before KRI creation, while a direct result continues the normal create flow. The alternative creates the KRI and requests its Vendor link while leaving the parent Risk unchanged.
+- Direct vendor assignment failures roll back the whole KRI create/update request; a protected post-create Vendor-link request is a separate boundary, so the KRI can remain created while its relationship awaits approval or if that link request fails
 
 **Canonical Monitoring Status:**
 - KRIs expose a derived `monitoring_status` for detail views, list filters, stats, and exports.
@@ -278,12 +282,11 @@ Rules:
     │  USERS  │         │  RISKS   │         │ CONTROLS│
     │ dept_id │         │ dept_id  │         │ dept_id │
     └─────────┘         └──────────┘         └─────────┘
-                              │
-                              ▼
-                        ┌─────────┐
-                        │  KRIs   │
-                        │ risk_id │ (inherits dept from Risk)
-                        └─────────┘
+         │                    │
+         │                    └──────────────► KRIs (through Risk)
+         │
+         ├──────────────► ISSUES / VENDORS (department_id)
+         └──────────────► PROCESSES / ASSETS (owning_department_id)
 ```
 
 ### 3.2 Department Access Rules
@@ -297,6 +300,10 @@ Rules:
 **Special Cases:**
 - **Unassigned items** (`department_id = NULL`): Only GLOBAL users can access
 - **Cross-department ownership**: See Section 7
+- **Department detail workspace**: exactly ten tabs are exposed: Overview, Risks, Controls, KRIs, Issues, Processes, Assets, Vendors, Users, and Activity. Threats remain global and are not a Department tab.
+- **Locked drill-down scope**: the eight entity tabs reuse their canonical top-level register controllers, filters, grouped views, sorting, pagination, capabilities, archive/pending presentation, and filtered export. The Department constraint is merged after user-controlled URL filters and cannot be cleared or replaced.
+- **Canonical membership**: Process and Asset membership uses `owning_department_id`; KRI membership uses its Risk's `department_id`; the other entity tabs use their direct canonical Department relationship. An Accountable owner's home Department never changes record membership.
+- **Non-leakage**: rows, totals, facets, group counts, linked summaries, and exports are calculated from the same permission-visible, Department-constrained universe. Pending creations remain excluded from operational counts and standard exports.
 
 ---
 
@@ -315,7 +322,7 @@ Rules:
 | `controls:approve` | **Reserved** for future granular control approval workflow | Reserved |
 | `controls:execute` | Log control executions | CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Department Head, Employee |
 | `kri:submit` | Submit KRI values | CRO, Risk Manager, Department Head, KRI Reporting Owner, Risk Owner fallback |
-| `approvals:read` | View approval queue | All |
+| Approval queue read (no standalone permission) | Requester, primary approver, matching scenario approver, or `approvals:write` resolver | Identity/scenario scoped |
 | `approvals:write` | Approve/reject requests | CRO, Risk Manager |
 | `users:read` | View `/users` directory mode and user directory API | Admin, CRO, Risk Manager |
 | `users:write` | Create/edit users | Admin only |
@@ -323,8 +330,14 @@ Rules:
 | `vendors:read` | View vendors (Vendor Risk Management) | Governance + business users (scoped) |
 | `vendors:write` | Create/edit vendors | Outsourcing Owners, Risk Manager, Department Head |
 | `vendors:delete` | Archive vendors | Privileged users only |
-| `vendor_contracts:read` | **Reserved** for future vendor contract + DORA clause governance | Reserved |
-| `vendor_contracts:write` | **Reserved** for future vendor contract + DORA clause governance | Reserved |
+| `vendor_contracts:read` | View ICT Register Contracts and Sub-outsourcing chains inside a Vendor's detail (one governed surface: the fourth-party contract chain, issue #45) | Every vendors:read holder (CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Dept Head, Employee, Viewer) |
+| `vendor_contracts:write` | Create/edit/archive/restore ICT Register Contracts and Sub-outsourcing entries | CRO, Risk Manager |
+| `processes:read` | View ICT Register processes | Business users within canonical Department scope; assigned Process Owners receive record-specific access |
+| `processes:write` | Create/edit ICT Register processes | CRO, Risk Manager; assigned Process Owner and Owning Department Head for that active record |
+| `processes:delete` | Archive/restore ICT Register processes | CRO, Risk Manager |
+| `assets:read` | View ICT Register assets | Business users within canonical Department scope; either assigned Asset Owner receives record-specific access |
+| `assets:write` | Create/edit ICT Register assets | CRO, Risk Manager; either assigned Asset Owner and Owning Department Head for that active record |
+| `assets:delete` | Archive/restore ICT Register assets | CRO, Risk Manager |
 | `issues:read` | View issues/findings | CRO, Risk Manager, Compliance, Internal Audit, Dept Head (scoped) |
 | `issues:write` | Create/edit issues and remediation | CRO, Risk Manager, Dept Head (scoped) |
 | `issues:approve` | Approve issue exceptions | CRO, Risk Manager (global approvers) |
@@ -332,14 +345,25 @@ Rules:
 > [!NOTE]
 > Platform admins are console-only and are explicitly blocked from business Activity Log and Governance surfaces, including direct route/API access.
 
-Orphaned item governance uses backend workflow helpers:
-- Orphan list/detail payloads are scoped from the current target entity department, not only orphan metadata.
-- Responses may include additive `capabilities` metadata for resolve/detail visibility and required resolution fields.
-- Resolution locks the orphan row and target entity, validates the orphan is still pending, and rejects stale resolutions with conflict semantics instead of overwriting a target that has already been reassigned.
-- Admin batch orphan fixes use the same validation and resolution helper as the business Governance endpoint.
+> [!NOTE]
+> Every new active Process requires an active canonical Process Owner and Owning Department. The owner may belong to another Department; owner selection fills only an empty Department and never overwrites a prior choice. Process Owner and Owning Department Head access is record-specific: it grants read/update of that active Process, not archive/restore, general register administration, or access to linked records. User deactivation preserves the prior relationship and creates a pending Governance reassignment instead of silently clearing or replacing it. Controlled Process meaning is stored as locale-independent codes, localized in English/Czech presentation, mapped explicitly at workbook import, and mapped separately to mandated B_06.01 terminology for formal regulatory output.
 
 > [!NOTE]
-> User discovery and user administration are separate contracts. `/api/v1/users/lookup` is the authenticated picker/search primitive used by forms and filters. `/api/v1/users/directory` is the explicit paginated collection for `/users` directory mode and requires `users:read`. Its response also carries `available_roles` facet metadata derived from the caller's visible directory universe so the frontend role filter stays backend-driven. `/api/v1/access/users*` remains the access-management contract for privileged and department-head access views.
+> Every new Asset requires an active Business Owner, active ICT Owner, and active Owning Department. The two responsibility roles may use the same User and may cross Department boundaries. Business Owner selection fills Department only when empty; ICT Owner never changes it. Either Asset Owner and the Owning Department Head receive record-specific read/update authority, never archive/restore or general Asset-register authority. Deactivating either owner preserves the relationship and creates a role-specific Governance orphan; while either role is pending, ordinary Asset edits and link mutations are locked. Governance selects an active replacement and active Department atomically. Controlled Asset values are locale-independent codes localized in English/Czech; Czech workbook labels are mapped only at the import boundary and rejected on runtime writes.
+
+> [!NOTE]
+> Every new Vendor requires an active Outsourcing Owner User and active Department. The owner may belong to any Department and may hold any role; assignment uses purpose-scoped active User and Department lookups rather than the general directory. An assigned Outsourcing Owner without `vendors:read` may list, read, and ordinarily update only that active Vendor. This record-specific exception grants no create, archive/restore, export, derived graph, linked-risk/control/KRI, Contract, Sub-outsourcing, Asset-link, Process-link, or accountability-reassignment authority. Deactivation preserves the former owner relationship, creates a pending Governance orphan, and locks ordinary Vendor and child mutations until an active replacement is assigned atomically with audit evidence. Controlled Vendor values are locale-independent canonical codes, localized in English/Czech presentation, explicitly translated from workbook labels at import, and mapped separately for formal regulatory output; runtime writes do not accept legacy labels as fallback.
+
+Orphaned item governance uses backend workflow helpers:
+- Orphan list/detail payloads are scoped from the current target entity department, not only orphan metadata.
+- Responses include backend-authoritative `request_reason_required` on every orphan list/detail row without requiring separate read authority for the target resource. It is true when the live accountability policy can govern the reassignment or when an enabled fixed Process, Asset, or Vendor policy protects the target or its complete applicable downstream cascade (Process to Asset/Vendor; Asset to Vendor). Threat reassignment uses the accountability policy only.
+- Responses may include additive `capabilities` metadata for resolve/detail visibility and required resolution fields.
+- Resolution locks the orphan row and target entity, validates the orphan is still pending, and rejects stale resolutions with conflict semantics instead of overwriting a target that has already been reassigned.
+- Resolution revalidates the canonical live policy and derived cascade under its existing locks; the read projection does not replace that authority.
+- Admin batch orphan fixes categorically refuse accountability-bearing item types (Asset, Process, Threat, Vendor) in both dry-run and execution modes with an error directing callers to the governed reassignment workflow; only Risk, Control, and KRI orphans are batch-repairable, and those use the same validation and resolution helper as the business Governance endpoint.
+
+> [!NOTE]
+> User discovery and user administration are separate contracts. `/api/v1/users/lookup` is the scoped generic picker/search primitive for callers with `users:read`; optional filters never grant access to callers that lack that permission. Narrow business assignments use purpose-scoped lookups instead. `/api/v1/users/lookup/risk-owners` and `/control-owners` require the matching write permission, retain the caller's user visibility scope, exclude inactive and platform-admin identities, and return only assignment fields; the Risk surface also serves KRI reporting-owner assignment. Vendor accountability is intentionally different: `/api/v1/users/lookup/vendor-owners` and `/api/v1/departments/lookup/vendor-owners` are available only to Vendor accountability managers with `vendors:write`, search all active Users and Departments across ordinary scope boundaries, and return only safe assignment metadata. Active record-only Outsourcing Owners cannot enumerate either assignment directory. `/api/v1/users/lookup/threat-stewards` requires `threats:write`, returns only active canonical CISO identities, and intentionally searches across Departments. `/api/v1/users/directory` is the explicit paginated collection for `/users` directory mode and requires `users:read`. Its response also carries `available_roles` facet metadata derived from the caller's visible directory universe so the frontend role filter stays backend-driven. `/api/v1/access/users*` remains the access-management contract for privileged and department-head access views.
 
 > [!NOTE]
 > Manual user lifecycle actions are least-privilege operations. Direct user creation (`POST /api/v1/users`) and directory import (`POST /api/v1/directory/users/{oid}/import`) are Admin-only lifecycle actions even when broader read or access-review surfaces are available to other privileged roles.
@@ -348,16 +372,19 @@ Orphaned item governance uses backend workflow helpers:
 > Admin lifecycle/detail endpoints stay separate from access-management review endpoints. `GET /api/v1/users/{id}` and `GET /api/v1/users/roles` are Admin-only lifecycle helpers; the active access-management UI reads role options from `GET /api/v1/access/roles` instead.
 
 > [!NOTE]
-> Vendor visibility and vendor-linked risk visibility are related but not identical. A user can have enough access to view a vendor while still lacking permission or scope to read linked risks. In that case the vendor remains visible, but risk-linked summaries and the frontend `By Risk` grouping must only expose readable risks; otherwise the UI must fall back to an unlinked/no-readable-risk bucket rather than leaking risk names.
+> Vendor visibility and vendor-linked risk visibility are related but not identical. Canonical `vendors:read` holders receive only linked risks within their own Risk visibility. A record-only Outsourcing Owner without `vendors:read` receives no linked-risk summaries or `By Risk` grouping data at all, even if another role permission would independently expose the Risk; the owner exception exposes the Vendor record, not its linked registers.
 
 > [!NOTE]
-> Vendor governance uses a shared backend policy. Unfiltered scoped vendor lists, vendor reports, and dashboard vendor metrics include vendors in the user's department scope plus directly owned vendors, but unassigned vendors remain global-only. When a caller supplies an explicit `department_id`, the filter is strict: owner exceptions do not include vendors from another department. Vendor responses may include additive `capabilities` metadata for update, archive/restore, and link actions; the frontend should prefer those flags over local permission guesses.
+> Vendor governance uses a shared backend policy. Unfiltered scoped vendor lists, vendor reports, and dashboard vendor metrics for `vendors:read` holders include vendors in the user's department scope plus directly owned vendors, but unassigned vendors remain global-only. A record-only Outsourcing Owner receives only directly assigned Vendor list/detail/update access and is excluded from reports, dashboard aggregates, linked and child registers, archive/restore, and accountability changes. When a canonical reader supplies an explicit `department_id`, the filter is strict: owner exceptions do not include vendors from another department. Vendor responses include additive `capabilities` metadata; `can_manage_accountability` is true only for broad Vendor writers with canonical Vendor visibility and is false for record-only owners. Asset-Vendor links compose canonical Asset row visibility/update authority with independent Vendor visibility; assigned Asset Owners and active Owning Department Heads may read and mutate their active non-orphan Asset links without broad Asset permissions, while archived visible Vendors remain readable/removable cleanup targets and pending Asset orphans remain readable but immutable. Process-Vendor links compose two independent row policies: the Process end is readable by its assigned Process Owner, its Owning Department Head within canonical Department scope, or globally permitted Process readers; the Vendor end still requires `vendors:read` and canonical Vendor visibility. Process-end lists omit unreadable Vendor counterparts without leaking names, and Vendor-end lists omit unreadable Processes. Creating or removing a Process-Vendor link requires canonical update authority for that active Process (`processes:write`, assigned Process Owner, or Owning Department Head) plus a visible Vendor; a pending Process ownership orphan locks these ordinary mutations until Governance reassignment completes. The frontend prefers backend Vendor row capabilities and per-row removal capabilities, using local checks only as a compatibility fallback when metadata is absent.
 
 > [!NOTE]
-> Vendor detail now mirrors the individual risk page interaction model for linked entities. `Link Existing` remains governed by vendor edit access (`vendors:write` or vendor ownership rules), while `Add Risk` and `Add Control` require that same vendor edit access plus the corresponding domain write permission (`risks:write` or `controls:write`). Create-from-vendor uses routed forms and auto-links the new entity back to the originating vendor after save.
+> Vendor detail now mirrors the individual risk page interaction model for linked entities. `Link Existing` requires canonical `vendors:read` authority, a visible parent Vendor, and the relevant backend link capability/domain read permission. `Add Risk` and `Add Control` additionally require the corresponding domain write permission (`risks:write` or `controls:write`). The record-only Outsourcing Owner edit exception does not grant any of these linked-record actions. Create-from-vendor uses routed forms and auto-links the new entity back to the originating vendor after save.
 
 > [!NOTE]
 > Grouped register views are multi-membership, not exclusive partitions. `By Vendor` on Risks, Controls, Issues, and KRIs must place one record into every readable linked-vendor bucket, while `By Flag` on Vendors must place one vendor into every applicable flag bucket (`DORA relevant`, `Supports core function`, `Significant vendor`). Vendors with none of those flags fall into `Insignificant vendors`.
+
+> [!NOTE]
+> Threats are a global CISO-stewarded catalog, but their linked-Risk list context is independently permission-scoped. The shared Threat register searches name, description, typical weaknesses, relevant subject, and Steward; applies AND across filter fields and OR within repeated values; and groups one Threat into every caller-readable linked Risk. Hidden Risk identifiers, labels, facet counts, lookup options, group memberships, and CSV cells are never exposed. Standard Threat export requires both `threats:read` and `reports:read`, reuses the filtered/group-selected list plan, and ignores pagination.
 
 ### 4.2 Role-Permission Grid
 
@@ -474,7 +501,147 @@ KRI edit notes:
 > [!NOTE]
 > Cancellation is logged in the activity log with action `CANCEL`.
 
+### 5.7 Governed Protected Process Mutations
+
+The fixed `protected_process_edit` scenario governs protected Process create,
+edit, relationship, and archive proposals under ADR-016:
+
+- A Process is protected when its current **or proposed** derived CIF is Yes.
+  With the scenario enabled, an authorized business-data edit requires a
+  request reason and creates an immutable versioned proposal instead of
+  changing the approved Process.
+- Protected creation creates only an approval and immutable proposal. No
+  Process row, F-code, operational count, export row, or graph node exists
+  until approval inserts the Process and assigns `F<id>`. Because there is no
+  operational row, the pending creation has no Process impact lock or base
+  governance version; duplicate proposals are serialized by their immutable
+  rowless-creation identity.
+- A relationship mutation is protected when any impacted Process has current
+  derived CIF Yes and locks every impacted Process whose approved relationship
+  state or primary designation changes. Ticket #85 governs that Process-side
+  operation only. Protected downstream Asset effects, Asset locks, and the
+  Composite Process-to-Asset approval are ticket #86. Protected archive
+  preserves the active row until approval. Restore remains direct.
+- The proposal snapshots approved before-values, proposed after-values,
+  derived CIF/class impact, the scenario policy, and the Process governance
+  version for each existing impacted Process. A unique active impact lock
+  permits only one pending proposal per existing Process and blocks later
+  business edits while leaving comments and evidence available; rowless
+  creation uses no impact lock.
+- Exactly one active Risk Manager or CRO matching the scenario snapshot may
+  approve or reject. The requester never qualifies, including when the
+  requester is a Risk Manager or CRO. Submission fails closed when no
+  independent eligible approver exists, and rejection requires a reason.
+- Approval revalidates every stored Process governance version; rowless
+  creation instead revalidates its owner, Department, derivation references,
+  scenario, and duplicate identity before insert. A stale proposal expires
+  without applying any proposed value; a valid approval
+  applies the proposal, increments the Process governance version, records
+  the governed-mutation audit fact, releases the lock, and enqueues the
+  outcome notification in the same transaction boundary.
+- Governed relationship domain audit facts use safe business labels/types, not
+  numeric target IDs. A primary-Process swap also records the resolver-attributed
+  demotion and demoted Process version change in that transaction.
+- Process lifecycle and pending-change state are separate. Permission-scoped
+  before/after and derived-impact data may appear in Process detail,
+  Approvals, and My Requests, while approved Process values remain effective.
+- Disabling the scenario permits an otherwise authorized mutation to use the
+  ordinary direct lifecycle. It does not weaken Process authorization
+  or validation. The workflow has no SLA, reminder, overdue state, timer,
+  automatic decision, or escalation.
+
+### 5.8 Governed Protected Asset Mutations
+
+The fixed `protected_asset_edit` scenario protects an Asset when its current or
+proposed CIF is Yes, or its current or proposed resulting criticality is
+Critical. Protected create, edit, Asset/Process/Vendor link, and archive
+requests require a reason and independent active Risk Manager/CRO approval;
+the requester cannot approve. Creation remains rowless, while existing-Asset
+proposals lock every affected Asset and preserve approved values and links.
+Submission acquires those Asset locks in stable identifier order before it
+derives or stores the proposal, so a concurrent direct mutation cannot race
+the pending-change visibility check.
+
+Process-to-Asset changes produce one Composite proposal whenever either the
+Process or downstream Asset consequence is protected. Approval locks and
+rederives the complete Process-to-Asset graph, rejects stale versions, and
+applies every relationship and derived consequence atomically or none. Reject,
+cancel, and stale expiry preserve operational truth and release all locks.
+Malformed Asset proposal envelopes and proposals whose fixed scenario is
+missing, disabled, or no longer authorizes their snapshotted approver roles are
+bounded-expired by an independent active Risk Manager/CRO resolver. That
+recovery path never grants ordinary Asset readers approval authority.
+Restore remains direct. The Settings API exposes the threshold, covered actions,
+and disabled self-approval as a fixed read-only policy definition.
+
+All proposal JSON is bounded and total-validated before actor identifiers are
+collected or any actor/resource row is locked. Deep, oversized, wrong-shaped,
+or non-string approver-role data therefore cannot select lock targets or cause
+a resolution error.
+
+Pending Asset detail is confidential to the requester and a currently eligible
+resolver. Other Asset readers receive a redacted pending-change payload for the
+generic banner: only its safe pending status, timestamp, and generic label are
+meaningful; reason, requester, snapshots, relationship, impacts, and diff/cancel
+capabilities are empty or false. The approval detail API remains unavailable to
+those readers. Authorized detail uses typed, localized-safe mutation,
+relationship, affected-resource, and derived-impact fields and never exposes
+raw database identifiers as display fallbacks.
+
+Asset relationship and archive submission services acquire their own sorted
+Asset row locks before pending checks, impact derivation, or base-version
+capture. Governed approval notifications use correlated SQL visibility for the
+linked Asset approval and requester/live resolver rather than materializing a
+platform-wide Asset proposal or identifier set.
+
+### 5.9 Governed Protected Vendor Mutations
+
+The fixed `protected_vendor_edit` scenario protects a Vendor when its current
+or proposed derived tier is **Critical** or **Significant**. Protected Vendor
+create/edit/archive, Contract and Sub-outsourcing create/edit/archive, and
+Vendor-managed Risk/Control/KRI link add/remove requests require
+a non-blank reason and independent active Risk Manager/CRO approval. The
+requester cannot approve.
+
+Creation remains rowless. Existing Vendor proposals preserve approved Vendor,
+child, and link truth and hold one active impact lock per affected Vendor.
+Process/Asset changes whose derivation affects a protected Vendor create one
+Composite proposal with Process, Asset, and Vendor snapshots and deterministic
+locks. Approval revalidates scenario authority, resource versions, referenced
+rows, and the complete derived graph, then applies all effects atomically or
+expires without mutation. Reject/cancel also preserve approved truth and
+release locks. Asset-to-Vendor and Process-to-Vendor mutations preserve their
+Asset/Process composite identities; there are no parallel direct
+`vendor.link.asset.*` or `vendor.link.process.*` proposal kinds. Restore remains
+direct.
+
+Vendor detail exposes a pending banner. Only the requester and a currently
+eligible resolver may see the safe before/after, tier impact, affected business
+labels, requester, reason, or cancel action; other authorized Vendor readers
+receive the redacted banner. A pending proposal blocks overlapping Vendor,
+child, and link business mutations. The same safe proposal is available in
+Approvals and My Requests, and notification preferences suppress delivery only,
+not queue visibility or approval state.
+
 ---
+
+### 5.10 Governed Accountability Reassignments
+
+The fixed `accountability_reassignment` scenario applies whenever an authorized
+edit actually changes a Process Owner/Owning Department, Asset Business
+Owner/ICT Owner/Owning Department, Vendor Outsourcing Owner, or Threat Steward.
+The requester must give a reason. RiskHub creates one immutable pending
+proposal, keeps approved accountability unchanged, and exposes the request in
+My Requests. A configured Risk Manager or CRO other than the requester must
+approve or reject it.
+
+Approval applies the full delta atomically. Cancellation, rejection, stale
+expiry, and failed revalidation preserve the prior approved values. Orphan
+reassignment follows the same rule: the Governance row and business-edit lock
+remain until approval succeeds. Disabling the scenario permits the typed direct
+response but does not weaken RBAC or resource validation. CISO can request and
+read its own Threat-stewardship proposals, but receives no approval-resolution
+authority from that role.
 
 ## 6. Sensitive Field Rules
 
@@ -589,7 +756,7 @@ Non-privileged users can access resources **outside their department** if they a
 | Risk | `risks:delete` | Users with approval-resolution authority | Non-resolvers: creates ApprovalRequest |
 | Control | `controls:delete` | Users with approval-resolution authority | Non-resolvers: creates ApprovalRequest |
 | KRI | `risks:delete` | Users with approval-resolution authority | Non-resolvers: creates ApprovalRequest |
-| Vendor | `vendors:delete` | Immediate | No |
+| Vendor | `vendors:delete` | Direct only when unprotected or the fixed scenario is disabled | Yes when current tier is Critical/Significant |
 | Vendor SLA | `vendors:delete` | Immediate | No |
 
 > [!NOTE]
@@ -694,6 +861,7 @@ Notification types are stable string keys shared across backend model, backend A
 
 **Core types:**
 - Approval workflow: `approval_pending`, `approval_resolved`, `approval_cancelled`
+- Governed mutation delivery preferences: `governed_approval_action_required`, `governed_approval_request_updates`
 - KRI deadlines/breaches: `kri_due_soon`, `kri_due_tomorrow`, `kri_overdue`, `kri_near_breach`, `kri_breach_detected`
 - Questionnaires: `questionnaire_sent`, `questionnaire_due_soon`, `questionnaire_overdue`, `questionnaire_submitted`, `questionnaire_clarification_requested`
 - Issues: `issue_assigned`, `issue_due_soon`, `issue_overdue`, `issue_exception_requested`, `issue_exception_approved`
@@ -790,6 +958,10 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - Unfiltered dashboard summaries, risk distributions, risk drilldowns, risk trends, KRI breach trends, control trends, and vendor metrics aggregate rows visible to the actor rather than department rows alone.
 - Dashboard explicit `department_id` filters remain strict. Ownership/reporting exceptions do not include rows outside the requested department.
 - Department filter UI is backend-capability driven through `DashboardOverviewCapabilities.can_use_department_filter`.
+- Dashboard tabs are URL-addressable via `?view=`: `/` is the overview default (no parameter), `/?view=risk-committee` selects the Risk Committee view, and `/?view=ict-committee` selects the ICT Risk Committee view. Committee-tab visibility is capability-driven — the Risk Committee tab requires committee access and the ICT Committee tab requires `ict_committee:read` — and both committee tabs render independently of the overview fetch.
+- An unauthorized or unrecognized `?view=` is normalized to the overview default: `DashboardPage` strips the `view` query parameter via `setSearchParams(next, { replace: true })`, so the URL becomes `/`, the overview renders, and no committee data is fetched. Authorized committee views are never stripped, so browser back/forward keeps working.
+- The DORA ICT Register export is discoverable from the ICT Register readiness screens (the Data Quality page and the ICT Risk Committee view) through a link gated on the `can_download_dora_register` capability read from `GET /api/v1/vendor-reports/capabilities`; the link fails closed when the capability is absent. The export itself remains on the Vendor Reports page (`/vendor-reports`).
+- `GET /api/v1/ict-register/dq` retains all 52 global check summaries but returns at most 10 viewer-visible preview rows per check, with `visible_count` and `violating_rows_truncated`. `GET /api/v1/ict-register/dq/{check_id}/violations` provides viewer-scoped pages (`limit` 1–100). Both reuse a 15-second, revision-keyed single-flight cache of the unfiltered global evaluation; canonical visibility is applied only after cache retrieval. The endpoint family is rate-limited to 30 requests per minute per authenticated principal/IP.
 
 ### 10.5 Archived/Inactive Semantics
 
@@ -933,7 +1105,7 @@ Vendor detail-specific behavior:
 - `Add Control` navigates to `/controls/new?vendor_id=:id&return_to=/vendors/:id`
 - `Add KRI` navigates to `/kris/new?vendor_id=:id&return_to=/vendors/:id`
 - successful create returns to vendor detail with a confirmation banner and deep link to the created entity
-- vendor-context KRI create is transactional: requested vendor assignment and optional parent vendor-risk linking succeed or fail as one save
+- direct vendor-context KRI create is transactional; a protected Vendor is linked through an independent governed request after KRI creation, or its missing parent Risk link is requested first without automatically resuming KRI creation after approval
 - KRI edit requests from detail preserve the current KRI state until approval resolves when the user is not allowed to mutate immediately
 
 Register grouped-view behavior:
@@ -996,6 +1168,8 @@ Risk questionnaires are risk-assessment workflows attached to a parent risk.
 - Period metrics remain numeric and comparable even when snapshot metrics are unavailable.
 - Snapshot metric deltas use `direction="unknown"` with `N/A`/dash rendering when either side is missing, and `snapshot_info` reports availability, sources, missing quarters, and missing metric keys.
 - Available period choices are scoped to the user and always include the current year plus the default previous-quarter year.
+- The ICT Risk Committee and Risk Committee are surfaced as URL-addressable dashboard tabs, not standalone routes. `DashboardPage` computes tab visibility from `authz.can('read', 'ict_committee')` (ICT Committee) and the committee capability (Risk Committee), `DashboardViewTabs` exposes the tabs, and `IctCommitteeSection` renders the ICT committee read model. Backend read authority is unchanged: the committee read model is served by `GET /api/v1/ict-register/committee` under `ict_committee:read`.
+- The legacy `/ict-register/committee` route redirects to `/?view=ict-committee` and there is no committee sidebar entry. An unauthorized or unrecognized `?view=` normalizes to the overview default without fetching committee data (see §10.4).
 
 ---
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,14 @@ ALLOWED_SUBPROCESS_IMPORTABILITY_CHECKS = {
     "tests/backend/pytest/api/v1/test_issue_register_projection.py",
     "tests/backend/pytest/test_install_script_contracts.py",
 }
+
+ALLOWED_FILE_WIDE_MIXED_TOKEN_FALSE_POSITIVES = {
+    "tests/backend/pytest/test_phase500_script_runtime_contracts.py",
+}
+
+EXPLICIT_PYTHON_C_ARGS = re.compile(
+    r'''\[\s*sys\.executable\s*,\s*["']-c["']'''
+)
 
 DEAD_KRI_HISTORY_FACADES = {
     "backend/app/api/v1/endpoints/kris/history_corrections.py",
@@ -52,12 +61,26 @@ def test_no_unapproved_subprocess_importability_checks_remain() -> None:
         source = _source(path)
         if "subprocess.run(" not in source:
             continue
-        if 'sys.executable,\n' in source and '"-c"' in source:
-            offenders.append(relative_path)
-        elif "[sys.executable, \"-c\"" in source:
+        if EXPLICIT_PYTHON_C_ARGS.search(source) or (
+            relative_path not in ALLOWED_FILE_WIDE_MIXED_TOKEN_FALSE_POSITIVES
+            and 'sys.executable,\n' in source
+            and '"-c"' in source
+        ):
             offenders.append(relative_path)
 
     assert offenders == []
+
+
+@pytest.mark.parametrize(
+    ("source", "detected"),
+    [
+        ("[" + 'sys.executable, "-c", "import package"]', True),
+        ("[\n" + '    sys.executable,\n    "-c",\n    "import package",\n]', True),
+        ('["bash", "-c", "run-harness"]', False),
+    ],
+)
+def test_explicit_python_c_detector_is_call_local(source: str, detected: bool) -> None:
+    assert bool(EXPLICIT_PYTHON_C_ARGS.search(source)) is detected
 
 
 def test_dead_kri_history_endpoint_facades_are_removed() -> None:

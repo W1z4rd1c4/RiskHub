@@ -1,6 +1,7 @@
 """Tests for NotificationService."""
 
 import logging
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
@@ -21,8 +22,33 @@ from app.models.notification import Notification, NotificationType
 from app.models.risk import RiskStatus
 from app.models.role import Permission, Role, RolePermission
 from app.models.user import AccessScope
+from app.services._governed_mutations.process_identity import (
+    new_governed_process_proposal,
+)
 from app.services.notification_creation_helpers import find_existing_notification, notification_type_is_enabled
 from app.services.notification_service import ExpectedNotificationDeliveryError, NotificationService
+
+
+def _governed_approval(
+    *, approval_id: int, requester_id: int, process_name: str
+) -> SimpleNamespace:
+    proposal = new_governed_process_proposal(
+        approval_request_id=approval_id,
+        requested_by_id=requester_id,
+        process_id=approval_id,
+        process_name=process_name,
+        approver_roles=["risk_manager"],
+        base_governance_version=1,
+        before_snapshot={"notes": "Before"},
+        after_snapshot={"notes": "After"},
+        raw_before={"notes": "Before"},
+        raw_after={"notes": "After"},
+        derived_impact_snapshot={
+            "before": {"cif": "yes", "criticality_class": "critical"},
+            "after": {"cif": "yes", "criticality_class": "critical"},
+        },
+    )
+    return SimpleNamespace(id=approval_id, governed_mutation_proposal=proposal)
 
 
 def test_notification_type_is_enabled_defaults_and_respects_preferences(test_user: User):
@@ -34,6 +60,77 @@ def test_notification_type_is_enabled_defaults_and_respects_preferences(test_use
     test_user.notification_preferences = {"approval_pending": False}
     assert notification_type_is_enabled(test_user, NotificationType.APPROVAL_PENDING) is False
     assert notification_type_is_enabled(test_user, NotificationType.APPROVAL_RESOLVED) is True
+
+
+@pytest.mark.asyncio
+async def test_governed_request_update_uses_semantic_preference(
+    db_session: AsyncSession,
+    test_user_employee: User,
+) -> None:
+    approval = _governed_approval(
+        approval_id=84,
+        requester_id=test_user_employee.id,
+        process_name="F84 Claims handling",
+    )
+    test_user_employee.notification_preferences = {"governed_approval_request_updates": False}
+    await db_session.commit()
+
+    disabled = await NotificationService.notify_governed_request_update(
+        db_session,
+        approval,
+        outcome="approved",
+    )
+    assert disabled is None
+
+    test_user_employee.notification_preferences = {"governed_approval_request_updates": True}
+    await db_session.commit()
+    enabled = await NotificationService.notify_governed_request_update(
+        db_session,
+        approval,
+        outcome="approved",
+    )
+    assert enabled is not None
+    assert enabled.type == NotificationType.GOVERNED_APPROVAL_REQUEST_UPDATES
+    assert enabled.resource_type == "approval"
+    assert enabled.resource_id == approval.id
+
+
+@pytest.mark.asyncio
+async def test_governed_action_required_routes_only_to_eligible_approvers(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    approval = _governed_approval(
+        approval_id=85,
+        requester_id=test_user_employee.id,
+        process_name="F85 Payment operations",
+    )
+
+    async def eligible_recipients(*_args, **_kwargs):
+        return [test_user_risk_manager], {"excluded_actor": 1, "hidden_resource": 0}
+
+    monkeypatch.setattr(
+        "app.services.notification_service.eligible_approval_notification_recipients",
+        eligible_recipients,
+    )
+
+    notifications = await NotificationService.notify_governed_action_required(
+        db_session,
+        approval,
+        event="submitted",
+    )
+    cancellation_notifications = await NotificationService.notify_governed_action_required(
+        db_session,
+        approval,
+        event="cancelled",
+    )
+
+    assert [notification.user_id for notification in notifications] == [test_user_risk_manager.id]
+    assert notifications[0].type == NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED
+    assert len(cancellation_notifications) == 1
+    assert cancellation_notifications[0].id != notifications[0].id
 
 
 @pytest.mark.asyncio

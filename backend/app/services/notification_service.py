@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +11,10 @@ from app.core.permissions import can_read_vendor_id
 from app.models.approval_request import ApprovalRequest
 from app.models.notification import Notification, NotificationType
 from app.models.user import User
+from app.services._governed_mutations.notification_identity import (
+    InvalidGovernedProcessNotificationIdentity,
+    strict_governed_process_notification_identity,
+)
 from app.services._notification_approval_helpers import (
     approval_action_label,
     eligible_approval_notification_recipients,
@@ -28,6 +33,26 @@ class ExpectedNotificationDeliveryError(Exception):
 
 
 EXPECTED_NOTIFICATION_DELIVERY_ERRORS = (ExpectedNotificationDeliveryError,)
+
+
+def _strict_governed_notification_identity(approval: ApprovalRequest):
+    try:
+        identity = strict_governed_process_notification_identity(approval.governed_mutation_proposal)
+    except InvalidGovernedProcessNotificationIdentity as exc:
+        raise ExpectedNotificationDeliveryError("Malformed governed Process identity") from exc
+    if identity is None:
+        raise ExpectedNotificationDeliveryError("Approval is not an exact governed Process proposal")
+    return identity
+
+
+def _governed_resource_label(mutation_kind: str) -> str:
+    if mutation_kind.startswith("asset."):
+        return "Asset"
+    if mutation_kind.startswith("vendor."):
+        return "Vendor"
+    if mutation_kind.startswith("threat."):
+        return "Threat"
+    return "Process"
 
 
 def _notification_failure_extra(
@@ -273,6 +298,123 @@ class NotificationService:
             skipped,
         )
         return notifications
+
+    @staticmethod
+    async def notify_governed_action_required(
+        db: AsyncSession,
+        approval: ApprovalRequest,
+        *,
+        event: Literal["submitted", "cancelled", "expired"],
+        strict_errors: bool = False,
+    ) -> list[Notification]:
+        """Deliver governed-proposal work events without owning queue visibility."""
+        try:
+            identity = _strict_governed_notification_identity(approval)
+        except EXPECTED_NOTIFICATION_DELIVERY_ERRORS:
+            if strict_errors:
+                raise
+            logger.warning(
+                "governed_notification_identity_excluded",
+                extra={"approval_id": approval.id, "operation": "notify_governed_action_required"},
+            )
+            return []
+        recipients, skipped = await eligible_approval_notification_recipients(
+            db,
+            approval,
+            exclude_user_id=identity.requested_by_id,
+        )
+        resource_label = _governed_resource_label(identity.mutation_kind)
+        titles = {
+            "submitted": f"Protected {resource_label} change requires review",
+            "cancelled": f"Protected {resource_label} request cancelled",
+            "expired": f"Protected {resource_label} request expired",
+        }
+        notifications: list[Notification] = []
+        for approver in recipients:
+            try:
+                # One proposal legitimately emits both submission and a later
+                # cancellation/expiry under this semantic preference. Outbox
+                # transaction idempotency owns retries; do not collapse those
+                # distinct business events by notification type/resource.
+                notification = await NotificationService.create_notification(
+                    db=db,
+                    user_id=approver.id,
+                    notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+                    title=titles[event],
+                    message=(
+                        f"Protected {resource_label} request for " f"'{identity.primary_resource_name}' was {event}."
+                    ),
+                    resource_type="approval",
+                    resource_id=approval.id,
+                )
+                if notification is not None:
+                    notifications.append(notification)
+            except EXPECTED_NOTIFICATION_DELIVERY_ERRORS:
+                if strict_errors:
+                    raise
+                _log_expected_notification_failure(
+                    operation="notify_governed_action_required",
+                    user_id=approver.id,
+                    notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+                    approval_id=approval.id,
+                )
+            except Exception:
+                _log_unexpected_notification_failure(
+                    operation="notify_governed_action_required",
+                    user_id=approver.id,
+                    notification_type=NotificationType.GOVERNED_APPROVAL_ACTION_REQUIRED,
+                    approval_id=approval.id,
+                )
+                raise
+
+        logger.info(
+            "Created %s governed action notifications for approval %s; event=%s skipped=%s",
+            len(notifications),
+            approval.id,
+            event,
+            skipped,
+        )
+        return notifications
+
+    @staticmethod
+    async def notify_governed_request_update(
+        db: AsyncSession,
+        approval: ApprovalRequest,
+        *,
+        outcome: Literal["approved", "rejected", "cancelled", "expired"],
+        strict_errors: bool = False,
+    ) -> Notification | None:
+        """Deliver a governed proposal outcome to its requester."""
+        identity = _strict_governed_notification_identity(approval)
+        resource_label = _governed_resource_label(identity.mutation_kind)
+        try:
+            return await NotificationService.create_notification_once(
+                db=db,
+                user_id=identity.requested_by_id,
+                notification_type=NotificationType.GOVERNED_APPROVAL_REQUEST_UPDATES,
+                title=f"Protected {resource_label} request {outcome}",
+                message=(f"Your request for '{identity.primary_resource_name}' " f"was {outcome}."),
+                resource_type="approval",
+                resource_id=approval.id,
+            )
+        except EXPECTED_NOTIFICATION_DELIVERY_ERRORS:
+            if strict_errors:
+                raise
+            _log_expected_notification_failure(
+                operation="notify_governed_request_update",
+                user_id=identity.requested_by_id,
+                notification_type=NotificationType.GOVERNED_APPROVAL_REQUEST_UPDATES,
+                approval_id=approval.id,
+            )
+            return None
+        except Exception:
+            _log_unexpected_notification_failure(
+                operation="notify_governed_request_update",
+                user_id=identity.requested_by_id,
+                notification_type=NotificationType.GOVERNED_APPROVAL_REQUEST_UPDATES,
+                approval_id=approval.id,
+            )
+            raise
 
     @staticmethod
     async def notify_requester_resolved(

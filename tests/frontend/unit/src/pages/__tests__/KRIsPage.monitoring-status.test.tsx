@@ -161,6 +161,7 @@ async function renderKriPage(route: string) {
 function parseKriRequest(url: URL) {
     const filtersRaw = url.searchParams.get('filters');
     const filters = filtersRaw ? JSON.parse(filtersRaw) as Record<string, unknown> : {};
+    const sortRaw = url.searchParams.get('sort');
     return {
         raw: url.searchParams.toString(),
         filters,
@@ -168,6 +169,7 @@ function parseKriRequest(url: URL) {
         groupValue: url.searchParams.get('group_value'),
         offset: Number(url.searchParams.get('offset') ?? 0),
         limit: Number(url.searchParams.get('limit') ?? 20),
+        sort: sortRaw ? JSON.parse(sortRaw) as { field: string; direction: 'asc' | 'desc' } : null,
     };
 }
 
@@ -246,6 +248,13 @@ function installKriHandlers(
             } else if (monitoringStatus === 'not_submitted') {
                 items = [notSubmittedKri];
                 delayMs = 60;
+            }
+
+            if (requestInfo.sort?.field === 'metric_name') {
+                items = [...items].sort((left, right) => {
+                    const comparison = left.metric_name.localeCompare(right.metric_name);
+                    return requestInfo.sort?.direction === 'desc' ? -comparison : comparison;
+                });
             }
 
             await new Promise((resolve) => window.setTimeout(resolve, delayMs));
@@ -442,7 +451,7 @@ describe('KRIsPage monitoring status filters', () => {
             expect(screen.getByTestId('kris-refresh-button').querySelector('.animate-spin')).toBeNull();
         });
 
-        expect(screen.getByTestId('kri-route-search')).toHaveTextContent('?status=archived');
+        expect(screen.getByTestId('kri-route-search')).toHaveTextContent('filters=');
         expect(screen.queryByText('Warning KRI')).not.toBeInTheDocument();
         expect(screen.queryByText('Breach KRI')).not.toBeInTheDocument();
         expect(screen.queryByText('Not Submitted KRI')).not.toBeInTheDocument();
@@ -455,6 +464,45 @@ describe('KRIsPage monitoring status filters', () => {
         expect(requestQueries.some((query) => query.filters.timeliness_status === 'due_soon')).toBe(true);
         expect(requestQueries.at(-1)?.filters.is_archived).toBe(true);
         expect(requestQueries.at(-1)?.filters.include_archived).toBeUndefined();
+    });
+
+    it('keeps breached-only restricted to Active in both lifecycle interaction orders', async () => {
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
+        installKriHandlers(requestQueries);
+        const query = new URLSearchParams({ filters: JSON.stringify({ lifecycle: 'archived' }) });
+
+        await renderKriPage(`/kris?${query.toString()}`);
+        await screen.findByText('Archived KRI');
+
+        const uiUser = userEvent.setup();
+        await uiUser.selectOptions(screen.getByTestId('kris-add-filter'), 'breach_only');
+        const breachOnly = screen.getByRole('checkbox', { name: /Breached only/i });
+        await uiUser.click(breachOnly);
+        await screen.findByText('All KRI');
+        await waitFor(() => expect(requestQueries.at(-1)?.filters).toMatchObject({
+            lifecycle: 'active', breach_only: true,
+        }));
+        expect(requestQueries.at(-1)?.filters.is_archived).toBeUndefined();
+        expect(requestQueries.at(-1)?.filters.include_archived).toBeUndefined();
+
+        await uiUser.click(screen.getByTestId('kris-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('kris-lifecycle-filter-option-all'));
+        await waitFor(() => expect(requestQueries.at(-1)?.filters.lifecycle).toBe('all'));
+        expect(requestQueries.at(-1)?.filters.breach_only).toBeUndefined();
+        expect(breachOnly).not.toBeChecked();
+
+        await uiUser.click(breachOnly);
+        await waitFor(() => expect(requestQueries.at(-1)?.filters).toMatchObject({
+            lifecycle: 'active', breach_only: true,
+        }));
+
+        await uiUser.click(screen.getByTestId('kris-lifecycle-filter-trigger'));
+        await uiUser.click(screen.getByTestId('kris-lifecycle-filter-option-archived'));
+        await screen.findByText('Archived KRI');
+        await waitFor(() => expect(requestQueries.at(-1)?.filters).toMatchObject({
+            lifecycle: 'archived', is_archived: true,
+        }));
+        expect(requestQueries.at(-1)?.filters.breach_only).toBeUndefined();
     });
 
     it('uses the same route-backed monitoring filter in grouped views', async () => {
@@ -473,7 +521,8 @@ describe('KRIsPage monitoring status filters', () => {
         await screen.findByText('Warning KRI');
 
         expect(screen.getByTestId('kris-status-filter-warning')).toHaveClass('bg-accent');
-        expect(screen.getByTestId('kri-route-search')).toHaveTextContent('?monitoring_status=warning');
+        expect(screen.getByTestId('kri-route-search')).toHaveTextContent('view=category');
+        expect(screen.getByTestId('kri-route-search')).toHaveTextContent('group=Finance');
         expect(screen.queryByText('All KRI')).not.toBeInTheDocument();
         expect(requestQueries.some((query) => query.filters.monitoring_status === 'warning')).toBe(true);
         expect(requestQueries.some((query) => query.groupBy === 'category')).toBe(true);
@@ -524,7 +573,7 @@ describe('KRIsPage monitoring status filters', () => {
         });
     });
 
-    it('sorts KRI table rows by metric name on the client', async () => {
+    it('round-trips KRI metric sorting through the shared server query', async () => {
         const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
         installKriHandlers(requestQueries);
 
@@ -544,10 +593,11 @@ describe('KRIsPage monitoring status filters', () => {
         expect(metricOrder()).toEqual(['All KRI', 'Unlinked Vendor KRI']);
 
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByRole('columnheader', { name: /Metric/i }));
-        await uiUser.click(screen.getByRole('columnheader', { name: /Metric/i }));
+        await uiUser.click(screen.getByRole('button', { name: /Metric/i }));
+        await uiUser.click(screen.getByRole('button', { name: /Metric/i }));
 
-        expect(metricOrder()).toEqual(['Unlinked Vendor KRI', 'All KRI']);
+        await waitFor(() => expect(metricOrder()).toEqual(['Unlinked Vendor KRI', 'All KRI']));
+        expect(requestQueries.at(-1)?.sort).toEqual({ field: 'metric_name', direction: 'desc' });
     });
 
     it('shows archived KRI restore only when the user can delete risks', async () => {
@@ -573,8 +623,10 @@ describe('KRIsPage monitoring status filters', () => {
 
         await screen.findByText('Server error. Please try again later.');
 
-        expect(screen.getByText('Error Loading KRIs')).toBeInTheDocument();
-        expect(screen.getByText('Try Again')).toBeInTheDocument();
+        // Slice B (N17): the query-owning render now defers to the shared table-error
+        // contract (#70) — the localized message + a "Retry" affordance replace the table
+        // (in place of the former bespoke "Error Loading KRIs" / "Try Again" card).
+        expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
         expect(screen.queryByText('errorKeys.server')).not.toBeInTheDocument();
     });
 

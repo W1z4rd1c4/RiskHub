@@ -39,6 +39,8 @@ export function getApprovalStatusBadge(status: ApprovalStatus): string {
             return 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5';
         case 'rejected':
             return 'text-rose-400 border-rose-400/20 bg-rose-400/5';
+        case 'expired':
+            return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
         case 'cancelled':
         default:
             return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
@@ -48,12 +50,59 @@ export function getApprovalStatusBadge(status: ApprovalStatus): string {
 export function getApprovalActionBadge(action: ApprovalActionType): string {
     switch (action) {
         case 'delete':
+        case 'archive':
             return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
+        case 'create':
+            return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
         case 'edit':
             return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
         default:
             return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
     }
+}
+
+export type GovernedActionLabel = 'create' | 'update' | 'archive' | 'link_add' | 'link_update' | 'link_remove';
+
+export function getGovernedActionLabel(
+    actionType: ApprovalActionType,
+    mutationKind?: string | null,
+): GovernedActionLabel {
+    if (mutationKind?.startsWith('vendor.link.') || mutationKind?.startsWith('asset.link.')) {
+        if (mutationKind.endsWith('.add')) return 'link_add';
+        if (mutationKind.endsWith('.remove')) return 'link_remove';
+    }
+    if (
+        mutationKind === 'vendor.create'
+        || mutationKind === 'vendor.contract.create'
+        || mutationKind === 'vendor.sub_outsourcing.create'
+    ) return 'create';
+    if (
+        mutationKind === 'vendor.archive'
+        || mutationKind === 'vendor.contract.archive'
+        || mutationKind === 'vendor.sub_outsourcing.archive'
+    ) return 'archive';
+    switch (mutationKind) {
+        case 'process.create':
+            return 'create';
+        case 'process.archive':
+            return 'archive';
+        case 'process.link.risk.add':
+        case 'process.link.asset.add':
+        case 'process.link.vendor.add':
+            return 'link_add';
+        case 'process.link.asset.update':
+            return 'link_update';
+        case 'process.link.risk.remove':
+        case 'process.link.asset.remove':
+        case 'process.link.vendor.remove':
+            return 'link_remove';
+        case null:
+        case undefined:
+            break;
+    }
+    if (actionType === 'create') return 'create';
+    if (actionType === 'archive' || actionType === 'delete') return 'archive';
+    return 'update';
 }
 
 export function isQuestionnaireOverdue(questionnaire: RiskQuestionnaireListItem, now = Date.now()): boolean {

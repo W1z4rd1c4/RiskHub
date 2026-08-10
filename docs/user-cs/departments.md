@@ -1,10 +1,10 @@
 ---
 title: Oddělení a organizační scope
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-31"
 audience: user
 source_of_truth: "frontend/src/pages/DepartmentsPage.tsx + frontend/src/services/departmentApi.ts"
-summary: "Jak používat Oddělení pro pochopení scope, expozice a routování ownership napříč riziky, kontrolami, KRI, uživateli a aktivitami."
+summary: "Jak používat workspace Oddělení napříč riziky, kontrolami, KRI, nálezy, procesy, aktivy, dodavateli, uživateli a aktivitami."
 tags:
   - departments
   - access
@@ -66,14 +66,24 @@ Běžný postup navigace:
 
 Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-Typické informace v této oblasti:
+Detail Oddělení má vždy přesně deset záložek:
 
-- Název oddělení
-- Manažer
-- Počet rizik
-- Počet kontrol
-- Počet KRI
-- Kontext dodavatelů a nálezů
+1. Přehled
+2. Rizika
+3. Kontroly
+4. KRI
+5. Nálezy
+6. Procesy
+7. Aktiva
+8. Dodavatelé
+9. Uživatelé
+10. Aktivita
+
+Hrozby zde záměrně nejsou, protože jejich stewardship je globální a není vlastněný Oddělením.
+
+Přehled obsahuje přesně osm karet entit v desktopové mřížce čtyři krát dva a pod nimi aktivitu Oddělení přes celou šířku. Health signály jsou pevně dané: Rizika ukazují vysoká a kritická; Kontroly vyžadující pozornost; KRI ukazují breach a overdue; Nálezy otevřené a overdue; Procesy kritické a Critical or Important Function (CIF); Aktiva kritická a legacy; Dodavatelé kritičtí a DORA; Uživatelé aktivní. Na užších podporovaných rozvrženích se mřížka převede na dva a poté jeden sloupec.
+
+Celkový počet a každý health počet jsou samostatné akce. Výběr celkového počtu otevře odpovídající záložku bez přidaného health filtru. Výběr health počtu otevře stejnou záložku s přesně tímto health filtrem. V obou případech zůstává filtr Oddělení uzamčený a nelze ho odstranit ani nahradit. Počty používají stejné záznamy v permission scope jako cílový registr a nezahrnují návrhy na vytvoření, které stále čekají na schválení. Hodnota **N/A** znamená, že metrika není s oprávněními aktuálního uživatele dostupná.
 
 Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
@@ -101,21 +111,25 @@ Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu zn
 
 ## Vyhledávání, filtrování a evidence
 
-Stránky oddělení používejte pro ověření scope, ownership a kontextu souvisejících záznamů. Oddělení jsou review a navigační plocha; nemají vlastní exportní tlačítko.
+Stránky Oddělení používejte pro ověření scope, ownership a kontextu souvisejících záznamů. Každá záložka entity používá stejný registr jako její hlavní stránka: zůstává vyhledávání, filtry, skupinové pohledy, řazení, stránkování, capability-driven akce, pending badge, práce s archivací a filtrovaný export. Oddělení je uzamčený filtr. **Vyčistit vše** odstraní jen vaše přidané filtry; Oddělení odstranit ani nahradit nemůže.
 
 Pro spolehlivý výsledek postupujte takto:
 
 1. Otevřete detail oddělení.
 2. Zkontrolujte souhrnné počty a související záznamy.
-3. Otevřete příslušný seznam rizik, kontrol, KRI, dodavatelů nebo nálezů se stejným kontextem oddělení.
+3. Otevřete příslušnou záložku Rizik, Kontrol, KRI, Nálezů, Procesů, Aktiv, Dodavatelů nebo Uživatelů.
 4. Zapište názvy nebo kódy souvisejících záznamů, které podporují vaše review.
 
-Pro evidenci zapište oddělení, datum, názvy souvisejících záznamů a pohled, který jste použili.
+URL uchovává vybranou záložku a povolený stav registru, takže Back a Forward vrátí předchozí hledání, pohled, skupinu, řazení, filtry i stránku. Export ze záložky entity obsahuje všechny odpovídající záznamy Oddělení v rámci vašich oprávnění, ne jen aktuálně viditelnou stránku.
+
+Členství v Oddělení určuje kanonické Owning Department záznamu. Domovské Oddělení Process Ownera, Asset Ownera, Vendor Outsourcing Ownera nebo jiného Accountable Usera záznam mezi záložkami Oddělení nepřesouvá.
+
+Pro evidenci zapište Oddělení, datum, názvy souvisejících záznamů, filtry a použitý pohled.
 
 ## Tipy a časté chyby
 
 - Oddělení je pohled odpovědnosti, nenahrazuje jmenovaného vlastníka.
-- Když záznam vypadá v jiném oddělení, otevřete detail a zkontrolujte ownera.
+- Když záznam vypadá v jiném Oddělení, otevřete detail a zkontrolujte jeho Owning Department odděleně od domovského Oddělení Accountable ownera.
 - Chybějící ownership řešte přes Governance.
 
 Časté chyby vznikají ze starých filtrů, nejasného ownership, duplicitních záznamů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek v detailu.

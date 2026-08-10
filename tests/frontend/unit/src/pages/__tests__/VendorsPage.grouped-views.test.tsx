@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { MemoryRouter } from 'react-router-dom';
+
 import { VendorsPage } from '@/pages/VendorsPage';
 import { ApiClientError } from '@/services/apiClient';
 import type { Vendor, VendorListParams } from '@/types/vendor';
@@ -233,14 +235,14 @@ describe('VendorsPage grouped views', () => {
     ])('hides export when vendor list returns %s', async (_caseName, capabilities) => {
         vendorCollectionCapabilities = capabilities;
 
-        render(<VendorsPage />);
+        render(<MemoryRouter><VendorsPage /></MemoryRouter>);
 
         await screen.findByText('Claims Cloud Platform');
         expect(screen.queryByTestId('vendors-export-button')).not.toBeInTheDocument();
     });
 
     it('shows export when vendor list can_export is true', async () => {
-        render(<VendorsPage />);
+        render(<MemoryRouter><VendorsPage /></MemoryRouter>);
 
         await screen.findByText('Claims Cloud Platform');
         expect(screen.getByTestId('vendors-export-button')).toBeInTheDocument();
@@ -262,7 +264,7 @@ describe('VendorsPage grouped views', () => {
                 })
             );
 
-        render(<VendorsPage />);
+        render(<MemoryRouter><VendorsPage /></MemoryRouter>);
 
         await screen.findByText('Claims Cloud Platform');
         expect(screen.getByTestId('vendors-export-button')).toBeInTheDocument();
@@ -278,7 +280,7 @@ describe('VendorsPage grouped views', () => {
 
     it('shows vendor drill-down tabs and keeps the all view paginated', async () => {
         const ui = userEvent.setup();
-        render(<VendorsPage />);
+        render(<MemoryRouter><VendorsPage /></MemoryRouter>);
 
         await screen.findByText('Claims Cloud Platform');
         expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
@@ -301,7 +303,7 @@ describe('VendorsPage grouped views', () => {
 
     it('groups by linked risk with overlapping counts and an unlinked fallback bucket', async () => {
         const ui = userEvent.setup();
-        render(<VendorsPage />);
+        render(<MemoryRouter><VendorsPage /></MemoryRouter>);
 
         await screen.findByText('Claims Cloud Platform');
         await ui.click(screen.getByRole('button', { name: 'By Risk' }));
@@ -329,7 +331,7 @@ describe('VendorsPage grouped views', () => {
 
     it('hides the risk tab when the user cannot read risks', async () => {
         hasRiskRead = false;
-        render(<VendorsPage />);
+        render(<MemoryRouter><VendorsPage /></MemoryRouter>);
 
         await screen.findByText('Claims Cloud Platform');
         expect(screen.queryByRole('button', { name: 'By Risk' })).not.toBeInTheDocument();
@@ -337,7 +339,7 @@ describe('VendorsPage grouped views', () => {
 
     it('keeps grouped fetches constrained by the active search filter', async () => {
         const ui = userEvent.setup();
-        render(<VendorsPage />);
+        render(<MemoryRouter><VendorsPage /></MemoryRouter>);
 
         await screen.findByText('Claims Cloud Platform');
 
@@ -372,7 +374,7 @@ describe('VendorsPage grouped views', () => {
 
     it('groups by flags with multi-membership and an insignificant fallback bucket', async () => {
         const ui = userEvent.setup();
-        render(<VendorsPage />);
+        render(<MemoryRouter><VendorsPage /></MemoryRouter>);
 
         await screen.findByText('Claims Cloud Platform');
         await ui.click(screen.getByRole('button', { name: 'By Flag' }));

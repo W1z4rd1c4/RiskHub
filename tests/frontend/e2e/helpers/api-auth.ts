@@ -20,6 +20,10 @@ const DEMO_TOKEN_OPTIONS_BY_ACCOUNT_NAME: Record<string, DemoTokenOptions> = {
 export interface VendorLookup {
     id: number;
     is_archived?: boolean;
+    outsourcing_owner_user_id?: number | null;
+    identifier_type?: string | null;
+    identifier_value?: string | null;
+    replaceability?: string | null;
 }
 
 export interface RiskLookup {
@@ -181,10 +185,10 @@ export async function getVendorByRegistration(registrationId: string): Promise<V
         throw new Error(`Failed to load vendors for ${registrationId}: ${response.status}`);
     }
     const body = await response.json() as {
-        items: Array<{ id: number; registration_id: string; is_archived?: boolean }>;
+        items: Array<VendorLookup & { registration_id: string }>;
     };
     const vendor = body.items.find((item) => item.registration_id === registrationId);
-    return vendor ? { id: vendor.id, is_archived: vendor.is_archived } : null;
+    return vendor ?? null;
 }
 
 export async function ensureVendorArchived(registrationId: string, archived: boolean): Promise<number> {

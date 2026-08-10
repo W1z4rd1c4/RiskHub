@@ -153,9 +153,25 @@ export const controlSummarySchema: z.ZodType<ControlSummary> = controlMonitoring
     linked_vendors: linkedVendorSummaryArraySchema.optional(),
     capabilities: controlCapabilitiesSchema.nullable().optional(),
 });
+const controlFacetOptionSchema = passthroughObject({
+    value: z.string(),
+    label: z.string(),
+    count: z.number(),
+    selected: z.boolean(),
+    disabled: z.boolean(),
+    meta: z.record(z.string(), z.unknown()).nullable().optional(),
+});
+const controlFacetsSchema = passthroughObject({
+    status: z.array(controlFacetOptionSchema).optional(),
+    process: z.array(controlFacetOptionSchema).optional(),
+    category: z.array(controlFacetOptionSchema).optional(),
+    monitoring_status: z.array(controlFacetOptionSchema).optional(),
+    department: z.array(controlFacetOptionSchema).optional(),
+});
 export const controlListResponseSchema: z.ZodType<ControlListResponse> =
     collectionPaginationSchema(controlSummarySchema).extend({
         capabilities: controlListCapabilitiesSchema.nullable().optional(),
+        facets: controlFacetsSchema.nullable().optional(),
     });
 
 export const controlRiskLinkSchema: z.ZodType<ControlRiskLink> = passthroughObject({

@@ -1,7 +1,7 @@
 ---
 title: Správa kontrol
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.2, §4, §7 + frontend/src/pages/ControlsPage.tsx"
 summary: "Kompletní manuál pro lifecycle kontrol: návrh, ownership, logování exekuce, linkování na rizika, exporty a schvalování citlivých změn."
@@ -102,16 +102,31 @@ Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu zn
 
 ## Vyhledávání, filtrování a evidence
 
-Filtrujte podle vlastníka, oddělení, stavu, dodavatele nebo rizika. Pro audit kombinujte definici kontroly s poslední evidencí provedení.
+Registr kontrol nyní používá společný způsob práce se seznamy napříč ICT Registrem. Pokud URL neobsahuje stav seznamu, otevře se pohled **Vše** s aktivními kontrolami a deterministickým řazením podle business klíče na backendu. Stávající rychlé filtry monitorovacího stavu zůstávají dostupné. Seskupené pohledy umožňují členění podle kategorie, útvaru, procesu, typu rizika, rizika nebo dodavatele; kontrola se může objevit ve všech odpovídajících skupinách vazeb, které smíte číst.
+
+Hledání, pohled, řazení, filtry a vybraná skupina se ukládají do URL. Tlačítka Zpět a Vpřed v prohlížeči proto obnoví pracovní pohled a zkopírovaná URL jej může otevřít jinému uživateli, který má přístup ke stejným záznamům. Číslo stránky je záměrně dočasné a neobnovuje se; změna filtru vrací seznam na stránku 1. Neznámé parametry URL zůstanou zachované pro bezpečnou navigaci, ale neposílají se do API ani exportu.
+
+Filtry se skládají předvídatelně: různá pole používají **AND**, více hodnot v jednom poli používá **OR**, pokud je daný filtr podporuje, a hledání se navíc připojuje pomocí AND. Jednu podmínku odeberete jejím čipem; **Vyčistit vše** vrátí aktivní základ bez smazání hledání. Volby filtrů, jejich počty a skupiny vazeb poskytuje backend z rozsahu, který smíte vidět. Chybějící volba tedy může znamenat omezený přístup, ne chybějící data.
+
+Lifecycle určuje, zda je záznam živý nebo archivovaný; stav kontroly (`Návrh`, `Aktivní` nebo `Neaktivní`) a monitorovací stav jsou samostatná provozní pole. Skládají se pomocí AND. Například lifecycle **Vše**, stav kontroly **Neaktivní** a monitorovací stav **Neúspěšné** znamenají neaktivní kontroly se selháním mezi živými i archivovanými záznamy. Lifecycle **Archivované** použije stejné stavové podmínky jen na archivované záznamy. Každý viditelný čip se posílá do seznamu i exportu **Aktuální zobrazení registru**.
+
+Před exportem filtrujte podle lifecycle, monitorovacího stavu, doménového stavu, procesu nebo kategorie; pro kontext útvaru, rizika nebo dodavatele použijte odpovídající seskupený pohled. Pro audit kombinujte definici kontroly s evidencí provedení. Tlačítko **Export** se zobrazí jen tehdy, když backend poskytne capability pro kolekci. Dialog výslovně rozlišuje dva účely evidence:
+
+- **Aktuální zobrazení registru** je výchozí. Exportuje všechny odpovídající kontroly, které smíte číst, podle aktuálního hledání, filtrů, řazení, pohledu a vybrané skupiny. Výsledek nikdy neomezuje na právě zobrazenou stránku a nevyžaduje datum.
+- **Auditní snímek k datu** vyžaduje rozhodné datum a používá historický report. Zvolte jej, když auditní evidence musí ukázat registr kontrol k určitému dni. Jeho zavedené CSV schéma zachovává definici kontroly a sloupce Monitorovací stav, Poslední výsledek provedení, Poslední provedení, Počet dní od posledního provedení a evidenci navázaných rizik; nejde o export seskupeného pohledu.
+
+**Aktuální zobrazení registru** použijte pro provozní evidenci, která má odpovídat tomu, co jste zúžili na obrazovce. **Auditní snímek k datu** použijte pro datovanou auditní evidenci se zavedenými sloupci provedení. Tyto dva soubory nepovažujte za zaměnitelné.
 
 Pro spolehlivý výsledek filtrujte v tomto pořadí:
 
 1. Začněte dost široce, abyste ověřili existenci záznamu.
 2. Zužte pohled podle oddělení, vlastníka, stavu, dodavatele nebo data.
 3. Otevřete vzorek záznamu a ověřte, že filtr odpovídá záměru.
-4. Exportujte jen filtrovaný pohled potřebný pro review.
+4. Vědomě zvolte Aktuální zobrazení registru nebo Auditní snímek k datu a exportujte jen evidenci potřebnou pro review.
 
 Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílejte zbytečné osobní nebo citlivé informace.
+
+Archivované kontroly zůstávají mimo výchozí aktivní seznam. Pro jejich kontrolu vyberte archivovaný lifecycle. Obnovení se zobrazí jen tehdy, když ho povoluje capability konkrétního řádku; oprávnění k archivaci nebo obnovení se neodvozuje z pouhé viditelnosti záznamu.
 
 ## Tipy a časté chyby
 

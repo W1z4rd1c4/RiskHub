@@ -34,6 +34,10 @@ class ApprovalRequestCancelledPayload(OutboxPayloadModel):
     cancelled_by_user_id: int
 
 
+class ApprovalRequestExpiredPayload(OutboxPayloadModel):
+    approval_id: int
+
+
 class IssueAssignedPayload(ActorPayloadModel):
     issue_id: int
     owner_user_id: int
@@ -75,6 +79,7 @@ OutboxPayload: TypeAlias = (
     ApprovalRequestCreatedPayload
     | ApprovalRequestResolvedPayload
     | ApprovalRequestCancelledPayload
+    | ApprovalRequestExpiredPayload
     | IssueAssignedPayload
     | IssueExceptionRequestedPayload
     | IssueExceptionApprovedPayload
@@ -89,6 +94,7 @@ OUTBOX_PAYLOAD_MODELS: dict[str, type[OutboxPayloadModel]] = {
     "approval.request_created": ApprovalRequestCreatedPayload,
     "approval.request_resolved": ApprovalRequestResolvedPayload,
     "approval.request_cancelled": ApprovalRequestCancelledPayload,
+    "approval.request_expired": ApprovalRequestExpiredPayload,
     "issue.assigned": IssueAssignedPayload,
     "issue.exception_requested": IssueExceptionRequestedPayload,
     "issue.exception_approved": IssueExceptionApprovedPayload,
@@ -121,6 +127,7 @@ __all__ = [
     "ApprovalRequestCreatedPayload",
     "ApprovalRequestResolvedPayload",
     "ApprovalRequestCancelledPayload",
+    "ApprovalRequestExpiredPayload",
     "IssueAssignedPayload",
     "IssueExceptionRequestedPayload",
     "IssueExceptionApprovedPayload",

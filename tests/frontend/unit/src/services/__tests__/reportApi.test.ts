@@ -68,4 +68,49 @@ describe('reportApi exportKRIs', () => {
             { timeoutMs: null },
         );
     });
+
+    it('sends the selected locale for the standard Vendor export', async () => {
+        getBlobMock.mockResolvedValue({ blob: new Blob(['code,label\n']), headers: new Headers() });
+
+        await reportApi.exportVendors({
+            format: 'csv',
+            asOfDate: '2026-07-16',
+            filters: { locale: 'cs', vendorType: 'ict' },
+        });
+
+        expect(getBlobMock).toHaveBeenCalledWith(
+            '/reports/vendors/export?format=csv&as_of_date=2026-07-16&vendor_type=ict&locale=cs',
+            { timeoutMs: null },
+        );
+    });
+
+    it('sends the selected point-in-time date and Risk filters to the mature report export', async () => {
+        getBlobMock.mockResolvedValue({ blob: new Blob(['Risk ID,Name\nR-1,Historical risk\n']), headers: new Headers() });
+
+        await reportApi.exportRisks({
+            format: 'csv',
+            asOfDate: '2025-01-15',
+            filters: { status: 'active', search: 'Historical', riskType: 'operational', isPriority: true },
+        });
+
+        expect(getBlobMock).toHaveBeenCalledWith(
+            '/reports/risks/export?format=csv&as_of_date=2025-01-15&status=active&search=Historical&risk_type=operational&is_priority=true',
+            { timeoutMs: null },
+        );
+    });
+
+    it('sends the selected point-in-time date and Control filters to the evidence-rich report export', async () => {
+        getBlobMock.mockResolvedValue({ blob: new Blob(['Name,Latest Execution Result\nControl,passed\n']), headers: new Headers() });
+
+        await reportApi.exportControls({
+            format: 'csv',
+            asOfDate: '2025-01-15',
+            filters: { status: 'active', monitoringStatus: 'passed', search: 'Control' },
+        });
+
+        expect(getBlobMock).toHaveBeenCalledWith(
+            '/reports/controls/export?format=csv&as_of_date=2025-01-15&status=active&monitoring_status=passed&search=Control',
+            { timeoutMs: null },
+        );
+    });
 });

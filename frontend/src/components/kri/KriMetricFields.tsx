@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 import type { KriModalFormData, KriModalTranslate } from './kriModalTypes';
 
 interface KriMetricFieldsProps {
@@ -15,13 +17,18 @@ export function KriMetricFields({
     t,
     updateFormData,
 }: KriMetricFieldsProps) {
+    const metricNameId = useId();
+    const descriptionId = useId();
+    const currentValueId = useId();
+    const unitId = useId();
     return (
         <>
             <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                <label htmlFor={metricNameId} className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
                     {t('modal.metric_name', { ns: 'kris' })}
                 </label>
                 <input
+                    id={metricNameId}
                     type="text"
                     placeholder={t('form.placeholders.metric_name')}
                     value={formData.metric_name}
@@ -34,10 +41,11 @@ export function KriMetricFields({
             </div>
 
             <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                <label htmlFor={descriptionId} className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
                     {t('fields.description', { ns: 'kris' })}
                 </label>
                 <textarea
+                    id={descriptionId}
                     rows={3}
                     value={formData.description}
                     onChange={(event) => {
@@ -51,12 +59,13 @@ export function KriMetricFields({
 
             <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                    <label htmlFor={currentValueId} className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
                         {isCreate
                             ? t('fields.current_value', { ns: 'kris' })
                             : t('modal.current_value_readonly', { ns: 'kris' })}
                     </label>
                     <input
+                        id={currentValueId}
                         type="number"
                         value={formData.current_value}
                         onChange={(event) => updateFormData({ current_value: Number.parseFloat(event.target.value) })}
@@ -65,10 +74,11 @@ export function KriMetricFields({
                     />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                    <label htmlFor={unitId} className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
                         {t('modal.unit_examples', { ns: 'kris' })}
                     </label>
                     <input
+                        id={unitId}
                         type="text"
                         value={formData.unit}
                         onChange={(event) => updateFormData({ unit: event.target.value })}

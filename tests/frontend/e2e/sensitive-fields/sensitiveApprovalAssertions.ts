@@ -24,7 +24,7 @@ export async function expectSensitiveApproval(page: Page, fixture: SensitiveAppr
     expect(index, `Expected seeded approval reason: ${fixture.reason}`).toBeGreaterThanOrEqual(0);
 
     const card = approvalsPage.getCard(index);
-    await expect(card).toContainText(fixture.resourceType);
+    await expect(card).toContainText(new RegExp(fixture.resourceType, 'i'));
     await expect(card).toContainText(fixture.reason);
     await approvalsPage.expectStatus(index, fixture.status);
     expect(await approvalsPage.getActionType(index)).toContain(fixture.action);

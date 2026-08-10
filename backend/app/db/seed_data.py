@@ -1,5 +1,7 @@
 """Static seed payloads used by backend/app/db/seed.py."""
 
+from typing import Any
+
 # Sample departments
 DEPARTMENTS = [
     {"name": "Operations", "code": "OPS", "description": "Operations department"},
@@ -13,7 +15,8 @@ DEPARTMENTS = [
 # ID 1-3: Privileged accounts (full access)
 # ID 4-6: Department heads (department-scoped write access)
 # ID 7-9: Employees (limited access under department heads)
-TEST_USERS = [
+# ID 10: CISO (global Threat stewardship)
+TEST_USERS: list[dict[str, Any]] = [
     # Privileged accounts
     {
         "email": "admin@riskhub.local",
@@ -79,6 +82,13 @@ TEST_USERS = [
         "role": "employee",
         "department": "IT",
         "access_scope": "department",
+    },
+    {
+        "email": "ciso@riskhub.local",
+        "name": "Klára Černá",
+        "role": "ciso",
+        "department": "IT",
+        "access_scope": "global",
     },
 ]
 

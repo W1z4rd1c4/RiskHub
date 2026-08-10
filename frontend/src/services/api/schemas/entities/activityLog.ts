@@ -1,4 +1,6 @@
-import { passthroughObject, z } from '../common';
+import { idNameSchema, passthroughObject, z } from '../common';
+
+export const activityLogActorLookupArraySchema = z.array(idNameSchema);
 
 export const activityLogCapabilitiesSchema = passthroughObject({
     can_read: z.boolean(),

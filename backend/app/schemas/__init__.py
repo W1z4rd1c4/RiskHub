@@ -111,9 +111,20 @@ from app.schemas.vendor import (
     VendorLinkedRiskSummary,
     VendorListResponse,
     VendorRead,
-    VendorReplaceabilityEnum,
     VendorTypeEnum,
     VendorUpdate,
+)
+from app.schemas.vendor_contract import (
+    VendorContractCapabilities,
+    VendorContractCreate,
+    VendorContractRead,
+    VendorContractUpdate,
+)
+from app.schemas.vendor_sub_outsourcing import (
+    VendorSubOutsourcingCapabilities,
+    VendorSubOutsourcingCreate,
+    VendorSubOutsourcingRead,
+    VendorSubOutsourcingUpdate,
 )
 
 __all__ = [
@@ -209,13 +220,20 @@ __all__ = [
     "IssueOwnerLookup",
     # Vendor schemas
     "VendorTypeEnum",
-    "VendorReplaceabilityEnum",
     "VendorBase",
     "VendorCreate",
     "VendorUpdate",
     "VendorLinkedRiskSummary",
     "VendorRead",
     "VendorListResponse",
+    "VendorContractCapabilities",
+    "VendorContractCreate",
+    "VendorContractUpdate",
+    "VendorContractRead",
+    "VendorSubOutsourcingCapabilities",
+    "VendorSubOutsourcingCreate",
+    "VendorSubOutsourcingUpdate",
+    "VendorSubOutsourcingRead",
     # Risk questionnaires
     "RiskQuestionnaireStatusEnum",
     "RiskQuestionnaireListItemRead",

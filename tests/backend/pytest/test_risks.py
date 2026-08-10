@@ -2,11 +2,106 @@
 Tests for Risk API endpoints.
 """
 
+import json
+
 import pytest
 from httpx import AsyncClient
 
 from app.models import Control, ControlRiskLink, Department, KeyRiskIndicator, Risk, User
 from tests.backend.pytest.factories import create_test_control
+
+
+@pytest.mark.asyncio
+async def test_risk_collection_json_department_filter_wins_and_scopes_rows_facets_groups_and_export(
+    auth_client: AsyncClient,
+    db_session,
+    test_user_employee: User,
+    seed_risk_types,
+):
+    scoped_department = Department(name="Scoped Risk Department", code="RISK-SCOPE")
+    other_department = Department(name="Other Risk Department", code="RISK-OTHER")
+    db_session.add_all([scoped_department, other_department])
+    await db_session.flush()
+
+    # The accountable owner intentionally belongs to the other Department.
+    test_user_employee.department_id = other_department.id
+    db_session.add_all(
+        [
+            Risk(
+                risk_id_code="R-SCOPE-IN",
+                name="Scoped canonical risk",
+                process="Department workspace",
+                description="Canonical membership follows the Risk Department",
+                department_id=scoped_department.id,
+                owner_id=test_user_employee.id,
+                risk_type="operational",
+                category="Operations",
+                gross_probability=3,
+                gross_impact=3,
+                net_probability=2,
+                net_impact=2,
+                status="active",
+            ),
+            Risk(
+                risk_id_code="R-SCOPE-OUT",
+                name="Out of scope canonical risk",
+                process="Department workspace",
+                description="The accountable owner does not determine membership",
+                department_id=other_department.id,
+                owner_id=test_user_employee.id,
+                risk_type="operational",
+                category="Compliance",
+                gross_probability=3,
+                gross_impact=3,
+                net_probability=2,
+                net_impact=2,
+                status="active",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    scoped = await auth_client.get(
+        "/api/v1/risks",
+        params={
+            "department_id": other_department.id,
+            "filters": json.dumps(
+                {
+                    "department_id": scoped_department.id,
+                    "process": "Department workspace",
+                }
+            ),
+            "group_by": "department",
+        },
+    )
+    assert scoped.status_code == 200
+    body = scoped.json()
+    assert body["total"] == 1
+    assert body["items"] == []
+    assert [(group["label"], group["count"]) for group in body["groups"]] == [
+        (scoped_department.name, 1)
+    ]
+    assert [
+        (option["label"], option["count"])
+        for option in body["facets"]["department"]
+        if option["count"]
+    ] == [(scoped_department.name, 1)]
+
+    exported = await auth_client.get(
+        "/api/v1/risks/export",
+        params={
+            "department_id": other_department.id,
+            "filters": json.dumps(
+                {
+                    "department_id": scoped_department.id,
+                    "process": "Department workspace",
+                }
+            ),
+        },
+    )
+    assert exported.status_code == 200
+    assert "Scoped canonical risk" in exported.text
+    assert "Out of scope canonical risk" not in exported.text
 
 
 @pytest.mark.asyncio
@@ -98,6 +193,50 @@ async def test_list_risks(auth_client: AsyncClient, test_user: User, test_depart
     assert by_code["R-102-NOSUB"]["subprocess"] is None
     assert by_code["R-102"]["capabilities"]["can_read"] is True
     assert by_code["R-102"]["capabilities"]["can_link_controls"] is True
+
+
+@pytest.mark.asyncio
+async def test_risk_sort_ties_use_id_as_deterministic_secondary_key(
+    auth_client: AsyncClient,
+    db_session,
+    test_department: Department,
+):
+    risks = [
+        Risk(
+            risk_id_code=f"R-TIE-{index}",
+            name=f"Stable risk {index}",
+            process="Stable tie process",
+            description="Stable pagination tie",
+            department_id=test_department.id,
+            risk_type="operational",
+            category="Operations",
+            gross_probability=3,
+            gross_impact=3,
+            gross_score=9,
+            net_probability=2,
+            net_impact=2,
+            net_score=4,
+            status="active",
+            is_priority=False,
+        )
+        for index in range(3)
+    ]
+    db_session.add_all(risks)
+    await db_session.commit()
+
+    response = await auth_client.get(
+        "/api/v1/risks",
+        params={
+            "process": "Stable tie process",
+            "sort_by": "gross_score",
+            "sort_order": "desc",
+        },
+    )
+
+    assert response.status_code == 200
+    assert [row["id"] for row in response.json()["items"]] == sorted(
+        (risk.id for risk in risks), reverse=True
+    )
 
 
 @pytest.mark.asyncio

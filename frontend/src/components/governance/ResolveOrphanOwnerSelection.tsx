@@ -40,6 +40,7 @@ export function ResolveOrphanOwnerSelection({
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                         <input
                             type="text"
+                            data-testid="orphan-owner-search"
                             placeholder={t('filters.search_items')}
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
@@ -48,6 +49,7 @@ export function ResolveOrphanOwnerSelection({
                     </div>
                     {orphanDepartmentName && (
                         <button
+                            type="button"
                             onClick={() => setSelectedDeptFilter(selectedDeptFilter === orphanDepartmentName ? null : orphanDepartmentName)}
                             className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${selectedDeptFilter === orphanDepartmentName ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-emerald-500/10 text-emerald-400 border-white/10 hover:bg-emerald-500/20'}`}
                         >
@@ -60,6 +62,7 @@ export function ResolveOrphanOwnerSelection({
                     {sortedUsers.map((user) => (
                         <button
                             key={user.id}
+                            type="button"
                             onClick={() => handleSelectUser(user)}
                             className={`text-left p-3 rounded-xl border transition-all flex items-center gap-3 ${selectedUserId === user.id ? 'bg-emerald-500/10 border-emerald-500 shadow-sm' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
                         >
@@ -71,7 +74,9 @@ export function ResolveOrphanOwnerSelection({
                                     <p className="text-sm font-bold text-white truncate">{user.name}</p>
                                     {user.employee_type === 'head' && <Crown className="h-3 w-3 text-amber-500" />}
                                 </div>
-                                <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
+                                <p className="text-[10px] text-slate-500 truncate">
+                                    {[user.email, user.department_name, user.role_name].filter(Boolean).join(' · ')}
+                                </p>
                             </div>
                             {selectedUserId === user.id && <Check className="h-4 w-4 text-emerald-500" />}
                         </button>

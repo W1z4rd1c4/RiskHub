@@ -17,7 +17,6 @@ This checker enforces:
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -57,6 +56,9 @@ ALLOWED_TAGS = {
     "kri",
     "issues",
     "vendors",
+    "processes",
+    "assets",
+    "threats",
     "departments",
     "governance",
     "access",

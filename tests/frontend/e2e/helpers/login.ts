@@ -77,10 +77,11 @@ export async function isLoggedIn(page: Page): Promise<boolean> {
 // Demo account display names mapped to roles for reference
 // These match the actual demo accounts in LoginPage.tsx
 export const DEMO_ACCOUNTS = {
-    // Privileged users (IDs 1-3)
+    // Global governance and platform users
     ADMIN: 'System Admin',
     CRO: 'Anna Kowalski',
     RISK_MANAGER: 'Petra Svobodová',
+    CISO: 'Klára Černá',
 
     // Department heads (IDs 4-6)
     DEPT_HEAD_OPERATIONS: 'Eva Králová',

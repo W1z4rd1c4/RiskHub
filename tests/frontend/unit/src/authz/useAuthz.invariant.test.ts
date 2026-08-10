@@ -12,6 +12,42 @@ function readRepoSource(path: string): string {
 }
 
 describe('useAuthz invariants', () => {
+    it('uses backend route authority to let a CISO reach requester-scoped approvals', () => {
+        const meCapabilities = {
+            can_view_user_directory: false,
+            can_view_access_users: false,
+            can_view_department_access_users: false,
+            can_view_users_route: false,
+            can_view_approvals: true,
+            can_manage_access: false,
+            can_view_department_access: false,
+            can_view_admin_console: false,
+            can_view_riskhub: false,
+            can_view_governance: false,
+            can_view_activity_log: false,
+            can_view_committee: false,
+            can_view_users_page: false,
+            is_second_line: false,
+            can_read_risks: true,
+            can_read_controls: true,
+            can_read_vendors: true,
+            can_read_departments: true,
+            resource_permissions: {
+                'approvals:write': false,
+            },
+        } as MeCapabilities;
+
+        const authz = buildAuthz(
+            { role: 'ciso', access_scope: 'global', me_capabilities: meCapabilities },
+            () => false,
+            meCapabilities,
+            true,
+        );
+
+        expect(authz.canViewApprovals).toBe(true);
+        expect(authz.can('write', 'approvals')).toBe(false);
+    });
+
     it('does not fall back from MeCapabilities to local permission checks in buildAuthz', () => {
         const policySource = readRepoSource('frontend/src/authz/policy.ts');
         const buildAuthzBody = policySource.slice(policySource.indexOf('export function buildAuthz'));
@@ -19,6 +55,7 @@ describe('useAuthz invariants', () => {
         expect(buildAuthzBody).not.toContain('?? hasPermission(');
         expect(buildAuthzBody).not.toContain('?? hasPermission');
         expect(buildAuthzBody).not.toMatch(/meCapabilities\?\.[A-Za-z0-9_]+ \?\?/);
+        expect(buildAuthzBody).not.toContain('!isCISO');
     });
 
     it('uses authz.can for business route resource gates', () => {
@@ -59,8 +96,20 @@ describe('useAuthz invariants', () => {
             ),
         );
 
+        // ict_committee is intentionally absent: #64 migrated the committee from a
+        // sidebar route gate to the dashboard tab (DashboardPage gates it via
+        // authz.can('read','ict_committee')), so business.tsx no longer references it.
         expect(routeResources).toEqual(
-            new Set(['controls', 'risks', 'issues', 'vendors', 'departments']),
+            new Set([
+                'controls',
+                'risks',
+                'issues',
+                'vendors',
+                'processes',
+                'assets',
+                'threats',
+                'departments',
+            ]),
         );
 
         const resource_permissions = Object.fromEntries(
@@ -71,6 +120,7 @@ describe('useAuthz invariants', () => {
             can_view_access_users: false,
             can_view_department_access_users: false,
             can_view_users_route: false,
+            can_view_approvals: true,
             can_manage_access: false,
             can_view_department_access: false,
             can_view_admin_console: false,

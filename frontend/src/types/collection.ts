@@ -14,6 +14,15 @@ export interface CollectionCapabilities {
     can_view_vendor_contexts?: boolean;
 }
 
+export interface CollectionFacetOption {
+    value: string;
+    label: string;
+    count: number;
+    selected: boolean;
+    disabled: boolean;
+    meta?: Record<string, unknown> | null;
+}
+
 export interface CollectionListResponse<
     TItem,
     TCapabilities extends object = CollectionCapabilities,
@@ -23,6 +32,7 @@ export interface CollectionListResponse<
     offset: number;
     limit: number;
     groups?: CollectionGroup[] | null;
+    facets?: Record<string, CollectionFacetOption[]> | null;
     capabilities?: TCapabilities | null;
 }
 

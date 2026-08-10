@@ -65,6 +65,35 @@ async def validate_assignable_vendors(
     return ordered_vendors
 
 
+async def assert_no_direct_protected_vendor_links(
+    db: AsyncSession,
+    vendors: Sequence[Vendor],
+    *,
+    removing: bool = False,
+) -> None:
+    """Reject ungoverned KRI-side links/unlinks to protected Vendors (#100).
+
+    Uses the same protection predicate as the governed link routes
+    (``submit_vendor_relationship_mutation_if_required``); linking or unlinking
+    a protected Vendor must go through the governed workflow instead.
+    """
+    from app.services._governed_mutations.vendor_mutations import (
+        protected_vendor_ids_requiring_approval,
+    )
+
+    if await protected_vendor_ids_requiring_approval(db, vendors):
+        directive = (
+            "Submit it via DELETE /api/v1/vendors/{vendor_id}/linked-kris/{kri_id}"
+            if removing
+            else "Submit it via POST /api/v1/vendors/{vendor_id}/linked-kris"
+        )
+        raise ValidationError(
+            f"A protected Vendor relationship requires independent approval. {directive}",
+            code="governed_vendor_relationship_required",
+            status_code=422,
+        )
+
+
 async def ensure_vendors_exist(db: AsyncSession, vendor_ids: Sequence[int] | None) -> list[Vendor]:
     normalized_vendor_ids = normalize_vendor_ids(vendor_ids)
     if not normalized_vendor_ids:
@@ -115,11 +144,16 @@ async def assign_vendors_to_kri(
             vendor_id for vendor_id in normalized_parent_vendor_ids if vendor_id not in existing_risk_vendor_ids
         ]
 
-    await validate_assignable_vendors(
+    assignable_vendors = await validate_assignable_vendors(
         db,
         current_user=current_user,
         vendor_ids=[*parent_vendor_ids_to_link, *vendor_ids_to_unlink, *vendor_ids_to_link],
     )
+    vendor_ids_to_add = {*parent_vendor_ids_to_link, *vendor_ids_to_link}
+    vendors_to_add = {vendor.id: vendor for vendor in assignable_vendors if vendor.id in vendor_ids_to_add}
+    await assert_no_direct_protected_vendor_links(db, list(vendors_to_add.values()))
+    vendors_to_remove = [vendor for vendor in assignable_vendors if vendor.id in vendor_ids_to_unlink]
+    await assert_no_direct_protected_vendor_links(db, vendors_to_remove, removing=True)
 
     if parent_vendor_ids_to_link:
         for vendor_id in normalized_parent_vendor_ids:

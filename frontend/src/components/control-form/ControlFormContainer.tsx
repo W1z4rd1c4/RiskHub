@@ -167,6 +167,15 @@ export function ControlForm({
 
     return (
         <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
+            {/*
+              * Loaded-state sentinel for tests: the identity step (step 0) shows no
+              * load-dependent UI, so the background lookups (users / departments /
+              * risks) settling is otherwise invisible. Emitted only once every lookup
+              * has resolved so tests can gate assertions on a fully-loaded form.
+              */}
+            {!isLoadingLookups && !isLoadingRisks && (
+                <span data-testid="control-form-lookups-ready" className="sr-only" />
+            )}
             {/* Multi-step indicator */}
             <StepIndicator
                 steps={steps}

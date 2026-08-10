@@ -2,6 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { MemoryRouter } from 'react-router-dom';
+
 import { IssuesPage } from '@/pages/IssuesPage';
 
 const mockList = vi.fn();
@@ -25,7 +27,6 @@ vi.mock('react-router-dom', async () => {
     return {
         ...actual,
         useNavigate: () => mockNavigate,
-        useSearchParams: () => [new URLSearchParams(''), vi.fn()] as const,
     };
 });
 
@@ -164,7 +165,7 @@ describe('IssuesPage grouped views', () => {
 
     it('keeps the default all view paginated and switches grouped views to drill-down cards', async () => {
         const ui = userEvent.setup();
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Multi-risk execution issue');
         expect(document.body).toHaveTextContent(/Showing/);
@@ -179,7 +180,7 @@ describe('IssuesPage grouped views', () => {
 
     it('duplicates issues across distinct grouped buckets and keeps fallback buckets for unlinked issues', async () => {
         const ui = userEvent.setup();
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Multi-risk execution issue');
 
@@ -201,7 +202,7 @@ describe('IssuesPage grouped views', () => {
 
     it('groups by department even when no linked risk context exists', async () => {
         const ui = userEvent.setup();
-        render(<IssuesPage />);
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('Multi-risk execution issue');
 

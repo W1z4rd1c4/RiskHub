@@ -74,26 +74,35 @@ vi.mock('@/routing', () => {
     }
 
     return {
-        getSidebarNavRoutes: ({ hasPermission }: { hasPermission: (resource: string, action: string) => boolean }) => [
+        getGroupedSidebarNav: ({ hasPermission }: { hasPermission: (resource: string, action: string) => boolean }) => [
             {
-                nav: {
-                    href: '/settings',
-                    icon: RouteIcon,
-                    labelKey: 'settings',
-                },
-            },
-            ...(hasPermission('risks', 'read')
-                ? [
+                group: 'administration',
+                items: [
                     {
                         nav: {
-                            href: '/risks',
+                            href: '/settings',
                             icon: RouteIcon,
-                            labelKey: 'risks',
+                            labelKey: 'settings',
+                            group: 'administration',
                         },
                     },
-                ]
-                : []),
+                    ...(hasPermission('risks', 'read')
+                        ? [
+                            {
+                                nav: {
+                                    href: '/risks',
+                                    icon: RouteIcon,
+                                    labelKey: 'risks',
+                                    group: 'administration',
+                                },
+                            },
+                        ]
+                        : []),
+                ],
+            },
         ],
+        resolveActiveSidebarHref: (pathname: string, hrefs: readonly string[]) =>
+            hrefs.find((href) => href === pathname) ?? null,
     };
 });
 

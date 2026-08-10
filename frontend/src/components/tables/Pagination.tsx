@@ -83,6 +83,8 @@ export function Pagination({
                             <button
                                 key={pageNum}
                                 onClick={() => onPageChange(pageNum)}
+                                aria-label={t('pagination.go_to_page', { page: pageNum })}
+                                aria-current={currentPage === pageNum ? 'page' : undefined}
                                 className={cn(
                                     'w-10 h-10 rounded-lg text-sm font-medium transition-all duration-200',
                                     currentPage === pageNum

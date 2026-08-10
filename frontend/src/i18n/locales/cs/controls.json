@@ -80,6 +80,12 @@
     "overdue_only": "Pouze opožděné",
     "search_placeholder": "Hledat podle názvu, popisu, rizika nebo oddělení..."
   },
+  "register": {
+    "views": { "all": "Vše", "category": "Podle formy kontroly", "department": "Podle oddělení", "process": "Podle procesu", "risk_type": "Podle typu rizika", "risk": "Podle rizika", "vendor": "Podle dodavatele" },
+    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "process": "Proces", "category": "Forma kontroly" },
+    "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Vše" },
+    "export": { "title": "Export filtrovaných kontrol" }
+  },
   "grouping": {
     "unlinked_vendor": "Bez propojeného dodavatele"
   },

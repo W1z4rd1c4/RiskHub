@@ -19,6 +19,10 @@ End-to-end coverage for user-facing flows, RBAC behavior, and deterministic prod
 
 Playwright global setup validates fixture health before tests run (risks, controls, KRIs, vendors, SLAs, approvals). Keep tests aligned with those seeded entities.
 
+`dora-locale-journeys.spec.ts` keeps English and Czech register and protected
+approval journeys language-pure for controlled labels while preserving user
+free text.
+
 ## Targeted Run Command
 
 ```bash

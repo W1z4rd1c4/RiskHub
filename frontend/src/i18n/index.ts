@@ -14,9 +14,15 @@ import settingsEN from './locales/en/settings.json';
 import adminEN from './locales/en/admin.json';
 import authEN from './locales/en/auth.json';
 import vendorsEN from './locales/en/vendors.json';
+import processesEN from './locales/en/processes.json';
+import assetsEN from './locales/en/assets.json';
+import threatsEN from './locales/en/threats.json';
+import ictRegisterDqEN from './locales/en/ictRegisterDq.json';
+import ictRegisterCommitteeEN from './locales/en/ictRegisterCommittee.json';
 import issuesEN from './locales/en/issues.json';
 import errorKeysEN from './locales/en/errorKeys.json';
 import notificationsEN from './locales/en/notifications.json';
+import layoutEN from './locales/en/layout.json';
 
 // Import Czech namespace files
 import commonCS from './locales/cs/common.json';
@@ -30,9 +36,15 @@ import settingsCS from './locales/cs/settings.json';
 import adminCS from './locales/cs/admin.json';
 import authCS from './locales/cs/auth.json';
 import vendorsCS from './locales/cs/vendors.json';
+import processesCS from './locales/cs/processes.json';
+import assetsCS from './locales/cs/assets.json';
+import threatsCS from './locales/cs/threats.json';
+import ictRegisterDqCS from './locales/cs/ictRegisterDq.json';
+import ictRegisterCommitteeCS from './locales/cs/ictRegisterCommittee.json';
 import issuesCS from './locales/cs/issues.json';
 import errorKeysCS from './locales/cs/errorKeys.json';
 import notificationsCS from './locales/cs/notifications.json';
+import layoutCS from './locales/cs/layout.json';
 
 export const SUPPORTED_LANGUAGES = ['en', 'cs'] as const;
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
@@ -52,9 +64,15 @@ export const resources = {
         admin: adminEN,
         auth: authEN,
         vendors: vendorsEN,
+        processes: processesEN,
+        assets: assetsEN,
+        threats: threatsEN,
+        ictRegisterDq: ictRegisterDqEN,
+        ictRegisterCommittee: ictRegisterCommitteeEN,
         issues: issuesEN,
         errorKeys: errorKeysEN,
         notifications: notificationsEN,
+        layout: layoutEN,
     },
     cs: {
         common: commonCS,
@@ -68,9 +86,15 @@ export const resources = {
         admin: adminCS,
         auth: authCS,
         vendors: vendorsCS,
+        processes: processesCS,
+        assets: assetsCS,
+        threats: threatsCS,
+        ictRegisterDq: ictRegisterDqCS,
+        ictRegisterCommittee: ictRegisterCommitteeCS,
         issues: issuesCS,
         errorKeys: errorKeysCS,
         notifications: notificationsCS,
+        layout: layoutCS,
     },
 } as const;
 
@@ -86,9 +110,15 @@ export const namespaces = [
     'admin',
     'auth',
     'vendors',
+    'processes',
+    'assets',
+    'threats',
+    'ictRegisterDq',
+    'ictRegisterCommittee',
     'issues',
     'errorKeys',
     'notifications',
+    'layout',
 ] as const;
 
 export type Namespace = typeof namespaces[number];

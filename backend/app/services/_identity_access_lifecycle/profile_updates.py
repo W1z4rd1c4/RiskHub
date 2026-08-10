@@ -6,21 +6,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.config import Settings
 from app.core.email import email_equals
-from app.core.exceptions import AuthorizationError, NotFoundError, ServiceFailure, ValidationError
+from app.core.exceptions import AuthorizationError, NotFoundError, ValidationError
 from app.core.security import get_password_hash
 from app.core.user_query_options import user_selectinload_options
 from app.models import Role, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas import UserCreate, UserUpdate
+from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
 from app.services._org_chart import (
     acquire_org_chart_lock,
     clear_manager_references_for_inactive_user,
     validate_dept_manager_dept_change,
     validate_no_manager_cycle,
 )
-from app.services._orphaned_items import flag_orphaned_items
+from app.services._process_owner_lock import acquire_process_owner_identity_lock
+from app.services._threat_stewardship_lock import acquire_threat_steward_identity_lock
+from app.services._vendor_owner_lock import acquire_vendor_owner_identity_lock
 from app.services.transaction_boundary import commit_service_boundary
 
+from .ciso_stewardship import (
+    flag_orphaned_items_for_deactivation,
+    flag_orphaned_threats_for_ciso_role_loss,
+    role_change_removes_ciso_stewardship,
+)
 from .execution import log_user_update_and_commit
 from .policy import (
     ensure_directory_reenable_allowed,
@@ -29,15 +37,6 @@ from .policy import (
     ensure_sso_local_field_update_allowed,
     is_global_privileged_user,
 )
-
-
-async def flag_orphaned_items_for_deactivation(db: AsyncSession, *, user: User) -> int:
-    try:
-        created_orphans = await flag_orphaned_items(db, user.id)
-    except Exception as exc:
-        await db.rollback()
-        raise ServiceFailure("Failed to flag orphaned items") from exc
-    return len(created_orphans)
 
 
 async def create_user_profile(
@@ -123,12 +122,44 @@ async def update_user_profile(
     )
     ensure_directory_reenable_allowed(user=user, update_data=update_data)
 
+    changes_steward_identity = (
+        update_data.get("is_active") is False
+        or ("role_id" in update_data and update_data["role_id"] != user.role_id)
+    )
+    if changes_steward_identity:
+        await acquire_threat_steward_identity_lock(db, user_id=user.id)
+        if update_data.get("is_active") is False:
+            await acquire_process_owner_identity_lock(db, user_id=user.id)
+            await acquire_asset_owner_identity_lock(db, user_id=user.id)
+            await acquire_vendor_owner_identity_lock(db, user_id=user.id)
+        user = (
+            await db.execute(
+                select(User)
+                .options(*user_selectinload_options(include_permissions=True))
+                .where(User.id == user.id)
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one()
+
+    removes_ciso_stewardship = False
     if "role_id" in update_data:
         new_role_id = update_data["role_id"]
         if new_role_id != user.role_id:
-            new_role = (await db.execute(select(Role).where(Role.id == new_role_id))).scalar_one_or_none()
+            new_role = (
+                await db.execute(
+                    select(Role).where(
+                        Role.id == new_role_id,
+                        Role.is_active.is_(True),
+                    )
+                )
+            ).scalar_one_or_none()
             if not new_role:
                 raise ValidationError("Invalid role_id")
+            removes_ciso_stewardship = await role_change_removes_ciso_stewardship(
+                db,
+                user=user,
+                new_role=new_role,
+            )
             await ensure_role_change_keeps_privileged_access(
                 db,
                 current_user=current_user,
@@ -154,6 +185,9 @@ async def update_user_profile(
         orphan_count = await flag_orphaned_items_for_deactivation(db, user=user)
         await acquire_org_chart_lock(db)
         await clear_manager_references_for_inactive_user(db, user_id=user.id)
+        extra_changes["orphaned_items_flagged"] = {"old": None, "new": orphan_count}
+    elif removes_ciso_stewardship:
+        orphan_count = await flag_orphaned_threats_for_ciso_role_loss(db, user=user)
         extra_changes["orphaned_items_flagged"] = {"old": None, "new": orphan_count}
 
     if "manager_id" in update_data and update_data["manager_id"] != user.manager_id:

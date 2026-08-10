@@ -60,7 +60,7 @@ describe('ConfirmDialog accessibility', () => {
 
         expect(container.firstChild).toBeNull();
 
-        const dialog = screen.getByRole('dialog', { name: 'Delete control evidence' });
+        const dialog = screen.getByRole('alertdialog', { name: 'Delete control evidence' });
         expect(dialog).toHaveAttribute('aria-modal', 'true');
         expect(dialog).toHaveAccessibleDescription('This removes the uploaded evidence from the control.');
         expect(within(dialog).getByRole('button', { name: 'Close' })).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe('ConfirmDialog accessibility', () => {
         const opener = screen.getByRole('button', { name: 'Open delete confirmation' });
         await user.click(opener);
 
-        const dialog = screen.getByRole('dialog', { name: 'Delete control evidence' });
+        const dialog = screen.getByRole('alertdialog', { name: 'Delete control evidence' });
         const closeButton = within(dialog).getByRole('button', { name: 'Close' });
         const confirmButton = within(dialog).getByRole('button', { name: 'Delete evidence' });
 
@@ -95,14 +95,14 @@ describe('ConfirmDialog accessibility', () => {
 
         expect(onClose).toHaveBeenCalledTimes(1);
         await waitFor(() => expect(opener).toHaveFocus());
-        expect(screen.queryByRole('dialog', { name: 'Delete control evidence' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog', { name: 'Delete control evidence' })).not.toBeInTheDocument();
     });
 
     it('keeps every close path disabled while loading', async () => {
         const user = userEvent.setup();
         const { props } = renderConfirmDialog({ isLoading: true });
 
-        const dialog = screen.getByRole('dialog', { name: 'Delete control evidence' });
+        const dialog = screen.getByRole('alertdialog', { name: 'Delete control evidence' });
         expect(within(dialog).getByRole('button', { name: 'Close' })).toBeDisabled();
         expect(within(dialog).getByRole('button', { name: 'Keep evidence' })).toBeDisabled();
 
@@ -113,5 +113,21 @@ describe('ConfirmDialog accessibility', () => {
         expect(backdrop).toBeInTheDocument();
         await user.click(backdrop as Element);
         expect(props.onClose).not.toHaveBeenCalled();
+    });
+
+    it('uses the semantic destructive token pair for the danger action', () => {
+        renderConfirmDialog();
+
+        const confirmButton = screen.getByRole('button', { name: 'Delete evidence' });
+        expect(confirmButton).toHaveClass('bg-destructive', 'text-destructive-foreground');
+        expect(confirmButton.className).not.toMatch(/bg-\[#|text-\[#/);
+    });
+
+    it('uses the semantic warning token pair for the warning action', () => {
+        renderConfirmDialog({ variant: 'warning', confirmLabel: 'Continue anyway' });
+
+        const confirmButton = screen.getByRole('button', { name: 'Continue anyway' });
+        expect(confirmButton).toHaveClass('bg-warning', 'hover:bg-warning/90', 'text-warning-foreground');
+        expect(confirmButton).not.toHaveClass('text-white');
     });
 });

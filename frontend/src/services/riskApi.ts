@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { buildCollectionParams, normalizeCollectionResponse } from './collectionApi';
+import { normalizeCollectionResponse } from './collectionApi';
 import {
     approvalCreatedResponseSchema,
     riskControlLinkArraySchema,
@@ -15,57 +15,77 @@ import type {
     RiskCreate,
     RiskUpdate,
     RiskControlLink,
-    RiskStatus,
     ControlEffectiveness,
-    RiskListResponse
+    RiskListParams,
+    RiskListResponse,
 } from '@/types/risk';
 import type { Vendor } from '@/types/vendor';
 import type { ApprovalCreatedResponse } from '@/types/approval';
 
+function compactRiskFilters(params: RiskListParams): Record<string, unknown> {
+    return Object.fromEntries(Object.entries({
+        department_id: params.department_id,
+        lifecycle: params.lifecycle,
+        status: params.status,
+        risk_type: params.risk_type,
+        is_priority: params.is_priority,
+        search: params.search,
+        has_breach: params.has_breach,
+        min_net_score: params.min_net_score,
+        process: params.process,
+        category: params.category,
+        ict_linked: params.ict_linked,
+        above_tolerance: params.above_tolerance,
+        response: params.response,
+        gross_probability: params.gross_probability,
+        gross_impact: params.gross_impact,
+        gross_band: params.gross_band,
+        net_band: params.net_band,
+    }).filter(([, value]) => value !== undefined && value !== ''));
+}
+
+export function buildRiskCollectionQuery(params: RiskListParams & { skip?: number }): URLSearchParams {
+    const query = new URLSearchParams();
+    const offset = params.offset ?? params.skip;
+    if (offset !== undefined) query.set('offset', String(offset));
+    if (params.limit !== undefined) query.set('limit', String(params.limit));
+    const filters = compactRiskFilters(params);
+    if (Object.keys(filters).length > 0) query.set('filters', JSON.stringify(filters));
+    const sort = params.sort ?? (params.sort_by ? { field: params.sort_by, direction: params.sort_order ?? 'asc' as const } : null);
+    if (sort) query.set('sort', JSON.stringify(sort));
+    if (params.group_by) query.set('group_by', params.group_by);
+    if (params.group_value) query.set('group_value', params.group_value);
+    return query;
+}
+
+async function downloadRiskExport(params: RiskListParams, locale: 'en' | 'cs'): Promise<void> {
+    const query = buildRiskCollectionQuery(params);
+    query.delete('offset');
+    query.delete('limit');
+    query.set('format', 'csv');
+    query.set('locale', locale);
+    const { blob, headers } = await apiClient.getBlob(`/risks/export?${query.toString()}`, { timeoutMs: null });
+    const match = headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = match?.[1] ?? 'risks.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+}
+
 export const riskApi = {
-    async getRisks(params: {
-        skip?: number;
-        offset?: number;
-        limit?: number;
-        department_id?: number;
-        status?: RiskStatus | 'archived';
-        risk_type?: string; // Dynamic from Risk Hub config
-        is_priority?: boolean;
-        search?: string;
-        has_breach?: boolean;
-        min_net_score?: number;
-        sort_by?: string;
-        sort_order?: 'asc' | 'desc';
-        process?: string;
-        category?: string;
-        include_archived?: boolean;
-        group_by?: string;
-        group_value?: string;
-    }): Promise<RiskListResponse> {
+    async getRisks(params: RiskListParams & { skip?: number }): Promise<RiskListResponse> {
         const response = await apiClient.get('/risks', {
-            params: buildCollectionParams({
-                offset: params.offset ?? params.skip,
-                limit: params.limit,
-                filters: {
-                    department_id: params.department_id,
-                    status: params.status,
-                    risk_type: params.risk_type,
-                    is_priority: params.is_priority,
-                    search: params.search,
-                    has_breach: params.has_breach,
-                    min_net_score: params.min_net_score,
-                    process: params.process,
-                    category: params.category,
-                    include_archived: params.include_archived,
-                },
-                sort: params.sort_by ? { field: params.sort_by, direction: params.sort_order ?? 'asc' } : null,
-                groupBy: params.group_by,
-                groupValue: params.group_value,
-            }),
+            params: buildRiskCollectionQuery(params),
             schema: riskListResponseSchema,
         });
         return normalizeCollectionResponse(response);
     },
+
+    downloadExport: downloadRiskExport,
 
     async getRisk(id: number): Promise<Risk> {
         return apiClient.get(`/risks/${id}`, { schema: riskSchema });

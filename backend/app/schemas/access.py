@@ -87,6 +87,7 @@ class AccessUserUpdate(BaseModel):
     department_id: Optional[int] = None
     manager_id: Optional[int] = None
     access_scope: Optional[AccessScopeEnum] = None
+    is_active: Optional[bool] = None
 
     @field_validator("email", mode="before")
     @classmethod

@@ -5,6 +5,11 @@ import type {
 } from '@/types/control';
 import type { KRIFrequency, KRIMonitoringFields } from '@/types/kri';
 
+/** Direct-success acknowledgement of a Vendor link creation. */
+export interface VendorLinkStatus {
+    status: 'linked';
+}
+
 export interface LinkedVendorSummary {
     id: number;
     name: string;

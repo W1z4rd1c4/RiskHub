@@ -7,7 +7,7 @@ baked into every historical quarter.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +16,12 @@ from app.core._snapshot_metrics.kri import (
     calculate_kri_health,
     count_kri_breaches,
     count_overdue_kris,
+)
+from app.models.key_risk_indicator import KRIFrequency
+from app.services._kri_history import clock
+from app.services._kri_history.periods import (
+    latest_closed_period_for_date,
+    overdue_required_period_end,
 )
 from tests.backend.pytest.factories import create_test_kri, create_test_risk
 
@@ -27,10 +33,12 @@ async def _seed_kri_archive_matrix(db: AsyncSession, *, department_id: int, owne
     on an archived risk. Also one in-range live KRI on the live risk so health
     has a denominator > 1.
     """
-    stale_period_end = datetime.now(UTC) - timedelta(days=60)
-    live_risk = await create_test_risk(
-        db, department_id=department_id, owner_id=owner_id, risk_id_code="R-SNAP-LIVE"
-    )
+    frequency = KRIFrequency.quarterly.value
+    today = clock.today()
+    _, latest_period_end = latest_closed_period_for_date(today, frequency)
+    required_period_end = overdue_required_period_end(today, frequency)
+    _, overdue_decoy_period_end = latest_closed_period_for_date(required_period_end - timedelta(days=1), frequency)
+    live_risk = await create_test_risk(db, department_id=department_id, owner_id=owner_id, risk_id_code="R-SNAP-LIVE")
     archived_risk = await create_test_risk(
         db,
         department_id=department_id,
@@ -42,7 +50,7 @@ async def _seed_kri_archive_matrix(db: AsyncSession, *, department_id: int, owne
         db,
         risk_id=live_risk.id,
         metric_name="Live breaching",
-        overrides={"current_value": 150.0, "last_period_end": stale_period_end},
+        overrides={"current_value": 150.0, "last_period_end": latest_period_end},
     )
     await create_test_kri(
         db,
@@ -54,13 +62,20 @@ async def _seed_kri_archive_matrix(db: AsyncSession, *, department_id: int, owne
         db,
         risk_id=live_risk.id,
         metric_name="Archived breaching",
-        overrides={"current_value": 150.0, "is_archived": True, "last_period_end": stale_period_end},
+        overrides={
+            "current_value": 150.0,
+            "is_archived": True,
+            "last_period_end": overdue_decoy_period_end,
+        },
     )
     await create_test_kri(
         db,
         risk_id=archived_risk.id,
         metric_name="Archived-parent breaching",
-        overrides={"current_value": 150.0, "last_period_end": stale_period_end},
+        overrides={
+            "current_value": 150.0,
+            "last_period_end": overdue_decoy_period_end,
+        },
     )
 
 
@@ -91,18 +106,16 @@ async def test_count_overdue_kris_excludes_archived_kris_and_archived_risks(
 ):
     await _seed_kri_archive_matrix(db_session, department_id=test_department.id, owner_id=test_user.id)
 
-    # ADR-006 rebaseline (frequency-aware correction): count_overdue_kris is now
-    # frequency-aware (reusing the _kri_history period SSOT) rather than a flat
-    # +15-day / SQLite no-op window. The only live KRI here defaults to QUARTERLY
-    # and is 60 days stale; a quarter (~91d) + 15-day grace (~106d) has NOT elapsed,
-    # so it is NOT overdue -> 0 (was pinned 1 under the flat/no-op behavior). The
-    # archived KRI and archived-parent decoys remain excluded by live()/Risk.live();
-    # their exclusion is independently pinned by the breach/health tests above.
+    # The live KRI reports for the latest closed quarter, while both archived
+    # decoys use a period older than the current overdue anchor. A non-zero result
+    # therefore means an archived KRI or archived parent Risk leaked into metrics.
     assert await count_overdue_kris(db_session, None) == 0
     assert await count_overdue_kris(db_session, [test_department.id]) == 0
 
 
 @pytest.mark.asyncio
-async def test_calculate_kri_health_returns_100_when_no_live_kris(db_session: AsyncSession):
+async def test_calculate_kri_health_returns_100_when_no_live_kris(
+    db_session: AsyncSession,
+):
     """No measurable KRIs means vacuously healthy, not 0% (which reads as all-breaching)."""
     assert await calculate_kri_health(db_session, None) == 100

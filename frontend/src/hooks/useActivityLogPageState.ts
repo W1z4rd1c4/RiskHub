@@ -8,11 +8,12 @@ import {
     type ViewMode,
 } from './activityLogPageWorkflow';
 import { activityLogApi } from '@/services/activityLogApi';
-import type { ActivityLogCapabilities, ActivityLogEntry } from '@/types/activityLog';
-import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
+import type { ActivityLogActorLookup, ActivityLogCapabilities, ActivityLogEntry } from '@/types/activityLog';
+import { lookupApi } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
 import { logError } from '@/services/logger';
 import { isForbiddenApiError } from '@/services/apiClient';
+import { useDepartmentRegisterScope } from '@/pages/departments/useDepartmentRegisterScope';
 
 export type { ActiveTab, ViewMode } from './activityLogPageWorkflow';
 
@@ -53,7 +54,7 @@ interface UseActivityLogPageStateReturn {
     setSelectedRiskId: (id: number | null) => void;
 
     // Lookup data
-    users: UserLookupItem[];
+    actors: ActivityLogActorLookup[];
     departments: { id: number; name: string }[];
     risks: { id: number; name: string }[];
 
@@ -96,6 +97,7 @@ export function useActivityLogPageState(
     options: UseActivityLogPageStateOptions = {},
 ): UseActivityLogPageStateReturn {
     const enabled = options.enabled ?? true;
+    const departmentScope = useDepartmentRegisterScope();
 
     // View mode state
     const [viewMode, setViewModeInternal] = useState<ViewMode>('chronological');
@@ -120,7 +122,7 @@ export function useActivityLogPageState(
     const [selectedRiskId, setSelectedRiskId] = useState<number | null>(null);
 
     // Lookup data
-    const [users, setUsers] = useState<UserLookupItem[]>([]);
+    const [actors, setActors] = useState<ActivityLogActorLookup[]>([]);
     const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
     const [risks, setRisks] = useState<{ id: number; name: string }[]>([]);
 
@@ -173,28 +175,48 @@ export function useActivityLogPageState(
         if (!enabled) return;
         let cancelled = false;
         const loadOptions = async () => {
-            try {
-                const [acts, usersData, deptsData, risksData] = await Promise.all([
-                    activityLogApi.getActions(),
-                    lookupApi.getUsers(),
-                    lookupApi.getDepartments(),
-                    riskApi.getRisks({ limit: 100 }) // Get first 100 risks for picker (matches backend cap)
-                ]);
-                if (!cancelled) {
-                    setActions(acts);
-                    setUsers(usersData);
-                    setDepartments(deptsData.map((d: { id: number; name: string }) => ({ id: d.id, name: d.name })));
-                    setRisks(risksData.items.map((r: { id: number; name: string }) => ({ id: r.id, name: r.name })));
-                }
-            } catch (err) {
-                logError('Failed to load filter options:', err);
+            const results = await Promise.allSettled([
+                activityLogApi.getActions(),
+                departmentScope
+                    ? activityLogApi.getActors(departmentScope.departmentId)
+                    : activityLogApi.getActors(),
+                departmentScope
+                    ? Promise.resolve([{ id: departmentScope.departmentId, name: departmentScope.departmentName }])
+                    : lookupApi.getDepartments(),
+                riskApi.getRisks({
+                    limit: 100,
+                    department_id: departmentScope?.departmentId,
+                }), // Get first 100 risks for picker (matches backend cap)
+            ]);
+            if (cancelled) return;
+
+            const [actionsResult, actorsResult, departmentsResult, risksResult] = results;
+            if (actionsResult.status === 'fulfilled') {
+                setActions(actionsResult.value);
+            } else {
+                logError('Failed to load activity actions:', actionsResult.reason);
+            }
+            if (actorsResult.status === 'fulfilled') {
+                setActors(actorsResult.value);
+            } else {
+                logError('Failed to load activity actors:', actorsResult.reason);
+            }
+            if (departmentsResult.status === 'fulfilled') {
+                setDepartments(departmentsResult.value.map((d) => ({ id: d.id, name: d.name })));
+            } else {
+                logError('Failed to load activity departments:', departmentsResult.reason);
+            }
+            if (risksResult.status === 'fulfilled') {
+                setRisks(risksResult.value.items.map((r) => ({ id: r.id, name: r.name })));
+            } else {
+                logError('Failed to load activity risks:', risksResult.reason);
             }
         };
         void loadOptions();
         return () => {
             cancelled = true;
         };
-    }, [enabled]);
+    }, [departmentScope, enabled]);
 
     // Build entity types based on tab and view mode
     const getEntityTypes = useCallback((): string[] | undefined => {
@@ -227,11 +249,12 @@ export function useActivityLogPageState(
                 entityId,
                 viewMode,
                 selectedActorId,
-                selectedDepartmentId,
+                selectedDepartmentId: departmentScope?.departmentId ?? selectedDepartmentId,
                 action,
                 dateFrom,
                 dateTo,
             });
+            if (departmentScope) filters.department_id = departmentScope.departmentId;
             const response = await activityLogApi.list(filters);
             if (requestId === latestEntriesRequestIdRef.current) {
                 setEntries(response.items);
@@ -265,6 +288,7 @@ export function useActivityLogPageState(
         selectedActorId,
         selectedDepartmentId,
         selectedRiskId,
+        departmentScope,
         getEntityTypes,
     ]);
 
@@ -302,13 +326,13 @@ export function useActivityLogPageState(
         // View mode selectors
         selectedActorId,
         setSelectedActorId,
-        selectedDepartmentId,
-        setSelectedDepartmentId,
+        selectedDepartmentId: departmentScope?.departmentId ?? selectedDepartmentId,
+        setSelectedDepartmentId: departmentScope ? () => undefined : setSelectedDepartmentId,
         selectedRiskId,
         setSelectedRiskId,
 
         // Lookup data
-        users,
+        actors,
         departments,
         risks,
 

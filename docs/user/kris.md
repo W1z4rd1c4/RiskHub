@@ -1,7 +1,7 @@
 ---
 title: KRIs (Key Risk Indicators)
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-07-16"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "How to create and operate KRIs: thresholds, breach/overdue logic, value recording, vendor assignment, history review, exports, and notification-driven monitoring."
@@ -106,14 +106,30 @@ If you receive a stale or rejected approval, do not immediately resubmit the sam
 
 ## Finding, Filtering, and Evidence
 
-Use filters for owner, status, timeliness, and monitoring state. The export button creates a filtered KRI list with fields such as metric, linked risk, current value, limits, breach state, frequency, status, monitoring status, due date, reporting owner, and last reported date. For value history evidence, use the KRI detail page history tab or Activity Log; there is no separate detail/history export action.
+The register keeps search, filters, sorting, view, and the selected group in the URL. This means a copied link, browser Back/Forward, or a reload restores the same review context. Changing any of those controls returns the local result page to page 1.
+
+Use the lifecycle selector independently from monitoring status:
+
+- **Active**, **Archived**, or **All** controls record lifecycle. Archived rows expose Restore only when your row capability permits it.
+- **New**, **Not submitted**, **Breach**, **Warning**, and **Optimal** describe monitoring state for active work.
+- **Due soon** is a timeliness state. Selecting it clears a monitoring-state filter; selecting a monitoring state clears Due soon.
+- **Breached only**, frequency, department, and reporting owner can be added as further filters. Selecting Archived clears monitoring, timeliness, and breached-only filters because those signals describe active monitoring.
+
+Switch between All and grouped views by category, department, process, risk type, risk, or vendor. Vendor context is shown only when your access allows it. Select a group card to drill down; Back returns to the group summary.
+
+The Export dialog has two different evidence modes:
+
+- **Current view** downloads all rows matching the current normalized search, filters, sort, view, and selected group. List pagination is not applied. Its CSV includes the metric, description, linked risk and department, values and limits, breach code and label, frequency code and label, monitoring code and label, due/overdue data, reporting owner, last report time, and lifecycle code and label.
+- **Historical snapshot** uses the selected as-of date and the reports service. Use it when the evidence must reproduce what was known at a past date; it is not the same as exporting the live register.
+
+For value history evidence, use the KRI detail history tab or Activity Log; there is no separate detail/history export action.
 
 For reliable results, filter in this order:
 
 1. Start broad enough to confirm the record exists.
 2. Narrow by department, owner, status, vendor, or date.
 3. Open a sample record to confirm the filter matches your intent.
-4. Export only the filtered view needed for the review.
+4. Choose Current view for the live register or Historical snapshot for an as-of-date report, then export only the evidence needed for the review.
 
 Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
 
