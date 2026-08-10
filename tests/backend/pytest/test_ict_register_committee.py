@@ -15,13 +15,18 @@ Two seams, mirroring the DQ suite (#50):
    surface.
 
 2. **The HTTP seam** via ``client_factory``: GET /ict-register/committee is
-   gated by the NEW ``ict_committee:read`` resource permission (executive /
-   oversight roles only — inventory audience note; #38 authz decision), with
+   gated by the NEW ``ict_committee:read`` resource permission (approved
+   executive, oversight, and business-administrator roles — inventory audience
+   note; #38 authz decision), with
    an ADR-006 redacting snapshot over an API-seeded mini-graph, plus the
    role-by-role authz matrix and the permission-sync migration parity pin.
 """
 
 from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
 
 import pytest
 from sqlalchemy import select
@@ -869,13 +874,50 @@ async def _seed_contract_user(db_session: AsyncSession, role_name: str) -> User:
     return result.scalar_one()
 
 
+@pytest.mark.contract
+def test_committee_authz_contract_names_the_complete_allowed_actor_set() -> None:
+    contract_path = (
+        Path(__file__).resolve().parents[3]
+        / "docs/security/authorization-capability-contract.json"
+    )
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    action = next(
+        action
+        for action in contract["actions"]
+        if action["id"] == "AUTHZ-ICT-COMMITTEE-READ"
+    )
+    actor_scope = action["actor_scope"]
+
+    allowed_actors = {
+        "ceo",
+        "cfo",
+        "coo",
+        "ciso",
+        "risk_manager",
+        "compliance",
+        "internal_audit",
+        "CRO",
+    }
+    missing_actors = {
+        actor
+        for actor in allowed_actors
+        if re.search(rf"\b{actor}\b", actor_scope) is None
+    }
+    assert missing_actors == set()
+    assert "business administrator role risk_manager" in actor_scope
+    assert "CRO via wildcard" in actor_scope
+    assert "platform admins hold no business permissions and are denied" in actor_scope
+
+
 @pytest.mark.asyncio
-@pytest.mark.parametrize("role_name", ["ceo", "cfo", "coo", "risk_manager", "compliance", "internal_audit"])
+@pytest.mark.parametrize(
+    "role_name",
+    ["ceo", "cfo", "coo", "ciso", "risk_manager", "compliance", "internal_audit"],
+)
 async def test_committee_endpoint_allows_every_granted_seed_role(
     client_factory, db_session: AsyncSession, role_name: str
 ):
-    """Each executive/oversight role holds ict_committee:read in the RBAC seed
-    contract and reads the committee page."""
+    """Each explicitly granted seed role reads the committee page."""
     user = await _seed_contract_user(db_session, role_name)
     async with client_factory(user=user) as client:
         resp = await client.get("/api/v1/ict-register/committee")
