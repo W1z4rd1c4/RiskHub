@@ -11,20 +11,24 @@ source is the workbook BUILDER's data module (``builder/seed.py`` +
 pure column-letter stub satisfies the builder module's import).
 
 Idempotent upsert-by-natural-key (the seed_e2e_ict_register pattern): every
-row is keyed by its workbook natural key. The import is NOT atomic — the
-parameter overlay and the service-layer create/update/link ops commit
-incrementally as the run proceeds, so a failed or interrupted run CAN leave
-partial committed state behind. Recovery is therefore not a rollback but a
-clean re-run: re-runs converge on the same rows (created=0), so re-running to
-completion is always safe. Anything the service layer rejects is a REPORTED
-data finding, never a silent skip.
+row is keyed by its workbook natural key. The full import is one
+service-owned transaction: nested service boundaries flush, and only the
+named outer cutover boundary commits. Exceptions, cancellation, interruption,
+and reported data findings roll back the complete run. The first finding stops
+dependent phases so a missing required parent cannot cascade into a secondary
+lookup error. Anything the service layer rejects is a REPORTED data finding,
+never a silent skip.
 
 Usage (from backend/, DATABASE_URL required — the script refuses to guess):
 
     DATABASE_URL=postgresql+asyncpg://... ./venv/bin/python -m scripts.import_ict_register_workbook \
-        --source "/path/to/dora-registr-aktiv-2026"
+        --source "/path/to/dora-registr-aktiv-2026" \
+        --accountability-map ../docs/dora-ict-register/ict-register-accountability-map.synthetic.json \
+        --cutover-authorized-by cro@riskhub.local \
+        --authorization-reference '#53'
 
-    ... --verify   # post-import fidelity characterization (no writes):
+    ... --accountability-map ../docs/dora-ict-register/ict-register-accountability-map.synthetic.json \
+        --verify   # post-import fidelity characterization (no writes):
                    # asserts the workbook's documented profile — row counts,
                    # 79 CIF processes, 26 critical vendors, 358 §1 pairs,
                    # 106 §2 pairs, and all 52 DQ counts vs build_expected.json.
@@ -42,7 +46,7 @@ import stat
 import sys
 import tempfile
 import types
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date
@@ -94,7 +98,16 @@ from app.services._ict_register_lifecycle.asset_lifecycle import create_asset_de
 from app.services._ict_register_lifecycle.asset_links import add_asset_process_link, update_asset_process_link
 from app.services._ict_register_lifecycle.derivation import derive_ict_register
 from app.services._ict_register_lifecycle.derivation_inputs import load_ict_register_dq_graph
-from app.services._ict_register_lifecycle.dq import derive_ict_register_dq, risk_net_band, risk_vs_tolerance
+from app.services._ict_register_lifecycle.dq import (
+    RISK_BAND_CRITICAL,
+    RISK_BAND_HIGH,
+    RISK_STATUS_ACCEPTED,
+    RISK_STATUS_CLOSED,
+    RiskDqInput,
+    derive_ict_register_dq,
+    risk_net_band,
+    risk_vs_tolerance,
+)
 from app.services._ict_register_lifecycle.lifecycle import create_process_detail, update_process_detail
 from app.services._ict_register_lifecycle.risk_links import add_risk_asset_link, add_risk_process_link
 from app.services._ict_register_lifecycle.threat_lifecycle import create_threat_detail, update_threat_detail
@@ -105,6 +118,7 @@ from app.services._ict_register_reference.asset_values import (
     asset_controlled_value_code,
 )
 from app.services._ict_register_reference.parameters import (
+    ICT_APP_SCALE_RISK_BAND_DEFAULTS,
     ICT_PARAMETER_CONFIG_CATEGORY,
     ICT_WORKBOOK_PARAMETERS_BY_NAME,
     load_ict_workbook_parameter_set,
@@ -121,6 +135,29 @@ from app.services._vendor_governance.contract_lifecycle import (
 )
 from app.services._vendor_governance.lifecycle import create_vendor_detail, update_vendor_detail
 from app.services._vendor_links.workflow import link_vendor_target
+from app.services.transaction_boundary import (
+    commit_service_boundary,
+    defer_service_boundary_commits,
+    rollback_service_boundary_after_failure,
+)
+from scripts._ict_register_cutover import (
+    CUTOVER_ACCOUNTABILITY_ASSET_COUNT,
+    CUTOVER_ACCOUNTABILITY_MAP_SHA256,
+    CUTOVER_ACCOUNTABILITY_PROCESS_COUNT,
+    CUTOVER_AUTHORIZATION_REFERENCE,
+    CUTOVER_IMPORT_ACTOR_EMAIL,
+    CUTOVER_SOURCE_MANIFEST_SHA256,
+    CutoverTargetProfile,
+    ICTRegisterAccountabilityMap,
+    apply_ict_register_accountability,
+    classify_cutover_target,
+    cutover_state_digest,
+    load_authorized_cutover_window,
+    load_cutover_target_profile,
+    load_ict_register_accountability_map,
+    require_postgresql_cutover,
+    resolve_ict_register_accountability,
+)
 from scripts._ict_register_import_helpers import (
     RiskBandScale,
     asset_preliminary_criticality,
@@ -135,7 +172,7 @@ from scripts._ict_register_import_helpers import (
 )
 
 # The authorized import actor: the seeded risk manager (maintenance role per #38).
-IMPORT_USER_EMAIL = "risk.manager@riskhub.local"
+IMPORT_USER_EMAIL = CUTOVER_IMPORT_ACTOR_EMAIL
 
 # App-required Vendor/Risk classification fields the workbook does not carry.
 # Documented in docs/dora-ict-register/cutover-record.md.
@@ -149,17 +186,13 @@ VPA_SIGNIFICANCE = "Neposouzeno"
 PV_LINK_NOTE = "k revizi"
 
 # The four risk-band parameters that scale at cutover (see cutover-record.md).
-SCALED_PARAMETER_NAMES = ("P_RizStr", "P_RizVys", "P_RizKrit", "P_Tolerance")
+SCALED_PARAMETER_NAMES = tuple(ICT_APP_SCALE_RISK_BAND_DEFAULTS)
 
 DOMAIN_ERRORS = (AuthorizationError, ConflictError, NotFoundError, ValidationError)
 
 CHECK_IDS = tuple(f"DQ-{n:02d}" for n in range(1, 53))
-SOURCE_MANIFEST_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "docs"
-    / "dora-ict-register"
-    / "cutover-manifest.json"
-)
+SOURCE_MANIFEST_PATH = Path(__file__).resolve().parents[2] / "docs" / "dora-ict-register" / "cutover-manifest.json"
+SOURCE_MANIFEST_SHA256 = CUTOVER_SOURCE_MANIFEST_SHA256
 
 
 @dataclass
@@ -215,14 +248,10 @@ def verify_source_integrity(source_dir: Path) -> dict[str, bytes]:
             root_fd = next_fd
     except FileNotFoundError as exc:
         os.close(root_fd)
-        raise SystemExit(
-            f"Source integrity check failed: missing source root {source_dir}"
-        ) from exc
+        raise SystemExit(f"Source integrity check failed: missing source root {source_dir}") from exc
     except OSError as exc:
         os.close(root_fd)
-        raise SystemExit(
-            "Source integrity check failed: symlink/path escape for source root"
-        ) from exc
+        raise SystemExit("Source integrity check failed: symlink/path escape for source root") from exc
 
     try:
         for relative_name, expected in manifest["files"].items():
@@ -235,35 +264,22 @@ def verify_source_integrity(source_dir: Path) -> dict[str, bytes]:
                     directory_fd = next_fd
                 source_fd = os.open(parts[-1], file_flags, dir_fd=directory_fd)
             except FileNotFoundError as exc:
-                raise SystemExit(
-                    f"Source integrity check failed: missing {relative_name}"
-                ) from exc
+                raise SystemExit(f"Source integrity check failed: missing {relative_name}") from exc
             except OSError as exc:
-                raise SystemExit(
-                    f"Source integrity check failed: symlink/path escape for {relative_name}"
-                ) from exc
+                raise SystemExit(f"Source integrity check failed: symlink/path escape for {relative_name}") from exc
             finally:
                 os.close(directory_fd)
 
             source_stat = os.fstat(source_fd)
             if not stat.S_ISREG(source_stat.st_mode):
                 os.close(source_fd)
-                raise SystemExit(
-                    f"Source integrity check failed: non-regular file {relative_name}"
-                )
+                raise SystemExit(f"Source integrity check failed: non-regular file {relative_name}")
             with os.fdopen(source_fd, "rb") as source_file:
                 if source_stat.st_size != expected["size"]:
-                    raise SystemExit(
-                        f"Source integrity check failed: size mismatch for {relative_name}"
-                    )
+                    raise SystemExit(f"Source integrity check failed: size mismatch for {relative_name}")
                 contents = source_file.read()
-            if (
-                len(contents) != expected["size"]
-                or hashlib.sha256(contents).hexdigest() != expected["sha256"]
-            ):
-                raise SystemExit(
-                    f"Source integrity check failed: SHA-256 mismatch for {relative_name}"
-                )
+            if len(contents) != expected["size"] or hashlib.sha256(contents).hexdigest() != expected["sha256"]:
+                raise SystemExit(f"Source integrity check failed: SHA-256 mismatch for {relative_name}")
             verified[relative_name] = contents
     finally:
         os.close(root_fd)
@@ -348,9 +364,7 @@ def derive_scales(seed: ModuleType) -> tuple[RiskBandScale, RiskBandScale, int, 
         critical_from=int(params["P_RizKrit"]),
         tolerance=int(params["P_Tolerance"]),
     )
-    app_scale = scale_risk_band_thresholds(
-        workbook_scale, workbook_scale_max=workbook_max, app_scale_max=app_max
-    )
+    app_scale = scale_risk_band_thresholds(workbook_scale, workbook_scale_max=workbook_max, app_scale_max=app_max)
     return workbook_scale, app_scale, workbook_max, app_max
 
 
@@ -367,9 +381,7 @@ async def load_import_user(db) -> User:
     )
     user = result.scalar_one_or_none()
     if user is None:
-        raise SystemExit(
-            f"Import user {IMPORT_USER_EMAIL!r} not found — run `python -m app.db.seed` first."
-        )
+        raise SystemExit(f"Import user {IMPORT_USER_EMAIL!r} not found — run `python -m app.db.seed` first.")
     return user
 
 
@@ -441,7 +453,7 @@ async def apply_parameter_overlay(db, seed: ModuleType, user: User, report: Impo
             counters.updated += 1
         else:
             counters.unchanged += 1
-    await db.commit()
+    await commit_service_boundary(db, boundary="ict_register_parameter_overlay")
     print(
         f"   Parameter cutover: P_RizStr {workbook_scale.medium_from}->{app_scale.medium_from}, "
         f"P_RizVys {workbook_scale.high_from}->{app_scale.high_from}, "
@@ -551,9 +563,7 @@ async def import_vendors(db, seed: ModuleType, user: User, report: ImportReport)
     }
     for name, payload in _vendor_rows(seed):
         target = {**payload, **required}
-        existing_id = (
-            await db.execute(select(Vendor.id).where(Vendor.name == name))
-        ).scalar_one_or_none()
+        existing_id = (await db.execute(select(Vendor.id).where(Vendor.name == name))).scalar_one_or_none()
         try:
             if existing_id is None:
                 created = await create_vendor_detail(db=db, payload=VendorCreate(**target), current_user=user)
@@ -576,9 +586,7 @@ async def import_vendors(db, seed: ModuleType, user: User, report: ImportReport)
     return vendor_ids
 
 
-async def import_contracts(
-    db, seed: ModuleType, user: User, vendor_ids: dict[str, int], report: ImportReport
-) -> None:
+async def import_contracts(db, seed: ModuleType, user: User, vendor_ids: dict[str, int], report: ImportReport) -> None:
     """08_Smlouvy — the single seeded BIZ DATA master contract."""
     counters = report.counters("contracts (08)")
     biz = seed.BIZ_DATA
@@ -686,9 +694,7 @@ def _process_accountability_ids(
     invalid_fields = [
         field
         for field in required_fields
-        if isinstance(row.get(field), bool)
-        or not isinstance(row.get(field), int)
-        or row[field] <= 0
+        if isinstance(row.get(field), bool) or not isinstance(row.get(field), int) or row[field] <= 0
     ]
     if invalid_fields:
         report.finding(
@@ -701,9 +707,7 @@ def _process_accountability_ids(
     return row["process_owner_user_id"], row["owning_department_id"]
 
 
-async def import_processes(
-    db, seed: ModuleType, user: User, report: ImportReport
-) -> dict[ProcessKey, int]:
+async def import_processes(db, seed: ModuleType, user: User, report: ImportReport) -> dict[ProcessKey, int]:
     """03_Procesy — natural key (l0, l1, l2); l1 alone is NOT unique in the workbook."""
     counters = report.counters("processes (03)")
     process_ids: dict[ProcessKey, int] = {}
@@ -730,9 +734,7 @@ async def import_processes(
         existing = (await db.execute(query)).scalar_one_or_none()
         try:
             if existing is None:
-                created = await create_process_detail(
-                    db=db, payload=ProcessCreate(**target), current_user=user
-                )
+                created = await create_process_detail(db=db, payload=ProcessCreate(**target), current_user=user)
                 process_ids[key] = created.id
                 counters.created += 1
             else:
@@ -1160,6 +1162,19 @@ class WorkbookRisk:
     status: str
 
 
+_PINNED_RISK_SUBJECT_VALUES = (5, 5, 5, 5, 5, 5, 5, 2)
+_PINNED_RISK_DQ_MAPPING = (
+    ("RIZ-001", 3, None),
+    ("RIZ-002", 8, None),
+    ("RIZ-003", 4, None),
+    ("RIZ-004", 6, None),
+    ("RIZ-005", 4, None),
+    ("RIZ-006", 4, None),
+    ("RIZ-007", 9, RISK_STATUS_ACCEPTED),
+    ("RIZ-008", 2, None),
+)
+
+
 def parse_workbook_risks(seed: ModuleType) -> list[WorkbookRisk]:
     risks = []
     for index, row in enumerate(seed.RISKS, start=1):
@@ -1218,6 +1233,61 @@ def parse_workbook_risks(seed: ModuleType) -> list[WorkbookRisk]:
     return risks
 
 
+def _pinned_source_risk_dq_inputs(seed: ModuleType) -> tuple[RiskDqInput, ...]:
+    """Derive and assert the documented Risk DQ mapping from the pinned source."""
+    source_risks = parse_workbook_risks(seed)
+    if len(source_risks) != len(_PINNED_RISK_SUBJECT_VALUES):
+        raise SystemExit("Pinned source Risk score/status mapping drifted")
+
+    workbook_scale, app_scale, workbook_max, app_max = derive_scales(seed)
+    expected_risks: list[RiskDqInput] = []
+    for index, (risk, subject_value) in enumerate(
+        zip(source_risks, _PINNED_RISK_SUBJECT_VALUES, strict=True),
+        start=1,
+    ):
+        _, workbook_net = workbook_risk_scores(
+            subject_value,
+            risk.vulnerability,
+            risk.probability,
+            risk.effectiveness,
+        )
+        net_probability, net_impact = factor_score_for_app(
+            workbook_net,
+            workbook_scale=workbook_scale,
+            app_scale=app_scale,
+            workbook_scale_max=workbook_max,
+            app_scale_max=app_max,
+            preferred_probability=risk.probability,
+            enforce_tolerance=True,
+        )
+        acceptance_trio = (
+            risk.approver.strip(),
+            risk.justification.strip(),
+            risk.acceptance_date.strip(),
+        )
+        if all(acceptance_trio):
+            status_label = RISK_STATUS_ACCEPTED
+        elif risk.status.strip() == RISK_STATUS_CLOSED:
+            status_label = RISK_STATUS_CLOSED
+        else:
+            status_label = None
+        expected_risks.append(
+            RiskDqInput(
+                id=index,
+                label=risk.code,
+                code=risk.code,
+                net_score=net_probability * net_impact,
+                status_label=status_label,
+                action_plan_date=None,
+            )
+        )
+
+    source_mapping = tuple((risk.code, risk.net_score, risk.status_label) for risk in expected_risks)
+    if source_mapping != _PINNED_RISK_DQ_MAPPING:
+        raise SystemExit("Pinned source Risk score/status mapping drifted")
+    return tuple(expected_risks)
+
+
 def _risk_description(
     risk: WorkbookRisk,
     threat_name: str,
@@ -1247,14 +1317,8 @@ def _risk_description(
         f"Hrozba: {threat_name}. Subjekt: {risk.subject_type} {subject_display}.",
         f"Kontroly: {risk.controls} (účinnost {effectiveness_pct}).",
         f"Odezva: {risk.response}. Trigger přezkumu: {risk.review_trigger}. Fáze: {risk.phase}.",
-        (
-            f"Poslední kontrola účinnosti: {risk.effectiveness_check_date}"
-            f" ({risk.effectiveness_check_result})."
-        ),
-        (
-            f"Materialita — dopad do VK: {risk.material_equity};"
-            f" výpadek > limit: {risk.material_outage}."
-        ),
+        (f"Poslední kontrola účinnosti: {risk.effectiveness_check_date}" f" ({risk.effectiveness_check_result})."),
+        (f"Materialita — dopad do VK: {risk.material_equity};" f" výpadek > limit: {risk.material_outage}."),
         (
             f"Datum posouzení: {risk.assessment_date}. Vlastník (sešit): {risk.owner}."
             f" Termín akčního plánu: {risk.action_plan_date or '—'}. Stav (sešit): {risk.status}."
@@ -1329,9 +1393,7 @@ async def import_risks(
                 f"class — the workbook would score this risk blank, which the app cannot represent. "
                 "PM decision needed."
             )
-        gross, net = workbook_risk_scores(
-            subject_value, risk.vulnerability, risk.probability, risk.effectiveness
-        )
+        gross, net = workbook_risk_scores(subject_value, risk.vulnerability, risk.probability, risk.effectiveness)
         gross_probability, gross_impact = factor_score_for_app(
             gross,
             workbook_scale=workbook_scale,
@@ -1372,9 +1434,7 @@ async def import_risks(
             "acceptance_justification": risk.justification or None,
             "acceptance_date": _iso(risk.acceptance_date),
         }
-        existing = (
-            await db.execute(select(Risk).where(Risk.risk_id_code == risk.code))
-        ).scalar_one_or_none()
+        existing = (await db.execute(select(Risk).where(Risk.risk_id_code == risk.code))).scalar_one_or_none()
         risk_id: int | None = None
         try:
             if existing is None:
@@ -1383,13 +1443,9 @@ async def import_risks(
                 counters.created += 1
             else:
                 risk_id = existing.id
-                changed = {
-                    field: value for field, value in target.items() if getattr(existing, field) != value
-                }
+                changed = {field: value for field, value in target.items() if getattr(existing, field) != value}
                 if changed:
-                    await update_risk_detail(
-                        db=db, risk_id=existing.id, update_data=changed, current_user=user
-                    )
+                    await update_risk_detail(db=db, risk_id=existing.id, update_data=changed, current_user=user)
                     counters.updated += 1
                 else:
                     counters.unchanged += 1
@@ -1483,8 +1539,187 @@ async def import_risks(
 # ---------------------------------------------------------------------------
 
 
-async def run_import(source_dir: Path, *, source_label: Path | None = None) -> int:
+async def _run_import_phases(db, seed: ModuleType, user: User, report: ImportReport) -> None:
+    """Run ordered cutover phases, stopping at the first reported finding."""
+    await apply_parameter_overlay(db, seed, user, report)
+    if report.findings:
+        return
+
+    vendor_ids = await import_vendors(db, seed, user, report)
+    if report.findings:
+        return
+
+    await import_contracts(db, seed, user, vendor_ids, report)
+    if report.findings:
+        return
+
+    process_ids = await import_processes(db, seed, user, report)
+    if report.findings:
+        return
+
+    asset_ids = await import_assets(db, seed, user, report)
+    if report.findings:
+        return
+
+    await import_process_asset_links(db, seed, user, process_ids, asset_ids, report)
+    if report.findings:
+        return
+
+    await import_asset_vendor_links(db, seed, user, vendor_ids, asset_ids, report)
+    if report.findings:
+        return
+
+    await import_process_vendor_links(db, seed, user, process_ids, vendor_ids, report)
+    if report.findings:
+        return
+
+    threat_ids = await import_threats(db, seed, user, report)
+    if report.findings:
+        return
+
+    await import_risks(
+        db,
+        seed,
+        user,
+        process_ids,
+        asset_ids,
+        vendor_ids,
+        threat_ids,
+        report,
+    )
+
+
+def _cutover_parameter_profiles(
+    app_scale: RiskBandScale,
+) -> tuple[dict[str, str], dict[str, str]]:
+    derived_by_name = {
+        "P_RizStr": app_scale.medium_from,
+        "P_RizVys": app_scale.high_from,
+        "P_RizKrit": app_scale.critical_from,
+        "P_Tolerance": app_scale.tolerance,
+    }
+    derived_values = {
+        ICT_WORKBOOK_PARAMETERS_BY_NAME[name].config_key: str(derived_by_name[name]) for name in SCALED_PARAMETER_NAMES
+    }
+    seeded_values = {
+        ICT_WORKBOOK_PARAMETERS_BY_NAME[name].config_key: str(ICT_APP_SCALE_RISK_BAND_DEFAULTS[name])
+        for name in SCALED_PARAMETER_NAMES
+    }
+    if derived_values != seeded_values:
+        raise SystemExit("Manifest source scale transform diverges from the app-scale " "risk-band source of truth")
+    return derived_values, seeded_values
+
+
+def _cutover_target_profile(
+    seed: ModuleType,
+    *,
+    accountability_map_digest: str,
+) -> CutoverTargetProfile:
+    process_keys = {(row["l0"], row["l1"], normalize_l2(row["l2"])) for row in seed.SRC["processes"]}
+    asset_name_by_key = {row["key"]: row["display"] for row in seed.SRC["assets"]}
+    provider_name_by_key = {row["key"]: row["display"] for row in seed.SRC["providers"]}
+    threats = {index: row[0] for index, row in enumerate(seed.THREATS, start=1)}
+    risk_asset_links: set[tuple[object, ...]] = set()
+    risk_process_links: set[tuple[object, ...]] = set()
+    risk_vendor_links: set[tuple[object, ...]] = set()
+    threat_risk_links: set[tuple[object, ...]] = set()
+    risks = parse_workbook_risks(seed)
+    for risk in risks:
+        threat_risk_links.add((threats[risk.threat_index], risk.code))
+        if risk.subject_type == "Aktivum":
+            risk_asset_links.add((risk.code, asset_name_by_key[risk.subject_key]))
+        elif risk.subject_type == "Proces":
+            risk_process_links.add(
+                (
+                    risk.code,
+                    risk.subject_key[0],
+                    risk.subject_key[1],
+                    normalize_l2(risk.subject_key[2]),
+                )
+            )
+        else:
+            risk_vendor_links.add((risk.code, seed.BIZ_DATA["nazev"]))
+
+    _, app_scale, _, _ = derive_scales(seed)
+    parameter_values, fresh_parameter_values = _cutover_parameter_profiles(app_scale)
+    identities = {
+        "vendors": frozenset((name,) for name, _ in _vendor_rows(seed)),
+        "processes": frozenset(process_keys),
+        "assets": frozenset((name,) for name in asset_name_by_key.values()),
+        "contracts": frozenset({(seed.BIZ_DATA["nazev"], seed.BIZ_DATA["sml"])}),
+        "process_asset_links": frozenset(
+            (
+                link["l0"],
+                link["l1"],
+                normalize_l2(link["l2"]),
+                asset_name_by_key[link["akt"]],
+            )
+            for link in seed.SRC["vpa"]
+        ),
+        "asset_asset_links": frozenset(),
+        "asset_vendor_links": frozenset(
+            {
+                ("Veris", seed.BIZ_DATA["nazev"], "S02"),
+                ("Veris", seed.BIZ_DATA["nazev"], "S14"),
+            }
+        ),
+        "process_vendor_links": frozenset(
+            (
+                link["l0"],
+                link["l1"],
+                normalize_l2(link["l2"]),
+                provider_name_by_key[link["prov"]],
+            )
+            for link in seed.SRC["vpd_direct"]
+        ),
+        "sub_outsourcing": frozenset(),
+        "threats": frozenset((name,) for name in threats.values()),
+        "risks": frozenset((risk.code,) for risk in risks),
+        "threat_risk_links": frozenset(threat_risk_links),
+        "risk_asset_links": frozenset(risk_asset_links),
+        "risk_process_links": frozenset(risk_process_links),
+        "risk_vendor_links": frozenset(risk_vendor_links),
+        "pending_approvals": frozenset(),
+    }
+    return CutoverTargetProfile(
+        identities=identities,
+        parameter_values=parameter_values,
+        fresh_parameter_values=fresh_parameter_values,
+        accountability_map_digest=accountability_map_digest,
+    )
+
+
+async def run_import(
+    source_dir: Path,
+    *,
+    source_label: Path | None = None,
+    cutover_authorized_by: str | None = None,
+    authorization_reference: str | None = None,
+    accountability_map_path: Path | None = None,
+) -> int:
+    """Import the manifest-pinned register atomically through production services."""
+    authorized_by = (cutover_authorized_by or "").strip()
+    reference = (authorization_reference or "").strip()
+    if not authorized_by:
+        raise SystemExit("Apply mode requires a nonblank cutover authorizer email")
+    if not reference:
+        raise SystemExit("Apply mode requires a nonblank authorization reference")
+    if reference != CUTOVER_AUTHORIZATION_REFERENCE:
+        raise SystemExit(f"Cutover authorization reference must be {CUTOVER_AUTHORIZATION_REFERENCE}")
     seed = load_builder_seed(source_dir)
+    if accountability_map_path is None:
+        raise SystemExit("Apply mode requires an explicit ICT Register accountability map")
+    accountability_map = load_ict_register_accountability_map(
+        accountability_map_path,
+        seed=seed,
+        expected_digest=CUTOVER_ACCOUNTABILITY_MAP_SHA256,
+        expected_process_count=CUTOVER_ACCOUNTABILITY_PROCESS_COUNT,
+        expected_asset_count=CUTOVER_ACCOUNTABILITY_ASSET_COUNT,
+    )
+    expected_target = _cutover_target_profile(
+        seed,
+        accountability_map_digest=accountability_map.digest,
+    )
     report = ImportReport()
     print("=" * 78)
     print("ICT REGISTER CUTOVER IMPORT — workbook builder data through the service layer")
@@ -1493,17 +1728,53 @@ async def run_import(source_dir: Path, *, source_label: Path | None = None) -> i
     async with session_context(get_settings()) as db:
         user = await load_import_user(db)
         print(f"Import actor: {user.email} (id={user.id})")
-
-        await apply_parameter_overlay(db, seed, user, report)
-        vendor_ids = await import_vendors(db, seed, user, report)
-        await import_contracts(db, seed, user, vendor_ids, report)
-        process_ids = await import_processes(db, seed, user, report)
-        asset_ids = await import_assets(db, seed, user, report)
-        await import_process_asset_links(db, seed, user, process_ids, asset_ids, report)
-        await import_asset_vendor_links(db, seed, user, vendor_ids, asset_ids, report)
-        await import_process_vendor_links(db, seed, user, process_ids, vendor_ids, report)
-        threat_ids = await import_threats(db, seed, user, report)
-        await import_risks(db, seed, user, process_ids, asset_ids, vendor_ids, threat_ids, report)
+        require_postgresql_cutover(db)
+        accountability = await resolve_ict_register_accountability(db, accountability_map)
+        apply_ict_register_accountability(
+            seed,
+            accountability_map,
+            owner_user_id=accountability.owner_user_id,
+            owning_department_id=accountability.owning_department_id,
+        )
+        window = await load_authorized_cutover_window(
+            db,
+            actor=user,
+            authorized_by=authorized_by,
+            authorization_reference=reference,
+            accountability_map_digest=accountability_map.digest,
+        )
+        actual_target = await load_cutover_target_profile(
+            db,
+            parameter_keys=tuple(expected_target.parameter_values),
+        )
+        target_state = classify_cutover_target(actual_target, expected_target)
+        print(f"Cutover target preflight: {target_state}")
+        try:
+            with defer_service_boundary_commits(db):
+                await window.audit_authorization()
+                await window.suspend()
+                await _run_import_phases(db, seed, user, report)
+                await window.restore()
+                if not report.findings:
+                    await window.complete(
+                        await cutover_state_digest(
+                            db,
+                            parameter_keys=tuple(expected_target.parameter_values),
+                        )
+                    )
+            if report.findings:
+                await db.rollback()
+            else:
+                await commit_service_boundary(
+                    db,
+                    boundary="ict_register_cutover_import",
+                )
+        except BaseException:
+            await rollback_service_boundary_after_failure(
+                db,
+                boundary="ict_register_cutover_import",
+            )
+            raise
 
     print("-" * 78)
     print("IMPORT SUMMARY")
@@ -1519,21 +1790,74 @@ async def run_import(source_dir: Path, *, source_label: Path | None = None) -> i
     return 0
 
 
+def _expected_post_enrichment_dq_profile(
+    raw_profile: Mapping[str, int],
+    *,
+    mapping: ICTRegisterAccountabilityMap,
+    expected_process_count: int,
+    expected_asset_count: int,
+    risks: Sequence[RiskDqInput],
+    risk_medium_from: int,
+    risk_high_from: int,
+    risk_critical_from: int,
+) -> dict[str, int]:
+    """Derive DQ expectations after the authorized cutover transformations.
+
+    ``build_expected.json`` remains the immutable raw-workbook profile. The
+    exact validated sidecar assigns an Owning Department to every mapped
+    Process and Asset, so DQ-43/44 reflect any manifest rows not covered by the
+    map. DQ-20 reflects the pinned source-to-Risk transform: the importer
+    preserves the workbook action-plan date in narrative evidence because Risk
+    has no action-plan field, so its expected DQ input necessarily receives
+    ``None``.
+    """
+    adjusted = dict(raw_profile)
+    adjusted["DQ-43"] = expected_process_count - len(mapping.process_source_owners)
+    adjusted["DQ-44"] = expected_asset_count - len(mapping.asset_source_owners)
+    if adjusted["DQ-43"] < 0 or adjusted["DQ-44"] < 0:
+        raise SystemExit("Accountability map exceeds the manifest DQ population")
+    adjusted["DQ-20"] = sum(
+        1
+        for risk in risks
+        if risk.net_score is not None
+        and risk_net_band(
+            risk.net_score,
+            medium_from=risk_medium_from,
+            high_from=risk_high_from,
+            critical_from=risk_critical_from,
+        )
+        in (RISK_BAND_HIGH, RISK_BAND_CRITICAL)
+        and risk.status_label not in (RISK_STATUS_ACCEPTED, RISK_STATUS_CLOSED)
+        and risk.action_plan_date is None
+    )
+    return adjusted
+
+
 async def run_verify(
     source_dir: Path,
     expected_path: Path,
     *,
     source_label: Path | None = None,
+    accountability_map_path: Path | None = None,
 ) -> int:
     """Post-import fidelity characterization: the workbook's documented profile, engine-asserted."""
     seed = load_builder_seed(source_dir)
+    if accountability_map_path is None:
+        raise SystemExit("Verify mode requires an explicit ICT Register accountability map")
+    accountability_map = load_ict_register_accountability_map(
+        accountability_map_path,
+        seed=seed,
+        expected_digest=CUTOVER_ACCOUNTABILITY_MAP_SHA256,
+        expected_process_count=CUTOVER_ACCOUNTABILITY_PROCESS_COUNT,
+        expected_asset_count=CUTOVER_ACCOUNTABILITY_ASSET_COUNT,
+    )
     expected = json.loads(expected_path.read_text(encoding="utf-8"))
     mismatches: list[str] = []
 
     def check(label: str, actual: object, wanted: object) -> None:
         status = "OK " if actual == wanted else "MISMATCH"
         if actual != wanted:
-            mismatches.append(f"{label}: workbook-expected {wanted!r}, app-actual {actual!r}")
+            mismatches.append(f"{label}: cutover-expected {wanted!r}, app-actual {actual!r}")
         print(f"   [{status}] {label}: expected {wanted!r}, actual {actual!r}")
 
     print("=" * 78)
@@ -1576,9 +1900,7 @@ async def run_verify(
         print("-- Engine-derived profile --")
         cif_processes = sum(1 for d in derivation.processes.values() if d.cif == "Ano")
         check("CIF processes (n_kdf)", cif_processes, expected["n_kdf"])
-        critical_vendor_ids = sorted(
-            vid for vid, d in derivation.vendors.items() if d.tier == "Kritický dodavatel"
-        )
+        critical_vendor_ids = sorted(vid for vid, d in derivation.vendors.items() if d.tier == "Kritický dodavatel")
         check("critical vendors (n_krit_vendors)", len(critical_vendor_ids), expected["n_krit_vendors"])
         pairs_total = sum(len(d.transitive_process_links) for d in derivation.vendors.values())
         check("derived §2 pairs (pairs_total)", pairs_total, expected["pairs_total"])
@@ -1589,16 +1911,12 @@ async def run_verify(
         provider_by_dod = {seed.dod_id_for_provider(p["key"]): p["display"] for p in seed.SRC["providers"]}
         for dod_id in expected["krit_candidates"]:
             expected_names.add(provider_by_dod[dod_id])
-        expected_critical_ids = sorted(
-            vendor_id_by_name[name] for name in expected_names if name in vendor_id_by_name
-        )
+        expected_critical_ids = sorted(vendor_id_by_name[name] for name in expected_names if name in vendor_id_by_name)
         check("critical vendor identity (DOD-01 + krit_candidates)", critical_vendor_ids, expected_critical_ids)
 
         # Key derived spot values — the builder verify-gate's assertions, in-app.
         biz_vendor_id = vendor_id_by_name.get(seed.BIZ_DATA["nazev"])
-        veris_asset_id = next(
-            (asset.id for asset in graph.assets if asset.name == "Veris"), None
-        )
+        veris_asset_id = next((asset.id for asset in graph.assets if asset.name == "Veris"), None)
         if veris_asset_id is not None:
             check("Veris resulting criticality", derivation.assets[veris_asset_id].resulting_criticality, "Kritická")
             check("Veris CIF", derivation.assets[veris_asset_id].cif, "Ano")
@@ -1619,12 +1937,31 @@ async def run_verify(
             verdict = risk_vs_tolerance(risk.net_score, tolerance=int(parameters.value("P_Tolerance")))
             print(f"   {risk.label}: net={risk.net_score} band={band} {verdict}")
 
-        print("-- DQ profile: all 52 checks vs build_expected.json --")
+        print("-- DQ profile: raw build_expected.json adjusted for the authorized " "cutover transformations --")
+        expected_risks = _pinned_source_risk_dq_inputs(seed)
+        persisted_risk_mapping = tuple((risk.code, risk.net_score, risk.status_label) for risk in dq_graph.risks)
+        expected_risk_mapping = tuple((risk.code, risk.net_score, risk.status_label) for risk in expected_risks)
+        check(
+            "ICT risk score/status mapping (13)",
+            persisted_risk_mapping,
+            expected_risk_mapping,
+        )
         actual_by_id = {c.check_id: c for c in dq_result.checks}
+        _, expected_app_scale, _, _ = derive_scales(seed)
+        expected_dq = _expected_post_enrichment_dq_profile(
+            expected["dq"],
+            mapping=accountability_map,
+            expected_process_count=CUTOVER_ACCOUNTABILITY_PROCESS_COUNT,
+            expected_asset_count=CUTOVER_ACCOUNTABILITY_ASSET_COUNT,
+            risks=expected_risks,
+            risk_medium_from=expected_app_scale.medium_from,
+            risk_high_from=expected_app_scale.high_from,
+            risk_critical_from=expected_app_scale.critical_from,
+        )
         for check_id in CHECK_IDS:
             result = actual_by_id[check_id]
-            check(f"{check_id} ({result.title_cs})", result.count, expected["dq"][check_id])
-        expected_findings = sum(1 for check_id in CHECK_IDS if expected["dq"][check_id] > 0)
+            check(f"{check_id} ({result.title_cs})", result.count, expected_dq[check_id])
+        expected_findings = sum(1 for check_id in CHECK_IDS if expected_dq[check_id] > 0)
         check("checks with findings (non-zero)", dq_result.finding_count, expected_findings)
 
     print("-" * 78)
@@ -1656,31 +1993,60 @@ def main() -> None:
         default=None,
         help="Expected-profile JSON (default: <source>/builder/build_expected.json)",
     )
+    parser.add_argument(
+        "--cutover-authorized-by",
+        default=None,
+        help="Active CRO email authorizing apply mode (not required by --verify)",
+    )
+    parser.add_argument(
+        "--authorization-reference",
+        default=None,
+        help="Governance authorization reference for apply mode (issue #53)",
+    )
+    parser.add_argument(
+        "--accountability-map",
+        type=Path,
+        default=None,
+        help="Explicit digest-pinned synthetic Process and Asset accountability sidecar",
+    )
     args = parser.parse_args()
 
     source_dir = Path(os.path.abspath(args.source.expanduser()))
     pinned_expected_path = source_dir / "builder" / "build_expected.json"
-    if (
-        args.expected is not None
-        and Path(os.path.abspath(args.expected.expanduser())) != pinned_expected_path
-    ):
-        raise SystemExit(
-            "Source integrity check failed: --expected must identify the manifest-pinned profile"
-        )
+    if args.expected is not None and Path(os.path.abspath(args.expected.expanduser())) != pinned_expected_path:
+        raise SystemExit("Source integrity check failed: --expected must identify the manifest-pinned profile")
+    accountability_map_path = (
+        Path(os.path.abspath(args.accountability_map.expanduser())) if args.accountability_map is not None else None
+    )
 
     with verified_source_snapshot(source_dir) as snapshot_dir:
         if not os.environ.get("DATABASE_URL"):
-            raise SystemExit(
-                "DATABASE_URL must be set explicitly — the cutover import refuses to guess a database."
-            )
+            raise SystemExit("DATABASE_URL must be set explicitly — the cutover import refuses to guess a database.")
+        if accountability_map_path is None:
+            raise SystemExit("Apply and verify modes require --accountability-map <path>")
         if args.verify:
             expected_path = snapshot_dir / "builder" / "build_expected.json"
             exit_code = asyncio.run(
-                run_verify(snapshot_dir, expected_path, source_label=source_dir)
+                run_verify(
+                    snapshot_dir,
+                    expected_path,
+                    source_label=source_dir,
+                    accountability_map_path=accountability_map_path,
+                )
             )
         else:
+            if not (args.cutover_authorized_by or "").strip():
+                raise SystemExit("Apply mode requires --cutover-authorized-by <active-CRO-email>")
+            if not (args.authorization_reference or "").strip():
+                raise SystemExit("Apply mode requires --authorization-reference <reference>")
             exit_code = asyncio.run(
-                run_import(snapshot_dir, source_label=source_dir)
+                run_import(
+                    snapshot_dir,
+                    source_label=source_dir,
+                    cutover_authorized_by=args.cutover_authorized_by,
+                    authorization_reference=args.authorization_reference,
+                    accountability_map_path=accountability_map_path,
+                )
             )
     raise SystemExit(exit_code)
 

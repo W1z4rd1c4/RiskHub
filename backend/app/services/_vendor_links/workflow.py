@@ -43,6 +43,7 @@ from app.services._vendor_governance.links import (
     delete_vendor_link,
     require_vendor_access,
 )
+from app.services.transaction_boundary import commit_service_boundary, rollback_service_boundary_after_failure
 
 VendorLinkKind = Literal["risk", "control", "kri"]
 
@@ -372,11 +373,14 @@ async def link_vendor_target(
             log_activity_func=log_activity_func,
         )
         vendor.governance_version += 1
-        await db.commit()
+        await commit_service_boundary(db, boundary=f"vendor_link.{kind}.create")
         return result
     except Exception:
         # Keep the relationship mutation and the audit record atomic.
-        await db.rollback()
+        await rollback_service_boundary_after_failure(
+            db,
+            boundary=f"vendor_link.{kind}.create",
+        )
         raise
 
 

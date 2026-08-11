@@ -21,6 +21,7 @@ from app.services._entity_mutation_lifecycle.projection import (
 from app.services._kri_history.direct_application import visible_linked_vendors
 from app.services._vendor_links.kri_bridge import assign_vendors_to_kri
 from app.services.authorization_capabilities import control_capabilities, kri_capabilities, risk_capabilities
+from app.services.transaction_boundary import commit_service_boundary, rollback_service_boundary_after_failure
 
 
 def risk_score_change_set(risk: Risk, update_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -108,9 +109,12 @@ async def apply_risk_update_directly(
             changes=changes,
             risk=risk,
         )
-        await db.commit()
+        await commit_service_boundary(db, boundary="entity_mutation.update_risk")
     except Exception:
-        await db.rollback()
+        await rollback_service_boundary_after_failure(
+            db,
+            boundary="entity_mutation.update_risk",
+        )
         raise
     await db.refresh(risk)
 

@@ -1,0 +1,390 @@
+{
+  "schema_version": 1,
+  "record_kind": "ict_register_cutover_certification",
+  "issue": 53,
+  "classification": "pass",
+  "certification_window_utc": {
+    "started_at": "2026-08-11T17:53:00Z",
+    "completed_at": "2026-08-11T18:02:49Z"
+  },
+  "immutable_candidate": {
+    "label": "candidate17",
+    "parent_commit": "e4e54d362aa6a605322c1fad20da0d0d3952bdfe",
+    "commit": "10a88424e3f596c95ef0bd6c9118a114d348bbe0",
+    "tree": "779d74afa35b64b867c7fefca55f9635bce5328d",
+    "changed_path_count": 23,
+    "manifest_sha256": "5d29b99d1c0dd976ec125ad92fde5162692b7230b2456472e6907bb99a24ca7d",
+    "full_tree_manifest_sha256": "903f8664df9f34497e8ff4e6ae7c37a2d25266a6b07dd3cd0706f86b2237c7b1",
+    "binary_full_index_patch_sha256": "ee5aed31841eae117f00a62f0738b8e550dead6729d9300fd846bdf259c7657e",
+    "all_shared_worktree_manifest_blobs_matched_candidate": true
+  },
+  "pinned_inputs": {
+    "source_version": "v6-2026-07-13",
+    "source_archive_argument": "<canonical-external-source-copy>/v6-2026-07-13",
+    "source_tree_evidence_sha256": "6b8ae88b3af7de01b7957b216310d69df5ad266131a9c3e7f5d59277e47b6d68",
+    "source_manifest_sha256": "f97b40d7e0483a347aa5ab36a170d9036ca91c3d7c273f6c1a615b808f945167",
+    "seed_module_sha256": "9b635405b06668a45253a9bd5e977158a81ea23e6b391b94c048af89fd086110",
+    "source_data_sha256": "0508dcd986d4780965ca3ea0f2f2b6fe97e58412c439ced8bbccffdd9f2c0d91",
+    "expected_profile_sha256": "58d66b14227ee5dbb39e036c9ebce0a5a675826ca717bb394c993453284ab242",
+    "workbook_sha256": "29a364885cc7d1c1abbc389a988cc85487f5b081d63f75051478e27a78d4bf04",
+    "accountability_map_path": "docs/dora-ict-register/ict-register-accountability-map.synthetic.json",
+    "accountability_map_sha256": "56eadf535139ce38815f1448c87b03b17faa46c44bb0057f385b5f2373e50a5a",
+    "accountability_map_processes": 148,
+    "accountability_map_assets": 183,
+    "accountability_is_synthetic_demo_data": true,
+    "authorization_reference": "#53"
+  },
+  "runtime": {
+    "python": "3.13.3",
+    "python_freeze_sha256": "515e1b44b1a61312e84d9ae67c5fd20543d49f6a4d71da34555eaba3cecf010b",
+    "postgresql": "16.14",
+    "postgresql_image": "postgres:16-alpine",
+    "postgresql_image_id": "sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777",
+    "host_binding": "127.0.0.1:55817",
+    "application_database": "riskhub_test",
+    "isolated_test_database": "riskhub_pytest",
+    "alembic_head": "s8t9u0v1w2x3"
+  },
+  "actors": {
+    "import_actor": {
+      "email": "risk.manager@riskhub.local",
+      "role": "risk_manager",
+      "active": true,
+      "department_code": "RISK"
+    },
+    "independent_authorizer": {
+      "email": "cro@riskhub.local",
+      "role": "cro",
+      "active": true,
+      "department_code": "RISK",
+      "distinct_from_import_actor": true
+    }
+  },
+  "sanitized_commands": [
+    {
+      "purpose": "migrate",
+      "working_directory": "backend",
+      "argv": ["python3.13", "-m", "alembic", "upgrade", "head"],
+      "environment": {
+        "DATABASE_URL": "<isolated-postgresql-url>",
+        "SECRET_KEY": "<redacted>",
+        "DEBUG": "false",
+        "MOCK_AUTH_ENABLED": "false"
+      }
+    },
+    {
+      "purpose": "canonical_seed",
+      "working_directory": "backend",
+      "argv": ["python3.13", "-m", "app.db.seed"],
+      "environment": {
+        "DATABASE_URL": "<isolated-postgresql-url>",
+        "SECRET_KEY": "<redacted>",
+        "DEBUG": "false",
+        "MOCK_AUTH_ENABLED": "false"
+      }
+    },
+    {
+      "purpose": "python313_six_file_suite",
+      "working_directory": "backend",
+      "argv": [
+        "python3.13",
+        "-m",
+        "pytest",
+        "-q",
+        "../tests/backend/pytest/test_ict_register_cutover_policy.py",
+        "../tests/backend/pytest/test_ict_register_import_atomicity.py",
+        "../tests/backend/pytest/test_transaction_boundary.py",
+        "../tests/backend/pytest/architecture/test_ict_register_cutover_isolation_red.py",
+        "../tests/backend/pytest/architecture/test_ict_register_import_transaction_contract_red.py",
+        "../tests/backend/pytest/test_ict_register_import_security.py"
+      ],
+      "environment": {
+        "TEST_DATABASE_URL": "<isolated-postgresql-test-url>",
+        "DATABASE_URL": "<isolated-postgresql-test-url>",
+        "SECRET_KEY": "<redacted>",
+        "DEBUG": "true",
+        "MOCK_AUTH_ENABLED": "false"
+      }
+    },
+    {
+      "purpose": "postgresql_mvcc_and_fresh_preflight",
+      "working_directory": "backend",
+      "argv": [
+        "python3.13",
+        "-m",
+        "pytest",
+        "-q",
+        "../tests/backend/pytest/test_ict_register_cutover_policy.py::test_other_postgresql_sessions_never_observe_suspended_policy",
+        "../tests/backend/pytest/test_ict_register_cutover_policy.py::test_public_preflight_accepts_a_canonically_seeded_fresh_database"
+      ],
+      "environment": {
+        "TEST_DATABASE_URL": "<isolated-postgresql-test-url>",
+        "DATABASE_URL": "<isolated-postgresql-test-url>",
+        "SECRET_KEY": "<redacted>"
+      }
+    },
+    {
+      "purpose": "negative_completion_marker_and_collision_contracts",
+      "working_directory": "backend",
+      "argv": ["python3.13", "-m", "pytest", "-q", "<seven-exact-parameterized-negative-contract-cases>"],
+      "environment": {
+        "TEST_DATABASE_URL": "<isolated-postgresql-test-url>",
+        "DATABASE_URL": "<isolated-postgresql-test-url>",
+        "SECRET_KEY": "<redacted>"
+      }
+    },
+    {
+      "purpose": "first_apply_and_identical_rerun",
+      "working_directory": "backend",
+      "argv": [
+        "python3.13",
+        "-m",
+        "scripts.import_ict_register_workbook",
+        "--source",
+        "<canonical-external-source-copy>/v6-2026-07-13",
+        "--accountability-map",
+        "../docs/dora-ict-register/ict-register-accountability-map.synthetic.json",
+        "--cutover-authorized-by",
+        "cro@riskhub.local",
+        "--authorization-reference",
+        "#53"
+      ],
+      "environment": {
+        "DATABASE_URL": "<isolated-postgresql-url>",
+        "SECRET_KEY": "<redacted>"
+      },
+      "executions": 2
+    },
+    {
+      "purpose": "read_only_map_backed_verification",
+      "working_directory": "backend",
+      "argv": [
+        "python3.13",
+        "-m",
+        "scripts.import_ict_register_workbook",
+        "--source",
+        "<canonical-external-source-copy>/v6-2026-07-13",
+        "--accountability-map",
+        "../docs/dora-ict-register/ict-register-accountability-map.synthetic.json",
+        "--verify"
+      ],
+      "environment": {
+        "DATABASE_URL": "<isolated-postgresql-url>",
+        "SECRET_KEY": "<redacted>"
+      }
+    }
+  ],
+  "gates": {
+    "python313_six_file_suite": {
+      "exit_code": 0,
+      "passed": 120,
+      "skipped": 1,
+      "duration_seconds": 20.44
+    },
+    "postgresql_mvcc_and_fresh_preflight": {
+      "exit_code": 0,
+      "passed": 2,
+      "duration_seconds": 0.92
+    },
+    "negative_completion_marker_and_collision_contracts": {
+      "exit_code": 0,
+      "passed": 7,
+      "duration_seconds": 1.69
+    },
+    "migration": {"exit_code": 0},
+    "canonical_seed": {"exit_code": 0},
+    "product_log_scan": {
+      "passed": true,
+      "product_tracebacks": 0,
+      "product_error_events": 0,
+      "reported_findings": 0,
+      "characterization_mismatches": 0
+    }
+  },
+  "fresh_target_prestate": {
+    "public_tables_before_migration": 0,
+    "vendors": 0,
+    "processes": 0,
+    "assets": 0,
+    "approval_requests": 0,
+    "activity_logs": 0,
+    "reserved_risk_code_collisions": 0,
+    "ict_register_risks": 0,
+    "protected_scenarios_present": 3,
+    "protected_scenarios_require_approval": true
+  },
+  "first_apply": {
+    "window_utc": {
+      "started_at": "2026-08-11T17:57:32Z",
+      "completed_at": "2026-08-11T17:58:23Z"
+    },
+    "exit_code": 0,
+    "target_preflight": "fresh",
+    "created_total": 1762,
+    "created": {
+      "vendors": 30,
+      "contracts": 1,
+      "processes": 148,
+      "assets": 183,
+      "process_asset_links": 1000,
+      "asset_vendor_links": 2,
+      "process_vendor_links": 358,
+      "threats": 16,
+      "risks": 8,
+      "risk_links": 16
+    },
+    "typed_risk_links": {
+      "threat_risk": 8,
+      "risk_asset": 5,
+      "risk_process": 1,
+      "risk_vendor": 2,
+      "total": 16
+    },
+    "parameter_values_unchanged": 4,
+    "reported_findings": 0,
+    "activity_logs_after_apply": 1766,
+    "cutover_audit_events": 4,
+    "approval_requests_total": 0,
+    "approval_requests_pending": 0,
+    "process_owner_complete": "148/148",
+    "process_department_complete": "148/148",
+    "asset_business_owner_complete": "183/183",
+    "asset_ict_owner_complete": "183/183",
+    "asset_department_complete": "183/183",
+    "protected_scenarios_exactly_restored": true
+  },
+  "second_identical_apply": {
+    "window_utc": {
+      "started_at": "2026-08-11T17:59:34Z",
+      "completed_at": "2026-08-11T17:59:36Z"
+    },
+    "exit_code": 0,
+    "target_preflight": "exact",
+    "created_total": 0,
+    "unchanged": {
+      "parameter_values": 4,
+      "vendors": 30,
+      "contracts": 1,
+      "processes": 148,
+      "assets": 183,
+      "process_asset_links": 1000,
+      "asset_vendor_links": 2,
+      "process_vendor_links": 358,
+      "threats": 16,
+      "risks": 8,
+      "risk_links": 16
+    },
+    "reported_findings": 0,
+    "activity_logs_after_apply": 1770,
+    "new_cutover_audit_events": 4,
+    "approval_requests_total": 0,
+    "approval_requests_pending": 0,
+    "protected_scenarios_exactly_restored": true,
+    "entity_counts_unchanged_from_first_apply": true
+  },
+  "protected_scenarios": {
+    "keys": [
+      "protected_asset_edit",
+      "protected_process_edit",
+      "protected_vendor_edit"
+    ],
+    "seeded_requires_approval": true,
+    "seeded_approver_roles": ["risk_manager", "cro"],
+    "full_rows_equal_before_and_after_each_apply": true,
+    "full_row_sha256_before_and_after": "0fb0b774e66e5f30ff0cb2c4b212eabf4dcaaaae84a8e25bb3304845a78384c3"
+  },
+  "persisted_state": {
+    "state_sha256": "fd0af8acc3f8bb6d1117758c9841f72d75b9e155751cd293525f3b07fc6bfe51",
+    "fresh_direct_digest_matches_state_sha256": true,
+    "completion_marker_count": 2,
+    "both_completion_markers_match_state_sha256": true,
+    "cutover_audit_event_count": 8,
+    "all_cutover_audits_match_accountability_map_sha256": true,
+    "parameter_values": {
+      "ict_register_riz_str": "3",
+      "ict_register_riz_vys": "8",
+      "ict_register_riz_krit": "16",
+      "ict_register_tolerance": "7"
+    }
+  },
+  "map_backed_verification": {
+    "exit_code": 0,
+    "result": "characterization_passed",
+    "adjusted_dq_checks_matched": 52,
+    "adjusted_dq_checks_total": 52,
+    "nonzero_checks_expected": 22,
+    "nonzero_checks_actual": 22,
+    "selected_adjusted_findings": {
+      "DQ-20": {"expected": 1, "actual": 1},
+      "DQ-43": {"expected": 0, "actual": 0},
+      "DQ-44": {"expected": 0, "actual": 0}
+    }
+  },
+  "evidence_artifacts": {
+    "operator_ledger_path": "/tmp/riskhub-issue53-pg-gate17.HFu3U0",
+    "result_md_sha256": "e2f95bbf77463b7ed3636829d1e585566da78cef82da99788681fcf972a9ce98",
+    "sha256sums_sha256": "97fe875c723e0eefd76061a00fc9f3625b844ac91827e32d3ba15a268d7c3da0",
+    "sha256sums_entries": 63,
+    "sha256sums_entries_verified": 63,
+    "postgres_custom_dump_sha256": "e2defa85a80e620f7a69f8cbdb34bd4fcf105be903a58b60d4a191e78d2bb8d8",
+    "postgres_custom_dump_size_bytes": 283686,
+    "postgres_dump_catalog_lines": 627,
+    "postgres_dump_committed_to_repository": false,
+    "credentials_or_secrets_committed": false
+  },
+  "evidence_harness_disclosures": [
+    {
+      "phase": "dependency_installation_evidence_footer",
+      "limitation": "Dependency installation completed successfully, but the first shell wrapper did not write its pipeline-status/footer evidence.",
+      "product_execution_had_started": false,
+      "mutation_had_occurred": false,
+      "correction": "The same fresh environment was directly validated with Python 3.13.3, pip check, and a complete freeze before tests.",
+      "pre_test_setup_correction": true,
+      "caused_product_retry": false
+    },
+    {
+      "phase": "pinned_input_hash_inventory",
+      "limitation": "A read-only inventory initially guessed two source filenames that do not exist.",
+      "product_execution_had_started": false,
+      "mutation_had_occurred": false,
+      "correction": "Correct paths were identified from candidate17's own manifest and every authoritative input hash matched.",
+      "caused_product_retry": false
+    },
+    {
+      "phase": "first_apply_stdout_footer",
+      "limitation": "The first apply emitted about 928 KB of structured audit stdout. The product completed, committed, emitted its terminal no-findings line, and the execution cell returned completed, but the direct output budget ended the wrapper before separate exit/footer files were written.",
+      "product_execution_had_completed": true,
+      "separate_exit_footer_available": false,
+      "completion_evidence": "Persisted counts, four completion audits, the completion digest, exact scenario restoration, and the successful identical rerun independently prove first-apply completion.",
+      "caused_product_retry": false
+    }
+  ],
+  "cleanup": {
+    "postgres_container_removed": true,
+    "host_port_released": true,
+    "external_candidate_checkout_removed": true,
+    "external_python_environment_removed": true,
+    "dump_and_ledger_preserved": true,
+    "homebrew_port_5432_unchanged": true,
+    "shared_repository_modified_by_gate": false,
+    "completed_at": "2026-08-11T18:02:49Z"
+  },
+  "release_binding": {
+    "passing_code_candidate": "10a88424e3f596c95ef0bd6c9118a114d348bbe0",
+    "final_candidate_delta_classification": "evidence_document_operations_only",
+    "permitted_post_certification_delta": [
+      "docs/dora-ict-register/README.md",
+      "docs/dora-ict-register/cutover-record.md",
+      "docs/dora-ict-register/cutover-evidence-2026-08-11-candidate13.json (removed)",
+      "docs/dora-ict-register/cutover-evidence-2026-08-11-candidate17.json"
+    ],
+    "postgresql_certification_scope": "The PostgreSQL certification exercised immutable candidate17 in full, including its code and data inputs.",
+    "required_equality": "Every final-candidate blob outside the four permitted evidence-document operations must be byte-identical to candidate17. All production, backend, script, test, architecture-lock, ADR, security, manifest, accountability-map, and STRUCTURE blobs must equal candidate17 before release."
+  },
+  "limitations": [
+    "The accountability map contains authorized synthetic demo assignments, not evidence of real Process or Asset accountability.",
+    "The PostgreSQL dump and detailed operator ledger are not repository artifacts; this record preserves their identities and hashes, not their contents.",
+    "The final release successor may differ from candidate17 only through the four named evidence-document operations needed to replace this certification record and update its two links.",
+    "This certification applies only while every production, backend, script, test, architecture-lock, ADR, security, manifest, accountability-map, and STRUCTURE blob remains byte-identical to candidate17."
+  ]
+}

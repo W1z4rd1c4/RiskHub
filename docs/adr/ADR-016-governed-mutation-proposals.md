@@ -156,6 +156,43 @@ Submission fails when no active independent User exists in at least one
 configured `risk_manager` or `cro` role. `risk_owner` and all other roles are
 invalid for this fixed scenario. Senior requesters receive no bypass.
 
+### Exact-manifest offline cutover window (#53)
+
+The one-shot ICT Register cutover is a narrow, audited exception to ordinary
+proposal submission, not a general privileged bypass. Apply mode exists only
+in the offline, manifest-pinned importer and is unreachable from API/runtime
+packages. It requires the seeded active Risk Manager as import actor, a
+distinct active CRO identified explicitly by email, and authorization
+reference `#53`. It also requires one explicit synthetic accountability
+sidecar with all 148 Process and 183 Asset rows. Its raw SHA-256,
+source-manifest identity, complete natural-key sets, and original
+`source_owner` text are pinned. The sidecar maps every Process Owner and every
+Asset Business Owner/ICT Owner to the active, non-admin seeded Risk Manager,
+and every Owning Department to the active seeded Risk Management Department
+(`RISK`), solely for the authorized demo cutover. It is not evidence of real
+accountability and has no automatic fallback. The target must
+be PostgreSQL and either fresh or already an
+exact natural-key and parameter match for the pinned manifest; drift is
+rejected before mutation.
+
+Within the existing outer cutover transaction, the importer locks
+`protected_process_edit`, `protected_asset_edit`, and
+`protected_vendor_edit`, snapshots every mutable scenario field, audits the
+authorization and suspension, temporarily sets only their
+`requires_approval` flags to false, runs the normal lifecycle services, then
+restores the exact snapshots and audits restoration before commit. It creates
+no `ApprovalRequest` or governed proposal. The uncommitted row locks ensure no
+other transaction observes suspended policy. Any finding, exception,
+cancellation, or interruption rolls back imported rows, audit facts, and the
+temporary window together. Outside this fixed window, the ordinary services
+continue to submit protected mutations for independent approval. A successful
+first run records an append-only digest of every persisted cutover-owned field;
+the authorization, policy-window, and completion audits carry the map digest,
+and the completion marker binds it to the full-state digest. An exact re-run
+must match the manifest graph, map digest, and state digest, so same-key
+field drift is rejected before policy mutation instead of being silently
+reconciled.
+
 ### Independent resolution and stale revalidation
 
 Exactly one active configured Risk Manager or CRO who is not the requester and
@@ -411,8 +448,11 @@ are immutable.
   versions, and Composite locks.
 - One boolean `has_pending_change` on Process: rejected because it cannot lock
   multiple impacts atomically or preserve proposal/version evidence.
-- Privileged direct bypass: rejected because it violates the independent
-  two-person control.
+- General or runtime privileged direct bypass: rejected because it violates
+  the independent two-person control. The bounded offline #53 window above
+  instead requires distinct CRO authorization, exact-manifest/fresh-target
+  preflight, row locks, audit evidence, exact policy restoration, an immutable
+  state digest, and one rollback-safe transaction.
 - Application-only duplicate checks: rejected because concurrent Postgres
   submissions can both pass before either commits.
 - Timer-driven expiry: rejected; expiry occurs only during explicit submission,

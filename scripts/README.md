@@ -43,6 +43,8 @@ Operational and development automation for RiskHub.
 
 ## Notable standalone utilities
 
+- `backend/scripts/import_ict_register_workbook.py`
+  - Manifest-pinned, PostgreSQL-only offline ICT Register cutover importer. Apply mode requires an explicit distinct active CRO (`--cutover-authorized-by`), authorization reference `#53`, and the committed digest-pinned `--accountability-map`; verify mode requires and validates that map but remains read-only and policy-neutral. The combined sidecar contains all 148 Process and 183 Asset natural keys with their exact legacy owner text. It is explicitly synthetic demo accountability: every Process Owner and every Asset Business/ICT Owner resolves to the seeded Risk Manager, every Owning Department resolves to Risk Management, and none of those assignments is evidence of real ownership. Verification preserves the immutable raw-workbook DQ profile and derives a separate post-enrichment profile from the validated map plus the production Risk-model disposition; its non-zero tally is recomputed from all 52 adjusted checks. The importer accepts only a fresh or exact-manifest target, uses an audited row-locked policy window around all service-layer phases in one transaction, pins the map digest into audit/completion evidence, stops before dependent phases on the first finding, restores exact scenario state before its sole commit, rejects same-key or map drift before an exact re-run, and rolls back on findings or interruption.
 - `check_docs_contract.py`
   - Enforces documentation frontmatter and topology rules.
 - `run_playwright_with_watchdog.sh`

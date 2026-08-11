@@ -36,6 +36,8 @@ behind it.
   build is and the destination decisions.
 - [`cutover-record.md`](./cutover-record.md): Cutover record for retiring the workbook as the
   system of record.
+- [`cutover-evidence-2026-08-11-candidate17.json`](./cutover-evidence-2026-08-11-candidate17.json):
+  Durable, sanitized PostgreSQL certification evidence for the immutable issue #53 candidate17.
 - [`cutover-manifest.json`](./cutover-manifest.json): Repository-trusted sizes and SHA-256
   digests for every executable/data input accepted by the one-time production importer.
 - [`FRONTEND-UX-AUDIT-2026-07-11.md`](./FRONTEND-UX-AUDIT-2026-07-11.md): Frontend design/UX

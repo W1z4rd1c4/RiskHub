@@ -8,6 +8,7 @@ from app.core.audit import vendor as audit_vendor
 from app.core.exceptions import NotFoundError
 from app.models import User, Vendor
 from app.schemas.vendor import VendorCreate, VendorRead, VendorUpdate
+from app.services.transaction_boundary import commit_service_boundary
 
 from .policy import (
     assert_vendor_archive_allowed,
@@ -58,7 +59,7 @@ async def create_vendor_detail(
         vendor=vendor,
         log_activity_func=log_activity,
     )
-    await db.commit()
+    await commit_service_boundary(db, boundary="vendor_create")
     await db.refresh(vendor)
 
     refreshed = await load_vendor_with_deps(db, vendor.id)
@@ -135,7 +136,7 @@ async def update_vendor_detail(
         changes=changes,
         log_activity_func=log_activity,
     )
-    await db.commit()
+    await commit_service_boundary(db, boundary="vendor_update")
     await db.refresh(vendor)
 
     refreshed = await load_vendor_with_deps(db, vendor.id)

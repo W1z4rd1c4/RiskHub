@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from scripts import import_ict_register_workbook as importer
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BACKEND_ROOT = REPO_ROOT / "backend"
 
@@ -57,6 +59,170 @@ def _assert_integrity_rejection(
     assert result.returncode != 0
     assert "integrity" in f"{result.stdout}\n{result.stderr}".lower()
     assert not sentinel.exists()
+
+
+def test_apply_cli_requires_explicit_cutover_authorization(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source_root = tmp_path / "verified-source"
+    mapping_path = tmp_path / "ict-register-accountability-map.synthetic.json"
+
+    @contextmanager
+    def verified_snapshot(_source: Path):
+        yield source_root
+
+    async def unexpected_import(*_args, **_kwargs):
+        pytest.fail("apply mode reached the database without authorization flags")
+
+    monkeypatch.setattr(importer, "verified_source_snapshot", verified_snapshot)
+    monkeypatch.setattr(importer, "run_import", unexpected_import)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://unused")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "import_ict_register_workbook",
+            "--source",
+            str(source_root),
+            "--accountability-map",
+            str(mapping_path),
+        ],
+    )
+
+    with pytest.raises(SystemExit, match="--cutover-authorized-by"):
+        importer.main()
+
+
+def test_verify_cli_remains_read_only_without_cutover_authorization(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source_root = tmp_path / "verified-source"
+    mapping_path = tmp_path / "ict-register-accountability-map.synthetic.json"
+    calls: list[dict[str, object]] = []
+
+    @contextmanager
+    def verified_snapshot(_source: Path):
+        yield source_root
+
+    async def verify(*_args, **kwargs):
+        calls.append(kwargs)
+        return 0
+
+    async def unexpected_import(*_args, **_kwargs):
+        pytest.fail("--verify invoked the mutating apply path")
+
+    monkeypatch.setattr(importer, "verified_source_snapshot", verified_snapshot)
+    monkeypatch.setattr(importer, "run_verify", verify)
+    monkeypatch.setattr(importer, "run_import", unexpected_import)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://unused")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "import_ict_register_workbook",
+            "--source",
+            str(source_root),
+            "--verify",
+            "--accountability-map",
+            str(mapping_path),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exit_info:
+        importer.main()
+
+    assert exit_info.value.code == 0
+    assert calls == [
+        {
+            "source_label": source_root,
+            "accountability_map_path": mapping_path,
+        }
+    ]
+
+
+def test_apply_cli_requires_explicit_process_accountability_map(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source_root = tmp_path / "verified-source"
+
+    @contextmanager
+    def verified_snapshot(_source: Path):
+        yield source_root
+
+    async def unexpected_import(*_args, **_kwargs):
+        pytest.fail("apply mode reached the database without an accountability map")
+
+    monkeypatch.setattr(importer, "verified_source_snapshot", verified_snapshot)
+    monkeypatch.setattr(importer, "run_import", unexpected_import)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://unused")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "import_ict_register_workbook",
+            "--source",
+            str(source_root),
+            "--cutover-authorized-by",
+            "cro@riskhub.local",
+            "--authorization-reference",
+            "#53",
+        ],
+    )
+
+    with pytest.raises(SystemExit, match="--accountability-map"):
+        importer.main()
+
+
+def test_apply_cli_forwards_explicit_cutover_authorization(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source_root = tmp_path / "verified-source"
+    mapping_path = tmp_path / "ict-register-accountability-map.synthetic.json"
+    calls: list[dict[str, object]] = []
+
+    @contextmanager
+    def verified_snapshot(_source: Path):
+        yield source_root
+
+    async def apply(_source: Path, **kwargs):
+        calls.append(kwargs)
+        return 0
+
+    monkeypatch.setattr(importer, "verified_source_snapshot", verified_snapshot)
+    monkeypatch.setattr(importer, "run_import", apply)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://unused")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "import_ict_register_workbook",
+            "--source",
+            str(source_root),
+            "--cutover-authorized-by",
+            "cro@riskhub.local",
+            "--authorization-reference",
+            "#53",
+            "--accountability-map",
+            str(mapping_path),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exit_info:
+        importer.main()
+
+    assert exit_info.value.code == 0
+    assert calls == [
+        {
+            "source_label": source_root,
+            "cutover_authorized_by": "cro@riskhub.local",
+            "authorization_reference": "#53",
+            "accountability_map_path": mapping_path,
+        }
+    ]
 
 
 def test_importer_rejects_tampered_seed_before_executing_it(tmp_path: Path) -> None:
@@ -281,6 +447,7 @@ def test_importer_executes_only_manifest_verified_bytes_when_source_is_replaced(
     runtime_scripts.mkdir(parents=True)
     for name in (
         "__init__.py",
+        "_ict_register_cutover.py",
         "_ict_register_import_helpers.py",
         "import_ict_register_workbook.py",
     ):

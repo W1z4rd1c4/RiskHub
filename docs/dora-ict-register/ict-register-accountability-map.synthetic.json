@@ -1,0 +1,3000 @@
+{
+  "metadata": {
+    "schema_version": 2,
+    "mapping_version": "synthetic-demo-v2-2026-08-11",
+    "synthetic": true,
+    "source_manifest_version": 1,
+    "source_version": "v6-2026-07-13",
+    "source_manifest_sha256": "f97b40d7e0483a347aa5ab36a170d9036ca91c3d7c273f6c1a615b808f945167",
+    "authorization_reference": "#53",
+    "rationale": "Synthetic demo accountability; not evidence of real Process or Asset ownership."
+  },
+  "synthetic_owner_email": "risk.manager@riskhub.local",
+  "owning_department": {
+    "code": "RISK",
+    "name": "Risk Management"
+  },
+  "processes": [
+    {
+      "l0": "BCM, DR, krizové řízení a dostupnost",
+      "l1": "BCP a ruční workaroundy",
+      "l2": null,
+      "source_owner": "Risk management",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "BCM, DR, krizové řízení a dostupnost",
+      "l1": "Business Impact Analysis",
+      "l2": null,
+      "source_owner": "Provozní ředitelka / Risk management",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "BCM, DR, krizové řízení a dostupnost",
+      "l1": "Disaster Recovery a testování obnovy",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "BCM, DR, krizové řízení a dostupnost",
+      "l1": "Dostupnost Pasivního CC",
+      "l2": null,
+      "source_owner": "Provozní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "BCM, DR, krizové řízení a dostupnost",
+      "l1": "Dostupnost Pobočky SP",
+      "l2": null,
+      "source_owner": "Provozní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "BCM, DR, krizové řízení a dostupnost",
+      "l1": "Dostupnost Recepce",
+      "l2": null,
+      "source_owner": "Provozní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "BCM, DR, krizové řízení a dostupnost",
+      "l1": "Dostupnost webu",
+      "l2": null,
+      "source_owner": "IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "BCM, DR, krizové řízení a dostupnost",
+      "l1": "Krizová komunikace",
+      "l2": null,
+      "source_owner": "Generální ředitel / Risk management",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "BCM, DR, krizové řízení a dostupnost",
+      "l1": "Přijímání pošty z datové schránky",
+      "l2": null,
+      "source_owner": "Generální ředitel",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Digitální kanály a web",
+      "l1": "Interaktivní webové služby",
+      "l2": null,
+      "source_owner": "IT / Marketing",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Digitální kanály a web",
+      "l1": "Provoz klientského portálu",
+      "l2": null,
+      "source_owner": "IT / Provozní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Digitální kanály a web",
+      "l1": "Provoz mobilní aplikace",
+      "l2": null,
+      "source_owner": "IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Digitální kanály a web",
+      "l1": "Provoz veřejného webu",
+      "l2": null,
+      "source_owner": "IT / Marketing",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Finance a účetnictví",
+      "l1": "Controlling a plánování",
+      "l2": null,
+      "source_owner": "Finanční úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Finance a účetnictví",
+      "l1": "Daňové a regulatorní reporty",
+      "l2": null,
+      "source_owner": "Finanční úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Finance a účetnictví",
+      "l1": "Solvency II vstupy",
+      "l2": null,
+      "source_owner": "Finanční úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Finance a účetnictví",
+      "l1": "Účetní závěrka",
+      "l2": null,
+      "source_owner": "Finanční úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "HR, Interni sluzby a facility management",
+      "l1": "Facility / fyzická bezpečnost",
+      "l2": null,
+      "source_owner": "Provozní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "HR, Interni sluzby a facility management",
+      "l1": "HR a payroll",
+      "l2": null,
+      "source_owner": "HR úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "HR, Interni sluzby a facility management",
+      "l1": "Školení a awareness",
+      "l2": null,
+      "source_owner": "HR úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "Dohled nad externími aplikacemi",
+      "l2": null,
+      "source_owner": "IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "Dohled nad interními aplikacemi",
+      "l2": null,
+      "source_owner": "IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "ICT incident management",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "Monitoring, logování a detekce",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "Obnova provozu po havárii (DR)",
+      "l2": null,
+      "source_owner": "IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "Patching a vulnerability management",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "Správa identity a přístupů",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "Správa privilegovaných účtů (PAM)",
+      "l2": null,
+      "source_owner": "IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "Síť a konektivita",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "Zálohování a obnova",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "IT provoz a bezpečnost",
+      "l1": "Řízení a podpora uživatelů (service desk)",
+      "l2": null,
+      "source_owner": "IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Inkaso a platby",
+      "l1": "Inkaso pojistného",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Inkaso a platby",
+      "l1": "Inkaso pojistného",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Inkaso a platby",
+      "l1": "Párování plateb",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Inkaso a platby",
+      "l1": "Párování plateb",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Inkaso a platby",
+      "l1": "Upomínky a vymáhání",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Inkaso a platby",
+      "l1": "Upomínky a vymáhání",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Inkaso a platby",
+      "l1": "Vratky a výplaty pojistného plnění",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Inkaso a platby",
+      "l1": "Vratky a výplaty pojistného plnění",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek / Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Interni Reporting",
+      "l1": "Datová kvalita a data governance",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Interni Reporting",
+      "l1": "Datový sklad a BI",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Interni Reporting",
+      "l1": "Integrační platformy a API",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Call centrum",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Call centrum",
+      "l2": "Česko (ČR)",
+      "source_owner": "Klientské centrum",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Chatboty/voiceboty a GenAI nástroje",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Chatboty/voiceboty a GenAI nástroje",
+      "l2": "Česko (ČR)",
+      "source_owner": "k ověření",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Datové schránky",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Datové schránky",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Dotaz klienta na průběh likvidace PU",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Dotaz klienta na průběh likvidace PU",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Emailová komunikace",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Emailová komunikace",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek / Klientské centrum",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "SMS a notifikace",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "SMS a notifikace",
+      "l2": "Česko (ČR)",
+      "source_owner": "Klientské centrum",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Stížnosti a reklamace",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Klientská komunikace",
+      "l1": "Stížnosti a reklamace",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek právní a compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Actuary function",
+      "l2": null,
+      "source_owner": "Úsek právní a compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Auditní zjištění a doporučení",
+      "l2": null,
+      "source_owner": "Úsek interního auditu",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Compliance management",
+      "l2": null,
+      "source_owner": "Úsek právní a compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Corporate governance",
+      "l2": null,
+      "source_owner": "Úsek právní a compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Fraud detection modely",
+      "l2": null,
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "GDPR",
+      "l2": null,
+      "source_owner": "Úsek právní a compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Monitoring a validace modelů",
+      "l2": null,
+      "source_owner": "k ověření",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Plánování auditů",
+      "l2": null,
+      "source_owner": "Úsek interního auditu",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Právní agenda a smlouvy",
+      "l2": null,
+      "source_owner": "Úsek právní a compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Reporting výboru pro audit",
+      "l2": null,
+      "source_owner": "Úsek interního auditu",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Risk management",
+      "l2": null,
+      "source_owner": "Úsek právní a compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Sledování nápravných opatření",
+      "l2": null,
+      "source_owner": "Úsek interního auditu",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Legal & Corporate Governance",
+      "l1": "Výkon auditních zakázek",
+      "l2": null,
+      "source_owner": "Úsek interního auditu",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Archivace PU",
+      "l2": null,
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Dolikvidace PU",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Dolikvidace PU",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Komunikace a výplata",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Komunikace a výplata",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Kontrola neuzavřených registrovaných PU",
+      "l2": null,
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Posouzení škody",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Posouzení škody",
+      "l2": "Česko (ČR) – motor, majetek, odpovědnost, cestovní",
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Párování odeslaných plateb pojistného plnění",
+      "l2": null,
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Přeregistrace PU",
+      "l2": null,
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Příjem škody / FNOL",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Příjem škody / FNOL",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Registrace škody",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Registrace škody",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Regrese / subrogace",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Regrese / subrogace",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Rezervování škody",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Rezervování škody",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Storno PU na žádost klienta",
+      "l2": null,
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Likvidace škod",
+      "l1": "Vrácené platby pojistného plnění",
+      "l2": null,
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Marketing, kampaně, brand",
+      "l1": "Cookies, tracking a web analytika",
+      "l2": null,
+      "source_owner": "Marketing",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Marketing, kampaně, brand",
+      "l1": "Marketing automation",
+      "l2": null,
+      "source_owner": "Marketing",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Marketing, kampaně, brand",
+      "l1": "Personalizace a cílení zákazníka",
+      "l2": null,
+      "source_owner": "Marketing",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Marketing, kampaně, brand",
+      "l1": "Řízení kampaní",
+      "l2": null,
+      "source_owner": "Marketing",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Sjednání pojištění",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Sjednání pojištění",
+      "l2": "Česko (ČR) – B2B Autopojištění",
+      "source_owner": "Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Sjednání pojištění",
+      "l2": "Česko (ČR) – B2B UW – makléřský/partnerský",
+      "source_owner": "Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Sjednání pojištění",
+      "l2": "Česko (ČR) – B2C – online/přímé sjednání",
+      "source_owner": "Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Sjednání pojištění",
+      "l2": "Česko (ČR) – makléřský/partnerský portál",
+      "source_owner": "Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Sjednání pojištění",
+      "l2": "Česko (ČR) – online sjednání",
+      "source_owner": "Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Sjednání získatele",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Sjednání získatele",
+      "l2": "Česko (ČR)",
+      "source_owner": "Obchodní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Správa distribuční sítě",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Správa distribuční sítě",
+      "l2": "Česko (ČR)",
+      "source_owner": "Obchodní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Výplata mimořádných provizí a superprovizí",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Výplata mimořádných provizí a superprovizí",
+      "l2": "Česko (ČR)",
+      "source_owner": "Obchodní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Výplata řádných provizí",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Prodej a distribuce",
+      "l1": "Výplata řádných provizí",
+      "l2": "Česko (ČR)",
+      "source_owner": "IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Produkt",
+      "l1": "Kalkulace a nabídka",
+      "l2": null,
+      "source_owner": "Úsek UW / Vývoj produktu",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Produkt",
+      "l1": "Produktové změny a stažení",
+      "l2": null,
+      "source_owner": "Produktový úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Produkt",
+      "l1": "Schvalování a životní cyklus produktu",
+      "l2": null,
+      "source_owner": "Produktový úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Produkt",
+      "l1": "Správa produktových parametrů a sazebníků",
+      "l2": null,
+      "source_owner": "Produktový úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Produkt",
+      "l1": "Výpočet sazby / pojistného",
+      "l2": null,
+      "source_owner": "Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Produkt",
+      "l1": "Vývoj produktu",
+      "l2": null,
+      "source_owner": "Produktový úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Produkt",
+      "l1": "Zajištění asistence",
+      "l2": null,
+      "source_owner": "Úsek LPU",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Produkt",
+      "l1": "Řízení externích call center a partnerů",
+      "l2": null,
+      "source_owner": "Provozní úsek / Klientské centrum",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Regulatorní reporting",
+      "l1": "DORA reporting",
+      "l2": null,
+      "source_owner": "Vedoucí IT / Compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Regulatorní reporting",
+      "l1": "Incident reporting",
+      "l2": null,
+      "source_owner": "Vedoucí IT",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Regulatorní reporting",
+      "l1": "Solvency II reporting",
+      "l2": null,
+      "source_owner": "Úsek právní a compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Regulatorní reporting",
+      "l1": "ČNB reporting",
+      "l2": null,
+      "source_owner": "Úsek právní a compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Reserving",
+      "l1": "Příprava datových vstupů",
+      "l2": null,
+      "source_owner": "k ověření",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Reserving",
+      "l1": "Správa aktuárských modelů",
+      "l2": null,
+      "source_owner": "k ověření",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Reserving",
+      "l1": "Výpočet technických rezerv",
+      "l2": null,
+      "source_owner": "Úsek UW / Riziková komise",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Návrh na ukončení PS ze strany pojistitele",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Návrh na ukončení PS ze strany pojistitele",
+      "l2": "Česko (ČR)",
+      "source_owner": "Vývoj produktu",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Obnova smlouvy",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Obnova smlouvy",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek / Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Správa aktivních PS",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Správa aktivních PS",
+      "l2": "Česko (ČR) – platby pojistného, párování, vratky",
+      "source_owner": "Provozní úsek",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Správa dokumentů a komunikace ke smlouvě",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Správa dokumentů a komunikace ke smlouvě",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek / Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Storno / ukončení smlouvy",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Storno / ukončení smlouvy",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek / Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Vznik smlouvy",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Vznik smlouvy",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek / Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Změna smlouvy",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Správa smluv",
+      "l1": "Změna smlouvy",
+      "l2": "Česko (ČR)",
+      "source_owner": "Provozní úsek / Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Underwriting",
+      "l1": "AI modely pro underwriting/pricing",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Underwriting",
+      "l1": "AI modely pro underwriting/pricing",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek UW",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Underwriting",
+      "l1": "Oceňování rizika a scoring",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Underwriting",
+      "l1": "Oceňování rizika a scoring",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek UW / Riziková komise",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Underwriting",
+      "l1": "Schvalování výjimek",
+      "l2": "NL (FOS – MGA)",
+      "source_owner": "Projektový manažer pro NL",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Underwriting",
+      "l1": "Schvalování výjimek",
+      "l2": "Česko (ČR)",
+      "source_owner": "Úsek UW / Riziková komise",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Zajištění",
+      "l1": "Předání dat zajistitelům",
+      "l2": null,
+      "source_owner": "k ověření",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Zajištění",
+      "l1": "Výpočty a bordereaux",
+      "l2": null,
+      "source_owner": "k ověření",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Zajištění",
+      "l1": "Zajistný reporting",
+      "l2": null,
+      "source_owner": "k ověření",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Řízení dodavatelů a outsourcingu",
+      "l1": "Monitoring a přehodnocení dodavatele",
+      "l2": null,
+      "source_owner": "Provozní úsek / Compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Řízení dodavatelů a outsourcingu",
+      "l1": "Výběr a due diligence dodavatele",
+      "l2": null,
+      "source_owner": "Provozní úsek / Compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "l0": "Řízení dodavatelů a outsourcingu",
+      "l1": "Řízení smluv, SLA a exit plánů",
+      "l2": null,
+      "source_owner": "Provozní úsek / Compliance",
+      "process_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    }
+  ],
+  "assets": [
+    {
+      "key": "doménový server (file share)",
+      "display": "doménový server (file share)",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "pevné a mobilní telefony",
+      "display": "pevné a mobilní telefony",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "pc/notebook",
+      "display": "PC/notebook",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "lan/internet",
+      "display": "LAN/internet",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "vpn",
+      "display": "VPN",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "veris",
+      "display": "Veris",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "e-mail",
+      "display": "e-mail",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "ferda mravenec",
+      "display": "Ferda Mravenec",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "frontstage",
+      "display": "Frontstage",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "multicash",
+      "display": "Multicash",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "kofax",
+      "display": "Kofax",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "kup",
+      "display": "KUP",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "mis",
+      "display": "MIS",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "bmget",
+      "display": "BMGet",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "aquarius",
+      "display": "Aquarius",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "datová schránka",
+      "display": "datová schránka",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "cos",
+      "display": "COS",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "audatex",
+      "display": "Audatex",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "vx portál (dekra)",
+      "display": "VX portál (Dekra)",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "aquarius/profibank",
+      "display": "Aquarius/Profibank",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "kukátko",
+      "display": "Kukátko",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "portál čkp",
+      "display": "portál ČKP",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "proassist. (global a.)",
+      "display": "Proassist. (Global A.)",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "ftp",
+      "display": "FTP",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "logy",
+      "display": "logy",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "claims/škodní data",
+      "display": "claims/škodní data",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "dms",
+      "display": "DMS",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "it provozní/bezpečnostní data",
+      "display": "IT provozní/bezpečnostní data",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "klientská data",
+      "display": "klientská data",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "reporting",
+      "display": "reporting",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "veřejné rejstříky",
+      "display": "veřejné rejstříky",
+      "source_owner": "Autopojištění a on-line",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "dokumenty",
+      "display": "dokumenty",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "e-mail obchodník salesforce",
+      "display": "e-mail Obchodník Salesforce",
+      "source_owner": "Vývoj produktu",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "klientská a smluvní data",
+      "display": "klientská a smluvní data",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "partnerská/makléřská data",
+      "display": "partnerská/makléřská data",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "smlouvy",
+      "display": "smlouvy",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "smluvní data",
+      "display": "smluvní data",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "veris vpn",
+      "display": "VERIS VPN",
+      "source_owner": "Vývoj produktu",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "sla",
+      "display": "SLA",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "crm",
+      "display": "CRM",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "dodavatelská data",
+      "display": "dodavatelská data",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "dwh",
+      "display": "DWH",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "evidence dodavatelů",
+      "display": "evidence dodavatelů",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "obchodník",
+      "display": "Obchodník",
+      "source_owner": "Obchodní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "web",
+      "display": "web",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "ai/ml platforma",
+      "display": "AI/ML platforma",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "api",
+      "display": "API",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "marketingová data",
+      "display": "marketingová data",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "ms ad",
+      "display": "MS AD",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "ms intune",
+      "display": "MS Intune",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "payroll",
+      "display": "payroll",
+      "source_owner": "HR úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "server",
+      "display": "Server",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "ai saas (chatbot/genai)",
+      "display": "AI SaaS (chatbot/GenAI)",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "aktuárská data",
+      "display": "aktuárská data",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "aktuárské modely",
+      "display": "aktuárské modely",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "analytics",
+      "display": "analytics",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "aplikace čp",
+      "display": "aplikace ČP",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "as/400",
+      "display": "AS/400",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "asistenční data",
+      "display": "asistenční data",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "audit trail",
+      "display": "audit trail",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "auditní pracovní dokumentace a důkazy",
+      "display": "auditní pracovní dokumentace a důkazy",
+      "source_owner": "Úsek interního auditu",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "backup",
+      "display": "backup",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "backup/restore",
+      "display": "backup/restore",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "bankovní výpisy",
+      "display": "bankovní výpisy",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "bcp dokumentace",
+      "display": "BCP dokumentace",
+      "source_owner": "Risk management",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "bcp postupy",
+      "display": "BCP postupy",
+      "source_owner": "Risk management",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "behaviorální data",
+      "display": "behaviorální data",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "bi nástroje",
+      "display": "BI nástroje",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "bia",
+      "display": "BIA",
+      "source_owner": "Risk management",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "bia evidence",
+      "display": "BIA evidence",
+      "source_owner": "Risk management",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "bordereaux",
+      "display": "bordereaux",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "business owners",
+      "display": "business owners",
+      "source_owner": "Risk management",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "claims data",
+      "display": "claims data",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "cmp",
+      "display": "CMP",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "consent",
+      "display": "consent",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "consent mgmt",
+      "display": "consent mgmt",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "consent/cookies",
+      "display": "consent/cookies",
+      "source_owner": "Úsek právní a compliance",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "cookies",
+      "display": "cookies",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "data",
+      "display": "data",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "data call center",
+      "display": "data call center",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "data o přístupech",
+      "display": "data o přístupech",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "data o stížnostech/reklamacích",
+      "display": "data o stížnostech/reklamacích",
+      "source_owner": "Úsek právní a compliance",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "data o vratkách a plnění",
+      "display": "data o vratkách a plnění",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "data o školeních",
+      "display": "data o školeních",
+      "source_owner": "HR úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "data pro zajistitele",
+      "display": "data pro zajistitele",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "data quality nástroje",
+      "display": "data quality nástroje",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "data z formulářů",
+      "display": "data z formulářů",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "data zprostředkovatelů",
+      "display": "data zprostředkovatelů",
+      "source_owner": "Obchodní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "datové toky",
+      "display": "datové toky",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "datové vstupy",
+      "display": "datové vstupy",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "daňová/regulatorní data",
+      "display": "daňová/regulatorní data",
+      "source_owner": "Finanční úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "db",
+      "display": "DB",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "dr nástroje",
+      "display": "DR nástroje",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "dr plány",
+      "display": "DR plány",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "drift/bias",
+      "display": "drift/bias",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "dwh/bi data",
+      "display": "DWH/BI data",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "erp",
+      "display": "ERP",
+      "source_owner": "Finanční úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "eskalace",
+      "display": "eskalace",
+      "source_owner": "Risk management",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "etl",
+      "display": "ETL",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "evidence auditních zjištění a doporučení",
+      "display": "evidence auditních zjištění a doporučení",
+      "source_owner": "Úsek interního auditu",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "exporty",
+      "display": "exporty",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "externí dohled",
+      "display": "Externí dohled",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "externí služba",
+      "display": "Externí služba",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "finanční/aktuárská data (solvency ii)",
+      "display": "finanční/aktuárská data (Solvency II)",
+      "source_owner": "Finanční úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "finanční/účetní data",
+      "display": "finanční/účetní data",
+      "source_owner": "Finanční úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "form platform",
+      "display": "form platform",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "fraud modely",
+      "display": "fraud modely",
+      "source_owner": "Úsek LPU",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "grc / auditní nástroj",
+      "display": "GRC / auditní nástroj",
+      "source_owner": "Úsek interního auditu",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "help desk",
+      "display": "Help desk",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "hosting/cdn",
+      "display": "hosting/CDN",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "hris",
+      "display": "HRIS",
+      "source_owner": "HR úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "iam/mfa",
+      "display": "IAM/MFA",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "iam/mfa/ad/pam",
+      "display": "IAM/MFA/AD/PAM",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "ict incident mgmt",
+      "display": "ICT incident mgmt",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "ict risk/incident data (dora)",
+      "display": "ICT risk/incident data (DORA)",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "incident data",
+      "display": "incident data",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "incident register",
+      "display": "incident register",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "itsm/siem",
+      "display": "ITSM/SIEM",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "klientská data (mobilní app)",
+      "display": "klientská data (mobilní app)",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "klientská data (self-service)",
+      "display": "klientská data (self-service)",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "klientský portál",
+      "display": "klientský portál",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "komunikační matice",
+      "display": "komunikační matice",
+      "source_owner": "Risk management",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "kontakty",
+      "display": "kontakty",
+      "source_owner": "Risk management",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "leady",
+      "display": "leady",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "lineage",
+      "display": "lineage",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "lms",
+      "display": "LMS",
+      "source_owner": "HR úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "ma tool",
+      "display": "MA tool",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "mailing/sms nástroje",
+      "display": "mailing/SMS nástroje",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "marketing saas",
+      "display": "marketing SaaS",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "middleware/api gateway",
+      "display": "middleware/API gateway",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "mobile backend",
+      "display": "mobile backend",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "model nástroje",
+      "display": "model nástroje",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "model register",
+      "display": "model register",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "model registry",
+      "display": "model registry",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "monitoring modelů",
+      "display": "monitoring modelů",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "monitoring/siem/soc",
+      "display": "monitoring/SIEM/SOC",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "nahrávky hovorů",
+      "display": "nahrávky hovorů",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "notifikační data",
+      "display": "notifikační data",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "obsah webu",
+      "display": "obsah webu",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "osobní údaje",
+      "display": "osobní údaje",
+      "source_owner": "HR úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "patching/vuln mgmt",
+      "display": "patching/vuln mgmt",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "platební data",
+      "display": "platební data",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "plánovací data",
+      "display": "plánovací data",
+      "source_owner": "Finanční úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "plánovací/bi nástroje",
+      "display": "plánovací/BI nástroje",
+      "source_owner": "Finanční úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "pohledávky",
+      "display": "pohledávky",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "pricing/uw modely",
+      "display": "pricing/UW modely",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "pricing/uw systém",
+      "display": "pricing/UW systém",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "produktová a sazební data",
+      "display": "produktová a sazební data",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "produktová dokumentace, podmínky a krytí",
+      "display": "produktová dokumentace, podmínky a krytí",
+      "source_owner": "Produktový úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "produktový/uw konfigurační systém",
+      "display": "produktový/UW konfigurační systém",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "provize",
+      "display": "provize",
+      "source_owner": "Obchodní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "právní spory",
+      "display": "právní spory",
+      "source_owner": "Úsek právní a compliance",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "párovací data",
+      "display": "párovací data",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "pásková mechanika",
+      "display": "pásková mechanika",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "recommendation (ai)",
+      "display": "recommendation (AI)",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "regulatorní data (čnb)",
+      "display": "regulatorní data (ČNB)",
+      "source_owner": "Úsek právní a compliance",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "reinsurance data",
+      "display": "reinsurance data",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "riziková data",
+      "display": "riziková data",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "rto/rpo",
+      "display": "RTO/RPO",
+      "source_owner": "Risk management",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "sazební a produktová data",
+      "display": "sazební a produktová data",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "sazebníky a produktové parametry",
+      "display": "sazebníky a produktové parametry",
+      "source_owner": "Produktový úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "scoring",
+      "display": "scoring",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "scoring nástroje",
+      "display": "scoring nástroje",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "sdílené disky a db",
+      "display": "sdílené disky a DB",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "secure transfer",
+      "display": "secure transfer",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "segmentace",
+      "display": "segmentace",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "sms gateway",
+      "display": "SMS gateway",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "solvency ii data",
+      "display": "Solvency II data",
+      "source_owner": "Úsek právní a compliance",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "sw pro sběr logů a jejich prezentaci",
+      "display": "SW pro sběr logů a jejich prezentaci",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "síť lan/wan/vpn",
+      "display": "síť LAN/WAN/VPN",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "tag manager",
+      "display": "tag manager",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "technické rezervy",
+      "display": "technické rezervy",
+      "source_owner": "Úsek UW",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "tracking data",
+      "display": "tracking data",
+      "source_owner": "Marketing",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "upomínky",
+      "display": "upomínky",
+      "source_owner": "Provozní úsek",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "veeam",
+      "display": "Veeam",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "waf",
+      "display": "WAF",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "web analytics",
+      "display": "web analytics",
+      "source_owner": "IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "ws",
+      "display": "WS",
+      "source_owner": "Úsek právní a compliance",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "xbrl/reporting",
+      "display": "XBRL/reporting",
+      "source_owner": "Úsek právní a compliance",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "zajistná/finanční data",
+      "display": "zajistná/finanční data",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "znalostní báze",
+      "display": "znalostní báze",
+      "source_owner": "k ověření",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "zálohování a obnova",
+      "display": "zálohování a obnova",
+      "source_owner": "Úsek IT",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    },
+    {
+      "key": "šablony",
+      "display": "šablony",
+      "source_owner": "Risk management",
+      "business_owner_email": "risk.manager@riskhub.local",
+      "ict_owner_email": "risk.manager@riskhub.local",
+      "owning_department_code": "RISK",
+      "owning_department_name": "Risk Management"
+    }
+  ]
+}
