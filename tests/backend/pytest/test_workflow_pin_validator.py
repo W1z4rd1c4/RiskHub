@@ -48,6 +48,10 @@ DOCTOR_PLACEHOLDER_GITLEAKS_FINGERPRINTS = [
     "c01491201c5136cfe68cad8b0a1e1f3fc14b0816:scripts/install_lib/doctor.py:generic-api-key:20",
     "697ece9e12e4ba0b3a0844a35f1fce5a5fdc8dbf:scripts/install_lib/doctor.py:generic-api-key:20",
 ]
+ICT_REGISTER_MAP_GITLEAKS_FINGERPRINTS = [
+    "1119445512ee2f704cec9049d8084b621f4bec7f:docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524",
+    "docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524",
+]
 
 
 def _grype_ignore_entry(text: str, vulnerability: str) -> str:
@@ -625,20 +629,30 @@ def test_security_workflow_gitleaks_parse_gate_invokes_shell_once() -> None:
     assert "\\\n            sh -lc 'mkdir -p /tmp/gitleaks-empty" not in text
 
 
-def test_gitleaks_legacy_doctor_placeholder_ignores_are_exact_fingerprints() -> None:
+def test_gitleaks_approved_ignores_are_exact_fingerprints() -> None:
     ignored_fingerprints = [
         raw_line.strip()
         for raw_line in GITLEAKS_IGNORE.read_text(encoding="utf-8").splitlines()
         if raw_line.strip() and not raw_line.lstrip().startswith("#")
     ]
-    config = tomllib.loads(GITLEAKS_CONFIG.read_text(encoding="utf-8"))
+    config_text = GITLEAKS_CONFIG.read_text(encoding="utf-8")
+    config = tomllib.loads(config_text)
     allowed_paths = "\n".join(config["allowlist"]["paths"])
+    allowed_regexes = "\n".join(config["allowlist"]["regexes"])
 
-    assert ignored_fingerprints == DOCTOR_PLACEHOLDER_GITLEAKS_FINGERPRINTS
-    assert "scripts/install_lib/doctor.py" not in allowed_paths
-    assert "doctor.py:generic-api-key" not in GITLEAKS_CONFIG.read_text(
-        encoding="utf-8"
+    assert ignored_fingerprints == (
+        DOCTOR_PLACEHOLDER_GITLEAKS_FINGERPRINTS
+        + ICT_REGISTER_MAP_GITLEAKS_FINGERPRINTS
     )
+    assert "scripts/install_lib/doctor.py" not in allowed_paths
+    assert "doctor.py:generic-api-key" not in config_text
+
+    for broad_allowlist in (allowed_paths, allowed_regexes, config_text):
+        assert (
+            "docs/dora-ict-register/ict-register-accountability-map.synthetic.json"
+            not in broad_allowlist
+        )
+        assert "aquarius/profibank" not in broad_allowlist
 
 
 def test_security_workflow_keeps_scheduled_full_history_gitleaks_scan() -> None:

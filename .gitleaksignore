@@ -1,3 +1,7 @@
 # Legacy install doctor placeholder literals replaced by canonical CHANGE_ME scaffolds.
 c01491201c5136cfe68cad8b0a1e1f3fc14b0816:scripts/install_lib/doctor.py:generic-api-key:20
 697ece9e12e4ba0b3a0844a35f1fce5a5fdc8dbf:scripts/install_lib/doctor.py:generic-api-key:20
+
+# Synthetic ICT asset natural key "aquarius/profibank" is not a credential.
+1119445512ee2f704cec9049d8084b621f4bec7f:docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524
+docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524

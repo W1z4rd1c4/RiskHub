@@ -42,12 +42,28 @@ SHA-256
 The map-backed read-only verification exited 0 with all 52 adjusted DQ checks
 and all 22 expected/actual non-zero checks matching. Product logs were clean.
 
-Any final release successor may differ from candidate17 only through four
-evidence-document operations: this record and its folder-index link may change,
-the candidate13-named JSON may be removed, and the candidate17 JSON may be
-added. Every production, backend, script, test, architecture-lock, ADR,
-security, manifest, accountability-map, and STRUCTURE blob must remain byte-
-identical to candidate17.
+Released candidate18, commit
+`1119445512ee2f704cec9049d8084b621f4bec7f`, differs from candidate17 only
+through four evidence-document operations: this record and its folder-index
+link changed, the candidate13-named JSON was removed, and the candidate17 JSON
+was added. A later release successor may additionally differ in exactly
+`.gitleaksignore` and
+`tests/backend/pytest/test_workflow_pin_validator.py`. Those two non-runtime
+changes address the synthetic map natural-key false positive reported by
+GitHub Actions security workflow run `31526680432` through the exact history
+fingerprint
+`1119445512ee2f704cec9049d8084b621f4bec7f:docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524`
+and no-git fingerprint
+`docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524`.
+
+The Gitleaks correction does not alter cutover runtime, data,
+accountability-map, transaction, or import semantics. All candidate17 blobs
+that implement or supply the certified cutover—including its production
+services, backend scripts, data and accountability-map inputs, transaction
+boundaries, and importer paths—must remain byte-identical to candidate17. The
+PostgreSQL gate did not separately exercise the evidence-document or
+Gitleaks-only successor bytes, and this record makes no broader equality claim
+for every test or security blob.
 
 The gate preserves three evidence-harness limitations without treating them as
 product failures:

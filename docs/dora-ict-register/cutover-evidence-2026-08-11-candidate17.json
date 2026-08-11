@@ -371,20 +371,34 @@
   },
   "release_binding": {
     "passing_code_candidate": "10a88424e3f596c95ef0bd6c9118a114d348bbe0",
-    "final_candidate_delta_classification": "evidence_document_operations_only",
+    "released_candidate18": "1119445512ee2f704cec9049d8084b621f4bec7f",
+    "final_candidate_delta_classification": "evidence_document_and_exact_gitleaks_remediation_only",
     "permitted_post_certification_delta": [
       "docs/dora-ict-register/README.md",
       "docs/dora-ict-register/cutover-record.md",
       "docs/dora-ict-register/cutover-evidence-2026-08-11-candidate13.json (removed)",
-      "docs/dora-ict-register/cutover-evidence-2026-08-11-candidate17.json"
+      "docs/dora-ict-register/cutover-evidence-2026-08-11-candidate17.json",
+      ".gitleaksignore",
+      "tests/backend/pytest/test_workflow_pin_validator.py"
     ],
-    "postgresql_certification_scope": "The PostgreSQL certification exercised immutable candidate17 in full, including its code and data inputs.",
-    "required_equality": "Every final-candidate blob outside the four permitted evidence-document operations must be byte-identical to candidate17. All production, backend, script, test, architecture-lock, ADR, security, manifest, accountability-map, and STRUCTURE blobs must equal candidate17 before release."
+    "post_release_gitleaks_remediation": {
+      "trigger": "GitHub Actions security workflow run 31526680432",
+      "classification": "false_positive_in_synthetic_map_natural_key",
+      "permitted_paths": [
+        ".gitleaksignore",
+        "tests/backend/pytest/test_workflow_pin_validator.py"
+      ],
+      "history_fingerprint": "1119445512ee2f704cec9049d8084b621f4bec7f:docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524",
+      "no_git_fingerprint": "docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524",
+      "runtime_effect": "None. The exact fingerprint ignores and their contract test do not alter cutover runtime, data, accountability-map, transaction, or import semantics."
+    },
+    "postgresql_certification_scope": "The PostgreSQL certification exercised immutable candidate17 in full, including its code and data inputs. It did not exercise the later evidence-document or Gitleaks-only bytes, and this record makes no such claim.",
+    "required_equality": "All candidate17 blobs that implement or supply the certified cutover, including cutover production services, backend scripts, data and accountability-map inputs, transaction boundaries, and importer paths, must remain byte-identical to candidate17. No broader equality claim is made for the six explicitly permitted evidence-document and Gitleaks-remediation operations."
   },
   "limitations": [
     "The accountability map contains authorized synthetic demo assignments, not evidence of real Process or Asset accountability.",
     "The PostgreSQL dump and detailed operator ledger are not repository artifacts; this record preserves their identities and hashes, not their contents.",
-    "The final release successor may differ from candidate17 only through the four named evidence-document operations needed to replace this certification record and update its two links.",
-    "This certification applies only while every production, backend, script, test, architecture-lock, ADR, security, manifest, accountability-map, and STRUCTURE blob remains byte-identical to candidate17."
+    "Released candidate18 differs from candidate17 only through the four named evidence-document operations needed to replace this certification record and update its two links; a later successor may additionally change only the two exact Gitleaks-remediation paths named in release_binding.",
+    "This certification applies only while every candidate17 cutover production-service, backend-script, data, accountability-map, transaction-boundary, and importer blob remains byte-identical. The evidence-document and Gitleaks-only successor bytes were not separately exercised by the PostgreSQL gate."
   ]
 }
