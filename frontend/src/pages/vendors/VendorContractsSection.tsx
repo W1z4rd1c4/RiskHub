@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, Save, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -101,6 +101,7 @@ export function VendorContractsSection({
     const [fields, setFields] = useState<ContractFormFields>(() => initialContractFields());
     const [requestReason, setRequestReason] = useState('');
     const [requestReasonError, setRequestReasonError] = useState<string | null>(null);
+    const requestReasonRef = useRef<HTMLTextAreaElement>(null);
     const [pendingArchive, setPendingArchive] = useState<VendorContract | null>(null);
     const [sectionError, setSectionError] = useState<string | null>(null);
 
@@ -326,6 +327,7 @@ export function VendorContractsSection({
                         event.preventDefault();
                         if (protectedChangeRequiresApproval && !requestReason.trim()) {
                             setRequestReasonError(t('errors.request_reason_required'));
+                            requestReasonRef.current?.focus();
                             return;
                         }
                         setRequestReasonError(null);
@@ -345,6 +347,14 @@ export function VendorContractsSection({
                             >
                                 {t('actions.refresh')}
                             </button>
+                        </div>
+                    ) : null}
+                    {requestReasonError ? (
+                        <div
+                            role="alert"
+                            className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300"
+                        >
+                            {requestReasonError}
                         </div>
                     ) : null}
                     <div className="vendor-form-grid">
@@ -494,6 +504,7 @@ export function VendorContractsSection({
                     </Field>
                     {protectedChangeRequiresApproval ? (
                         <Field
+                            id="vendor-contract-request-reason"
                             label={t('form.request_reason')}
                             required
                             help={t('form.request_reason_help')}
@@ -504,6 +515,7 @@ export function VendorContractsSection({
                             {(control) => (
                                 <textarea
                                     {...control}
+                                    ref={requestReasonRef}
                                     data-testid="vendor-contract-request-reason"
                                     value={requestReason}
                                     onChange={(event) => {

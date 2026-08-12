@@ -262,9 +262,14 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
             await riskManagerPage.getByTestId(`vendor-contract-edit-${contract!.id}`).click();
             await riskManagerPage.getByTestId('vendor-contract-field-note').fill(proposedNote);
             await riskManagerPage.getByTestId('vendor-contract-form-save').click();
-            await expect(riskManagerPage.getByTestId('vendor-contract-request-reason'))
-                .toHaveAttribute('aria-invalid', 'true');
-            await riskManagerPage.getByTestId('vendor-contract-request-reason').fill(reason);
+            const requestReason = riskManagerPage.getByTestId('vendor-contract-request-reason');
+            await expect(requestReason).toHaveAttribute('id', 'vendor-contract-request-reason');
+            await expect(requestReason).toBeFocused();
+            await expect(requestReason).toHaveAttribute('aria-invalid', 'true');
+            await expect(riskManagerPage.getByRole('alert')).toContainText(
+                /A request reason is required|Je vyžadován důvod žádosti/,
+            );
+            await requestReason.fill(reason);
 
             const queued = riskManagerPage.waitForResponse((response) => (
                 response.request().method() === 'PATCH'

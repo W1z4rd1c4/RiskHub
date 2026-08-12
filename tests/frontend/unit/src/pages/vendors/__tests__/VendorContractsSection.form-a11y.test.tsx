@@ -118,18 +118,25 @@ describe('VendorContractsSection form — Field migration (#59)', () => {
 
     it('rejects a blank governed create reason locally with an accessible field error', async () => {
         const user = userEvent.setup();
-        renderSection();
+        const { container } = renderSection();
         const form = await openForm(user);
 
         await user.click(screen.getByTestId('vendor-contract-form-save'));
 
         const reason = screen.getByTestId('vendor-contract-request-reason');
+        expect(reason).toHaveFocus();
+        expect(reason).toHaveAttribute('id', 'vendor-contract-request-reason');
         expect(reason).toHaveAttribute('aria-invalid', 'true');
         expect(reason).toHaveAccessibleDescription(
             new RegExp(i18n.t('vendors:errors.request_reason_required')),
         );
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            i18n.t('vendors:errors.request_reason_required'),
+        );
         expect(mockCreateContract).not.toHaveBeenCalled();
         expect(form).toBeInTheDocument();
+
+        await expectNoAxeViolations(container);
     });
 
     it('collects a governed archive reason before invoking the archive seam', async () => {
