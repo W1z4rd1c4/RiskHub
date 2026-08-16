@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TableErrorState, resolveTableErrorContract } from '@/components/tables/tableError';
 import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { VendorInlineMessage } from '@/components/vendors/vendorRouteUi';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
@@ -350,12 +351,13 @@ export function VendorContractsSection({
                         </div>
                     ) : null}
                     {requestReasonError ? (
-                        <div
+                        <VendorInlineMessage
                             role="alert"
-                            className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300"
+                            tone="danger"
+                            className="text-sm font-medium"
                         >
                             {requestReasonError}
-                        </div>
+                        </VendorInlineMessage>
                     ) : null}
                     <div className="vendor-form-grid">
                         {textInput('contract_reference', t('contracts.form.contract_reference'))}

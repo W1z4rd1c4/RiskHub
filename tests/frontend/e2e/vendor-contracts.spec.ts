@@ -12,6 +12,8 @@
  * (risk manager); the employee reads the section without manage affordances;
  * the platform admin has no vendor surface at all.
  */
+import AxeBuilder from '@axe-core/playwright';
+
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ICT_VENDOR, E2E_VENDOR_CONTRACTS } from './fixtures/e2e-data';
 import { getVendorByRegistration } from './helpers/api-auth';
@@ -47,6 +49,86 @@ const SUBSTITUCE = [
 ];
 
 const MAIN_FLAG = /^(Main|Hlavní)$/;
+
+interface RgbaColor {
+    alpha: number;
+    blue: number;
+    green: number;
+    red: number;
+}
+
+function parseComputedColor(value: string): RgbaColor {
+    if (value === 'transparent') {
+        return { red: 0, green: 0, blue: 0, alpha: 0 };
+    }
+
+    const rgb = value.match(
+        /^rgba?\(\s*([\d.]+)(?:\s*,\s*|\s+)([\d.]+)(?:\s*,\s*|\s+)([\d.]+)(?:\s*(?:,|\/)\s*([\d.]+%?))?\s*\)$/,
+    );
+    if (rgb) {
+        const alpha = rgb[4]?.endsWith('%')
+            ? Number.parseFloat(rgb[4]) / 100
+            : Number.parseFloat(rgb[4] ?? '1');
+        return {
+            red: Number.parseFloat(rgb[1]),
+            green: Number.parseFloat(rgb[2]),
+            blue: Number.parseFloat(rgb[3]),
+            alpha,
+        };
+    }
+
+    const srgb = value.match(
+        /^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)$/,
+    );
+    if (srgb) {
+        const alpha = srgb[4]?.endsWith('%')
+            ? Number.parseFloat(srgb[4]) / 100
+            : Number.parseFloat(srgb[4] ?? '1');
+        return {
+            red: Number.parseFloat(srgb[1]) * 255,
+            green: Number.parseFloat(srgb[2]) * 255,
+            blue: Number.parseFloat(srgb[3]) * 255,
+            alpha,
+        };
+    }
+
+    throw new Error(`Unsupported computed color: ${value}`);
+}
+
+function compositeColor(foreground: RgbaColor, background: RgbaColor): RgbaColor {
+    const alpha = foreground.alpha + background.alpha * (1 - foreground.alpha);
+    if (alpha === 0) return { red: 0, green: 0, blue: 0, alpha: 0 };
+
+    const compositeChannel = (foregroundChannel: number, backgroundChannel: number) => (
+        (foregroundChannel * foreground.alpha
+            + backgroundChannel * background.alpha * (1 - foreground.alpha)) / alpha
+    );
+    return {
+        red: compositeChannel(foreground.red, background.red),
+        green: compositeChannel(foreground.green, background.green),
+        blue: compositeChannel(foreground.blue, background.blue),
+        alpha,
+    };
+}
+
+function relativeLuminance(color: RgbaColor): number {
+    const linear = [color.red, color.green, color.blue].map((channel) => {
+        const srgb = channel / 255;
+        return srgb <= 0.04045 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function renderedContrastRatio(foregroundValue: string, backgroundValues: string[]): number {
+    let background = { red: 255, green: 255, blue: 255, alpha: 1 };
+    for (const value of backgroundValues) {
+        background = compositeColor(parseComputedColor(value), background);
+    }
+    const foreground = compositeColor(parseComputedColor(foregroundValue), background);
+    const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background));
+    const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background));
+    return (lighter + 0.05) / (darker + 0.05);
+}
 
 async function seededVendorId(): Promise<number> {
     const vendor = await getVendorByRegistration(E2E_ICT_VENDOR.registration_id);
@@ -257,8 +339,25 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
                 requires_approval: true,
             });
 
+            await riskManagerPage.addInitScript(() => {
+                localStorage.setItem('riskhub-theme', 'light');
+                localStorage.setItem('riskhub-language', 'en');
+            });
+            await riskManagerPage.route('**/api/v1/preferences', async (route, request) => {
+                if (request.method() === 'GET') {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: 'application/json',
+                        body: JSON.stringify({ theme: 'light', language: 'en' }),
+                    });
+                    return;
+                }
+                await route.continue();
+            });
+
             const detailPage = new VendorDetailPage(riskManagerPage);
             await detailPage.navigateToSection(vendorId, 'contracts');
+            await expect(riskManagerPage.locator('html')).toHaveClass(/theme-light/);
             await riskManagerPage.getByTestId(`vendor-contract-edit-${contract!.id}`).click();
             await riskManagerPage.getByTestId('vendor-contract-field-note').fill(proposedNote);
             await riskManagerPage.getByTestId('vendor-contract-form-save').click();
@@ -266,9 +365,50 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
             await expect(requestReason).toHaveAttribute('id', 'vendor-contract-request-reason');
             await expect(requestReason).toBeFocused();
             await expect(requestReason).toHaveAttribute('aria-invalid', 'true');
-            await expect(riskManagerPage.getByRole('alert')).toContainText(
+            const requestReasonAlert = riskManagerPage.getByRole('alert');
+            await expect(requestReasonAlert).toContainText(
                 /A request reason is required|Je vyžadován důvod žádosti/,
             );
+            await requestReasonAlert.scrollIntoViewIfNeeded();
+            await expect(requestReasonAlert).toBeVisible();
+            const contrast = await new AxeBuilder({ page: riskManagerPage })
+                .include('[role="alert"]')
+                .withRules(['color-contrast'])
+                .analyze();
+            const axeColorContrastResults = [
+                ...contrast.violations,
+                ...contrast.incomplete,
+                ...contrast.passes,
+            ].filter((result) => result.id === 'color-contrast');
+            expect(axeColorContrastResults.length).toBeGreaterThan(0);
+            expect(
+                contrast.violations.map((violation) => violation.id),
+                contrast.violations
+                    .flatMap((violation) => violation.nodes.map((node) => (
+                        `[${violation.id}] ${JSON.stringify(node.target)} ${node.failureSummary ?? ''}`
+                    )))
+                    .join('\n'),
+            ).toEqual([]);
+            const renderedColors = await requestReasonAlert.evaluate((element) => {
+                const backgrounds: string[] = [];
+                let current: Element | null = element;
+                while (current) {
+                    backgrounds.unshift(getComputedStyle(current).backgroundColor);
+                    current = current.parentElement;
+                }
+                return {
+                    backgrounds,
+                    foreground: getComputedStyle(element).color,
+                };
+            });
+            const ratio = renderedContrastRatio(
+                renderedColors.foreground,
+                renderedColors.backgrounds,
+            );
+            expect(
+                ratio,
+                `Rendered blank-reason alert color-contrast ratio was ${ratio.toFixed(2)}:1`,
+            ).toBeGreaterThanOrEqual(4.5);
             await requestReason.fill(reason);
 
             const queued = riskManagerPage.waitForResponse((response) => (
