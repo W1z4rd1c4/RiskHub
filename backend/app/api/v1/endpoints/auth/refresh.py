@@ -26,6 +26,7 @@ from app.schemas.auth import TokenResponse
 from app.services._auth_session import (
     SessionCookiePlan,
     apply_session_cookie_plan,
+    lock_refresh_rotation_user,
     resolve_refresh_session,
 )
 from app.services._auth_session_workflow import commit_refresh_session
@@ -93,6 +94,14 @@ async def refresh_session(
     assert now is not None
     assert jti is not None
     assert user_id is not None
+    locked_user = await lock_refresh_rotation_user(
+        db=db,
+        user_id=user_id,
+        expected_token_version=refresh_row.token_version,
+    )
+    if locked_user is None:
+        return _refresh_unauthorized_response("Session revoked", settings)
+    user = locked_user
     if context_outcome.audit_plan.context_changed:
         logger.warning(
             "refresh_session_context_changed",
@@ -124,13 +133,12 @@ async def refresh_session(
     child_jti = new_token_jti()
     if expires_at is None:
         return _refresh_unauthorized_response("Refresh token expired", settings)
-    child_lifetime = expires_at - now
     child_refresh_token, child_expires_at = create_refresh_token(
         user_id=user.id,
         token_version=user.token_version,
         jti=child_jti,
         settings=settings,
-        expires_delta=child_lifetime,
+        expires_at=expires_at,
     )
     rotate_result = await db.execute(
         update(RefreshToken)

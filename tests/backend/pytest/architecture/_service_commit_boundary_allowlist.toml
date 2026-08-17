@@ -35,10 +35,6 @@ file = "backend/app/services/_auth_session/sso_identity.py"
 rationale = "Legacy auth-session persistence path; retained until auth workflow consolidation."
 
 [[allow]]
-file = "backend/app/services/_auth_session/refresh.py"
-rationale = "Legacy refresh-token persistence path; retained until auth workflow consolidation."
-
-[[allow]]
 file = "backend/app/services/_entity_mutation_lifecycle/direct_apply.py"
 rationale = "Entity mutation lifecycle direct-apply paths need archive/update parity tests."
 

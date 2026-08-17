@@ -13,7 +13,7 @@ from starlette.responses import Response
 
 from app.core.client_ip import resolve_request_client_ip
 from app.core.config import Settings
-from app.core.datetime_utils import utc_now
+from app.core.datetime_utils import coerce_utc, utc_now
 
 REFRESH_TOKEN_TYPE = "refresh"
 REFRESH_TOKEN_AUDIENCE = "riskhub-refresh"
@@ -38,8 +38,12 @@ def create_refresh_token(
     jti: str,
     settings: Settings,
     expires_delta: timedelta | None = None,
+    expires_at: datetime | None = None,
 ) -> tuple[str, datetime]:
-    expires_at = utc_now() + (expires_delta or refresh_token_lifetime(settings))
+    if expires_at is None:
+        expires_at = utc_now() + (expires_delta or refresh_token_lifetime(settings))
+    expires_at = coerce_utc(expires_at)
+    assert expires_at is not None
     payload: dict[str, Any] = {
         "type": REFRESH_TOKEN_TYPE,
         "aud": REFRESH_TOKEN_AUDIENCE,

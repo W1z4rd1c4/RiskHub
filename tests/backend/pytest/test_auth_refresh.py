@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from collections.abc import AsyncIterator, Callable
+from datetime import UTC, datetime, timedelta, timezone
 from http.cookies import SimpleCookie
 from typing import Any
 
 import jwt
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from httpx import ASGITransport, AsyncClient, Response
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.api import deps as api_deps
 from app.api.v1.endpoints.auth._request_protection import validate_request_origin
@@ -66,6 +67,91 @@ def _role_aware_refresh_settings() -> Settings:
         access_token_expire_minutes=30,
         platform_admin_access_token_expire_minutes=15,
     )
+
+
+def _independent_db_override(
+    async_engine: AsyncEngine,
+    *,
+    application_names: tuple[str, ...] = (),
+) -> Callable[[], AsyncIterator[AsyncSession]]:
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    names = iter(application_names)
+
+    async def independent_db_session() -> AsyncIterator[AsyncSession]:
+        async with session_maker() as session:
+            application_name = next(names, None)
+            if application_name is not None:
+                await session.execute(
+                    text("SELECT set_config('application_name', :name, true)"),
+                    {"name": application_name},
+                )
+            yield session
+
+    return independent_db_session
+
+
+async def _wait_for_postgres_lock_queries(
+    observer: AsyncSession,
+    *,
+    application_names: set[str],
+    timeout_seconds: float = 5,
+) -> dict[str, str]:
+    deadline = asyncio.get_running_loop().time() + timeout_seconds
+    while asyncio.get_running_loop().time() < deadline:
+        await observer.execute(text("SELECT pg_stat_clear_snapshot()"))
+        activity_rows = (
+            await observer.execute(
+                text(
+                    "SELECT application_name, query "
+                    "FROM pg_stat_activity "
+                    "WHERE pid <> pg_backend_pid() AND wait_event_type = 'Lock'"
+                )
+            )
+        ).mappings()
+        waiting_queries = {
+            str(row["application_name"]): str(row["query"])
+            for row in activity_rows
+            if row["application_name"] in application_names
+        }
+        if waiting_queries.keys() == application_names:
+            return waiting_queries
+        await asyncio.sleep(0.02)
+    raise AssertionError(
+        f"Timed out waiting for PostgreSQL lock waits: {sorted(application_names)}"
+    )
+
+
+async def _run_two_refreshes_behind_user_lock(
+    *,
+    client: AsyncClient,
+    user_lock_gate: AsyncSession,
+    lock_observer: AsyncSession,
+    user_id: int,
+    headers: dict[str, str],
+    application_names: set[str],
+) -> tuple[Response, Response, dict[str, str]]:
+    await user_lock_gate.execute(
+        select(User).where(User.id == user_id).with_for_update()
+    )
+    refresh_tasks = [
+        asyncio.create_task(client.post("/api/v1/auth/refresh", headers=headers))
+        for _ in range(2)
+    ]
+    try:
+        waiting_queries = await _wait_for_postgres_lock_queries(
+            lock_observer,
+            application_names=application_names,
+        )
+    finally:
+        await user_lock_gate.commit()
+    response_a, response_b = await asyncio.wait_for(
+        asyncio.gather(*refresh_tasks),
+        timeout=10,
+    )
+    return response_a, response_b, waiting_queries
 
 
 def _refresh_cookie_headers(token: str, csrf_token: str, *, include_csrf_header: bool = True) -> dict[str, str]:
@@ -341,6 +427,93 @@ async def test_refresh_rotation_preserves_absolute_session_expiry_for_sso_sessio
 
 
 @pytest.mark.asyncio
+@pytest.mark.postgres
+async def test_refresh_rotation_preserves_absolute_expiry_after_user_lock_wait_postgres(
+    client_factory,
+    async_engine: AsyncEngine,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL row locks are required for refresh lock-wait coverage")
+
+    settings = _role_aware_refresh_settings()
+    async with client_factory(settings=settings) as setup_client:
+        await _login_via_sso_exchange(
+            setup_client,
+            db_session,
+            test_user,
+            monkeypatch,
+            external_id="oid-refresh-lock-wait-expiry",
+        )
+        parent_token = setup_client.cookies.get("riskhub_refresh_token")
+        parent_csrf = setup_client.cookies.get("riskhub_csrf_token")
+        assert parent_token and parent_csrf
+
+    parent_claims = decode_refresh_token(parent_token, settings)
+    parent_row = (
+        await db_session.execute(
+            select(RefreshToken).where(RefreshToken.jti == parent_claims["jti"])
+        )
+    ).scalar_one()
+    parent_expires_at = parent_row.expires_at
+    parent_signed_expiry = int(parent_claims["exp"])
+
+    request_name = "riskhub_issue123_refresh_expiry_wait"
+    independent_db_session = _independent_db_override(
+        async_engine,
+        application_names=(request_name,),
+    )
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    async with (
+        session_maker() as user_lock_gate,
+        session_maker() as lock_observer,
+        client_factory(
+            settings=settings,
+            db_override=independent_db_session,
+        ) as concurrent_client,
+    ):
+        await user_lock_gate.execute(
+            select(User).where(User.id == test_user.id).with_for_update()
+        )
+        refresh_task = asyncio.create_task(
+            concurrent_client.post(
+                "/api/v1/auth/refresh",
+                headers=_refresh_cookie_headers(parent_token, parent_csrf),
+            )
+        )
+        try:
+            waiting_queries = await _wait_for_postgres_lock_queries(
+                lock_observer,
+                application_names={request_name},
+            )
+            assert "FROM users" in waiting_queries[request_name]
+            assert "FOR UPDATE" in waiting_queries[request_name]
+            await asyncio.sleep(2.1)
+        finally:
+            await user_lock_gate.commit()
+        refresh = await asyncio.wait_for(refresh_task, timeout=10)
+
+    assert refresh.status_code == 200, refresh.text
+    child_token = _extract_refresh_cookie(refresh)
+    assert child_token
+    child_claims = decode_refresh_token(child_token, settings)
+    assert int(child_claims["exp"]) == parent_signed_expiry
+
+    async with session_maker() as observer:
+        child_row = (
+            await observer.execute(
+                select(RefreshToken).where(RefreshToken.jti == child_claims["jti"])
+            )
+        ).scalar_one()
+        assert child_row.expires_at == parent_expires_at
+
+
+@pytest.mark.asyncio
 async def test_refresh_rejects_sessions_with_less_than_minimum_remaining_lifetime(
     refresh_client: AsyncClient,
     db_session: AsyncSession,
@@ -411,6 +584,27 @@ async def test_refresh_endpoint_revokes_rotated_child_on_stale_replay(
     csrf_token = refresh_client.cookies.get("riskhub_csrf_token")
     assert initial_cookie
     assert csrf_token
+    assert test_user.token_version == 0
+
+    initial_row = (
+        await db_session.execute(
+            select(RefreshToken)
+            .where(RefreshToken.user_id == test_user.id)
+            .where(RefreshToken.revoked_at.is_(None))
+        )
+    ).scalar_one()
+    second_active_row = RefreshToken(
+        user_id=test_user.id,
+        jti="known-second-active-session",
+        token_version=0,
+        issued_at=initial_row.issued_at,
+        last_used_at=initial_row.last_used_at,
+        expires_at=initial_row.expires_at,
+        created_ip="127.0.0.1",
+        user_agent="pytest-second-session",
+    )
+    db_session.add(second_active_row)
+    await db_session.commit()
 
     transport = ASGITransport(app=app)
     async with (
@@ -418,8 +612,14 @@ async def test_refresh_endpoint_revokes_rotated_child_on_stale_replay(
         AsyncClient(transport=transport, base_url="http://test") as client_b,
     ):
         response_a, response_b = await asyncio.gather(
-            client_a.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token)),
-            client_b.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token)),
+            client_a.post(
+                "/api/v1/auth/refresh",
+                headers=_refresh_cookie_headers(initial_cookie, csrf_token),
+            ),
+            client_b.post(
+                "/api/v1/auth/refresh",
+                headers=_refresh_cookie_headers(initial_cookie, csrf_token),
+            ),
         )
 
     responses = [response_a, response_b]
@@ -428,29 +628,613 @@ async def test_refresh_endpoint_revokes_rotated_child_on_stale_replay(
     winner = next(response for response in responses if response.status_code == 200)
     winner_cookie = _extract_refresh_cookie(winner)
     winner_csrf_cookie = _extract_csrf_cookie(winner)
+    winner_access_token = winner.json()["access_token"]
     assert winner_cookie and winner_cookie != initial_cookie
     assert winner_csrf_cookie
     winner_jti = decode_refresh_token(winner_cookie, _refresh_test_settings())["jti"]
 
     async with AsyncClient(transport=transport, base_url="http://test") as verifier:
+        winner_me_before_replay = await verifier.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {winner_access_token}"},
+        )
+        assert winner_me_before_replay.status_code == 200
+
+        from app.core.activity_logger import audit_logger
+
+        emitted_failed_refreshes: list[dict[str, object]] = []
+
+        def capture_failed_refresh(_event: str, **kwargs: object) -> None:
+            if kwargs.get("event_type") == ActivityAction.FAILED_REFRESH.value:
+                emitted_failed_refreshes.append(kwargs)
+
+        monkeypatch.setattr(audit_logger, "info", capture_failed_refresh)
+        monkeypatch.setattr(audit_logger, "warning", capture_failed_refresh)
+
         stale_replay = await verifier.post(
-            "/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token)
+            "/api/v1/auth/refresh",
+            headers=_refresh_cookie_headers(initial_cookie, csrf_token),
         )
         assert stale_replay.status_code == 401
-
-        winner_replay = await verifier.post(
-            "/api/v1/auth/refresh",
-            headers=_refresh_cookie_headers(winner_cookie, winner_csrf_cookie),
+        assert stale_replay.json() == {"detail": "Refresh session not found"}
+        assert any(
+            "riskhub_refresh_token=" in header and "Max-Age=0" in header
+            for header in stale_replay.headers.get_list("set-cookie")
         )
-        assert winner_replay.status_code == 401
 
-    child_row = (
+        winner_me_after_replay = await verifier.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {winner_access_token}"},
+        )
+        assert winner_me_after_replay.status_code == 401
+        assert winner_me_after_replay.json() == {"detail": "Session revoked"}
+
+        repeated_stale_replay = await verifier.post(
+            "/api/v1/auth/refresh",
+            headers=_refresh_cookie_headers(initial_cookie, csrf_token),
+        )
+        assert repeated_stale_replay.status_code == 401
+        assert repeated_stale_replay.json() == {"detail": "Refresh session not found"}
+
+    rows = (
+        (
+            await db_session.execute(
+                select(RefreshToken)
+                .where(RefreshToken.user_id == test_user.id)
+                .execution_options(populate_existing=True)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    newly_contained = [row for row in rows if row.revoked_reason == "replay_detected"]
+    assert {row.jti for row in newly_contained} == {
+        winner_jti,
+        "known-second-active-session",
+    }
+
+    refreshed_user = (
         await db_session.execute(
-            select(RefreshToken).where(RefreshToken.user_id == test_user.id).where(RefreshToken.jti == winner_jti)
+            select(User)
+            .where(User.id == test_user.id)
+            .execution_options(populate_existing=True)
         )
     ).scalar_one()
-    assert child_row.revoked_at is not None
-    assert child_row.revoked_reason == "replay_detected"
+    assert refreshed_user.token_version == 1
+
+    containment_events = (
+        (
+            await db_session.execute(
+                select(ActivityLog)
+                .where(ActivityLog.entity_id == test_user.id)
+                .where(ActivityLog.action == ActivityAction.FAILED_REFRESH.value)
+                .execution_options(populate_existing=True)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(containment_events) == 1
+    assert containment_events[0].changes == {
+        "failure_code": "replay_detected",
+        "revoke_count": 2,
+    }
+    structured_containment_events = [
+        event
+        for event in emitted_failed_refreshes
+        if event.get("changes")
+        == {"failure_code": "replay_detected", "revoke_count": 2}
+    ]
+    assert len(structured_containment_events) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.postgres
+async def test_concurrent_active_parent_rotation_has_one_winner_before_replay_postgres(
+    client_factory,
+    async_engine: AsyncEngine,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip(
+            "PostgreSQL row locks are required for replay-containment concurrency"
+        )
+
+    settings = _role_aware_refresh_settings()
+    async with client_factory(settings=settings) as setup_client:
+        await _login_via_sso_exchange(
+            setup_client,
+            db_session,
+            test_user,
+            monkeypatch,
+            external_id="oid-refresh-concurrent-stale-replay",
+        )
+        stale_parent = setup_client.cookies.get("riskhub_refresh_token")
+        csrf_token = setup_client.cookies.get("riskhub_csrf_token")
+        assert stale_parent and csrf_token
+
+    request_names = {
+        "riskhub_issue123_initial_a",
+        "riskhub_issue123_initial_b",
+    }
+    independent_db_session = _independent_db_override(
+        async_engine,
+        application_names=tuple(sorted(request_names)),
+    )
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    async with (
+        session_maker() as user_lock_gate,
+        session_maker() as lock_observer,
+        client_factory(
+            settings=settings, db_override=independent_db_session
+        ) as concurrent_client,
+    ):
+        stale_headers = _refresh_cookie_headers(stale_parent, csrf_token)
+        (
+            initial_a,
+            initial_b,
+            waiting_queries,
+        ) = await _run_two_refreshes_behind_user_lock(
+            client=concurrent_client,
+            user_lock_gate=user_lock_gate,
+            lock_observer=lock_observer,
+            user_id=test_user.id,
+            headers=stale_headers,
+            application_names=request_names,
+        )
+        assert all(
+            "FROM users" in query and "FOR UPDATE" in query
+            for query in waiting_queries.values()
+        )
+        assert sorted((initial_a.status_code, initial_b.status_code)) == [200, 401]
+        winner = next(
+            response
+            for response in (initial_a, initial_b)
+            if response.status_code == 200
+        )
+        winner_access_token = winner.json()["access_token"]
+
+        winner_me_before_replay = await concurrent_client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {winner_access_token}"},
+        )
+        assert winner_me_before_replay.status_code == 200
+
+        explicit_stale_replay = await concurrent_client.post(
+            "/api/v1/auth/refresh", headers=stale_headers
+        )
+        assert explicit_stale_replay.status_code == 401
+        assert explicit_stale_replay.json() == {"detail": "Refresh session not found"}
+
+        winner_me_after_replay = await concurrent_client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {winner_access_token}"},
+        )
+        assert winner_me_after_replay.status_code == 401
+        assert winner_me_after_replay.json() == {"detail": "Session revoked"}
+
+    async for observer in independent_db_session():
+        user = (
+            await observer.execute(select(User).where(User.id == test_user.id))
+        ).scalar_one()
+        assert user.token_version == 1
+
+        active_rows = (
+            (
+                await observer.execute(
+                    select(RefreshToken)
+                    .where(RefreshToken.user_id == test_user.id)
+                    .where(RefreshToken.revoked_at.is_(None))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert active_rows == []
+
+        containment_events = (
+            (
+                await observer.execute(
+                    select(ActivityLog)
+                    .where(ActivityLog.entity_id == test_user.id)
+                    .where(ActivityLog.action == ActivityAction.FAILED_REFRESH.value)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(containment_events) == 1
+        assert containment_events[0].changes == {
+            "failure_code": "replay_detected",
+            "revoke_count": 1,
+        }
+
+
+@pytest.mark.asyncio
+@pytest.mark.postgres
+async def test_concurrent_already_rotated_stale_replay_is_contained_once_postgres(
+    client_factory,
+    async_engine: AsyncEngine,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL row locks are required for stale-replay concurrency")
+
+    settings = _role_aware_refresh_settings()
+    async with client_factory(settings=settings) as setup_client:
+        await _login_via_sso_exchange(
+            setup_client,
+            db_session,
+            test_user,
+            monkeypatch,
+            external_id="oid-refresh-concurrent-already-rotated-replay",
+        )
+        stale_parent = setup_client.cookies.get("riskhub_refresh_token")
+        initial_csrf = setup_client.cookies.get("riskhub_csrf_token")
+        assert stale_parent and initial_csrf
+
+        first_rotation = await setup_client.post(
+            "/api/v1/auth/refresh",
+            headers={"Origin": TEST_ORIGIN, "X-CSRF-Token": str(initial_csrf)},
+        )
+        assert first_rotation.status_code == 200, first_rotation.text
+        active_child = _extract_refresh_cookie(first_rotation)
+        assert active_child
+
+    active_child_jti = decode_refresh_token(active_child, settings)["jti"]
+    active_child_row = (
+        await db_session.execute(
+            select(RefreshToken)
+            .where(RefreshToken.user_id == test_user.id)
+            .where(RefreshToken.jti == active_child_jti)
+        )
+    ).scalar_one()
+    second_active_jti = "issue123-second-active-session"
+    db_session.add(
+        RefreshToken(
+            user_id=test_user.id,
+            jti=second_active_jti,
+            token_version=active_child_row.token_version,
+            issued_at=active_child_row.issued_at,
+            last_used_at=active_child_row.last_used_at,
+            expires_at=active_child_row.expires_at,
+            created_ip="127.0.0.1",
+            user_agent="pytest-second-active-session",
+        )
+    )
+    await db_session.commit()
+
+    request_names = {
+        "riskhub_issue123_stale_a",
+        "riskhub_issue123_stale_b",
+    }
+    independent_db_session = _independent_db_override(
+        async_engine,
+        application_names=tuple(sorted(request_names)),
+    )
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    async with (
+        session_maker() as user_lock_gate,
+        session_maker() as lock_observer,
+        client_factory(
+            settings=settings, db_override=independent_db_session
+        ) as concurrent_client,
+    ):
+        stale_headers = _refresh_cookie_headers(stale_parent, initial_csrf)
+        stale_a, stale_b, waiting_queries = await _run_two_refreshes_behind_user_lock(
+            client=concurrent_client,
+            user_lock_gate=user_lock_gate,
+            lock_observer=lock_observer,
+            user_id=test_user.id,
+            headers=stale_headers,
+            application_names=request_names,
+        )
+
+        assert all(
+            "FROM users" in query and "FOR UPDATE" in query
+            for query in waiting_queries.values()
+        )
+        assert [stale_a.status_code, stale_b.status_code] == [401, 401]
+        for response in (stale_a, stale_b):
+            assert response.json() == {"detail": "Refresh session not found"}
+
+    async with session_maker() as observer:
+        user = (
+            await observer.execute(select(User).where(User.id == test_user.id))
+        ).scalar_one()
+        assert user.token_version == 1
+
+        refresh_rows = (
+            (
+                await observer.execute(
+                    select(RefreshToken).where(RefreshToken.user_id == test_user.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert [row for row in refresh_rows if row.revoked_at is None] == []
+        replay_rows = [
+            row for row in refresh_rows if row.revoked_reason == "replay_detected"
+        ]
+        assert {row.jti for row in replay_rows} == {
+            active_child_jti,
+            second_active_jti,
+        }
+
+        containment_events = (
+            (
+                await observer.execute(
+                    select(ActivityLog)
+                    .where(ActivityLog.entity_id == test_user.id)
+                    .where(ActivityLog.action == ActivityAction.FAILED_REFRESH.value)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(containment_events) == 1
+        assert containment_events[0].changes == {
+            "failure_code": "replay_detected",
+            "revoke_count": 2,
+        }
+
+
+@pytest.mark.asyncio
+@pytest.mark.postgres
+async def test_stale_replay_and_near_expiry_share_user_first_lock_order_postgres(
+    client_factory,
+    async_engine: AsyncEngine,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip(
+            "PostgreSQL row locks are required for failure-path collision coverage"
+        )
+
+    settings = _role_aware_refresh_settings()
+    async with client_factory(settings=settings) as setup_client:
+        await _login_via_sso_exchange(
+            setup_client,
+            db_session,
+            test_user,
+            monkeypatch,
+            external_id="oid-refresh-replay-near-expiry-collision",
+        )
+        stale_parent = setup_client.cookies.get("riskhub_refresh_token")
+        initial_csrf = setup_client.cookies.get("riskhub_csrf_token")
+        assert stale_parent and initial_csrf
+
+        first_rotation = await setup_client.post(
+            "/api/v1/auth/refresh",
+            headers={"Origin": TEST_ORIGIN, "X-CSRF-Token": str(initial_csrf)},
+        )
+        assert first_rotation.status_code == 200, first_rotation.text
+
+    near_expiry_jti = "issue123-near-expiry-collision"
+    near_expiry_csrf = "issue123-near-expiry-csrf"
+    now = utc_now()
+    near_expiry_token, _ = create_refresh_token(
+        user_id=test_user.id,
+        token_version=test_user.token_version,
+        jti=near_expiry_jti,
+        settings=settings,
+        expires_delta=timedelta(seconds=30),
+    )
+    near_expiry_row = RefreshToken(
+        user_id=test_user.id,
+        jti=near_expiry_jti,
+        token_version=test_user.token_version,
+        issued_at=now,
+        last_used_at=now,
+        expires_at=now + timedelta(seconds=30),
+        created_ip="127.0.0.1",
+        user_agent="pytest-near-expiry-collision",
+    )
+    db_session.add(near_expiry_row)
+    await db_session.commit()
+    await db_session.refresh(near_expiry_row)
+
+    near_name = "riskhub_issue123_near_expiry"
+    stale_name = "riskhub_issue123_stale_replay"
+    independent_db_session = _independent_db_override(
+        async_engine,
+        application_names=(near_name, stale_name),
+    )
+    session_maker = async_sessionmaker(
+        async_engine, class_=AsyncSession, expire_on_commit=False
+    )
+
+    async with (
+        session_maker() as refresh_row_gate,
+        session_maker() as lock_observer,
+        client_factory(
+            settings=settings,
+            db_override=independent_db_session,
+            raise_app_exceptions=False,
+        ) as concurrent_client,
+    ):
+        await refresh_row_gate.execute(
+            select(RefreshToken)
+            .where(RefreshToken.id == near_expiry_row.id)
+            .with_for_update()
+        )
+        near_task = asyncio.create_task(
+            concurrent_client.post(
+                "/api/v1/auth/refresh",
+                headers=_refresh_cookie_headers(near_expiry_token, near_expiry_csrf),
+            )
+        )
+        await _wait_for_postgres_lock_queries(
+            lock_observer,
+            application_names={near_name},
+        )
+        stale_task = asyncio.create_task(
+            concurrent_client.post(
+                "/api/v1/auth/refresh",
+                headers=_refresh_cookie_headers(stale_parent, initial_csrf),
+            )
+        )
+        try:
+            waiting_queries = await _wait_for_postgres_lock_queries(
+                lock_observer,
+                application_names={near_name, stale_name},
+            )
+        finally:
+            await refresh_row_gate.commit()
+        near_response, stale_response = await asyncio.wait_for(
+            asyncio.gather(near_task, stale_task),
+            timeout=10,
+        )
+
+        assert "FROM users" in waiting_queries[stale_name]
+        assert "FOR UPDATE" in waiting_queries[stale_name]
+        assert near_response.status_code == 401
+        assert near_response.json() == {"detail": "Refresh token expired"}
+        assert stale_response.status_code == 401
+        assert stale_response.json() == {"detail": "Refresh session not found"}
+        for response in (near_response, stale_response):
+            assert any(
+                "riskhub_refresh_token=" in header and "Max-Age=0" in header
+                for header in response.headers.get_list("set-cookie")
+            )
+
+    async with session_maker() as observer:
+        user = (
+            await observer.execute(select(User).where(User.id == test_user.id))
+        ).scalar_one()
+        assert user.token_version == 1
+        assert (
+            await observer.execute(
+                select(RefreshToken)
+                .where(RefreshToken.user_id == test_user.id)
+                .where(RefreshToken.revoked_at.is_(None))
+            )
+        ).scalars().all() == []
+        failure_events = (
+            (
+                await observer.execute(
+                    select(ActivityLog)
+                    .where(ActivityLog.entity_id == test_user.id)
+                    .where(ActivityLog.action == ActivityAction.FAILED_REFRESH.value)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert {event.changes["failure_code"] for event in failure_events} == {
+            "expires_soon",
+            "replay_detected",
+        }
+
+
+@pytest.mark.asyncio
+@pytest.mark.postgres
+async def test_refresh_rotation_collision_with_stale_replay_has_no_authority_escape_postgres(
+    client_factory,
+    async_engine: AsyncEngine,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip(
+            "PostgreSQL row locks are required for replay/rotation collision coverage"
+        )
+
+    settings = _role_aware_refresh_settings()
+    async with client_factory(settings=settings) as setup_client:
+        await _login_via_sso_exchange(
+            setup_client,
+            db_session,
+            test_user,
+            monkeypatch,
+            external_id="oid-refresh-replay-rotation-collision",
+        )
+        stale_parent = setup_client.cookies.get("riskhub_refresh_token")
+        initial_csrf = setup_client.cookies.get("riskhub_csrf_token")
+        assert stale_parent and initial_csrf
+
+        first_rotation = await setup_client.post(
+            "/api/v1/auth/refresh",
+            headers={"Origin": TEST_ORIGIN, "X-CSRF-Token": str(initial_csrf)},
+        )
+        assert first_rotation.status_code == 200, first_rotation.text
+        active_child = _extract_refresh_cookie(first_rotation)
+        active_child_csrf = _extract_csrf_cookie(first_rotation)
+        assert active_child and active_child_csrf
+
+    independent_db_session = _independent_db_override(async_engine)
+
+    async with client_factory(
+        settings=settings, db_override=independent_db_session
+    ) as concurrent_client:
+        stale_response, rotation_response = await asyncio.wait_for(
+            asyncio.gather(
+                concurrent_client.post(
+                    "/api/v1/auth/refresh",
+                    headers=_refresh_cookie_headers(stale_parent, initial_csrf),
+                ),
+                concurrent_client.post(
+                    "/api/v1/auth/refresh",
+                    headers=_refresh_cookie_headers(active_child, active_child_csrf),
+                ),
+            ),
+            timeout=10,
+        )
+        assert stale_response.status_code == 401
+        assert rotation_response.status_code in {200, 401}
+
+        if rotation_response.status_code == 200:
+            rotated_access_token = rotation_response.json()["access_token"]
+            rotated_me = await concurrent_client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {rotated_access_token}"},
+            )
+            assert rotated_me.status_code == 401
+            assert rotated_me.json() == {"detail": "Session revoked"}
+
+    async for observer in independent_db_session():
+        user = (
+            await observer.execute(select(User).where(User.id == test_user.id))
+        ).scalar_one()
+        assert user.token_version == 1
+        assert (
+            await observer.execute(
+                select(RefreshToken)
+                .where(RefreshToken.user_id == test_user.id)
+                .where(RefreshToken.revoked_at.is_(None))
+            )
+        ).scalars().all() == []
+
+        containment_events = (
+            (
+                await observer.execute(
+                    select(ActivityLog)
+                    .where(ActivityLog.entity_id == test_user.id)
+                    .where(ActivityLog.action == ActivityAction.FAILED_REFRESH.value)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(containment_events) == 1
+        assert containment_events[0].changes == {
+            "failure_code": "replay_detected",
+            "revoke_count": 1,
+        }
 
 
 @pytest.mark.asyncio
@@ -902,6 +1686,52 @@ def test_new_refresh_token_contains_aud_iss_type_claims():
     assert payload["aud"] == REFRESH_TOKEN_AUDIENCE
     assert payload["iss"] == REFRESH_TOKEN_ISSUER
     assert payload["type"] == REFRESH_TOKEN_TYPE
+
+
+def test_refresh_token_treats_naive_absolute_expiry_as_utc() -> None:
+    settings = Settings(secret_key=TEST_SECRET_KEY)
+    naive_expiry = datetime(2040, 6, 1, 12, 34, 56)
+    expected_expiry = datetime(2040, 6, 1, 12, 34, 56, tzinfo=UTC)
+
+    token, expires_at = create_refresh_token(
+        user_id=1,
+        token_version=1,
+        jti="naive-absolute-expiry-jti",
+        settings=settings,
+        expires_at=naive_expiry,
+    )
+    payload = decode_refresh_token(token, settings)
+
+    assert expires_at == expected_expiry
+    assert expires_at.tzinfo is UTC
+    assert payload["exp"] == int(expected_expiry.timestamp())
+
+
+def test_refresh_token_normalizes_offset_absolute_expiry_to_utc() -> None:
+    settings = Settings(secret_key=TEST_SECRET_KEY)
+    offset_expiry = datetime(
+        2040,
+        6,
+        1,
+        18,
+        34,
+        56,
+        tzinfo=timezone(timedelta(hours=5, minutes=30)),
+    )
+    expected_expiry = datetime(2040, 6, 1, 13, 4, 56, tzinfo=UTC)
+
+    token, expires_at = create_refresh_token(
+        user_id=1,
+        token_version=1,
+        jti="offset-absolute-expiry-jti",
+        settings=settings,
+        expires_at=offset_expiry,
+    )
+    payload = decode_refresh_token(token, settings)
+
+    assert expires_at == expected_expiry
+    assert expires_at.tzinfo is UTC
+    assert payload["exp"] == int(expected_expiry.timestamp())
 
 
 def test_decode_refresh_token_accepts_modern_claims_with_grace_disabled() -> None:

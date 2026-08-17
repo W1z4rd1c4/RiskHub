@@ -18,7 +18,7 @@ from .contracts import (
 )
 from .cookies import apply_session_cookie_plan
 from .jit import resolve_jit_user as _resolve_sso_user
-from .refresh import resolve_refresh_session, revoke_rotated_refresh_descendants
+from .refresh import lock_refresh_rotation_user, resolve_refresh_session
 from .sso_challenges import resolve_sso_exchange, resolve_sso_start
 from .sso_identity import verify_sso_identity
 
@@ -38,10 +38,10 @@ __all__ = [
     "apply_session_cookie_plan",
     "record_session_audit_plan",
     "refresh_session_context_outcome",
+    "lock_refresh_rotation_user",
     "resolve_refresh_session",
     "resolve_sso_exchange",
     "resolve_sso_start",
-    "revoke_rotated_refresh_descendants",
     "sso_session_outcome",
     "verify_sso_identity",
 ]
