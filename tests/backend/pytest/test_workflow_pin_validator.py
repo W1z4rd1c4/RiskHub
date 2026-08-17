@@ -504,6 +504,8 @@ def test_e2e_workflow_defines_production_profile_smoke_lane() -> None:
         "ENTRA_JIT_PROVISIONING_ENABLED: 'false'",
         "AUTH_SSO_ALLOW_EMAIL_LINK: 'false'",
         "REFRESH_TOKEN_MIGRATION_GRACE: 'false'",
+        "ACCESS_TOKEN_EXPIRE_MINUTES: '30'",
+        "PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES: '15'",
         "REDIS_URL: redis://localhost:6379/0",
         "image: redis:7@sha256:",
         'assert set(payload) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status"}',

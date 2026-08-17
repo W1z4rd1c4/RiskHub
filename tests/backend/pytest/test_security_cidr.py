@@ -116,6 +116,8 @@ def test_validate_production_settings_rejects_broad_trusted_proxy_ranges() -> No
         entra_client_id="11111111-1111-1111-1111-111111111111",
         entra_client_secret="entra-client-secret",
         refresh_token_migration_grace=False,
+        access_token_expire_minutes=30,
+        platform_admin_access_token_expire_minutes=15,
         trusted_proxies=["127.0.0.1", "10.0.0.0/8"],
     )
 
@@ -142,6 +144,8 @@ def test_validate_production_settings_warns_on_broad_trusted_proxy_ranges_with_o
         entra_client_id="11111111-1111-1111-1111-111111111111",
         entra_client_secret="entra-client-secret",
         refresh_token_migration_grace=False,
+        access_token_expire_minutes=30,
+        platform_admin_access_token_expire_minutes=15,
         trusted_proxies=["127.0.0.1", "10.0.0.0/8"],
         allow_broad_trusted_proxies_in_production=True,
     )

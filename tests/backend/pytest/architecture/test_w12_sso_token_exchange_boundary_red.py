@@ -9,6 +9,9 @@ pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SSO = REPO_ROOT / "backend/app/api/v1/endpoints/auth/sso.py"
+PASSWORD = REPO_ROOT / "backend/app/api/v1/endpoints/auth/password.py"
+DEMO = REPO_ROOT / "backend/app/api/v1/endpoints/auth/demo.py"
+REFRESH = REPO_ROOT / "backend/app/api/v1/endpoints/auth/refresh.py"
 SHARED = REPO_ROOT / "backend/app/api/v1/endpoints/auth/_shared.py"
 AUTH_SESSION = REPO_ROOT / "backend/app/services/_auth_session/sso_challenges.py"
 
@@ -61,3 +64,25 @@ def test_sso_module_uses_auth_session_exchange_boundary() -> None:
 
     auth_session_tree = _tree(AUTH_SESSION)
     assert isinstance(_function_def(auth_session_tree, "resolve_sso_exchange"), ast.AsyncFunctionDef)
+
+
+@pytest.mark.parametrize(
+    ("path", "function_name"),
+    [
+        (PASSWORD, "login"),
+        (DEMO, "_build_demo_response"),
+        (SSO, "sso_exchange"),
+        (REFRESH, "refresh_session"),
+    ],
+)
+def test_auth_flows_issue_access_tokens_through_shared_response_builder(
+    path: Path,
+    function_name: str,
+) -> None:
+    tree = _tree(path)
+    endpoint = _function_def(tree, function_name)
+
+    assert _imports_name(tree, module="_shared", name="_build_token_response")
+    assert _calls_name(endpoint, "_build_token_response")
+    assert not _imports_name(tree, module="app.core.security", name="create_access_token")
+    assert not _calls_name(endpoint, "create_access_token")

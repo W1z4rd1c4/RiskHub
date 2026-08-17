@@ -16,7 +16,8 @@ class AuthSettingsMixin:
         repr=False,
     )
     mock_auth_enabled: bool = False
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = Field(default=60, gt=0)
+    platform_admin_access_token_expire_minutes: int = Field(default=60, gt=0)
     strict_capabilities_enabled: bool = False
 
     # Auth mode (password vs SSO)

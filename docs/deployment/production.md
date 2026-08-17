@@ -92,9 +92,13 @@ Rendered production runtime config is intentionally opinionated:
 - `ENTRA_JIT_PROVISIONING_ENABLED=false`
 - `AUTH_SSO_ALLOW_EMAIL_LINK=false`
 - `REFRESH_TOKEN_MIGRATION_GRACE=false`
+- `ACCESS_TOKEN_EXPIRE_MINUTES=30`
+- `PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15`
 - `AD_DEPROVISION_CHECK_INTERVAL_MINUTES=15`
 
 That 15-minute deprovision interval is the current Entra disablement revocation SLA floor. A disabled Entra user is revoked in RiskHub on the next deprovision check plus any remaining access-token lifetime.
+
+When the managed-production access-token lifetimes change from 60 minutes to 30 minutes for ordinary users and 15 minutes for platform administrators, already issued tokens retain their signed expiry and age out naturally. No mass `token_version` bump or refresh-session revocation is required. Rollback must revert the runtime guard, renderer, preflight checks, and managed config together; changing only the environment values back to 60 fails closed.
 
 Bootstrap users are pre-linked to Entra before first login:
 

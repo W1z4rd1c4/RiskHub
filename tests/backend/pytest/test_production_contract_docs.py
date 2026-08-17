@@ -21,6 +21,9 @@ DEPLOYMENT_PRODUCTION = REPO_ROOT / "docs" / "deployment" / "production.md"
 DEPLOYMENT_SECURITY_CHECKLIST = (
     REPO_ROOT / "docs" / "deployment" / "security-checklist.md"
 )
+AUTH_SESSION_ADR = (
+    REPO_ROOT / "docs" / "adr" / "ADR-011-auth-scheme-and-session-model.md"
+)
 BACKEND_ENV_EXAMPLE = REPO_ROOT / "scripts" / "prod" / "config" / "backend.env.example"
 
 
@@ -37,6 +40,8 @@ def _baseline_production_settings(**overrides) -> Settings:
         "entra_jit_provisioning_enabled": False,
         "auth_sso_allow_email_link": False,
         "refresh_token_migration_grace": False,
+        "access_token_expire_minutes": 30,
+        "platform_admin_access_token_expire_minutes": 15,
         "cors_origins": ["https://riskhub.example.com"],
         "allowed_hosts": ["riskhub.example.com"],
         "database_url": "postgresql+asyncpg://riskhub:tests@prod-db:5432/riskhub",
@@ -56,10 +61,12 @@ def test_env_example_matches_production_safe_contract() -> None:
     assert 'TRUSTED_PROXIES=["127.0.0.1","::1"]' in content
 
 
-def test_backend_env_example_disables_refresh_token_migration_grace() -> None:
+def test_backend_env_example_documents_session_security_invariants() -> None:
     content = BACKEND_ENV_EXAMPLE.read_text(encoding="utf-8")
 
     assert "REFRESH_TOKEN_MIGRATION_GRACE=false" in content.splitlines()
+    assert "ACCESS_TOKEN_EXPIRE_MINUTES=30" in content.splitlines()
+    assert "PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15" in content.splitlines()
 
 
 def test_deployment_reference_documents_required_production_contract() -> None:
@@ -83,7 +90,7 @@ def test_deployment_reference_documents_required_production_contract() -> None:
         (DEPLOYMENT_SECURITY_CHECKLIST, "## Config And Startup Guards"),
     ],
 )
-def test_canonical_production_sections_disable_refresh_token_migration_grace(
+def test_canonical_production_sections_document_session_security_invariants(
     path: Path,
     section_heading: str,
 ) -> None:
@@ -93,6 +100,8 @@ def test_canonical_production_sections_disable_refresh_token_migration_grace(
     ]
 
     assert "- `REFRESH_TOKEN_MIGRATION_GRACE=false`" in section.splitlines()
+    assert "- `ACCESS_TOKEN_EXPIRE_MINUTES=30`" in section.splitlines()
+    assert "- `PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15`" in section.splitlines()
 
 
 @pytest.mark.parametrize(
@@ -104,6 +113,11 @@ def test_canonical_production_sections_disable_refresh_token_migration_grace(
         ({"entra_jit_provisioning_enabled": True}, "ENTRA_JIT_PROVISIONING_ENABLED"),
         ({"auth_sso_allow_email_link": True}, "AUTH_SSO_ALLOW_EMAIL_LINK"),
         ({"refresh_token_migration_grace": True}, "REFRESH_TOKEN_MIGRATION_GRACE"),
+        ({"access_token_expire_minutes": 31}, "ACCESS_TOKEN_EXPIRE_MINUTES"),
+        (
+            {"platform_admin_access_token_expire_minutes": 16},
+            "PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES",
+        ),
         ({"allowed_hosts": []}, "ALLOWED_HOSTS"),
         ({"cors_origins": []}, "CORS_ORIGINS"),
     ],
@@ -130,3 +144,41 @@ def test_refresh_token_migration_grace_defaults_on_for_controlled_development() 
 
     assert settings.refresh_token_migration_grace is True
     validate_settings_for_runtime(settings)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ["access_token_expire_minutes", "platform_admin_access_token_expire_minutes"],
+)
+@pytest.mark.parametrize("invalid_value", [0, -1])
+def test_access_token_lifetimes_must_be_positive(
+    field_name: str,
+    invalid_value: int,
+) -> None:
+    with pytest.raises(ValueError, match=field_name):
+        Settings(**{field_name: invalid_value})
+
+
+def test_access_token_lifetimes_default_to_60_minutes_for_development() -> None:
+    settings = Settings(debug=True, secret_key="development-secret")
+
+    assert settings.access_token_expire_minutes == 60
+    assert settings.platform_admin_access_token_expire_minutes == 60
+
+
+def test_auth_session_adr_documents_production_lifetime_rollout_and_rollback() -> None:
+    content = AUTH_SESSION_ADR.read_text(encoding="utf-8")
+    migration = content.split("## Migration Impact", maxsplit=1)[1].split(
+        "\n## ", maxsplit=1
+    )[0]
+    rollback = content.split("## Rollback Strategy", maxsplit=1)[1].split(
+        "\n## ", maxsplit=1
+    )[0]
+
+    assert "ordinary users at 30 minutes" in migration
+    assert "platform administrators at 15 minutes" in migration
+    assert "signed `exp` claim, for up to the previous 60-minute lifetime" in migration
+    assert "age out naturally" in migration
+    assert "no mass `token_version` bump or refresh-session revocation" in migration
+    assert "runtime guard, renderer, preflight checks, and managed config" in rollback
+    assert "Changing only the environment values back to 60 fails closed" in rollback

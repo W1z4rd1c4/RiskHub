@@ -25,6 +25,8 @@ def _production_settings(**overrides) -> Settings:
         "entra_jit_provisioning_enabled": False,
         "auth_sso_allow_email_link": False,
         "refresh_token_migration_grace": False,
+        "access_token_expire_minutes": 30,
+        "platform_admin_access_token_expire_minutes": 15,
         "cors_origins": ["http://testserver"],
         "allowed_hosts": ["testserver"],
         "database_url": PRODUCTION_DATABASE_URL,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -12,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
 from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
+from app.core.security import decode_access_token
 from app.core.tokens import get_sso_challenge_cookie_name
 from app.main import app
 from app.models import Role, User
@@ -44,6 +46,79 @@ async def _start_sso_challenge(client: AsyncClient, *, return_to: str = "/") -> 
     return response.json()
 
 
+async def _exchange_sso_user(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    external_id: str,
+    expires_at: datetime | None = None,
+) -> dict[str, object]:
+    user.external_id = external_id
+    db_session.add(user)
+    await db_session.commit()
+    challenge = await _start_sso_challenge(client)
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        identity_kwargs: dict[str, Any] = {
+            "external_id": external_id,
+            "tenant_id": settings.entra_tenant_id or "",
+            "email": user.email,
+            "name": user.name,
+            "nonce": str(challenge["nonce"]),
+        }
+        if expires_at is not None:
+            identity_kwargs["expires_at"] = expires_at
+        return VerifiedIdentity(**identity_kwargs)
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+    response = await client.post(
+        "/api/v1/auth/sso/exchange",
+        json={"id_token": "fake", "state": challenge["state"]},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def _assert_access_token_expires_at(
+    token_response: dict[str, object],
+    *,
+    settings: Settings,
+    expected: datetime,
+) -> None:
+    access_token = token_response["access_token"]
+    assert isinstance(access_token, str)
+    claims = decode_access_token(access_token, settings=settings)
+    assert datetime.fromtimestamp(claims["exp"], tz=UTC) == expected
+
+
+async def _assert_sso_access_token_expiry(
+    client_factory,
+    db_session: AsyncSession,
+    user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    external_id: str,
+    expected: datetime,
+    session_expires_at: datetime | None = None,
+) -> None:
+    settings = _sso_settings(
+        access_token_expire_minutes=30,
+        platform_admin_access_token_expire_minutes=15,
+    )
+    async with client_factory(settings=settings) as client:
+        token_response = await _exchange_sso_user(
+            client,
+            db_session,
+            user,
+            monkeypatch,
+            external_id=external_id,
+            expires_at=session_expires_at,
+        )
+    _assert_access_token_expires_at(token_response, settings=settings, expected=expected)
+
+
 @pytest_asyncio.fixture(scope="function")
 async def sso_client(client_factory) -> AsyncClient:
     async with client_factory(settings=_sso_settings) as ac:
@@ -54,30 +129,89 @@ async def sso_client(client_factory) -> AsyncClient:
 async def test_sso_exchange_success_external_id_match(
     sso_client: AsyncClient, db_session: AsyncSession, test_user: User, monkeypatch
 ):
-    test_user.external_id = "oid-123"
-    db_session.add(test_user)
-    await db_session.commit()
-    challenge = await _start_sso_challenge(sso_client)
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-123",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-            nonce=str(challenge["nonce"]),
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    res = await sso_client.post(
-        "/api/v1/auth/sso/exchange",
-        json={"id_token": "fake", "state": challenge["state"]},
+    body = await _exchange_sso_user(
+        sso_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-123",
     )
-    assert res.status_code == 200, res.text
-    body = res.json()
     assert "access_token" in body
     assert body["user"]["email"] == test_user.email
+
+
+@pytest.mark.asyncio
+async def test_sso_exchange_issues_ordinary_user_access_token_for_30_minutes(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_clock,
+) -> None:
+    await _assert_sso_access_token_expiry(
+        client_factory,
+        db_session,
+        test_user_employee,
+        monkeypatch,
+        external_id="oid-ordinary-access-lifetime",
+        expected=datetime(2026, 5, 7, 12, 30, tzinfo=UTC),
+    )
+
+
+@pytest.mark.asyncio
+async def test_sso_exchange_issues_platform_admin_access_token_for_15_minutes(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_platform_admin: User,
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_clock,
+) -> None:
+    await _assert_sso_access_token_expiry(
+        client_factory,
+        db_session,
+        test_user_platform_admin,
+        monkeypatch,
+        external_id="oid-admin-access-lifetime",
+        expected=datetime(2026, 5, 7, 12, 15, tzinfo=UTC),
+    )
+
+
+@pytest.mark.asyncio
+async def test_sso_exchange_issues_cro_access_token_for_ordinary_30_minutes(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_clock,
+) -> None:
+    await _assert_sso_access_token_expiry(
+        client_factory,
+        db_session,
+        test_user_cro,
+        monkeypatch,
+        external_id="oid-cro-access-lifetime",
+        expected=datetime(2026, 5, 7, 12, 30, tzinfo=UTC),
+    )
+
+
+@pytest.mark.asyncio
+async def test_sso_exchange_caps_admin_access_token_at_absolute_session_expiry(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_platform_admin: User,
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_clock,
+) -> None:
+    absolute_expiry = datetime(2026, 5, 7, 12, 5, tzinfo=UTC)
+    await _assert_sso_access_token_expiry(
+        client_factory,
+        db_session,
+        test_user_platform_admin,
+        monkeypatch,
+        external_id="oid-admin-capped-access-lifetime",
+        expected=absolute_expiry,
+        session_expires_at=absolute_expiry,
+    )
 
 
 @pytest.mark.asyncio

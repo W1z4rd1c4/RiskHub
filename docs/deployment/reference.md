@@ -87,6 +87,8 @@ Production runtime note:
 - `ENTRA_JIT_PROVISIONING_ENABLED` must be set to `false` in production.
 - `AUTH_SSO_ALLOW_EMAIL_LINK` must be set to `false` in production.
 - `REFRESH_TOKEN_MIGRATION_GRACE=false` requires refresh tokens to carry the current audience and issuer claims. The source default remains available only for explicitly controlled development or migration use; changing this value does not revoke sessions or bump `token_version`.
+- `ACCESS_TOKEN_EXPIRE_MINUTES=30` fixes the ordinary-user access-token lifetime in production.
+- `PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15` fixes the canonical platform-administrator access-token lifetime in production. CRO and all other roles use the ordinary-user lifetime.
 - `RATE_LIMIT_FAIL_CLOSED_ON_BACKEND_ERROR` defaults to `true` in production and controls whether Redis limiter outages fail closed (`503`) instead of degrading to in-memory limits.
 - Every `/api/v1/auth/sso/exchange` call must come from the backend-issued SSO challenge flow; direct bare-token exchange is unsupported.
 - Production requires one explicit Entra confidential credential mode: `ENTRA_CLIENT_SECRET_FILE`, or `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` plus `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`.
@@ -230,6 +232,8 @@ Linux target:
 - `ENTRA_JIT_PROVISIONING_ENABLED=false`
 - `AUTH_SSO_ALLOW_EMAIL_LINK=false`
 - `REFRESH_TOKEN_MIGRATION_GRACE=false`
+- `ACCESS_TOKEN_EXPIRE_MINUTES=30`
+- `PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15`
 - `SECRET_KEY_FILE` resolves to a value with length at least `32`
 - `SECRET_KEY_FILE` must not resolve to a blocked weak default (`dev-secret-key-not-for-production-use`, `changeme`, `dev-secret`, `test-secret`, `secret`)
 - explicit `CORS_ORIGINS`

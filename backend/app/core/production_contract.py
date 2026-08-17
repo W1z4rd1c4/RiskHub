@@ -51,6 +51,16 @@ PRODUCTION_INVARIANTS: tuple[ProductionInvariant, ...] = (
         "false",
         "Production requires strict refresh-token audience and issuer claims.",
     ),
+    ProductionInvariant(
+        "ACCESS_TOKEN_EXPIRE_MINUTES",
+        "30",
+        "Production ordinary-user access tokens expire after 30 minutes.",
+    ),
+    ProductionInvariant(
+        "PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES",
+        "15",
+        "Production platform-administrator access tokens expire after 15 minutes.",
+    ),
     ProductionInvariant("ALLOWED_HOSTS", None, "Production requires an explicit host allowlist."),
     ProductionInvariant("CORS_ORIGINS", None, "Production requires an explicit CORS allowlist."),
 )
@@ -62,6 +72,8 @@ BOOTSTRAP_RUNTIME_ENFORCED_KEYS: tuple[str, ...] = (
     "ENTRA_JIT_PROVISIONING_ENABLED",
     "AUTH_SSO_ALLOW_EMAIL_LINK",
     "REFRESH_TOKEN_MIGRATION_GRACE",
+    "ACCESS_TOKEN_EXPIRE_MINUTES",
+    "PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES",
     "ALLOWED_HOSTS",
     "CORS_ORIGINS",
 )
@@ -75,6 +87,8 @@ PRODUCTION_REFERENCE_REQUIRED_SNIPPETS: tuple[str, ...] = (
     "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE",
     "ALLOWED_HOSTS",
     "TRUSTED_PROXIES",
+    "ACCESS_TOKEN_EXPIRE_MINUTES=30",
+    "PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15",
 )
 
 PRODUCTION_ENV_EXPECTED_LINES: tuple[str, ...] = (
@@ -84,4 +98,6 @@ PRODUCTION_ENV_EXPECTED_LINES: tuple[str, ...] = (
     "ENTRA_JIT_PROVISIONING_ENABLED=false",
     "AUTH_SSO_ALLOW_EMAIL_LINK=false",
     "REFRESH_TOKEN_MIGRATION_GRACE=false",
+    "ACCESS_TOKEN_EXPIRE_MINUTES=30",
+    "PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15",
 )

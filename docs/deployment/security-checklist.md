@@ -20,6 +20,8 @@ RiskHub production deploys must satisfy these invariants:
 - `ENTRA_JIT_PROVISIONING_ENABLED=false`
 - `AUTH_SSO_ALLOW_EMAIL_LINK=false`
 - `REFRESH_TOKEN_MIGRATION_GRACE=false`
+- `ACCESS_TOKEN_EXPIRE_MINUTES=30`
+- `PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15`
 - reviewed `TRUSTED_PROXIES` when traffic passes through non-default proxy networks
 - if broad proxy ranges are intentionally trusted in production, set `ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true` explicitly instead of relying on warnings
 

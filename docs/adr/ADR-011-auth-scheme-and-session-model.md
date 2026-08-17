@@ -22,6 +22,8 @@ Endpoint authorization uses `require_permission(resource, action)` from `backend
 
 Microsoft Entra SSO is a deployment-time authentication option, not a separate RiskHub session model. Entra tokens are verified and resolved by `app.services._auth_session.resolve_sso_exchange`; `auth/sso.py` then issues the RiskHub access token through `_build_token_response` and the refresh row/cookies through `_issue_refresh_session`. New SSO providers must attach to the same exchange and refresh-rotation boundary instead of minting an alternate session.
 
+Password, demo, SSO exchange, and refresh issue access tokens through `_build_token_response`. That shared boundary selects the configured lifetime with the canonical platform-administrator predicate and caps it at the remaining absolute SSO session lifetime. Managed production fixes ordinary users, including CRO, at 30 minutes and the platform-administrator role at 15 minutes.
+
 Auth/session workflow commit adapters use `commit_auth_transaction`, and `commit_auth_transaction` delegates to `commit_service_boundary` with an `auth.` boundary prefix. New auth-flow entries in `_endpoint_commit_allowlist.toml` are forbidden unless this ADR and ADR-002 are superseded.
 
 ## Alternatives Rejected
@@ -37,13 +39,15 @@ Finding `#76` migrated auth-flow endpoint commits to service-owned transactions.
 
 SSO deployment configuration is unchanged. This ADR documents and locks the current exchange boundary: Entra identity verification resolves into a RiskHub session outcome, then RiskHub issues and rotates its own tokens.
 
+Managed production renders and enforces ordinary users at 30 minutes and platform administrators at 15 minutes. Access tokens issued before rollout retain their signed `exp` claim, for up to the previous 60-minute lifetime, and age out naturally. The rollout requires no mass `token_version` bump or refresh-session revocation.
+
 ## Endpoint Commit Allowlist
 
 The endpoint commit allowlist is empty. `tests/backend/pytest/architecture/test_w5_endpoint_commit_ratchet_red.py` fails on any endpoint `await db.commit()` that is not backed by a superseding ADR. Auth/session flows use `_auth_session_workflow` service adapters and the shared service transaction boundary instead of endpoint commits.
 
 ## Rollback Strategy
 
-Forward-only as documentation and lock policy. No schema or runtime behavior changes are introduced by this ADR. If a future implementation regresses refresh rotation or token-version invalidation, operators can revoke affected server-side refresh rows and bump the affected users' `token_version` values.
+No schema rollback is required. Rolling back the managed-production lifetime policy requires reverting the runtime guard, renderer, preflight checks, and managed config together. Changing only the environment values back to 60 fails closed because the production runtime guard rejects them. If a future implementation regresses refresh rotation or token-version invalidation, operators can revoke affected server-side refresh rows and bump the affected users' `token_version` values.
 
 ## Invariant Tests
 
@@ -53,6 +57,7 @@ Forward-only as documentation and lock policy. No schema or runtime behavior cha
 - `tests/backend/pytest/architecture/test_w12_get_current_user_isolation_red.py` forbids direct endpoint imports of `app.core.security.get_current_user`.
 - `tests/backend/pytest/architecture/test_w12_mock_auth_guard_red.py` asserts mock auth is gated by both mock mode and debug mode.
 - `tests/backend/pytest/architecture/test_w12_sso_token_exchange_boundary_red.py` locks the current SSO exchange boundary through `app.services._auth_session.resolve_sso_exchange`, `_build_token_response`, and `_issue_refresh_session`.
+- The same architecture lock requires password, demo, SSO exchange, and refresh access-token issuance to converge on `_build_token_response` without directly calling `create_access_token`.
 
 ## ADR Cross-References
 

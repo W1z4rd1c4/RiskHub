@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime, timedelta
 from http.cookies import SimpleCookie
+from typing import Any
 
 import jwt
 import pytest
@@ -15,7 +16,7 @@ from app.api import deps as api_deps
 from app.api.v1.endpoints.auth._request_protection import validate_request_origin
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
-from app.core.security import create_access_token
+from app.core.security import create_access_token, decode_access_token
 from app.core.tokens import (
     REFRESH_TOKEN_AUDIENCE,
     REFRESH_TOKEN_ISSUER,
@@ -49,6 +50,22 @@ def test_origin_validation_treats_default_http_port_as_equivalent() -> None:
 
 def _refresh_test_settings() -> Settings:
     return Settings(secret_key=TEST_SECRET_KEY)
+
+
+def _role_aware_refresh_settings() -> Settings:
+    return Settings(
+        debug=True,
+        secret_key=TEST_SECRET_KEY,
+        mock_auth_enabled=True,
+        auth_mode="microsoft_sso",
+        cors_origins=[TEST_ORIGIN],
+        entra_tenant_id="00000000-0000-0000-0000-000000000000",
+        entra_client_id="11111111-1111-1111-1111-111111111111",
+        directory_provider="ad_emulator",
+        ad_emulator_base_url="http://ad-emulator.local",
+        access_token_expire_minutes=30,
+        platform_admin_access_token_expire_minutes=15,
+    )
 
 
 def _refresh_cookie_headers(token: str, csrf_token: str, *, include_csrf_header: bool = True) -> dict[str, str]:
@@ -208,6 +225,73 @@ async def test_refresh_endpoint_rotates_refresh_token(
     ).scalars().first()
     assert activity is not None
     assert activity.changes == {"result": "rotated", "revoke_count": 1, "context_changed": False}
+
+
+async def _refresh_and_decode_access_token(
+    client_factory,
+    db_session: AsyncSession,
+    user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    external_id: str,
+) -> dict[str, Any]:
+    settings = _role_aware_refresh_settings()
+    async with client_factory(settings=settings) as client:
+        await _login_via_sso_exchange(
+            client,
+            db_session,
+            user,
+            monkeypatch,
+            external_id=external_id,
+        )
+        response = await client.post(
+            "/api/v1/auth/refresh",
+            headers={
+                "Origin": TEST_ORIGIN,
+                "X-CSRF-Token": str(client.cookies.get("riskhub_csrf_token")),
+            },
+        )
+
+    assert response.status_code == 200, response.text
+    return decode_access_token(response.json()["access_token"], settings=settings)
+
+
+@pytest.mark.asyncio
+async def test_refresh_issues_ordinary_user_access_token_for_30_minutes(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_clock,
+) -> None:
+    claims = await _refresh_and_decode_access_token(
+        client_factory,
+        db_session,
+        test_user_employee,
+        monkeypatch,
+        external_id="oid-refresh-ordinary-lifetime",
+    )
+
+    assert datetime.fromtimestamp(claims["exp"], tz=UTC) == datetime(2026, 5, 7, 12, 30, tzinfo=UTC)
+
+
+@pytest.mark.asyncio
+async def test_refresh_issues_platform_admin_access_token_for_15_minutes(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_platform_admin: User,
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_clock,
+) -> None:
+    claims = await _refresh_and_decode_access_token(
+        client_factory,
+        db_session,
+        test_user_platform_admin,
+        monkeypatch,
+        external_id="oid-refresh-admin-lifetime",
+    )
+
+    assert datetime.fromtimestamp(claims["exp"], tz=UTC) == datetime(2026, 5, 7, 12, 15, tzinfo=UTC)
 
 
 @pytest.mark.asyncio

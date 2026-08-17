@@ -1063,6 +1063,8 @@ def test_prod_readiness_audit_input_writer_replaces_init_placeholders() -> None:
             .splitlines()
         )
         assert backend_values["REFRESH_TOKEN_MIGRATION_GRACE"] == "false"
+        assert backend_values["ACCESS_TOKEN_EXPIRE_MINUTES"] == "30"
+        assert backend_values["PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES"] == "15"
         assert backend_values["DIRECTORY_PROVIDER"] == "graph"
         assert backend_values["ENTRA_JIT_PROVISIONING_ENABLED"] == "false"
         assert backend_values["AUTH_SSO_ALLOW_EMAIL_LINK"] == "false"
@@ -1239,6 +1241,48 @@ def test_production_preflight_accepts_disabled_refresh_token_migration_grace(
     )
 
     assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.parametrize(
+    ("key", "required_value", "drift_value"),
+    [
+        ("ACCESS_TOKEN_EXPIRE_MINUTES", "30", "31"),
+        ("ACCESS_TOKEN_EXPIRE_MINUTES", "30", None),
+        ("PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES", "15", "16"),
+        ("PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES", "15", None),
+    ],
+)
+def test_production_preflight_rejects_access_token_lifetime_drift(
+    tmp_path: Path,
+    key: str,
+    required_value: str,
+    drift_value: str | None,
+) -> None:
+    from prod_readiness_audit.audit_inputs import write_audit_inputs
+    from prod_readiness_audit.run_state import build_run_state
+
+    state = build_run_state(root_dir=REPO_ROOT, run_id="unit-test")
+    state.artifact_root = tmp_path
+    state.ensure_directories()
+    write_audit_inputs(state)
+    backend_env = state.tmp_dir / "backend_valid.env"
+    lines = [
+        line
+        for line in backend_env.read_text(encoding="utf-8").splitlines()
+        if not line.startswith(f"{key}=")
+    ]
+    if drift_value is not None:
+        lines.append(f"{key}={drift_value}")
+    backend_env.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    completed = _run_production_backend_preflight(
+        backend_env,
+        secret_dir=state.secret_dir,
+        runtime_dir=state.runtime_dir,
+    )
+
+    assert completed.returncode != 0
+    assert f"Expected {key}={required_value} in {backend_env}" in completed.stderr
 
 
 def test_prod_readiness_scoring_rejects_unrelated_negative_probe_failures() -> None:

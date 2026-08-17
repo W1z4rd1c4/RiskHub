@@ -91,6 +91,8 @@ preflight_backend_env() {
   envfile_require_exact "$backend_env" "ENTRA_JIT_PROVISIONING_ENABLED" "false"
   envfile_require_exact "$backend_env" "AUTH_SSO_ALLOW_EMAIL_LINK" "false"
   envfile_require_exact "$backend_env" "REFRESH_TOKEN_MIGRATION_GRACE" "false"
+  envfile_require_exact "$backend_env" "ACCESS_TOKEN_EXPIRE_MINUTES" "30"
+  envfile_require_exact "$backend_env" "PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES" "15"
 
   envfile_require_absent "$backend_env" "SECRET_KEY"
   envfile_require_absent "$backend_env" "DATABASE_URL"

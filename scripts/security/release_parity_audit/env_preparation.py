@@ -26,6 +26,8 @@ def prepare_prod_env_files(
                 "ENTRA_JIT_PROVISIONING_ENABLED=false",
                 "AUTH_SSO_ALLOW_EMAIL_LINK=false",
                 "REFRESH_TOKEN_MIGRATION_GRACE=false",
+                "ACCESS_TOKEN_EXPIRE_MINUTES=30",
+                "PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15",
                 "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
                 "BOOTSTRAP_ADMIN_ROLE=admin",
                 "BOOTSTRAP_ADMIN_ACCESS_SCOPE=global",

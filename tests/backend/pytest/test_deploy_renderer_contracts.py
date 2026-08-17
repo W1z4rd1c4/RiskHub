@@ -161,6 +161,10 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         assert linux_backend["TRUSTED_PROXIES"] == '["127.0.0.1", "::1"]'
         assert docker_backend["REFRESH_TOKEN_MIGRATION_GRACE"] == "false"
         assert linux_backend["REFRESH_TOKEN_MIGRATION_GRACE"] == "false"
+        assert docker_backend["ACCESS_TOKEN_EXPIRE_MINUTES"] == "30"
+        assert linux_backend["ACCESS_TOKEN_EXPIRE_MINUTES"] == "30"
+        assert docker_backend["PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES"] == "15"
+        assert linux_backend["PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES"] == "15"
         assert "DOCKER_NETWORK_SUBNET" not in linux_backend
         assert docker_backend["DATABASE_URL_FILE"] == str(secret_dir / "database_url")
         assert docker_backend["SECRET_KEY_FILE"] == str(secret_dir / "secret_key")

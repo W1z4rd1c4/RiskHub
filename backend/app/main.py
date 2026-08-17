@@ -130,6 +130,18 @@ def validate_settings_for_runtime(settings: Settings) -> None:
             "FATAL: REFRESH_TOKEN_MIGRATION_GRACE must be "
             f"{refresh_grace_required_value} when DEBUG=false."
         )
+    ordinary_access_minutes = invariant_map["ACCESS_TOKEN_EXPIRE_MINUTES"].required_value
+    if str(settings.access_token_expire_minutes) != ordinary_access_minutes:
+        raise RuntimeError(
+            "FATAL: ACCESS_TOKEN_EXPIRE_MINUTES must be "
+            f"{ordinary_access_minutes} when DEBUG=false."
+        )
+    admin_access_minutes = invariant_map["PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES"].required_value
+    if str(settings.platform_admin_access_token_expire_minutes) != admin_access_minutes:
+        raise RuntimeError(
+            "FATAL: PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES must be "
+            f"{admin_access_minutes} when DEBUG=false."
+        )
 
     broad_proxy_entries = find_broad_trusted_proxy_entries(settings.trusted_proxies)
     if broad_proxy_entries:

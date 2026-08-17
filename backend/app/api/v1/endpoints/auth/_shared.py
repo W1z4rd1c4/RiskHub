@@ -12,7 +12,7 @@ from starlette.responses import Response
 
 from app.core.config import Settings
 from app.core.datetime_utils import coerce_utc, utc_now
-from app.core.permissions import get_effective_permissions, get_scope_label
+from app.core.permissions import get_effective_permissions, get_scope_label, is_platform_admin
 from app.core.security import create_access_token
 from app.core.tokens import (
     create_refresh_token,
@@ -39,24 +39,26 @@ def _sha256_trunc(value: str) -> str:
 
 def _resolve_access_expires_delta(
     *,
+    user: User,
     settings: Settings,
     session_expires_at: datetime | None = None,
 ) -> timedelta:
-    default_lifetime = (
-        timedelta(minutes=active_minutes)
-        if (active_minutes := settings.access_token_expire_minutes)
-        else timedelta(minutes=60)
+    configured_minutes = (
+        settings.platform_admin_access_token_expire_minutes
+        if is_platform_admin(user)
+        else settings.access_token_expire_minutes
     )
+    configured_lifetime = timedelta(minutes=configured_minutes)
     if session_expires_at is None:
-        return default_lifetime
+        return configured_lifetime
 
     coerced_session_expires_at = coerce_utc(session_expires_at)
     if coerced_session_expires_at is None:
-        return default_lifetime
+        return configured_lifetime
     remaining = coerced_session_expires_at - utc_now()
     if remaining.total_seconds() <= SESSION_RENEWAL_MINIMUM_SECONDS:
         raise ValueError("session_expiring")
-    return min(default_lifetime, remaining)
+    return min(configured_lifetime, remaining)
 
 
 def _build_token_response(
@@ -84,7 +86,11 @@ def _build_token_response(
     )
     access_token = create_access_token(
         data={"sub": user.email, "user_id": user.id, "token_version": user.token_version},
-        expires_delta=_resolve_access_expires_delta(settings=settings, session_expires_at=session_expires_at),
+        expires_delta=_resolve_access_expires_delta(
+            user=user,
+            settings=settings,
+            session_expires_at=session_expires_at,
+        ),
         settings=settings,
     )
     return TokenResponse(
