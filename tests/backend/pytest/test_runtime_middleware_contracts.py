@@ -17,6 +17,7 @@ PRODUCTION_SETTINGS = dict(
     directory_provider="graph",
     entra_jit_provisioning_enabled=False,
     auth_sso_allow_email_link=False,
+    refresh_token_migration_grace=False,
     cors_origins=["http://testserver"],
     allowed_hosts=["testserver"],
     database_url="postgresql+asyncpg://riskhub:tests@prod-db:5432/riskhub",

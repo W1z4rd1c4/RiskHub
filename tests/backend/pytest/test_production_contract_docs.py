@@ -17,6 +17,11 @@ from app.main import validate_settings_for_runtime
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
 DEPLOYMENT_REFERENCE = REPO_ROOT / "docs" / "deployment" / "reference.md"
+DEPLOYMENT_PRODUCTION = REPO_ROOT / "docs" / "deployment" / "production.md"
+DEPLOYMENT_SECURITY_CHECKLIST = (
+    REPO_ROOT / "docs" / "deployment" / "security-checklist.md"
+)
+BACKEND_ENV_EXAMPLE = REPO_ROOT / "scripts" / "prod" / "config" / "backend.env.example"
 
 
 def _baseline_production_settings(**overrides) -> Settings:
@@ -31,6 +36,7 @@ def _baseline_production_settings(**overrides) -> Settings:
         "directory_provider": "graph",
         "entra_jit_provisioning_enabled": False,
         "auth_sso_allow_email_link": False,
+        "refresh_token_migration_grace": False,
         "cors_origins": ["https://riskhub.example.com"],
         "allowed_hosts": ["riskhub.example.com"],
         "database_url": "postgresql+asyncpg://riskhub:tests@prod-db:5432/riskhub",
@@ -50,6 +56,12 @@ def test_env_example_matches_production_safe_contract() -> None:
     assert 'TRUSTED_PROXIES=["127.0.0.1","::1"]' in content
 
 
+def test_backend_env_example_disables_refresh_token_migration_grace() -> None:
+    content = BACKEND_ENV_EXAMPLE.read_text(encoding="utf-8")
+
+    assert "REFRESH_TOKEN_MIGRATION_GRACE=false" in content.splitlines()
+
+
 def test_deployment_reference_documents_required_production_contract() -> None:
     content = DEPLOYMENT_REFERENCE.read_text(encoding="utf-8")
 
@@ -61,6 +73,29 @@ def test_deployment_reference_documents_required_production_contract() -> None:
 
 
 @pytest.mark.parametrize(
+    ("path", "section_heading"),
+    [
+        (DEPLOYMENT_REFERENCE, "## Production Invariants"),
+        (
+            DEPLOYMENT_PRODUCTION,
+            "Rendered production runtime config is intentionally opinionated:",
+        ),
+        (DEPLOYMENT_SECURITY_CHECKLIST, "## Config And Startup Guards"),
+    ],
+)
+def test_canonical_production_sections_disable_refresh_token_migration_grace(
+    path: Path,
+    section_heading: str,
+) -> None:
+    content = path.read_text(encoding="utf-8")
+    section = content.split(section_heading, maxsplit=1)[1].split("\n## ", maxsplit=1)[
+        0
+    ]
+
+    assert "- `REFRESH_TOKEN_MIGRATION_GRACE=false`" in section.splitlines()
+
+
+@pytest.mark.parametrize(
     ("override", "expected_fragment"),
     [
         ({"mock_auth_enabled": True}, "MOCK_AUTH_ENABLED"),
@@ -68,6 +103,7 @@ def test_deployment_reference_documents_required_production_contract() -> None:
         ({"directory_provider": "auto"}, "DIRECTORY_PROVIDER"),
         ({"entra_jit_provisioning_enabled": True}, "ENTRA_JIT_PROVISIONING_ENABLED"),
         ({"auth_sso_allow_email_link": True}, "AUTH_SSO_ALLOW_EMAIL_LINK"),
+        ({"refresh_token_migration_grace": True}, "REFRESH_TOKEN_MIGRATION_GRACE"),
         ({"allowed_hosts": []}, "ALLOWED_HOSTS"),
         ({"cors_origins": []}, "CORS_ORIGINS"),
     ],
@@ -83,3 +119,14 @@ def test_bootstrap_runtime_validation_enforces_documented_contract(
 def test_bootstrap_runtime_validation_keys_match_contract_surface() -> None:
     invariant_keys = {item.key for item in PRODUCTION_INVARIANTS}
     assert set(BOOTSTRAP_RUNTIME_ENFORCED_KEYS).issubset(invariant_keys)
+
+
+def test_bootstrap_runtime_validation_accepts_strict_refresh_claims() -> None:
+    validate_settings_for_runtime(_baseline_production_settings())
+
+
+def test_refresh_token_migration_grace_defaults_on_for_controlled_development() -> None:
+    settings = Settings(debug=True, secret_key="development-secret")
+
+    assert settings.refresh_token_migration_grace is True
+    validate_settings_for_runtime(settings)

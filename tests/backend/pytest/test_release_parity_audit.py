@@ -1723,6 +1723,7 @@ def test_release_parity_prod_env_uses_only_production_file_references(
     assert values["DIRECTORY_PROVIDER"] == "graph"
     assert values["ENTRA_JIT_PROVISIONING_ENABLED"] == "false"
     assert values["AUTH_SSO_ALLOW_EMAIL_LINK"] == "false"
+    assert values["REFRESH_TOKEN_MIGRATION_GRACE"] == "false"
     assert values["SECRET_KEY_FILE"] == str(secret_dir / "secret_key")
     assert values["DATABASE_URL_FILE"] == str(secret_dir / "database_url")
     assert values["ENTRA_CLIENT_SECRET_FILE"] == str(secret_dir / "entra_client_secret")

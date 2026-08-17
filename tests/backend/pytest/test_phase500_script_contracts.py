@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROD_SCRIPTS_DIR = REPO_ROOT / "scripts" / "prod"
+PROD_PREFLIGHT_LIB = PROD_SCRIPTS_DIR / "lib" / "preflight.sh"
 BACKEND_RUNTIME_PROD = REPO_ROOT / "backend" / "scripts" / "runtime" / "prod.sh"
 BACKEND_DB_RUNTIME_PROD = (
     REPO_ROOT / "backend" / "scripts" / "runtime" / "db" / "prod.sh"
@@ -1054,6 +1056,16 @@ def test_prod_readiness_audit_input_writer_replaces_init_placeholders() -> None:
         assert (state.secret_dir / "redis_password").read_text(encoding="utf-8").strip()
         assert (state.runtime_dir / "redis_url").read_text(encoding="utf-8").strip()
         assert (state.tmp_dir / "backend_valid.env").exists()
+        backend_values = dict(
+            line.split("=", 1)
+            for line in (state.tmp_dir / "backend_valid.env")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+        assert backend_values["REFRESH_TOKEN_MIGRATION_GRACE"] == "false"
+        assert backend_values["DIRECTORY_PROVIDER"] == "graph"
+        assert backend_values["ENTRA_JIT_PROVISIONING_ENABLED"] == "false"
+        assert backend_values["AUTH_SSO_ALLOW_EMAIL_LINK"] == "false"
         audit_config = dict(
             line.split("=", 1)
             for line in state.config_path.read_text(encoding="utf-8").splitlines()
@@ -1074,6 +1086,189 @@ def test_prod_readiness_audit_input_writer_replaces_init_placeholders() -> None:
         assert "FRONTEND_CONTAINER_PORT=abc" in (
             state.tmp_dir / "frontend_invalid_container.env"
         ).read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("command_id", "expected_diagnostic"),
+    [
+        (
+            "p2_preflight_invalid_host_range",
+            "FRONTEND_HOST_PORT must be between 1 and 65535",
+        ),
+        (
+            "p2_preflight_invalid_container_port",
+            "FRONTEND_CONTAINER_PORT must be numeric",
+        ),
+    ],
+)
+def test_prod_readiness_generated_negative_probe_reaches_frontend_validation(
+    command_id: str, expected_diagnostic: str
+) -> None:
+    from prod_readiness_audit.audit_inputs import write_audit_inputs
+    from prod_readiness_audit.phases import build_prod_readiness_phases
+    from prod_readiness_audit.run_state import build_run_state
+
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-prod-readiness-generated-negative-probe-"
+    ) as td:
+        state = build_run_state(root_dir=REPO_ROOT, run_id="unit-test")
+        state.artifact_root = Path(td)
+        state.ensure_directories()
+        write_audit_inputs(state)
+        command = next(
+            command
+            for phase in build_prod_readiness_phases(state)
+            for command in phase.commands
+            if command.command_id == command_id
+        )
+
+        fake_bin = state.tmp_dir / "fake-bin"
+        fake_bin.mkdir()
+        fake_docker = fake_bin / "docker"
+        fake_docker.write_text(
+            "#!/bin/sh\n"
+            'if [ "$#" -eq 1 ] && [ "$1" = ps ]; then exit 0; fi\n'
+            "printf 'unexpected docker invocation: %s\\n' \"$*\" >&2\n"
+            "exit 97\n",
+            encoding="utf-8",
+        )
+        fake_docker.chmod(0o755)
+        controlled_path = f"{fake_bin}:{os.environ['PATH']}"
+
+        completed = subprocess.run(
+            [
+                "bash",
+                "-lc",
+                f"PATH={shlex.quote(controlled_path)} {command.command}",
+            ],
+            cwd=REPO_ROOT,
+            env={
+                **os.environ,
+                "RISKHUB_AUDIT_PYTHON": state.python_executable,
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert completed.returncode != 0
+    assert "unexpected docker invocation:" not in completed.stderr
+    assert expected_diagnostic in completed.stderr
+
+
+def _run_production_backend_preflight(
+    backend_env: Path, *, secret_dir: Path, runtime_dir: Path
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source "$1"; source "$2"; preflight_backend_env "$3"',
+            "bash",
+            str(PROD_SCRIPTS_DIR / "lib" / "common.sh"),
+            str(PROD_PREFLIGHT_LIB),
+            str(backend_env),
+        ],
+        cwd=REPO_ROOT,
+        env={
+            **os.environ,
+            "RISKHUB_DEFAULT_SECRET_DIR": str(secret_dir),
+            "RISKHUB_RUNTIME_DIR": str(runtime_dir),
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@pytest.mark.parametrize(
+    "configured_value",
+    ["true", None],
+    ids=["enabled", "missing"],
+)
+def test_production_preflight_rejects_non_strict_refresh_token_migration_grace(
+    tmp_path: Path, configured_value: str | None
+) -> None:
+    from prod_readiness_audit.audit_inputs import write_audit_inputs
+    from prod_readiness_audit.run_state import build_run_state
+
+    state = build_run_state(root_dir=REPO_ROOT, run_id="unit-test")
+    state.artifact_root = tmp_path
+    state.ensure_directories()
+    write_audit_inputs(state)
+    backend_env = state.tmp_dir / "backend_valid.env"
+    lines = backend_env.read_text(encoding="utf-8").splitlines()
+    lines = [
+        line
+        for line in lines
+        if not line.startswith("REFRESH_TOKEN_MIGRATION_GRACE=")
+    ]
+    if configured_value is not None:
+        lines.append(f"REFRESH_TOKEN_MIGRATION_GRACE={configured_value}")
+    backend_env.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    completed = _run_production_backend_preflight(
+        backend_env,
+        secret_dir=state.secret_dir,
+        runtime_dir=state.runtime_dir,
+    )
+
+    assert completed.returncode != 0
+    assert (
+        f"Expected REFRESH_TOKEN_MIGRATION_GRACE=false in {backend_env}"
+        in completed.stderr
+    )
+
+
+def test_production_preflight_accepts_disabled_refresh_token_migration_grace(
+    tmp_path: Path,
+) -> None:
+    from prod_readiness_audit.audit_inputs import write_audit_inputs
+    from prod_readiness_audit.run_state import build_run_state
+
+    state = build_run_state(root_dir=REPO_ROOT, run_id="unit-test")
+    state.artifact_root = tmp_path
+    state.ensure_directories()
+    write_audit_inputs(state)
+    backend_env = state.tmp_dir / "backend_valid.env"
+
+    completed = _run_production_backend_preflight(
+        backend_env,
+        secret_dir=state.secret_dir,
+        runtime_dir=state.runtime_dir,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_prod_readiness_scoring_rejects_unrelated_negative_probe_failures() -> None:
+    from prod_readiness_audit.run_state import build_run_state
+    from prod_readiness_audit.scoring import evaluate_mandatory_controls
+
+    with tempfile.TemporaryDirectory(
+        prefix="riskhub-prod-readiness-negative-probes-"
+    ) as td:
+        state = build_run_state(root_dir=REPO_ROOT, run_id="unit-test")
+        state.artifact_root = Path(td)
+        state.ensure_directories()
+        (state.log_dir / "p2_preflight_invalid_host_range.log").write_text(
+            "Expected DIRECTORY_PROVIDER=graph in backend_valid.env\n",
+            encoding="utf-8",
+        )
+        (state.log_dir / "p2_preflight_invalid_container_port.log").write_text(
+            "Expected DIRECTORY_PROVIDER=graph in backend_valid.env\n",
+            encoding="utf-8",
+        )
+        state.command_results = [
+            _command_row("p2_preflight_invalid_host_range", rc=1, required=False),
+            _command_row(
+                "p2_preflight_invalid_container_port", rc=1, required=False
+            ),
+        ]
+
+        findings = evaluate_mandatory_controls(state)
+
+    assert "MC-06" in {str(finding["id"]) for finding in findings}
 
 
 def test_prod_readiness_scoring_fails_semantic_mandatory_control_regressions() -> None:
@@ -1137,6 +1332,16 @@ def test_prod_readiness_scoring_fails_protocol_probe_summary_regressions() -> No
         (state.log_dir / "p3_backend_openapi_code.log").write_text(
             "404\n", encoding="utf-8"
         )
+        (state.log_dir / "p2_preflight_invalid_host_range.log").write_text(
+            "FRONTEND_HOST_PORT must be between 1 and 65535\n",
+            encoding="utf-8",
+        )
+        (
+            state.log_dir / "p2_preflight_invalid_container_port.log"
+        ).write_text(
+            "FRONTEND_CONTAINER_PORT must be numeric\n",
+            encoding="utf-8",
+        )
         state.command_results = [
             _command_row("p2_security_contract_probe"),
             _command_row("p2_preflight_invalid_host_range", rc=1, required=False),
@@ -1183,6 +1388,16 @@ def test_prod_readiness_scoring_passes_semantic_mandatory_controls() -> None:
         )
         (state.log_dir / "p3_backend_openapi_code.log").write_text(
             "404\n", encoding="utf-8"
+        )
+        (state.log_dir / "p2_preflight_invalid_host_range.log").write_text(
+            "FRONTEND_HOST_PORT must be between 1 and 65535\n",
+            encoding="utf-8",
+        )
+        (
+            state.log_dir / "p2_preflight_invalid_container_port.log"
+        ).write_text(
+            "FRONTEND_CONTAINER_PORT must be numeric\n",
+            encoding="utf-8",
         )
         state.command_results = [
             _command_row("p2_security_contract_probe"),

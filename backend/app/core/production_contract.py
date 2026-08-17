@@ -46,6 +46,11 @@ PRODUCTION_INVARIANTS: tuple[ProductionInvariant, ...] = (
         "false",
         "Production forbids fallback email-link matching for SSO account binding.",
     ),
+    ProductionInvariant(
+        "REFRESH_TOKEN_MIGRATION_GRACE",
+        "false",
+        "Production requires strict refresh-token audience and issuer claims.",
+    ),
     ProductionInvariant("ALLOWED_HOSTS", None, "Production requires an explicit host allowlist."),
     ProductionInvariant("CORS_ORIGINS", None, "Production requires an explicit CORS allowlist."),
 )
@@ -56,6 +61,7 @@ BOOTSTRAP_RUNTIME_ENFORCED_KEYS: tuple[str, ...] = (
     "DIRECTORY_PROVIDER",
     "ENTRA_JIT_PROVISIONING_ENABLED",
     "AUTH_SSO_ALLOW_EMAIL_LINK",
+    "REFRESH_TOKEN_MIGRATION_GRACE",
     "ALLOWED_HOSTS",
     "CORS_ORIGINS",
 )
@@ -77,4 +83,5 @@ PRODUCTION_ENV_EXPECTED_LINES: tuple[str, ...] = (
     "DIRECTORY_PROVIDER=graph",
     "ENTRA_JIT_PROVISIONING_ENABLED=false",
     "AUTH_SSO_ALLOW_EMAIL_LINK=false",
+    "REFRESH_TOKEN_MIGRATION_GRACE=false",
 )

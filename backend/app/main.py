@@ -124,6 +124,12 @@ def validate_settings_for_runtime(settings: Settings) -> None:
             "FATAL: AUTH_SSO_ALLOW_EMAIL_LINK must be "
             f"{email_link_required_value} when DEBUG=false."
         )
+    refresh_grace_required_value = invariant_map["REFRESH_TOKEN_MIGRATION_GRACE"].required_value
+    if settings.refresh_token_migration_grace:
+        raise RuntimeError(
+            "FATAL: REFRESH_TOKEN_MIGRATION_GRACE must be "
+            f"{refresh_grace_required_value} when DEBUG=false."
+        )
 
     broad_proxy_entries = find_broad_trusted_proxy_entries(settings.trusted_proxies)
     if broad_proxy_entries:

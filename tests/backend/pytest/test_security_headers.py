@@ -70,6 +70,7 @@ async def test_security_headers_in_production_mode():
             directory_provider="graph",
             entra_jit_provisioning_enabled=False,
             auth_sso_allow_email_link=False,
+            refresh_token_migration_grace=False,
             cors_origins=["http://testserver"],
             allowed_hosts=["testserver"],
             database_url=PRODUCTION_DATABASE_URL,

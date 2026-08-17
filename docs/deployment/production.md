@@ -91,6 +91,7 @@ Rendered production runtime config is intentionally opinionated:
 - `DIRECTORY_PROVIDER=graph`
 - `ENTRA_JIT_PROVISIONING_ENABLED=false`
 - `AUTH_SSO_ALLOW_EMAIL_LINK=false`
+- `REFRESH_TOKEN_MIGRATION_GRACE=false`
 - `AD_DEPROVISION_CHECK_INTERVAL_MINUTES=15`
 
 That 15-minute deprovision interval is the current Entra disablement revocation SLA floor. A disabled Entra user is revoked in RiskHub on the next deprovision check plus any remaining access-token lifetime.

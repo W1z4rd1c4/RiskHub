@@ -25,6 +25,7 @@ def prepare_prod_env_files(
                 f"ENTRA_CLIENT_SECRET_FILE={secret_dir / 'entra_client_secret'}",
                 "ENTRA_JIT_PROVISIONING_ENABLED=false",
                 "AUTH_SSO_ALLOW_EMAIL_LINK=false",
+                "REFRESH_TOKEN_MIGRATION_GRACE=false",
                 "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
                 "BOOTSTRAP_ADMIN_ROLE=admin",
                 "BOOTSTRAP_ADMIN_ACCESS_SCOPE=global",

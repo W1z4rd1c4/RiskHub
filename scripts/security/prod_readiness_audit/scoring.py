@@ -185,6 +185,12 @@ def _rc_by_id(state: ProdReadinessRunState) -> dict[str, int]:
     return {str(row["id"]): int(row.get("rc", 127)) for row in state.command_results}
 
 
+def _log_contains(path: Path, expected: str) -> bool:
+    if not path.exists():
+        return False
+    return expected in path.read_text(encoding="utf-8", errors="replace")
+
+
 def _mandatory_control_finding(
     *,
     control_id: str,
@@ -211,18 +217,30 @@ def evaluate_mandatory_controls(
 
     invalid_host_rc = rc_by_id.get("p2_preflight_invalid_host_range", 127)
     invalid_container_rc = rc_by_id.get("p2_preflight_invalid_container_port", 127)
-    if invalid_host_rc == 0 or invalid_container_rc == 0:
+    host_log = state.log_dir / "p2_preflight_invalid_host_range.log"
+    container_log = state.log_dir / "p2_preflight_invalid_container_port.log"
+    host_diagnostic = _log_contains(
+        host_log, "FRONTEND_HOST_PORT must be between 1 and 65535"
+    )
+    container_diagnostic = _log_contains(
+        container_log, "FRONTEND_CONTAINER_PORT must be numeric"
+    )
+    if (
+        invalid_host_rc == 0
+        or invalid_container_rc == 0
+        or not host_diagnostic
+        or not container_diagnostic
+    ):
         findings.append(
             _mandatory_control_finding(
                 control_id="MC-06",
                 summary="Invalid frontend preflight probes must be rejected.",
-                evidence=[
-                    state.log_dir / "p2_preflight_invalid_host_range.log",
-                    state.log_dir / "p2_preflight_invalid_container_port.log",
-                ],
+                evidence=[host_log, container_log],
                 details={
                     "host_rc": invalid_host_rc,
                     "container_rc": invalid_container_rc,
+                    "host_diagnostic": host_diagnostic,
+                    "container_diagnostic": container_diagnostic,
                 },
             )
         )

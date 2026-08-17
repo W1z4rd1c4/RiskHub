@@ -159,6 +159,8 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         )
         assert docker_backend["DOCKER_NETWORK_SUBNET"] == DEFAULT_DOCKER_NETWORK_SUBNET
         assert linux_backend["TRUSTED_PROXIES"] == '["127.0.0.1", "::1"]'
+        assert docker_backend["REFRESH_TOKEN_MIGRATION_GRACE"] == "false"
+        assert linux_backend["REFRESH_TOKEN_MIGRATION_GRACE"] == "false"
         assert "DOCKER_NETWORK_SUBNET" not in linux_backend
         assert docker_backend["DATABASE_URL_FILE"] == str(secret_dir / "database_url")
         assert docker_backend["SECRET_KEY_FILE"] == str(secret_dir / "secret_key")

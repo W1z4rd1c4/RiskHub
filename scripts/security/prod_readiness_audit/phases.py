@@ -137,6 +137,7 @@ def build_prod_readiness_phases(
     postgres_container = shlex.quote(state.postgres_container)
     registry_container = shlex.quote(state.registry_container)
     runtime_env = f"RISKHUB_RUNTIME_DIR={runtime_dir}"
+    audit_paths_env = f"RISKHUB_DEFAULT_SECRET_DIR={secret_dir} {runtime_env}"
     deploy_common = f"--config {config_path} --secret-dir {secret_dir} --yes"
     backend_image_deploy = shlex.quote(state.backend_image_deploy)
     backend_db_image_deploy = shlex.quote(state.backend_db_image_deploy)
@@ -378,7 +379,8 @@ def build_prod_readiness_phases(
                 ProdReadinessCommand(
                     "p2_preflight_invalid_host_range",
                     (
-                        f"scripts/prod/preflight.sh --backend-env {backend_valid_env} "
+                        f"{audit_paths_env} scripts/prod/preflight.sh "
+                        f"--backend-env {backend_valid_env} "
                         f"--frontend-env {frontend_invalid_host_env} --yes"
                     ),
                     required=False,
@@ -387,7 +389,8 @@ def build_prod_readiness_phases(
                 ProdReadinessCommand(
                     "p2_preflight_invalid_container_port",
                     (
-                        f"scripts/prod/preflight.sh --backend-env {backend_valid_env} "
+                        f"{audit_paths_env} scripts/prod/preflight.sh "
+                        f"--backend-env {backend_valid_env} "
                         f"--frontend-env {frontend_invalid_container_env} --yes"
                     ),
                     required=False,

@@ -144,6 +144,7 @@ def _write_backend_env(
         "DIRECTORY_PROVIDER=graph",
         "ENTRA_JIT_PROVISIONING_ENABLED=false",
         "AUTH_SSO_ALLOW_EMAIL_LINK=false",
+        "REFRESH_TOKEN_MIGRATION_GRACE=false",
         f"SECRET_KEY_FILE={secret_dir / 'secret_key'}",
         f"DATABASE_URL_FILE={secret_dir / 'database_url'}",
         'CORS_ORIGINS=["https://riskhub.example.com"]',

@@ -820,6 +820,51 @@ def test_new_refresh_token_contains_aud_iss_type_claims():
     assert payload["type"] == REFRESH_TOKEN_TYPE
 
 
+def test_decode_refresh_token_accepts_modern_claims_with_grace_disabled() -> None:
+    settings = Settings(secret_key=TEST_SECRET_KEY, refresh_token_migration_grace=False)
+    token, _ = create_refresh_token(
+        user_id=1,
+        token_version=1,
+        jti="modern-claims-jti",
+        settings=settings,
+    )
+
+    payload = decode_refresh_token(token, settings)
+
+    assert payload["aud"] == REFRESH_TOKEN_AUDIENCE
+    assert payload["iss"] == REFRESH_TOKEN_ISSUER
+    assert payload["type"] == REFRESH_TOKEN_TYPE
+
+
+@pytest.mark.parametrize(
+    ("claim", "invalid_value", "expected_error"),
+    [
+        ("aud", "wrong-audience", jwt.InvalidAudienceError),
+        ("iss", "wrong-issuer", jwt.InvalidIssuerError),
+    ],
+)
+def test_decode_refresh_token_grace_rejects_incorrect_modern_claims(
+    claim: str,
+    invalid_value: str,
+    expected_error: type[jwt.InvalidTokenError],
+) -> None:
+    settings = Settings(secret_key=TEST_SECRET_KEY, refresh_token_migration_grace=True)
+    claims = {
+        "type": REFRESH_TOKEN_TYPE,
+        "aud": REFRESH_TOKEN_AUDIENCE,
+        "iss": REFRESH_TOKEN_ISSUER,
+        "user_id": 1,
+        "token_version": 1,
+        "jti": "invalid-modern-claims-jti",
+        "exp": datetime.now(UTC) + timedelta(hours=1),
+    }
+    claims[claim] = invalid_value
+    token = jwt.encode(claims, TEST_SECRET_KEY, algorithm="HS256")
+
+    with pytest.raises(expected_error):
+        decode_refresh_token(token, settings)
+
+
 def test_decode_refresh_token_rejects_wrong_audience():
     settings = Settings(secret_key=TEST_SECRET_KEY, refresh_token_migration_grace=False)
     wrong_aud_token = jwt.encode(
