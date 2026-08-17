@@ -1023,12 +1023,14 @@ Remediation completion invariant:
 
 Workflow mutation contract:
 - `PATCH /api/v1/issues/{id}` does **not** allow `status` updates.
+- Closed issues reject generic field updates, relationship creation, and relationship deletion with stable `409 Conflict` details before generic field checks, linked-target resolution, or link lookup. Rejected operations preserve both Issue/link state and audit history.
 - Status changes are allowed only through workflow endpoints:
   - `POST /api/v1/issues/{id}/assign`
   - `POST /api/v1/issues/{id}/start-remediation`
   - `POST /api/v1/issues/{id}/update-progress`
   - `POST /api/v1/issues/{id}/close`
   - `POST /api/v1/issues/{id}/revoke-exception` (exception lifecycle)
+- The closed-state guard is scoped to the generic PATCH/link/unlink interfaces. Deliberate workflow operations retain their existing closed-Issue semantics, including exception revocation.
 
 ### 11.2 Scope and Non-Leaky Access
 

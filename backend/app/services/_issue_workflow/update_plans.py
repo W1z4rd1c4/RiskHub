@@ -9,11 +9,13 @@ from app.services._issue_register.source_mutation import issue_link_department_i
 from app.services._issue_workflow.assignment import ensure_owner_assignable, validate_user_exists
 from app.services._issue_workflow.contracts import IssueUpdatePlan
 from app.services._issue_workflow.source_validation import resolve_issue_source_metadata
+from app.services._issue_workflow.transitions import _ensure_issue_not_closed
 
 CONCRETE_SOURCE_TYPES = {"control_execution", "kri_breach"}
 
 
 async def build_issue_update_plan(*, db, issue, payload: IssueUpdate, current_user) -> IssueUpdatePlan:
+    _ensure_issue_not_closed(issue, "update")
     updates = payload.model_dump(exclude_unset=True)
 
     if "status" in updates:

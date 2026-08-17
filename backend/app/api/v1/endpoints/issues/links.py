@@ -12,6 +12,7 @@ from app.services._issue_register.linked_context import issue_source_link, link_
 from app.services._issue_register.serialization import serialize_issue_link
 from app.services._issue_register.source_mutation import resolve_vendor_department_and_access
 from app.services._issue_workflow.loading import get_writable_issue_or_404
+from app.services._issue_workflow.transitions import _ensure_issue_not_closed
 from app.services.transaction_boundary import commit_service_transaction
 
 router = APIRouter()
@@ -74,6 +75,7 @@ async def add_issue_link(
     current_user: User = Depends(require_permission("issues", "write")),
 ) -> IssueLinkRead:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
+    _ensure_issue_not_closed(issue, "link entities to")
     linked_department_id = await _resolve_link_department_and_access(db, current_user, payload)
     if linked_department_id != issue.department_id:
         raise HTTPException(
@@ -122,6 +124,7 @@ async def delete_issue_link(
     current_user: User = Depends(require_permission("issues", "write")),
 ):
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
+    _ensure_issue_not_closed(issue, "unlink entities from")
     link = (
         await db.execute(select(IssueLink).where(IssueLink.id == link_id, IssueLink.issue_id == issue_id))
     ).scalar_one_or_none()

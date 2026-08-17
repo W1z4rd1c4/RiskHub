@@ -28,6 +28,76 @@ from .issues_api_helpers import _create_department_scoped_user, _grant
 pytest_plugins = ("tests.backend.pytest.api.v1.issues_api_support",)
 
 
+async def _close_issue(client: AsyncClient, issue_id: int) -> dict:
+    start_response = await client.post(f"/api/v1/issues/{issue_id}/start-remediation", json={})
+    assert start_response.status_code == 200
+    progress_response = await client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"progress_percent": 100, "completion_notes": "Completed before closure"},
+    )
+    assert progress_response.status_code == 200
+    close_response = await client.post(
+        f"/api/v1/issues/{issue_id}/close",
+        json={"validation_note": "Validated before closure"},
+    )
+    assert close_response.status_code == 200
+    assert close_response.json()["status"] == "closed"
+    return close_response.json()
+
+
+async def _create_and_close_issue(client: AsyncClient, *, department_id: int, title: str) -> dict:
+    create_response = await client.post(
+        "/api/v1/issues",
+        json={
+            "title": title,
+            "severity": "medium",
+            "source_type": "manual",
+            "department_id": department_id,
+        },
+    )
+    assert create_response.status_code == 201
+    return await _close_issue(client, create_response.json()["id"])
+
+
+async def _create_issue_link_target_risk(
+    client: AsyncClient,
+    *,
+    department_id: int,
+    owner_id: int,
+    risk_id_code: str,
+    name: str,
+) -> int:
+    response = await client.post(
+        "/api/v1/risks",
+        json={
+            "risk_id_code": risk_id_code,
+            "name": name,
+            "process": "Operations",
+            "description": "Issue relationship target",
+            "category": "Operational",
+            "department_id": department_id,
+            "owner_id": owner_id,
+            "risk_type": "operational",
+            "gross_probability": 2,
+            "gross_impact": 2,
+            "net_probability": 1,
+            "net_impact": 1,
+            "status": "active",
+        },
+    )
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+async def _issue_activity_total(client: AsyncClient, issue_id: int) -> int:
+    response = await client.get(
+        "/api/v1/activity-log",
+        params={"entity_type": "issue", "entity_id": issue_id},
+    )
+    assert response.status_code == 200
+    return response.json()["total"]
+
+
 @pytest.mark.asyncio
 async def test_issue_list_collection_export_capability_tracks_reports_read(
     client: AsyncClient,
@@ -1171,3 +1241,140 @@ async def test_issue_list_rejects_invalid_sort_params(
 
     invalid_sort_order = await auth_client.get("/api/v1/issues", params={"sort_by": "title", "sort_order": "up"})
     assert invalid_sort_order.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_closed_issue_update_rejects_before_generic_field_validation_without_side_effects(
+    client_cro: AsyncClient,
+    test_department: Department,
+):
+    original_title = "Closed issue update guard"
+    closed_issue = await _create_and_close_issue(
+        client_cro,
+        department_id=test_department.id,
+        title=original_title,
+    )
+    issue_id = closed_issue["id"]
+    activity_total_before = await _issue_activity_total(client_cro, issue_id)
+
+    update_response = await client_cro.patch(
+        f"/api/v1/issues/{issue_id}",
+        json={"title": "Post-closure title mutation"},
+    )
+
+    assert update_response.status_code == 409
+    assert update_response.json()["detail"] == "Cannot update a closed issue"
+
+    pre_validation_response = await client_cro.patch(
+        f"/api/v1/issues/{issue_id}",
+        json={"status": "open"},
+    )
+    assert pre_validation_response.status_code == 409
+    assert pre_validation_response.json()["detail"] == "Cannot update a closed issue"
+
+    detail_response = await client_cro.get(f"/api/v1/issues/{issue_id}")
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    assert detail["title"] == original_title
+    assert detail["status"] == "closed"
+    assert detail["capabilities"]["can_update"] is False
+    assert detail["capabilities"]["can_link_risk"] is False
+    assert detail["capabilities"]["can_unlink_entities"] is False
+
+    list_response = await client_cro.get("/api/v1/issues")
+    assert list_response.status_code == 200
+    assert any(item["id"] == issue_id for item in list_response.json()["items"])
+    assert await _issue_activity_total(client_cro, issue_id) == activity_total_before
+
+
+@pytest.mark.asyncio
+async def test_closed_issue_link_rejects_before_target_resolution_without_side_effects(
+    client_cro: AsyncClient,
+    test_department: Department,
+    test_user_cro: User,
+    seed_risk_types,
+):
+    risk_id = await _create_issue_link_target_risk(
+        client_cro,
+        department_id=test_department.id,
+        owner_id=test_user_cro.id,
+        risk_id_code="ISS-CLOSED-LINK",
+        name="Closed issue link target",
+    )
+    closed_issue = await _create_and_close_issue(
+        client_cro,
+        department_id=test_department.id,
+        title="Closed issue link guard",
+    )
+    issue_id = closed_issue["id"]
+    activity_total_before = await _issue_activity_total(client_cro, issue_id)
+
+    link_response = await client_cro.post(
+        f"/api/v1/issues/{issue_id}/links",
+        json={"risk_id": risk_id},
+    )
+
+    assert link_response.status_code == 409
+    assert link_response.json()["detail"] == "Cannot link entities to a closed issue"
+
+    pre_resolution_response = await client_cro.post(
+        f"/api/v1/issues/{issue_id}/links",
+        json={"risk_id": 999_999_999},
+    )
+    assert pre_resolution_response.status_code == 409
+    assert pre_resolution_response.json()["detail"] == "Cannot link entities to a closed issue"
+
+    detail_response = await client_cro.get(f"/api/v1/issues/{issue_id}")
+    assert detail_response.status_code == 200
+    assert detail_response.json()["links"] == []
+    assert await _issue_activity_total(client_cro, issue_id) == activity_total_before
+
+
+@pytest.mark.asyncio
+async def test_closed_issue_unlink_rejects_before_link_lookup_without_side_effects(
+    client_cro: AsyncClient,
+    test_department: Department,
+    test_user_cro: User,
+    seed_risk_types,
+):
+    risk_id = await _create_issue_link_target_risk(
+        client_cro,
+        department_id=test_department.id,
+        owner_id=test_user_cro.id,
+        risk_id_code="ISS-CLOSED-UNLINK",
+        name="Closed issue unlink target",
+    )
+    create_response = await client_cro.post(
+        "/api/v1/issues",
+        json={
+            "title": "Closed issue unlink guard",
+            "severity": "medium",
+            "source_type": "manual",
+            "department_id": test_department.id,
+        },
+    )
+    assert create_response.status_code == 201
+    issue_id = create_response.json()["id"]
+    link_response = await client_cro.post(
+        f"/api/v1/issues/{issue_id}/links",
+        json={"risk_id": risk_id},
+    )
+    assert link_response.status_code == 201
+    link_id = link_response.json()["id"]
+
+    await _close_issue(client_cro, issue_id)
+    activity_total_before = await _issue_activity_total(client_cro, issue_id)
+
+    unlink_response = await client_cro.delete(f"/api/v1/issues/{issue_id}/links/{link_id}")
+
+    assert unlink_response.status_code == 409
+    assert unlink_response.json()["detail"] == "Cannot unlink entities from a closed issue"
+
+    pre_lookup_response = await client_cro.delete(f"/api/v1/issues/{issue_id}/links/999999999")
+    assert pre_lookup_response.status_code == 409
+    assert pre_lookup_response.json()["detail"] == "Cannot unlink entities from a closed issue"
+
+    detail_response = await client_cro.get(f"/api/v1/issues/{issue_id}")
+    assert detail_response.status_code == 200
+    assert [link["id"] for link in detail_response.json()["links"]] == [link_id]
+    assert await _issue_activity_total(client_cro, issue_id) == activity_total_before
