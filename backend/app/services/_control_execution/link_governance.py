@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.datetime_utils import utc_now
-from app.core.permissions import can_read_risk_id
+from app.core.permissions import can_read_control_id, can_read_risk_id
 from app.core.security import check_permission
-from app.models import Control, ControlRiskLink, Risk, User
+from app.models import Control, ControlRiskLink, User
 from app.services._control_execution.access import (
     ControlRiskAccessDecision,
     assert_control_readable_for_link,
@@ -80,6 +80,8 @@ async def create_control_risk_link(
     control = await load_control_for_link(control_id, db)
     await assert_control_writable_for_link(db, current_user=current_user, control=control)
 
+    if not await can_read_risk_id(db, current_user, risk_id):
+        raise HTTPException(status_code=404, detail="Risk not found")
     risk = await load_risk_for_link(risk_id, db)
     await assert_risk_writable_for_link(db, current_user=current_user, risk=risk, allow_direct_owner=True)
 
@@ -104,16 +106,15 @@ async def delete_control_risk_link(
     risk_id: int,
     current_user: User,
 ) -> None:
+    control = await load_control_for_link(control_id, db)
+    await assert_control_writable_for_link(db, current_user=current_user, control=control)
+
+    if not await can_read_risk_id(db, current_user, risk_id):
+        raise HTTPException(status_code=404, detail="Risk not found")
+    risk = await load_risk_for_link(risk_id, db)
+    await assert_risk_writable_for_link(db, current_user=current_user, risk=risk, allow_direct_owner=True)
+
     link = await load_link(db, control_id=control_id, risk_id=risk_id)
-
-    control = (await db.execute(select(Control).where(Control.id == control_id))).scalar_one_or_none()
-    if control is not None:
-        await assert_control_writable_for_link(db, current_user=current_user, control=control)
-
-    risk = (await db.execute(select(Risk).where(Risk.id == risk_id))).scalar_one_or_none()
-    if risk is not None:
-        await assert_risk_writable_for_link(db, current_user=current_user, risk=risk, allow_direct_owner=True)
-
     await delete_control_risk_link_plan(db, link)
 
 
@@ -159,6 +160,8 @@ async def create_risk_control_link(
     risk = await load_risk_for_link(risk_id, db)
     await assert_risk_writable_for_link(db, current_user=current_user, risk=risk, allow_direct_owner=False)
 
+    if not await can_read_control_id(db, current_user, control_id):
+        raise HTTPException(status_code=404, detail="Control not found")
     control = await load_control_for_link(control_id, db)
     await assert_control_writable_for_link(db, current_user=current_user, control=control)
 
@@ -183,16 +186,15 @@ async def delete_risk_control_link(
     control_id: int,
     current_user: User,
 ) -> None:
+    risk = await load_risk_for_link(risk_id, db)
+    await assert_risk_writable_for_link(db, current_user=current_user, risk=risk, allow_direct_owner=False)
+
+    if not await can_read_control_id(db, current_user, control_id):
+        raise HTTPException(status_code=404, detail="Control not found")
+    control = await load_control_for_link(control_id, db)
+    await assert_control_writable_for_link(db, current_user=current_user, control=control)
+
     link = await load_link(db, control_id=control_id, risk_id=risk_id)
-
-    risk = (await db.execute(select(Risk).where(Risk.id == risk_id))).scalar_one_or_none()
-    if risk is not None:
-        await assert_risk_writable_for_link(db, current_user=current_user, risk=risk, allow_direct_owner=False)
-
-    control = (await db.execute(select(Control).where(Control.id == control_id))).scalar_one_or_none()
-    if control is not None:
-        await assert_control_writable_for_link(db, current_user=current_user, control=control)
-
     await delete_control_risk_link_plan(db, link)
 
 

@@ -727,8 +727,10 @@ Non-privileged users can access resources **outside their department** if they a
 | Endpoint | Access Rule | Approval Required? |
 |----------|-------------|--------------------|
 | `GET /risks/{id}/controls` | Ownership OR department | No (read-only) |
-| `POST /risks/{id}/controls` | `risks:write` + risk access (ownership OR department) + control access (control ownership OR department) | No |
-| `DELETE /risks/{id}/controls/{id}` | `risks:write` + risk access (ownership OR department) + control access (control ownership OR department) | No |
+| `POST /risks/{id}/controls` | `risks:write` + risk access (ownership OR department) + canonical `controls:read` and control scope | No |
+| `DELETE /risks/{id}/controls/{id}` | `risks:write` + risk access (ownership OR department) + canonical `controls:read` and control scope | No |
+| `POST /controls/{id}/risks` | `controls:write` + control access (ownership OR department) + canonical `risks:read` and risk scope | No |
+| `DELETE /controls/{id}/risks/{id}` | `controls:write` + control access (ownership OR department) + canonical `risks:read` and risk scope | No |
 
 > [!NOTE]
 > Linking/unlinking controls is **not subject to approval** because:
@@ -736,6 +738,7 @@ Non-privileged users can access resources **outside their department** if they a
 > - It's metadata management, not entity modification
 > - Both entities must be accessible to the user
 > - Ownership on one side does not grant arbitrary cross-department linking; the other side must still be in scope by department or its own ownership rule
+> - The managing entity is authorized before the target or link is looked up. An unreadable target is indistinguishable from a missing target (`Risk not found` or `Control not found`), and a missing link is disclosed only after both entity checks pass.
 
 ---
 

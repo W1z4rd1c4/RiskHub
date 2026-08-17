@@ -266,7 +266,9 @@ def test_markdown_matrix_substring_drift_fails_validation() -> None:
     validator = _load_validator()
     manifest = json.loads(CONTRACT_JSON_PATH.read_text(encoding="utf-8"))
     markdown = CONTRACT_MD_PATH.read_text(encoding="utf-8").replace(
-        "backend/app/api/v1/endpoints/risks/crud/create.py and backend/app/api/v1/endpoints/risks/crud/update.py",
+        "backend/app/api/v1/endpoints/risks/crud/create.py, "
+        "backend/app/api/v1/endpoints/risks/crud/update.py, and "
+        "backend/app/api/v1/endpoints/risks/control_links.py",
         "backend/app/api/v1/endpoints/risks/crud/create.py",
         1,
     )
