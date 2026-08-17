@@ -1055,10 +1055,10 @@
   {
    "id": "AUTHZ-AUTH-SESSION",
    "surface": "Auth and sessions",
-   "action": "Authenticate, refresh, bootstrap session, read auth config, read platform admin capabilities/logs, and revoke sessions",
-   "actor_scope": "Session authority is backend JWT/refresh/session version; cookie-issuing password login requires an allowed Origin/Referer; refresh replay of a rotated token revokes the rotated child refresh-token chain; admin session revocation requires `admin:session.revoke` and admin role only; CRO wildcard does NOT apply. Structured log reads are platform-admin-only",
+   "action": "Authenticate, issue access tokens, refresh sessions, bootstrap session, read auth config, read platform admin capabilities/logs, and revoke sessions",
+   "actor_scope": "Session authority is backend JWT/refresh/session version; cookie-issuing password login requires an allowed Origin/Referer; refresh replay of a rotated token revokes the rotated child refresh-token chain; admin session revocation requires `admin:session.revoke` and admin role only; CRO wildcard does NOT apply. Structured log reads are platform-admin-only. Access-token issuance uses the canonical platform-administrator predicate: managed production gives platform administrators 15 minutes, while CRO and every other role receive the ordinary 30-minute lifetime; a shorter remaining absolute SSO session lifetime caps either value. The lifetime split does not change permissions, scope, or business-action authority",
    "backend_authority": "backend/app/api/v1/endpoints/auth/ and backend/app/api/v1/endpoints/admin/",
-   "service_policy": "backend/app/core/security.py, backend/app/api/v1/endpoints/auth/_request_protection.py, backend/app/api/v1/endpoints/auth/sso.py as the SSO HTTP Adapter, backend/app/services/_auth_session/ owns transport-neutral SSO/refresh outcomes, and backend/app/services/sso_token_service.py",
+   "service_policy": "backend/app/core/security.py remains role-agnostic; backend/app/api/v1/endpoints/auth/_shared.py selects the configured role-aware lifetime and caps it at remaining absolute SSO session expiry; backend/app/api/v1/endpoints/auth/_request_protection.py, backend/app/api/v1/endpoints/auth/sso.py as the SSO HTTP Adapter, backend/app/services/_auth_session/ owns transport-neutral SSO/refresh outcomes, and backend/app/services/sso_token_service.py",
    "response_capability": "GET /api/v1/admin/capabilities exposes admin-console action metadata; session/user permissions are returned through auth/bootstrap responses, not per-business-action capabilities",
    "frontend_gate": "frontend/src/contexts/AuthContext.tsx, frontend/src/contexts/SessionContext.tsx, frontend/src/contexts/PreferencesContext.tsx, frontend/src/contexts/AuthActionsContext.tsx, and frontend/src/services/session/, frontend/src/authz/useAuthz.ts, frontend/src/authz/policy.ts, frontend/src/lib/capabilities.ts, frontend/src/routing/, frontend/src/components/layout/Sidebar.tsx, frontend/src/pages/AdminConsolePage.tsx, and frontend/src/pages/admin-console/sections/ use route/session projection plus backend admin capabilities for admin action buttons; business route navigation read projections mirror backend read guards and are route-context validated by scripts/security/validate_authz_capability_contract.py",
    "tests": [
@@ -1068,6 +1068,7 @@
     "tests/backend/pytest/test_auth_password_hardening.py",
     "tests/backend/pytest/test_auth_refresh.py",
     "tests/backend/pytest/test_auth_demo_refresh.py",
+    "tests/backend/pytest/architecture/test_w12_sso_token_exchange_boundary_red.py",
     "tests/backend/pytest/test_sso_exchange.py",
     "tests/backend/pytest/test_sso_token_service.py",
     "tests/frontend/unit/src/contexts/__tests__/AuthContext.compatShim.test.tsx",
