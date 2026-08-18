@@ -1204,6 +1204,13 @@ These values are configurable by CRO in Risk Hub:
 | `medium_risk_min_net_score` | 5 | Medium risk threshold for reporting |
 | `critical_risk_min_net_score` | 16 | Critical risk threshold |
 
+Risk-threshold writes preserve the global invariant
+`1 <= medium < high < critical <= 25`. Before validating or mutating one of
+these three keys, the service locks every existing threshold row in key order
+and uses the canonical defaults for any absent peer; it does not create missing
+peer rows. The winning value and its audit entry commit atomically. Other global
+configuration keys retain their single-row update path.
+
 ---
 
 ## Appendix C: Admin Log Config Contract

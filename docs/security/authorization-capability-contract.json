@@ -1,8 +1,9 @@
 {
  "version": "1.0",
  "last_reviewed": "2026-07-18",
- "last_architecture_refactor_reviewed": "2026-08-17",
+ "last_architecture_refactor_reviewed": "2026-08-18",
  "architecture_refactor_notes": [
+  "2026-08-18: Issue #125 serializes the three CRO-managed risk-threshold rows with one deterministic PostgreSQL lock order before tuple validation and atomic value-plus-audit commit. Missing peers continue to use canonical defaults without implicit creation, and non-threshold configuration retains its single-row path. CRO-only mutation authority, route guards, row visibility, response schemas, capability fields, and frontend gates are unchanged.",
   "2026-08-17: Issue #124 aligns generic Issue mutation enforcement with existing closed-Issue capabilities. Generic PATCH, link, and unlink operations reject closed Issues through the canonical terminal-state guard before field checks, target resolution, or link lookup; deliberate workflow behavior remains unchanged. Route guards, row visibility, response schemas, transaction boundaries, and capability field shapes are unchanged.",
   "2026-08-17: Issue #127 requires every Risk-Control POST and DELETE orientation to authorize the managing entity first, then require canonical read permission and row scope for the opposite target before its load, existing target write guard, or link lookup. Unreadable targets are concealed as the same 404 as missing targets; authorized custom roles retain link authority. Capability fields, frontend gates, response schemas, and transaction boundaries are unchanged.",
   "2026-08-17: Issue #123 deepened confirmed refresh-token replay containment under a per-user transaction lock: the confirming transaction revokes every active refresh session, advances token_version once, and records one complete containment audit through the named auth-session workflow boundary. Repeated or concurrent stale-token presentations are idempotent. Permissions, scope, capability shapes, business-action authority, token format, wire responses, and frontend gates are unchanged.",
@@ -934,7 +935,7 @@
    "action": "Manage roles, permissions, departments, risk types, questionnaire templates, and approval scenarios",
    "actor_scope": "Authenticated users may read approval scenarios; approval-scenario PATCH and all other business configuration mutations remain CRO-only. ApprovalScenarioCapabilities.can_update is true only for a CRO viewer and false for every other authenticated viewer; platform admin is not a business-data authority. Inactive records expose false update capabilities and reject edits until restored; the canonical CISO role is immutable and cannot be edited or deleted because Threat Steward eligibility depends on its exact least-privilege grant set",
    "backend_authority": "backend/app/api/v1/endpoints/riskhub/",
-   "service_policy": "backend/app/services/_riskhub_config/ and backend/app/services/approval_scenario_policy.py; backend/app/services/_riskhub_config/global_config.py owns global config listing/update validation, audit facts, and commit/reload order behind HTTP adapters",
+   "service_policy": "backend/app/services/_riskhub_config/ and backend/app/services/approval_scenario_policy.py; backend/app/services/_riskhub_config/global_config.py owns global config listing/update validation, deterministic risk-threshold tuple locking, audit facts, and commit/reload order behind HTTP adapters",
    "response_capability": "backend/app/schemas/riskhub.py RiskHubCapabilitiesRead, RoleHubCapabilities, DepartmentHubCapabilities, RiskTypeCapabilities, and viewer-specific ApprovalScenarioCapabilities.can_update, which mirrors the CRO-only PATCH authority",
    "frontend_gate": "frontend/src/components/riskhub/, frontend/src/components/riskhub/useRiskHubCapabilities.ts, frontend/src/services/riskHubApi.ts, and frontend/src/pages/RiskHubPage.tsx",
    "tests": [
@@ -944,6 +945,7 @@
     "tests/backend/pytest/test_riskhub_risk_types.py",
     "tests/backend/pytest/test_accountability_reassignment.py",
     "tests/backend/pytest/test_activity_log.py",
+    "tests/backend/pytest/test_global_config_usage.py",
     "tests/frontend/unit/src/components/riskhub/__tests__/RiskHubConfigPanels.test.tsx",
     "tests/frontend/unit/src/components/riskhub/__tests__/RiskQuestionnairesPanel.test.tsx",
     "tests/frontend/unit/src/components/riskhub/__tests__/RolesPanel.test.tsx"

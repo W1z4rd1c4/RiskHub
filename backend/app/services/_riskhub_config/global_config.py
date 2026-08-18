@@ -142,17 +142,27 @@ def validate_global_config_value(
         raise ValidationError("Value must be true or false")
 
 
-async def _load_risk_threshold_values(db: AsyncSession) -> dict[str, int]:
+async def _load_locked_risk_threshold_tuple(
+    db: AsyncSession,
+) -> tuple[dict[str, GlobalConfig], dict[str, int]]:
     thresholds = {
         "medium": ConfigDefaults.MEDIUM_RISK_MIN_NET_SCORE,
         "high": ConfigDefaults.HIGH_RISK_MIN_NET_SCORE,
         "critical": ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE,
     }
-    result = await db.execute(select(GlobalConfig).where(GlobalConfig.key.in_(RISK_THRESHOLD_KEYS)))
+    result = await db.execute(
+        select(GlobalConfig)
+        .options(selectinload(GlobalConfig.updated_by))
+        .where(GlobalConfig.key.in_(RISK_THRESHOLD_KEYS))
+        .order_by(GlobalConfig.key)
+        .with_for_update()
+    )
+    configs_by_key: dict[str, GlobalConfig] = {}
     for threshold_config in result.scalars().all():
+        configs_by_key[threshold_config.key] = threshold_config
         threshold_name = RISK_THRESHOLD_KEYS[threshold_config.key]
         thresholds[threshold_name] = int(threshold_config.value)
-    return thresholds
+    return configs_by_key, thresholds
 
 
 async def update_global_config(
@@ -163,24 +173,27 @@ async def update_global_config(
     actor: User,
     log_activity_func: GlobalConfigLogActivity = log_activity,
 ) -> GlobalConfigRead:
-    result = await db.execute(
-        select(GlobalConfig)
-        .options(selectinload(GlobalConfig.updated_by))
-        .where(GlobalConfig.key == key)
-        .with_for_update()
-    )
-    config = result.scalar_one_or_none()
+    if key in RISK_THRESHOLD_KEYS:
+        threshold_configs, peer_thresholds = await _load_locked_risk_threshold_tuple(db)
+        config = threshold_configs.get(key)
+    else:
+        result = await db.execute(
+            select(GlobalConfig)
+            .options(selectinload(GlobalConfig.updated_by))
+            .where(GlobalConfig.key == key)
+            .with_for_update()
+        )
+        config = result.scalar_one_or_none()
+        peer_thresholds = None
 
     if not config:
         raise NotFoundError(f"Config key '{key}' not found")
     if not config.is_editable:
         raise ValidationError("This config value cannot be edited")
 
-    peer_thresholds = await _load_risk_threshold_values(db) if config.key in RISK_THRESHOLD_KEYS else None
-    validate_global_config_value(config, data.value, peer_thresholds=peer_thresholds)
-
     old_value = config.value
     changes = build_change_set(config, {"value": data.value})
+    validate_global_config_value(config, data.value, peer_thresholds=peer_thresholds)
     config.value = data.value
     config.updated_by_id = actor.id
     await db.flush()
