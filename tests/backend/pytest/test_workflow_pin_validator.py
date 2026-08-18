@@ -482,14 +482,14 @@ def test_playwright_ci_project_allows_workflow_selected_chromium_channel() -> No
     assert "process.platform === 'darwin'" not in text
 
 
-def test_e2e_workflow_allows_runtime_headroom_for_cache_misses() -> None:
+def test_e2e_workflow_allows_full_suite_runtime_headroom() -> None:
     text = E2E_WORKFLOW.read_text(encoding="utf-8")
     playwright_job = text[
         text.index("  e2e-tests:") : text.index("  production-profile-smoke:")
     ]
 
-    assert "timeout-minutes: 45" in playwright_job
-    assert "timeout-minutes: 30" not in playwright_job
+    assert "timeout-minutes: 60" in playwright_job
+    assert "timeout-minutes: 45" not in playwright_job
 
 
 def test_e2e_workflow_defines_production_profile_smoke_lane() -> None:
