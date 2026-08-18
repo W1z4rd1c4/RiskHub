@@ -2,8 +2,41 @@ import type { RecentLogEntry } from '@/services/adminApi';
 
 const AUDIT_EXPORT_HEADERS = ['Timestamp', 'Level', 'Event', 'User ID', 'IP', 'Request ID', 'Details'];
 
+function needsSpreadsheetNeutralization(value: string): boolean {
+    const firstCharacter = value[0];
+
+    if (firstCharacter === '\t' || firstCharacter === '\r' || firstCharacter === '\n') {
+        return true;
+    }
+
+    let firstContentIndex = 0;
+    while (
+        value[firstContentIndex] === ' ' ||
+        value[firstContentIndex] === '\t' ||
+        value[firstContentIndex] === '\r' ||
+        value[firstContentIndex] === '\n'
+    ) {
+        firstContentIndex += 1;
+    }
+
+    const firstContentCharacter = value[firstContentIndex];
+    return (
+        firstContentCharacter === '=' ||
+        firstContentCharacter === '+' ||
+        firstContentCharacter === '-' ||
+        firstContentCharacter === '@'
+    );
+}
+
 function quoteCsv(value: unknown): string {
-    return `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const originalValue = String(value ?? '');
+    let spreadsheetSafeValue = originalValue;
+
+    if (needsSpreadsheetNeutralization(originalValue)) {
+        spreadsheetSafeValue = `'${originalValue}`;
+    }
+
+    return `"${spreadsheetSafeValue.replace(/"/g, '""')}"`;
 }
 
 function triggerDownload(blob: Blob, filename: string): void {
