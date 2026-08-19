@@ -2,8 +2,8 @@
  * Reusable table error state (issue #70, N17 / C3 / C4).
  *
  * A localized error message + retry affordance for tables and table-like
- * screens. Additive and dormant — consumed by `SortableTable` (#61) and the
- * DQ / Committee screens (#62); do not wire it into consumers here.
+ * screens. Consumed by #61/#62 and later integrations. Revert all consumers
+ * before reverting this module.
  */
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 

@@ -1,10 +1,8 @@
 /**
  * Reusable table error contract — shared types (issue #70, N17 / C3 / C4).
  *
- * This is the additive, dormant home for the table error contract that both
- * `SortableTable` (#61) and the DQ / Committee screens (#62) consume. Nothing
- * imports it until those tickets land, so it can be reverted independently
- * beforehand.
+ * Consumed by #61/#62 and later integrations. Revert all consumers before
+ * reverting this module.
  */
 
 /**
