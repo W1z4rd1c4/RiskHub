@@ -58,8 +58,9 @@
     },
     {
       "id": "DORA-RISK-CONTROL-REGISTERS",
-      "description": "Risk and Control registers preserve their mature grouped views and URL contracts.",
+      "description": "Risk and Control registers preserve their mature grouped views, URL contracts, and keyboard-accessible table actions.",
       "evidence": [
+        { "spec": "tests/frontend/e2e/risk-control-register-framework.spec.ts", "titleIncludes": "Control table keyboard sorting and localized detail link preserve the FR-P3 browser contract" },
         { "spec": "tests/frontend/e2e/risk-control-register-framework.spec.ts", "titleIncludes": "preserves every mature grouped view in URL state with keyboard and history support" }
       ]
     },

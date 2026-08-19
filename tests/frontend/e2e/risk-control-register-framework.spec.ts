@@ -90,6 +90,60 @@ function requestFilter(url: URL, key: string): unknown {
 }
 
 test.describe('ICT Register — shared Risk and Control framework (#81)', () => {
+    test('Control table keyboard sorting and localized detail link preserve the FR-P3 browser contract', async ({ riskManagerPage }) => {
+        const contract = REGISTERS[1]!;
+        const initialResponsePromise = waitForCollection(riskManagerPage, contract);
+
+        await riskManagerPage.goto(`${contract.path}?q=${encodeURIComponent(contract.fixtureName)}`);
+        expect((await initialResponsePromise).ok()).toBe(true);
+        await expect(riskManagerPage.locator('table')).toBeVisible({ timeout: 30_000 });
+
+        const nameHeader = riskManagerPage.getByRole('columnheader', { name: /^(Name|Název)$/ });
+        const nameSortButton = nameHeader.getByRole('button', { name: /^(Name|Název)$/ });
+        await expect(nameHeader).toHaveAttribute('aria-sort', 'none');
+        await nameSortButton.focus();
+        await expect(nameSortButton).toBeFocused();
+
+        const [sortedResponse] = await Promise.all([
+            waitForCollection(riskManagerPage, contract, (url) => {
+                const sort = JSON.parse(url.searchParams.get('sort') ?? 'null') as {
+                    direction?: string;
+                    field?: string;
+                } | null;
+                return sort?.field === 'name' && sort.direction === 'asc';
+            }),
+            riskManagerPage.keyboard.press('Enter'),
+        ]);
+        expect(JSON.parse(new URL(sortedResponse.url()).searchParams.get('sort') ?? 'null')).toEqual({
+            field: 'name',
+            direction: 'asc',
+        });
+        await expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
+
+        const responseBody = await sortedResponse.json() as {
+            items: Array<{ id: number; name: string }>;
+        };
+        const control = responseBody.items.find((item) => item.name === contract.fixtureName);
+        expect(control, `Expected seeded Control ${contract.fixtureName} in the sorted response`).toBeDefined();
+
+        const locale = (await riskManagerPage.locator('html').getAttribute('lang'))?.split('-')[0];
+        expect(['en', 'cs']).toContain(locale);
+        const viewLabel = `${locale === 'cs' ? 'Zobrazit' : 'View'} ${contract.fixtureName}`;
+        const row = riskManagerPage.locator('tbody tr').filter({ hasText: contract.fixtureName });
+        const detailLink = row.getByRole('link', { name: viewLabel, exact: true });
+        const detailPath = `/controls/${control!.id}`;
+        await expect(detailLink).toHaveAttribute('href', detailPath);
+        await detailLink.focus();
+        await expect(detailLink).toBeFocused();
+
+        await Promise.all([
+            riskManagerPage.waitForURL((url) => url.pathname === detailPath),
+            riskManagerPage.keyboard.press('Enter'),
+        ]);
+        await expect(riskManagerPage).toHaveURL((url) => url.pathname === detailPath);
+        await expect(riskManagerPage.getByRole('heading', { name: contract.fixtureName })).toBeVisible();
+    });
+
     test('preserves every mature grouped view in URL state with keyboard and history support', async ({ riskManagerPage }) => {
         for (const contract of REGISTERS) {
             await riskManagerPage.goto(`${contract.path}?source=external-review&page=9`);
