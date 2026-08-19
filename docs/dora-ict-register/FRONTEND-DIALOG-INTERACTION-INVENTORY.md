@@ -15,11 +15,11 @@ The current validated tree contains:
 | Level | Meaning | Current validated count |
 |---|---|---:|
 | `implementation_surface` | A component that implements `DialogShell`, including inline owners and the transparent `RiskHubModalFrame` wrapper | 26 |
-| `application_render_site` | A concrete production consumer of an implementation surface | 48 |
+| `application_render_site` | A concrete production consumer of an implementation surface | 54 |
 | `non_dialog_surface` | An overlay-like surface with a different interaction contract | 5 |
 | executable unit contract case | A unique implementation or consumer-specific variant, plus the production loading overlay | 29 |
 
-The 48 render sites include all shared-dialog call sites and the three concrete
+The 54 render sites include all shared-dialog call sites and the three concrete
 `RiskHubModalFrame` consumers. The generic frame is not counted as a substitute
 for those consumers.
 
@@ -71,19 +71,20 @@ no copied test-only overlay markup.
 ### Browser render-site matrix
 
 `tests/frontend/e2e/dialog-render-sites.spec.ts` reads the same manifest and
-creates one Playwright test for each of the 48 `application_render_site` rows,
+creates one Playwright test for each of the 54 `application_render_site` rows,
 plus a registry-integrity assertion that proves exact driver/manifest equality.
-The 20 component-owned render sites open through owner harnesses that mount the
-production source parents; the 28 page-owned sites drive real authenticated
+The 23 component-owned render sites open through owner harnesses that mount the
+production source parents; the 31 page-owned sites drive real authenticated
 application routes. No driver mounts a leaf dialog directly. Every render-site
 case verifies semantic role/name, initial focus, forward and reverse focus
 containment, Escape close, focus restoration, and zero unexpected network or
 console output. Live-route monitoring starts after authentication but before
 owner navigation, retains owner-load output through close/restoration, and
 fails request failures or HTTP error responses except for exact documented
-`net::ERR_ABORTED` handoffs: the login shell summary, the mocked governance
-overview refresh, and the admin health/jobs/outbox queries cancelled when
-switching sections. Network-backed owners wait for deterministic ready sentinels.
+`net::ERR_ABORTED` handoffs: the login shell summary, dashboard overview route
+transitions, the mocked governance overview refresh, and the admin
+health/jobs/outbox queries cancelled when switching sections. Network-backed
+owners wait for deterministic ready sentinels.
 
 `tests/frontend/e2e/dora-ux-stateful-a11y.spec.ts` adds representative
 three-theme state scans and the real dialog + portalled `ThemedSelect` contract:

@@ -71,7 +71,7 @@ behind it.
   Verification of a code review of the remediation docs against source and W3C primary sources.
 - [`FRONTEND-DIALOG-INTERACTION-INVENTORY.md`](./FRONTEND-DIALOG-INTERACTION-INVENTORY.md):
   Explanation of the machine-readable two-level inventory (implementation owners + application
-  render sites), source-drift validator, 29-case unit matrix, and 48-site browser contract.
+  render sites), source-drift validator, 29-case unit matrix, and 54-site browser contract.
 - [`FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md`](./FRONTEND-UX-MANUAL-AT-VERIFICATION-2026-07-12.md):
   Closeout record separating the automated gate (build/test/lint/i18n/authz, direct strict-zero
   jsx-a11y + axe, validated dialog inventory and browser matrix) from the
