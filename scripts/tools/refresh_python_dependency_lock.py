@@ -22,7 +22,6 @@ ENTRYPOINT = BACKEND_ROOT / "requirements-dev.txt"
 
 PYTHON_MAJOR_MINOR = (3, 13)
 PIP_VERSION = "26.0"
-AUDIT_REQUIREMENT = "pip-audit==2.10.0"
 PIN_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)==([^\s;]+)$")
 LOCK_HEADER = (
     "# Exact Python 3.13 resolver output for backend development/test and the\n"
@@ -68,13 +67,15 @@ def _normalize_freeze(raw_output: str) -> str:
     return LOCK_HEADER + "\n".join(ordered) + "\n"
 
 
-def _entrypoint_content(lock_content: str) -> str:
-    digest = hashlib.sha256(lock_content.encode("utf-8")).hexdigest()
+def _entrypoint_content(*, lock_content: str, input_content: str) -> str:
+    input_digest = hashlib.sha256(input_content.encode("utf-8")).hexdigest()
+    lock_digest = hashlib.sha256(lock_content.encode("utf-8")).hexdigest()
     return (
         "# Canonical backend development/test install entrypoint.\n"
         "# Human-edited intent lives in requirements-dev.in; exact resolution is enforced\n"
         "# by requirements-dev-constraints.txt for both local setup and CI.\n"
-        f"# lock-sha256: {digest}\n"
+        f"# input-sha256: {input_digest}\n"
+        f"# lock-sha256: {lock_digest}\n"
         "-c requirements-dev-constraints.txt\n"
         "-r requirements-dev.in\n"
     )
@@ -113,7 +114,6 @@ def generate_lock() -> str:
                 "install",
                 "-r",
                 str(INPUT),
-                AUDIT_REQUIREMENT,
             ],
             cwd=BACKEND_ROOT,
         )
@@ -128,11 +128,15 @@ def generate_lock() -> str:
 
 
 def refresh(*, check: bool) -> int:
+    input_content = INPUT.read_text(encoding="utf-8")
     lock_content = generate_lock()
     expected_files = {
         DEV_LOCK: lock_content,
         AUDIT_LOCK: lock_content,
-        ENTRYPOINT: _entrypoint_content(lock_content),
+        ENTRYPOINT: _entrypoint_content(
+            lock_content=lock_content,
+            input_content=input_content,
+        ),
     }
 
     changed: list[Path] = []
