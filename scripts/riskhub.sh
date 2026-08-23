@@ -13,13 +13,13 @@ RiskHub contributor commands
 Usage: ./scripts/riskhub.sh <command> [options]
 
 Commands:
-  setup          Repair/prepare the local development environment
+  setup          Repair and start local development services without resetting data
   dev [options]  Start local development; forwards options such as --backend
   lint           Run the canonical frontend and backend lint contract
-  test           Run the canonical fast backend regression contract
+  test           Run the default backend regression contract
   e2e            Run the guarded Playwright end-to-end contract
   release-check  Run the release-parity audit
-  clean          Remove local containers, volumes, dependencies, and test output
+  clean          Destructively remove local containers, volumes, dependencies, and test output
   help           Show this command contract
 
 Advanced targets remain available through:

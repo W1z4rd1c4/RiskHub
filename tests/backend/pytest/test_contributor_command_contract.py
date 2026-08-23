@@ -41,6 +41,10 @@ def test_contributor_command_help_lists_stable_surface():
     ):
         assert command in result.stdout
 
+    assert "Repair and start local development services" in result.stdout
+    assert "Run the default backend regression contract" in result.stdout
+    assert "Destructively remove local containers" in result.stdout
+
 
 def test_contributor_command_rejects_unknown_command():
     result = subprocess.run(
