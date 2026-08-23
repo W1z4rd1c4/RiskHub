@@ -9,7 +9,9 @@ Operational and development automation for RiskHub.
 - `./scripts/riskhub.sh <command>`
   - Stable contributor façade for `setup`, `dev`, `lint`, `test`, `e2e`, `release-check`, and `clean`.
   - Delegates to the canonical install and Make targets without duplicating their logic, guards, or exit behavior.
-  - Contract and CI ownership map: [`docs/development/CONTRIBUTOR_COMMANDS.md`](../docs/development/CONTRIBUTOR_COMMANDS.md).
+  - `release-check` is disruptive: the release-parity runtime audit stops local development processes and tears down the active Compose stack before exercising its paths.
+  - `clean` removes Compose volumes, `node_modules`, caches, build output, and test evidence but intentionally retains `backend/venv`.
+  - Contract and executable CI ownership map: [`docs/development/CONTRIBUTOR_COMMANDS.md`](../docs/development/CONTRIBUTOR_COMMANDS.md) and [`docs/development/ci-gate-contract.json`](../docs/development/ci-gate-contract.json).
 - `./scripts/install.sh`
   - Public first-run and lifecycle installer for demo, local contributor, and guided production flows.
   - Thin shell wrapper over `./scripts/install_cli.py` and `./scripts/install_lib/`.
