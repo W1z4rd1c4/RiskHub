@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FACADE = REPO_ROOT / "scripts/riskhub.sh"
+CI_CONTRACT = REPO_ROOT / "docs/development/ci-gate-contract.json"
+CONTRACT_DOC = REPO_ROOT / "docs/development/CONTRIBUTOR_COMMANDS.md"
 
 
 def test_contributor_command_contract():
@@ -47,6 +50,16 @@ def test_contributor_command_help_lists_stable_surface():
     assert "Stop local dev/Compose" in result.stdout
     assert "keep backend/venv" in result.stdout
     assert "remove local containers, volumes, dependencies" not in result.stdout
+
+
+def test_human_ci_map_covers_every_machine_mapped_job():
+    payload = json.loads(CI_CONTRACT.read_text(encoding="utf-8"))
+    documentation = CONTRACT_DOC.read_text(encoding="utf-8")
+
+    job_names = [check["job_name"] for check in payload["checks"]]
+    assert len(job_names) == len(set(job_names))
+    for job_name in job_names:
+        assert f"`{job_name}`" in documentation
 
 
 def test_contributor_command_rejects_unknown_command():
