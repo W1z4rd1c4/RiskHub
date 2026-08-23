@@ -105,13 +105,13 @@ def validate() -> list[str]:
     errors: list[str] = []
 
     expected_entrypoint = [
-        "-c requirements-dev-constraints.txt",
         "-r requirements-dev.in",
+        "-r requirements-dev-constraints.txt",
     ]
     if _logical_lines(ENTRYPOINT) != expected_entrypoint:
         errors.append(
-            "requirements-dev.txt must contain only the canonical constraint "
-            "and input includes, in that order"
+            "requirements-dev.txt must contain only the canonical input and exact "
+            "lock requirement includes, in that order"
         )
 
     entrypoint_digests = _entrypoint_digests()
@@ -128,6 +128,7 @@ def validate() -> list[str]:
 
     try:
         requested = _load_requested_requirements(INPUT)
+        entrypoint_requirements = _load_requested_requirements(ENTRYPOINT)
         locked = _load_lock(LOCK)
         audit_locked = _load_lock(AUDIT_CONSTRAINTS)
     except (OSError, ValueError) as exc:
@@ -149,6 +150,12 @@ def validate() -> list[str]:
     pip_audit_requirement = requested_by_name.get("pip-audit")
     if pip_audit_requirement is None or str(pip_audit_requirement.specifier) != "==2.10.0":
         errors.append("requirements-dev.in must request pip-audit==2.10.0 exactly")
+
+    entrypoint_names = {
+        canonicalize_name(requirement.name) for requirement in entrypoint_requirements
+    }
+    if not set(locked_versions) <= entrypoint_names:
+        errors.append("requirements-dev.txt must install every package in the exact lock")
 
     for requirement in requested:
         name = canonicalize_name(requirement.name)
