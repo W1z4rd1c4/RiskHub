@@ -1,0 +1,122 @@
+name: One-time Access Authz Contract Amendment
+
+on:
+  push:
+    branches:
+      - review/access-domain-exceptions
+
+permissions:
+  contents: write
+
+jobs:
+  amend:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: review/access-domain-exceptions
+          fetch-depth: 0
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Amend the authorization contract mirrors
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          from pathlib import Path
+
+          markdown_path = Path("docs/security/authorization-capability-contract.md")
+          json_path = Path("docs/security/authorization-capability-contract.json")
+          structure_path = Path(".planning/codebase/STRUCTURE.md")
+
+          note_markdown = (
+              "On 2026-08-23, issue #110 moved access-roster and access-update "
+              "policy failures in `backend/app/services/_access_workflow/policy.py` "
+              "from FastAPI `HTTPException` to the existing ADR-003 domain taxonomy. "
+              "`ValidationError`, `AuthorizationError`, and `NotFoundError` retain "
+              "the existing 400, 403, and 404 projections through the application "
+              "domain-error handler. Detail strings, actor authority, row visibility, "
+              "capability fields, frontend gates, and transaction behavior are unchanged.\n\n"
+          )
+          note_json = (
+              "2026-08-23: Issue #110 moves access-roster and access-update policy "
+              "failures in backend/app/services/_access_workflow/policy.py from "
+              "FastAPI HTTPException to the existing ADR-003 domain taxonomy. "
+              "ValidationError, AuthorizationError, and NotFoundError retain the "
+              "existing 400, 403, and 404 projections through the application "
+              "domain-error handler. Detail strings, actor authority, row visibility, "
+              "capability fields, frontend gates, and transaction behavior are unchanged."
+          )
+
+          markdown = markdown_path.read_text(encoding="utf-8")
+          markdown = markdown.replace(
+              "> Last reviewed: 2026-07-18",
+              "> Last reviewed: 2026-08-23",
+              1,
+          )
+          insertion_marker = "## Architecture Principles\n"
+          if note_markdown not in markdown:
+              markdown = markdown.replace(
+                  insertion_marker,
+                  note_markdown + insertion_marker,
+                  1,
+              )
+
+          updated_lines: list[str] = []
+          evidence = "tests/backend/pytest/test_access_workflow_policy.py"
+          for line in markdown.splitlines():
+              if line.startswith(("| AUTHZ-ACCESS-LIST ", "| AUTHZ-ACCESS-UPDATE ")) and evidence not in line:
+                  line = line[:-2] + f"<br>{evidence} |"
+              updated_lines.append(line)
+          markdown_path.write_text("\n".join(updated_lines) + "\n", encoding="utf-8")
+
+          data = json.loads(json_path.read_text(encoding="utf-8"))
+          data["last_reviewed"] = "2026-08-23"
+          data["last_architecture_refactor_reviewed"] = "2026-08-23"
+          notes = data.setdefault("architecture_refactor_notes", [])
+          if note_json not in notes:
+              notes.insert(0, note_json)
+
+          def add_evidence(value: object) -> None:
+              if isinstance(value, dict):
+                  if value.get("id") in {"AUTHZ-ACCESS-LIST", "AUTHZ-ACCESS-UPDATE"}:
+                      tests = value.get("tests")
+                      if isinstance(tests, list) and evidence not in tests:
+                          tests.append(evidence)
+                      elif isinstance(tests, str) and evidence not in tests:
+                          value["tests"] = f"{tests}\n{evidence}"
+                  for child in value.values():
+                      add_evidence(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      add_evidence(child)
+
+          add_evidence(data)
+          json_path.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+
+          structure = structure_path.read_text(encoding="utf-8")
+          structure = structure.replace("**Analysis Date:** 2026-08-11", "**Analysis Date:** 2026-08-23")
+          structure = structure.replace(
+              "tests/backend/pytest/` - 497 tracked test files (459 Python)",
+              "tests/backend/pytest/` - 498 tracked test files (460 Python)",
+          )
+          structure = structure.replace(
+              "*Structure audit refreshed on 2026-08-11*",
+              "*Structure audit refreshed on 2026-08-23*",
+          )
+          structure_path.write_text(structure, encoding="utf-8")
+          PY
+
+          git rm .github/workflows/review-amend-access-authz.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/security/authorization-capability-contract.md \
+            docs/security/authorization-capability-contract.json \
+            .planning/codebase/STRUCTURE.md
+          git commit -m "docs(authz): record access policy boundary refactor"
+          git push origin HEAD:review/access-domain-exceptions
