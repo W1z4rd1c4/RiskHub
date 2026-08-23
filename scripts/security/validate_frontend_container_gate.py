@@ -11,6 +11,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = REPO_ROOT / ".github/workflows/security.yml"
+STATUS_HELPER = REPO_ROOT / "scripts/security/frontend_trivy_status.py"
 
 
 def _step_by_name(steps: list[dict], name: str) -> tuple[int, dict]:
@@ -23,6 +24,9 @@ def _step_by_name(steps: list[dict], name: str) -> tuple[int, dict]:
 def validate() -> list[str]:
     errors: list[str] = []
 
+    if not STATUS_HELPER.is_file():
+        errors.append("missing frontend Trivy status recorder/enforcer")
+
     try:
         workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
         steps = workflow["jobs"]["container-security"]["steps"]
@@ -31,6 +35,10 @@ def validate() -> list[str]:
 
     try:
         scan_index, scan = _step_by_name(steps, "Run Trivy on Frontend")
+        status_index, status_record = _step_by_name(
+            steps,
+            "Record Frontend Trivy Scan Status",
+        )
         sarif_index, sarif_upload = _step_by_name(
             steps,
             "Upload Trivy Frontend Report",
@@ -44,7 +52,7 @@ def validate() -> list[str]:
             "Enforce Frontend Trivy HIGH/CRITICAL Gate",
         )
     except ValueError as exc:
-        return [str(exc)]
+        return [*errors, str(exc)]
 
     if scan.get("id") != "trivy_frontend":
         errors.append("frontend Trivy scan must expose id=trivy_frontend")
@@ -73,31 +81,55 @@ def validate() -> list[str]:
                 f"got {options.get(key)!r}"
             )
 
+    if status_record.get("if") != "always()":
+        errors.append("frontend scan-status recorder must run with if: always()")
+    status_env = status_record.get("env", {})
+    if status_env.get("FRONTEND_TRIVY_OUTCOME") != "${{ steps.trivy_frontend.outcome }}":
+        errors.append("frontend scan-status recorder must consume the raw scan outcome")
+    status_script = str(status_record.get("run", ""))
+    for required_text in (
+        "frontend_trivy_status.py record",
+        '"$FRONTEND_TRIVY_OUTCOME"',
+        "--sarif trivy-frontend.sarif",
+        "--output trivy-frontend-status.json",
+    ):
+        if required_text not in status_script:
+            errors.append(
+                f"frontend scan-status recorder is missing: {required_text}"
+            )
+
     if sarif_upload.get("if") != "always()":
         errors.append("frontend SARIF upload must run with if: always()")
 
     if artifact_upload.get("if") != "always()":
         errors.append("container report artifact upload must run with if: always()")
     artifact_paths = str(artifact_upload.get("with", {}).get("path", ""))
-    if "trivy-frontend.sarif" not in artifact_paths:
-        errors.append("container report artifact must retain trivy-frontend.sarif")
+    for required_path in (
+        "trivy-frontend.sarif",
+        "trivy-frontend-status.json",
+    ):
+        if required_path not in artifact_paths:
+            errors.append(
+                f"container report artifact must retain {required_path}"
+            )
 
     if gate.get("if") != "always()":
         errors.append("frontend enforcement step must run with if: always()")
-    env = gate.get("env", {})
-    if env.get("FRONTEND_TRIVY_OUTCOME") != "${{ steps.trivy_frontend.outcome }}":
-        errors.append("frontend enforcement step must consume the raw scan outcome")
     gate_script = str(gate.get("run", ""))
-    if 'FRONTEND_TRIVY_OUTCOME" != "success' not in gate_script:
-        errors.append("frontend enforcement step must fail on any non-success outcome")
-    if "exit 1" not in gate_script:
-        errors.append("frontend enforcement step must return a non-zero exit code")
+    for required_text in (
+        "frontend_trivy_status.py enforce",
+        "--status-file trivy-frontend-status.json",
+    ):
+        if required_text not in gate_script:
+            errors.append(f"frontend enforcement step is missing: {required_text}")
 
-    if not (scan_index < sarif_index < gate_index):
-        errors.append("frontend SARIF must upload after the scan and before enforcement")
-    if not (scan_index < artifact_index < gate_index):
+    if not (scan_index < status_index < sarif_index < gate_index):
         errors.append(
-            "frontend machine-readable artifact must upload before enforcement"
+            "frontend status must be recorded after the scan and before SARIF upload/enforcement"
+        )
+    if not (scan_index < status_index < artifact_index < gate_index):
+        errors.append(
+            "frontend status artifact must be generated and uploaded before enforcement"
         )
 
     return errors
