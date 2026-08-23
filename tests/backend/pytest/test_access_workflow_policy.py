@@ -2,7 +2,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.core.exceptions import AuthorizationError, ValidationError
+from app.core.exceptions import (
+    AuthorizationError,
+    NotFoundError,
+    ValidationError,
+    domain_error_handler,
+)
 from app.models.role import RoleType
 from app.services._access_workflow import policy
 
@@ -53,3 +58,22 @@ def test_department_head_cross_department_denial_is_domain_error(monkeypatch):
         match="Access denied to this department",
     ):
         policy.resolve_department_access_roster_target(user, 20)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("error_type", "expected_status"),
+    (
+        (ValidationError, 400),
+        (AuthorizationError, 403),
+        (NotFoundError, 404),
+    ),
+)
+async def test_access_policy_domain_errors_keep_existing_http_projection(
+    error_type,
+    expected_status,
+):
+    response = await domain_error_handler(None, error_type("contract detail"))
+
+    assert response.status_code == expected_status
+    assert response.body == b'{"detail":"contract detail"}'
