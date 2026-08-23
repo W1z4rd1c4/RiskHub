@@ -1,36 +1,13 @@
 # CLAUDE.md
 
-See [AGENTS.md](AGENTS.md) for project guidance and conventions.
+General repository guidance, architecture locks, authorization contracts,
+testing conventions, and contributor rules live in [AGENTS.md](AGENTS.md).
+Documentation and work-tracking authority is defined in
+[docs/DOCUMENTATION_OWNERSHIP.md](docs/DOCUMENTATION_OWNERSHIP.md).
 
-## RiskHub v5 conventions
-
-For RiskHub audit-repair work, also follow the architecture-lock conventions in
-`AGENTS.md`: use `client_factory` for backend API tests, keep the TOML registries
-in sync with invariant-lock tests, and cross-check ADR-001/002/005/010 when
-touching capabilities, transactions, archive semantics, or forward-only
-Postgres migrations. If a task explicitly forbids subagents, that task-level
-instruction overrides this file's default orchestration model.
-
-## Architecture Locks
-
-Backend invariant-lock tests live in `tests/backend/pytest/architecture/` and
-run through `make -f scripts/Makefile test-architecture-locks`. Keep the TOML
-registries in sync, including `_archive_allowlist.toml`, `_naming_allowlist.toml`,
-`_capabilities_all_allowlist.toml`, and `_endpoint_commit_allowlist.toml`.
-
-## Authorization Capability Contract
-
-Capability policy is governed by `docs/security/authorization-capability-contract.md`,
-`docs/security/authorization-capability-contract.json`, and
-`docs/security/capability-catalog.json`. The accepted frontend invariant test
-home is `tests/frontend/unit/src/authz/useAuthz.invariant.test.ts`; per-row
-capabilities remain on `{Risk,Control,Vendor,Issue,KRI}Read.capabilities`.
-
-## client_factory
-
-Backend API tests should use `client_factory` from `tests/backend/pytest/conftest.py`.
-Local `dependency_overrides[get_db]` blocks require an entry in
-`tests/backend/pytest/_get_db_override_whitelist.toml`.
+This file contains only Claude-specific orchestration and tool-use deltas. If a
+task explicitly forbids subagents, that task-level instruction overrides the
+default orchestration model below.
 
 ## Orchestration model
 

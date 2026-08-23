@@ -18,8 +18,11 @@ RiskHub has two complementary forms of current truth:
    documentation, and `.planning/` record the technical state and intent of a
    specific commit.
 
-Neither replaces the other. A pull request changes versioned repository truth;
-its linked issue or project records the live delivery state around that change.
+GitHub Issues and Projects are authoritative for live delivery status.
+
+Neither form replaces the other. A pull request changes versioned repository
+truth; its linked issue or project records the live delivery state around that
+change.
 
 ## Authority Matrix
 
@@ -27,7 +30,9 @@ its linked issue or project records the live delivery state around that change.
 |---|---|---|---|
 | Public product position and first-run commands | `README.md` | RiskHub Maintainer | Public install, product scope, or evaluation path changes |
 | Human contribution contract | `CONTRIBUTING.md` | RiskHub Maintainer | Branch, review, verification, or contribution policy changes |
-| Agent execution rules | `AGENTS.md` and `docs/agent/` | RiskHub Maintainer | Agent workflow or repository guardrail changes |
+| General agent execution rules | `AGENTS.md` and `docs/agent/` | RiskHub Maintainer | Agent workflow or repository guardrail changes |
+| Claude-specific orchestration deltas | `CLAUDE.md`, linking to `AGENTS.md` for general rules | RiskHub Maintainer | Claude tool or orchestration behavior changes |
+| ICT Register domain vocabulary | `CONTEXT.md` | ICT Register domain owner | A canonical term, definition, or avoid-list changes |
 | Implemented behavior | Code, tests, migrations, and runtime configuration at the referenced commit | Owning code reviewer | Every behavior change |
 | Accepted architecture decisions | `docs/adr/` | Architecture owner | Decision accepted, amended, or superseded |
 | Durable product and operating behavior | `docs/BUSINESS_LOGIC.md`, `docs/user/`, `docs/admin/`, deployment and security docs | Domain owner | User, operator, security, or deployment contract changes |
@@ -37,6 +42,7 @@ its linked issue or project records the live delivery state around that change.
 | Active phase implementation detail | The active `.planning/phases/*-PLAN.md`, subject to `AGENTS.md` precedence | Phase owner | Scope or implementation sequence changes |
 | Historical phase records | `.planning/phases/*-SUMMARY.md` and completed phase bodies | Phase owner | Append/correct provenance only; do not reuse as live status |
 | Point-in-time audits and release evidence | `docs/audits/`, `docs/dora-ict-register/`, dated security reports | Named evidence owner | Additive disposition or new evidence; preserve dated findings |
+| Generated/transient execution evidence | `tests/results/`, local logs, CI artifacts | Producing command or workflow | Never treated as canonical documentation; retain or delete under the owning evidence policy |
 
 ## Conflict Resolution
 
@@ -83,7 +89,10 @@ Normative rules have one canonical home. Other documents should summarize the
 rule only when needed for their audience and link to the canonical source.
 
 Do not copy full command matrices, architecture rules, or live status tables
-between `README.md`, `CONTRIBUTING.md`, `AGENTS.md`, `docs/`, and `.planning/`.
+between `README.md`, `CONTRIBUTING.md`, `AGENTS.md`, `CLAUDE.md`, `docs/`, and
+`.planning/`. Tool-specific instruction files must contain only tool deltas and
+links to the general rule owner.
+
 When duplication is necessary for usability:
 
 - name the canonical source;
@@ -98,6 +107,11 @@ The following are archival, not live trackers:
 - completed `.planning/phases/*` plans and summaries;
 - dated audit and release reports;
 - historical implementation logs and evidence captures.
+
+Generated `tests/results/`, local runtime logs, and CI artifacts are transient
+evidence. They stay outside the active documentation tree and must not be linked
+as durable truth unless a reviewed, immutable report records their identity and
+disposition.
 
 Archives may receive additive provenance or explicit corrections, but they must
 not be edited to imply that past evidence described newer repository bytes.
