@@ -83,6 +83,7 @@ job must have a pull-request trigger that makes the check available on every PR.
 | `Python Security (Bandit + pip-audit)` | `security.yml` | PR + pushes + schedule | 3–12 min | No | Download Bandit/pip-audit JSON and separate code findings from dependency findings. |
 | `Frontend Security (npm audit)` | `security.yml` | PR + pushes + schedule | 2–8 min | No | Run `cd frontend && npm audit --audit-level=high`. |
 | `Frontend i18n (Parity + Hardcoded Scan)` | `security.yml` | PR + pushes + schedule | 2–8 min | No | Run `cd frontend && npm run i18n:test`. |
+| `Redis Resilience Integration (non-blocking)` | `security.yml` | Scheduled execution only; workflow also exists on PR/push | 2–10 min | No | Inspect Redis integration logs; the job is intentionally non-blocking during rollout. |
 | `Container Scan (Trivy + SBOM Correlation)` | `security.yml` | PR + pushes + schedule | 8–25 min | No | Download container reports and distinguish frontend Trivy from backend Grype findings. |
 | `Secrets Detection (Gitleaks)` | `security.yml` | PR + pushes + schedule | 1–5 min | No | Inspect the exact match and remove/rotate genuine secret material. |
 | `Security Headers Verification` | `security.yml` | PR only; workflow also exists on push/schedule | 2–8 min | No | Run the security-header test module and inspect response headers. |
