@@ -72,12 +72,12 @@ def _entrypoint_content(*, lock_content: str, input_content: str) -> str:
     lock_digest = hashlib.sha256(lock_content.encode("utf-8")).hexdigest()
     return (
         "# Canonical backend development/test install entrypoint.\n"
-        "# Human-edited intent lives in requirements-dev.in; exact resolution is enforced\n"
-        "# by requirements-dev-constraints.txt for both local setup and CI.\n"
+        "# Human-edited intent lives in requirements-dev.in; exact resolution is installed\n"
+        "# from requirements-dev-constraints.txt for both local setup and CI.\n"
         f"# input-sha256: {input_digest}\n"
         f"# lock-sha256: {lock_digest}\n"
-        "-c requirements-dev-constraints.txt\n"
         "-r requirements-dev.in\n"
+        "-r requirements-dev-constraints.txt\n"
     )
 
 
