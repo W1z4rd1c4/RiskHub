@@ -112,7 +112,8 @@ def access_user_capabilities(
     )
 
 
-async def _get_role_or_400(db: AsyncSession, role_id: int) -> Role:
+async def _get_active_role(db: AsyncSession, role_id: int) -> Role:
+    """Return an active role or reject an invalid role selection."""
     role_result = await db.execute(
         select(Role).where(
             Role.id == role_id,
@@ -164,7 +165,7 @@ async def authorize_access_update_fields(
     if "role_id" not in update_data or update_data["role_id"] == target_user.role_id:
         return None
 
-    new_role = await _get_role_or_400(db, update_data["role_id"])
+    new_role = await _get_active_role(db, update_data["role_id"])
     assigning_admin = new_role.name == RoleType.ADMIN
 
     if assigning_admin and not is_platform_admin(current_user):
