@@ -22,7 +22,9 @@ GitHub Issues and Projects are authoritative for live delivery status.
 
 Neither form replaces the other. A pull request changes versioned repository
 truth; its linked issue or project records the live delivery state around that
-change.
+change. Agent default-work selection must confirm that live delivery state before
+using `.planning/STATE.md`, `.planning/ROADMAP.md`, or a phase plan as
+implementation context.
 
 ## Authority Matrix
 
@@ -39,7 +41,7 @@ change.
 | Live delivery scope, priority, assignee, status, and acceptance evidence | GitHub Issues and Projects | Issue owner / maintainer | Any delivery-state change |
 | Pull-request candidate, review discussion, checks, and merge decision | GitHub pull request | PR author and reviewers | Every candidate or review change |
 | Versioned technical context and roadmap snapshot | `.planning/PROJECT.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/codebase/` | RiskHub Maintainer | A merged change alters technical state, roadmap intent, or repository map |
-| Active phase implementation detail | The active `.planning/phases/*-PLAN.md`, subject to `AGENTS.md` precedence | Phase owner | Scope or implementation sequence changes |
+| Active phase implementation detail | The active `.planning/phases/*-PLAN.md`, subject to `AGENTS.md` precedence and live-status reconciliation | Phase owner | Scope or implementation sequence changes |
 | Historical phase records | `.planning/phases/*-SUMMARY.md` and completed phase bodies | Phase owner | Append/correct provenance only; do not reuse as live status |
 | Point-in-time audits and release evidence | `docs/audits/`, `docs/dora-ict-register/`, dated security reports | Named evidence owner | Additive disposition or new evidence; preserve dated findings |
 | Generated/transient execution evidence | `tests/results/`, local logs, CI artifacts | Producing command or workflow | Never treated as canonical documentation; retain or delete under the owning evidence policy |
@@ -51,7 +53,8 @@ Do not silently choose whichever source is most convenient.
 1. **Live status conflict**: GitHub Issues and Projects are authoritative for
    whether work is open, assigned, blocked, under review, or complete. Reconcile
    `.planning/STATE.md` or `.planning/ROADMAP.md` in the relevant delivery PR or
-   the next explicit planning reconciliation.
+   the next explicit planning reconciliation. Agents must not select stale
+   planning entries as default work.
 2. **Implemented behavior conflict**: current code, tests, migrations, and
    configuration establish what the referenced commit does. Correct stale
    documentation. If an accepted ADR or product contract requires different
