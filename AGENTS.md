@@ -4,7 +4,7 @@
 
 Canonical Source: `docs/agent/README.md`, `docs/agent/AGENTS_DOC_COVERAGE.md`
 
-This file is the navigation layer for agent behavior. Canonical details live in `docs/` and `.planning/codebase/`.
+This file is the canonical general agent policy and navigation layer. Domain-specific details live in `docs/` and `.planning/codebase/`.
 Use [`docs/agent/README.md`](docs/agent/README.md) as the agent-doc index and [`docs/agent/AGENTS_DOC_COVERAGE.md`](docs/agent/AGENTS_DOC_COVERAGE.md) for section coverage tracking.
 Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-domain documentation navigation, [`docs/DOCUMENTATION_OWNERSHIP.md`](docs/DOCUMENTATION_OWNERSHIP.md) for documentation and work-tracking authority, and [`.planning/README.md`](.planning/README.md) for planning-tree navigation.
 
@@ -13,8 +13,8 @@ Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-do
 | Repository Knowledge Map | `docs/agent/README.md`<br>`docs/agent/AGENTS_DOC_COVERAGE.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Mission | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Project Map | `.planning/codebase/STRUCTURE.md`<br>`.planning/codebase/ARCHITECTURE.md` | full | RiskHub Maintainer | 2026-04-25 |
-| Source-of-Truth Order | `docs/agent/CODEX_WORKING_RULES.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`<br>`.planning/codebase/CONVENTIONS.md` | full | RiskHub Maintainer | 2026-08-23 |
-| Active Work Focus (Default Bias) | `docs/agent/CODEX_WORKING_RULES.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`<br>`.planning/STATE.md`<br>`.planning/ROADMAP.md` | full | RiskHub Maintainer | 2026-08-23 |
+| Source-of-Truth Order | `AGENTS.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`<br>`.planning/codebase/CONVENTIONS.md` | full | RiskHub Maintainer | 2026-08-24 |
+| Active Work Focus (Default Bias) | `AGENTS.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`<br>`.planning/STATE.md`<br>`.planning/ROADMAP.md` | full | RiskHub Maintainer | 2026-08-24 |
 | Execution Protocol | `docs/agent/EXECUTION_PROTOCOL.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Risk Hotspots (Mandatory Extra Care) | `.planning/codebase/CONCERNS.md`<br>`docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-04-25 |
 | Key Knowledge (Keep In Sync) | `docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/PYTEST_RUNTIME_NOTES.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
@@ -57,7 +57,7 @@ Root non-dot contract:
 
 ## Source-of-Truth Order
 
-Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/codebase/CONVENTIONS.md`
+Canonical Source: this section in `AGENTS.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/codebase/CONVENTIONS.md`
 
 Use this precedence when instructions or status claims conflict:
 
@@ -68,7 +68,7 @@ Use this precedence when instructions or status claims conflict:
 5. `.planning/STATE.md` and `.planning/ROADMAP.md` for versioned technical context and roadmap intent at the current commit—not live assignment or closure state.
 6. `.planning/codebase/*.md` for architecture, conventions, testing, and concerns.
 7. `docs/BUSINESS_LOGIC.md`, `docs/TESTING.md`, and accepted ADRs for durable behavior, verification, and architecture contracts.
-8. `AGENTS.md` as the repository navigation layer.
+8. Tool-specific instruction files only for deltas within the general policy above.
 
 Rules:
 
@@ -78,7 +78,7 @@ Rules:
 
 ## Active Work Focus (Default Bias)
 
-Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`
+Canonical Source: this section in `AGENTS.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`
 
 Unless the user supplies a direct task, select work only from an assigned or otherwise explicitly applicable open GitHub Issue, pull request, or Project item.
 Use `.planning/STATE.md`, `.planning/ROADMAP.md`, and active phase plans to obtain versioned implementation context after that live-status check.
