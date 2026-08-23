@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-08-11
+**Analysis Date:** 2026-08-23
 
 ## Top-Level Layout
 
@@ -29,7 +29,7 @@
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 497 tracked test files (459 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - 498 tracked test files (460 Python) in the measured repository snapshot
 
 ## Frontend Tree (`frontend/`)
 
@@ -79,4 +79,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-08-11*
+*Structure audit refreshed on 2026-08-23*
