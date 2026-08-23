@@ -73,11 +73,19 @@ AGENTS_REQUIRED_TERMS = {
     "referenced GitHub Issue, pull request, or Project item",
     "versioned technical context",
     "Do not start work solely because a planning snapshot says it is in progress.",
+    "| Source-of-Truth Order | `AGENTS.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`",
+    "| Active Work Focus (Default Bias) | `AGENTS.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`",
+    "Canonical Source: this section in `AGENTS.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/codebase/CONVENTIONS.md`",
+    "Canonical Source: this section in `AGENTS.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`",
 }
 
 AGENTS_FORBIDDEN_TERMS = {
     ".planning/STATE.md` (current truth of progress)",
     "Unless user redirects, prioritize unresolved work identified as in progress in:",
+    "| Source-of-Truth Order | `docs/agent/CODEX_WORKING_RULES.md`",
+    "| Active Work Focus (Default Bias) | `docs/agent/CODEX_WORKING_RULES.md`",
+    "Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/codebase/CONVENTIONS.md`",
+    "Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`",
 }
 
 CODEX_REQUIRED_LINKS = {
@@ -194,7 +202,7 @@ def _validate_agent_surfaces() -> list[str]:
             errors.append(f"AGENTS.md is missing agent authority term: {term}")
     for term in sorted(AGENTS_FORBIDDEN_TERMS):
         if term in agents_text:
-            errors.append(f"AGENTS.md retains conflicting planning authority: {term}")
+            errors.append(f"AGENTS.md retains conflicting agent authority: {term}")
 
     codex_text = _read(CODEX_RULES)
     for link in sorted(CODEX_REQUIRED_LINKS):
