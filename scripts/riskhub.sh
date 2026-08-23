@@ -18,8 +18,8 @@ Commands:
   lint           Run frontend/backend lint plus backend mypy
   test           Run the default backend regression contract
   e2e            Run the guarded Playwright end-to-end contract
-  release-check  Run the release-parity audit
-  clean          Destructively remove local containers, volumes, dependencies, and test output
+  release-check  Stop local dev/Compose, then run the full release-parity audit
+  clean          Remove Compose volumes, node_modules, caches, and test output; keep backend/venv
   help           Show this command contract
 
 Advanced targets remain available through:
