@@ -9,6 +9,12 @@ RiskHub accepts public contributions through forks, issues, and pull requests.
 - Keep pull requests focused. Small, reviewable changes move faster.
 - All merges to `main` are maintainer-controlled. Opening a PR does not imply merge approval.
 
+The authority for live work status, versioned planning, durable documentation,
+and historical evidence is defined in
+[docs/DOCUMENTATION_OWNERSHIP.md](./docs/DOCUMENTATION_OWNERSHIP.md). Do not
+create a second live tracker or duplicate a normative rule without naming its
+canonical source.
+
 ## Development Setup
 
 Start from the canonical local workflows:

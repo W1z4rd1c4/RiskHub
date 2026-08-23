@@ -2,11 +2,15 @@
 
 English-first master index for repository documentation topology.
 
+Authority, ownership, and conflict resolution are defined in
+[`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md).
+
 ## Root Entry Points
 
 - [`README.md`](../README.md): Repository quick start and canonical startup commands.
 - [`AGENTS.md`](../AGENTS.md): Agent behavior, source-of-truth order, execution protocol.
 - [`docs/README.md`](./README.md): Product and engineering documentation index.
+- [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md): Authority matrix for live work, versioned planning, durable docs, and archives.
 - [`.planning/README.md`](../.planning/README.md): Planning state, roadmap, codebase maps, and phase archive entry.
 
 ## Tree Map
@@ -15,6 +19,7 @@ English-first master index for repository documentation topology.
 AGENTS.md
 ├── docs/README.md
 │   ├── docs/DOCUMENTATION_TREE.md (this file)
+│   ├── docs/DOCUMENTATION_OWNERSHIP.md
 │   ├── docs/agent/README.md
 │   ├── docs/development/README.md
 │   ├── docs/security/README.md
@@ -42,6 +47,8 @@ AGENTS.md
 
 ## Navigation By Intent
 
+- Documentation and work-tracking authority:
+  - [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md)
 - Product/business behavior:
   - [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
   - [`docs/user/README.md`](./user/README.md)
@@ -133,6 +140,8 @@ AGENTS.md
 
 ## Canonical vs Archival Boundary
 
+- Authority and conflict-resolution contract:
+  - [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md)
 - Canonical documentation for active work:
   - `AGENTS.md`
   - `docs/`
@@ -149,6 +158,7 @@ AGENTS.md
 Run topology validation from repo root:
 
 ```bash
+python3 scripts/tools/validate_documentation_ownership.py
 python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
 python3 scripts/tools/docs_tree_audit.py --scope full
 python3 scripts/tools/structure_metrics_guard.py

@@ -1,8 +1,17 @@
 # RiskHub Planning Index
 
-Planning root for active state, roadmap intent, codebase maps, and historical phase archives.
+Planning root for versioned technical state, roadmap intent, codebase maps, and
+historical phase archives.
 
-## Active Planning Truth
+Live delivery scope, assignment, priority, review state, and closure are tracked
+in GitHub Issues, pull requests, and Projects. The files below are the
+repository snapshot for a specific commit and must be reconciled when delivery
+changes that technical state.
+
+See [`docs/DOCUMENTATION_OWNERSHIP.md`](../docs/DOCUMENTATION_OWNERSHIP.md) for
+the authority and conflict-resolution contract.
+
+## Repository Planning State
 
 - [`.planning/PROJECT.md`](./PROJECT.md)
 - [`.planning/STATE.md`](./STATE.md)
