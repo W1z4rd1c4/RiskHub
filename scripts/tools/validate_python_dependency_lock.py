@@ -219,6 +219,7 @@ def validate() -> list[str]:
         for required_text in (
             "schedule:",
             "workflow_dispatch:",
+            "if: github.ref == 'refs/heads/main'",
             "refresh_python_dependency_lock.py",
             "gh pr create",
             "gh auth setup-git",
