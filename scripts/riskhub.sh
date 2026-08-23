@@ -15,7 +15,7 @@ Usage: ./scripts/riskhub.sh <command> [options]
 Commands:
   setup          Repair and start local development services without resetting data
   dev [options]  Start local development; forwards options such as --backend
-  lint           Run the canonical frontend and backend lint contract
+  lint           Run frontend/backend lint plus backend mypy
   test           Run the default backend regression contract
   e2e            Run the guarded Playwright end-to-end contract
   release-check  Run the release-parity audit
@@ -54,7 +54,7 @@ case "$command" in
         ;;
     lint)
         require_no_extra_args "$@"
-        exec make --no-print-directory -f scripts/Makefile lint
+        exec make --no-print-directory -f scripts/Makefile lint lint-types
         ;;
     test)
         require_no_extra_args "$@"
