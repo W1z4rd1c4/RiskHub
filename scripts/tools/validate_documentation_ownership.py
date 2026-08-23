@@ -8,6 +8,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OWNERSHIP = REPO_ROOT / "docs/DOCUMENTATION_OWNERSHIP.md"
+AGENTS = REPO_ROOT / "AGENTS.md"
+CODEX_RULES = REPO_ROOT / "docs/agent/CODEX_WORKING_RULES.md"
 CLAUDE = REPO_ROOT / "CLAUDE.md"
 CONTEXT = REPO_ROOT / "CONTEXT.md"
 
@@ -16,6 +18,8 @@ REQUIRED_LINKS = {
     REPO_ROOT / "docs/DOCUMENTATION_TREE.md": "DOCUMENTATION_OWNERSHIP.md",
     REPO_ROOT / ".planning/README.md": "../docs/DOCUMENTATION_OWNERSHIP.md",
     REPO_ROOT / "CONTRIBUTING.md": "docs/DOCUMENTATION_OWNERSHIP.md",
+    AGENTS: "docs/DOCUMENTATION_OWNERSHIP.md",
+    CODEX_RULES: "../DOCUMENTATION_OWNERSHIP.md",
     CLAUDE: "docs/DOCUMENTATION_OWNERSHIP.md",
 }
 
@@ -38,6 +42,7 @@ REQUIRED_TERMS = {
     "Versioned repository truth",
     "Historical phase records",
     "Generated/transient execution evidence",
+    "Agent default-work selection",
 }
 
 CANONICAL_NORMATIVE_STATEMENTS = {
@@ -48,7 +53,7 @@ CANONICAL_NORMATIVE_STATEMENTS = {
 GOVERNANCE_SURFACES = (
     REPO_ROOT / "README.md",
     REPO_ROOT / "CONTRIBUTING.md",
-    REPO_ROOT / "AGENTS.md",
+    AGENTS,
     CLAUDE,
     CONTEXT,
     REPO_ROOT / ".planning/README.md",
@@ -59,6 +64,17 @@ CLAUDE_FORBIDDEN_GENERAL_SECTIONS = {
     "## Authorization Capability Contract",
     "## client_factory",
     "## RiskHub v5 conventions",
+}
+
+AGENT_REQUIRED_TERMS = {
+    "referenced GitHub Issue, pull request, or Project item",
+    "versioned technical context",
+    "Do not start work solely because a planning snapshot says it is in progress.",
+}
+
+AGENT_FORBIDDEN_TERMS = {
+    ".planning/STATE.md` (current truth of progress)",
+    "Unless user redirects, prioritize unresolved work identified as in progress in:",
 }
 
 
@@ -98,6 +114,19 @@ def validate() -> list[str]:
             if statement in text:
                 errors.append(
                     f"{path.relative_to(REPO_ROOT)} duplicates canonical normative statement: {statement}"
+                )
+
+    for path in (AGENTS, CODEX_RULES):
+        text = path.read_text(encoding="utf-8")
+        for term in sorted(AGENT_REQUIRED_TERMS):
+            if term not in text:
+                errors.append(
+                    f"{path.relative_to(REPO_ROOT)} is missing agent authority term: {term}"
+                )
+        for term in sorted(AGENT_FORBIDDEN_TERMS):
+            if term in text:
+                errors.append(
+                    f"{path.relative_to(REPO_ROOT)} retains conflicting planning authority: {term}"
                 )
 
     claude_text = CLAUDE.read_text(encoding="utf-8")
