@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the frontend container vulnerability gate in security.yml."""
+"""Validate the frontend container vulnerability gate and its workflow proof."""
 
 from __future__ import annotations
 
@@ -11,6 +11,9 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = REPO_ROOT / ".github/workflows/security.yml"
+CONTRACT_WORKFLOW_PATH = (
+    REPO_ROOT / ".github/workflows/frontend-container-gate-contract.yml"
+)
 STATUS_HELPER = REPO_ROOT / "scripts/security/frontend_trivy_status.py"
 
 
@@ -21,17 +24,110 @@ def _step_by_name(steps: list[dict], name: str) -> tuple[int, dict]:
     raise ValueError(f"missing workflow step: {name}")
 
 
-def validate() -> list[str]:
+def _load_yaml(path: Path) -> dict:
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"{path.name} must contain a workflow object")
+    return payload
+
+
+def _validate_injected_finding_workflow() -> list[str]:
     errors: list[str] = []
+    if not CONTRACT_WORKFLOW_PATH.is_file():
+        return ["missing injected-finding workflow proof"]
+
+    raw_text = CONTRACT_WORKFLOW_PATH.read_text(encoding="utf-8")
+    for trigger in ("pull_request:", "push:", "workflow_dispatch:"):
+        if trigger not in raw_text:
+            errors.append(
+                f"injected-finding workflow is missing trigger: {trigger}"
+            )
+
+    try:
+        workflow = _load_yaml(CONTRACT_WORKFLOW_PATH)
+        job = workflow["jobs"]["injected-finding-contract"]
+        steps = job["steps"]
+    except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
+        return [*errors, f"unable to load injected-finding workflow: {exc}"]
+
+    if job.get("name") != "Frontend Container Injected Finding Contract":
+        errors.append("injected-finding workflow must expose the named contract job")
+
+    try:
+        _, generated = _step_by_name(steps, "Generate injected Trivy SARIF finding")
+        _, recorded = _step_by_name(steps, "Record injected frontend finding")
+        _, proved = _step_by_name(steps, "Prove injected finding is blocked")
+        _, validated = _step_by_name(steps, "Validate production workflow contract")
+    except ValueError as exc:
+        return [*errors, str(exc)]
+
+    generate_script = str(generated.get("run", ""))
+    for required_text in (
+        '"name": "Trivy"',
+        '"fullName": "Trivy Vulnerability Scanner"',
+        '"informationUri": "https://github.com/aquasecurity/trivy"',
+        '"ruleId": "CVE-INJECTED-CONTRACT"',
+    ):
+        if required_text not in generate_script:
+            errors.append(
+                f"injected SARIF generator is missing: {required_text}"
+            )
+
+    record_script = str(recorded.get("run", ""))
+    for required_text in (
+        "frontend_trivy_status.py record",
+        "--outcome success",
+        "--sarif trivy-frontend-injected.sarif",
+        "--output trivy-frontend-injected-status.json",
+    ):
+        if required_text not in record_script:
+            errors.append(
+                f"injected-finding recorder is missing: {required_text}"
+            )
+
+    proof_script = str(proved.get("run", ""))
+    for required_text in (
+        "if python3 scripts/security/frontend_trivy_status.py enforce",
+        "--status-file trivy-frontend-injected-status.json",
+        'payload["status"] == "findings"',
+        'payload["finding_count"] == 1',
+    ):
+        if required_text not in proof_script:
+            errors.append(
+                f"injected-finding blocking proof is missing: {required_text}"
+            )
+
+    validate_script = str(validated.get("run", ""))
+    if "validate_frontend_container_gate.py" not in validate_script:
+        errors.append("injected-finding workflow must validate the production contract")
+
+    return errors
+
+
+def validate() -> list[str]:
+    errors = _validate_injected_finding_workflow()
 
     if not STATUS_HELPER.is_file():
         errors.append("missing frontend Trivy status recorder/enforcer")
+    else:
+        helper_text = STATUS_HELPER.read_text(encoding="utf-8")
+        for required_text in (
+            "TRIVY_DRIVER_FULL_NAME",
+            "TRIVY_INFORMATION_URI",
+            "REQUIRED_STATUS_FIELDS",
+            "sarif_sha256",
+            "_status_errors",
+        ):
+            if required_text not in helper_text:
+                errors.append(
+                    f"frontend Trivy status helper is missing: {required_text}"
+                )
 
     try:
-        workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+        workflow = _load_yaml(WORKFLOW_PATH)
         steps = workflow["jobs"]["container-security"]["steps"]
-    except (OSError, KeyError, TypeError, yaml.YAMLError) as exc:
-        return [f"unable to load container-security workflow: {exc}"]
+    except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
+        return [*errors, f"unable to load container-security workflow: {exc}"]
 
     try:
         scan_index, scan = _step_by_name(steps, "Run Trivy on Frontend")
