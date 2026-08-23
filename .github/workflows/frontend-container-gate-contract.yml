@@ -37,6 +37,9 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Install pinned workflow parser
+        run: python3 -m pip install PyYAML==6.0.3
+
       - name: Generate injected Trivy SARIF finding
         run: |
           python3 - <<'PY'
