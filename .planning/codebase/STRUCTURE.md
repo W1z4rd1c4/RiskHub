@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-08-11
+**Analysis Date:** 2026-08-23
 
 ## Top-Level Layout
 
@@ -29,7 +29,7 @@
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 497 tracked test files (459 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - 498 tracked test files (460 Python) in the measured repository snapshot
 
 ## Frontend Tree (`frontend/`)
 
@@ -63,8 +63,10 @@
 
 ## Build/Test/Automation Artifacts
 
+- `.tool-versions` - canonical Python 3.13 and Node 24 development baseline
 - `.github/workflows/e2e.yml` - CI E2E flow
 - `.github/workflows/security.yml` - security scanning flow
+- `.github/workflows/python-dev-lock-refresh.yml` - scheduled exact Python resolver refresh PR workflow
 - `docker-compose.yml` - development service topology consumed by `scripts/compose.sh`
 - `scripts/Makefile` - convenience command aliases around `scripts/install.sh`, `scripts/dev.sh`, and `scripts/compose.sh`
 - `scripts/install_lib/` - 14 Python modules (measured git-tracked `*.py` snapshot; installer control-plane helpers split by release input, secrets/scaffolding, lifecycle execution, and summary/verify responsibilities)
@@ -79,4 +81,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-08-11*
+*Structure audit refreshed on 2026-08-23*

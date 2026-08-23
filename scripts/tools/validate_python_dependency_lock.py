@@ -3,19 +3,25 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
-import sys
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = REPO_ROOT / "backend"
+TOOLCHAIN = REPO_ROOT / ".tool-versions"
 ENTRYPOINT = BACKEND_ROOT / "requirements-dev.txt"
 INPUT = BACKEND_ROOT / "requirements-dev.in"
 LOCK = BACKEND_ROOT / "requirements-dev-constraints.txt"
 AUDIT_CONSTRAINTS = BACKEND_ROOT / "requirements-prod-readiness-audit-constraints.txt"
+REFRESH_SCRIPT = REPO_ROOT / "scripts/tools/refresh_python_dependency_lock.py"
+REFRESH_WORKFLOW = REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
+DIGEST_RE = re.compile(r"^# lock-sha256: ([0-9a-f]{64})$")
 
 
 @dataclass(frozen=True)
@@ -71,6 +77,8 @@ def _load_lock(path: Path) -> dict[str, LockedRequirement]:
         if line.startswith(("-r ", "--requirement ", "-c ", "--constraint ")):
             raise ValueError(f"{path.name} must contain pins only: {line}")
         requirement = Requirement(line)
+        if requirement.url is not None or requirement.marker is not None:
+            raise ValueError(f"{path.name} must contain index pins only: {line}")
         specifiers = list(requirement.specifier)
         if len(specifiers) != 1:
             raise ValueError(f"{path.name} must use one exact pin: {line}")
@@ -84,37 +92,53 @@ def _load_lock(path: Path) -> dict[str, LockedRequirement]:
     return locked
 
 
+def _entrypoint_digest() -> str | None:
+    for raw_line in ENTRYPOINT.read_text(encoding="utf-8").splitlines():
+        match = DIGEST_RE.fullmatch(raw_line.strip())
+        if match:
+            return match.group(1)
+    return None
+
+
 def validate() -> list[str]:
     errors: list[str] = []
 
-    entrypoint_lines = _logical_lines(ENTRYPOINT)
     expected_entrypoint = [
         "-c requirements-dev-constraints.txt",
         "-r requirements-dev.in",
     ]
-    if entrypoint_lines != expected_entrypoint:
+    if _logical_lines(ENTRYPOINT) != expected_entrypoint:
         errors.append(
             "requirements-dev.txt must contain only the canonical constraint "
             "and input includes, in that order"
         )
 
-    audit_lines = _logical_lines(AUDIT_CONSTRAINTS)
-    expected_audit = [
-        "-c requirements-dev-constraints.txt",
-        "pip-audit==2.10.0",
-    ]
-    if audit_lines != expected_audit:
+    expected_digest = hashlib.sha256(LOCK.read_bytes()).hexdigest()
+    if _entrypoint_digest() != expected_digest:
         errors.append(
-            "requirements-prod-readiness-audit-constraints.txt must compose "
-            "the canonical lock and pin pip-audit==2.10.0"
+            "requirements-dev.txt lock-sha256 must match requirements-dev-constraints.txt"
         )
 
     try:
         requested = _load_requested_requirements(INPUT)
         locked = _load_lock(LOCK)
+        audit_locked = _load_lock(AUDIT_CONSTRAINTS)
     except (OSError, ValueError) as exc:
         errors.append(str(exc))
         return errors
+
+    locked_versions = {name: item.version for name, item in locked.items()}
+    audit_versions = {name: item.version for name, item in audit_locked.items()}
+    if locked_versions != audit_versions:
+        errors.append(
+            "development and production-readiness audit locks must be exact mirrors"
+        )
+    if locked_versions.get("pip-audit") != "2.10.0":
+        errors.append("combined resolver lock must pin pip-audit==2.10.0")
+
+    requested_names = {canonicalize_name(requirement.name) for requirement in requested}
+    if "pip-audit" in requested_names:
+        errors.append("pip-audit must remain isolated from ordinary development installs")
 
     for requirement in requested:
         name = canonicalize_name(requirement.name)
@@ -122,14 +146,38 @@ def validate() -> list[str]:
         if locked_requirement is None:
             errors.append(f"direct requirement is absent from lock: {requirement}")
             continue
-        if (
-            requirement.specifier
-            and locked_requirement.version not in requirement.specifier
-        ):
+        if requirement.specifier and locked_requirement.version not in requirement.specifier:
             errors.append(
                 f"locked {requirement.name}=={locked_requirement.version} "
                 f"does not satisfy {requirement.specifier}"
             )
+
+    expected_toolchain = ["python 3.13", "nodejs 24"]
+    toolchain_lines = [
+        line.strip()
+        for line in TOOLCHAIN.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    if toolchain_lines != expected_toolchain:
+        errors.append(".tool-versions must canonically declare Python 3.13 and Node 24")
+
+    if not REFRESH_SCRIPT.is_file():
+        errors.append("missing one-command Python dependency lock refresher")
+    if not REFRESH_WORKFLOW.is_file():
+        errors.append("missing scheduled Python dependency lock refresh workflow")
+    else:
+        workflow_text = REFRESH_WORKFLOW.read_text(encoding="utf-8")
+        for required_text in (
+            "schedule:",
+            "workflow_dispatch:",
+            "refresh_python_dependency_lock.py",
+            "gh pr create",
+            "python-version: '3.13'",
+        ):
+            if required_text not in workflow_text:
+                errors.append(
+                    f"Python dependency refresh workflow is missing: {required_text}"
+                )
 
     return errors
 

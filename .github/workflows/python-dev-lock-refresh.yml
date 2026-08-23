@@ -1,0 +1,60 @@
+name: Python Dev Lock Refresh
+
+on:
+  schedule:
+    - cron: '17 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up canonical Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Regenerate exact resolver output
+        run: python3 scripts/tools/refresh_python_dependency_lock.py
+
+      - name: Detect lock changes
+        id: changes
+        run: |
+          if git diff --quiet -- \
+            backend/requirements-dev.txt \
+            backend/requirements-dev-constraints.txt \
+            backend/requirements-prod-readiness-audit-constraints.txt; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open lock refresh pull request
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          branch="automation/python-dev-lock-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add \
+            backend/requirements-dev.txt \
+            backend/requirements-dev-constraints.txt \
+            backend/requirements-prod-readiness-audit-constraints.txt
+          git commit -m "build(backend): refresh Python development lock"
+          git push origin "$branch"
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "build(backend): refresh Python development lock" \
+            --body "Automated monthly Python 3.13 resolver refresh. Review dependency diffs and require the normal backend, lint, security, and production-readiness evidence before merge."
