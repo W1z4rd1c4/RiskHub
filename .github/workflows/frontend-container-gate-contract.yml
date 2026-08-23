@@ -1,0 +1,99 @@
+name: Frontend Container Gate Contract
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - '.github/workflows/frontend-container-gate-contract.yml'
+      - '.github/workflows/security.yml'
+      - 'scripts/security/frontend_trivy_status.py'
+      - 'scripts/security/validate_frontend_container_gate.py'
+      - 'tests/backend/pytest/test_frontend_container_security_contract.py'
+  push:
+    branches: [main, develop]
+    paths:
+      - '.github/workflows/frontend-container-gate-contract.yml'
+      - '.github/workflows/security.yml'
+      - 'scripts/security/frontend_trivy_status.py'
+      - 'scripts/security/validate_frontend_container_gate.py'
+      - 'tests/backend/pytest/test_frontend_container_security_contract.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  injected-finding-contract:
+    name: Frontend Container Injected Finding Contract
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Generate injected Trivy SARIF finding
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = {
+              "$schema": "https://json.schemastore.org/sarif-2.1.0-rtm.5.json",
+              "version": "2.1.0",
+              "runs": [
+                  {
+                      "tool": {
+                          "driver": {
+                              "name": "Trivy",
+                              "fullName": "Trivy Vulnerability Scanner",
+                              "informationUri": "https://github.com/aquasecurity/trivy",
+                              "rules": [],
+                          }
+                      },
+                      "results": [{"ruleId": "CVE-INJECTED-CONTRACT"}],
+                  }
+              ],
+          }
+          Path("trivy-frontend-injected.sarif").write_text(
+              json.dumps(payload) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Record injected frontend finding
+        run: |
+          python3 scripts/security/frontend_trivy_status.py record \
+            --outcome success \
+            --sarif trivy-frontend-injected.sarif \
+            --output trivy-frontend-injected-status.json
+
+      - name: Prove injected finding is blocked
+        run: |
+          set -euo pipefail
+          if python3 scripts/security/frontend_trivy_status.py enforce \
+            --status-file trivy-frontend-injected-status.json; then
+            echo "Frontend container gate accepted an injected qualifying finding." >&2
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path("trivy-frontend-injected-status.json").read_text(encoding="utf-8")
+          )
+          assert payload["status"] == "findings", payload
+          assert payload["finding_count"] == 1, payload
+          assert payload["scanner"] == "trivy", payload
+          assert payload["image"] == "riskhub-frontend:scan", payload
+          print("Injected frontend Trivy finding was rejected as required.")
+          PY
+
+      - name: Validate production workflow contract
+        run: python3 scripts/security/validate_frontend_container_gate.py
