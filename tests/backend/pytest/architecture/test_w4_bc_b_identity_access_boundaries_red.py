@@ -10,6 +10,7 @@ pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 IDENTITY_SERVICE_ROOT = REPO_ROOT / "backend/app/services/_identity_access_lifecycle"
+ACCESS_WORKFLOW_ROOT = REPO_ROOT / "backend/app/services/_access_workflow"
 USER_ENDPOINT_ROOT = REPO_ROOT / "backend/app/api/v1/endpoints/users"
 
 
@@ -25,8 +26,30 @@ def test_identity_access_lifecycle_services_do_not_raise_fastapi_http_exceptions
             if not isinstance(node, ast.Raise) or node.exc is None:
                 continue
             call = node.exc
-            if isinstance(call, ast.Call) and getattr(call.func, "id", None) == "HTTPException":
+            if (
+                isinstance(call, ast.Call)
+                and getattr(call.func, "id", None) == "HTTPException"
+            ):
                 offenders.append(f"{path.relative_to(REPO_ROOT)}:{node.lineno}")
+
+    assert offenders == []
+
+
+def test_access_workflow_services_do_not_import_fastapi():
+    offenders: list[str] = []
+    for path in _python_files(ACCESS_WORKFLOW_ROOT):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and (node.module or "").startswith(
+                "fastapi"
+            ):
+                offenders.append(f"{path.relative_to(REPO_ROOT)}:{node.lineno}")
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name.startswith("fastapi"):
+                        offenders.append(
+                            f"{path.relative_to(REPO_ROOT)}:{node.lineno}"
+                        )
 
     assert offenders == []
 
