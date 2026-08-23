@@ -21,7 +21,7 @@ CONTRACT_DOC = REPO_ROOT / "docs/development/CONTRIBUTOR_COMMANDS.md"
 EXPECTED_DELEGATES = {
     "setup": "exec ./scripts/install.sh doctor --mode dev --repair",
     "dev": 'exec ./scripts/install.sh dev "$@"',
-    "lint": "exec make --no-print-directory -f scripts/Makefile lint",
+    "lint": "exec make --no-print-directory -f scripts/Makefile lint lint-types",
     "test": "exec make --no-print-directory -f scripts/Makefile test",
     "e2e": "exec make --no-print-directory -f scripts/Makefile test-e2e",
     "release-check": (
@@ -33,6 +33,7 @@ EXPECTED_DELEGATES = {
 EXPECTED_MAKE_TARGETS = {
     "clean",
     "lint",
+    "lint-types",
     "release-parity-audit",
     "test",
     "test-e2e",
@@ -74,8 +75,11 @@ def validate() -> list[str]:
         for line in script_text.splitlines()
         if line.strip().startswith("exec ")
     ]
-    if set(exec_lines) != set(EXPECTED_DELEGATES.values()):
-        errors.append("façade contains an undocumented or duplicated executable path")
+    expected_exec_lines = list(EXPECTED_DELEGATES.values())
+    if sorted(exec_lines) != sorted(expected_exec_lines):
+        errors.append("façade contains an undocumented, missing, or duplicated executable path")
+    if len(exec_lines) != len(set(exec_lines)):
+        errors.append("façade must not reuse one executable delegate for multiple commands")
 
     if MAKEFILE.is_file():
         missing_targets = EXPECTED_MAKE_TARGETS - _declared_make_targets()
@@ -130,6 +134,7 @@ def validate() -> list[str]:
             "Execution lane",
             "required on protected `main`",
             "not SLAs",
+            "lint lint-types",
         ):
             if required_term not in contract_text:
                 errors.append(
