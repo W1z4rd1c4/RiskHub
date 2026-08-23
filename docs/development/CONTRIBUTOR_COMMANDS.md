@@ -23,7 +23,7 @@ does not reimplement environment setup, tests, scanning, or release logic.
 |---|---|---|
 | `setup` | `./scripts/install.sh doctor --mode dev --repair` | Repairs dependency state, starts db-only infrastructure, and starts daemonized backend/frontend services. It does not reset application data. |
 | `dev [options]` | `./scripts/install.sh dev [options]` | Starts the supported local contributor workflow. Options such as `--backend` are forwarded unchanged. |
-| `lint` | `make -f scripts/Makefile lint` | Runs the canonical frontend and backend lint contract. |
+| `lint` | `make -f scripts/Makefile lint lint-types` | Runs frontend lint/type/build/debt checks, backend Ruff and suppression checks, and backend mypy. It reproduces every code-quality stage in the `Backend Quality` lane. |
 | `test` | `make -f scripts/Makefile test` | Runs the default backend regression contract, excluding PostgreSQL-only and benchmark markers. This is not the narrower `test-fast` target. |
 | `e2e` | `make -f scripts/Makefile test-e2e` | Runs the guarded Playwright matrix. Existing `RISKHUB_E2E_TEST_DATABASE` and test-database safeguards remain authoritative. |
 | `release-check` | `make -f scripts/Makefile release-parity-audit` | Runs the release-parity audit and evidence workflow. This is intentionally the highest-cost command in the façade. |
