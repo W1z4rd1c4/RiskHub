@@ -73,10 +73,14 @@ python3 scripts/tools/validate_python_dependency_lock.py
 ## Scheduled Refresh Credential
 
 `.github/workflows/python-dev-lock-refresh.yml` runs the same refresh monthly and
-on manual dispatch. Repository Actions are not relied on to create the pull
-request through `GITHUB_TOKEN`. The repository must provision the encrypted
-secret `RISKHUB_AUTOMATION_PR_TOKEN` with an approved fine-grained personal
-access token scoped to this repository with:
+on manual dispatch. The secret-bearing refresh job is restricted to
+`refs/heads/main`; a manual dispatch against any other ref is skipped before the
+credential can be consumed.
+
+Repository Actions are not relied on to create the pull request through
+`GITHUB_TOKEN`. The repository must provision the encrypted secret
+`RISKHUB_AUTOMATION_PR_TOKEN` with an approved fine-grained personal access token
+scoped to this repository with:
 
 - Contents: read and write;
 - Pull requests: read and write.
@@ -88,9 +92,9 @@ approved fine-grained token. A missing or invalid secret fails before a branch
 is created rather than leaving an unreviewable automation branch.
 
 The repository administrator must provision or rotate the secret through GitHub
-settings; secret values are never committed. After provisioning, trigger the
-workflow manually and retain the resulting no-change run or refresh PR as
-operational evidence.
+settings; secret values are never committed. After provisioning, manually
+dispatch the workflow from `main` and retain the resulting no-change run or
+refresh PR as operational evidence.
 
 A GitHub App is also a valid architectural alternative, but it requires a
 separate runtime token-generation design using an App ID/private key; this PR's
