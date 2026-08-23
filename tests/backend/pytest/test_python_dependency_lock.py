@@ -43,3 +43,4 @@ def test_backend_lock_refresh_uses_approved_pr_credential():
     assert "secrets.GITHUB_TOKEN" not in workflow
     assert "persist-credentials: false" in workflow
     assert "gh auth setup-git" in workflow
+    assert "if: github.ref == 'refs/heads/main'" in workflow
