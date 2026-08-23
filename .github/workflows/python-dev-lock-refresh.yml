@@ -24,7 +24,7 @@ jobs:
           set -euo pipefail
           if [ -z "$GH_TOKEN" ]; then
             echo "RISKHUB_AUTOMATION_PR_TOKEN is required for scheduled lock-refresh branches and PRs." >&2
-            echo "Provision an approved fine-grained PAT or GitHub App installation token with Contents and Pull requests write access." >&2
+            echo "Provision an approved fine-grained PAT with Contents and Pull requests write access." >&2
             exit 1
           fi
           gh auth status
