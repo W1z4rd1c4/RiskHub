@@ -6,15 +6,15 @@ Canonical Source: `docs/agent/README.md`, `docs/agent/AGENTS_DOC_COVERAGE.md`
 
 This file is the navigation layer for agent behavior. Canonical details live in `docs/` and `.planning/codebase/`.
 Use [`docs/agent/README.md`](docs/agent/README.md) as the agent-doc index and [`docs/agent/AGENTS_DOC_COVERAGE.md`](docs/agent/AGENTS_DOC_COVERAGE.md) for section coverage tracking.
-Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-domain documentation navigation and [`.planning/README.md`](.planning/README.md) for planning-tree navigation.
+Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-domain documentation navigation, [`docs/DOCUMENTATION_OWNERSHIP.md`](docs/DOCUMENTATION_OWNERSHIP.md) for documentation and work-tracking authority, and [`.planning/README.md`](.planning/README.md) for planning-tree navigation.
 
 | AGENTS Section | Canonical Source(s) | Coverage | Owner | Last Verified |
 |---|---|---|---|---|
 | Repository Knowledge Map | `docs/agent/README.md`<br>`docs/agent/AGENTS_DOC_COVERAGE.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Mission | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Project Map | `.planning/codebase/STRUCTURE.md`<br>`.planning/codebase/ARCHITECTURE.md` | full | RiskHub Maintainer | 2026-04-25 |
-| Source-of-Truth Order | `docs/agent/CODEX_WORKING_RULES.md`<br>`.planning/codebase/CONVENTIONS.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Active Work Focus (Default Bias) | `docs/agent/CODEX_WORKING_RULES.md`<br>`.planning/STATE.md`<br>`.planning/ROADMAP.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Source-of-Truth Order | `docs/agent/CODEX_WORKING_RULES.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`<br>`.planning/codebase/CONVENTIONS.md` | full | RiskHub Maintainer | 2026-08-23 |
+| Active Work Focus (Default Bias) | `docs/agent/CODEX_WORKING_RULES.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`<br>`.planning/STATE.md`<br>`.planning/ROADMAP.md` | full | RiskHub Maintainer | 2026-08-23 |
 | Execution Protocol | `docs/agent/EXECUTION_PROTOCOL.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Risk Hotspots (Mandatory Extra Care) | `.planning/codebase/CONCERNS.md`<br>`docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-04-25 |
 | Key Knowledge (Keep In Sync) | `docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/PYTEST_RUNTIME_NOTES.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
@@ -57,31 +57,34 @@ Root non-dot contract:
 
 ## Source-of-Truth Order
 
-Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `.planning/codebase/CONVENTIONS.md`
+Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/codebase/CONVENTIONS.md`
 
-Use this precedence when instructions conflict:
+Use this precedence when instructions or status claims conflict:
 
 1. Explicit user request for the current task.
-2. Active phase plan file (`.planning/phases/<phase>/<plan>-PLAN.md`) when executing a phase.
-3. `.planning/STATE.md` (current truth of progress).
-4. `.planning/ROADMAP.md` (phase-level intent and status).
-5. `.planning/codebase/*.md` (architecture, conventions, testing, concerns).
-6. `docs/BUSINESS_LOGIC.md` and `docs/TESTING.md`.
-7. `AGENTS.md`.
+2. The referenced GitHub Issue, pull request, or Project item for live scope, assignment, priority, blocking, review state, acceptance evidence, and open/closed status.
+3. The active phase plan file (`.planning/phases/<phase>/<plan>-PLAN.md`) for implementation detail, after confirming that its live delivery item remains open and applicable.
+4. Code, tests, migrations, and runtime configuration for implemented behavior at the current commit.
+5. `.planning/STATE.md` and `.planning/ROADMAP.md` for versioned technical context and roadmap intent at the current commit—not live assignment or closure state.
+6. `.planning/codebase/*.md` for architecture, conventions, testing, and concerns.
+7. `docs/BUSINESS_LOGIC.md`, `docs/TESTING.md`, and accepted ADRs for durable behavior, verification, and architecture contracts.
+8. `AGENTS.md` as the repository navigation layer.
 
 Rules:
 
-- If planning docs conflict with current code behavior, trust code + `.planning/codebase/*`, then note the discrepancy.
+- When GitHub delivery status conflicts with `.planning/STATE.md` or `.planning/ROADMAP.md`, use the live tracker for status and reconcile the planning snapshot in the relevant delivery change.
+- When planning or descriptive docs conflict with current code behavior, code and tests establish current behavior; an accepted ADR or product contract may still identify a defect.
 - Ignore `.planning/codebase.bak-*` unless explicitly asked.
 
 ## Active Work Focus (Default Bias)
 
-Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`
+Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`
 
-Unless user redirects, prioritize unresolved work identified as in progress in:
+Unless the user supplies a direct task, select work only from an assigned or otherwise explicitly applicable open GitHub Issue, pull request, or Project item.
+Use `.planning/STATE.md`, `.planning/ROADMAP.md`, and active phase plans to obtain versioned implementation context after that live-status check.
 
-- `.planning/STATE.md`
-- `.planning/ROADMAP.md`
+Do not start work solely because a planning snapshot says it is in progress.
+Closed, declined, superseded, blocked, or unassigned live work is not an active default task.
 
 ## Execution Protocol
 
