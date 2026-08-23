@@ -22,6 +22,7 @@ AUDIT_CONSTRAINTS = BACKEND_ROOT / "requirements-prod-readiness-audit-constraint
 REFRESH_SCRIPT = REPO_ROOT / "scripts/tools/refresh_python_dependency_lock.py"
 REFRESH_WORKFLOW = REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
 DIGEST_RE = re.compile(r"^# (input|lock)-sha256: ([0-9a-f]{64})$")
+AUTOMATION_SECRET = "RISKHUB_AUTOMATION_PR_TOKEN"
 
 
 @dataclass(frozen=True)
@@ -101,6 +102,20 @@ def _entrypoint_digests() -> dict[str, str]:
     return digests
 
 
+def _expected_entrypoint() -> str:
+    input_digest = hashlib.sha256(INPUT.read_bytes()).hexdigest()
+    lock_digest = hashlib.sha256(LOCK.read_bytes()).hexdigest()
+    return (
+        "# Canonical backend development/test install entrypoint.\n"
+        "# Human-edited intent lives in requirements-dev.in; exact resolution is installed\n"
+        "# from requirements-dev-constraints.txt for both local setup and CI.\n"
+        f"# input-sha256: {input_digest}\n"
+        f"# lock-sha256: {lock_digest}\n"
+        "-r requirements-dev.in\n"
+        "-r requirements-dev-constraints.txt\n"
+    )
+
+
 def validate() -> list[str]:
     errors: list[str] = []
 
@@ -112,6 +127,17 @@ def validate() -> list[str]:
         errors.append(
             "requirements-dev.txt must contain only the canonical input and exact "
             "lock requirement includes, in that order"
+        )
+
+    try:
+        entrypoint_text = ENTRYPOINT.read_text(encoding="utf-8")
+    except OSError as exc:
+        errors.append(str(exc))
+        return errors
+    if entrypoint_text != _expected_entrypoint():
+        errors.append(
+            "requirements-dev.txt must be byte-identical to refresher output, "
+            "including its terminal newline"
         )
 
     entrypoint_digests = _entrypoint_digests()
@@ -148,7 +174,10 @@ def validate() -> list[str]:
         canonicalize_name(requirement.name): requirement for requirement in requested
     }
     pip_audit_requirement = requested_by_name.get("pip-audit")
-    if pip_audit_requirement is None or str(pip_audit_requirement.specifier) != "==2.10.0":
+    if (
+        pip_audit_requirement is None
+        or str(pip_audit_requirement.specifier) != "==2.10.0"
+    ):
         errors.append("requirements-dev.in must request pip-audit==2.10.0 exactly")
 
     entrypoint_names = {
@@ -163,7 +192,10 @@ def validate() -> list[str]:
         if locked_requirement is None:
             errors.append(f"direct requirement is absent from lock: {requirement}")
             continue
-        if requirement.specifier and locked_requirement.version not in requirement.specifier:
+        if (
+            requirement.specifier
+            and locked_requirement.version not in requirement.specifier
+        ):
             errors.append(
                 f"locked {requirement.name}=={locked_requirement.version} "
                 f"does not satisfy {requirement.specifier}"
@@ -189,12 +221,24 @@ def validate() -> list[str]:
             "workflow_dispatch:",
             "refresh_python_dependency_lock.py",
             "gh pr create",
+            "gh auth setup-git",
+            "persist-credentials: false",
             "python-version: '3.13'",
+            AUTOMATION_SECRET,
         ):
             if required_text not in workflow_text:
                 errors.append(
                     f"Python dependency refresh workflow is missing: {required_text}"
                 )
+        if "secrets.GITHUB_TOKEN" in workflow_text:
+            errors.append(
+                "Python dependency refresh workflow must not use GITHUB_TOKEN for PR creation"
+            )
+        if "contents: write" in workflow_text or "pull-requests: write" in workflow_text:
+            errors.append(
+                "workflow-scoped GITHUB_TOKEN permissions must remain read-only; "
+                "the approved automation token owns branch and PR writes"
+            )
 
     return errors
 
