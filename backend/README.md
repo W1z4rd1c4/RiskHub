@@ -19,6 +19,34 @@ TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhu
 ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts
 ```
 
+## Development Dependency Contract
+
+Install backend development and test dependencies through the canonical entrypoint:
+
+```bash
+cd backend
+python -m pip install -r requirements-dev.txt
+```
+
+The dependency files have distinct responsibilities:
+
+- `requirements-dev.in` records human-edited dependency intent.
+- `requirements-dev-constraints.txt` records the exact Python 3.13 resolver output.
+- `requirements-dev.txt` composes the input and lock, so existing local and CI
+  install commands use the same resolved versions.
+- `requirements-prod-readiness-audit-constraints.txt` reuses the same lock and
+  adds the exact `pip-audit` requirement for the isolated audit environment.
+
+Validate the contract without contacting a package index:
+
+```bash
+python scripts/tools/validate_python_dependency_lock.py
+```
+
+Regeneration instructions are recorded at the top of
+`requirements-dev-constraints.txt`. Lock refreshes should be isolated pull
+requests with the backend test, lint, type, and security evidence attached.
+
 ## Testing Notes
 
 - default local pytest runs use SQLite unless `TEST_DATABASE_URL` is set
