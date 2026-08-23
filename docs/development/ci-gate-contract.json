@@ -146,6 +146,17 @@
       "required_on_protected_main": false
     },
     {
+      "job_name": "Redis Resilience Integration (non-blocking)",
+      "workflow": ".github/workflows/security.yml",
+      "job_id": "redis-resilience-integration",
+      "triggers": ["pull_request", "push", "schedule"],
+      "job_if_contains": "github.event_name == 'schedule'",
+      "continue_on_error": true,
+      "owner": "Backend/Security",
+      "runtime_budget": "2-10 min",
+      "required_on_protected_main": false
+    },
+    {
       "job_name": "Container Scan (Trivy + SBOM Correlation)",
       "workflow": ".github/workflows/security.yml",
       "job_id": "container-security",
