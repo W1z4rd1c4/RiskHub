@@ -7,6 +7,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO_ROOT / "scripts/tools/validate_python_dependency_lock.py"
 REFRESHER = REPO_ROOT / "scripts/tools/refresh_python_dependency_lock.py"
+ENTRYPOINT = REPO_ROOT / "backend/requirements-dev.txt"
+REFRESH_WORKFLOW = REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
 
 
 def test_backend_development_dependency_lock_contract():
@@ -27,3 +29,17 @@ def test_backend_dependency_lock_refresh_command_is_documented_and_runnable():
     )
 
     assert "Regenerate RiskHub's exact Python 3.13" in result.stdout
+
+
+def test_backend_dependency_entrypoint_has_generated_terminal_newline():
+    content = ENTRYPOINT.read_bytes()
+    assert content.endswith(b"\n")
+    assert not content.endswith(b"\n\n")
+
+
+def test_backend_lock_refresh_uses_approved_pr_credential():
+    workflow = REFRESH_WORKFLOW.read_text(encoding="utf-8")
+    assert "RISKHUB_AUTOMATION_PR_TOKEN" in workflow
+    assert "secrets.GITHUB_TOKEN" not in workflow
+    assert "persist-credentials: false" in workflow
+    assert "gh auth setup-git" in workflow
