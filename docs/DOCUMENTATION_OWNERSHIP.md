@@ -32,8 +32,10 @@ implementation context.
 |---|---|---|---|
 | Public product position and first-run commands | `README.md` | RiskHub Maintainer | Public install, product scope, or evaluation path changes |
 | Human contribution contract | `CONTRIBUTING.md` | RiskHub Maintainer | Branch, review, verification, or contribution policy changes |
-| General agent execution rules | `AGENTS.md` and `docs/agent/` | RiskHub Maintainer | Agent workflow or repository guardrail changes |
+| General agent precedence and default-work selection | `AGENTS.md` | RiskHub Maintainer | General agent instruction precedence or default-work selection changes |
+| Codex-specific workflow and tooling deltas | `docs/agent/CODEX_WORKING_RULES.md`, linking to `AGENTS.md` | RiskHub Maintainer | Codex-only workflow or tooling guidance changes |
 | Claude-specific orchestration deltas | `CLAUDE.md`, linking to `AGENTS.md` for general rules | RiskHub Maintainer | Claude tool or orchestration behavior changes |
+| Agent documentation coverage | `docs/agent/AGENTS_DOC_COVERAGE.md` | RiskHub Maintainer | A canonical source or coverage status changes |
 | ICT Register domain vocabulary | `CONTEXT.md` | ICT Register domain owner | A canonical term, definition, or avoid-list changes |
 | Implemented behavior | Code, tests, migrations, and runtime configuration at the referenced commit | Owning code reviewer | Every behavior change |
 | Accepted architecture decisions | `docs/adr/` | Architecture owner | Decision accepted, amended, or superseded |
@@ -41,7 +43,7 @@ implementation context.
 | Live delivery scope, priority, assignee, status, and acceptance evidence | GitHub Issues and Projects | Issue owner / maintainer | Any delivery-state change |
 | Pull-request candidate, review discussion, checks, and merge decision | GitHub pull request | PR author and reviewers | Every candidate or review change |
 | Versioned technical context and roadmap snapshot | `.planning/PROJECT.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/codebase/` | RiskHub Maintainer | A merged change alters technical state, roadmap intent, or repository map |
-| Active phase implementation detail | The active `.planning/phases/*-PLAN.md`, subject to `AGENTS.md` precedence and live-status reconciliation | Phase owner | Scope or implementation sequence changes |
+| Active phase implementation detail | The applicable `.planning/phases/*-PLAN.md`, subject to `AGENTS.md` precedence and live-status reconciliation | Phase owner | Scope or implementation sequence changes |
 | Historical phase records | `.planning/phases/*-SUMMARY.md` and completed phase bodies | Phase owner | Append/correct provenance only; do not reuse as live status |
 | Point-in-time audits and release evidence | `docs/audits/`, `docs/dora-ict-register/`, dated security reports | Named evidence owner | Additive disposition or new evidence; preserve dated findings |
 | Generated/transient execution evidence | `tests/results/`, local logs, CI artifacts | Producing command or workflow | Never treated as canonical documentation; retain or delete under the owning evidence policy |
@@ -60,9 +62,9 @@ Do not silently choose whichever source is most convenient.
    documentation. If an accepted ADR or product contract requires different
    behavior, treat the code as a defect rather than rewriting the decision.
 3. **Active implementation conflict**: reconcile the issue acceptance criteria,
-   active phase plan, and `AGENTS.md` before changing code. The explicit current
-   task scope controls the delivery; update the other live/versioned surface so
-   the discrepancy does not persist.
+   applicable phase plan, and `AGENTS.md` before changing code. The explicit
+   current task scope controls the delivery; update the other live/versioned
+   surface so the discrepancy does not persist.
 4. **Historical evidence conflict**: do not rewrite a dated audit or release
    record to match the present. Add a dated resolution, supersession, or
    correction with links to the new evidence.
@@ -80,7 +82,8 @@ changes:
 - an accepted architecture decision;
 - the repository structure described by `.planning/codebase/`;
 - roadmap or technical-state claims in `.planning/STATE.md` or
-  `.planning/ROADMAP.md`.
+  `.planning/ROADMAP.md`;
+- general agent precedence, default-work selection, or its coverage manifest.
 
 Issue assignment, priority, labels, check state, and closure remain live tracker
 updates and do not require a repository commit unless they also change technical
@@ -91,10 +94,10 @@ scope or durable policy.
 Normative rules have one canonical home. Other documents should summarize the
 rule only when needed for their audience and link to the canonical source.
 
-Do not copy full command matrices, architecture rules, or live status tables
-between `README.md`, `CONTRIBUTING.md`, `AGENTS.md`, `CLAUDE.md`, `docs/`, and
-`.planning/`. Tool-specific instruction files must contain only tool deltas and
-links to the general rule owner.
+Do not copy full command matrices, architecture rules, agent precedence lists,
+or live status tables between `README.md`, `CONTRIBUTING.md`, `AGENTS.md`,
+`CLAUDE.md`, `docs/`, and `.planning/`. Tool-specific instruction files contain
+only tool deltas and links to the general rule owner.
 
 When duplication is necessary for usability:
 
