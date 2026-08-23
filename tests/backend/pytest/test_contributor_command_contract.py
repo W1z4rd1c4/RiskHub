@@ -44,7 +44,9 @@ def test_contributor_command_help_lists_stable_surface():
 
     assert "Repair and start local development services" in result.stdout
     assert "Run the default backend regression contract" in result.stdout
-    assert "Destructively remove local containers" in result.stdout
+    assert "Stop local dev/Compose" in result.stdout
+    assert "keep backend/venv" in result.stdout
+    assert "remove local containers, volumes, dependencies" not in result.stdout
 
 
 def test_contributor_command_rejects_unknown_command():
