@@ -21,7 +21,7 @@ LOCK = BACKEND_ROOT / "requirements-dev-constraints.txt"
 AUDIT_CONSTRAINTS = BACKEND_ROOT / "requirements-prod-readiness-audit-constraints.txt"
 REFRESH_SCRIPT = REPO_ROOT / "scripts/tools/refresh_python_dependency_lock.py"
 REFRESH_WORKFLOW = REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
-DIGEST_RE = re.compile(r"^# lock-sha256: ([0-9a-f]{64})$")
+DIGEST_RE = re.compile(r"^# (input|lock)-sha256: ([0-9a-f]{64})$")
 
 
 @dataclass(frozen=True)
@@ -92,12 +92,13 @@ def _load_lock(path: Path) -> dict[str, LockedRequirement]:
     return locked
 
 
-def _entrypoint_digest() -> str | None:
+def _entrypoint_digests() -> dict[str, str]:
+    digests: dict[str, str] = {}
     for raw_line in ENTRYPOINT.read_text(encoding="utf-8").splitlines():
         match = DIGEST_RE.fullmatch(raw_line.strip())
         if match:
-            return match.group(1)
-    return None
+            digests[match.group(1)] = match.group(2)
+    return digests
 
 
 def validate() -> list[str]:
@@ -113,8 +114,14 @@ def validate() -> list[str]:
             "and input includes, in that order"
         )
 
-    expected_digest = hashlib.sha256(LOCK.read_bytes()).hexdigest()
-    if _entrypoint_digest() != expected_digest:
+    entrypoint_digests = _entrypoint_digests()
+    expected_input_digest = hashlib.sha256(INPUT.read_bytes()).hexdigest()
+    expected_lock_digest = hashlib.sha256(LOCK.read_bytes()).hexdigest()
+    if entrypoint_digests.get("input") != expected_input_digest:
+        errors.append(
+            "requirements-dev.txt input-sha256 must match requirements-dev.in"
+        )
+    if entrypoint_digests.get("lock") != expected_lock_digest:
         errors.append(
             "requirements-dev.txt lock-sha256 must match requirements-dev-constraints.txt"
         )
@@ -136,9 +143,12 @@ def validate() -> list[str]:
     if locked_versions.get("pip-audit") != "2.10.0":
         errors.append("combined resolver lock must pin pip-audit==2.10.0")
 
-    requested_names = {canonicalize_name(requirement.name) for requirement in requested}
-    if "pip-audit" in requested_names:
-        errors.append("pip-audit must remain isolated from ordinary development installs")
+    requested_by_name = {
+        canonicalize_name(requirement.name): requirement for requirement in requested
+    }
+    pip_audit_requirement = requested_by_name.get("pip-audit")
+    if pip_audit_requirement is None or str(pip_audit_requirement.specifier) != "==2.10.0":
+        errors.append("requirements-dev.in must request pip-audit==2.10.0 exactly")
 
     for requirement in requested:
         name = canonicalize_name(requirement.name)
