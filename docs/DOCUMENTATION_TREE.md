@@ -8,10 +8,10 @@ Authority, ownership, and conflict resolution are defined in
 ## Root Entry Points
 
 - [`README.md`](../README.md): Repository quick start and canonical startup commands.
-- [`AGENTS.md`](../AGENTS.md): Agent behavior, source-of-truth order, execution protocol.
+- [`AGENTS.md`](../AGENTS.md): Canonical general agent behavior, precedence, and execution protocol.
 - [`docs/README.md`](./README.md): Product and engineering documentation index.
 - [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md): Authority matrix for live work, versioned planning, durable docs, and archives.
-- [`.planning/README.md`](../.planning/README.md): Planning state, roadmap, codebase maps, and phase archive entry.
+- [`.planning/README.md`](../.planning/README.md): Versioned planning snapshots, codebase maps, and phase archive entry.
 
 ## Tree Map
 
@@ -130,7 +130,7 @@ AGENTS.md
 - client_factory:
   - `tests/backend/pytest/conftest.py`
   - `tests/backend/pytest/_get_db_override_whitelist.toml`
-- Active planning and current truth:
+- Versioned planning context (live status remains in GitHub):
   - [`.planning/STATE.md`](../.planning/STATE.md)
   - [`.planning/ROADMAP.md`](../.planning/ROADMAP.md)
   - [`.planning/codebase/STRUCTURE.md`](../.planning/codebase/STRUCTURE.md)
@@ -142,15 +142,19 @@ AGENTS.md
 
 - Authority and conflict-resolution contract:
   - [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md)
-- Canonical documentation for active work:
+- Canonical versioned documentation surfaces:
   - `AGENTS.md`
   - `docs/`
   - `.planning/README.md`
   - `.planning/PROJECT.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`
   - `.planning/codebase/*.md`
   - `.planning/phases/README.md` (archive index only)
+- Live delivery state:
+  - the applicable GitHub Issue, pull request, or Project item owns assignment,
+    priority, blocking, review, acceptance evidence, and closure.
 - Archival records:
-  - `.planning/phases/*` plan/summaries are historical snapshots.
+  - `.planning/phases/*` plans and summaries are historical snapshots unless a
+    confirmed open live item explicitly designates one as its implementation plan.
   - Legacy or absolute `file:///...` links may exist in archival bodies and are preserved as-is.
 
 ## Validation
