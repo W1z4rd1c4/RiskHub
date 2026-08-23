@@ -277,6 +277,16 @@ jobs:
           limit-severities-for-sarif: true
           exit-code: '1'
 
+      - name: Record Frontend Trivy Scan Status
+        if: always()
+        env:
+          FRONTEND_TRIVY_OUTCOME: ${{ steps.trivy_frontend.outcome }}
+        run: |
+          python3 scripts/security/frontend_trivy_status.py record \
+            --outcome "$FRONTEND_TRIVY_OUTCOME" \
+            --sarif trivy-frontend.sarif \
+            --output trivy-frontend-status.json
+
       - name: Generate Backend SBOM (Syft)
         run: |
           set -euo pipefail
@@ -349,21 +359,16 @@ jobs:
           path: |
             trivy-backend.sarif
             trivy-frontend.sarif
+            trivy-frontend-status.json
             sbom-backend.json
             grype-backend.json
           retention-days: 30
 
       - name: Enforce Frontend Trivy HIGH/CRITICAL Gate
         if: always()
-        env:
-          FRONTEND_TRIVY_OUTCOME: ${{ steps.trivy_frontend.outcome }}
-        run: |
-          set -euo pipefail
-          if [ "$FRONTEND_TRIVY_OUTCOME" != "success" ]; then
-            echo "Frontend image has unresolved Trivy HIGH/CRITICAL findings or the scan failed."
-            exit 1
-          fi
-          echo "Frontend Trivy HIGH/CRITICAL findings: 0"
+        run: >-
+          python3 scripts/security/frontend_trivy_status.py enforce
+          --status-file trivy-frontend-status.json
 
   # Secrets Detection
   secrets-detection:
