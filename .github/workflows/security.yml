@@ -266,12 +266,16 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Run Trivy on Frontend
+        id: trivy_frontend
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: 'riskhub-frontend:scan'
           format: 'sarif'
           output: 'trivy-frontend.sarif'
           severity: 'CRITICAL,HIGH'
+          limit-severities-for-sarif: true
+          exit-code: '1'
 
       - name: Generate Backend SBOM (Syft)
         run: |
@@ -322,6 +326,7 @@ jobs:
           PY
 
       - name: Upload Trivy Backend Report
+        if: always()
         uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           sarif_file: 'trivy-backend.sarif'
@@ -329,21 +334,36 @@ jobs:
         continue-on-error: true
 
       - name: Upload Trivy Frontend Report
+        if: always()
         uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           sarif_file: 'trivy-frontend.sarif'
           category: 'trivy-frontend'
         continue-on-error: true
 
-      - name: Upload SBOM Correlation Reports
+      - name: Upload Container Security Reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sbom-grype-backend-report
+          name: container-security-reports
           path: |
+            trivy-backend.sarif
+            trivy-frontend.sarif
             sbom-backend.json
             grype-backend.json
           retention-days: 30
+
+      - name: Enforce Frontend Trivy HIGH/CRITICAL Gate
+        if: always()
+        env:
+          FRONTEND_TRIVY_OUTCOME: ${{ steps.trivy_frontend.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$FRONTEND_TRIVY_OUTCOME" != "success" ]; then
+            echo "Frontend image has unresolved Trivy HIGH/CRITICAL findings or the scan failed."
+            exit 1
+          fi
+          echo "Frontend Trivy HIGH/CRITICAL findings: 0"
 
   # Secrets Detection
   secrets-detection:

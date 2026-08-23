@@ -10,6 +10,7 @@ Canonical security policy and reporting documentation for RiskHub.
 
 - [`authorization-capability-contract.md`](./authorization-capability-contract.md): Canonical authorization and capability contract, including backend authority, frontend gates, test evidence, and gap register.
 - [`authorization-capability-contract.json`](./authorization-capability-contract.json): Machine-readable mirror used by the repo contract validator.
+- [`frontend-container-vulnerability-policy.md`](./frontend-container-vulnerability-policy.md): Blocking severity, evidence retention, triage, and exception requirements for the built frontend image.
 - [`SECURITY.md`](./SECURITY.md): Security scanning standards, CI gates, and vulnerability response policy.
 - [`reports/README.md`](./reports/README.md): Time-stamped security scan and remediation reports.
 
