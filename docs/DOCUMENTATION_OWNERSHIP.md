@@ -32,7 +32,8 @@ implementation context.
 |---|---|---|---|
 | Public product position and first-run commands | `README.md` | RiskHub Maintainer | Public install, product scope, or evaluation path changes |
 | Human contribution contract | `CONTRIBUTING.md` | RiskHub Maintainer | Branch, review, verification, or contribution policy changes |
-| General agent precedence and default-work selection | `AGENTS.md` | RiskHub Maintainer | General agent instruction precedence or default-work selection changes |
+| General agent mission, precedence, default-work selection, repo hygiene, prompting/tooling, architecture locks, authorization guidance, and test-authoring rules | `AGENTS.md` | RiskHub Maintainer | A general agent rule or navigation contract changes |
+| Detailed agent before/during/after execution procedure | `docs/agent/EXECUTION_PROTOCOL.md`, linked from `AGENTS.md` | RiskHub Maintainer | A detailed execution step changes |
 | Codex-specific workflow and tooling deltas | `docs/agent/CODEX_WORKING_RULES.md`, linking to `AGENTS.md` | RiskHub Maintainer | Codex-only workflow or tooling guidance changes |
 | Claude-specific orchestration deltas | `CLAUDE.md`, linking to `AGENTS.md` for general rules | RiskHub Maintainer | Claude tool or orchestration behavior changes |
 | Agent documentation coverage | `docs/agent/AGENTS_DOC_COVERAGE.md` | RiskHub Maintainer | A canonical source or coverage status changes |
@@ -83,7 +84,7 @@ changes:
 - the repository structure described by `.planning/codebase/`;
 - roadmap or technical-state claims in `.planning/STATE.md` or
   `.planning/ROADMAP.md`;
-- general agent precedence, default-work selection, or its coverage manifest.
+- a general agent rule, detailed execution step, or coverage-manifest row.
 
 Issue assignment, priority, labels, check state, and closure remain live tracker
 updates and do not require a repository commit unless they also change technical
@@ -95,9 +96,11 @@ Normative rules have one canonical home. Other documents should summarize the
 rule only when needed for their audience and link to the canonical source.
 
 Do not copy full command matrices, architecture rules, agent precedence lists,
-or live status tables between `README.md`, `CONTRIBUTING.md`, `AGENTS.md`,
-`CLAUDE.md`, `docs/`, and `.planning/`. Tool-specific instruction files contain
-only tool deltas and links to the general rule owner.
+execution procedures, or live status tables between `README.md`,
+`CONTRIBUTING.md`, `AGENTS.md`, `CLAUDE.md`, `docs/`, and `.planning/`.
+Tool-specific instruction files contain only tool deltas and links to the general
+rule owner. `AGENTS.md` links to the detailed execution procedure rather than
+repeating its nine steps.
 
 When duplication is necessary for usability:
 
