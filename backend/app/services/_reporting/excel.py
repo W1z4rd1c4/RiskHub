@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Protocol
 
+from fastapi.responses import StreamingResponse
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from starlette.responses import StreamingResponse
 
 from app.core.datetime_utils import UtcAwareDatetime, coerce_utc
 from app.core.permissions import control_visibility_clause, risk_visibility_clause, visible_risk_ids
