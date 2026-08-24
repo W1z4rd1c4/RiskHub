@@ -225,6 +225,11 @@ def validate() -> list[str]:
             "gh auth setup-git",
             "persist-credentials: false",
             "python-version: '3.13'",
+            "Validate automation credential and mutation permissions",
+            "expect_validation_error",
+            "repos/${GITHUB_REPOSITORY}/git/refs",
+            "repos/${GITHUB_REPOSITORY}/pulls",
+            "HTTP 422",
             AUTOMATION_SECRET,
         ):
             if required_text not in workflow_text:
