@@ -1,10 +1,6 @@
 # Roadmap Snapshot: RiskHub
 
-> **Snapshot, not live status:** Phase labels in historical plans describe
-> roadmap intent at the commits where they were recorded. They do not establish
-> current work, assignment, priority, blocking, review state, or closure. Use the
-> applicable GitHub Issue, pull request, or Project item for live delivery state.
-> See [`docs/DOCUMENTATION_OWNERSHIP.md`](../docs/DOCUMENTATION_OWNERSHIP.md).
+> **Snapshot, not live status:** Phase labels in historical plans describe roadmap intent at the commits where they were recorded. They do not establish current work, assignment, priority, blocking, review state, or closure. Use the applicable GitHub Issue, pull request, or Project item for live delivery state. See [`docs/DOCUMENTATION_OWNERSHIP.md`](../docs/DOCUMENTATION_OWNERSHIP.md).
 
 ## Product Arc
 
