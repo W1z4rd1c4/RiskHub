@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from typing import Any
 
 API_ROOT = "https://api.github.com"
-PROBE_HEAD_PREFIX = "__riskhub_permission_probe_missing__"
 
 
 @dataclass(frozen=True)
@@ -68,7 +67,7 @@ def _request(
         return exc.code, body
 
 
-def _require_repository_push(context: GitHubContext) -> str:
+def _require_repository_push(context: GitHubContext) -> None:
     status, repository = _request(context, f"/repos/{context.repository}")
     if status != 200:
         raise RuntimeError(
@@ -76,51 +75,52 @@ def _require_repository_push(context: GitHubContext) -> str:
             f"{repository.get('message', 'unknown error')}"
         )
     permissions = repository.get("permissions")
-    if not isinstance(permissions, dict) or not permissions.get("push"):
+    if not isinstance(permissions, dict) or permissions.get("push") is not True:
         raise RuntimeError(
             "automation token lacks repository Contents write capability "
             "(repository permissions.push is false)"
         )
-    default_branch = repository.get("default_branch")
-    if not isinstance(default_branch, str) or not default_branch:
-        raise RuntimeError("repository response does not identify a default branch")
-    return default_branch
+
+
+def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
 def _require_git_push_dry_run(context: GitHubContext) -> None:
+    auth = _run_command(["gh", "auth", "setup-git"])
+    if auth.returncode != 0:
+        detail = (auth.stderr or auth.stdout).strip()
+        raise RuntimeError(f"unable to configure git authentication: {detail}")
+
     probe_branch = f"automation/permission-probe-{context.run_id}"
-    result = subprocess.run(
+    result = _run_command(
         [
             "git",
             "push",
             "--dry-run",
             "origin",
             f"HEAD:refs/heads/{probe_branch}",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
+        ]
     )
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()
         raise RuntimeError(f"automation token cannot push a refresh branch: {detail}")
 
 
-def _require_pull_request_endpoint(
-    context: GitHubContext,
-    *,
-    default_branch: str,
-) -> None:
+def _require_pull_request_endpoint(context: GitHubContext) -> None:
+    # An empty create-PR payload is structurally incapable of creating a PR. An
+    # authorized token reaches request validation and receives 422; a token
+    # without pull-request write access fails authorization first.
     status, body = _request(
         context,
         f"/repos/{context.repository}/pulls",
         method="POST",
-        payload={
-            "title": "RiskHub automation permission probe — must not be created",
-            "head": f"{PROBE_HEAD_PREFIX}_{context.run_id}",
-            "base": default_branch,
-            "body": "Permission probe using a deliberately nonexistent head ref.",
-        },
+        payload={},
     )
     if status == 422:
         return
@@ -139,8 +139,7 @@ def _require_pull_request_endpoint(
                 payload={"state": "closed"},
             )
         raise RuntimeError(
-            "permission probe unexpectedly created a pull request; the nonexistent "
-            "head-ref invariant did not hold"
+            "permission probe unexpectedly created a pull request from an empty payload"
         )
     raise RuntimeError(
         f"unexpected pull-request permission probe response: HTTP {status} "
@@ -148,19 +147,22 @@ def _require_pull_request_endpoint(
     )
 
 
+def check_permissions(context: GitHubContext) -> None:
+    _require_repository_push(context)
+    _require_git_push_dry_run(context)
+    _require_pull_request_endpoint(context)
+
+
 def main() -> int:
     try:
-        context = _context()
-        default_branch = _require_repository_push(context)
-        _require_git_push_dry_run(context)
-        _require_pull_request_endpoint(context, default_branch=default_branch)
+        check_permissions(_context())
     except RuntimeError as exc:
         print(f"automation-permission error: {exc}", file=sys.stderr)
         return 1
 
     print(
-        "Automation credential permission probe: Contents write and pull-request "
-        "endpoint available"
+        "Automation credential permission probe: Contents write, branch dry-run, "
+        "and pull-request endpoint available"
     )
     return 0
 
