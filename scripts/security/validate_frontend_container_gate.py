@@ -15,6 +15,10 @@ CONTRACT_WORKFLOW_PATH = (
     REPO_ROOT / ".github/workflows/frontend-container-gate-contract.yml"
 )
 STATUS_HELPER = REPO_ROOT / "scripts/security/frontend_trivy_status.py"
+SARIF_SCHEMA_URI = (
+    "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/"
+    "sarif-2.1/schema/sarif-schema-2.1.0.json"
+)
 
 
 def _step_by_name(steps: list[dict], name: str) -> tuple[int, dict]:
@@ -29,6 +33,11 @@ def _load_yaml(path: Path) -> dict:
     if not isinstance(payload, dict):
         raise ValueError(f"{path.name} must contain a workflow object")
     return payload
+
+
+def _reject_continue_on_error(errors: list[str], subject: str, node: dict) -> None:
+    if node.get("continue-on-error") is True:
+        errors.append(f"{subject} must remain blocking; continue-on-error is forbidden")
 
 
 def _validate_injected_finding_workflow() -> list[str]:
@@ -52,6 +61,7 @@ def _validate_injected_finding_workflow() -> list[str]:
 
     if job.get("name") != "Frontend Container Injected Finding Contract":
         errors.append("injected-finding workflow must expose the named contract job")
+    _reject_continue_on_error(errors, "injected-finding contract job", job)
 
     try:
         _, generated = _step_by_name(steps, "Generate injected Trivy SARIF finding")
@@ -61,12 +71,23 @@ def _validate_injected_finding_workflow() -> list[str]:
     except ValueError as exc:
         return [*errors, str(exc)]
 
+    for step_name, step in (
+        ("injected SARIF generator", generated),
+        ("injected-finding recorder", recorded),
+        ("injected-finding blocking proof", proved),
+        ("production-contract validation", validated),
+    ):
+        _reject_continue_on_error(errors, step_name, step)
+
     generate_script = str(generated.get("run", ""))
     for required_text in (
+        f'"$schema": "{SARIF_SCHEMA_URI}"',
         '"name": "Trivy"',
         '"fullName": "Trivy Vulnerability Scanner"',
         '"informationUri": "https://github.com/aquasecurity/trivy"',
         '"ruleId": "CVE-INJECTED-CONTRACT"',
+        '"message": {',
+        '"text": "Injected qualifying frontend container finding"',
     ):
         if required_text not in generate_script:
             errors.append(
@@ -112,10 +133,12 @@ def validate() -> list[str]:
     else:
         helper_text = STATUS_HELPER.read_text(encoding="utf-8")
         for required_text in (
+            "SARIF_SCHEMA_URI",
             "TRIVY_DRIVER_FULL_NAME",
             "TRIVY_INFORMATION_URI",
             "REQUIRED_STATUS_FIELDS",
             "sarif_sha256",
+            "_valid_result_message",
             "_status_errors",
         ):
             if required_text not in helper_text:
@@ -125,9 +148,12 @@ def validate() -> list[str]:
 
     try:
         workflow = _load_yaml(WORKFLOW_PATH)
-        steps = workflow["jobs"]["container-security"]["steps"]
+        container_job = workflow["jobs"]["container-security"]
+        steps = container_job["steps"]
     except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
         return [*errors, f"unable to load container-security workflow: {exc}"]
+
+    _reject_continue_on_error(errors, "production container-security job", container_job)
 
     try:
         scan_index, scan = _step_by_name(steps, "Run Trivy on Frontend")
@@ -179,6 +205,7 @@ def validate() -> list[str]:
 
     if status_record.get("if") != "always()":
         errors.append("frontend scan-status recorder must run with if: always()")
+    _reject_continue_on_error(errors, "frontend scan-status recorder", status_record)
     status_env = status_record.get("env", {})
     if status_env.get("FRONTEND_TRIVY_OUTCOME") != "${{ steps.trivy_frontend.outcome }}":
         errors.append("frontend scan-status recorder must consume the raw scan outcome")
@@ -211,6 +238,7 @@ def validate() -> list[str]:
 
     if gate.get("if") != "always()":
         errors.append("frontend enforcement step must run with if: always()")
+    _reject_continue_on_error(errors, "frontend enforcement step", gate)
     gate_script = str(gate.get("run", ""))
     for required_text in (
         "frontend_trivy_status.py enforce",
