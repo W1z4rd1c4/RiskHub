@@ -2,14 +2,28 @@
 
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
-`AGENTS.md` is the canonical owner of general agent mission, instruction
-precedence, default-work selection, execution protocol, repository hygiene, and
-prompting/tooling rules. Files in this directory provide focused supporting
-contracts or tool-specific deltas; they do not create a second general-policy
-home.
+`AGENTS.md` owns general agent mission, instruction precedence, default-work
+selection, repository hygiene, prompting/tooling guidance, architecture locks,
+authorization guidance, and the `client_factory` contract. The detailed
+before/during/after execution procedure is canonical in
+[`EXECUTION_PROTOCOL.md`](./EXECUTION_PROTOCOL.md). Files in this directory
+otherwise provide focused supporting contracts or tool-specific deltas; they do
+not create a second general-policy home.
 
 Documentation and work-tracking authority is defined in
 [`docs/DOCUMENTATION_OWNERSHIP.md`](../DOCUMENTATION_OWNERSHIP.md).
+
+## Canonical AGENTS Anchors
+
+- [Mission](../../AGENTS.md#mission)
+- [Source-of-Truth Order](../../AGENTS.md#source-of-truth-order)
+- [Active Work Focus](../../AGENTS.md#active-work-focus-default-bias)
+- [Execution Protocol navigation](../../AGENTS.md#execution-protocol)
+- [Repo Hygiene](../../AGENTS.md#repo-hygiene)
+- [Prompting and Tooling Best Practices](../../AGENTS.md#prompting-and-tooling-best-practices-openai-aligned)
+- [Architecture Locks](../../AGENTS.md#architecture-locks)
+- [Authorization Capability Contract](../../AGENTS.md#authorization-capability-contract)
+- [`client_factory`](../../AGENTS.md#client_factory)
 
 ## Coverage
 
@@ -18,8 +32,8 @@ Documentation and work-tracking authority is defined in
 
 ## Supporting Contracts
 
-- [`EXECUTION_PROTOCOL.md`](./EXECUTION_PROTOCOL.md) — detailed execution-flow
-  support for the canonical `AGENTS.md` protocol.
+- [`EXECUTION_PROTOCOL.md`](./EXECUTION_PROTOCOL.md) — canonical detailed
+  execution flow before, during, and after coding.
 - [`TIMEZONE_POLICY.md`](./TIMEZONE_POLICY.md) — UTC-aware datetime and
   `timestamptz` contract.
 - [`PYTEST_RUNTIME_NOTES.md`](./PYTEST_RUNTIME_NOTES.md) — PostgreSQL test mode
@@ -34,7 +48,7 @@ Documentation and work-tracking authority is defined in
 ## Tool-Specific Deltas
 
 - [`CODEX_WORKING_RULES.md`](./CODEX_WORKING_RULES.md) — Codex-specific deltas
-  and links to the canonical `AGENTS.md` sections. It does not own mission,
+  and links to the canonical general-policy sections. It does not own mission,
   source-of-truth order, active-work focus, repo hygiene, or general prompting
   policy.
 - [`../../CLAUDE.md`](../../CLAUDE.md) — Claude-specific orchestration and tool
