@@ -28,49 +28,7 @@ jobs:
             echo "Provision an approved fine-grained PAT with Contents and Pull requests write access." >&2
             exit 1
           fi
-
-          gh auth status
-
-          expect_validation_error() {
-            local capability="$1"
-            local endpoint="$2"
-            local payload="$3"
-            local output
-            local rc
-
-            set +e
-            output="$(printf '%s' "$payload" | gh api \
-              --method POST \
-              "$endpoint" \
-              --input - 2>&1)"
-            rc=$?
-            set -e
-
-            if [ "$rc" -eq 0 ]; then
-              echo "$capability permission probe unexpectedly mutated the repository." >&2
-              exit 1
-            fi
-            if ! grep -q 'HTTP 422' <<<"$output"; then
-              echo "$capability permission probe did not reach GitHub validation." >&2
-              echo "$output" >&2
-              exit 1
-            fi
-            echo "$capability permission probe reached validation without mutation."
-          }
-
-          # A token with Contents write reaches ref validation and rejects the
-          # deliberately nonexistent all-zero object. Read-only tokens fail 403/404.
-          expect_validation_error \
-            "Contents write" \
-            "repos/${GITHUB_REPOSITORY}/git/refs" \
-            '{"ref":"refs/heads/__riskhub_permission_probe__","sha":"0000000000000000000000000000000000000000"}'
-
-          # A token with Pull requests write reaches PR validation and rejects the
-          # deliberately nonexistent head. No branch or pull request is created.
-          expect_validation_error \
-            "Pull requests write" \
-            "repos/${GITHUB_REPOSITORY}/pulls" \
-            '{"title":"RiskHub automation permission probe","head":"__riskhub_permission_probe_missing__","base":"main"}'
+          python3 scripts/tools/check_github_pr_automation_permissions.py
 
       - name: Set up canonical Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
