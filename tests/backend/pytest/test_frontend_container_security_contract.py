@@ -8,7 +8,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO_ROOT / "scripts/security/validate_frontend_container_gate.py"
 STATUS_HELPER = REPO_ROOT / "scripts/security/frontend_trivy_status.py"
-SARIF_SCHEMA = "https://json.schemastore.org/sarif-2.1.0-rtm.5.json"
+SARIF_SCHEMA = (
+    "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/"
+    "sarif-2.1/schema/sarif-schema-2.1.0.json"
+)
 
 
 def _run_status(*args: str) -> subprocess.CompletedProcess[str]:
@@ -21,11 +24,24 @@ def _run_status(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _write_sarif(path: Path, *, findings: int = 0) -> None:
+def _write_sarif(
+    path: Path,
+    *,
+    findings: int = 0,
+    schema_uri: str = SARIF_SCHEMA,
+    include_messages: bool = True,
+) -> None:
+    results: list[dict[str, object]] = []
+    for index in range(findings):
+        result: dict[str, object] = {"ruleId": f"CVE-TEST-{index}"}
+        if include_messages:
+            result["message"] = {"text": f"Injected test finding {index}"}
+        results.append(result)
+
     path.write_text(
         json.dumps(
             {
-                "$schema": SARIF_SCHEMA,
+                "$schema": schema_uri,
                 "version": "2.1.0",
                 "runs": [
                     {
@@ -37,10 +53,7 @@ def _write_sarif(path: Path, *, findings: int = 0) -> None:
                                 "rules": [],
                             }
                         },
-                        "results": [
-                            {"ruleId": f"CVE-TEST-{index}"}
-                            for index in range(findings)
-                        ],
+                        "results": results,
                     }
                 ],
             }
@@ -147,6 +160,39 @@ def test_frontend_container_gate_rejects_sarif_without_trivy_tool(tmp_path: Path
     payload = _record_status(sarif=sarif, status=status)
     assert payload["status"] == "evidence_invalid"
     assert payload["reason"] == "sarif_invalid_tool"
+
+    enforced = _run_status("enforce", "--status-file", str(status))
+    assert enforced.returncode != 0
+
+
+def test_frontend_container_gate_rejects_attacker_controlled_schema_uri(
+    tmp_path: Path,
+) -> None:
+    sarif = tmp_path / "trivy-frontend.sarif"
+    status = tmp_path / "frontend-status.json"
+    _write_sarif(
+        sarif,
+        schema_uri="https://attacker.invalid/sarif-2.1.0-schema.json",
+    )
+
+    payload = _record_status(sarif=sarif, status=status)
+    assert payload["status"] == "evidence_invalid"
+    assert payload["reason"] == "sarif_invalid_schema"
+
+    enforced = _run_status("enforce", "--status-file", str(status))
+    assert enforced.returncode != 0
+
+
+def test_frontend_container_gate_rejects_result_without_message(
+    tmp_path: Path,
+) -> None:
+    sarif = tmp_path / "trivy-frontend.sarif"
+    status = tmp_path / "frontend-status.json"
+    _write_sarif(sarif, findings=1, include_messages=False)
+
+    payload = _record_status(sarif=sarif, status=status)
+    assert payload["status"] == "evidence_invalid"
+    assert payload["reason"] == "sarif_invalid_result_message"
 
     enforced = _run_status("enforce", "--status-file", str(status))
     assert enforced.returncode != 0
