@@ -13,6 +13,9 @@ operating posture against the repository state at the cited commit/date.
   integration audit for RiskHubOSS.
 - [`2026-05-10-audit-remediation-plan.md`](./2026-05-10-audit-remediation-plan.md):
   remediation plan for the 2026-05-09 to 2026-05-10 audit.
+- [`2026-05-09-architecture-cleanup-decisions.md`](./2026-05-09-architecture-cleanup-decisions.md):
+  compact durable ledger for load-bearing architecture decisions extracted from
+  removed session-style planning artifacts.
 - [`2026-05-18-architecture-and-simplify-audit.md`](./2026-05-18-architecture-and-simplify-audit.md):
   architecture and simplification audit for the 2026-05-18 wave.
 - [`2026-05-23-architecture-audit-remediation-plan.md`](./2026-05-23-architecture-audit-remediation-plan.md):
