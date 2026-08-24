@@ -35,6 +35,12 @@ BACKEND_POSTGRES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "backend-postg
 E2E_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "e2e.yml"
 PLAYWRIGHT_CONFIG = REPO_ROOT / "frontend" / "playwright.config.ts"
 STARTUP_SMOKE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "startup-smoke.yml"
+STARTUP_SMOKE_PR_WORKFLOW = (
+    REPO_ROOT / ".github" / "workflows" / "startup-smoke-pr.yml"
+)
+STARTUP_SMOKE_ACTION = (
+    REPO_ROOT / ".github" / "actions" / "docker-onboarding-smoke" / "action.yml"
+)
 LOCAL_PROD_AUDIT = (
     REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
 )
@@ -198,15 +204,19 @@ def test_validator_scans_python_shell_makefile_and_workflow_scanner_refs(
         assert any(image in error for error in errors), image
 
 
-def test_validator_scans_all_workflows_by_default(tmp_path: Path, monkeypatch) -> None:
+def test_validator_scans_all_workflows_and_local_actions_by_default(
+    tmp_path: Path, monkeypatch
+) -> None:
     workflows_dir = tmp_path / ".github" / "workflows"
     workflows_dir.mkdir(parents=True)
     (workflows_dir / "good.yml").write_text(
         "jobs:\n  lint:\n    steps:\n      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5\n",
         encoding="utf-8",
     )
-    (workflows_dir / "bad.yml").write_text(
-        "jobs:\n  lint:\n    steps:\n      - uses: actions/setup-python@v5\n",
+    actions_dir = tmp_path / ".github" / "actions" / "local-contract"
+    actions_dir.mkdir(parents=True)
+    (actions_dir / "action.yml").write_text(
+        "runs:\n  using: composite\n  steps:\n    - uses: actions/setup-python@v5\n",
         encoding="utf-8",
     )
 
@@ -542,7 +552,6 @@ def test_grype_python_runtime_suppressions_are_time_bound() -> None:
     assert (
         date.fromisoformat(expiry_dates[0]) > date.today()
     ), "grype suppressions have expired; re-review them"
-    # Every suppression targets the CPython runtime at one shared shipped version.
     python_versions = set(
         re.findall(r"\n      name: python\n      version: (\S+)", text)
     )
@@ -696,11 +705,27 @@ def test_maintenance_governance_workflow_owns_docs_and_maintenance_only_gates() 
 def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure() -> (
     None
 ):
-    text = STARTUP_SMOKE_WORKFLOW.read_text(encoding="utf-8")
+    scheduled_text = STARTUP_SMOKE_WORKFLOW.read_text(encoding="utf-8")
+    pr_text = STARTUP_SMOKE_PR_WORKFLOW.read_text(encoding="utf-8")
+    action_text = STARTUP_SMOKE_ACTION.read_text(encoding="utf-8")
 
-    assert "pull_request:" not in text
-    assert "workflow_dispatch:" in text
-    assert "schedule:" in text
+    assert "pull_request:" not in scheduled_text
+    assert "workflow_dispatch:" in scheduled_text
+    assert "schedule:" in scheduled_text
+    assert "ref: ${{ github.sha }}" in scheduled_text
+    assert "name: Docker Onboarding Smoke (Scheduled)" in scheduled_text
+
+    assert "pull_request:" in pr_text
+    assert "branches: [main, develop]" in pr_text
+    assert "ref: ${{ github.event.pull_request.head.sha }}" in pr_text
+    assert "name: Docker Onboarding Smoke\n" in pr_text
+
+    for text, artifact_name in (
+        (scheduled_text, "startup-smoke"),
+        (pr_text, "startup-smoke-pr"),
+    ):
+        assert "uses: ./.github/actions/docker-onboarding-smoke" in text
+        assert f"artifact-name: {artifact_name}" in text
 
     for snippet in (
         'assert set(readyz) == {"ready", "database", "redis", "scheduler_role", "scheduler_status"}',
@@ -710,4 +735,4 @@ def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure(
         "grep -q '<script type=\"module\"'",
         "grep -q 'Swagger UI'",
     ):
-        assert snippet in text
+        assert snippet in action_text

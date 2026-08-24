@@ -6,6 +6,12 @@ Operational and development automation for RiskHub.
 
 ## Supported entrypoints
 
+- `./scripts/riskhub.sh <command>`
+  - Stable contributor façade for `setup`, `dev`, `lint`, `test`, `e2e`, `release-check`, and `clean`.
+  - Delegates to the canonical install and Make targets without duplicating their logic, guards, or exit behavior.
+  - `release-check` is disruptive: the release-parity runtime audit stops local development processes and tears down the active Compose stack before exercising its paths.
+  - `clean` removes Compose volumes, `node_modules`, caches, build output, and test evidence but intentionally retains `backend/venv`.
+  - Contract and executable CI ownership map: [`docs/development/CONTRIBUTOR_COMMANDS.md`](../docs/development/CONTRIBUTOR_COMMANDS.md) and [`docs/development/ci-gate-contract.json`](../docs/development/ci-gate-contract.json).
 - `./scripts/install.sh`
   - Public first-run and lifecycle installer for demo, local contributor, and guided production flows.
   - Thin shell wrapper over `./scripts/install_cli.py` and `./scripts/install_lib/`.
@@ -19,7 +25,7 @@ Operational and development automation for RiskHub.
 - `./scripts/deploy.sh`
   - Advanced/manual production deployment/admin CLI used underneath `./scripts/install.sh production`, `upgrade`, `status`, `logs`, `doctor`, and `verify`.
 - `make -f scripts/Makefile <target>`
-  - Convenience wrapper around the supported scripts above plus validation/test helpers.
+  - Advanced convenience wrapper around the supported scripts above plus specialized validation/test helpers.
 
 ## Directory map
 
@@ -56,6 +62,7 @@ Operational and development automation for RiskHub.
 
 ## Startup notes
 
+- `./scripts/riskhub.sh` is the stable day-to-day contributor command façade.
 - `./scripts/install.sh` is the public first-run entrypoint.
 - `./scripts/install.sh` stays the public entrypoint even though the lifecycle control plane now lives in Python under `./scripts/install_cli.py` and `./scripts/install_lib/`.
 - `./scripts/dev.sh` is local-only.
@@ -73,6 +80,10 @@ cd backend
 ## Common verification commands
 
 ```bash
+./scripts/riskhub.sh lint
+./scripts/riskhub.sh test
+./scripts/riskhub.sh e2e
+./scripts/riskhub.sh release-check
 make -f scripts/Makefile verify
 make -f scripts/Makefile quality-repo-contracts
 make -f scripts/Makefile verify-startup-scripts

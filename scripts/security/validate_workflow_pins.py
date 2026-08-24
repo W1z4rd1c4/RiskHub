@@ -43,6 +43,8 @@ def _strip_quotes(value: str) -> str:
 def _default_paths() -> list[Path]:
     paths = sorted(Path(".github/workflows").glob("*.yml"))
     paths.extend(sorted(Path(".github/workflows").glob("*.yaml")))
+    paths.extend(sorted(Path(".github/actions").glob("**/action.yml")))
+    paths.extend(sorted(Path(".github/actions").glob("**/action.yaml")))
     paths.extend(path for path in DEFAULT_SECURITY_SCAN_PATHS if path.exists())
     return paths
 
