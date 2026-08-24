@@ -85,11 +85,19 @@ scoped to this repository with:
 - Contents: read and write;
 - Pull requests: read and write.
 
-The workflow checks the credential before resolving dependencies, uses the
-ordinary workflow token only for read access, disables persisted checkout
-credentials, and authenticates both `git push` and `gh pr create` with the
-approved fine-grained token. A missing or invalid secret fails before a branch
-is created rather than leaving an unreviewable automation branch.
+Before dependency resolution, the workflow authenticates the token and performs
+two non-mutating capability probes. It submits an intentionally nonexistent
+object to the Git-ref creation endpoint and an intentionally nonexistent head to
+the pull-request creation endpoint. A correctly authorized token reaches GitHub
+validation and receives HTTP 422; a token without the required mutation
+permission fails with 403/404 or another non-validation response. The invalid
+objects cannot create a branch or pull request.
+
+After the probes, the workflow uses the ordinary workflow token only for read
+access, keeps checkout credentials unpersisted, and authenticates both
+`git push` and `gh pr create` with the approved fine-grained token. A missing,
+invalid, or under-scoped secret therefore fails before dependency resolution or
+branch creation.
 
 The repository administrator must provision or rotate the secret through GitHub
 settings; secret values are never committed. After provisioning, manually
@@ -108,7 +116,7 @@ production-readiness evidence before merge.
 
 - default local pytest runs use SQLite unless `TEST_DATABASE_URL` is set
 - Postgres-mode pytest applies Alembic migrations and truncates tables between tests
-- scheduler ownership, migration-defined constraints, and other PG-specific behavior should be verified in the named Postgres CI contract (`make -f scripts/Makefile test-postgres-ci`)
+- scheduler ownership, migration-defined constraints, and other PG-specific behavior should be verified in the named Postgres CI contract (`make -f ../scripts/Makefile test-postgres-ci`)
 
 ## Related Docs
 
