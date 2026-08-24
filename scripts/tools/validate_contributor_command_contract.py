@@ -3,17 +3,20 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import subprocess
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+WORKFLOWS_DIR = REPO_ROOT / ".github/workflows"
 FACADE = REPO_ROOT / "scripts/riskhub.sh"
 INSTALLER = REPO_ROOT / "scripts/install.sh"
 MAKEFILE = REPO_ROOT / "scripts/Makefile"
@@ -62,6 +65,7 @@ GOVERNED_WORKFLOWS = {
     ".github/workflows/release-parity-pr.yml",
     ".github/workflows/release.yml",
     ".github/workflows/security.yml",
+    ".github/workflows/startup-smoke-pr.yml",
     ".github/workflows/startup-smoke.yml",
 }
 
@@ -101,7 +105,6 @@ def _load_workflow(path: Path) -> dict[str, Any]:
 
 
 def _workflow_on(workflow: dict[str, Any]) -> Any:
-    # PyYAML's YAML 1.1 resolver may deserialize `on` as boolean True.
     if "on" in workflow:
         return workflow["on"]
     return workflow.get(True)
@@ -165,6 +168,23 @@ def _normalized_events(workflow: dict[str, Any]) -> dict[str, dict[str, list[str
         str(event_name): _normalize_event(str(event_name), config)
         for event_name, config in raw.items()
     }
+
+
+def _normalize_expression(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return str(value)
+    text = value.strip()
+    if text.startswith("${{") and text.endswith("}}"):
+        text = text[3:-2].strip()
+    return re.sub(r"\s+", " ", text)
+
+
+def _git_blob_sha(path: Path) -> str:
+    data = path.read_bytes()
+    prefix = f"blob {len(data)}\0".encode("utf-8")
+    return hashlib.sha1(prefix + data).hexdigest()
 
 
 def _validate_facade() -> list[str]:
@@ -267,7 +287,47 @@ def _validate_workflow_contracts(
                 f"{workflow_name} event filters differ from contract: "
                 f"expected={expected_events!r} actual={actual_events!r}"
             )
+
+        expected_blob = declared.get("git_blob_sha")
+        if expected_blob is not None:
+            if (
+                not isinstance(expected_blob, str)
+                or re.fullmatch(r"[0-9a-f]{40}", expected_blob) is None
+            ):
+                errors.append(
+                    f"workflow contract for {workflow_name} has invalid git_blob_sha"
+                )
+            elif _git_blob_sha(path) != expected_blob:
+                errors.append(
+                    f"{workflow_name} Git blob differs from reviewed contract identity"
+                )
+
+    release_contract = raw_contracts.get(".github/workflows/release.yml", {})
+    if not isinstance(release_contract, dict) or "git_blob_sha" not in release_contract:
+        errors.append("release.yml must be bound by an explicit Git blob SHA")
     return errors, workflows
+
+
+def _required_context_providers() -> dict[str, list[str]]:
+    providers: dict[str, list[str]] = defaultdict(list)
+    for path in sorted(WORKFLOWS_DIR.glob("*.y*ml")):
+        try:
+            workflow = _load_workflow(path)
+            events = _normalized_events(workflow)
+        except (OSError, UnicodeDecodeError, ValueError, yaml.YAMLError):
+            continue
+        if "pull_request" not in events:
+            continue
+        jobs = workflow.get("jobs")
+        if not isinstance(jobs, dict):
+            continue
+        for job_id, job in jobs.items():
+            if not isinstance(job, dict):
+                continue
+            name = job.get("name")
+            if isinstance(name, str) and name in EXPECTED_REQUIRED_CHECKS:
+                providers[name].append(f"{path.name}:{job_id}")
+    return providers
 
 
 def _validate_ci_contract() -> tuple[list[str], list[dict[str, Any]]]:
@@ -280,8 +340,8 @@ def _validate_ci_contract() -> tuple[list[str], list[dict[str, Any]]]:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         return [f"unable to load CI gate contract: {exc}"], []
 
-    if contract.get("schema_version") != 2:
-        errors.append("CI gate contract schema_version must equal 2")
+    if contract.get("schema_version") != 3:
+        errors.append("CI gate contract schema_version must equal 3")
 
     required_checks = contract.get("required_on_protected_main")
     if (
@@ -364,19 +424,25 @@ def _validate_ci_contract() -> tuple[list[str], list[dict[str, Any]]]:
             errors.append(
                 f"{workflow_name}:{job_id} display name must be {job_name!r}"
             )
-        if bool(job.get("continue-on-error", False)) is not continue_on_error:
+
+        actual_continue = job.get("continue-on-error", False)
+        if type(actual_continue) is not bool or actual_continue is not continue_on_error:
             errors.append(
                 f"{workflow_name}:{job_id} continue-on-error differs from contract"
             )
 
-        job_if_contains = entry.get("job_if_contains")
-        if job_if_contains is not None:
-            if not isinstance(job_if_contains, str) or job_if_contains not in str(
-                job.get("if", "")
-            ):
-                errors.append(
-                    f"{workflow_name}:{job_id} condition differs from contract"
-                )
+        expected_if = entry.get("job_if_equals")
+        if expected_if is not None and (
+            not isinstance(expected_if, str) or not expected_if.strip()
+        ):
+            errors.append(f"{label}.job_if_equals must be a non-empty string")
+        actual_if = _normalize_expression(job.get("if"))
+        normalized_expected_if = _normalize_expression(expected_if)
+        if actual_if != normalized_expected_if:
+            errors.append(
+                f"{workflow_name}:{job_id} exact condition differs from contract: "
+                f"expected={normalized_expected_if!r} actual={actual_if!r}"
+            )
 
         if required is True:
             required_from_entries.add(job_name)
@@ -391,6 +457,15 @@ def _validate_ci_contract() -> tuple[list[str], list[dict[str, Any]]]:
         errors.append(
             "required check entries do not match the protected-main snapshot"
         )
+
+    providers = _required_context_providers()
+    for required_name in sorted(EXPECTED_REQUIRED_CHECKS):
+        actual_providers = providers.get(required_name, [])
+        if len(actual_providers) != 1:
+            errors.append(
+                f"required check {required_name} must have exactly one PR provider, "
+                f"found {actual_providers}"
+            )
 
     for workflow_name in sorted(GOVERNED_WORKFLOWS):
         workflow = workflows.get(workflow_name)
@@ -454,7 +529,9 @@ def _validate_documentation(checks: list[dict[str, Any]]) -> list[str]:
         "| Check | Workflow | Execution lane | Budget | Owner | Purpose | First triage action |",
         "Backend SQLite Regression",
         "Production Profile Smoke",
+        "Docker Onboarding Smoke (Scheduled)",
         "Create GitHub Release",
+        "Git blob SHA",
         "stops local development processes",
         "intentionally keeps `backend/venv`",
         "not SLAs",
