@@ -41,18 +41,20 @@ def _request(
     payload: dict[str, Any] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     data = None
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {context.token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "riskhub-python-lock-refresh-permission-probe",
+    }
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
     request = urllib.request.Request(
         f"{API_ROOT}{path}",
         data=data,
         method=method,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {context.token}",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "riskhub-python-lock-refresh-permission-probe",
-        },
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
