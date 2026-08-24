@@ -1,30 +1,33 @@
 #!/usr/bin/env python3
-"""Validate documentation and work-tracking authority without duplicating policy."""
+"""Validate documentation authority, planning snapshots, and archive topology."""
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OWNERSHIP = REPO_ROOT / "docs/DOCUMENTATION_OWNERSHIP.md"
 AGENTS = REPO_ROOT / "AGENTS.md"
-CODEX_RULES = REPO_ROOT / "docs/agent/CODEX_WORKING_RULES.md"
+AGENT_INDEX = REPO_ROOT / "docs/agent/README.md"
 AGENT_COVERAGE = REPO_ROOT / "docs/agent/AGENTS_DOC_COVERAGE.md"
+CODEX_RULES = REPO_ROOT / "docs/agent/CODEX_WORKING_RULES.md"
 CLAUDE = REPO_ROOT / "CLAUDE.md"
 CONTEXT = REPO_ROOT / "CONTEXT.md"
+PLANNING_README = REPO_ROOT / ".planning/README.md"
+PLANNING_STATE = REPO_ROOT / ".planning/STATE.md"
+PLANNING_ROADMAP = REPO_ROOT / ".planning/ROADMAP.md"
+PLANNING_STRUCTURE = REPO_ROOT / ".planning/codebase/STRUCTURE.md"
+PHASE_INDEX = REPO_ROOT / ".planning/phases/README.md"
+PLANNING_AUDIT_INDEX = REPO_ROOT / ".planning/audits/README.md"
+DOCUMENTATION_TREE = REPO_ROOT / "docs/DOCUMENTATION_TREE.md"
+DOCS_AUDIT_INDEX = REPO_ROOT / "docs/audits/README.md"
+AUDIT_DISPOSITION = (
+    REPO_ROOT / "docs/audits/legacy-planning-artifact-disposition-2026-08-24.md"
+)
 
-REQUIRED_LINKS = {
-    REPO_ROOT / "docs/README.md": "DOCUMENTATION_OWNERSHIP.md",
-    REPO_ROOT / "docs/DOCUMENTATION_TREE.md": "DOCUMENTATION_OWNERSHIP.md",
-    REPO_ROOT / ".planning/README.md": "../docs/DOCUMENTATION_OWNERSHIP.md",
-    REPO_ROOT / "CONTRIBUTING.md": "docs/DOCUMENTATION_OWNERSHIP.md",
-    AGENTS: "docs/DOCUMENTATION_OWNERSHIP.md",
-    CODEX_RULES: "../DOCUMENTATION_OWNERSHIP.md",
-    CLAUDE: "docs/DOCUMENTATION_OWNERSHIP.md",
-}
-
-REQUIRED_HEADINGS = {
+REQUIRED_OWNERSHIP_HEADINGS = {
     "## Operating Model",
     "## Authority Matrix",
     "## Conflict Resolution",
@@ -34,72 +37,61 @@ REQUIRED_HEADINGS = {
     "## Validation",
 }
 
-REQUIRED_TERMS = {
-    "CLAUDE.md",
-    "CONTEXT.md",
-    "GitHub Issues and Projects",
-    ".planning/STATE.md",
-    "Live delivery truth",
-    "Versioned repository truth",
-    "Historical phase records",
-    "Generated/transient execution evidence",
-    "Agent default-work selection",
-    "General agent precedence and default-work selection",
-}
-
 CANONICAL_NORMATIVE_STATEMENTS = {
     "GitHub Issues and Projects are authoritative for live delivery status.",
     "Normative rules have one canonical home.",
+}
+
+REQUIRED_LINKS = {
+    REPO_ROOT / "docs/README.md": "DOCUMENTATION_OWNERSHIP.md",
+    DOCUMENTATION_TREE: "DOCUMENTATION_OWNERSHIP.md",
+    PLANNING_README: "../docs/DOCUMENTATION_OWNERSHIP.md",
+    REPO_ROOT / "CONTRIBUTING.md": "docs/DOCUMENTATION_OWNERSHIP.md",
+    AGENTS: "docs/DOCUMENTATION_OWNERSHIP.md",
+    AGENT_INDEX: "../DOCUMENTATION_OWNERSHIP.md",
+    CODEX_RULES: "../DOCUMENTATION_OWNERSHIP.md",
+    CLAUDE: "docs/DOCUMENTATION_OWNERSHIP.md",
+    PLANNING_AUDIT_INDEX: "../../docs/DOCUMENTATION_OWNERSHIP.md",
 }
 
 GOVERNANCE_SURFACES = (
     REPO_ROOT / "README.md",
     REPO_ROOT / "CONTRIBUTING.md",
     AGENTS,
+    AGENT_INDEX,
+    AGENT_COVERAGE,
     CODEX_RULES,
     CLAUDE,
     CONTEXT,
-    REPO_ROOT / ".planning/README.md",
+    PLANNING_README,
+    PLANNING_STATE,
+    PLANNING_ROADMAP,
 )
+
+GENERAL_POLICY_HEADINGS = {
+    "## Mission",
+    "## Source-of-Truth Order",
+    "## Active Work Focus (Default Bias)",
+    "## Execution Protocol",
+    "## Repo Hygiene",
+    "## Prompting and Tooling Best Practices (OpenAI-Aligned)",
+}
+
+CODEX_REQUIRED_LINKS = {
+    "../../AGENTS.md#mission",
+    "../../AGENTS.md#source-of-truth-order",
+    "../../AGENTS.md#active-work-focus-default-bias",
+    "../../AGENTS.md#execution-protocol",
+    "../../AGENTS.md#repo-hygiene",
+    "../../AGENTS.md#prompting-and-tooling-best-practices-openai-aligned",
+    "../DOCUMENTATION_OWNERSHIP.md",
+}
 
 CLAUDE_FORBIDDEN_GENERAL_SECTIONS = {
     "## Architecture Locks",
     "## Authorization Capability Contract",
     "## client_factory",
     "## RiskHub v5 conventions",
-}
-
-AGENTS_REQUIRED_TERMS = {
-    "referenced GitHub Issue, pull request, or Project item",
-    "versioned technical context",
-    "Do not start work solely because a planning snapshot says it is in progress.",
-    "| Source-of-Truth Order | `AGENTS.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`",
-    "| Active Work Focus (Default Bias) | `AGENTS.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`",
-    "Canonical Source: this section in `AGENTS.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/codebase/CONVENTIONS.md`",
-    "Canonical Source: this section in `AGENTS.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`",
-}
-
-AGENTS_FORBIDDEN_TERMS = {
-    ".planning/STATE.md` (current truth of progress)",
-    "Unless user redirects, prioritize unresolved work identified as in progress in:",
-    "| Source-of-Truth Order | `docs/agent/CODEX_WORKING_RULES.md`",
-    "| Active Work Focus (Default Bias) | `docs/agent/CODEX_WORKING_RULES.md`",
-    "Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/codebase/CONVENTIONS.md`",
-    "Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`",
-}
-
-CODEX_REQUIRED_LINKS = {
-    "../../AGENTS.md#source-of-truth-order",
-    "../../AGENTS.md#active-work-focus-default-bias",
-    "../DOCUMENTATION_OWNERSHIP.md",
-}
-
-CODEX_FORBIDDEN_DUPLICATION = {
-    "## Active Work Focus (Default Bias)",
-    "Use this precedence when instructions or status claims conflict:",
-    "1. Explicit user request for the current task.",
-    "2. The referenced GitHub Issue, pull request, or Project item",
-    "3. The active phase plan",
 }
 
 CONTEXT_FORBIDDEN_POLICY = {
@@ -109,23 +101,57 @@ CONTEXT_FORBIDDEN_POLICY = {
     ".planning/STATE.md` (current truth of progress)",
 }
 
+COVERAGE_POLICY_ROWS = {
+    "mission",
+    "source_of_truth_order",
+    "active_work_focus",
+    "execution_protocol",
+    "repo_hygiene",
+    "prompting_tooling_best_practices",
+}
+
+TRANSIENT_PLANNING_ARTIFACTS = {
+    REPO_ROOT / ".planning/audits/IMPLEMENTATION-LOG.md": (
+        "ea4870061d0e6bfc082467e55d9484d8d40dd57f"
+    ),
+    REPO_ROOT / ".planning/audits/developer answer.md": (
+        "adbca49a9294c5c2dfeb58fb699bbc0d12941503"
+    ),
+    REPO_ROOT / ".planning/audits/resolution-plan.md": (
+        "6d3d2f5959360c2ab401579d223fe256cbf40689"
+    ),
+}
+
 PLANNING_SURFACE_CONTRACTS = {
-    REPO_ROOT / ".planning/README.md": {
-        "versioned technical state",
+    PLANNING_README: {
+        "commit-scoped technical context",
+        "not a live work tracker",
+        "audits/README.md",
         "GitHub Issues, pull requests, and Projects",
-        "DOCUMENTATION_OWNERSHIP.md",
     },
-    REPO_ROOT / ".planning/codebase/STRUCTURE.md": {
+    PLANNING_STATE: {
+        "# Project State Snapshot: RiskHub",
+        "versioned technical snapshot",
+        "It is not a live delivery tracker",
+        "GitHub Issue, pull request, or Project item",
+    },
+    PLANNING_ROADMAP: {
+        "# Roadmap Snapshot: RiskHub",
+        "Snapshot, not live status",
+        "do not establish current work",
+        "GitHub Issue, pull request, or Project item",
+    },
+    PLANNING_STRUCTURE: {
         "versioned repository-structure snapshot",
         "Live scope, assignment, priority, review state, blocking, and closure",
         "DOCUMENTATION_OWNERSHIP.md",
     },
-    REPO_ROOT / ".planning/phases/README.md": {
+    PHASE_INDEX: {
         "historical phase plans and summaries",
         "Confirm live scope, assignment, priority, blocking, review state, and closure",
         "DOCUMENTATION_OWNERSHIP.md",
     },
-    REPO_ROOT / "docs/DOCUMENTATION_TREE.md": {
+    DOCUMENTATION_TREE: {
         "Versioned planning context (live status remains in GitHub)",
         "Live delivery state:",
         "DOCUMENTATION_OWNERSHIP.md",
@@ -146,27 +172,31 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _coverage_row(text: str, section_id: str) -> str:
+    prefix = f"| {section_id} |"
+    return next((line for line in text.splitlines() if line.startswith(prefix)), "")
+
+
 def _validate_ownership_document() -> list[str]:
     errors: list[str] = []
     if not OWNERSHIP.is_file():
         return [f"missing authority document: {OWNERSHIP.relative_to(REPO_ROOT)}"]
 
-    ownership_text = _read(OWNERSHIP)
-    for heading in sorted(REQUIRED_HEADINGS):
-        if heading not in ownership_text:
+    text = _read(OWNERSHIP)
+    for heading in sorted(REQUIRED_OWNERSHIP_HEADINGS):
+        if heading not in text:
             errors.append(f"authority document is missing heading: {heading}")
-    for term in sorted(REQUIRED_TERMS):
-        if term not in ownership_text:
-            errors.append(f"authority document is missing required term: {term}")
     for statement in sorted(CANONICAL_NORMATIVE_STATEMENTS):
-        if statement not in ownership_text:
-            errors.append(f"authority document is missing normative statement: {statement}")
-    if (
-        "General agent precedence and default-work selection | `AGENTS.md`"
-        not in ownership_text
+        if statement not in text:
+            errors.append(f"authority document is missing statement: {statement}")
+    for required in (
+        "General agent precedence and default-work selection | `AGENTS.md`",
+        "Codex-specific workflow and tooling deltas",
+        "Versioned technical context and roadmap snapshot",
+        "Generated/transient execution evidence",
     ):
-        errors.append("authority matrix must make AGENTS.md the agent-policy owner")
-
+        if required not in text:
+            errors.append(f"authority matrix is missing: {required}")
     return errors
 
 
@@ -174,22 +204,22 @@ def _validate_links_and_normative_duplication() -> list[str]:
     errors: list[str] = []
     for path, link in REQUIRED_LINKS.items():
         if not path.is_file():
-            errors.append(f"missing index file: {path.relative_to(REPO_ROOT)}")
+            errors.append(f"missing governance surface: {path.relative_to(REPO_ROOT)}")
             continue
         if link not in _read(path):
             errors.append(
-                f"{path.relative_to(REPO_ROOT)} does not link to the authority document"
+                f"{path.relative_to(REPO_ROOT)} does not link the authority document"
             )
 
     for path in GOVERNANCE_SURFACES:
-        if not path.is_file():
-            errors.append(f"missing governance surface: {path.relative_to(REPO_ROOT)}")
+        if not path.is_file() or path == OWNERSHIP:
             continue
         text = _read(path)
         for statement in CANONICAL_NORMATIVE_STATEMENTS:
             if statement in text:
                 errors.append(
-                    f"{path.relative_to(REPO_ROOT)} duplicates canonical normative statement: {statement}"
+                    f"{path.relative_to(REPO_ROOT)} duplicates canonical statement: "
+                    f"{statement}"
                 )
     return errors
 
@@ -197,55 +227,60 @@ def _validate_links_and_normative_duplication() -> list[str]:
 def _validate_agent_surfaces() -> list[str]:
     errors: list[str] = []
     agents_text = _read(AGENTS)
-    for term in sorted(AGENTS_REQUIRED_TERMS):
-        if term not in agents_text:
-            errors.append(f"AGENTS.md is missing agent authority term: {term}")
-    for term in sorted(AGENTS_FORBIDDEN_TERMS):
-        if term in agents_text:
-            errors.append(f"AGENTS.md retains conflicting agent authority: {term}")
+    for heading in sorted(GENERAL_POLICY_HEADINGS):
+        if heading not in agents_text:
+            errors.append(f"AGENTS.md is missing canonical section: {heading}")
+    for required in (
+        "referenced GitHub Issue, pull request, or Project item",
+        "versioned technical context",
+        "Do not start work solely because a planning snapshot says it is in progress.",
+        "| Source-of-Truth Order | `AGENTS.md`",
+        "| Active Work Focus (Default Bias) | `AGENTS.md`",
+    ):
+        if required not in agents_text:
+            errors.append(f"AGENTS.md is missing canonical ownership term: {required}")
 
     codex_text = _read(CODEX_RULES)
+    if not codex_text.startswith("# Codex-Specific Working Deltas\n"):
+        errors.append("Codex rules must identify themselves as tool-specific deltas")
     for link in sorted(CODEX_REQUIRED_LINKS):
         if link not in codex_text:
-            errors.append(f"Codex rules do not link canonical policy: {link}")
-    for duplicate in sorted(CODEX_FORBIDDEN_DUPLICATION):
+            errors.append(f"Codex rules do not link canonical section: {link}")
+    for heading in sorted(GENERAL_POLICY_HEADINGS):
+        if heading in codex_text:
+            errors.append(f"Codex rules duplicate general policy section: {heading}")
+    for duplicate in (
+        "Use this precedence when instructions or status claims conflict:",
+        "Avoid editing generated/vendor folders:",
+        "State objective, constraints, and expected output format before execution.",
+    ):
         if duplicate in codex_text:
-            errors.append(f"Codex rules duplicate general agent policy: {duplicate}")
+            errors.append(f"Codex rules duplicate canonical policy text: {duplicate}")
+
+    index_text = _read(AGENT_INDEX)
+    for required in (
+        "`AGENTS.md` is the canonical owner",
+        "CODEX_WORKING_RULES.md",
+        "Codex-specific deltas",
+        "does not own mission",
+    ):
+        if required not in index_text:
+            errors.append(f"agent index is missing ownership term: {required}")
+    if "mission, source-of-truth order, active focus" in index_text:
+        errors.append("agent index still assigns general policy to Codex rules")
 
     coverage_text = _read(AGENT_COVERAGE)
-    source_row = next(
-        (
-            line
-            for line in coverage_text.splitlines()
-            if line.startswith("| source_of_truth_order |")
-        ),
-        "",
-    )
-    active_row = next(
-        (
-            line
-            for line in coverage_text.splitlines()
-            if line.startswith("| active_work_focus |")
-        ),
-        "",
-    )
-    for row_name, row in (
-        ("source_of_truth_order", source_row),
-        ("active_work_focus", active_row),
-    ):
+    for section_id in sorted(COVERAGE_POLICY_ROWS):
+        row = _coverage_row(coverage_text, section_id)
         if not row:
-            errors.append(f"agent coverage manifest is missing {row_name}")
+            errors.append(f"agent coverage manifest is missing {section_id}")
             continue
-        for required in ("`AGENTS.md`", "`docs/DOCUMENTATION_OWNERSHIP.md`"):
-            if required not in row:
-                errors.append(f"agent coverage {row_name} is missing {required}")
+        if "`AGENTS.md`" not in row:
+            errors.append(f"agent coverage {section_id} must name AGENTS.md")
         if "`docs/agent/CODEX_WORKING_RULES.md`" in row:
-            errors.append(
-                f"agent coverage {row_name} incorrectly treats Codex deltas as policy owner"
-            )
+            errors.append(f"agent coverage {section_id} makes Codex a policy owner")
         if "2026-08-24" not in row:
-            errors.append(f"agent coverage {row_name} has not been reverified")
-
+            errors.append(f"agent coverage {section_id} has not been reverified")
     return errors
 
 
@@ -254,19 +289,16 @@ def _validate_tool_and_domain_surfaces() -> list[str]:
     claude_text = _read(CLAUDE)
     for heading in sorted(CLAUDE_FORBIDDEN_GENERAL_SECTIONS):
         if heading in claude_text:
-            errors.append(
-                f"CLAUDE.md duplicates general repository guidance section: {heading}"
-            )
+            errors.append(f"CLAUDE.md duplicates general section: {heading}")
     if "[AGENTS.md](AGENTS.md)" not in claude_text:
-        errors.append("CLAUDE.md must link to AGENTS.md for general repository rules")
+        errors.append("CLAUDE.md must link AGENTS.md for general rules")
 
     context_text = _read(CONTEXT)
     if not context_text.startswith("# ICT Register\n"):
-        errors.append("CONTEXT.md must remain the ICT Register domain glossary")
+        errors.append("CONTEXT.md must remain the ICT Register glossary")
     for policy in sorted(CONTEXT_FORBIDDEN_POLICY):
         if policy in context_text:
-            errors.append(f"CONTEXT.md attempts to own work-tracking policy: {policy}")
-
+            errors.append(f"CONTEXT.md attempts to own work policy: {policy}")
     return errors
 
 
@@ -274,7 +306,7 @@ def _validate_planning_boundaries() -> list[str]:
     errors: list[str] = []
     for path, required_terms in PLANNING_SURFACE_CONTRACTS.items():
         if not path.is_file():
-            errors.append(f"missing planning boundary surface: {path.relative_to(REPO_ROOT)}")
+            errors.append(f"missing planning boundary: {path.relative_to(REPO_ROOT)}")
             continue
         text = _read(path)
         for required in sorted(required_terms):
@@ -285,8 +317,60 @@ def _validate_planning_boundaries() -> list[str]:
         for forbidden in sorted(FORBIDDEN_UNQUALIFIED_TRUTH_CLAIMS):
             if forbidden in text:
                 errors.append(
-                    f"{path.relative_to(REPO_ROOT)} retains unqualified truth claim: {forbidden}"
+                    f"{path.relative_to(REPO_ROOT)} retains live-truth claim: {forbidden}"
                 )
+
+    state_text = _read(PLANNING_STATE)
+    for forbidden in ("## Current Position", "remains active", "⏳ In progress"):
+        if forbidden in state_text:
+            errors.append(f"STATE.md retains live-looking status: {forbidden}")
+
+    roadmap_text = _read(PLANNING_ROADMAP)
+    if re.search(r"(?m)^- \[[ xX]\]", roadmap_text):
+        errors.append("ROADMAP.md must not expose live-looking task checkboxes")
+    return errors
+
+
+def _validate_artifact_topology() -> list[str]:
+    errors: list[str] = []
+    for path in (
+        PLANNING_AUDIT_INDEX,
+        AUDIT_DISPOSITION,
+        REPO_ROOT / ".planning/audits/2026-05-09-deepening-audit.md",
+        REPO_ROOT / ".planning/audits/2026-05-17-architecture-improvement-plan.md",
+    ):
+        if not path.is_file():
+            errors.append(f"missing retained audit surface: {path.relative_to(REPO_ROOT)}")
+
+    for path in TRANSIENT_PLANNING_ARTIFACTS:
+        if path.exists():
+            errors.append(
+                f"session-style planning artifact remains active: "
+                f"{path.relative_to(REPO_ROOT)}"
+            )
+
+    if AUDIT_DISPOSITION.is_file():
+        disposition = _read(AUDIT_DISPOSITION)
+        for path, blob_sha in TRANSIENT_PLANNING_ARTIFACTS.items():
+            if str(path.relative_to(REPO_ROOT)) not in disposition:
+                errors.append(
+                    f"audit disposition does not name removed path: "
+                    f"{path.relative_to(REPO_ROOT)}"
+                )
+            if blob_sha not in disposition:
+                errors.append(
+                    f"audit disposition does not preserve blob identity: {blob_sha}"
+                )
+
+    for path, required in (
+        (PLANNING_AUDIT_INDEX, "legacy-planning-artifact-disposition-2026-08-24.md"),
+        (DOCS_AUDIT_INDEX, "legacy-planning-artifact-disposition-2026-08-24.md"),
+        (PLANNING_README, "audits/README.md"),
+    ):
+        if path.is_file() and required not in _read(path):
+            errors.append(
+                f"{path.relative_to(REPO_ROOT)} does not link artifact disposition"
+            )
     return errors
 
 
@@ -297,6 +381,7 @@ def validate() -> list[str]:
         *_validate_agent_surfaces(),
         *_validate_tool_and_domain_surfaces(),
         *_validate_planning_boundaries(),
+        *_validate_artifact_topology(),
     ]
 
 
@@ -306,7 +391,7 @@ def main() -> int:
         for error in errors:
             print(f"documentation-ownership error: {error}", file=sys.stderr)
         return 1
-    print("Documentation ownership contract: valid")
+    print("Documentation ownership and artifact topology: valid")
     return 0
 
 
