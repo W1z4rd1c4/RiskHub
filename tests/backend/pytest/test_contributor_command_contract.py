@@ -1,29 +1,47 @@
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FACADE = REPO_ROOT / "scripts/riskhub.sh"
 CI_CONTRACT = REPO_ROOT / "docs/development/ci-gate-contract.json"
 CONTRACT_DOC = REPO_ROOT / "docs/development/CONTRIBUTOR_COMMANDS.md"
+VALIDATOR = REPO_ROOT / "scripts/tools/validate_contributor_command_contract.py"
+STARTUP_SMOKE = REPO_ROOT / ".github/workflows/startup-smoke.yml"
+STARTUP_SMOKE_PR = REPO_ROOT / ".github/workflows/startup-smoke-pr.yml"
+RELEASE_WORKFLOW = REPO_ROOT / ".github/workflows/release.yml"
 
 
 def _ci_contract() -> dict:
     return json.loads(CI_CONTRACT.read_text(encoding="utf-8"))
 
 
+def _validator_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location(
+        "riskhub_contributor_contract_validator",
+        VALIDATOR,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _git_blob_sha(path: Path) -> str:
+    data = path.read_bytes()
+    return hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+
+
 def test_contributor_command_contract():
     subprocess.run(
-        [
-            sys.executable,
-            str(
-                REPO_ROOT
-                / "scripts/tools/validate_contributor_command_contract.py"
-            ),
-        ],
+        [sys.executable, str(VALIDATOR)],
         cwd=REPO_ROOT,
         check=True,
     )
@@ -70,10 +88,15 @@ def test_human_ci_map_covers_every_machine_mapped_workflow_job():
         assert f"| `{check['job_name']}` | `{workflow_name}` |" in documentation
 
 
-def test_ci_contract_includes_release_publication_workflow_and_purpose():
+def test_ci_contract_includes_release_publication_workflow_and_blob_identity():
     payload = _ci_contract()
 
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
+    release_contract = payload["workflow_contracts"][
+        ".github/workflows/release.yml"
+    ]
+    assert release_contract["git_blob_sha"] == _git_blob_sha(RELEASE_WORKFLOW)
+
     release_jobs = {
         check["job_id"]
         for check in payload["checks"]
@@ -95,11 +118,24 @@ def test_ci_contract_includes_release_publication_workflow_and_purpose():
         assert check["triage"].strip()
 
 
+def test_docker_onboarding_required_context_has_one_pr_provider():
+    module = _validator_module()
+    providers = module._required_context_providers()
+
+    assert providers["Docker Onboarding Smoke"] == [
+        "startup-smoke-pr.yml:docker-onboarding-smoke"
+    ]
+    assert "pull_request:" not in STARTUP_SMOKE.read_text(encoding="utf-8")
+    assert "pull_request:" in STARTUP_SMOKE_PR.read_text(encoding="utf-8")
+
+
 def test_ci_contract_records_exact_branch_path_tag_and_schedule_filters():
     events = _ci_contract()["workflow_contracts"]
 
-    assert events[".github/workflows/startup-smoke.yml"]["events"] == {
+    assert events[".github/workflows/startup-smoke-pr.yml"]["events"] == {
         "pull_request": {"branches": ["main", "develop"]},
+    }
+    assert events[".github/workflows/startup-smoke.yml"]["events"] == {
         "push": {"branches": ["main", "develop"]},
         "schedule": {"crons": ["45 2 * * *"]},
         "workflow_dispatch": {"inputs": []},
@@ -126,6 +162,14 @@ def test_ci_contract_records_exact_branch_path_tag_and_schedule_filters():
         "push": {"tags": ["v*"]},
         "workflow_dispatch": {"inputs": ["version"]},
     }
+
+
+def test_job_condition_normalization_is_exact_not_substring_based():
+    module = _validator_module()
+    expected = "github.event_name == 'pull_request'"
+
+    assert module._normalize_expression(f"${{{{ {expected} }}}}") == expected
+    assert module._normalize_expression(f"{expected} && false") != expected
 
 
 def test_contributor_command_rejects_unknown_command():
