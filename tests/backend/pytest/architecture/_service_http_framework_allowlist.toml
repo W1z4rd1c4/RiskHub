@@ -10,6 +10,7 @@
 "backend/app/services/_approval_queue/execution.py::fastapi" = 1
 "backend/app/services/_auth_session/cookies.py::starlette.responses" = 1
 "backend/app/services/_auth_session/sso_challenges.py::starlette.requests" = 1
+"backend/app/services/_collection_filters.py::fastapi" = 1
 "backend/app/services/_control_execution/access.py::fastapi" = 1
 "backend/app/services/_control_execution/link_governance.py::fastapi" = 1
 "backend/app/services/_control_execution/link_policy.py::fastapi" = 1
@@ -65,6 +66,7 @@
 [http_exception_raises]
 "backend/app/services/_approval_queue/delete_intake.py" = 1
 "backend/app/services/_approval_queue/execution.py" = 1
+"backend/app/services/_collection_filters.py" = 1
 "backend/app/services/_control_execution/access.py" = 4
 "backend/app/services/_control_execution/link_governance.py" = 6
 "backend/app/services/_control_execution/link_policy.py" = 2
