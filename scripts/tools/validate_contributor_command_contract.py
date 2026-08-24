@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the stable contributor façade and executable CI ownership map."""
+"""Validate the contributor façade and executable CI ownership contract."""
 
 from __future__ import annotations
 
@@ -60,9 +60,19 @@ GOVERNED_WORKFLOWS = {
     ".github/workflows/maintenance-governance.yml",
     ".github/workflows/release-parity-fast.yml",
     ".github/workflows/release-parity-pr.yml",
+    ".github/workflows/release.yml",
     ".github/workflows/security.yml",
     ".github/workflows/startup-smoke.yml",
 }
+
+EVENT_FILTER_KEYS = (
+    "branches",
+    "branches-ignore",
+    "tags",
+    "tags-ignore",
+    "paths",
+    "paths-ignore",
+)
 
 
 def _declared_make_targets() -> set[str]:
@@ -91,21 +101,70 @@ def _load_workflow(path: Path) -> dict[str, Any]:
 
 
 def _workflow_on(workflow: dict[str, Any]) -> Any:
-    # PyYAML's YAML 1.1 resolver may deserialize the key `on` as boolean True.
+    # PyYAML's YAML 1.1 resolver may deserialize `on` as boolean True.
     if "on" in workflow:
         return workflow["on"]
     return workflow.get(True)
 
 
-def _trigger_map(workflow: dict[str, Any]) -> dict[str, Any]:
-    value = _workflow_on(workflow)
+def _as_string_list(value: Any, *, field: str) -> list[str]:
     if isinstance(value, str):
-        return {value: None}
-    if isinstance(value, list):
-        return {str(item): None for item in value}
-    if isinstance(value, dict):
-        return {str(key): item for key, item in value.items()}
-    raise ValueError("workflow `on` must be a string, list, or mapping")
+        return [value]
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return list(value)
+    raise ValueError(f"workflow event {field} must be a string or string list")
+
+
+def _normalize_event(event_name: str, config: Any) -> dict[str, list[str]]:
+    if event_name == "schedule":
+        if not isinstance(config, list):
+            raise ValueError("schedule must contain a list")
+        crons: list[str] = []
+        for item in config:
+            if not isinstance(item, dict) or not isinstance(item.get("cron"), str):
+                raise ValueError("schedule entries must contain cron strings")
+            crons.append(item["cron"])
+        return {"crons": crons}
+
+    if event_name == "workflow_dispatch":
+        if config is None:
+            return {"inputs": []}
+        if not isinstance(config, dict):
+            raise ValueError("workflow_dispatch must be null or a mapping")
+        inputs = config.get("inputs", {})
+        if inputs is None:
+            return {"inputs": []}
+        if not isinstance(inputs, dict):
+            raise ValueError("workflow_dispatch inputs must be a mapping")
+        return {"inputs": [str(name) for name in inputs]}
+
+    if config is None:
+        return {}
+    if not isinstance(config, dict):
+        raise ValueError(f"{event_name} must be null or a mapping")
+
+    normalized: dict[str, list[str]] = {}
+    for key in EVENT_FILTER_KEYS:
+        if key in config:
+            normalized[key.replace("-", "_")] = _as_string_list(
+                config[key],
+                field=f"{event_name}.{key}",
+            )
+    return normalized
+
+
+def _normalized_events(workflow: dict[str, Any]) -> dict[str, dict[str, list[str]]]:
+    raw = _workflow_on(workflow)
+    if isinstance(raw, str):
+        return {raw: {}}
+    if isinstance(raw, list):
+        return {str(event): {} for event in raw}
+    if not isinstance(raw, dict):
+        raise ValueError("workflow `on` must be a string, list, or mapping")
+    return {
+        str(event_name): _normalize_event(str(event_name), config)
+        for event_name, config in raw.items()
+    }
 
 
 def _validate_facade() -> list[str]:
@@ -166,22 +225,63 @@ def _validate_facade() -> list[str]:
     ):
         if required_help not in script_text:
             errors.append(f"façade help is missing side-effect disclosure: {required_help}")
-
     return errors
 
 
-def _validate_ci_contract() -> list[str]:
+def _validate_workflow_contracts(
+    contract: dict[str, Any],
+) -> tuple[list[str], dict[str, dict[str, Any]]]:
+    errors: list[str] = []
+    raw_contracts = contract.get("workflow_contracts")
+    if not isinstance(raw_contracts, dict):
+        return ["CI gate contract must contain workflow_contracts"], {}
+    if set(raw_contracts) != GOVERNED_WORKFLOWS:
+        missing = GOVERNED_WORKFLOWS - set(raw_contracts)
+        extra = set(raw_contracts) - GOVERNED_WORKFLOWS
+        if missing:
+            errors.append("CI contract omits workflows: " + ", ".join(sorted(missing)))
+        if extra:
+            errors.append("CI contract has unknown workflows: " + ", ".join(sorted(extra)))
+
+    workflows: dict[str, dict[str, Any]] = {}
+    for workflow_name in sorted(GOVERNED_WORKFLOWS):
+        path = REPO_ROOT / workflow_name
+        try:
+            workflow = _load_workflow(path)
+            actual_events = _normalized_events(workflow)
+        except (OSError, UnicodeDecodeError, ValueError, yaml.YAMLError) as exc:
+            errors.append(f"unable to load {workflow_name}: {exc}")
+            continue
+        workflows[workflow_name] = workflow
+
+        declared = raw_contracts.get(workflow_name)
+        if not isinstance(declared, dict):
+            errors.append(f"workflow contract for {workflow_name} must be an object")
+            continue
+        expected_events = declared.get("events")
+        if not isinstance(expected_events, dict):
+            errors.append(f"workflow contract for {workflow_name} must define events")
+            continue
+        if actual_events != expected_events:
+            errors.append(
+                f"{workflow_name} event filters differ from contract: "
+                f"expected={expected_events!r} actual={actual_events!r}"
+            )
+    return errors, workflows
+
+
+def _validate_ci_contract() -> tuple[list[str], list[dict[str, Any]]]:
     errors: list[str] = []
     if not CI_CONTRACT.is_file():
-        return ["missing docs/development/ci-gate-contract.json"]
+        return ["missing docs/development/ci-gate-contract.json"], []
 
     try:
         contract = _load_json_object(CI_CONTRACT)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
-        return [f"unable to load CI gate contract: {exc}"]
+        return [f"unable to load CI gate contract: {exc}"], []
 
-    if contract.get("schema_version") != 1:
-        errors.append("CI gate contract schema_version must equal 1")
+    if contract.get("schema_version") != 2:
+        errors.append("CI gate contract schema_version must equal 2")
 
     required_checks = contract.get("required_on_protected_main")
     if (
@@ -190,16 +290,19 @@ def _validate_ci_contract() -> list[str]:
         or set(required_checks) != EXPECTED_REQUIRED_CHECKS
     ):
         errors.append(
-            "CI gate contract required-check snapshot must match the protected-main contract"
+            "CI gate contract required-check snapshot must match protected main"
         )
+
+    workflow_errors, workflows = _validate_workflow_contracts(contract)
+    errors.extend(workflow_errors)
 
     checks = contract.get("checks")
     if not isinstance(checks, list) or not checks:
-        return [*errors, "CI gate contract must contain a non-empty checks list"]
+        return [*errors, "CI gate contract must contain a non-empty checks list"], []
 
-    seen_names: set[str] = set()
     seen_job_keys: set[tuple[str, str]] = set()
-    workflow_cache: dict[Path, tuple[dict[str, Any], dict[str, Any]]] = {}
+    required_from_entries: set[str] = set()
+    normalized_checks: list[dict[str, Any]] = []
 
     for index, entry in enumerate(checks):
         label = f"CI gate contract checks[{index}]"
@@ -207,29 +310,31 @@ def _validate_ci_contract() -> list[str]:
             errors.append(f"{label} must be an object")
             continue
 
-        job_name = entry.get("job_name")
         workflow_name = entry.get("workflow")
         job_id = entry.get("job_id")
-        triggers = entry.get("triggers")
+        job_name = entry.get("job_name")
         owner = entry.get("owner")
+        purpose = entry.get("purpose")
         budget = entry.get("runtime_budget")
+        triage = entry.get("triage")
         required = entry.get("required_on_protected_main")
+        continue_on_error = entry.get("continue_on_error")
 
-        if not isinstance(job_name, str) or not job_name:
-            errors.append(f"{label}.job_name must be a non-empty string")
-            continue
-        if job_name in seen_names:
-            errors.append(f"duplicate CI job display name: {job_name}")
-        seen_names.add(job_name)
-
-        if (
-            not isinstance(workflow_name, str)
-            or workflow_name not in GOVERNED_WORKFLOWS
+        for field_name, value in (
+            ("workflow", workflow_name),
+            ("job_id", job_id),
+            ("job_name", job_name),
+            ("owner", owner),
+            ("purpose", purpose),
+            ("runtime_budget", budget),
+            ("triage", triage),
         ):
-            errors.append(f"{label}.workflow is not a governed workflow path")
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"{label}.{field_name} must be a non-empty string")
+
+        if not isinstance(workflow_name, str) or workflow_name not in GOVERNED_WORKFLOWS:
             continue
-        if not isinstance(job_id, str) or not job_id:
-            errors.append(f"{label}.job_id must be a non-empty string")
+        if not isinstance(job_id, str) or not isinstance(job_name, str):
             continue
 
         job_key = (workflow_name, job_id)
@@ -237,42 +342,16 @@ def _validate_ci_contract() -> list[str]:
             errors.append(f"duplicate CI workflow/job mapping: {workflow_name}:{job_id}")
         seen_job_keys.add(job_key)
 
-        if not isinstance(triggers, list) or not triggers or not all(
-            isinstance(trigger, str) and trigger for trigger in triggers
-        ):
-            errors.append(f"{label}.triggers must be a non-empty string list")
-            continue
-        if not isinstance(owner, str) or not owner:
-            errors.append(f"{label}.owner must be a non-empty string")
-        if (
-            not isinstance(budget, str)
-            or re.fullmatch(r"\d+[-–]\d+ min", budget) is None
-        ):
+        if not isinstance(budget, str) or re.fullmatch(r"\d+-\d+ min", budget) is None:
             errors.append(f"{label}.runtime_budget must use `N-N min` format")
         if type(required) is not bool:
             errors.append(f"{label}.required_on_protected_main must be boolean")
+        if type(continue_on_error) is not bool:
+            errors.append(f"{label}.continue_on_error must be boolean")
 
-        workflow_path = REPO_ROOT / workflow_name
-        if workflow_path not in workflow_cache:
-            try:
-                workflow = _load_workflow(workflow_path)
-                workflow_cache[workflow_path] = (workflow, _trigger_map(workflow))
-            except (
-                OSError,
-                UnicodeDecodeError,
-                ValueError,
-                yaml.YAMLError,
-            ) as exc:
-                errors.append(f"unable to load {workflow_name}: {exc}")
-                continue
-
-        workflow, actual_triggers = workflow_cache[workflow_path]
-        if set(triggers) != set(actual_triggers):
-            errors.append(
-                f"{job_name} trigger map {sorted(triggers)} does not match "
-                f"{workflow_name} {sorted(actual_triggers)}"
-            )
-
+        workflow = workflows.get(workflow_name)
+        if workflow is None:
+            continue
         jobs = workflow.get("jobs")
         if not isinstance(jobs, dict) or job_id not in jobs:
             errors.append(f"{workflow_name} does not contain job {job_id!r}")
@@ -285,14 +364,9 @@ def _validate_ci_contract() -> list[str]:
             errors.append(
                 f"{workflow_name}:{job_id} display name must be {job_name!r}"
             )
-
-        expected_continue = entry.get("continue_on_error")
-        if (
-            expected_continue is not None
-            and job.get("continue-on-error") is not expected_continue
-        ):
+        if bool(job.get("continue-on-error", False)) is not continue_on_error:
             errors.append(
-                f"{workflow_name}:{job_id} continue-on-error does not match contract"
+                f"{workflow_name}:{job_id} continue-on-error differs from contract"
             )
 
         job_if_contains = entry.get("job_if_contains")
@@ -301,66 +375,49 @@ def _validate_ci_contract() -> list[str]:
                 job.get("if", "")
             ):
                 errors.append(
-                    f"{workflow_name}:{job_id} job condition does not match contract"
-                )
-
-        if entry.get("pull_request_path_filtered") is True:
-            pull_request_config = actual_triggers.get("pull_request")
-            if not isinstance(pull_request_config, dict) or not pull_request_config.get(
-                "paths"
-            ):
-                errors.append(
-                    f"{workflow_name} must retain path-filtered pull_request execution"
+                    f"{workflow_name}:{job_id} condition differs from contract"
                 )
 
         if required is True:
-            if job_name not in EXPECTED_REQUIRED_CHECKS:
-                errors.append(f"unexpected protected-main required check: {job_name}")
-            if "pull_request" not in actual_triggers:
+            required_from_entries.add(job_name)
+            workflow_contract = contract["workflow_contracts"][workflow_name]
+            if "pull_request" not in workflow_contract["events"]:
                 errors.append(
-                    f"required check {job_name} cannot run because its workflow lacks pull_request"
+                    f"required check {job_name} lacks pull_request execution"
                 )
+        normalized_checks.append(entry)
+
+    if required_from_entries != EXPECTED_REQUIRED_CHECKS:
+        errors.append(
+            "required check entries do not match the protected-main snapshot"
+        )
 
     for workflow_name in sorted(GOVERNED_WORKFLOWS):
-        workflow_path = REPO_ROOT / workflow_name
-        if workflow_path not in workflow_cache:
-            try:
-                workflow = _load_workflow(workflow_path)
-                workflow_cache[workflow_path] = (workflow, _trigger_map(workflow))
-            except (
-                OSError,
-                UnicodeDecodeError,
-                ValueError,
-                yaml.YAMLError,
-            ) as exc:
-                errors.append(f"unable to inventory {workflow_name}: {exc}")
-                continue
-        workflow, _ = workflow_cache[workflow_path]
+        workflow = workflows.get(workflow_name)
+        if workflow is None:
+            continue
         jobs = workflow.get("jobs")
         if not isinstance(jobs, dict):
             errors.append(f"{workflow_name} must contain a jobs mapping")
             continue
-        actual_job_keys = {(workflow_name, str(job_id)) for job_id in jobs}
-        mapped_job_keys = {
-            job_key for job_key in seen_job_keys if job_key[0] == workflow_name
-        }
-        missing_jobs = actual_job_keys - mapped_job_keys
-        extra_jobs = mapped_job_keys - actual_job_keys
-        if missing_jobs:
+        actual = {(workflow_name, str(job_id)) for job_id in jobs}
+        mapped = {key for key in seen_job_keys if key[0] == workflow_name}
+        missing = actual - mapped
+        extra = mapped - actual
+        if missing:
             errors.append(
-                f"CI gate contract omits jobs from {workflow_name}: "
-                + ", ".join(sorted(job_id for _, job_id in missing_jobs))
+                f"CI contract omits jobs from {workflow_name}: "
+                + ", ".join(sorted(job_id for _, job_id in missing))
             )
-        if extra_jobs:
+        if extra:
             errors.append(
-                f"CI gate contract names unknown jobs in {workflow_name}: "
-                + ", ".join(sorted(job_id for _, job_id in extra_jobs))
+                f"CI contract names unknown jobs in {workflow_name}: "
+                + ", ".join(sorted(job_id for _, job_id in extra))
             )
+    return errors, normalized_checks
 
-    return errors
 
-
-def _validate_documentation() -> list[str]:
+def _validate_documentation(checks: list[dict[str, Any]]) -> list[str]:
     errors: list[str] = []
     documentation_checks = {
         SCRIPT_README: "docs/development/CONTRIBUTOR_COMMANDS.md",
@@ -373,15 +430,15 @@ def _validate_documentation() -> list[str]:
             continue
         if expected_link not in path.read_text(encoding="utf-8"):
             errors.append(
-                f"{path.relative_to(REPO_ROOT)} does not link to the command contract"
+                f"{path.relative_to(REPO_ROOT)} does not link the command contract"
             )
 
     if not CONTRACT_DOC.is_file():
         return [*errors, "missing contributor command contract document"]
 
-    contract_text = CONTRACT_DOC.read_text(encoding="utf-8")
+    text = CONTRACT_DOC.read_text(encoding="utf-8")
     for command in (*EXPECTED_DELEGATES, "help"):
-        if f"`{command}" not in contract_text:
+        if f"`{command}" not in text:
             errors.append(f"command contract does not document {command}")
     for required_section in (
         "## Stable Commands",
@@ -390,32 +447,39 @@ def _validate_documentation() -> list[str]:
         "## Change Policy",
         "## Validation",
     ):
-        if required_section not in contract_text:
+        if required_section not in text:
             errors.append(f"command contract is missing {required_section}")
     for required_term in (
         "ci-gate-contract.json",
+        "| Check | Workflow | Execution lane | Budget | Owner | Purpose | First triage action |",
         "Backend SQLite Regression",
         "Production Profile Smoke",
-        "Path-filtered PR",
-        "Manual dispatch only",
+        "Create GitHub Release",
         "stops local development processes",
         "intentionally keeps `backend/venv`",
         "not SLAs",
         "lint lint-types",
     ):
-        if required_term not in contract_text:
-            errors.append(
-                f"command contract is missing CI/side-effect term: {required_term}"
-            )
+        if required_term not in text:
+            errors.append(f"command contract is missing term: {required_term}")
 
+    for entry in checks:
+        workflow_name = Path(str(entry["workflow"])).name
+        job_name = str(entry["job_name"])
+        row_prefix = f"| `{job_name}` | `{workflow_name}` |"
+        if row_prefix not in text:
+            errors.append(
+                f"human CI map is missing workflow/job row: {workflow_name}:{job_name}"
+            )
     return errors
 
 
 def validate() -> list[str]:
+    ci_errors, checks = _validate_ci_contract()
     return [
         *_validate_facade(),
-        *_validate_ci_contract(),
-        *_validate_documentation(),
+        *ci_errors,
+        *_validate_documentation(checks),
     ]
 
 
@@ -425,7 +489,7 @@ def main() -> int:
         for error in errors:
             print(f"contributor-command error: {error}", file=sys.stderr)
         return 1
-    print("Contributor command and CI contract: valid")
+    print("Contributor command and exact CI contract: valid")
     return 0
 
 
