@@ -16,6 +16,10 @@ SCANNER = "trivy"
 IMAGE = "riskhub-frontend:scan"
 CLEAN_STATUS = "clean"
 VALID_STATUSES = {CLEAN_STATUS, "findings", "scan_failed", "evidence_invalid"}
+SARIF_SCHEMA_URI = (
+    "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/"
+    "sarif-2.1/schema/sarif-schema-2.1.0.json"
+)
 TRIVY_DRIVER_NAME = "Trivy"
 TRIVY_DRIVER_FULL_NAME = "Trivy Vulnerability Scanner"
 TRIVY_INFORMATION_URI = "https://github.com/aquasecurity/trivy"
@@ -39,6 +43,16 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _valid_result_message(result: dict[str, Any]) -> bool:
+    message = result.get("message")
+    if not isinstance(message, dict):
+        return False
+    return any(
+        isinstance(message.get(field), str) and message[field].strip()
+        for field in ("text", "markdown")
+    )
+
+
 def _load_sarif(path: Path) -> tuple[bool, bool, int, str | None, str | None]:
     if not path.is_file():
         return False, False, 0, "sarif_missing", None
@@ -51,12 +65,7 @@ def _load_sarif(path: Path) -> tuple[bool, bool, int, str | None, str | None]:
     if not isinstance(payload, dict) or payload.get("version") != "2.1.0":
         return True, False, 0, "sarif_invalid_shape", None
 
-    schema_uri = payload.get("$schema")
-    if (
-        not isinstance(schema_uri, str)
-        or "sarif" not in schema_uri.lower()
-        or "2.1.0" not in schema_uri
-    ):
+    if payload.get("$schema") != SARIF_SCHEMA_URI:
         return True, False, 0, "sarif_invalid_schema", None
 
     runs = payload.get("runs")
@@ -76,7 +85,10 @@ def _load_sarif(path: Path) -> tuple[bool, bool, int, str | None, str | None]:
     if driver.get("fullName") != TRIVY_DRIVER_FULL_NAME:
         return True, False, 0, "sarif_unexpected_tool", None
     information_uri = driver.get("informationUri")
-    if not isinstance(information_uri, str) or information_uri.rstrip("/") != TRIVY_INFORMATION_URI:
+    if (
+        not isinstance(information_uri, str)
+        or information_uri.rstrip("/") != TRIVY_INFORMATION_URI
+    ):
         return True, False, 0, "sarif_unexpected_tool", None
     if not isinstance(driver.get("rules"), list):
         return True, False, 0, "sarif_invalid_rules", None
@@ -90,6 +102,8 @@ def _load_sarif(path: Path) -> tuple[bool, bool, int, str | None, str | None]:
         rule_id = result.get("ruleId")
         if not isinstance(rule_id, str) or not rule_id.strip():
             return True, False, 0, "sarif_invalid_result_identity", None
+        if not _valid_result_message(result):
+            return True, False, 0, "sarif_invalid_result_message", None
 
     try:
         digest = _sha256(path)
@@ -149,13 +163,19 @@ def _status_errors(payload: Any) -> list[str]:
         errors.append("status evidence is missing required fields: " + ", ".join(missing))
         return errors
 
-    if type(payload.get("schema_version")) is not int or payload["schema_version"] != SCHEMA_VERSION:
+    if (
+        type(payload.get("schema_version")) is not int
+        or payload["schema_version"] != SCHEMA_VERSION
+    ):
         errors.append("schema_version must equal 1")
     if payload.get("scanner") != SCANNER:
         errors.append(f"scanner must equal {SCANNER!r}")
     if payload.get("image") != IMAGE:
         errors.append(f"image must equal {IMAGE!r}")
-    if not isinstance(payload.get("scan_outcome"), str) or not payload["scan_outcome"]:
+    if (
+        not isinstance(payload.get("scan_outcome"), str)
+        or not payload["scan_outcome"]
+    ):
         errors.append("scan_outcome must be a non-empty string")
     if not isinstance(payload.get("sarif_path"), str) or not payload["sarif_path"]:
         errors.append("sarif_path must be a non-empty string")
@@ -163,11 +183,16 @@ def _status_errors(payload: Any) -> list[str]:
         errors.append("sarif_present must be a boolean")
     if type(payload.get("sarif_valid")) is not bool:
         errors.append("sarif_valid must be a boolean")
-    if type(payload.get("finding_count")) is not int or payload["finding_count"] < 0:
+    if (
+        type(payload.get("finding_count")) is not int
+        or payload["finding_count"] < 0
+    ):
         errors.append("finding_count must be a non-negative integer")
 
     digest = payload.get("sarif_sha256")
-    if digest is not None and (not isinstance(digest, str) or SHA256_RE.fullmatch(digest) is None):
+    if digest is not None and (
+        not isinstance(digest, str) or SHA256_RE.fullmatch(digest) is None
+    ):
         errors.append("sarif_sha256 must be null or a lowercase SHA-256 digest")
 
     status = payload.get("status")
