@@ -1,0 +1,94 @@
+name: Startup Smoke PR
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  docker-onboarding-smoke:
+    name: Docker Onboarding Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Start canonical Docker onboarding stack
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-artifacts/startup-smoke
+          ./scripts/compose.sh up | tee .ci-artifacts/startup-smoke/compose-up.log
+
+      - name: Verify readiness, health, headers, auth config, and docs exposure
+        run: |
+          set -euo pipefail
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/livez | tee .ci-artifacts/startup-smoke/livez.json
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/readyz | tee .ci-artifacts/startup-smoke/readyz.json
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/health | tee .ci-artifacts/startup-smoke/health.json
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/auth/config | tee .ci-artifacts/startup-smoke/auth-config.json
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS -D .ci-artifacts/startup-smoke/readyz.headers http://localhost:8000/api/v1/readyz -o /dev/null
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS -D .ci-artifacts/startup-smoke/login.headers http://localhost/login -o .ci-artifacts/startup-smoke/login.html
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/docs -o .ci-artifacts/startup-smoke/docs.html
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          livez = json.loads(Path(".ci-artifacts/startup-smoke/livez.json").read_text(encoding="utf-8"))
+          assert livez == {"status": "alive"}
+
+          readyz = json.loads(Path(".ci-artifacts/startup-smoke/readyz.json").read_text(encoding="utf-8"))
+          assert set(readyz) == {"ready", "database", "redis", "scheduler_role", "scheduler_status"}
+          assert readyz["ready"] is True
+          assert readyz["database"] == "connected"
+          assert readyz["redis"] in {"connected", "disabled"}
+          assert readyz["scheduler_role"] in {"disabled", "leader", "follower"}
+          assert readyz["scheduler_status"] in {"disabled", "leader_running", "follower_ready"}
+
+          health = json.loads(Path(".ci-artifacts/startup-smoke/health.json").read_text(encoding="utf-8"))
+          assert set(health) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status"}
+          assert health["status"] == "healthy"
+          assert health["ready"] is True
+          assert health["database"] == "connected"
+          assert health["redis"] in {"connected", "disabled"}
+          assert health["scheduler_role"] in {"disabled", "leader", "follower"}
+          assert health["scheduler_status"] in {"disabled", "leader_running", "follower_ready"}
+
+          auth_config = json.loads(Path(".ci-artifacts/startup-smoke/auth-config.json").read_text(encoding="utf-8"))
+          assert "auth_mode" in auth_config
+          assert "sso" in auth_config
+          assert "demo_login_enabled" in auth_config
+          PY
+          grep -qi '^x-frame-options: DENY' .ci-artifacts/startup-smoke/readyz.headers
+          grep -qi '^content-security-policy:' .ci-artifacts/startup-smoke/readyz.headers
+          grep -q 'id="root"' .ci-artifacts/startup-smoke/login.html
+          grep -q '<script type="module"' .ci-artifacts/startup-smoke/login.html
+          grep -q 'Swagger UI' .ci-artifacts/startup-smoke/docs.html
+
+      - name: Capture Docker diagnostics
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-artifacts/startup-smoke
+          docker compose -f docker-compose.yml ps -a > .ci-artifacts/startup-smoke/docker-ps.txt 2>&1 || true
+          for service in db redis bootstrap backend frontend; do
+            docker compose -f docker-compose.yml logs --no-color "$service" > ".ci-artifacts/startup-smoke/${service}.log" 2>&1 || true
+          done
+
+      - name: Tear down Docker onboarding stack
+        if: always()
+        run: |
+          set -euo pipefail
+          ./scripts/compose.sh down --volumes
+
+      - name: Upload startup smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: startup-smoke-pr
+          path: .ci-artifacts/startup-smoke
+          retention-days: 30
