@@ -15,6 +15,7 @@ PERMISSION_HELPER = (
     REPO_ROOT / "scripts/tools/check_github_pr_automation_permissions.py"
 )
 ENTRYPOINT = REPO_ROOT / "backend/requirements-dev.txt"
+BACKEND_README = REPO_ROOT / "backend/README.md"
 REFRESH_WORKFLOW = REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
 
 
@@ -140,3 +141,24 @@ def test_permission_preflight_rejects_missing_pull_request_write(monkeypatch):
 
     with pytest.raises(RuntimeError, match="pull-request write endpoint"):
         module._require_pull_request_endpoint(context)
+
+
+def test_backend_readme_describes_the_executed_permission_preflight():
+    readme = BACKEND_README.read_text(encoding="utf-8")
+
+    for required in (
+        "check_github_pr_automation_permissions.py",
+        "permissions.push=true",
+        "git push --dry-run",
+        "empty JSON object",
+        "HTTP 401, 403, or 404",
+        "land the reviewed workflow on `main`",
+    ):
+        assert required in readme
+
+    for stale in (
+        "intentionally nonexistent object",
+        "intentionally nonexistent head",
+        "two non-mutating capability probes",
+    ):
+        assert stale not in readme
