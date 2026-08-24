@@ -130,6 +130,45 @@ def test_permission_preflight_uses_non_mutating_pr_validation_payload(monkeypatc
     }
 
 
+def test_permission_preflight_sends_json_content_type(monkeypatch):
+    module = _permission_module()
+    context = module.GitHubContext("owner/repo", "token", "42")
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def fake_urlopen(request, *, timeout):
+        captured["content_type"] = request.headers.get("Content-type")
+        captured["data"] = request.data
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(module.urllib.request, "urlopen", fake_urlopen)
+    status, body = module._request(
+        context,
+        "/repos/owner/repo/pulls",
+        method="POST",
+        payload={},
+    )
+
+    assert (status, body) == (200, {})
+    assert captured == {
+        "content_type": "application/json",
+        "data": b"{}",
+        "timeout": 30,
+    }
+
+
 def test_permission_preflight_rejects_missing_pull_request_write(monkeypatch):
     module = _permission_module()
     context = module.GitHubContext("owner/repo", "token", "42")
