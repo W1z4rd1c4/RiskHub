@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "required_on_protected_main": [
     "Backend Quality",
     "Docker Onboarding Smoke",
@@ -8,231 +8,424 @@
     "Playwright E2E Tests",
     "Public Repo Hygiene"
   ],
+  "workflow_contracts": {
+    ".github/workflows/lint.yml": {
+      "events": {
+        "pull_request": {"branches": ["main", "develop"]},
+        "push": {"branches": ["main", "develop"]}
+      }
+    },
+    ".github/workflows/backend-postgres.yml": {
+      "events": {
+        "pull_request": {"branches": ["main", "develop"]},
+        "push": {"branches": ["main", "develop"]}
+      }
+    },
+    ".github/workflows/e2e.yml": {
+      "events": {
+        "pull_request": {"branches": ["main", "develop"]},
+        "push": {"branches": ["main", "develop"]},
+        "workflow_dispatch": {"inputs": []}
+      }
+    },
+    ".github/workflows/startup-smoke.yml": {
+      "events": {
+        "pull_request": {"branches": ["main", "develop"]},
+        "push": {"branches": ["main", "develop"]},
+        "schedule": {"crons": ["45 2 * * *"]},
+        "workflow_dispatch": {"inputs": []}
+      }
+    },
+    ".github/workflows/security.yml": {
+      "events": {
+        "pull_request": {"branches": ["main", "develop"]},
+        "push": {"branches": ["main", "develop"]},
+        "schedule": {"crons": ["0 2 * * *", "0 0 * * 0"]}
+      }
+    },
+    ".github/workflows/maintenance-governance.yml": {
+      "events": {
+        "pull_request": {
+          "branches": ["main", "develop"],
+          "paths": [
+            "AGENTS.md",
+            ".planning/**",
+            "docs/**",
+            "scripts/check_docs_contract.py",
+            "scripts/quality/**",
+            "scripts/tools/**",
+            "frontend/scripts/**",
+            "backend/mypy.ini",
+            "backend/ruff.toml",
+            ".github/workflows/**"
+          ]
+        },
+        "schedule": {"crons": ["30 1 * * *"]},
+        "workflow_dispatch": {"inputs": []}
+      }
+    },
+    ".github/workflows/release-parity-pr.yml": {
+      "events": {"workflow_dispatch": {"inputs": []}}
+    },
+    ".github/workflows/release-parity-fast.yml": {
+      "events": {
+        "push": {"branches": ["main"]},
+        "schedule": {"crons": ["15 2 * * *"]},
+        "workflow_dispatch": {"inputs": []}
+      }
+    },
+    ".github/workflows/release.yml": {
+      "events": {
+        "push": {"tags": ["v*"]},
+        "workflow_dispatch": {"inputs": ["version"]}
+      }
+    }
+  },
   "checks": [
     {
-      "job_name": "Frontend Unit Tests",
       "workflow": ".github/workflows/lint.yml",
       "job_id": "frontend-unit-tests",
-      "triggers": ["pull_request", "push"],
+      "job_name": "Frontend Unit Tests",
       "owner": "Frontend",
+      "purpose": "Enforce frontend unit behavior and the configured coverage floor.",
       "runtime_budget": "3-10 min",
-      "required_on_protected_main": false
+      "triage": "Run `cd frontend && npm run test:coverage` and inspect failing tests or thresholds.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Backend Quality",
-      "workflow": ".github/workflows/lint.yml",
-      "job_id": "backend-quality",
-      "triggers": ["pull_request", "push"],
-      "owner": "Backend",
-      "runtime_budget": "2-8 min",
-      "required_on_protected_main": true
-    },
-    {
-      "job_name": "Frontend + Repo Contracts",
-      "workflow": ".github/workflows/lint.yml",
-      "job_id": "lint",
-      "triggers": ["pull_request", "push"],
-      "owner": "Repository",
-      "runtime_budget": "6-15 min",
-      "required_on_protected_main": true
-    },
-    {
-      "job_name": "PR Merge Result Build",
       "workflow": ".github/workflows/lint.yml",
       "job_id": "pr-merge-result-build",
-      "triggers": ["pull_request", "push"],
-      "job_if_contains": "github.event_name == 'pull_request'",
+      "job_name": "PR Merge Result Build",
       "owner": "Frontend/Release",
+      "purpose": "Build the synthetic merge result and detect integration-only frontend failures.",
       "runtime_budget": "2-6 min",
-      "required_on_protected_main": true
+      "triage": "Update the branch, reproduce the merge candidate build, and inspect Vite output.",
+      "required_on_protected_main": true,
+      "continue_on_error": false,
+      "job_if_contains": "github.event_name == 'pull_request'"
     },
     {
-      "job_name": "Backend SQLite Regression",
+      "workflow": ".github/workflows/lint.yml",
+      "job_id": "backend-quality",
+      "job_name": "Backend Quality",
+      "owner": "Backend",
+      "purpose": "Enforce Ruff, mypy, and suppression-budget contracts.",
+      "runtime_budget": "2-8 min",
+      "triage": "Run `./scripts/riskhub.sh lint` and isolate Ruff, mypy, or suppression output.",
+      "required_on_protected_main": true,
+      "continue_on_error": false
+    },
+    {
+      "workflow": ".github/workflows/lint.yml",
+      "job_id": "lint",
+      "job_name": "Frontend + Repo Contracts",
+      "owner": "Repository",
+      "purpose": "Enforce frontend lint/type/build and repository, documentation, and policy contracts.",
+      "runtime_budget": "6-15 min",
+      "triage": "Run the named failing command from `lint.yml`; repair the source contract rather than bypassing it.",
+      "required_on_protected_main": true,
+      "continue_on_error": false
+    },
+    {
       "workflow": ".github/workflows/backend-postgres.yml",
       "job_id": "sqlite-tests",
-      "triggers": ["pull_request", "push"],
+      "job_name": "Backend SQLite Regression",
       "owner": "Backend",
+      "purpose": "Run the default fast backend regression contract on SQLite.",
       "runtime_budget": "8-20 min",
-      "required_on_protected_main": false
+      "triage": "Run `make -f scripts/Makefile test` and inspect the first attributable failure.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Backend Postgres Regression",
       "workflow": ".github/workflows/backend-postgres.yml",
       "job_id": "postgres-tests",
-      "triggers": ["pull_request", "push"],
+      "job_name": "Backend Postgres Regression",
       "owner": "Backend/Data",
+      "purpose": "Verify migrations, locking, constraints, and PostgreSQL-specific behavior.",
       "runtime_budget": "20-35 min",
-      "required_on_protected_main": false
+      "triage": "Run `make -f scripts/Makefile test-postgres-ci` against the dedicated test database.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Playwright E2E Tests",
       "workflow": ".github/workflows/e2e.yml",
       "job_id": "e2e-tests",
-      "triggers": ["pull_request", "push", "workflow_dispatch"],
+      "job_name": "Playwright E2E Tests",
       "owner": "Product/QA",
+      "purpose": "Verify cross-tier user flows, accessibility collection, and browser behavior.",
       "runtime_budget": "2-15 min",
-      "required_on_protected_main": true
+      "triage": "Download Playwright artifacts and reproduce with `./scripts/riskhub.sh e2e` using the test database guard.",
+      "required_on_protected_main": true,
+      "continue_on_error": false
     },
     {
-      "job_name": "Production Profile Smoke",
       "workflow": ".github/workflows/e2e.yml",
       "job_id": "production-profile-smoke",
-      "triggers": ["pull_request", "push", "workflow_dispatch"],
+      "job_name": "Production Profile Smoke",
       "owner": "Backend/Security",
+      "purpose": "Verify production-profile startup, headers, SSO configuration, Redis, and disabled docs.",
       "runtime_budget": "5-20 min",
-      "required_on_protected_main": false
+      "triage": "Inspect `prod-smoke-backend.log` and reproduce the production-profile environment.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Docker Onboarding Smoke",
       "workflow": ".github/workflows/startup-smoke.yml",
       "job_id": "docker-onboarding-smoke",
-      "triggers": ["pull_request", "push", "schedule", "workflow_dispatch"],
+      "job_name": "Docker Onboarding Smoke",
       "owner": "Deployment/Operations",
+      "purpose": "Verify the public Docker onboarding path, service health, headers, login shell, and docs exposure.",
       "runtime_budget": "8-20 min",
-      "required_on_protected_main": true
+      "triage": "Download `startup-smoke`, inspect Compose/service logs, and run the canonical onboarding path.",
+      "required_on_protected_main": true,
+      "continue_on_error": false
     },
     {
-      "job_name": "Public Repo Hygiene",
       "workflow": ".github/workflows/security.yml",
       "job_id": "public-repo-hygiene",
-      "triggers": ["pull_request", "push", "schedule"],
+      "job_name": "Public Repo Hygiene",
       "owner": "Security/Repository",
+      "purpose": "Prevent tracked privacy, path, and public-repository hygiene regressions.",
       "runtime_budget": "1-5 min",
-      "required_on_protected_main": true
+      "triage": "Run `make -f scripts/Makefile public-repo-hygiene` and inspect the exact offending path.",
+      "required_on_protected_main": true,
+      "continue_on_error": false
     },
     {
-      "job_name": "Workflow Pin Validation",
       "workflow": ".github/workflows/security.yml",
       "job_id": "workflow-pin-validation",
-      "triggers": ["pull_request", "push", "schedule"],
+      "job_name": "Workflow Pin Validation",
       "owner": "Security/Repository",
+      "purpose": "Enforce immutable action, service-image, and scanner references plus repository hardening invariants.",
       "runtime_budget": "1-5 min",
-      "required_on_protected_main": false
+      "triage": "Run the workflow-pin and repository-hardening validators and repair the mutable reference.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Authorization Capability Contract",
       "workflow": ".github/workflows/security.yml",
       "job_id": "authz-capability-contract",
-      "triggers": ["pull_request", "push", "schedule"],
+      "job_name": "Authorization Capability Contract",
       "owner": "Security/Authorization",
+      "purpose": "Prevent authorization and capability-contract drift.",
       "runtime_budget": "1-5 min",
-      "required_on_protected_main": false
+      "triage": "Run the authorization-capability validator and reconcile both contract mirrors.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Python Security (Bandit + pip-audit)",
       "workflow": ".github/workflows/security.yml",
       "job_id": "python-security",
-      "triggers": ["pull_request", "push", "schedule"],
+      "job_name": "Python Security (Bandit + pip-audit)",
       "owner": "Backend/Security",
+      "purpose": "Block high-severity Python SAST findings and unaccepted dependency vulnerabilities.",
       "runtime_budget": "3-12 min",
-      "required_on_protected_main": false
+      "triage": "Download Bandit and pip-audit JSON and separate source findings from dependency findings.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Frontend Security (npm audit)",
       "workflow": ".github/workflows/security.yml",
       "job_id": "frontend-security",
-      "triggers": ["pull_request", "push", "schedule"],
+      "job_name": "Frontend Security (npm audit)",
       "owner": "Frontend/Security",
+      "purpose": "Block high-severity vulnerabilities in the frontend dependency graph.",
       "runtime_budget": "2-8 min",
-      "required_on_protected_main": false
+      "triage": "Run `cd frontend && npm audit --audit-level=high` and inspect the dependency path.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Frontend i18n (Parity + Hardcoded Scan)",
       "workflow": ".github/workflows/security.yml",
       "job_id": "frontend-i18n",
-      "triggers": ["pull_request", "push", "schedule"],
+      "job_name": "Frontend i18n (Parity + Hardcoded Scan)",
       "owner": "Frontend",
+      "purpose": "Enforce locale parity and prevent hardcoded user-facing strings.",
       "runtime_budget": "2-8 min",
-      "required_on_protected_main": false
+      "triage": "Run `cd frontend && npm run i18n:test` and repair the reported key or string.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Redis Resilience Integration (non-blocking)",
       "workflow": ".github/workflows/security.yml",
       "job_id": "redis-resilience-integration",
-      "triggers": ["pull_request", "push", "schedule"],
-      "job_if_contains": "github.event_name == 'schedule'",
+      "job_name": "Redis Resilience Integration (non-blocking)",
+      "owner": "Backend/Resilience",
+      "purpose": "Exercise scheduled Redis failure and recovery behavior without blocking pull requests.",
+      "runtime_budget": "5-15 min",
+      "triage": "Inspect the scheduled pytest artifact and reproduce the Redis integration marker locally.",
+      "required_on_protected_main": false,
       "continue_on_error": true,
-      "owner": "Backend/Security",
-      "runtime_budget": "2-10 min",
-      "required_on_protected_main": false
+      "job_if_contains": "github.event_name == 'schedule'"
     },
     {
-      "job_name": "Container Scan (Trivy + SBOM Correlation)",
       "workflow": ".github/workflows/security.yml",
       "job_id": "container-security",
-      "triggers": ["pull_request", "push", "schedule"],
+      "job_name": "Container Scan (Trivy + SBOM Correlation)",
       "owner": "Security/Supply Chain",
+      "purpose": "Evaluate built backend/frontend images and correlate backend SBOM vulnerabilities.",
       "runtime_budget": "8-25 min",
-      "required_on_protected_main": false
+      "triage": "Download container reports and distinguish frontend Trivy, backend Grype, and scanner-infrastructure outcomes.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Secrets Detection (Gitleaks)",
       "workflow": ".github/workflows/security.yml",
       "job_id": "secrets-detection",
-      "triggers": ["pull_request", "push", "schedule"],
+      "job_name": "Secrets Detection (Gitleaks)",
       "owner": "Security",
+      "purpose": "Detect committed credentials and other secret material across repository history.",
       "runtime_budget": "1-5 min",
-      "required_on_protected_main": false
+      "triage": "Inspect the exact fingerprint; remove and rotate genuine secrets or narrowly justify an ignore.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Security Headers Verification",
       "workflow": ".github/workflows/security.yml",
       "job_id": "security-headers",
-      "triggers": ["pull_request", "push", "schedule"],
-      "job_if_contains": "github.event_name == 'pull_request'",
+      "job_name": "Security Headers Verification",
       "owner": "Backend/Security",
+      "purpose": "Verify required response-security headers on pull requests.",
       "runtime_budget": "2-8 min",
-      "required_on_protected_main": false
+      "triage": "Run the security-header tests and inspect middleware/header configuration.",
+      "required_on_protected_main": false,
+      "continue_on_error": false,
+      "job_if_contains": "github.event_name == 'pull_request'"
     },
     {
-      "job_name": "Docs Governance",
       "workflow": ".github/workflows/maintenance-governance.yml",
       "job_id": "docs-governance",
-      "triggers": ["pull_request", "schedule", "workflow_dispatch"],
-      "pull_request_path_filtered": true,
+      "job_name": "Docs Governance",
       "owner": "Maintainer/Docs",
+      "purpose": "Enforce documentation topology, production-contract docs, deprecated imports, and ratchet documentation.",
       "runtime_budget": "2-10 min",
-      "required_on_protected_main": false
+      "triage": "Run `make -f scripts/Makefile docs-topology-consistency` and the named failing validator.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Frontend Maintenance Contracts",
       "workflow": ".github/workflows/maintenance-governance.yml",
       "job_id": "frontend-maintenance",
-      "triggers": ["pull_request", "schedule", "workflow_dispatch"],
-      "pull_request_path_filtered": true,
+      "job_name": "Frontend Maintenance Contracts",
       "owner": "Frontend/Maintainer",
+      "purpose": "Enforce frontend debt, dead-code, inline-style, and generated-artifact budgets.",
       "runtime_budget": "5-20 min",
-      "required_on_protected_main": false
+      "triage": "Run the debt and cleanup validators and inspect their evidence.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Backend Maintenance (Informational)",
       "workflow": ".github/workflows/maintenance-governance.yml",
       "job_id": "backend-maintenance-informational",
-      "triggers": ["pull_request", "schedule", "workflow_dispatch"],
-      "pull_request_path_filtered": true,
-      "continue_on_error": true,
+      "job_name": "Backend Maintenance (Informational)",
       "owner": "Backend/Maintainer",
+      "purpose": "Report backend lint, type, and suppression drift without acting as a merge gate.",
       "runtime_budget": "5-20 min",
-      "required_on_protected_main": false
+      "triage": "Review Ruff, mypy, and suppression evidence and file owned follow-up work.",
+      "required_on_protected_main": false,
+      "continue_on_error": true
     },
     {
-      "job_name": "Release Parity Contract",
       "workflow": ".github/workflows/release-parity-pr.yml",
       "job_id": "parity-contract",
-      "triggers": ["workflow_dispatch"],
+      "job_name": "Release Parity Contract",
       "owner": "Release",
+      "purpose": "Run low-cost release documentation, pinning, hardening, and deprecated-import contracts on demand.",
       "runtime_budget": "2-8 min",
-      "required_on_protected_main": false
+      "triage": "Run the named contract validator and repair the release-documentation or hardening drift.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
     },
     {
-      "job_name": "Fast Parity Audit (Non-Blocking)",
       "workflow": ".github/workflows/release-parity-fast.yml",
       "job_id": "parity-fast",
-      "triggers": ["push", "schedule", "workflow_dispatch"],
-      "continue_on_error": true,
+      "job_name": "Fast Parity Audit (Non-Blocking)",
       "owner": "Release",
+      "purpose": "Exercise a reduced release-parity loop on main and schedule without blocking delivery.",
       "runtime_budget": "20-60 min",
-      "required_on_protected_main": false
+      "triage": "Download the parity artifact and inspect startup/dependency fingerprints and the decision record.",
+      "required_on_protected_main": false,
+      "continue_on_error": true
+    },
+    {
+      "workflow": ".github/workflows/release.yml",
+      "job_id": "workflow-pin-validation",
+      "job_name": "Workflow Pin Validation",
+      "owner": "Release/Security",
+      "purpose": "Revalidate immutable workflow and image references before publication.",
+      "runtime_budget": "1-5 min",
+      "triage": "Run the workflow-pin validator and repair the mutable release dependency.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
+    },
+    {
+      "workflow": ".github/workflows/release.yml",
+      "job_id": "prepare",
+      "job_name": "Prepare Release Metadata",
+      "owner": "Release",
+      "purpose": "Resolve and validate the release version from a tag or manual input.",
+      "runtime_budget": "1-3 min",
+      "triage": "Inspect the event source and ensure the tag or manual version input is non-empty.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
+    },
+    {
+      "workflow": ".github/workflows/release.yml",
+      "job_id": "release-parity-gate",
+      "job_name": "Release Parity Gate",
+      "owner": "Release",
+      "purpose": "Run the full release-parity audit and require a GO decision before publication.",
+      "runtime_budget": "45-120 min",
+      "triage": "Download the parity artifact and inspect `decision.json` and failing evidence.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
+    },
+    {
+      "workflow": ".github/workflows/release.yml",
+      "job_id": "docker-images",
+      "job_name": "Publish Docker Images",
+      "owner": "Release/Operations",
+      "purpose": "Build and publish versioned backend, DB-task, frontend, and Redis images to GHCR.",
+      "runtime_budget": "15-45 min",
+      "triage": "Inspect GHCR authentication and the first failing image build or push.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
+    },
+    {
+      "workflow": ".github/workflows/release.yml",
+      "job_id": "linux-bundle",
+      "job_name": "Build Linux Bundle",
+      "owner": "Release/Operations",
+      "purpose": "Build the versioned offline Linux installation bundle.",
+      "runtime_budget": "10-30 min",
+      "triage": "Run the Linux bundle builder with the same version and inspect manifest/build output.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
+    },
+    {
+      "workflow": ".github/workflows/release.yml",
+      "job_id": "verify-linux-bundle",
+      "job_name": "Verify Linux Bundle",
+      "owner": "Release/Operations",
+      "purpose": "Verify bundle contents, offline installation, rendered services, nginx, and deploy dry-run behavior.",
+      "runtime_budget": "15-45 min",
+      "triage": "Download the bundle and reproduce the failing content, install, render, or dry-run assertion.",
+      "required_on_protected_main": false,
+      "continue_on_error": false
+    },
+    {
+      "workflow": ".github/workflows/release.yml",
+      "job_id": "create-release",
+      "job_name": "Create GitHub Release",
+      "owner": "Release",
+      "purpose": "Publish tag-backed release notes and attach the verified Linux bundle.",
+      "runtime_budget": "2-10 min",
+      "triage": "Verify the changelog section, tag ref, downloaded bundle, and release action output.",
+      "required_on_protected_main": false,
+      "continue_on_error": false,
+      "job_if_contains": "startsWith(github.ref, 'refs/tags/')"
     }
   ]
 }
