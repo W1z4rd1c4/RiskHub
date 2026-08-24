@@ -9,8 +9,8 @@ pytestmark = pytest.mark.contract
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-IDENTITY_SERVICE_ROOT = REPO_ROOT / "backend/app/services/_identity_access_lifecycle"
-ACCESS_WORKFLOW_ROOT = REPO_ROOT / "backend/app/services/_access_workflow"
+SERVICES_ROOT = REPO_ROOT / "backend/app/services"
+ACCESS_WORKFLOW_ROOT = SERVICES_ROOT / "_access_workflow"
 USER_ENDPOINT_ROOT = REPO_ROOT / "backend/app/api/v1/endpoints/users"
 HTTP_FRAMEWORK_ROOTS = {"fastapi", "starlette"}
 
@@ -33,9 +33,29 @@ def _raised_callable_name(node: ast.Raise) -> str | None:
     return None
 
 
-def test_identity_access_lifecycle_services_do_not_raise_fastapi_http_exceptions():
+def test_service_layer_does_not_import_fastapi():
     offenders: list[str] = []
-    for path in _python_files(IDENTITY_SERVICE_ROOT):
+    for path in _python_files(SERVICES_ROOT):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        relative_path = path.relative_to(REPO_ROOT)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                if _root_module(module) == "fastapi":
+                    offenders.append(f"{relative_path}:{node.lineno}:import:{module}")
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if _root_module(alias.name) == "fastapi":
+                        offenders.append(
+                            f"{relative_path}:{node.lineno}:import:{alias.name}"
+                        )
+
+    assert offenders == []
+
+
+def test_service_layer_does_not_raise_http_exceptions():
+    offenders: list[str] = []
+    for path in _python_files(SERVICES_ROOT):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             if isinstance(node, ast.Raise) and _raised_callable_name(node) == "HTTPException":
@@ -44,7 +64,7 @@ def test_identity_access_lifecycle_services_do_not_raise_fastapi_http_exceptions
     assert offenders == []
 
 
-def test_access_workflow_services_do_not_depend_on_http_frameworks():
+def test_access_workflow_services_do_not_import_http_frameworks():
     offenders: list[str] = []
     for path in _python_files(ACCESS_WORKFLOW_ROOT):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -60,13 +80,6 @@ def test_access_workflow_services_do_not_depend_on_http_frameworks():
                         offenders.append(
                             f"{relative_path}:{node.lineno}:import:{alias.name}"
                         )
-            elif (
-                isinstance(node, ast.Raise)
-                and _raised_callable_name(node) == "HTTPException"
-            ):
-                offenders.append(
-                    f"{relative_path}:{node.lineno}:raise:HTTPException"
-                )
 
     assert offenders == []
 
