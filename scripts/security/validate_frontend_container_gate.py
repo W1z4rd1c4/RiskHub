@@ -36,8 +36,10 @@ def _load_yaml(path: Path) -> dict:
 
 
 def _reject_continue_on_error(errors: list[str], subject: str, node: dict) -> None:
-    if node.get("continue-on-error") is True:
-        errors.append(f"{subject} must remain blocking; continue-on-error is forbidden")
+    if "continue-on-error" in node and node.get("continue-on-error") is not False:
+        errors.append(
+            f"{subject} must remain blocking; continue-on-error expressions/true are forbidden"
+        )
 
 
 def _validate_injected_finding_workflow() -> list[str]:
@@ -64,10 +66,23 @@ def _validate_injected_finding_workflow() -> list[str]:
     _reject_continue_on_error(errors, "injected-finding contract job", job)
 
     try:
-        _, generated = _step_by_name(steps, "Generate injected Trivy SARIF finding")
-        _, recorded = _step_by_name(steps, "Record injected frontend finding")
-        _, proved = _step_by_name(steps, "Prove injected finding is blocked")
-        _, validated = _step_by_name(steps, "Validate production workflow contract")
+        generated_index, generated = _step_by_name(
+            steps,
+            "Generate injected Trivy SARIF finding",
+        )
+        recorded_index, recorded = _step_by_name(
+            steps,
+            "Record injected frontend finding",
+        )
+        proof_index, proved = _step_by_name(steps, "Prove injected finding is blocked")
+        validation_index, validated = _step_by_name(
+            steps,
+            "Validate production workflow contract",
+        )
+        upload_index, evidence_upload = _step_by_name(
+            steps,
+            "Upload injected-finding evidence",
+        )
     except ValueError as exc:
         return [*errors, str(exc)]
 
@@ -85,7 +100,10 @@ def _validate_injected_finding_workflow() -> list[str]:
         '"name": "Trivy"',
         '"fullName": "Trivy Vulnerability Scanner"',
         '"informationUri": "https://github.com/aquasecurity/trivy"',
+        '"id": "CVE-INJECTED-CONTRACT"',
         '"ruleId": "CVE-INJECTED-CONTRACT"',
+        '"security-severity": "9.8"',
+        '"CRITICAL"',
         '"message": {',
         '"text": "Injected qualifying frontend container finding"',
     ):
@@ -112,6 +130,7 @@ def _validate_injected_finding_workflow() -> list[str]:
         "--status-file trivy-frontend-injected-status.json",
         'payload["status"] == "findings"',
         'payload["finding_count"] == 1',
+        "Injected CRITICAL frontend Trivy finding was rejected",
     ):
         if required_text not in proof_script:
             errors.append(
@@ -122,6 +141,31 @@ def _validate_injected_finding_workflow() -> list[str]:
     if "validate_frontend_container_gate.py" not in validate_script:
         errors.append("injected-finding workflow must validate the production contract")
 
+    upload_action = str(evidence_upload.get("uses", ""))
+    if not re.fullmatch(r"actions/upload-artifact@[0-9a-f]{40}", upload_action):
+        errors.append("injected evidence upload must use a commit-SHA-pinned action")
+    if evidence_upload.get("if") != "always()":
+        errors.append("injected evidence upload must run with if: always()")
+    evidence_paths = str(evidence_upload.get("with", {}).get("path", ""))
+    for required_path in (
+        "trivy-frontend-injected.sarif",
+        "trivy-frontend-injected-status.json",
+    ):
+        if required_path not in evidence_paths:
+            errors.append(f"injected evidence artifact must retain {required_path}")
+    if evidence_upload.get("with", {}).get("retention-days") != 30:
+        errors.append("injected evidence artifact retention must remain 30 days")
+
+    if not (
+        generated_index
+        < recorded_index
+        < proof_index
+        < validation_index
+        < upload_index
+    ):
+        errors.append(
+            "injected evidence must be generated, recorded, rejected, validated, and uploaded in order"
+        )
     return errors
 
 
@@ -136,9 +180,13 @@ def validate() -> list[str]:
             "SARIF_SCHEMA_URI",
             "TRIVY_DRIVER_FULL_NAME",
             "TRIVY_INFORMATION_URI",
+            "KNOWN_SEVERITIES",
+            "QUALIFYING_SEVERITIES",
             "REQUIRED_STATUS_FIELDS",
             "sarif_sha256",
-            "_valid_result_message",
+            "_trivy_rules",
+            "sarif_nonqualifying_result",
+            "status evidence has unknown fields",
             "_status_errors",
         ):
             if required_text not in helper_text:
@@ -202,6 +250,8 @@ def validate() -> list[str]:
                 f"frontend Trivy option {key!r} must be {expected!r}, "
                 f"got {options.get(key)!r}"
             )
+    if "ignore-unfixed" in options:
+        errors.append("frontend Trivy gate must not set ignore-unfixed")
 
     if status_record.get("if") != "always()":
         errors.append("frontend scan-status recorder must run with if: always()")
