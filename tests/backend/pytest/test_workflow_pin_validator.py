@@ -542,7 +542,6 @@ def test_grype_python_runtime_suppressions_are_time_bound() -> None:
     assert (
         date.fromisoformat(expiry_dates[0]) > date.today()
     ), "grype suppressions have expired; re-review them"
-    # Every suppression targets the CPython runtime at one shared shipped version.
     python_versions = set(
         re.findall(r"\n      name: python\n      version: (\S+)", text)
     )
@@ -698,7 +697,9 @@ def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure(
 ):
     text = STARTUP_SMOKE_WORKFLOW.read_text(encoding="utf-8")
 
-    assert "pull_request:" not in text
+    assert "pull_request:" in text
+    assert "branches: [main, develop]" in text
+    assert "ref: ${{ github.event.pull_request.head.sha || github.sha }}" in text
     assert "workflow_dispatch:" in text
     assert "schedule:" in text
 
