@@ -2,13 +2,7 @@
 
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
-`AGENTS.md` owns general agent mission, instruction precedence, default-work
-selection, repository hygiene, prompting/tooling guidance, architecture locks,
-authorization guidance, and the `client_factory` contract. The detailed
-before/during/after execution procedure is canonical in
-[`EXECUTION_PROTOCOL.md`](./EXECUTION_PROTOCOL.md). Files in this directory
-otherwise provide focused supporting contracts or tool-specific deltas; they do
-not create a second general-policy home.
+`AGENTS.md` owns general agent mission, instruction precedence, default-work selection, repository hygiene, prompting/tooling guidance, architecture locks, authorization guidance, and the `client_factory` contract. The detailed before/during/after execution procedure is canonical in [`EXECUTION_PROTOCOL.md`](./EXECUTION_PROTOCOL.md). Files in this directory otherwise provide focused supporting contracts or tool-specific deltas; they do not create a second general-policy home.
 
 Documentation and work-tracking authority is defined in
 [`docs/DOCUMENTATION_OWNERSHIP.md`](../DOCUMENTATION_OWNERSHIP.md).
