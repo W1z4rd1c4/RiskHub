@@ -25,15 +25,16 @@ The historical planning material consolidated into this snapshot described:
 - a historical `2/3` snapshot for the standalone Phase 90 AD Emulator;
 - Phase 254 architecture deepening recorded on 2026-05-03.
 
-These statements describe repository planning history only. They do not assert
-that an item remains active, assigned, blocked, or incomplete today.
+These statements are historical context only. They confer no current assignment,
+priority, blocker, review, completion, or execution state.
 
 ## Where Detail Lives
 
 - Product and repository context: [`PROJECT.md`](./PROJECT.md)
 - Commit-scoped roadmap intent: [`ROADMAP.md`](./ROADMAP.md)
 - Historical plans and summaries: [`phases/README.md`](./phases/README.md)
-- Architecture and repository maps: [`codebase/`](./codebase/)
+- Repository map: [`codebase/STRUCTURE.md`](./codebase/STRUCTURE.md)
+- Architecture map: [`codebase/ARCHITECTURE.md`](./codebase/ARCHITECTURE.md)
 - Durable decisions: [`docs/adr/`](../docs/adr/)
 - Live delivery state: GitHub Issues, pull requests, and Projects
 
