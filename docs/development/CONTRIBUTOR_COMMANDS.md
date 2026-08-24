@@ -1,7 +1,8 @@
 # Contributor Command and CI Contract
 
-> **Owner**: RiskHub Maintainer  
-> **Audience**: Contributors, reviewers, CI maintainers  
+> **Owner**: RiskHub Maintainer
+>
+> **Audience**: Contributors, reviewers, CI maintainers
 > **Change rule**: update this document, its machine contract, validator, and
 > evidence together whenever command meaning or workflow topology changes.
 
