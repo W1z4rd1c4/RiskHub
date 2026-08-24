@@ -3,10 +3,21 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from fastapi import HTTPException
+from app.core.exceptions import ValidationError as DomainValidationError
 
 
-def coerce_optional_enum[E: Enum](enum_cls: type[E], value: Any, field_name: str) -> E | None:
+def _invalid_filter(field_name: str) -> DomainValidationError:
+    return DomainValidationError(
+        f"Invalid {field_name} filter value",
+        status_code=422,
+    )
+
+
+def coerce_optional_enum[E: Enum](
+    enum_cls: type[E],
+    value: Any,
+    field_name: str,
+) -> E | None:
     if value is None or value == "":
         return None
     if isinstance(value, enum_cls):
@@ -14,17 +25,7 @@ def coerce_optional_enum[E: Enum](enum_cls: type[E], value: Any, field_name: str
     try:
         return enum_cls(value)
     except (TypeError, ValueError) as exc:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Invalid {field_name} filter value",
-        ) from exc
-
-
-def _invalid_filter(field_name: str) -> HTTPException:
-    return HTTPException(
-        status_code=422,
-        detail=f"Invalid {field_name} filter value",
-    )
+        raise _invalid_filter(field_name) from exc
 
 
 def coerce_optional_int(
@@ -83,7 +84,11 @@ def coerce_optional_string(field_name: str, value: Any) -> str | None:
     return value or None
 
 
-def coerce_optional_literal[L: str](field_name: str, value: Any, allowed_values: set[L]) -> L | None:
+def coerce_optional_literal[L: str](
+    field_name: str,
+    value: Any,
+    allowed_values: set[L],
+) -> L | None:
     coerced = coerce_optional_string(field_name, value)
     if coerced is None:
         return None
