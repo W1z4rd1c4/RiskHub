@@ -48,17 +48,12 @@ def _audit_trail_query(
         .join(Control, ControlExecution.control_id == Control.id)
         .options(
             selectinload(ControlExecution.control).selectinload(Control.department),
-            selectinload(ControlExecution.control)
-            .selectinload(Control.risk_links)
-            .selectinload(ControlRiskLink.risk),
+            selectinload(ControlExecution.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
             selectinload(ControlExecution.executed_by),
         )
     )
 
-    visibility_clause = control_visibility_clause(
-        context.current_user,
-        department_id=context.department_id,
-    )
+    visibility_clause = control_visibility_clause(context.current_user, department_id=context.department_id)
     if visibility_clause is not None:
         query = query.where(visibility_clause)
     if result_filter:
@@ -70,10 +65,7 @@ def _audit_trail_query(
     if to_date:
         query = query.where(ControlExecution.executed_at <= to_date)
 
-    return query.order_by(
-        ControlExecution.executed_at.desc(),
-        ControlExecution.id.desc(),
-    )
+    return query.order_by(ControlExecution.executed_at.desc(), ControlExecution.id.desc())
 
 
 def _execution_candidate_risk_ids(executions: list[ControlExecution]) -> set[int]:
@@ -86,10 +78,7 @@ def _execution_candidate_risk_ids(executions: list[ControlExecution]) -> set[int
     }
 
 
-def _execution_linked_risks(
-    execution: ControlExecution,
-    visible_linked_risk_ids: set[int],
-) -> str:
+def _execution_linked_risks(execution: ControlExecution, visible_linked_risk_ids: set[int]) -> str:
     if not execution.control or not hasattr(execution.control, "risk_links"):
         return ""
 
@@ -101,9 +90,7 @@ def _execution_linked_risks(
         if risk.id not in visible_linked_risk_ids:
             continue
         display_name = (risk.name or risk.process or "").strip()
-        values.append(
-            f"R-{risk.id}: {display_name[:30]}" if display_name else f"R-{risk.id}"
-        )
+        values.append(f"R-{risk.id}: {display_name[:30]}" if display_name else f"R-{risk.id}")
     return "; ".join(values)
 
 
@@ -126,39 +113,23 @@ async def _to_audit_trail_csv_rows(
         "Next Scheduled",
         "Linked Risks",
     ]
-    visible_linked_risk_ids = await visible_risk_ids(
-        db,
-        current_user,
-        _execution_candidate_risk_ids(executions),
-    )
+    visible_linked_risk_ids = await visible_risk_ids(db, current_user, _execution_candidate_risk_ids(executions))
 
     rows = []
     for execution in executions:
         rows.append(
             [
                 execution.id,
-                (
-                    execution.executed_at.strftime("%Y-%m-%d %H:%M")
-                    if execution.executed_at
-                    else ""
-                ),
+                execution.executed_at.strftime("%Y-%m-%d %H:%M") if execution.executed_at else "",
                 execution.control_id,
                 execution.control.name if execution.control else "",
-                (
-                    execution.control.department.name
-                    if execution.control and execution.control.department
-                    else ""
-                ),
+                execution.control.department.name if execution.control and execution.control.department else "",
                 execution.executed_by.name if execution.executed_by else "",
                 execution.result or "",
                 execution.findings or "",
                 execution.evidence_reference or "",
                 execution.notes or "",
-                (
-                    execution.next_scheduled.strftime("%Y-%m-%d")
-                    if execution.next_scheduled
-                    else ""
-                ),
+                execution.next_scheduled.strftime("%Y-%m-%d") if execution.next_scheduled else "",
                 _execution_linked_risks(execution, visible_linked_risk_ids),
             ]
         )
@@ -178,13 +149,7 @@ async def build_audit_trail_export(
 ) -> StreamingResponse:
     executions: list[ControlExecution] = []
     if not context.empty_scope:
-        query = _audit_trail_query(
-            context,
-            result_filter,
-            control_id,
-            from_date,
-            to_date,
-        )
+        query = _audit_trail_query(context, result_filter, control_id, from_date, to_date)
         result_set = await db.execute(query)
         executions = list(result_set.scalars().all())
 
@@ -197,18 +162,13 @@ async def build_audit_trail_export(
     )
 
 
-def _build_summary_rows(
-    summary: dict[str, Any],
-) -> tuple[list[str], list[list[Any]]]:
+def _build_summary_rows(summary: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
     headers = ["Metric", "Value"]
     rows: list[list[Any]] = [
         ["Total Controls", summary.get("total_controls", 0)],
         ["Total Risks", summary.get("total_risks", 0)],
         ["Critical Risks", summary.get("critical_risks_count", 0)],
-        [
-            "Average Net Risk Score",
-            f"{float(summary.get('average_net_risk_score', 0)):.1f}",
-        ],
+        ["Average Net Risk Score", f"{float(summary.get('average_net_risk_score', 0)):.1f}"],
     ]
 
     controls_by_status = summary.get("controls_by_status") or {}
@@ -237,15 +197,8 @@ async def _build_summary_payload(
         controls_query = select(Control).where(Control.live())
         risks_query = select(Risk).where(Risk.live())
 
-        control_scope = control_visibility_clause(
-            context.current_user,
-            department_id=context.department_id,
-        )
-        risk_scope = await risk_visibility_clause(
-            db,
-            context.current_user,
-            department_id=context.department_id,
-        )
+        control_scope = control_visibility_clause(context.current_user, department_id=context.department_id)
+        risk_scope = await risk_visibility_clause(db, context.current_user, department_id=context.department_id)
         if control_scope is not None:
             controls_query = controls_query.where(control_scope)
         if risk_scope is not None:
@@ -260,16 +213,8 @@ async def _build_summary_payload(
         total_controls = len(controls)
         total_risks = len(risks)
         critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
-        critical_risks = sum(
-            1
-            for risk in risks
-            if risk.net_probability * risk.net_impact >= critical_threshold
-        )
-        avg_net_score = (
-            sum(risk.net_probability * risk.net_impact for risk in risks) / len(risks)
-            if risks
-            else 0
-        )
+        critical_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= critical_threshold)
+        avg_net_score = sum(r.net_probability * r.net_impact for r in risks) / len(risks) if risks else 0
 
         controls_by_status: dict[str, int] = {}
         for control in controls:
