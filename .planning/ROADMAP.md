@@ -1,10 +1,10 @@
 # Roadmap Snapshot: RiskHub
 
-> **Snapshot, not live status:** Checkboxes and phase labels in historical plans
-> describe roadmap intent at the commits where they were recorded. They do not
-> establish current assignment, priority, blocking, review state, or closure.
-> Use the applicable GitHub Issue, pull request, or Project item for live delivery
-> state. See [`docs/DOCUMENTATION_OWNERSHIP.md`](../docs/DOCUMENTATION_OWNERSHIP.md).
+> **Snapshot, not live status:** Phase labels in historical plans describe
+> roadmap intent at the commits where they were recorded. They do not establish
+> current work, assignment, priority, blocking, review state, or closure. Use the
+> applicable GitHub Issue, pull request, or Project item for live delivery state.
+> See [`docs/DOCUMENTATION_OWNERSHIP.md`](../docs/DOCUMENTATION_OWNERSHIP.md).
 
 ## Product Arc
 
@@ -33,15 +33,18 @@ not-complete-at-that-snapshot entries:
 | Phase 90 — AD Emulator | Partial (`2/3`) |
 | Phase 155 — Approval Edit UX | Planned |
 
-This table preserves the former roadmap’s useful historical signal without
-claiming that any item remains open or should be selected for work now.
+This table preserves historical roadmap context without assigning current work
+or delivery status.
 
 ## Detailed Records
 
 - Historical plans and completion summaries are indexed from
   [`phases/README.md`](./phases/README.md).
 - Versioned technical position is summarized in [`STATE.md`](./STATE.md).
-- Repository architecture maps are under [`codebase/`](./codebase/).
+- Repository structure is described in
+  [`codebase/STRUCTURE.md`](./codebase/STRUCTURE.md).
+- Architecture context is described in
+  [`codebase/ARCHITECTURE.md`](./codebase/ARCHITECTURE.md).
 - Live delivery work belongs in GitHub Issues, pull requests, and Projects.
 
 ## Change Rule
