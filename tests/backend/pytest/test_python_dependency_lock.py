@@ -44,3 +44,15 @@ def test_backend_lock_refresh_uses_approved_pr_credential():
     assert "persist-credentials: false" in workflow
     assert "gh auth setup-git" in workflow
     assert "if: github.ref == 'refs/heads/main'" in workflow
+
+
+def test_backend_lock_refresh_preflights_required_write_permissions():
+    workflow = REFRESH_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "Validate automation credential and mutation permissions" in workflow
+    assert "repos/${GITHUB_REPOSITORY}/git/refs" in workflow
+    assert "repos/${GITHUB_REPOSITORY}/pulls" in workflow
+    assert workflow.count("expect_validation_error") >= 3
+    assert "HTTP 422" in workflow
+    assert "0000000000000000000000000000000000000000" in workflow
+    assert "__riskhub_permission_probe_missing__" in workflow
