@@ -91,6 +91,7 @@ def _validate_injected_finding_workflow() -> list[str]:
         ("injected-finding recorder", recorded),
         ("injected-finding blocking proof", proved),
         ("production-contract validation", validated),
+        ("injected evidence upload", evidence_upload),
     ):
         _reject_continue_on_error(errors, step_name, step)
 
@@ -276,6 +277,7 @@ def validate() -> list[str]:
 
     if artifact_upload.get("if") != "always()":
         errors.append("container report artifact upload must run with if: always()")
+    _reject_continue_on_error(errors, "container report artifact upload", artifact_upload)
     artifact_paths = str(artifact_upload.get("with", {}).get("path", ""))
     for required_path in (
         "trivy-frontend.sarif",
