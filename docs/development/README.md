@@ -1,12 +1,16 @@
 # RiskHub Development Startup
 
-> **Version**: 1.2
-> **Last Updated**: 2026-05-25
+> **Version**: 1.3
+> **Last Updated**: 2026-08-23
 > **Audience**: Engineering, QA
 
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 This document defines the supported local startup surface for RiskHub development.
+
+For the stable day-to-day contributor commands, CI gate ownership, and advanced
+target boundary, see
+[`docs/development/CONTRIBUTOR_COMMANDS.md`](./CONTRIBUTOR_COMMANDS.md).
 
 ## Canonical Paths
 
@@ -136,6 +140,7 @@ FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c playwri
 
 ## Boundaries
 
+- `./scripts/riskhub.sh` is the stable day-to-day contributor façade; it delegates to the supported implementation entrypoints.
 - `./scripts/install.sh` is the public first-run and lifecycle entrypoint for demo and local contributor installs
 - internal implementation note: `./scripts/install.sh` is a stable shell wrapper over `./scripts/install_cli.py`; do not bypass it in runbooks
 - `./scripts/compose.sh` and `./scripts/dev.sh` remain supported advanced/manual entrypoints

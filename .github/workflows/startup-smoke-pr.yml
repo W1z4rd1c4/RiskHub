@@ -1,27 +1,24 @@
-name: Startup Smoke
+name: Startup Smoke PR
 
 on:
-  push:
+  pull_request:
     branches: [main, develop]
-  schedule:
-    - cron: '45 2 * * *'
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   docker-onboarding-smoke:
-    name: Docker Onboarding Smoke (Scheduled)
+    name: Docker Onboarding Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Run Docker onboarding smoke
         uses: ./.github/actions/docker-onboarding-smoke
         with:
-          artifact-name: startup-smoke
+          artifact-name: startup-smoke-pr
