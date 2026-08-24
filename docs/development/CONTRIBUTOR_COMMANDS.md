@@ -2,100 +2,102 @@
 
 > **Owner**: RiskHub Maintainer  
 > **Audience**: Contributors, reviewers, CI maintainers  
-> **Change rule**: preserve command meaning or update this contract, its validator, and the PR evidence together
+> **Change rule**: update this document, its machine contract, validator, and
+> evidence together whenever command meaning or workflow topology changes.
 
-RiskHub keeps a broad internal automation surface because database, security,
-release, migration, and evidence workflows have different operational needs.
-Contributors should not need to discover that entire surface for ordinary work.
-
-The stable façade is:
+RiskHub retains a broad internal automation surface for database, browser,
+security, release, migration, and evidence workflows. Routine contributors use a
+small stable façade:
 
 ```bash
 ./scripts/riskhub.sh <command>
 ```
 
-It delegates to existing supported scripts and `scripts/Makefile` targets. It
-does not reimplement environment setup, tests, scanning, or release logic.
+The façade delegates to existing supported scripts and `scripts/Makefile`
+targets. It does not reimplement their logic.
 
 ## Stable Commands
 
 | Command | Canonical delegate | Meaning and side effects |
 |---|---|---|
-| `setup` | `./scripts/install.sh doctor --mode dev --repair` | Repairs dependency state, starts db-only infrastructure, and starts daemonized backend/frontend services. It does not reset application data. |
-| `dev [options]` | `./scripts/install.sh dev [options]` | Starts the supported local contributor workflow. Options such as `--backend` are forwarded unchanged. |
-| `lint` | `make -f scripts/Makefile lint lint-types` | Runs frontend lint/type/build/debt checks, backend Ruff/suppression checks, and backend mypy. |
-| `test` | `make -f scripts/Makefile test` | Runs the default backend regression contract, excluding PostgreSQL-only and benchmark markers. This is not the narrower `test-fast` target. |
-| `e2e` | `make -f scripts/Makefile test-e2e` | Runs the guarded Playwright matrix. `RISKHUB_E2E_TEST_DATABASE` and the `_test` database safeguards remain authoritative. |
-| `release-check` | `make -f scripts/Makefile release-parity-audit` | Runs the full release-parity audit. The runtime audit stops local development processes and tears down the active Compose stack before exercising local, Compose, and production dry-run paths. It may interrupt an existing local environment and writes evidence under `tests/results/`. |
-| `clean` | `make -f scripts/Makefile clean` | Runs Compose teardown with volumes, removes Python/pytest caches, all tracked-tree `node_modules` directories, `frontend/dist`, `backend/.coverage`, and `tests/results`. It intentionally keeps `backend/venv`. |
+| `setup` | `./scripts/install.sh doctor --mode dev --repair` | Repairs dependency state, starts DB-only infrastructure, and starts daemonized backend/frontend services. It does not reset application data. |
+| `dev [options]` | `./scripts/install.sh dev [options]` | Starts the supported local contributor workflow and forwards options such as `--backend`. |
+| `lint` | `make -f scripts/Makefile lint lint-types` | Runs frontend lint/type/build/debt checks, backend Ruff and suppression checks, and backend mypy. |
+| `test` | `make -f scripts/Makefile test` | Runs the default backend regression contract, excluding PostgreSQL-only and benchmark markers. |
+| `e2e` | `make -f scripts/Makefile test-e2e` | Runs the guarded Playwright matrix and retains the explicit test-database safeguards. |
+| `release-check` | `make -f scripts/Makefile release-parity-audit` | Runs the full local release-parity audit. It stops local development processes and tears down the active Compose stack before exercising runtime paths, so it may interrupt the current environment. It writes evidence under `tests/results/`. |
+| `clean` | `make -f scripts/Makefile clean` | Tears down Compose volumes and removes Python/pytest caches, `node_modules`, frontend build output, coverage, and test results. It intentionally keeps `backend/venv`. |
 | `help` | façade help | Prints this stable command set and the advanced-target discovery command. |
 
-Environment variables continue to pass through to the underlying command. The
-façade does not supply alternate defaults, bypass safety checks, or reinterpret
-exit codes.
+Environment variables pass through to the delegate. The façade does not bypass
+safety guards, change exit codes, or supply alternate defaults.
 
 ## Advanced Surface
 
-Use the internal target inventory only when the work requires a narrower or
-specialized contract:
+Specialized targets remain discoverable through:
 
 ```bash
 make -f scripts/Makefile help
 ```
 
-Examples include PostgreSQL-only tests, architecture locks, documentation
-topology checks, supply-chain audits, deployment verification, security probes,
-and benchmark lanes. Those targets remain supported implementation interfaces,
-but they are not added to the stable contributor façade unless they represent a
-frequent end-to-end task with durable semantics.
+Use them for PostgreSQL-only tests, architecture locks, documentation topology,
+security probes, deployment verification, migration rehearsals, release
+publication, and benchmark lanes. Do not add a specialized target to the stable
+façade unless it is a frequent end-to-end task with durable semantics.
 
 ## CI Gate Map
 
-[`ci-gate-contract.json`](./ci-gate-contract.json) is the machine-readable source
-for workflow path, job ID, display name, triggers, runtime budget, ownership, and
-protected-branch status. `scripts/tools/validate_contributor_command_contract.py`
-loads that file and verifies it against the actual workflow YAML. The table below
-is its human-readable operational projection.
+[`ci-gate-contract.json`](./ci-gate-contract.json) is the executable inventory.
+It records exact workflow event filters, every governed job, protected-main
+placement, owner, purpose, runtime budget, first-triage action, job conditions,
+and blocking/advisory semantics. The validator compares it to the actual YAML;
+generic event-name checks are insufficient.
 
-The runtime ranges are maintained review budgets, not SLAs. The owner should
-review a budget when three consecutive successful runs exceed its upper bound;
-product, security, and database coverage must not be removed merely to meet the
-budget.
+Runtime ranges are maintained review budgets, not SLAs. Three consecutive
+successful runs above an upper bound trigger owner review; product, security,
+database, or release assurance must not be removed merely to meet the budget.
 
 `Required` reflects the protected-`main` settings snapshot recorded during this
-review. Workflow presence does not by itself make a job required, and a required
-job must have a pull-request trigger that makes the check available on every PR.
+review. A required check must have a pull-request lane that emits it for every
+applicable PR.
 
-| Check | Workflow | Execution lane | Budget | Required | First triage action |
-|---|---|---|---|---|---|
-| `Frontend Unit Tests` | `lint.yml` | PR + pushes to `main`/`develop` | 3–10 min | No | Run `cd frontend && npm run test:coverage`. |
-| `Backend Quality` | `lint.yml` | PR + pushes to `main`/`develop` | 2–8 min | Yes | Run `./scripts/riskhub.sh lint`; isolate Ruff, mypy, or suppression failure. |
-| `Frontend + Repo Contracts` | `lint.yml` | PR + pushes to `main`/`develop` | 6–15 min | Yes | Run the named failing command from `.github/workflows/lint.yml`. |
-| `PR Merge Result Build` | `lint.yml` | PR only; workflow also exists on push | 2–6 min | Yes | Update/rebase the branch and reproduce the frontend build against the merge candidate. |
-| `Backend SQLite Regression` | `backend-postgres.yml` | PR + pushes to `main`/`develop` | 8–20 min | No | Run `make -f scripts/Makefile test`. |
-| `Backend Postgres Regression` | `backend-postgres.yml` | PR + pushes to `main`/`develop` | 20–35 min | No | Run `make -f scripts/Makefile test-postgres-ci` against the dedicated test database. |
-| `Playwright E2E Tests` | `e2e.yml` | PR + pushes to `main`/`develop` + manual | 2–15 min | Yes | Download Playwright artifacts and reproduce with `./scripts/riskhub.sh e2e`. |
-| `Production Profile Smoke` | `e2e.yml` | PR + pushes to `main`/`develop` + manual | 5–20 min | No | Inspect `prod-smoke-backend.log` and reproduce the production-profile startup. |
-| `Docker Onboarding Smoke` | `startup-smoke.yml` | Every PR + pushes + schedule + manual | 8–20 min | Yes | Download `startup-smoke`, inspect Compose/service logs, and run the canonical onboarding path. |
-| `Public Repo Hygiene` | `security.yml` | PR + pushes + schedule | 1–5 min | Yes | Run `make -f scripts/Makefile public-repo-hygiene`. |
-| `Workflow Pin Validation` | `security.yml` | PR + pushes + schedule | 1–5 min | No | Run both workflow-pin and repository-hardening validators. |
-| `Authorization Capability Contract` | `security.yml` | PR + pushes + schedule | 1–5 min | No | Run `python3 scripts/security/validate_authz_capability_contract.py --base-ref HEAD`. |
-| `Python Security (Bandit + pip-audit)` | `security.yml` | PR + pushes + schedule | 3–12 min | No | Download Bandit/pip-audit JSON and separate code findings from dependency findings. |
-| `Frontend Security (npm audit)` | `security.yml` | PR + pushes + schedule | 2–8 min | No | Run `cd frontend && npm audit --audit-level=high`. |
-| `Frontend i18n (Parity + Hardcoded Scan)` | `security.yml` | PR + pushes + schedule | 2–8 min | No | Run `cd frontend && npm run i18n:test`. |
-| `Redis Resilience Integration (non-blocking)` | `security.yml` | Scheduled execution only; workflow also exists on PR/push | 2–10 min | No | Inspect Redis integration logs; the job is intentionally non-blocking during rollout. |
-| `Container Scan (Trivy + SBOM Correlation)` | `security.yml` | PR + pushes + schedule | 8–25 min | No | Download container reports and distinguish frontend Trivy from backend Grype findings. |
-| `Secrets Detection (Gitleaks)` | `security.yml` | PR + pushes + schedule | 1–5 min | No | Inspect the exact match and remove/rotate genuine secret material. |
-| `Security Headers Verification` | `security.yml` | PR only; workflow also exists on push/schedule | 2–8 min | No | Run the security-header test module and inspect response headers. |
-| `Docs Governance` | `maintenance-governance.yml` | Path-filtered PR + schedule + manual | 2–10 min | No | Run `make -f scripts/Makefile docs-topology-consistency`. |
-| `Frontend Maintenance Contracts` | `maintenance-governance.yml` | Path-filtered PR + schedule + manual | 5–20 min | No | Run the debt, cleanup, and inline-style validators. |
-| `Backend Maintenance (Informational)` | `maintenance-governance.yml` | Path-filtered PR + schedule + manual; non-blocking | 5–20 min | No | Review suppression, Ruff, and mypy evidence without treating the informational lane as a merge gate. |
-| `Release Parity Contract` | `release-parity-pr.yml` | Manual dispatch only | 2–8 min | No | Run the docs, workflow-pin, hardening, and deprecated-import contract commands. |
-| `Fast Parity Audit (Non-Blocking)` | `release-parity-fast.yml` | Push to `main` + schedule + manual; non-blocking | 20–60 min | No | Download the release-parity artifact and inspect the failing startup/dependency fingerprint. |
+| Check | Workflow | Execution lane | Budget | Owner | Purpose | First triage action |
+|---|---|---|---|---|---|---|
+| `Frontend Unit Tests` | `lint.yml` | PR to `main`/`develop`; push to `main`/`develop` | 3-10 min | Frontend | Enforce frontend unit behavior and coverage floor. | Run `cd frontend && npm run test:coverage`. |
+| `PR Merge Result Build` | `lint.yml` | PR to `main`/`develop` only; required | 2-6 min | Frontend/Release | Build the synthetic merge result and catch integration-only failures. | Update the branch and reproduce the merge-candidate build. |
+| `Backend Quality` | `lint.yml` | PR to `main`/`develop`; push to `main`/`develop`; required | 2-8 min | Backend | Enforce Ruff, mypy, and suppression budgets. | Run `./scripts/riskhub.sh lint`. |
+| `Frontend + Repo Contracts` | `lint.yml` | PR to `main`/`develop`; push to `main`/`develop`; required | 6-15 min | Repository | Enforce frontend lint/type/build and repository/documentation/policy contracts. | Run the named failing command from `lint.yml`. |
+| `Backend SQLite Regression` | `backend-postgres.yml` | PR to `main`/`develop`; push to `main`/`develop` | 8-20 min | Backend | Run the default fast backend regression contract on SQLite. | Run `make -f scripts/Makefile test`. |
+| `Backend Postgres Regression` | `backend-postgres.yml` | PR to `main`/`develop`; push to `main`/`develop` | 20-35 min | Backend/Data | Verify migrations, constraints, locking, and PostgreSQL behavior. | Run `make -f scripts/Makefile test-postgres-ci` against the test DB. |
+| `Playwright E2E Tests` | `e2e.yml` | PR/push to `main`/`develop`; manual; required | 2-15 min | Product/QA | Verify cross-tier user flows, accessibility collection, and browser behavior. | Download Playwright artifacts and run `./scripts/riskhub.sh e2e`. |
+| `Production Profile Smoke` | `e2e.yml` | PR/push to `main`/`develop`; manual | 5-20 min | Backend/Security | Verify production-profile startup, headers, SSO, Redis, and disabled docs. | Inspect `prod-smoke-backend.log` and reproduce the profile. |
+| `Docker Onboarding Smoke` | `startup-smoke.yml` | PR/push to `main`/`develop`; `45 2 * * *`; manual; required | 8-20 min | Deployment/Operations | Verify public Docker onboarding, health, headers, login shell, and docs exposure. | Download `startup-smoke` and inspect Compose/service logs. |
+| `Public Repo Hygiene` | `security.yml` | PR/push to `main`/`develop`; nightly/weekly schedule; required | 1-5 min | Security/Repository | Prevent tracked privacy, path, and public-repository hygiene regressions. | Run `make -f scripts/Makefile public-repo-hygiene`. |
+| `Workflow Pin Validation` | `security.yml` | PR/push to `main`/`develop`; nightly/weekly schedule | 1-5 min | Security/Repository | Enforce immutable workflow, service-image, and scanner references. | Run workflow-pin and repository-hardening validators. |
+| `Authorization Capability Contract` | `security.yml` | PR/push to `main`/`develop`; nightly/weekly schedule | 1-5 min | Security/Authorization | Prevent authorization and capability-contract drift. | Run the authorization contract validator and reconcile both mirrors. |
+| `Python Security (Bandit + pip-audit)` | `security.yml` | PR/push to `main`/`develop`; nightly/weekly schedule | 3-12 min | Backend/Security | Block high-severity Python SAST and dependency findings. | Download Bandit and pip-audit JSON. |
+| `Frontend Security (npm audit)` | `security.yml` | PR/push to `main`/`develop`; nightly/weekly schedule | 2-8 min | Frontend/Security | Block high-severity frontend dependency vulnerabilities. | Run `cd frontend && npm audit --audit-level=high`. |
+| `Frontend i18n (Parity + Hardcoded Scan)` | `security.yml` | PR/push to `main`/`develop`; nightly/weekly schedule | 2-8 min | Frontend | Enforce locale parity and prevent hardcoded user-facing strings. | Run `cd frontend && npm run i18n:test`. |
+| `Redis Resilience Integration (non-blocking)` | `security.yml` | Schedule only; advisory | 5-15 min | Backend/Resilience | Exercise Redis failure/recovery behavior without blocking PRs. | Inspect the scheduled pytest artifact and reproduce the Redis marker. |
+| `Container Scan (Trivy + SBOM Correlation)` | `security.yml` | PR/push to `main`/`develop`; nightly/weekly schedule | 8-25 min | Security/Supply Chain | Evaluate built images and correlate backend SBOM findings. | Download container reports and separate Trivy, Grype, and infrastructure outcomes. |
+| `Secrets Detection (Gitleaks)` | `security.yml` | PR/push to `main`/`develop`; nightly/weekly schedule | 1-5 min | Security | Detect committed credentials and secret material across history. | Inspect the exact fingerprint and rotate genuine secrets. |
+| `Security Headers Verification` | `security.yml` | PR to `main`/`develop` only | 2-8 min | Backend/Security | Verify required response-security headers. | Run the security-header tests and inspect middleware configuration. |
+| `Docs Governance` | `maintenance-governance.yml` | Path-filtered PR to `main`/`develop`; `30 1 * * *`; manual | 2-10 min | Maintainer/Docs | Enforce docs topology, production-contract docs, deprecated imports, and ratchet docs. | Run `make -f scripts/Makefile docs-topology-consistency`. |
+| `Frontend Maintenance Contracts` | `maintenance-governance.yml` | Path-filtered PR to `main`/`develop`; `30 1 * * *`; manual | 5-20 min | Frontend/Maintainer | Enforce debt, dead-code, inline-style, and generated-artifact budgets. | Run the debt and cleanup validators. |
+| `Backend Maintenance (Informational)` | `maintenance-governance.yml` | Path-filtered PR to `main`/`develop`; `30 1 * * *`; manual; advisory | 5-20 min | Backend/Maintainer | Report backend lint/type/suppression drift without acting as a merge gate. | Review Ruff, mypy, and suppression evidence. |
+| `Release Parity Contract` | `release-parity-pr.yml` | Manual dispatch only | 2-8 min | Release | Run low-cost release docs, pinning, hardening, and deprecated-import contracts. | Run the named contract validator. |
+| `Fast Parity Audit (Non-Blocking)` | `release-parity-fast.yml` | Push to `main`; `15 2 * * *`; manual; advisory | 20-60 min | Release | Exercise a reduced release-parity loop without blocking delivery. | Download the parity artifact and inspect fingerprints/decision. |
+| `Workflow Pin Validation` | `release.yml` | Tag push `v*`; manual input `version` | 1-5 min | Release/Security | Revalidate immutable workflow and image references before publication. | Run the workflow-pin validator. |
+| `Prepare Release Metadata` | `release.yml` | Tag push `v*`; manual input `version` | 1-3 min | Release | Resolve and validate the release version. | Inspect the tag or manual version input. |
+| `Release Parity Gate` | `release.yml` | Tag push `v*`; manual input `version` | 45-120 min | Release | Run full release parity and require a GO decision. | Inspect the parity artifact and `decision.json`. |
+| `Publish Docker Images` | `release.yml` | Tag push `v*`; manual input `version` | 15-45 min | Release/Operations | Build and publish versioned runtime images to GHCR. | Inspect GHCR auth and the first failing build/push. |
+| `Build Linux Bundle` | `release.yml` | Tag push `v*`; manual input `version` | 10-30 min | Release/Operations | Build the versioned offline Linux installation bundle. | Run the bundle builder and inspect manifest/build output. |
+| `Verify Linux Bundle` | `release.yml` | Tag push `v*`; manual input `version` | 15-45 min | Release/Operations | Verify contents, offline installation, rendered services, nginx, and deploy dry run. | Reproduce the failing bundle assertion. |
+| `Create GitHub Release` | `release.yml` | Tag push `v*` only after dependent publication jobs | 2-10 min | Release | Publish changelog-backed release notes and attach the verified Linux bundle. | Verify tag, changelog section, bundle, and release action output. |
 
 The full local `release-check` command is not equivalent to either hosted parity
-job. It runs the comprehensive audit and has the disruptive local side effects
-documented in the Stable Commands table.
+job. It performs the comprehensive audit and has the disruptive local side
+effects documented above.
 
 ## Change Policy
 
@@ -103,17 +105,14 @@ A change to this façade or CI map must:
 
 1. remain a thin delegate to an existing canonical implementation;
 2. preserve underlying environment variables, safety guards, and exit codes;
-3. avoid adding a second implementation of test, install, or release logic;
+3. avoid a second implementation of test, install, or release logic;
 4. update this document, `ci-gate-contract.json`, `CONTRIBUTING.md`, and
    `scripts/README.md` when their contract changes;
-5. update the command-contract validator and tests;
-6. reconcile workflow triggers, job names, and protected-branch settings so a
-   required check is emitted on every applicable pull request;
-7. explain any destructive or service-stopping side effects explicitly.
-
-Specialized targets should remain internal unless contributors repeatedly need
-the complete workflow and its semantics are stable enough to support as a
-public contract.
+5. update the validator and focused tests;
+6. reconcile exact workflow events, branch/tag filters, path filters, job names,
+   job conditions, and protected-branch settings;
+7. describe command side effects and every CI job’s owner, purpose, runtime
+   budget, execution lane, and first triage action.
 
 ## Validation
 
