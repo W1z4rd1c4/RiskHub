@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO_ROOT / "scripts/security/validate_frontend_container_gate.py"
 STATUS_HELPER = REPO_ROOT / "scripts/security/frontend_trivy_status.py"
+SECURITY_WORKFLOW = REPO_ROOT / ".github/workflows/security.yml"
 SARIF_SCHEMA = (
     "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/"
     "sarif-2.1/schema/sarif-schema-2.1.0.json"
@@ -24,16 +27,47 @@ def _run_status(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _validator_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location(
+        "riskhub_frontend_container_validator",
+        VALIDATOR,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def _write_sarif(
     path: Path,
     *,
     findings: int = 0,
+    severity: str = "CRITICAL",
     schema_uri: str = SARIF_SCHEMA,
     include_messages: bool = True,
+    rules_override: list[object] | None = None,
 ) -> None:
+    rules: list[object] = []
     results: list[dict[str, object]] = []
     for index in range(findings):
-        result: dict[str, object] = {"ruleId": f"CVE-TEST-{index}"}
+        rule_id = f"CVE-TEST-{index}"
+        rules.append(
+            {
+                "id": rule_id,
+                "name": "InjectedContainerVulnerability",
+                "defaultConfiguration": {"level": "error"},
+                "properties": {
+                    "security-severity": "9.8",
+                    "tags": ["vulnerability", "security", severity],
+                },
+            }
+        )
+        result: dict[str, object] = {
+            "ruleId": rule_id,
+            "ruleIndex": index,
+            "level": "error",
+        }
         if include_messages:
             result["message"] = {"text": f"Injected test finding {index}"}
         results.append(result)
@@ -50,7 +84,7 @@ def _write_sarif(
                                 "name": "Trivy",
                                 "fullName": "Trivy Vulnerability Scanner",
                                 "informationUri": "https://github.com/aquasecurity/trivy",
-                                "rules": [],
+                                "rules": rules if rules_override is None else rules_override,
                             }
                         },
                         "results": results,
@@ -116,10 +150,10 @@ def test_frontend_container_gate_retains_missing_sarif_failure(tmp_path: Path) -
     assert "status=scan_failed" in enforced.stdout
 
 
-def test_frontend_container_gate_rejects_retained_findings(tmp_path: Path) -> None:
+def test_frontend_container_gate_rejects_qualifying_findings(tmp_path: Path) -> None:
     sarif = tmp_path / "trivy-frontend.sarif"
     status = tmp_path / "frontend-status.json"
-    _write_sarif(sarif, findings=2)
+    _write_sarif(sarif, findings=2, severity="CRITICAL")
 
     payload = _record_status(sarif=sarif, status=status)
     assert payload["status"] == "findings"
@@ -128,6 +162,26 @@ def test_frontend_container_gate_rejects_retained_findings(tmp_path: Path) -> No
     enforced = _run_status("enforce", "--status-file", str(status))
     assert enforced.returncode != 0
     assert "status=findings" in enforced.stdout
+
+
+def test_frontend_container_gate_rejects_nonqualifying_result(tmp_path: Path) -> None:
+    sarif = tmp_path / "trivy-frontend.sarif"
+    status = tmp_path / "frontend-status.json"
+    _write_sarif(sarif, findings=1, severity="MEDIUM")
+
+    payload = _record_status(sarif=sarif, status=status)
+    assert payload["status"] == "evidence_invalid"
+    assert payload["reason"] == "sarif_nonqualifying_result"
+
+
+def test_frontend_container_gate_rejects_malformed_rule_entries(tmp_path: Path) -> None:
+    sarif = tmp_path / "trivy-frontend.sarif"
+    status = tmp_path / "frontend-status.json"
+    _write_sarif(sarif, rules_override=[None])
+
+    payload = _record_status(sarif=sarif, status=status)
+    assert payload["status"] == "evidence_invalid"
+    assert payload["reason"] == "sarif_invalid_rules"
 
 
 def test_frontend_container_gate_rejects_invalid_sarif_evidence(tmp_path: Path) -> None:
@@ -210,6 +264,19 @@ def test_frontend_container_gate_rejects_truncated_clean_status(tmp_path: Path) 
     assert "missing required fields" in enforced.stderr
 
 
+def test_frontend_container_gate_rejects_unknown_status_fields(tmp_path: Path) -> None:
+    sarif = tmp_path / "trivy-frontend.sarif"
+    status = tmp_path / "frontend-status.json"
+    _write_sarif(sarif)
+    payload = _record_status(sarif=sarif, status=status)
+    payload["attacker_controlled"] = True
+    status.write_text(json.dumps(payload), encoding="utf-8")
+
+    enforced = _run_status("enforce", "--status-file", str(status))
+    assert enforced.returncode != 0
+    assert "unknown fields" in enforced.stderr
+
+
 def test_frontend_container_gate_rejects_tampered_clean_sarif(tmp_path: Path) -> None:
     sarif = tmp_path / "trivy-frontend.sarif"
     status = tmp_path / "frontend-status.json"
@@ -224,3 +291,30 @@ def test_frontend_container_gate_rejects_tampered_clean_sarif(tmp_path: Path) ->
         "now contains findings" in enforced.stderr
         or "digest does not match" in enforced.stderr
     )
+
+
+def test_contract_validator_rejects_expression_based_advisory_mode() -> None:
+    module = _validator_module()
+    errors: list[str] = []
+    module._reject_continue_on_error(
+        errors,
+        "test gate",
+        {"continue-on-error": "${{ true }}"},
+    )
+    assert any("continue-on-error" in error for error in errors)
+
+
+def test_contract_validator_rejects_ignore_unfixed(tmp_path: Path) -> None:
+    module = _validator_module()
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    workflow = workflow.replace(
+        "          exit-code: '1'\n",
+        "          exit-code: '1'\n          ignore-unfixed: true\n",
+        1,
+    )
+    mutated = tmp_path / "security.yml"
+    mutated.write_text(workflow, encoding="utf-8")
+    module.WORKFLOW_PATH = mutated
+
+    errors = module.validate()
+    assert any("ignore-unfixed" in error for error in errors)
