@@ -1,14 +1,33 @@
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO_ROOT / "scripts/tools/validate_python_dependency_lock.py"
 REFRESHER = REPO_ROOT / "scripts/tools/refresh_python_dependency_lock.py"
+PERMISSION_HELPER = (
+    REPO_ROOT / "scripts/tools/check_github_pr_automation_permissions.py"
+)
 ENTRYPOINT = REPO_ROOT / "backend/requirements-dev.txt"
 REFRESH_WORKFLOW = REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
+
+
+def _permission_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location(
+        "riskhub_permission_preflight",
+        PERMISSION_HELPER,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_backend_development_dependency_lock_contract():
@@ -37,22 +56,87 @@ def test_backend_dependency_entrypoint_has_generated_terminal_newline():
     assert not content.endswith(b"\n\n")
 
 
-def test_backend_lock_refresh_uses_approved_pr_credential():
+def test_backend_lock_refresh_uses_one_approved_permission_preflight():
     workflow = REFRESH_WORKFLOW.read_text(encoding="utf-8")
+    permission_command = (
+        "python3 scripts/tools/check_github_pr_automation_permissions.py"
+    )
+    refresh_command = "python3 scripts/tools/refresh_python_dependency_lock.py"
+
     assert "RISKHUB_AUTOMATION_PR_TOKEN" in workflow
     assert "secrets.GITHUB_TOKEN" not in workflow
     assert "persist-credentials: false" in workflow
-    assert "gh auth setup-git" in workflow
     assert "if: github.ref == 'refs/heads/main'" in workflow
+    assert workflow.count(permission_command) == 1
+    assert workflow.index(permission_command) < workflow.index(refresh_command)
+    assert "expect_validation_error" not in workflow
+    assert "__riskhub_permission_probe_missing__" not in workflow
 
 
-def test_backend_lock_refresh_preflights_required_write_permissions():
-    workflow = REFRESH_WORKFLOW.read_text(encoding="utf-8")
+def test_permission_preflight_rejects_token_without_contents_write(monkeypatch):
+    module = _permission_module()
+    context = module.GitHubContext("owner/repo", "token", "42")
+    monkeypatch.setattr(
+        module,
+        "_request",
+        lambda *_args, **_kwargs: (
+            200,
+            {"permissions": {"push": False}, "default_branch": "main"},
+        ),
+    )
 
-    assert "Validate automation credential and mutation permissions" in workflow
-    assert "repos/${GITHUB_REPOSITORY}/git/refs" in workflow
-    assert "repos/${GITHUB_REPOSITORY}/pulls" in workflow
-    assert workflow.count("expect_validation_error") >= 3
-    assert "HTTP 422" in workflow
-    assert "0000000000000000000000000000000000000000" in workflow
-    assert "__riskhub_permission_probe_missing__" in workflow
+    with pytest.raises(RuntimeError, match="Contents write"):
+        module._require_repository_push(context)
+
+
+def test_permission_preflight_executes_authenticated_push_dry_run(monkeypatch):
+    module = _permission_module()
+    context = module.GitHubContext("owner/repo", "token", "42")
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str]):
+        calls.append(command)
+        if command[:3] == ["git", "push", "--dry-run"]:
+            return subprocess.CompletedProcess(command, 1, "", "denied")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(module, "_run_command", fake_run)
+
+    with pytest.raises(RuntimeError, match="cannot push"):
+        module._require_git_push_dry_run(context)
+
+    assert calls[0] == ["gh", "auth", "setup-git"]
+    assert calls[1][:3] == ["git", "push", "--dry-run"]
+    assert calls[1][-1].endswith("automation/permission-probe-42")
+
+
+def test_permission_preflight_uses_non_mutating_pr_validation_payload(monkeypatch):
+    module = _permission_module()
+    context = module.GitHubContext("owner/repo", "token", "42")
+    captured: dict[str, object] = {}
+
+    def fake_request(_context, path, *, method="GET", payload=None):
+        captured.update(path=path, method=method, payload=payload)
+        return 422, {"message": "Validation Failed"}
+
+    monkeypatch.setattr(module, "_request", fake_request)
+    module._require_pull_request_endpoint(context)
+
+    assert captured == {
+        "path": "/repos/owner/repo/pulls",
+        "method": "POST",
+        "payload": {},
+    }
+
+
+def test_permission_preflight_rejects_missing_pull_request_write(monkeypatch):
+    module = _permission_module()
+    context = module.GitHubContext("owner/repo", "token", "42")
+    monkeypatch.setattr(
+        module,
+        "_request",
+        lambda *_args, **_kwargs: (403, {"message": "Resource not accessible"}),
+    )
+
+    with pytest.raises(RuntimeError, match="pull-request write endpoint"):
+        module._require_pull_request_endpoint(context)
