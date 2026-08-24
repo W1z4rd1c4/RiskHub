@@ -23,6 +23,8 @@ SARIF_SCHEMA_URI = (
 TRIVY_DRIVER_NAME = "Trivy"
 TRIVY_DRIVER_FULL_NAME = "Trivy Vulnerability Scanner"
 TRIVY_INFORMATION_URI = "https://github.com/aquasecurity/trivy"
+KNOWN_SEVERITIES = {"UNKNOWN", "LOW", "MEDIUM", "HIGH", "CRITICAL"}
+QUALIFYING_SEVERITIES = {"HIGH", "CRITICAL"}
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 REQUIRED_STATUS_FIELDS = {
     "schema_version",
@@ -51,6 +53,30 @@ def _valid_result_message(result: dict[str, Any]) -> bool:
         isinstance(message.get(field), str) and message[field].strip()
         for field in ("text", "markdown")
     )
+
+
+def _trivy_rules(driver: dict[str, Any]) -> tuple[dict[str, str] | None, str | None]:
+    raw_rules = driver.get("rules")
+    if not isinstance(raw_rules, list):
+        return None, "sarif_invalid_rules"
+
+    rules: dict[str, str] = {}
+    for rule in raw_rules:
+        if not isinstance(rule, dict):
+            return None, "sarif_invalid_rules"
+        rule_id = rule.get("id")
+        if not isinstance(rule_id, str) or not rule_id.strip() or rule_id in rules:
+            return None, "sarif_invalid_rule_identity"
+
+        properties = rule.get("properties")
+        tags = properties.get("tags") if isinstance(properties, dict) else None
+        if not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags):
+            return None, "sarif_invalid_rule_severity"
+        severities = {tag.upper() for tag in tags} & KNOWN_SEVERITIES
+        if len(severities) != 1:
+            return None, "sarif_invalid_rule_severity"
+        rules[rule_id] = severities.pop()
+    return rules, None
 
 
 def _load_sarif(path: Path) -> tuple[bool, bool, int, str | None, str | None]:
@@ -90,8 +116,10 @@ def _load_sarif(path: Path) -> tuple[bool, bool, int, str | None, str | None]:
         or information_uri.rstrip("/") != TRIVY_INFORMATION_URI
     ):
         return True, False, 0, "sarif_unexpected_tool", None
-    if not isinstance(driver.get("rules"), list):
-        return True, False, 0, "sarif_invalid_rules", None
+
+    rules, rules_error = _trivy_rules(driver)
+    if rules_error is not None or rules is None:
+        return True, False, 0, rules_error, None
 
     results = run.get("results")
     if not isinstance(results, list):
@@ -102,6 +130,10 @@ def _load_sarif(path: Path) -> tuple[bool, bool, int, str | None, str | None]:
         rule_id = result.get("ruleId")
         if not isinstance(rule_id, str) or not rule_id.strip():
             return True, False, 0, "sarif_invalid_result_identity", None
+        if rule_id not in rules:
+            return True, False, 0, "sarif_result_rule_missing", None
+        if rules[rule_id] not in QUALIFYING_SEVERITIES:
+            return True, False, 0, "sarif_nonqualifying_result", None
         if not _valid_result_message(result):
             return True, False, 0, "sarif_invalid_result_message", None
 
@@ -159,8 +191,12 @@ def _status_errors(payload: Any) -> list[str]:
 
     errors: list[str] = []
     missing = sorted(REQUIRED_STATUS_FIELDS - set(payload))
+    unexpected = sorted(set(payload) - REQUIRED_STATUS_FIELDS)
     if missing:
         errors.append("status evidence is missing required fields: " + ", ".join(missing))
+    if unexpected:
+        errors.append("status evidence has unknown fields: " + ", ".join(unexpected))
+    if errors:
         return errors
 
     if (
