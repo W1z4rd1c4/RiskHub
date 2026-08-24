@@ -85,24 +85,31 @@ scoped to this repository with:
 - Contents: read and write;
 - Pull requests: read and write.
 
-Before dependency resolution, the workflow authenticates the token and performs
-two non-mutating capability probes. It submits an intentionally nonexistent
-object to the Git-ref creation endpoint and an intentionally nonexistent head to
-the pull-request creation endpoint. A correctly authorized token reaches GitHub
-validation and receives HTTP 422; a token without the required mutation
-permission fails with 403/404 or another non-validation response. The invalid
-objects cannot create a branch or pull request.
+Before dependency resolution, the workflow executes
+`scripts/tools/check_github_pr_automation_permissions.py`. That single preflight:
 
-After the probes, the workflow uses the ordinary workflow token only for read
+1. requires the authenticated repository response to report
+   `permissions.push=true`;
+2. configures Git authentication through `gh auth setup-git`;
+3. performs an authenticated `git push --dry-run` to a unique probe ref;
+4. submits an empty JSON object to the pull-request creation endpoint and accepts
+   only GitHub's validation response.
+
+The empty pull-request payload does not contain a head, base, or title and cannot
+describe a valid pull request. Authorization failures such as HTTP 401, 403, or
+404 stop the workflow. A defensive unexpected-success path closes the returned
+pull request and fails the preflight.
+
+After the preflight, the workflow uses the ordinary workflow token only for read
 access, keeps checkout credentials unpersisted, and authenticates both
 `git push` and `gh pr create` with the approved fine-grained token. A missing,
 invalid, or under-scoped secret therefore fails before dependency resolution or
-branch creation.
+refresh-branch publication.
 
 The repository administrator must provision or rotate the secret through GitHub
-settings; secret values are never committed. After provisioning, manually
-dispatch the workflow from `main` and retain the resulting no-change run or
-refresh PR as operational evidence.
+settings; secret values are never committed. After provisioning, land the
+reviewed workflow on `main`, dispatch it from `main`, and retain the resulting
+no-change run or refresh PR as operational evidence.
 
 A GitHub App is also a valid architectural alternative, but it requires a
 separate runtime token-generation design using an App ID/private key; this PR's
