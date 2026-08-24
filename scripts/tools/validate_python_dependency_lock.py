@@ -20,6 +20,7 @@ INPUT = BACKEND_ROOT / "requirements-dev.in"
 LOCK = BACKEND_ROOT / "requirements-dev-constraints.txt"
 AUDIT_CONSTRAINTS = BACKEND_ROOT / "requirements-prod-readiness-audit-constraints.txt"
 REFRESH_SCRIPT = REPO_ROOT / "scripts/tools/refresh_python_dependency_lock.py"
+PERMISSION_HELPER = REPO_ROOT / "scripts/tools/check_github_pr_automation_permissions.py"
 REFRESH_WORKFLOW = REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
 DIGEST_RE = re.compile(r"^# (input|lock)-sha256: ([0-9a-f]{64})$")
 AUTOMATION_SECRET = "RISKHUB_AUTOMATION_PR_TOKEN"
@@ -212,29 +213,65 @@ def validate() -> list[str]:
 
     if not REFRESH_SCRIPT.is_file():
         errors.append("missing one-command Python dependency lock refresher")
+    if not PERMISSION_HELPER.is_file():
+        errors.append("missing executable GitHub automation permission preflight")
+    else:
+        helper_text = PERMISSION_HELPER.read_text(encoding="utf-8")
+        for required_text in (
+            'permissions.get("push") is not True',
+            '"gh", "auth", "setup-git"',
+            '"--dry-run"',
+            'payload={}',
+            'status == 422',
+            'status in {401, 403, 404}',
+        ):
+            if required_text not in helper_text:
+                errors.append(
+                    f"GitHub automation permission helper is missing: {required_text}"
+                )
+
     if not REFRESH_WORKFLOW.is_file():
         errors.append("missing scheduled Python dependency lock refresh workflow")
     else:
         workflow_text = REFRESH_WORKFLOW.read_text(encoding="utf-8")
+        permission_command = "python3 scripts/tools/check_github_pr_automation_permissions.py"
+        refresh_command = "python3 scripts/tools/refresh_python_dependency_lock.py"
         for required_text in (
             "schedule:",
             "workflow_dispatch:",
             "if: github.ref == 'refs/heads/main'",
-            "refresh_python_dependency_lock.py",
+            permission_command,
+            refresh_command,
             "gh pr create",
             "gh auth setup-git",
             "persist-credentials: false",
             "python-version: '3.13'",
             "Validate automation credential and mutation permissions",
-            "expect_validation_error",
-            "repos/${GITHUB_REPOSITORY}/git/refs",
-            "repos/${GITHUB_REPOSITORY}/pulls",
-            "HTTP 422",
             AUTOMATION_SECRET,
         ):
             if required_text not in workflow_text:
                 errors.append(
                     f"Python dependency refresh workflow is missing: {required_text}"
+                )
+        if (
+            permission_command in workflow_text
+            and refresh_command in workflow_text
+            and workflow_text.index(permission_command)
+            > workflow_text.index(refresh_command)
+        ):
+            errors.append(
+                "automation permission preflight must run before dependency resolution"
+            )
+        for forbidden_text in (
+            "expect_validation_error",
+            "repos/${GITHUB_REPOSITORY}/git/refs",
+            "__riskhub_permission_probe_missing__",
+            "0000000000000000000000000000000000000000",
+        ):
+            if forbidden_text in workflow_text:
+                errors.append(
+                    "Python dependency refresh workflow duplicates permission logic: "
+                    f"{forbidden_text}"
                 )
         if "secrets.GITHUB_TOKEN" in workflow_text:
             errors.append(
