@@ -412,7 +412,8 @@ def _validate_architecture_plan_status() -> list[str]:
         "Architecture Improvement Plan Status Correction — 2026-08-25",
         "additive correction",
         "GitHub Issues, pull requests, and Projects own live scope",
-        "`AGENTS.md` owns general agent and contributor policy",
+        "`AGENTS.md` owns general agent policy",
+        "`CONTRIBUTING.md` owns the human contribution contract",
         "`docs/agent/EXECUTION_PROTOCOL.md` owns the detailed execution procedure",
     ):
         if required not in status:

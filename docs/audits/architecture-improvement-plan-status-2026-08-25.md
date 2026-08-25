@@ -16,7 +16,8 @@ future work, or define current engineering procedure.
 
 - GitHub Issues, pull requests, and Projects own live scope, priority,
   assignment, acceptance evidence, and closure.
-- `AGENTS.md` owns general agent and contributor policy.
+- `AGENTS.md` owns general agent policy.
+- `CONTRIBUTING.md` owns the human contribution contract.
 - `docs/agent/EXECUTION_PROTOCOL.md` owns the detailed execution procedure.
 - `docs/adr/` owns accepted architecture decisions.
 

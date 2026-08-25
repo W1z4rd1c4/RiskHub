@@ -9,6 +9,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MAKEFILE = REPO_ROOT / "scripts/Makefile"
 VALIDATOR_PATH = REPO_ROOT / "scripts/tools/validate_documentation_ownership.py"
+ARCHITECTURE_PLAN_STATUS = (
+    REPO_ROOT / "docs/audits/architecture-improvement-plan-status-2026-08-25.md"
+)
 
 VALIDATOR_SPEC = importlib.util.spec_from_file_location(
     "validate_documentation_ownership", VALIDATOR_PATH
@@ -42,7 +45,12 @@ def test_docs_topology_consistency_runs_documentation_ownership_validator():
 
 
 def test_archived_architecture_plan_has_machine_checked_status_correction():
+    status = ARCHITECTURE_PLAN_STATUS.read_text(encoding="utf-8")
+
     assert VALIDATOR._validate_architecture_plan_status() == []
+    assert "`AGENTS.md` owns general agent policy." in status
+    assert "`CONTRIBUTING.md` owns the human contribution contract." in status
+    assert "general agent and contributor policy" not in status
 
 
 def test_coverage_verification_date_accepts_baseline_and_later_dates():
