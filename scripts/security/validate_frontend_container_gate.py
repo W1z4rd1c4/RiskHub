@@ -60,8 +60,20 @@ EXPECTED_PRODUCTION_STEP_NAMES = [
     "Fail on unresolved Grype HIGH/CRITICAL",
     "Upload Trivy Backend Report",
     "Upload Trivy Frontend Report",
+    "Verify Container Security Evidence Files",
     "Upload Container Security Reports",
 ]
+EXPECTED_BACKEND_RUN_STEP_SHA256 = {
+    "Generate Backend SBOM (Syft)": (
+        "ae9295934d17a536ae24b81c81c829558185af8ec4a79cdb652d9a750fa817ed"
+    ),
+    "Run Grype on Backend SBOM": (
+        "9f338d28ee2b06c06246a06c591207539ae7372d020f677291093e51a1c61035"
+    ),
+    "Fail on unresolved Grype HIGH/CRITICAL": (
+        "168646568c5ce6ce70ecab7051066616e1b1a6ea9f4a54e45e9250be11689edb"
+    ),
+}
 EXPECTED_STATUS_RECORD_COMMAND = (
     'python3 scripts/security/frontend_trivy_status.py record '
     '--outcome "$FRONTEND_TRIVY_OUTCOME" '
@@ -74,6 +86,9 @@ EXPECTED_ENFORCEMENT_COMMAND = (
 )
 UPLOAD_ARTIFACT_ACTION = (
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+)
+UPLOAD_SARIF_ACTION = (
+    "github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa"
 )
 EXPECTED_PRODUCTION_ARTIFACT_PATHS = frozenset(
     {
@@ -101,6 +116,12 @@ EXPECTED_INJECTED_RECORD_COMMAND = (
     "--outcome success "
     "--sarif trivy-frontend-injected.sarif "
     "--output trivy-frontend-injected-status.json"
+)
+EXPECTED_PRODUCTION_EVIDENCE_VERIFIER_SHA256 = (
+    "2a8ef03c72faed256ccd285e192960b789c968b8dd46fde973b7628be1ebc476"
+)
+EXPECTED_INJECTED_EVIDENCE_VERIFIER_SHA256 = (
+    "8f560b30e108f5b52b1be9879f12d3673425e57102a8307db6d9613a52ed245d"
 )
 
 
@@ -224,6 +245,27 @@ def _validate_artifact_upload(
         errors.append(f"{subject} artifact retention must remain 30 days")
     if options.get("if-no-files-found") != "error":
         errors.append(f"{subject} artifact must fail when files are missing")
+
+
+def _validate_frontend_sarif_upload(errors: list[str], step: dict) -> None:
+    subject = "frontend SARIF upload"
+    _require_exact_keys(
+        errors,
+        subject,
+        step,
+        {"name", "if", "uses", "with", "continue-on-error"},
+    )
+    if step.get("if") != "always()":
+        errors.append(f"{subject} must run with if: always()")
+    if step.get("uses") != UPLOAD_SARIF_ACTION:
+        errors.append(f"{subject} must use the approved upload-sarif action")
+    if step.get("with") != {
+        "sarif_file": "trivy-frontend.sarif",
+        "category": "trivy-frontend",
+    }:
+        errors.append(f"{subject} inputs must match exactly")
+    if step.get("continue-on-error") is not True:
+        errors.append(f"{subject} continue-on-error policy must remain literal true")
 
 
 def _validate_pre_scan_steps(
@@ -357,6 +399,7 @@ def _validate_injected_finding_workflow() -> list[str]:
         "Record injected frontend finding",
         "Prove injected finding is blocked",
         "Validate production workflow contract",
+        "Verify injected-finding evidence files",
         "Upload injected-finding evidence",
     ]
     if [step.get("name") for step in steps] != expected_step_names:
@@ -404,6 +447,10 @@ def _validate_injected_finding_workflow() -> list[str]:
             steps,
             "Validate production workflow contract",
         )
+        verifier_index, evidence_verifier = _step_by_name(
+            steps,
+            "Verify injected-finding evidence files",
+        )
         upload_index, evidence_upload = _step_by_name(
             steps,
             "Upload injected-finding evidence",
@@ -416,6 +463,7 @@ def _validate_injected_finding_workflow() -> list[str]:
         ("injected-finding recorder", recorded),
         ("injected-finding blocking proof", proved),
         ("production-contract validation", validated),
+        ("injected evidence file verifier", evidence_verifier),
         ("injected evidence upload", evidence_upload),
     ):
         _reject_continue_on_error(errors, step_name, step)
@@ -438,6 +486,19 @@ def _validate_injected_finding_workflow() -> list[str]:
         "python3 scripts/security/validate_frontend_container_gate.py"
     ):
         errors.append("production-contract validation command must match exactly")
+    _require_exact_keys(
+        errors,
+        "injected evidence file verifier",
+        evidence_verifier,
+        {"name", "if", "run"},
+    )
+    if evidence_verifier.get("if") != "always()":
+        errors.append("injected evidence file verifier must run with if: always()")
+    if (
+        _script_sha256(evidence_verifier.get("run"))
+        != EXPECTED_INJECTED_EVIDENCE_VERIFIER_SHA256
+    ):
+        errors.append("injected evidence file verifier script must match exactly")
 
     _validate_artifact_upload(
         errors,
@@ -452,11 +513,14 @@ def _validate_injected_finding_workflow() -> list[str]:
         < recorded_index
         < proof_index
         < validation_index
+        < verifier_index
         < upload_index
     ):
         errors.append(
             "injected evidence must be generated, recorded, rejected, validated, and uploaded in order"
         )
+    if upload_index != verifier_index + 1:
+        errors.append("injected evidence file verifier must immediately precede upload")
     return errors
 
 
@@ -541,10 +605,18 @@ def validate() -> list[str]:
             steps,
             "Upload Container Security Reports",
         )
+        verifier_index, evidence_verifier = _step_by_name(
+            steps,
+            "Verify Container Security Evidence Files",
+        )
         gate_index, gate = _step_by_name(
             steps,
             "Enforce Frontend Trivy HIGH/CRITICAL Gate",
         )
+        backend_steps = {
+            name: _step_by_name(steps, name)[1]
+            for name in EXPECTED_BACKEND_RUN_STEP_SHA256
+        }
     except ValueError as exc:
         return [*errors, str(exc)]
 
@@ -611,8 +683,21 @@ def validate() -> list[str]:
     if status_script != EXPECTED_STATUS_RECORD_COMMAND:
         errors.append("frontend scan-status recorder command must match exactly")
 
-    if sarif_upload.get("if") != "always()":
-        errors.append("frontend SARIF upload must run with if: always()")
+    _validate_frontend_sarif_upload(errors, sarif_upload)
+
+    _require_exact_keys(
+        errors,
+        "production evidence file verifier",
+        evidence_verifier,
+        {"name", "if", "run"},
+    )
+    if evidence_verifier.get("if") != "always()":
+        errors.append("production evidence file verifier must run with if: always()")
+    if (
+        _script_sha256(evidence_verifier.get("run"))
+        != EXPECTED_PRODUCTION_EVIDENCE_VERIFIER_SHA256
+    ):
+        errors.append("production evidence file verifier script must match exactly")
 
     _validate_artifact_upload(
         errors,
@@ -635,14 +720,25 @@ def validate() -> list[str]:
     if gate_script != EXPECTED_ENFORCEMENT_COMMAND:
         errors.append("frontend enforcement command must match exactly")
 
+    for name, expected_digest in EXPECTED_BACKEND_RUN_STEP_SHA256.items():
+        backend_step = backend_steps[name]
+        subject = f"backend security step {name!r}"
+        _require_exact_keys(errors, subject, backend_step, {"name", "if", "run"})
+        if backend_step.get("if") != "always()":
+            errors.append(f"{subject} must run with if: always()")
+        if _script_sha256(backend_step.get("run")) != expected_digest:
+            errors.append(f"{subject} script must match exactly")
+
     if status_index != scan_index + 1:
         errors.append("frontend status must be recorded immediately after the scan")
     if gate_index != status_index + 1:
         errors.append("frontend enforcement must run immediately after status recording")
-    if not (gate_index < sarif_index < artifact_index):
+    if not (gate_index < sarif_index < verifier_index < artifact_index):
         errors.append(
             "frontend evidence uploads must remain after the blocking enforcement step"
         )
+    if artifact_index != verifier_index + 1:
+        errors.append("production evidence file verifier must immediately precede upload")
 
     return errors
 

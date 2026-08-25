@@ -8,6 +8,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO_ROOT / "scripts/security/validate_frontend_container_gate.py"
@@ -958,3 +959,155 @@ def test_production_evidence_uploads_remain_after_blocking_gate(
     artifact_index = workflow.index("      - name: Upload Container Security Reports")
     assert gate_index < frontend_sarif_index < artifact_index
     assert _validate_workflow_text(tmp_path, workflow) == []
+
+
+@pytest.mark.parametrize(
+    "step_name",
+    [
+        "Generate Backend SBOM (Syft)",
+        "Run Grype on Backend SBOM",
+        "Fail on unresolved Grype HIGH/CRITICAL",
+    ],
+)
+def test_backend_security_lane_runs_after_frontend_gate_failure(
+    step_name: str,
+) -> None:
+    workflow = yaml.safe_load(SECURITY_WORKFLOW.read_text(encoding="utf-8"))
+    steps = workflow["jobs"]["container-security"]["steps"]
+    step = next(item for item in steps if item.get("name") == step_name)
+    assert step.get("if") == "always()"
+
+
+@pytest.mark.parametrize(
+    "step_name",
+    [
+        "Generate Backend SBOM (Syft)",
+        "Run Grype on Backend SBOM",
+        "Fail on unresolved Grype HIGH/CRITICAL",
+    ],
+)
+def test_contract_validator_locks_backend_security_lane_independence(
+    tmp_path: Path,
+    step_name: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    anchor = f"      - name: {step_name}\n        if: always()\n"
+    assert anchor in workflow
+    workflow = workflow.replace(anchor, anchor.replace("always()", "false"), 1)
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("backend" in error and "always" in error for error in errors)
+
+
+@pytest.mark.parametrize("contract", [False, True])
+@pytest.mark.parametrize("mutation", ["missing", "noop", "partial"])
+def test_contract_validator_requires_each_artifact_evidence_file(
+    tmp_path: Path,
+    contract: bool,
+    mutation: str,
+) -> None:
+    source = CONTRACT_WORKFLOW if contract else SECURITY_WORKFLOW
+    workflow = source.read_text(encoding="utf-8")
+    if contract:
+        verifier = (
+            "      - name: Verify injected-finding evidence files\n"
+            "        if: always()\n"
+            "        run: |\n"
+            "          set -euo pipefail\n"
+            "          test -f trivy-frontend-injected.sarif\n"
+            "          test -f trivy-frontend-injected-status.json\n"
+        )
+        required_line = "          test -f trivy-frontend-injected-status.json\n"
+    else:
+        verifier = (
+            "      - name: Verify Container Security Evidence Files\n"
+            "        if: always()\n"
+            "        run: |\n"
+            "          set -euo pipefail\n"
+            "          test -f trivy-backend.sarif\n"
+            "          test -f trivy-frontend.sarif\n"
+            "          test -f trivy-frontend-status.json\n"
+            "          test -f sbom-backend.json\n"
+            "          test -f grype-backend.json\n"
+        )
+        required_line = "          test -f trivy-frontend-status.json\n"
+
+    assert verifier in workflow
+    if mutation == "missing":
+        workflow = workflow.replace(f"\n{verifier}", "", 1)
+    elif mutation == "noop":
+        workflow = workflow.replace(
+            required_line,
+            required_line.replace("test -f", "echo test -f"),
+            1,
+        )
+    else:
+        workflow = workflow.replace(required_line, "", 1)
+
+    errors = (
+        _validate_contract_workflow_text(tmp_path, workflow)
+        if contract
+        else _validate_workflow_text(tmp_path, workflow)
+    )
+    assert any("evidence file verifier" in error or "step sequence" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "echo",
+        "action",
+        "sarif-file",
+        "category",
+        "continue-false",
+        "continue-expression",
+        "continue-missing",
+        "extra-metadata",
+    ],
+)
+def test_contract_validator_locks_frontend_code_scanning_upload(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    original = (
+        "      - name: Upload Trivy Frontend Report\n"
+        "        if: always()\n"
+        "        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0\n"
+        "        with:\n"
+        "          sarif_file: 'trivy-frontend.sarif'\n"
+        "          category: 'trivy-frontend'\n"
+        "        continue-on-error: true\n"
+    )
+    assert original in workflow
+    mutated = original
+    if mutation == "echo":
+        mutated = mutated.replace(
+            "        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0\n",
+            "        run: echo upload trivy-frontend.sarif\n",
+        )
+    elif mutation == "action":
+        mutated = mutated.replace(
+            "github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa",
+            "attacker/upload-sarif@0123456789012345678901234567890123456789",
+        )
+    elif mutation == "sarif-file":
+        mutated = mutated.replace("trivy-frontend.sarif", "nonexistent.sarif")
+    elif mutation == "category":
+        mutated = mutated.replace("category: 'trivy-frontend'", "category: 'other'")
+    elif mutation == "continue-false":
+        mutated = mutated.replace("continue-on-error: true", "continue-on-error: false")
+    elif mutation == "continue-expression":
+        mutated = mutated.replace(
+            "continue-on-error: true",
+            'continue-on-error: "${{ true }}"',
+        )
+    elif mutation == "continue-missing":
+        mutated = mutated.replace("        continue-on-error: true\n", "")
+    else:
+        mutated = mutated.replace(
+            "        if: always()\n",
+            "        if: always()\n        working-directory: /tmp\n",
+        )
+
+    errors = _validate_workflow_text(tmp_path, workflow.replace(original, mutated, 1))
+    assert any("frontend SARIF upload" in error for error in errors)
