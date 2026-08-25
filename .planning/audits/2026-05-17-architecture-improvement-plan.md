@@ -14,9 +14,9 @@
 ## Summary
 
 This document turns the latest architecture audit into an implementation-ready
-plan for improving RiskHub's Module Depth. It is intentionally separate from
-`.planning/audits/resolution-plan.md`; this plan covers the latest audit only
-and does not merge or supersede the 2026-05-09 resolution plan.
+plan for improving RiskHub's Module Depth. It covers the latest audit only. The
+superseded 2026-05-09 mega-plan and its preserved blob identity are documented
+in [`docs/audits/legacy-planning-artifact-disposition-2026-08-24.md`](../../docs/audits/legacy-planning-artifact-disposition-2026-08-24.md).
 
 The implementation rule for every future code change is strict TDD:
 
@@ -298,5 +298,7 @@ Results:
 
 - This document does not claim full backend, frontend, Postgres, or E2E test suites pass.
 - This document does not claim the lower-priority backlog has enough current line anchors to implement without a fresh pre-implementation verification pass.
-- This document does not claim to supersede `.planning/audits/resolution-plan.md`.
+- This document does not alter the durable disposition of the superseded
+  2026-05-09 mega-plan recorded in
+  [`docs/audits/legacy-planning-artifact-disposition-2026-08-24.md`](../../docs/audits/legacy-planning-artifact-disposition-2026-08-24.md).
 - This document does not change runtime behavior, public APIs, schemas, or production Interfaces.

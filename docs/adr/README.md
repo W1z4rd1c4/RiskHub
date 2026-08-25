@@ -20,3 +20,4 @@ This directory records architecture decisions that should not be re-litigated by
 - [ADR-014 Desktop-First Client Support Policy](./ADR-014-desktop-first-support.md)
 - [ADR-015 Frontend Design-System Foundation](./ADR-015-frontend-design-system-foundation.md)
 - [ADR-016 Governed Mutation Proposal and Impact-Lock Contract](./ADR-016-governed-mutation-proposals.md)
+- [ADR-017 Retained Compatibility Surfaces](./ADR-017-retained-compatibility-surfaces.md)

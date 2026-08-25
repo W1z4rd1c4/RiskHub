@@ -11,9 +11,7 @@ pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 FACADE_PATH = REPO_ROOT / "backend/app/services/quarterly_comparison_service.py"
-DECISION_LEDGER = (
-    REPO_ROOT / "docs/audits/2026-05-09-architecture-cleanup-decisions.md"
-)
+DECISION_ADR = REPO_ROOT / "docs/adr/ADR-017-retained-compatibility-surfaces.md"
 
 
 def test_facade_module_present_and_re_exports_canonical() -> None:
@@ -25,7 +23,7 @@ def test_facade_module_present_and_re_exports_canonical() -> None:
 
 def test_facade_keep_decision_is_documented() -> None:
     facade_text = FACADE_PATH.read_text()
-    decision_text = DECISION_LEDGER.read_text()
+    decision_text = DECISION_ADR.read_text()
 
     assert "audit #57" in facade_text.lower()
     assert "Reject" in facade_text

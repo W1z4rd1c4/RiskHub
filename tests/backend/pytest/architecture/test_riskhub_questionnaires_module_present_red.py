@@ -12,9 +12,7 @@ pytestmark = pytest.mark.contract
 REPO_ROOT = Path(__file__).resolve().parents[4]
 MODULE_PATH = REPO_ROOT / "backend/app/api/v1/endpoints/riskhub_questionnaires.py"
 ENDPOINT_INVARIANTS = REPO_ROOT / "docs/agent/ENDPOINT_INVARIANTS.md"
-DECISION_LEDGER = (
-    REPO_ROOT / "docs/audits/2026-05-09-architecture-cleanup-decisions.md"
-)
+DECISION_ADR = REPO_ROOT / "docs/adr/ADR-017-retained-compatibility-surfaces.md"
 
 
 def test_module_file_exists() -> None:
@@ -30,7 +28,7 @@ def test_module_exposes_router_with_batch_send_route() -> None:
 
 def test_module_presence_is_documented_with_frontend_call_chain() -> None:
     endpoint_text = ENDPOINT_INVARIANTS.read_text()
-    decision_text = DECISION_LEDGER.read_text()
+    decision_text = DECISION_ADR.read_text()
 
     assert "backend/app/api/v1/endpoints/riskhub_questionnaires.py" in endpoint_text
     assert "frontend/src/components/riskhub/RiskQuestionnairesPanel.tsx:257" in endpoint_text

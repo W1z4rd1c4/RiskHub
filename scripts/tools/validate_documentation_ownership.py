@@ -27,8 +27,11 @@ DOCS_AUDIT_INDEX = REPO_ROOT / "docs/audits/README.md"
 AUDIT_DISPOSITION = (
     REPO_ROOT / "docs/audits/legacy-planning-artifact-disposition-2026-08-24.md"
 )
-DECISION_LEDGER = (
+DECISION_PROVENANCE = (
     REPO_ROOT / "docs/audits/2026-05-09-architecture-cleanup-decisions.md"
+)
+ARCHITECTURE_DECISION = (
+    REPO_ROOT / "docs/adr/ADR-017-retained-compatibility-surfaces.md"
 )
 
 REQUIRED_OWNERSHIP_HEADINGS = {
@@ -417,7 +420,8 @@ def _validate_artifact_topology() -> list[str]:
     for path in (
         PLANNING_AUDIT_INDEX,
         AUDIT_DISPOSITION,
-        DECISION_LEDGER,
+        DECISION_PROVENANCE,
+        ARCHITECTURE_DECISION,
         REPO_ROOT / ".planning/audits/2026-05-09-deepening-audit.md",
         REPO_ROOT / ".planning/audits/2026-05-17-architecture-improvement-plan.md",
     ):
@@ -444,16 +448,26 @@ def _validate_artifact_topology() -> list[str]:
                     f"audit disposition does not preserve blob identity: {blob_sha}"
                 )
 
-    if DECISION_LEDGER.is_file():
-        ledger = _read(DECISION_LEDGER)
+    if ARCHITECTURE_DECISION.is_file():
+        decision = _read(ARCHITECTURE_DECISION)
         for required in (
             "Decision #10",
             "Decision #57",
             "test_riskhub_questionnaires_module_present_red.py",
             "test_quarterly_comparison_facade_present_red.py",
         ):
-            if required not in ledger:
-                errors.append(f"decision ledger is missing: {required}")
+            if required not in decision:
+                errors.append(f"architecture decision is missing: {required}")
+
+    if DECISION_PROVENANCE.is_file():
+        provenance = _read(DECISION_PROVENANCE)
+        for required in (
+            "historical provenance",
+            "ADR-017-retained-compatibility-surfaces.md",
+            "legacy-planning-artifact-disposition-2026-08-24.md",
+        ):
+            if required not in provenance:
+                errors.append(f"decision provenance is missing: {required}")
 
     for path, required in (
         (PLANNING_AUDIT_INDEX, "legacy-planning-artifact-disposition-2026-08-24.md"),
