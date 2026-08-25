@@ -29,6 +29,39 @@ APPROVED_PRODUCTION_TRIGGERS = {
         {"cron": "0 0 * * 0"},
     ],
 }
+INJECTED_TRIGGER_PATHS = [
+    ".github/workflows/frontend-container-gate-contract.yml",
+    ".github/workflows/security.yml",
+    "scripts/security/frontend_trivy_status.py",
+    "scripts/security/validate_frontend_container_gate.py",
+    "tests/backend/pytest/test_frontend_container_security_contract.py",
+]
+APPROVED_INJECTED_TRIGGERS = {
+    "pull_request": {
+        "branches": ["main", "develop"],
+        "paths": INJECTED_TRIGGER_PATHS,
+    },
+    "push": {
+        "branches": ["main", "develop"],
+        "paths": INJECTED_TRIGGER_PATHS,
+    },
+    "workflow_dispatch": None,
+}
+EXPECTED_PRODUCTION_STEP_NAMES = [
+    None,
+    "Build Backend Image",
+    "Build Frontend Image",
+    "Run Trivy on Backend",
+    "Run Trivy on Frontend",
+    "Record Frontend Trivy Scan Status",
+    "Enforce Frontend Trivy HIGH/CRITICAL Gate",
+    "Generate Backend SBOM (Syft)",
+    "Run Grype on Backend SBOM",
+    "Fail on unresolved Grype HIGH/CRITICAL",
+    "Upload Trivy Backend Report",
+    "Upload Trivy Frontend Report",
+    "Upload Container Security Reports",
+]
 EXPECTED_STATUS_RECORD_COMMAND = (
     'python3 scripts/security/frontend_trivy_status.py record '
     '--outcome "$FRONTEND_TRIVY_OUTCOME" '
@@ -107,6 +140,40 @@ def _require_exact_keys(
         errors.append(
             f"{subject} keys must be exactly {', '.join(sorted(expected))}"
         )
+
+
+def _workflow_keys(workflow: dict) -> set[str]:
+    return {"on" if key is True else str(key) for key in workflow}
+
+
+def _validate_workflow_schema(
+    errors: list[str],
+    subject: str,
+    workflow: dict,
+    *,
+    expected_permissions: dict[str, str],
+) -> None:
+    expected_keys = {"name", "on", "permissions", "jobs"}
+    if _workflow_keys(workflow) != expected_keys:
+        errors.append(
+            f"{subject} keys must be exactly {', '.join(sorted(expected_keys))}"
+        )
+    if workflow.get("permissions") != expected_permissions:
+        errors.append(f"{subject} permissions must match exactly")
+
+
+def _validate_mandatory_job_schema(
+    errors: list[str],
+    subject: str,
+    job: dict,
+    *,
+    expected_name: str,
+) -> None:
+    _require_exact_keys(errors, subject, job, {"name", "runs-on", "steps"})
+    if job.get("name") != expected_name:
+        errors.append(f"{subject} name must match exactly")
+    if job.get("runs-on") != "ubuntu-latest":
+        errors.append(f"{subject} runner must be ubuntu-latest")
 
 
 def _normalize_run_command(command: object) -> str:
@@ -249,24 +316,33 @@ def _validate_injected_finding_workflow() -> list[str]:
     if not CONTRACT_WORKFLOW_PATH.is_file():
         return ["missing injected-finding workflow proof"]
 
-    raw_text = CONTRACT_WORKFLOW_PATH.read_text(encoding="utf-8")
-    for trigger in ("pull_request:", "push:", "workflow_dispatch:"):
-        if trigger not in raw_text:
-            errors.append(
-                f"injected-finding workflow is missing trigger: {trigger}"
-            )
-
     try:
         workflow = _load_yaml(CONTRACT_WORKFLOW_PATH)
-        job = workflow["jobs"]["injected-finding-contract"]
+        jobs = workflow["jobs"]
+        job = jobs["injected-finding-contract"]
         steps = job["steps"]
     except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
         return [*errors, f"unable to load injected-finding workflow: {exc}"]
 
+    _validate_workflow_schema(
+        errors,
+        "injected-finding workflow",
+        workflow,
+        expected_permissions={"contents": "read"},
+    )
+    triggers = workflow.get("on", workflow.get(True))
+    if triggers != APPROVED_INJECTED_TRIGGERS:
+        errors.append("injected-finding workflow triggers must match exactly")
+    if not isinstance(jobs, dict) or set(jobs) != {"injected-finding-contract"}:
+        errors.append("injected-finding workflow jobs must match exactly")
+    _validate_mandatory_job_schema(
+        errors,
+        "injected-finding contract job",
+        job,
+        expected_name="Frontend Container Injected Finding Contract",
+    )
     _reject_run_defaults(errors, "injected-finding workflow", workflow)
     _reject_run_defaults(errors, "injected-finding contract job", job)
-    if job.get("name") != "Frontend Container Injected Finding Contract":
-        errors.append("injected-finding workflow must expose the named contract job")
     _reject_continue_on_error(errors, "injected-finding contract job", job)
     if "if" in job:
         errors.append("injected-finding contract job must not be conditional")
@@ -423,6 +499,18 @@ def validate() -> list[str]:
         return [*errors, f"unable to load container-security workflow: {exc}"]
 
     errors.extend(_validate_production_triggers(workflow))
+    _validate_workflow_schema(
+        errors,
+        "production security workflow",
+        workflow,
+        expected_permissions={"contents": "read", "security-events": "write"},
+    )
+    _validate_mandatory_job_schema(
+        errors,
+        "production container-security job",
+        container_job,
+        expected_name="Container Scan (Trivy + SBOM Correlation)",
+    )
     _reject_run_defaults(errors, "production security workflow", workflow)
     _reject_run_defaults(errors, "production container-security job", container_job)
     _reject_continue_on_error(errors, "production container-security job", container_job)
@@ -436,6 +524,8 @@ def validate() -> list[str]:
         "production container-security job",
         container_job,
     )
+    if [step.get("name") for step in steps] != EXPECTED_PRODUCTION_STEP_NAMES:
+        errors.append("production container-security step sequence must match exactly")
 
     try:
         scan_index, scan = _step_by_name(steps, "Run Trivy on Frontend")
@@ -545,13 +635,13 @@ def validate() -> list[str]:
     if gate_script != EXPECTED_ENFORCEMENT_COMMAND:
         errors.append("frontend enforcement command must match exactly")
 
-    if not (scan_index < status_index < sarif_index < gate_index):
+    if status_index != scan_index + 1:
+        errors.append("frontend status must be recorded immediately after the scan")
+    if gate_index != status_index + 1:
+        errors.append("frontend enforcement must run immediately after status recording")
+    if not (gate_index < sarif_index < artifact_index):
         errors.append(
-            "frontend status must be recorded after the scan and before SARIF upload/enforcement"
-        )
-    if not (scan_index < status_index < artifact_index < gate_index):
-        errors.append(
-            "frontend status artifact must be generated and uploaded before enforcement"
+            "frontend evidence uploads must remain after the blocking enforcement step"
         )
 
     return errors

@@ -777,3 +777,184 @@ def test_contract_validator_locks_evidence_artifact_contract(
         else _validate_workflow_text(tmp_path, workflow)
     )
     assert any("artifact" in error for error in errors)
+
+
+@pytest.mark.parametrize("contract", [False, True])
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        "env:\n  BASH_ENV: /tmp/attacker-env\n",
+        "env:\n  PYTHONPATH: /tmp/attacker-python\n",
+        "concurrency: attacker-controlled\n",
+    ],
+)
+def test_contract_validator_closes_workflow_execution_metadata(
+    tmp_path: Path,
+    contract: bool,
+    metadata: str,
+) -> None:
+    source = CONTRACT_WORKFLOW if contract else SECURITY_WORKFLOW
+    workflow = source.read_text(encoding="utf-8")
+    workflow = workflow.replace("\npermissions:\n", f"\n{metadata}\npermissions:\n", 1)
+    errors = (
+        _validate_contract_workflow_text(tmp_path, workflow)
+        if contract
+        else _validate_workflow_text(tmp_path, workflow)
+    )
+    assert any("workflow" in error and "keys" in error for error in errors)
+
+
+@pytest.mark.parametrize("contract", [False, True])
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        "    env:\n      BASH_ENV: /tmp/attacker-env\n",
+        "    env:\n      PYTHONPATH: /tmp/attacker-python\n",
+        "    container: attacker/image:latest\n",
+        "    services:\n      attacker:\n        image: attacker/service:latest\n",
+        "    timeout-minutes: 1\n",
+    ],
+)
+def test_contract_validator_closes_mandatory_job_execution_metadata(
+    tmp_path: Path,
+    contract: bool,
+    metadata: str,
+) -> None:
+    source = CONTRACT_WORKFLOW if contract else SECURITY_WORKFLOW
+    workflow = source.read_text(encoding="utf-8")
+    job_name = "injected-finding-contract" if contract else "container-security"
+    anchor = f"  {job_name}:\n"
+    workflow = workflow.replace(anchor, f"{anchor}{metadata}", 1)
+    errors = (
+        _validate_contract_workflow_text(tmp_path, workflow)
+        if contract
+        else _validate_workflow_text(tmp_path, workflow)
+    )
+    assert any("job" in error and "keys" in error for error in errors)
+
+
+@pytest.mark.parametrize("contract", [False, True])
+def test_contract_validator_requires_approved_runner(
+    tmp_path: Path,
+    contract: bool,
+) -> None:
+    source = CONTRACT_WORKFLOW if contract else SECURITY_WORKFLOW
+    workflow = source.read_text(encoding="utf-8").replace(
+        "    runs-on: ubuntu-latest\n",
+        "    runs-on: self-hosted\n",
+        1 if contract else 7,
+    )
+    if not contract:
+        original = source.read_text(encoding="utf-8")
+        container_anchor = (
+            "  container-security:\n"
+            "    name: Container Scan (Trivy + SBOM Correlation)\n"
+            "    runs-on: ubuntu-latest\n"
+        )
+        workflow = original.replace(
+            container_anchor,
+            container_anchor.replace("ubuntu-latest", "self-hosted"),
+            1,
+        )
+    errors = (
+        _validate_contract_workflow_text(tmp_path, workflow)
+        if contract
+        else _validate_workflow_text(tmp_path, workflow)
+    )
+    assert any("runner" in error for error in errors)
+
+
+@pytest.mark.parametrize("contract", [False, True])
+def test_contract_validator_locks_workflow_permissions(
+    tmp_path: Path,
+    contract: bool,
+) -> None:
+    source = CONTRACT_WORKFLOW if contract else SECURITY_WORKFLOW
+    workflow = source.read_text(encoding="utf-8")
+    anchor = "permissions:\n  contents: read\n"
+    workflow = workflow.replace(anchor, f"{anchor}  actions: write\n", 1)
+    errors = (
+        _validate_contract_workflow_text(tmp_path, workflow)
+        if contract
+        else _validate_workflow_text(tmp_path, workflow)
+    )
+    assert any("permissions" in error for error in errors)
+
+
+def test_contract_validator_parses_exact_injected_workflow_triggers(
+    tmp_path: Path,
+) -> None:
+    workflow = CONTRACT_WORKFLOW.read_text(encoding="utf-8")
+    trigger_start = workflow.index("on:\n")
+    permissions_start = workflow.index("permissions:\n")
+    workflow = (
+        workflow[:trigger_start]
+        + "on:\n"
+        + "  # pull_request:\n"
+        + "  # push:\n"
+        + "  workflow_dispatch:\n\n"
+        + workflow[permissions_start:]
+    )
+    errors = _validate_contract_workflow_text(tmp_path, workflow)
+    assert any("injected-finding" in error and "trigger" in error for error in errors)
+
+
+def test_contract_validator_requires_immediate_frontend_enforcement(
+    tmp_path: Path,
+) -> None:
+    errors = _validate_workflow_text(
+        tmp_path,
+        SECURITY_WORKFLOW.read_text(encoding="utf-8"),
+    )
+    assert not any("unable to load" in error for error in errors)
+    assert not any("missing workflow step" in error for error in errors)
+    assert not any("immediately" in error for error in errors)
+
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    gate = (
+        "      - name: Enforce Frontend Trivy HIGH/CRITICAL Gate\n"
+        "        if: always()\n"
+        "        run: >-\n"
+        "          python3 scripts/security/frontend_trivy_status.py enforce\n"
+        "          --status-file trivy-frontend-status.json\n"
+    )
+    recorder_end = (
+        "            --output trivy-frontend-status.json\n"
+    )
+    without_gate = workflow.replace(f"\n{gate}", "", 1)
+    adjacent = without_gate.replace(recorder_end, f"{recorder_end}\n{gate}", 1)
+    assert _validate_workflow_text(tmp_path, adjacent) == []
+
+
+@pytest.mark.parametrize(
+    "malicious_step",
+    [
+        "      - name: Forge frontend status\n"
+        "        run: echo '{}' > trivy-frontend-status.json\n",
+        "      - uses: attacker/forge-status@0123456789012345678901234567890123456789\n",
+    ],
+)
+def test_contract_validator_rejects_step_between_recorder_and_enforcer(
+    tmp_path: Path,
+    malicious_step: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    recorder_end = "            --output trivy-frontend-status.json\n"
+    workflow = workflow.replace(
+        recorder_end,
+        f"{recorder_end}\n{malicious_step}",
+        1,
+    )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("immediately" in error or "step sequence" in error for error in errors)
+
+
+def test_production_evidence_uploads_remain_after_blocking_gate(
+    tmp_path: Path,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    gate_index = workflow.index("      - name: Enforce Frontend Trivy HIGH/CRITICAL Gate")
+    frontend_sarif_index = workflow.index("      - name: Upload Trivy Frontend Report")
+    artifact_index = workflow.index("      - name: Upload Container Security Reports")
+    assert gate_index < frontend_sarif_index < artifact_index
+    assert _validate_workflow_text(tmp_path, workflow) == []

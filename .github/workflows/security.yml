@@ -288,6 +288,12 @@ jobs:
             --sarif trivy-frontend.sarif \
             --output trivy-frontend-status.json
 
+      - name: Enforce Frontend Trivy HIGH/CRITICAL Gate
+        if: always()
+        run: >-
+          python3 scripts/security/frontend_trivy_status.py enforce
+          --status-file trivy-frontend-status.json
+
       - name: Generate Backend SBOM (Syft)
         run: |
           set -euo pipefail
@@ -365,12 +371,6 @@ jobs:
             grype-backend.json
           retention-days: 30
           if-no-files-found: error
-
-      - name: Enforce Frontend Trivy HIGH/CRITICAL Gate
-        if: always()
-        run: >-
-          python3 scripts/security/frontend_trivy_status.py enforce
-          --status-file trivy-frontend-status.json
 
   # Secrets Detection
   secrets-detection:
