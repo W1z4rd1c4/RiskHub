@@ -1,0 +1,76 @@
+name: Python Dev Lock Refresh
+
+on:
+  schedule:
+    - cron: '17 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: Python Dev Lock Refresh
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate automation credential and mutation permissions
+        env:
+          GH_TOKEN: ${{ secrets.RISKHUB_AUTOMATION_PR_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "RISKHUB_AUTOMATION_PR_TOKEN is required for scheduled lock-refresh branches and PRs." >&2
+            echo "Provision an approved fine-grained PAT with Contents and Pull requests write access." >&2
+            exit 1
+          fi
+          python3 scripts/tools/check_github_pr_automation_permissions.py
+
+      - name: Set up canonical Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Regenerate exact resolver output
+        run: python3 scripts/tools/refresh_python_dependency_lock.py
+
+      - name: Detect lock changes
+        id: changes
+        run: |
+          if git diff --quiet -- \
+            backend/requirements-dev.txt \
+            backend/requirements-dev-constraints.txt \
+            backend/requirements-prod-readiness-audit-constraints.txt; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open lock refresh pull request
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RISKHUB_AUTOMATION_PR_TOKEN }}
+        run: |
+          set -euo pipefail
+          branch="automation/python-dev-lock-${GITHUB_RUN_ID}"
+          git config user.name "riskhub-automation"
+          git config user.email "riskhub-automation@users.noreply.github.com"
+          gh auth setup-git
+          git switch -c "$branch"
+          git add \
+            backend/requirements-dev.txt \
+            backend/requirements-dev-constraints.txt \
+            backend/requirements-prod-readiness-audit-constraints.txt
+          git commit -m "build(backend): refresh Python development lock"
+          git push origin "$branch"
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "build(backend): refresh Python development lock" \
+            --body "Automated monthly Python 3.13 resolver refresh. Review dependency diffs and require the normal backend, lint, security, and production-readiness evidence before merge."
