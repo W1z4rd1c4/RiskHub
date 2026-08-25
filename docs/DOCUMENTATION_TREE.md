@@ -2,12 +2,18 @@
 
 English-first master index for repository documentation topology.
 
+Authority, ownership, and conflict resolution are defined in
+[`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md).
+
 ## Root Entry Points
 
 - [`README.md`](../README.md): Repository quick start and canonical startup commands.
-- [`AGENTS.md`](../AGENTS.md): Agent behavior, source-of-truth order, execution protocol.
+- [`AGENTS.md`](../AGENTS.md): Canonical general agent policy and navigation;
+  [`docs/agent/EXECUTION_PROTOCOL.md`](./agent/EXECUTION_PROTOCOL.md) owns the
+  detailed execution procedure.
 - [`docs/README.md`](./README.md): Product and engineering documentation index.
-- [`.planning/README.md`](../.planning/README.md): Planning state, roadmap, codebase maps, and phase archive entry.
+- [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md): Authority matrix for live work, versioned planning, durable docs, and archives.
+- [`.planning/README.md`](../.planning/README.md): Versioned planning snapshots, codebase maps, and phase archive entry.
 
 ## Tree Map
 
@@ -15,6 +21,7 @@ English-first master index for repository documentation topology.
 AGENTS.md
 ├── docs/README.md
 │   ├── docs/DOCUMENTATION_TREE.md (this file)
+│   ├── docs/DOCUMENTATION_OWNERSHIP.md
 │   ├── docs/agent/README.md
 │   ├── docs/development/README.md
 │   ├── docs/security/README.md
@@ -42,6 +49,8 @@ AGENTS.md
 
 ## Navigation By Intent
 
+- Documentation and work-tracking authority:
+  - [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md)
 - Product/business behavior:
   - [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
   - [`docs/user/README.md`](./user/README.md)
@@ -123,7 +132,7 @@ AGENTS.md
 - client_factory:
   - `tests/backend/pytest/conftest.py`
   - `tests/backend/pytest/_get_db_override_whitelist.toml`
-- Active planning and current truth:
+- Versioned planning context (live status remains in GitHub):
   - [`.planning/STATE.md`](../.planning/STATE.md)
   - [`.planning/ROADMAP.md`](../.planning/ROADMAP.md)
   - [`.planning/codebase/STRUCTURE.md`](../.planning/codebase/STRUCTURE.md)
@@ -133,15 +142,21 @@ AGENTS.md
 
 ## Canonical vs Archival Boundary
 
-- Canonical documentation for active work:
+- Authority and conflict-resolution contract:
+  - [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md)
+- Canonical versioned documentation surfaces:
   - `AGENTS.md`
   - `docs/`
   - `.planning/README.md`
   - `.planning/PROJECT.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`
   - `.planning/codebase/*.md`
   - `.planning/phases/README.md` (archive index only)
+- Live delivery state:
+  - the applicable GitHub Issue, pull request, or Project item owns assignment,
+    priority, blocking, review, acceptance evidence, and closure.
 - Archival records:
-  - `.planning/phases/*` plan/summaries are historical snapshots.
+  - `.planning/phases/*` plans and summaries are historical snapshots unless a
+    confirmed open live item explicitly designates one as its implementation plan.
   - Legacy or absolute `file:///...` links may exist in archival bodies and are preserved as-is.
 
 ## Validation
@@ -149,6 +164,7 @@ AGENTS.md
 Run topology validation from repo root:
 
 ```bash
+python3 scripts/tools/validate_documentation_ownership.py
 python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
 python3 scripts/tools/docs_tree_audit.py --scope full
 python3 scripts/tools/structure_metrics_guard.py

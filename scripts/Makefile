@@ -231,6 +231,7 @@ docs-tree-audit:
 
 docs-topology-consistency:
 	python3 scripts/check_docs_contract.py
+	python3 scripts/tools/validate_documentation_ownership.py
 	python3 scripts/tools/readme_coverage.py audit
 	python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
 	python3 scripts/tools/structure_metrics_guard.py

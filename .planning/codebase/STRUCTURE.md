@@ -2,13 +2,18 @@
 
 **Analysis Date:** 2026-08-23
 
+This file is a versioned repository-structure snapshot for the commit that
+contains it. It does not assign live work or determine whether an issue, pull
+request, or project item is open. See
+[`docs/DOCUMENTATION_OWNERSHIP.md`](../../docs/DOCUMENTATION_OWNERSHIP.md).
+
 ## Top-Level Layout
 
 - `backend/` - FastAPI API, domain services, Alembic migrations, pytest suites
 - `frontend/` - React + TypeScript SPA, Vitest tests, Playwright E2E suites
 - `docs/` - product/business/admin/user documentation
 - `tests/` - centralized backend/frontend test suites and test result artifacts
-- `.planning/` - roadmap, state, phase plans/summaries, codebase map docs
+- `.planning/` - versioned roadmap/state snapshots, phase archives, and codebase maps
 - `scripts/` - operational/dev utilities, including the public installer/orchestrator `scripts/install.sh` plus the underlying `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh` entrypoints
 
 ## Backend Tree (`backend/`)
@@ -29,7 +34,7 @@
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 500 tracked test files (462 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - 501 tracked test files (463 Python) in the measured repository snapshot
 
 ## Frontend Tree (`frontend/`)
 
@@ -52,14 +57,18 @@
 
 ## Planning and Documentation Structure
 
-- `.planning/ROADMAP.md` - milestone/phase intent
-- `.planning/STATE.md` - current execution truth and status
-- `.planning/phases/` - detailed phase plans/summaries
-- `.planning/codebase/` - generated codebase reference docs
-- `docs/BUSINESS_LOGIC.md` - domain source of truth
+- `docs/DOCUMENTATION_OWNERSHIP.md` - authority and conflict-resolution contract
+- `.planning/ROADMAP.md` - versioned phase intent at the current commit, not live priority or closure
+- `.planning/STATE.md` - versioned technical-state snapshot at the current commit, not live assignment or execution status
+- `.planning/phases/` - historical plans/summaries; an active plan provides implementation detail only after the corresponding live work item is confirmed applicable
+- `.planning/codebase/` - generated/versioned codebase reference docs
+- `docs/BUSINESS_LOGIC.md` - durable domain behavior contract
 - `docs/development/README.md` - canonical development startup/runbook
 - `docs/TESTING.md` - testing guidance and workflows
 - `docs/deployment/` - deployment runbooks for supported docker/linux operations and migration guidance
+
+Live scope, assignment, priority, review state, blocking, and closure are tracked
+in the applicable GitHub Issue, pull request, or Project item.
 
 ## Build/Test/Automation Artifacts
 

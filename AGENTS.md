@@ -4,18 +4,18 @@
 
 Canonical Source: `docs/agent/README.md`, `docs/agent/AGENTS_DOC_COVERAGE.md`
 
-This file is the navigation layer for agent behavior. Canonical details live in `docs/` and `.planning/codebase/`.
+This file is the canonical general agent policy and navigation layer. Domain-specific details live in `docs/` and `.planning/codebase/`.
 Use [`docs/agent/README.md`](docs/agent/README.md) as the agent-doc index and [`docs/agent/AGENTS_DOC_COVERAGE.md`](docs/agent/AGENTS_DOC_COVERAGE.md) for section coverage tracking.
-Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-domain documentation navigation and [`.planning/README.md`](.planning/README.md) for planning-tree navigation.
+Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-domain documentation navigation, [`docs/DOCUMENTATION_OWNERSHIP.md`](docs/DOCUMENTATION_OWNERSHIP.md) for documentation and work-tracking authority, and [`.planning/README.md`](.planning/README.md) for planning-tree navigation.
 
 | AGENTS Section | Canonical Source(s) | Coverage | Owner | Last Verified |
 |---|---|---|---|---|
-| Repository Knowledge Map | `docs/agent/README.md`<br>`docs/agent/AGENTS_DOC_COVERAGE.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Mission | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Repository Knowledge Map | `docs/agent/README.md`<br>`docs/agent/AGENTS_DOC_COVERAGE.md` | full | RiskHub Maintainer | 2026-08-24 |
+| Mission | `AGENTS.md` | full | RiskHub Maintainer | 2026-08-24 |
 | Project Map | `.planning/codebase/STRUCTURE.md`<br>`.planning/codebase/ARCHITECTURE.md` | full | RiskHub Maintainer | 2026-04-25 |
-| Source-of-Truth Order | `docs/agent/CODEX_WORKING_RULES.md`<br>`.planning/codebase/CONVENTIONS.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Active Work Focus (Default Bias) | `docs/agent/CODEX_WORKING_RULES.md`<br>`.planning/STATE.md`<br>`.planning/ROADMAP.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Execution Protocol | `docs/agent/EXECUTION_PROTOCOL.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Source-of-Truth Order | `AGENTS.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`<br>`.planning/codebase/CONVENTIONS.md` | full | RiskHub Maintainer | 2026-08-24 |
+| Active Work Focus (Default Bias) | `AGENTS.md`<br>`docs/DOCUMENTATION_OWNERSHIP.md`<br>`.planning/STATE.md`<br>`.planning/ROADMAP.md` | full | RiskHub Maintainer | 2026-08-24 |
+| Execution Protocol | `docs/agent/EXECUTION_PROTOCOL.md`<br>`AGENTS.md` | full | RiskHub Maintainer | 2026-08-24 |
 | Risk Hotspots (Mandatory Extra Care) | `.planning/codebase/CONCERNS.md`<br>`docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-04-25 |
 | Key Knowledge (Keep In Sync) | `docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/PYTEST_RUNTIME_NOTES.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Key Knowledge > Timezone policy (UTC-aware) | `docs/agent/TIMEZONE_POLICY.md` | full | RiskHub Maintainer | 2026-02-16 |
@@ -25,17 +25,20 @@ Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-do
 | Key Knowledge > SQLAlchemy FK cycles (SQLite tests) | `docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Testing Matrix | `.planning/codebase/TESTING.md`<br>`docs/TESTING.md` | full | RiskHub Maintainer | 2026-04-25 |
 | RBAC and Business Logic Guardrails | `docs/security/authorization-capability-contract.md`<br>`docs/security/authorization-capability-contract.json`<br>`docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-04-26 |
+| Authorization Capability Contract | `AGENTS.md`<br>`docs/security/authorization-capability-contract.md`<br>`docs/security/authorization-capability-contract.json`<br>`docs/security/capability-catalog.json` | full | RiskHub Maintainer | 2026-08-24 |
+| Architecture Locks | `AGENTS.md`<br>`docs/adr/README.md`<br>`docs/README.md` | full | RiskHub Maintainer | 2026-08-24 |
+| client_factory | `AGENTS.md`<br>`tests/backend/pytest/conftest.py`<br>`tests/backend/pytest/_get_db_override_whitelist.toml` | full | RiskHub Maintainer | 2026-08-24 |
 | Frontend Display Guardrails | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Quick Commands | `scripts/install.sh`<br>`scripts/dev.sh`<br>`scripts/compose.sh`<br>`scripts/deploy.sh`<br>`scripts/Makefile`<br>`docs/development/README.md`<br>`docs/deployment/reference.md` | full | RiskHub Maintainer | 2026-04-05 |
 | Demo/Dev Auth (local) | `scripts/install.sh`<br>`scripts/dev.sh`<br>`docs/development/README.md`<br>`.planning/codebase/INTEGRATIONS.md` | full | RiskHub Maintainer | 2026-04-05 |
-| Repo Hygiene | `.planning/codebase/STRUCTURE.md`<br>`docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Prompting and Tooling Best Practices (OpenAI-Aligned) | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Repo Hygiene | `AGENTS.md`<br>`.planning/codebase/STRUCTURE.md` | full | RiskHub Maintainer | 2026-08-24 |
+| Prompting and Tooling Best Practices (OpenAI-Aligned) | `AGENTS.md` | full | RiskHub Maintainer | 2026-08-24 |
 | Skills | `docs/agent/SKILLS_RESOLUTION.md` | full | RiskHub Maintainer | 2026-02-16 |
 
 ## Mission
 
-Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`
+Canonical Source: this section in `AGENTS.md`
 
 - Deliver correct, test-verified changes to RiskHub with minimal unrelated churn.
 - Prefer evidence from repo artifacts over assumptions.
@@ -57,53 +60,41 @@ Root non-dot contract:
 
 ## Source-of-Truth Order
 
-Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `.planning/codebase/CONVENTIONS.md`
+Canonical Source: this section in `AGENTS.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/codebase/CONVENTIONS.md`
 
-Use this precedence when instructions conflict:
+Use this precedence when instructions or status claims conflict:
 
 1. Explicit user request for the current task.
-2. Active phase plan file (`.planning/phases/<phase>/<plan>-PLAN.md`) when executing a phase.
-3. `.planning/STATE.md` (current truth of progress).
-4. `.planning/ROADMAP.md` (phase-level intent and status).
-5. `.planning/codebase/*.md` (architecture, conventions, testing, concerns).
-6. `docs/BUSINESS_LOGIC.md` and `docs/TESTING.md`.
-7. `AGENTS.md`.
+2. The referenced GitHub Issue, pull request, or Project item for live scope, assignment, priority, blocking, review state, acceptance evidence, and open/closed status.
+3. The active phase plan file (`.planning/phases/<phase>/<plan>-PLAN.md`) for implementation detail, after confirming that its live delivery item remains open and applicable.
+4. Code, tests, migrations, and runtime configuration for implemented behavior at the current commit.
+5. `.planning/STATE.md` and `.planning/ROADMAP.md` for versioned technical context and roadmap intent at the current commit—not live assignment or closure state.
+6. `.planning/codebase/*.md` for architecture, conventions, testing, and concerns.
+7. `docs/BUSINESS_LOGIC.md`, `docs/TESTING.md`, and accepted ADRs for durable behavior, verification, and architecture contracts.
+8. Tool-specific instruction files only for deltas within the general policy above.
 
 Rules:
 
-- If planning docs conflict with current code behavior, trust code + `.planning/codebase/*`, then note the discrepancy.
+- When GitHub delivery status conflicts with `.planning/STATE.md` or `.planning/ROADMAP.md`, use the live tracker for status and reconcile the planning snapshot in the relevant delivery change.
+- When planning or descriptive docs conflict with current code behavior, code and tests establish current behavior; an accepted ADR or product contract may still identify a defect.
 - Ignore `.planning/codebase.bak-*` unless explicitly asked.
 
 ## Active Work Focus (Default Bias)
 
-Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`
+Canonical Source: this section in `AGENTS.md`, `docs/DOCUMENTATION_OWNERSHIP.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`
 
-Unless user redirects, prioritize unresolved work identified as in progress in:
+Unless the user supplies a direct task, select work only from an assigned or otherwise explicitly applicable open GitHub Issue, pull request, or Project item.
+Use `.planning/STATE.md`, `.planning/ROADMAP.md`, and active phase plans to obtain versioned implementation context after that live-status check.
 
-- `.planning/STATE.md`
-- `.planning/ROADMAP.md`
+Do not start work solely because a planning snapshot says it is in progress.
+Closed, declined, superseded, blocked, or unassigned live work is not an active default task.
 
 ## Execution Protocol
 
-Canonical Source: `docs/agent/EXECUTION_PROTOCOL.md`
+Canonical Source: [`docs/agent/EXECUTION_PROTOCOL.md`](docs/agent/EXECUTION_PROTOCOL.md)
 
-Before coding:
-
-1. Restate acceptance criteria and required output.
-2. Read the smallest relevant set of files first (`rg` then targeted opens).
-3. If phase-driven work: read plan + context + related summaries first.
-
-During coding:
-
-1. Keep diffs small and scoped to task intent.
-2. Preserve existing patterns in touched areas unless plan requires refactor.
-3. Update tests near changed behavior.
-
-After coding:
-
-1. Run the minimum meaningful verification for touched surface area.
-2. If phase plan requires it, add/update matching `*-SUMMARY.md`.
-3. If phase completion changes state, reconcile `.planning/STATE.md` and `.planning/ROADMAP.md`.
+Follow the canonical before/during/after procedure in the linked document. This
+navigation section deliberately does not duplicate the nine detailed steps.
 
 ## Risk Hotspots (Mandatory Extra Care)
 
@@ -321,7 +312,7 @@ Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2
 
 ## Repo Hygiene
 
-Canonical Source: `.planning/codebase/STRUCTURE.md`, `docs/agent/CODEX_WORKING_RULES.md`
+Canonical Source: this section in `AGENTS.md`, `.planning/codebase/STRUCTURE.md`
 
 - Avoid editing generated/vendor folders:
   - `frontend/node_modules/`
@@ -334,7 +325,7 @@ Canonical Source: `.planning/codebase/STRUCTURE.md`, `docs/agent/CODEX_WORKING_R
 
 ## Prompting and Tooling Best Practices (OpenAI-Aligned)
 
-Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`
+Canonical Source: this section in `AGENTS.md`
 
 - State objective, constraints, and expected output format before execution.
 - Use strict structured outputs for machine-consumed results when possible.

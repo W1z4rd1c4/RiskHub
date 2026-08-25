@@ -11,6 +11,12 @@
 | Current architecture lock check | `make -f scripts/Makefile test-architecture-locks` -> `197 passed`, `1 snapshot passed` |
 | Current authz contract check | `python3 scripts/security/validate_authz_capability_contract.py` -> passed |
 
+> **Added status correction — 2026-08-25:** The May body below is preserved as
+> historical evidence. It is historical, non-normative, and not executable
+> authority; its “implementation-ready,” strict-TDD, and backlog language does
+> not authorize current work. See the
+> [dated status correction](../../docs/audits/architecture-improvement-plan-status-2026-08-25.md).
+
 ## Summary
 
 This document turns the latest architecture audit into an implementation-ready

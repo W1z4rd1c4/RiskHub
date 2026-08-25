@@ -1,7 +1,7 @@
 # RiskHub Documentation Index
 
-> **Version**: 1.6
-> **Last Updated**: 2026-07-31
+> **Version**: 1.7
+> **Last Updated**: 2026-08-23
 > **Audience**: Product, Engineering, QA, Operations
 
 This file is the primary documentation index for `docs/`.
@@ -10,6 +10,7 @@ This file is the primary documentation index for `docs/`.
 
 - Repo quick start: [`README.md`](../README.md)
 - Master tree (English-first): [`docs/DOCUMENTATION_TREE.md`](./DOCUMENTATION_TREE.md)
+- Documentation/work-tracking authority: [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md)
 - Agent documentation index: [`docs/agent/README.md`](./agent/README.md)
 - Planning tree root: [`.planning/README.md`](../.planning/README.md)
 
@@ -17,6 +18,7 @@ This file is the primary documentation index for `docs/`.
 
 | Domain | Purpose | Entry |
 |---|---|---|
+| Documentation governance | Authority, ownership, update triggers, and conflict resolution | [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md) |
 | Agent | Execution rules and AGENTS mappings | [`docs/agent/README.md`](./agent/README.md) |
 | Development | Local startup and Docker development workflows | [`docs/development/README.md`](./development/README.md) |
 | Security | Security policy, reports, and closure records | [`docs/security/README.md`](./security/README.md) |
@@ -34,6 +36,7 @@ This file is the primary documentation index for `docs/`.
 
 ## Core Root Docs
 
+- [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md)
 - [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
 - [`docs/development/README.md`](./development/README.md)
 - [`docs/TESTING.md`](./TESTING.md)
@@ -67,6 +70,7 @@ In-app user documentation is intentionally written as a user manual. Keep implem
 ## Validation Commands
 
 ```bash
+python3 scripts/tools/validate_documentation_ownership.py
 python3 scripts/check_docs_contract.py
 make -f scripts/Makefile docs-topology-consistency
 cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q
@@ -134,5 +138,6 @@ blocks. The temporary exception registry is `tests/backend/pytest/_get_db_overri
 
 ## Boundary Notes
 
+- Canonical authority and conflict resolution are defined in [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md).
 - Canonical docs for active operations are under `docs/`, `AGENTS.md`, `.planning/README.md`, `.planning/codebase/`, `.planning/{PROJECT,STATE,ROADMAP}.md`.
 - `.planning/phases/*` is archival and indexed via [`.planning/phases/README.md`](../.planning/phases/README.md); historical phase bodies are preserved.
