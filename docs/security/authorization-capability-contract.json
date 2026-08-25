@@ -1,8 +1,9 @@
 {
  "version": "1.0",
- "last_reviewed": "2026-07-18",
- "last_architecture_refactor_reviewed": "2026-08-18",
+ "last_reviewed": "2026-08-23",
+ "last_architecture_refactor_reviewed": "2026-08-23",
  "architecture_refactor_notes": [
+  "2026-08-23: Issue #110 moves access-roster and access-update policy failures in backend/app/services/_access_workflow/policy.py from FastAPI HTTPException to the existing ADR-003 domain taxonomy. ValidationError, AuthorizationError, and NotFoundError retain the existing 400, 403, and 404 projections through the application domain-error handler. Direct policy tests cover the migrated failures, and the access-workflow architecture test keeps that context transport-neutral. Detail strings, actor authority, row visibility, capability fields, frontend gates, and transaction behavior are unchanged.",
   "2026-08-18: Issue #125 serializes the three CRO-managed risk-threshold rows with one deterministic PostgreSQL lock order before tuple validation and atomic value-plus-audit commit. Missing peers continue to use canonical defaults without implicit creation, and non-threshold configuration retains its single-row path. CRO-only mutation authority, route guards, row visibility, response schemas, capability fields, and frontend gates are unchanged.",
   "2026-08-17: Issue #124 aligns generic Issue mutation enforcement with existing closed-Issue capabilities. Generic PATCH, link, and unlink operations reject closed Issues through the canonical terminal-state guard before field checks, target resolution, or link lookup; deliberate workflow behavior remains unchanged. Route guards, row visibility, response schemas, transaction boundaries, and capability field shapes are unchanged.",
   "2026-08-17: Issue #127 requires every Risk-Control POST and DELETE orientation to authorize the managing entity first, then require canonical read permission and row scope for the opposite target before its load, existing target write guard, or link lookup. Unreadable targets are concealed as the same 404 as missing targets; authorized custom roles retain link authority. Capability fields, frontend gates, response schemas, and transaction boundaries are unchanged.",
@@ -238,7 +239,9 @@
     "tests/backend/pytest/test_departments.py",
     "tests/frontend/unit/src/components/access/UsersTable.test.tsx",
     "tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx",
-    "tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx"
+    "tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx",
+    "tests/backend/pytest/test_access_workflow_policy.py",
+    "tests/backend/pytest/architecture/test_w4_bc_b_identity_access_boundaries_red.py"
    ],
    "status": "authoritative",
    "findings": []
@@ -254,7 +257,9 @@
    "frontend_gate": "frontend/src/components/access/AccessEditModal.tsx resolves backend AccessUserCapabilities without permission fallback; frontend/src/components/access/useAccessUsersWorkflow.ts owns shared access-user action facts used by production rows",
    "tests": [
     "tests/backend/pytest/test_access_management.py",
-    "tests/frontend/unit/src/components/access/AccessEditModal.test.tsx"
+    "tests/frontend/unit/src/components/access/AccessEditModal.test.tsx",
+    "tests/backend/pytest/test_access_workflow_policy.py",
+    "tests/backend/pytest/architecture/test_w4_bc_b_identity_access_boundaries_red.py"
    ],
    "status": "authoritative",
    "findings": []

@@ -10,7 +10,9 @@ pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 IDENTITY_SERVICE_ROOT = REPO_ROOT / "backend/app/services/_identity_access_lifecycle"
+ACCESS_WORKFLOW_ROOT = REPO_ROOT / "backend/app/services/_access_workflow"
 USER_ENDPOINT_ROOT = REPO_ROOT / "backend/app/api/v1/endpoints/users"
+HTTP_FRAMEWORK_ROOTS = {"fastapi", "starlette"}
 
 
 def _python_files(root: Path) -> list[Path]:
@@ -27,6 +29,31 @@ def test_identity_access_lifecycle_services_do_not_raise_fastapi_http_exceptions
             call = node.exc
             if isinstance(call, ast.Call) and getattr(call.func, "id", None) == "HTTPException":
                 offenders.append(f"{path.relative_to(REPO_ROOT)}:{node.lineno}")
+
+    assert offenders == []
+
+
+def test_access_workflow_services_remain_transport_neutral():
+    offenders: list[str] = []
+    for path in _python_files(ACCESS_WORKFLOW_ROOT):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                root_module = (node.module or "").split(".", maxsplit=1)[0]
+                if root_module in HTTP_FRAMEWORK_ROOTS:
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}:{node.lineno}")
+            elif isinstance(node, ast.Import):
+                if any(
+                    alias.name.split(".", maxsplit=1)[0] in HTTP_FRAMEWORK_ROOTS
+                    for alias in node.names
+                ):
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}:{node.lineno}")
+            elif isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
+                raised_name = getattr(node.exc.func, "id", None) or getattr(
+                    node.exc.func, "attr", None
+                )
+                if raised_name == "HTTPException":
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}:{node.lineno}")
 
     assert offenders == []
 

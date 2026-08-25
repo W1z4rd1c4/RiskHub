@@ -11,16 +11,29 @@ RiskHub accepts public contributions through forks, issues, and pull requests.
 
 ## Development Setup
 
-Start from the canonical local workflows:
+For public evaluation and first-run Docker onboarding:
 
 ```bash
 ./scripts/install.sh demo
-./scripts/install.sh dev
 ```
 
-`./scripts/install.sh` is the supported public shell surface for local startup and lifecycle flows. `./scripts/compose.sh` and `./scripts/dev.sh` remain available for advanced/manual workflows.
+For routine contributor work, use the stable command façade:
 
-For onboarding, local runtime expectations, and demo-auth behavior, read [docs/development/README.md](./docs/development/README.md). For local hook setup and security checks, use [docs/security/SECURITY.md](./docs/security/SECURITY.md).
+```bash
+./scripts/riskhub.sh setup
+./scripts/riskhub.sh dev
+```
+
+`setup` repairs dependencies and starts local development services without
+resetting application data. `./scripts/install.sh` remains the supported public
+first-run and lifecycle surface; `./scripts/compose.sh`, `./scripts/dev.sh`, and
+specialized `scripts/Makefile` targets remain available for advanced workflows.
+
+The stable command meanings and CI gate ownership map are documented in
+[docs/development/CONTRIBUTOR_COMMANDS.md](./docs/development/CONTRIBUTOR_COMMANDS.md).
+For onboarding, local runtime expectations, and demo-auth behavior, read
+[docs/development/README.md](./docs/development/README.md). For local hook setup
+and security checks, use [docs/security/SECURITY.md](./docs/security/SECURITY.md).
 
 ## Branch and PR Workflow
 
@@ -35,13 +48,12 @@ For onboarding, local runtime expectations, and demo-auth behavior, read [docs/d
 Run the smallest relevant checks before opening a PR:
 
 ```bash
-make -f scripts/Makefile test
-cd frontend && npm run test:run
-cd frontend && npx tsc --noEmit
-make -f scripts/Makefile test-e2e
+./scripts/riskhub.sh test
+./scripts/riskhub.sh lint
+./scripts/riskhub.sh e2e
 ```
 
-You do not need to run every command for every change, but your PR should explain what you ran and why that coverage matches the touched surface.
+You do not need to run every command for every change, but your PR should explain what you ran and why that coverage matches the touched surface. Specialized contracts remain discoverable with `make -f scripts/Makefile help`.
 
 For docs-only changes, verify links, commands, referenced file paths, and any documented behavior against the current code path. When changing user-facing behavior, update `docs/BUSINESS_LOGIC.md`, relevant user/admin docs, and Czech parity docs where the workflow is documented in both languages.
 

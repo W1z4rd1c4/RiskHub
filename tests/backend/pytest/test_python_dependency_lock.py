@@ -183,7 +183,7 @@ def test_permission_preflight_rejects_missing_pull_request_write(monkeypatch):
 
 
 def test_backend_readme_describes_the_executed_permission_preflight():
-    readme = BACKEND_README.read_text(encoding="utf-8")
+    readme = " ".join(BACKEND_README.read_text(encoding="utf-8").split())
 
     for required in (
         "check_github_pr_automation_permissions.py",
