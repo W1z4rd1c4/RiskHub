@@ -19,6 +19,25 @@ SARIF_SCHEMA_URI = (
     "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/"
     "sarif-2.1/schema/sarif-schema-2.1.0.json"
 )
+DEFAULT_TRIVY_PATHS = (".trivyignore", "trivy.yaml")
+APPROVED_PRODUCTION_TRIGGERS = {
+    "push": {"branches": ["main", "develop"]},
+    "pull_request": {"branches": ["main", "develop"]},
+    "schedule": [
+        {"cron": "0 2 * * *"},
+        {"cron": "0 0 * * 0"},
+    ],
+}
+EXPECTED_STATUS_RECORD_COMMAND = (
+    'python3 scripts/security/frontend_trivy_status.py record '
+    '--outcome "$FRONTEND_TRIVY_OUTCOME" '
+    "--sarif trivy-frontend.sarif "
+    "--output trivy-frontend-status.json"
+)
+EXPECTED_ENFORCEMENT_COMMAND = (
+    "python3 scripts/security/frontend_trivy_status.py enforce "
+    "--status-file trivy-frontend-status.json"
+)
 
 
 def _step_by_name(steps: list[dict], name: str) -> tuple[int, dict]:
@@ -42,20 +61,10 @@ def _reject_continue_on_error(errors: list[str], subject: str, node: dict) -> No
         )
 
 
-def _trigger_includes_branch(trigger: object, branch: str) -> bool:
-    if trigger is None:
-        return True
-    if not isinstance(trigger, dict):
-        return False
-
-    branches = trigger.get("branches")
-    if branches is not None:
-        return isinstance(branches, list) and branch in branches
-
-    ignored = trigger.get("branches-ignore")
-    if ignored is None:
-        return True
-    return isinstance(ignored, list) and branch not in ignored
+def _normalize_run_command(command: object) -> str:
+    if not isinstance(command, str):
+        return ""
+    return " ".join(command.replace("\\\n", " ").split())
 
 
 def _validate_production_triggers(workflow: dict) -> list[str]:
@@ -64,28 +73,22 @@ def _validate_production_triggers(workflow: dict) -> list[str]:
     if not isinstance(triggers, dict):
         return ["production security workflow must define trigger mappings"]
 
-    if "pull_request" not in triggers:
-        errors.append("production security workflow must run on pull_request")
-    elif not _trigger_includes_branch(triggers["pull_request"], "main"):
-        errors.append("production pull_request trigger must include main")
+    for name, approved in APPROVED_PRODUCTION_TRIGGERS.items():
+        if name not in triggers:
+            errors.append(f"production security workflow must define {name} trigger")
+        elif triggers[name] != approved:
+            requirement = " including main" if name == "push" else ""
+            errors.append(
+                f"production {name} trigger must match the approved configuration"
+                f"{requirement}"
+            )
 
-    if "push" not in triggers:
-        errors.append("production security workflow must run on push to main")
-    elif not _trigger_includes_branch(triggers["push"], "main"):
-        errors.append("production push trigger must include main")
-
-    schedule = triggers.get("schedule")
-    if not (
-        isinstance(schedule, list)
-        and schedule
-        and all(
-            isinstance(item, dict)
-            and isinstance(item.get("cron"), str)
-            and item["cron"].strip()
-            for item in schedule
+    unexpected = set(triggers) - set(APPROVED_PRODUCTION_TRIGGERS)
+    if unexpected:
+        errors.append(
+            "production security workflow has unapproved triggers: "
+            + ", ".join(sorted(str(name) for name in unexpected))
         )
-    ):
-        errors.append("production security workflow must define scheduled runs")
     return errors
 
 
@@ -127,6 +130,10 @@ def _validate_injected_finding_workflow() -> list[str]:
     if job.get("name") != "Frontend Container Injected Finding Contract":
         errors.append("injected-finding workflow must expose the named contract job")
     _reject_continue_on_error(errors, "injected-finding contract job", job)
+    if "if" in job:
+        errors.append("injected-finding contract job must not be conditional")
+    if "needs" in job:
+        errors.append("injected-finding contract job must not declare needs")
 
     try:
         generated_index, generated = _step_by_name(
@@ -236,6 +243,12 @@ def _validate_injected_finding_workflow() -> list[str]:
 def validate() -> list[str]:
     errors = _validate_injected_finding_workflow()
 
+    for relative_path in DEFAULT_TRIVY_PATHS:
+        if (REPO_ROOT / relative_path).is_file():
+            errors.append(
+                f"default Trivy configuration path {relative_path} is forbidden"
+            )
+
     if not STATUS_HELPER.is_file():
         errors.append("missing frontend Trivy status recorder/enforcer")
     else:
@@ -269,6 +282,8 @@ def validate() -> list[str]:
     _reject_continue_on_error(errors, "production container-security job", container_job)
     if "if" in container_job:
         errors.append("production container-security job must not be conditional")
+    if "needs" in container_job:
+        errors.append("production container-security job must not declare needs")
     _reject_trivy_environment_overrides(errors, "production workflow", workflow)
     _reject_trivy_environment_overrides(
         errors,
@@ -340,17 +355,9 @@ def validate() -> list[str]:
     status_env = status_record.get("env", {})
     if status_env.get("FRONTEND_TRIVY_OUTCOME") != "${{ steps.trivy_frontend.outcome }}":
         errors.append("frontend scan-status recorder must consume the raw scan outcome")
-    status_script = str(status_record.get("run", ""))
-    for required_text in (
-        "frontend_trivy_status.py record",
-        '"$FRONTEND_TRIVY_OUTCOME"',
-        "--sarif trivy-frontend.sarif",
-        "--output trivy-frontend-status.json",
-    ):
-        if required_text not in status_script:
-            errors.append(
-                f"frontend scan-status recorder is missing: {required_text}"
-            )
+    status_script = _normalize_run_command(status_record.get("run"))
+    if status_script != EXPECTED_STATUS_RECORD_COMMAND:
+        errors.append("frontend scan-status recorder command must match exactly")
 
     if sarif_upload.get("if") != "always()":
         errors.append("frontend SARIF upload must run with if: always()")
@@ -371,13 +378,9 @@ def validate() -> list[str]:
     if gate.get("if") != "always()":
         errors.append("frontend enforcement step must run with if: always()")
     _reject_continue_on_error(errors, "frontend enforcement step", gate)
-    gate_script = str(gate.get("run", ""))
-    for required_text in (
-        "frontend_trivy_status.py enforce",
-        "--status-file trivy-frontend-status.json",
-    ):
-        if required_text not in gate_script:
-            errors.append(f"frontend enforcement step is missing: {required_text}")
+    gate_script = _normalize_run_command(gate.get("run"))
+    if gate_script != EXPECTED_ENFORCEMENT_COMMAND:
+        errors.append("frontend enforcement command must match exactly")
 
     if not (scan_index < status_index < sarif_index < gate_index):
         errors.append(

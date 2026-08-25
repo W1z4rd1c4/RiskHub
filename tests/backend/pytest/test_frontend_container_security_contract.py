@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO_ROOT / "scripts/security/validate_frontend_container_gate.py"
 STATUS_HELPER = REPO_ROOT / "scripts/security/frontend_trivy_status.py"
 SECURITY_WORKFLOW = REPO_ROOT / ".github/workflows/security.yml"
+CONTRACT_WORKFLOW = REPO_ROOT / ".github/workflows/frontend-container-gate-contract.yml"
 SARIF_SCHEMA = (
     "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/"
     "sarif-2.1/schema/sarif-schema-2.1.0.json"
@@ -46,6 +47,14 @@ def _validate_workflow_text(tmp_path: Path, workflow: str) -> list[str]:
     mutated = tmp_path / "security.yml"
     mutated.write_text(workflow, encoding="utf-8")
     module.WORKFLOW_PATH = mutated
+    return module.validate()
+
+
+def _validate_contract_workflow_text(tmp_path: Path, workflow: str) -> list[str]:
+    module = _validator_module()
+    mutated = tmp_path / "frontend-container-gate-contract.yml"
+    mutated.write_text(workflow, encoding="utf-8")
+    module.CONTRACT_WORKFLOW_PATH = mutated
     return module.validate()
 
 
@@ -369,15 +378,23 @@ def test_contract_validator_rejects_extra_frontend_scan_inputs(
     [
         (
             "permissions:\n  contents: read\n  security-events: write\n",
-            "permissions:\n  contents: read\n  security-events: write\n\nenv:\n  TRIVY_SKIP_FILES: usr/lib/vulnerable.so\n",
+            "permissions:\n  contents: read\n  security-events: write\n\n"
+            "env:\n  TRIVY_SKIP_FILES: usr/lib/vulnerable.so\n",
         ),
         (
-            "  container-security:\n    name: Container Scan (Trivy + SBOM Correlation)\n    runs-on: ubuntu-latest\n",
-            "  container-security:\n    name: Container Scan (Trivy + SBOM Correlation)\n    runs-on: ubuntu-latest\n    env:\n      TRIVY_IGNORE_POLICY: policy.rego\n",
+            "  container-security:\n"
+            "    name: Container Scan (Trivy + SBOM Correlation)\n"
+            "    runs-on: ubuntu-latest\n",
+            "  container-security:\n"
+            "    name: Container Scan (Trivy + SBOM Correlation)\n"
+            "    runs-on: ubuntu-latest\n"
+            "    env:\n      TRIVY_IGNORE_POLICY: policy.rego\n",
         ),
         (
             "        continue-on-error: true\n        uses: aquasecurity/trivy-action@",
-            "        continue-on-error: true\n        env:\n          TRIVY_SCANNERS: secret\n        uses: aquasecurity/trivy-action@",
+            "        continue-on-error: true\n"
+            "        env:\n          TRIVY_SCANNERS: secret\n"
+            "        uses: aquasecurity/trivy-action@",
         ),
     ],
 )
@@ -433,4 +450,135 @@ def test_contract_validator_rejects_conditional_container_job(tmp_path: Path) ->
         1,
     )
     errors = _validate_workflow_text(tmp_path, workflow)
-    assert any("container-security job" in error and "conditional" in error for error in errors)
+    assert any(
+        "container-security job" in error and "conditional" in error
+        for error in errors
+    )
+
+
+@pytest.mark.parametrize("filename", [".trivyignore", "trivy.yaml"])
+def test_contract_validator_rejects_default_trivy_files(
+    tmp_path: Path,
+    filename: str,
+) -> None:
+    module = _validator_module()
+    module.REPO_ROOT = tmp_path
+    (tmp_path / filename).write_text("ignored-by-default\n", encoding="utf-8")
+    errors = module.validate()
+    assert any(filename in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        "echo python3 scripts/security/frontend_trivy_status.py enforce "
+        "--status-file trivy-frontend-status.json",
+        "# python3 scripts/security/frontend_trivy_status.py enforce "
+        "--status-file trivy-frontend-status.json",
+        "true # python3 scripts/security/frontend_trivy_status.py enforce "
+        "--status-file trivy-frontend-status.json",
+    ],
+)
+def test_contract_validator_rejects_noop_enforcement_commands(
+    tmp_path: Path,
+    replacement: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    original = (
+        "        run: >-\n"
+        "          python3 scripts/security/frontend_trivy_status.py enforce\n"
+        "          --status-file trivy-frontend-status.json\n"
+    )
+    workflow = workflow.replace(original, f"        run: {json.dumps(replacement)}\n", 1)
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("enforcement command" in error for error in errors)
+
+
+def test_contract_validator_rejects_noop_status_recorder(tmp_path: Path) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8").replace(
+        "          python3 scripts/security/frontend_trivy_status.py record \\\n",
+        "          echo python3 scripts/security/frontend_trivy_status.py record \\\n",
+        1,
+    )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("recorder command" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    ("anchor", "injected"),
+    [
+        (
+            "  pull_request:\n    branches: [main, develop]\n",
+            "  pull_request:\n    branches: [main, develop]\n"
+            "    paths: ['frontend/**']\n",
+        ),
+        (
+            "  pull_request:\n    branches: [main, develop]\n",
+            "  pull_request:\n    branches: [main, develop]\n"
+            "    paths-ignore: ['docs/**']\n",
+        ),
+        (
+            "  pull_request:\n    branches: [main, develop]\n",
+            "  pull_request:\n    branches: [main, develop]\n"
+            "    types: [opened]\n",
+        ),
+        (
+            "  pull_request:\n    branches: [main, develop]\n",
+            "  pull_request:\n    branches: [main, develop, '!main']\n",
+        ),
+        (
+            "  pull_request:\n    branches: [main, develop]\n",
+            "  pull_request:\n    branches: [main, develop]\n"
+            "    branches-ignore: ['release/**']\n",
+        ),
+        (
+            "  push:\n    branches: [main, develop]\n",
+            "  push:\n    branches: [main, develop]\n    tags: ['v*']\n",
+        ),
+    ],
+)
+def test_contract_validator_rejects_narrowed_production_triggers(
+    tmp_path: Path,
+    anchor: str,
+    injected: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8").replace(
+        anchor,
+        injected,
+        1,
+    )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("trigger" in error for error in errors)
+
+
+def test_contract_validator_rejects_container_job_dependency(tmp_path: Path) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8").replace(
+        "  container-security:\n"
+        "    name: Container Scan (Trivy + SBOM Correlation)\n",
+        "  container-security:\n"
+        "    name: Container Scan (Trivy + SBOM Correlation)\n"
+        "    needs: disabled-prerequisite\n",
+        1,
+    )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("container-security job" in error and "needs" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    "dependency",
+    ["    if: false\n", "    needs: disabled-prerequisite\n"],
+)
+def test_contract_validator_rejects_skippable_injected_proof_job(
+    tmp_path: Path,
+    dependency: str,
+) -> None:
+    workflow = CONTRACT_WORKFLOW.read_text(encoding="utf-8").replace(
+        "  injected-finding-contract:\n"
+        "    name: Frontend Container Injected Finding Contract\n",
+        "  injected-finding-contract:\n"
+        "    name: Frontend Container Injected Finding Contract\n"
+        f"{dependency}",
+        1,
+    )
+    errors = _validate_contract_workflow_text(tmp_path, workflow)
+    assert any("injected-finding contract job" in error for error in errors)
