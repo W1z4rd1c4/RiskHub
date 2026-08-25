@@ -16,6 +16,9 @@ VALIDATOR = REPO_ROOT / "scripts/tools/validate_contributor_command_contract.py"
 STARTUP_SMOKE = REPO_ROOT / ".github/workflows/startup-smoke.yml"
 STARTUP_SMOKE_PR = REPO_ROOT / ".github/workflows/startup-smoke-pr.yml"
 RELEASE_WORKFLOW = REPO_ROOT / ".github/workflows/release.yml"
+PYTHON_DEV_LOCK_REFRESH = (
+    REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
+)
 
 
 def _ci_contract() -> dict:
@@ -162,6 +165,33 @@ def test_ci_contract_records_exact_branch_path_tag_and_schedule_filters():
         "push": {"tags": ["v*"]},
         "workflow_dispatch": {"inputs": ["version"]},
     }
+
+
+def test_ci_contract_governs_python_dev_lock_refresh_workflow():
+    payload = _ci_contract()
+    workflow_name = ".github/workflows/python-dev-lock-refresh.yml"
+
+    assert payload["workflow_contracts"][workflow_name]["events"] == {
+        "schedule": {"crons": ["17 6 1 * *"]},
+        "workflow_dispatch": {"inputs": []},
+    }
+
+    checks = [
+        check for check in payload["checks"] if check["workflow"] == workflow_name
+    ]
+    assert len(checks) == 1
+    assert checks[0]["job_id"] == "refresh"
+    assert checks[0]["job_if_equals"] == "github.ref == 'refs/heads/main'"
+    assert checks[0]["timeout_minutes"] == 20
+    assert checks[0]["required_on_protected_main"] is False
+    assert checks[0]["continue_on_error"] is False
+    assert "only when resolver output changes" in checks[0]["purpose"]
+    assert "RISKHUB_AUTOMATION_PR_TOKEN" in checks[0]["triage"]
+
+    workflow = PYTHON_DEV_LOCK_REFRESH.read_text(encoding="utf-8")
+    assert "RISKHUB_AUTOMATION_PR_TOKEN" in workflow
+    assert "Open lock refresh pull request" in workflow
+    assert "changed=false" in workflow
 
 
 def test_job_condition_normalization_is_exact_not_substring_based():

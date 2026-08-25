@@ -61,6 +61,7 @@ GOVERNED_WORKFLOWS = {
     ".github/workflows/e2e.yml",
     ".github/workflows/lint.yml",
     ".github/workflows/maintenance-governance.yml",
+    ".github/workflows/python-dev-lock-refresh.yml",
     ".github/workflows/release-parity-fast.yml",
     ".github/workflows/release-parity-pr.yml",
     ".github/workflows/release.yml",
@@ -379,6 +380,7 @@ def _validate_ci_contract() -> tuple[list[str], list[dict[str, Any]]]:
         triage = entry.get("triage")
         required = entry.get("required_on_protected_main")
         continue_on_error = entry.get("continue_on_error")
+        timeout_minutes = entry.get("timeout_minutes")
 
         for field_name, value in (
             ("workflow", workflow_name),
@@ -408,6 +410,10 @@ def _validate_ci_contract() -> tuple[list[str], list[dict[str, Any]]]:
             errors.append(f"{label}.required_on_protected_main must be boolean")
         if type(continue_on_error) is not bool:
             errors.append(f"{label}.continue_on_error must be boolean")
+        if "timeout_minutes" in entry and (
+            type(timeout_minutes) is not int or timeout_minutes <= 0
+        ):
+            errors.append(f"{label}.timeout_minutes must be a positive integer")
 
         workflow = workflows.get(workflow_name)
         if workflow is None:
@@ -429,6 +435,15 @@ def _validate_ci_contract() -> tuple[list[str], list[dict[str, Any]]]:
         if type(actual_continue) is not bool or actual_continue is not continue_on_error:
             errors.append(
                 f"{workflow_name}:{job_id} continue-on-error differs from contract"
+            )
+
+        if (
+            "timeout_minutes" in entry
+            and job.get("timeout-minutes") != timeout_minutes
+        ):
+            errors.append(
+                f"{workflow_name}:{job_id} timeout differs from contract: "
+                f"expected={timeout_minutes!r} actual={job.get('timeout-minutes')!r}"
             )
 
         expected_if = entry.get("job_if_equals")
