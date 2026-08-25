@@ -8,37 +8,46 @@
 # - expires-on: YYYY-MM-DD
 # - package.name: affected package
 # - package.version: affected version (or range rationale in reason)
-# - package.type and package.location: exact scanner artifact selectors when required by
-#   the evidence-scoped policy (currently CVE-2026-15308)
-# - fix-state: optional, e.g. "not-fixed"; omit for CPE matches with an empty scanner fix state.
+# - namespace, fix-state, and match-type: exact vulnerability-match selectors
+# - package.type, package.location, and package.upstream-name: exact scanner artifact selectors
 #
 # Example:
 # ignore:
 #   - vulnerability: CVE-2099-0001
-#     reason: "No upstream fix; mitigated by strict egress controls. Owner: Platform."
-#     expires-on: 2026-06-30
+#     reason: "Owner: Platform. Decision: temporary acceptance. Scanner evidence: Grype reports the exact affected package. No-fix proof: upstream has not released a fixed version. Reachability: the vulnerable path is not used. Exit: upgrade the affected package and remove this rule."
+#     namespace: nvd:cpe
+#     fix-state: unknown
+#     match-type: cpe-match
+#     expires-on: 2026-09-30
 #     package:
 #       name: python
 #       version: 3.13.0
+#       type: binary
+#       location: /usr/local/bin/python3.13
+#       upstream-name: python
 
 ignore:
-  - vulnerability: CVE-2026-15308
-    reason: "Owner: Platform. Decision: time-bound no-released-fix suppression for the Python 3.13 stdlib html.parser.HTMLParser incremental-feed CPU denial of service (gh-153030). Scanner evidence: Grype v0.110.0 reports one High binary CPE match for python 3.13.14 (/usr/local/bin/python3.13), suggesting only 3.15.0 as fixed. No-fix proof: verified upstream 2026-08-03, the CPython 3.13 backport commit 7933f4b merged on 2026-07-04 after the latest released v3.13.14 (2026-06-10), and Python.org lists no v3.13.15, so no fixed python:3.13 base image is published. Reachability: RiskHub backend/app and backend/scripts contain no html.parser or HTMLParser use, so application code does not invoke the vulnerable incremental feed path. Exit: bump the base image to the first fixed Python 3.13-alpine release and remove this entry."
+  - vulnerability: CVE-2026-14456
+    reason: "Owner: Platform / W1z4rd1c4. Decision: time-bound acceptance for the OpenSSL QUIC server pending-channel memory-exhaustion finding. Scanner evidence: Grype v0.110.0 reports one High nvd:cpe cpe-match for libcrypto3 3.5.7-r0 at /lib/apk/db/installed, upstream package openssl, with unknown fix state. No-fix proof: the OpenSSL security advisory of 2026-08-13 says 3.5 users should upgrade to 3.5.8 once released and that no new release is being issued at this time. Reachability: RiskHub has no QUIC listener, HTTP/3, aioquic, SSL_accept, or OpenSSL QUIC API use in backend application code, scripts, or requirements. Exit: upgrade to an Alpine package containing OpenSSL 3.5.8 or the authoritative backport, rebuild and scan, then remove this rule."
+    namespace: nvd:cpe
+    fix-state: unknown
+    match-type: cpe-match
     expires-on: 2026-09-30
     package:
-      name: python
-      version: 3.13.14
-      type: binary
-      location: /usr/local/bin/python3.13
-  - vulnerability: CVE-2026-11940
-    reason: "Owner: Platform. Decision: time-bound no-released-fix suppression for a Python 3.13 stdlib CPE match (tarfile.extractall hardlink/symlink filter bypass, gh-151558). Scanner evidence: Grype v0.110.0 backend SBOM binary CPE match for python 3.13.14 (/usr/local/bin/python3.13). No-fix proof: verified upstream 2026-07-02, the 3.13 backport (cpython 771d12dda, 2026-06-23) is NOT in the latest released tag v3.13.14 and no v3.13.15 exists yet, so no fixed python:3.13 base image is published. Reachability: RiskHub does not use the tarfile module (no `import tarfile`/`extractall` in backend/app or backend/scripts), so the archive-extraction path is unreachable. Exit: bump the base image to python 3.13.15-alpine (or later) once released and remove this entry."
+      name: libcrypto3
+      version: 3.5.7-r0
+      type: apk
+      location: /lib/apk/db/installed
+      upstream-name: openssl
+  - vulnerability: CVE-2026-14456
+    reason: "Owner: Platform / W1z4rd1c4. Decision: time-bound acceptance for the OpenSSL QUIC server pending-channel memory-exhaustion finding. Scanner evidence: Grype v0.110.0 reports one High nvd:cpe cpe-match for libssl3 3.5.7-r0 at /lib/apk/db/installed, upstream package openssl, with unknown fix state. No-fix proof: the OpenSSL security advisory of 2026-08-13 says 3.5 users should upgrade to 3.5.8 once released and that no new release is being issued at this time. Reachability: RiskHub has no QUIC listener, HTTP/3, aioquic, SSL_accept, or OpenSSL QUIC API use in backend application code, scripts, or requirements. Exit: upgrade to an Alpine package containing OpenSSL 3.5.8 or the authoritative backport, rebuild and scan, then remove this rule."
+    namespace: nvd:cpe
+    fix-state: unknown
+    match-type: cpe-match
     expires-on: 2026-09-30
     package:
-      name: python
-      version: 3.13.14
-  - vulnerability: CVE-2026-11972
-    reason: "Owner: Platform. Decision: time-bound no-released-fix suppression for a Python 3.13 stdlib CPE match (tarfile streaming-mode EOF DoS, gh-151981). Scanner evidence: Grype v0.110.0 backend SBOM binary CPE match for python 3.13.14 (/usr/local/bin/python3.13). No-fix proof: verified upstream 2026-07-02, the 3.13 backport (cpython 3f031d431f80, 2026-06-23) is NOT in the latest released tag v3.13.14 and no v3.13.15 exists yet, so no fixed python:3.13 base image is published. Reachability: RiskHub does not use the tarfile module (no `import tarfile`/streaming tar parsing in backend/app or backend/scripts), so the archive-parse path is unreachable. Exit: bump the base image to python 3.13.15-alpine (or later) once released and remove this entry."
-    expires-on: 2026-09-30
-    package:
-      name: python
-      version: 3.13.14
+      name: libssl3
+      version: 3.5.7-r0
+      type: apk
+      location: /lib/apk/db/installed
+      upstream-name: openssl

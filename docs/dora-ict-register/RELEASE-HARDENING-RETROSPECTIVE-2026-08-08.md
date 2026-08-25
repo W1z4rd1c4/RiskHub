@@ -67,6 +67,27 @@ Full per-entry evidence (Decision, Scanner evidence, No-fix proof, Reachability,
 Exit) for the three remaining Grype acceptances lives in
 `backend/security/grype-ignore.yaml`. The npm policy is now explicitly empty.
 
+### Resolved disposition — Python 3.13.15 (2026-08-25)
+
+The governed #112 delivery moved all three backend stages to the official
+`python:3.13-alpine` multi-architecture digest
+`sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d`,
+whose manifest identifies Python 3.13.15. The immutable-candidate build, runtime,
+fresh SBOM, raw Grype scan, and policy-aware scan identities are published with
+the release evidence in [issue #112](https://github.com/W1z4rd1c4/RiskHub/issues/112).
+That candidate evidence is the authority for removing CVE-2026-15308,
+CVE-2026-11940, and CVE-2026-11972 from the live policy; the original acceptance
+table above remains the historical record.
+
+The same full-image scan reported CVE-2026-14456 as exact `nvd:cpe`
+`cpe-match` findings against `libcrypto3` and `libssl3` 3.5.7-r0. OpenSSL's
+[2026-08-13 advisory](https://openssl-library.org/news/secadv/20260813.txt)
+states that the fix will ship in OpenSSL 3.5.8 and that no new release was being
+issued at that time. RiskHub does not expose an OpenSSL QUIC listener, so
+Platform / W1z4rd1c4 accepted only those two exact findings through 2026-09-30.
+Their complete evidence and exit instructions live in
+`backend/security/grype-ignore.yaml`; removal is tracked separately from #112.
+
 ## 4. Refuted review findings — checked and cleared
 
 The `eb7ca6f9` ultracode multi-agent review produced 12 confirmed and 5 refuted
