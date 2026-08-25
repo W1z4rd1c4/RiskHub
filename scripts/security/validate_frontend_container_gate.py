@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -38,6 +39,36 @@ EXPECTED_ENFORCEMENT_COMMAND = (
     "python3 scripts/security/frontend_trivy_status.py enforce "
     "--status-file trivy-frontend-status.json"
 )
+UPLOAD_ARTIFACT_ACTION = (
+    "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+)
+EXPECTED_PRODUCTION_ARTIFACT_PATHS = frozenset(
+    {
+        "trivy-backend.sarif",
+        "trivy-frontend.sarif",
+        "trivy-frontend-status.json",
+        "sbom-backend.json",
+        "grype-backend.json",
+    }
+)
+EXPECTED_INJECTED_ARTIFACT_PATHS = frozenset(
+    {
+        "trivy-frontend-injected.sarif",
+        "trivy-frontend-injected-status.json",
+    }
+)
+EXPECTED_INJECTED_GENERATOR_SHA256 = (
+    "3272083d6bcad943bcf4a2635b68e9c46e69859875bc2557652208b5d5323d43"
+)
+EXPECTED_INJECTED_PROOF_SHA256 = (
+    "8fba6415b4b235b2db594283ac2f21accbf481a48c2235b218ee82b6e8ece8be"
+)
+EXPECTED_INJECTED_RECORD_COMMAND = (
+    "python3 scripts/security/frontend_trivy_status.py record "
+    "--outcome success "
+    "--sarif trivy-frontend-injected.sarif "
+    "--output trivy-frontend-injected-status.json"
+)
 
 
 def _step_by_name(steps: list[dict], name: str) -> tuple[int, dict]:
@@ -61,10 +92,115 @@ def _reject_continue_on_error(errors: list[str], subject: str, node: dict) -> No
         )
 
 
+def _reject_run_defaults(errors: list[str], subject: str, node: dict) -> None:
+    if "defaults" in node:
+        errors.append(f"{subject} must not define defaults affecting run steps")
+
+
+def _require_exact_keys(
+    errors: list[str],
+    subject: str,
+    node: dict,
+    expected: set[str],
+) -> None:
+    if set(node) != expected:
+        errors.append(
+            f"{subject} keys must be exactly {', '.join(sorted(expected))}"
+        )
+
+
 def _normalize_run_command(command: object) -> str:
     if not isinstance(command, str):
         return ""
     return " ".join(command.replace("\\\n", " ").split())
+
+
+def _script_sha256(script: object) -> str:
+    if not isinstance(script, str):
+        return ""
+    return hashlib.sha256(script.encode("utf-8")).hexdigest()
+
+
+def _artifact_paths(value: object) -> tuple[str, ...]:
+    if not isinstance(value, str):
+        return ()
+    return tuple(line.strip() for line in value.splitlines() if line.strip())
+
+
+def _validate_artifact_upload(
+    errors: list[str],
+    subject: str,
+    step: dict,
+    *,
+    expected_name: str,
+    expected_paths: frozenset[str],
+) -> None:
+    _require_exact_keys(errors, subject, step, {"name", "if", "uses", "with"})
+    if step.get("if") != "always()":
+        errors.append(f"{subject} must run with if: always()")
+    if step.get("uses") != UPLOAD_ARTIFACT_ACTION:
+        errors.append(f"{subject} must use the approved upload-artifact action")
+
+    options = step.get("with")
+    if not isinstance(options, dict):
+        errors.append(f"{subject} artifact inputs must be a mapping")
+        return
+    expected_keys = {"name", "path", "retention-days", "if-no-files-found"}
+    if set(options) != expected_keys:
+        errors.append(f"{subject} artifact input keys must match exactly")
+    if options.get("name") != expected_name:
+        errors.append(f"{subject} artifact name must be {expected_name!r}")
+    paths = _artifact_paths(options.get("path"))
+    if len(paths) != len(expected_paths) or frozenset(paths) != expected_paths:
+        errors.append(f"{subject} artifact paths must match exactly")
+    if options.get("retention-days") != 30:
+        errors.append(f"{subject} artifact retention must remain 30 days")
+    if options.get("if-no-files-found") != "error":
+        errors.append(f"{subject} artifact must fail when files are missing")
+
+
+def _validate_pre_scan_steps(
+    errors: list[str],
+    steps: list[dict],
+    scan_index: int,
+) -> None:
+    expected = [
+        {
+            "uses": "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+            "with": {"ref": "${{ github.event.pull_request.head.sha || github.sha }}"},
+        },
+        {
+            "name": "Build Backend Image",
+            "run": "docker build -t riskhub-backend:scan -f backend/Dockerfile backend/",
+        },
+        {
+            "name": "Build Frontend Image",
+            "run": "docker build -t riskhub-frontend:scan -f frontend/Dockerfile frontend/",
+        },
+        {
+            "name": "Run Trivy on Backend",
+            "uses": "aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25",
+            "with": {
+                "image-ref": "riskhub-backend:scan",
+                "format": "sarif",
+                "output": "trivy-backend.sarif",
+                "severity": "CRITICAL,HIGH",
+            },
+        },
+    ]
+    actual = steps[:scan_index]
+    if len(actual) != len(expected):
+        errors.append("production pre-scan step sequence must match exactly")
+        return
+    for index, (step, approved) in enumerate(zip(actual, expected, strict=True)):
+        normalized = dict(step)
+        if "run" in normalized:
+            normalized["run"] = _normalize_run_command(normalized["run"])
+        if normalized != approved:
+            errors.append(
+                f"production pre-scan step {index + 1} must match exactly; "
+                "TRIVY_ and GITHUB_ENV injection is forbidden"
+            )
 
 
 def _validate_production_triggers(workflow: dict) -> list[str]:
@@ -127,6 +263,8 @@ def _validate_injected_finding_workflow() -> list[str]:
     except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
         return [*errors, f"unable to load injected-finding workflow: {exc}"]
 
+    _reject_run_defaults(errors, "injected-finding workflow", workflow)
+    _reject_run_defaults(errors, "injected-finding contract job", job)
     if job.get("name") != "Frontend Container Injected Finding Contract":
         errors.append("injected-finding workflow must expose the named contract job")
     _reject_continue_on_error(errors, "injected-finding contract job", job)
@@ -134,6 +272,47 @@ def _validate_injected_finding_workflow() -> list[str]:
         errors.append("injected-finding contract job must not be conditional")
     if "needs" in job:
         errors.append("injected-finding contract job must not declare needs")
+
+    expected_step_names = [
+        None,
+        "Set up Python",
+        "Install pinned workflow parser",
+        "Generate injected Trivy SARIF finding",
+        "Record injected frontend finding",
+        "Prove injected finding is blocked",
+        "Validate production workflow contract",
+        "Upload injected-finding evidence",
+    ]
+    if [step.get("name") for step in steps] != expected_step_names:
+        errors.append("injected-finding step sequence must match exactly")
+
+    expected_checkout = {
+        "uses": "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+        "with": {"ref": "${{ github.event.pull_request.head.sha || github.sha }}"},
+    }
+    if not steps or steps[0] != expected_checkout:
+        errors.append("injected-finding checkout step must match exactly")
+    expected_setup = {
+        "name": "Set up Python",
+        "uses": "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
+        "with": {"python-version": "3.13"},
+    }
+    if len(steps) < 2 or steps[1] != expected_setup:
+        errors.append("injected-finding Python setup step must match exactly")
+    if len(steps) < 3:
+        errors.append("injected-finding parser install step is missing")
+    else:
+        parser_install = steps[2]
+        _require_exact_keys(
+            errors,
+            "injected-finding parser install step",
+            parser_install,
+            {"name", "run"},
+        )
+        if _normalize_run_command(parser_install.get("run")) != (
+            "python3 -m pip install PyYAML==6.0.3"
+        ):
+            errors.append("injected-finding parser install command must match exactly")
 
     try:
         generated_index, generated = _step_by_name(
@@ -165,67 +344,32 @@ def _validate_injected_finding_workflow() -> list[str]:
     ):
         _reject_continue_on_error(errors, step_name, step)
 
-    generate_script = str(generated.get("run", ""))
-    for required_text in (
-        f'"$schema": "{SARIF_SCHEMA_URI}"',
-        '"name": "Trivy"',
-        '"fullName": "Trivy Vulnerability Scanner"',
-        '"informationUri": "https://github.com/aquasecurity/trivy"',
-        '"id": "CVE-INJECTED-CONTRACT"',
-        '"ruleId": "CVE-INJECTED-CONTRACT"',
-        '"security-severity": "9.8"',
-        '"CRITICAL"',
-        '"message": {',
-        '"text": "Injected qualifying frontend container finding"',
+    for subject, step in (
+        ("injected SARIF generator", generated),
+        ("injected-finding recorder", recorded),
+        ("injected-finding blocking proof", proved),
+        ("production-contract validation", validated),
     ):
-        if required_text not in generate_script:
-            errors.append(
-                f"injected SARIF generator is missing: {required_text}"
-            )
+        _require_exact_keys(errors, subject, step, {"name", "run"})
 
-    record_script = str(recorded.get("run", ""))
-    for required_text in (
-        "frontend_trivy_status.py record",
-        "--outcome success",
-        "--sarif trivy-frontend-injected.sarif",
-        "--output trivy-frontend-injected-status.json",
+    if _script_sha256(generated.get("run")) != EXPECTED_INJECTED_GENERATOR_SHA256:
+        errors.append("injected SARIF generator script must match exactly")
+    if _normalize_run_command(recorded.get("run")) != EXPECTED_INJECTED_RECORD_COMMAND:
+        errors.append("injected-finding recorder command must match exactly")
+    if _script_sha256(proved.get("run")) != EXPECTED_INJECTED_PROOF_SHA256:
+        errors.append("injected-finding blocking proof script must match exactly")
+    if _normalize_run_command(validated.get("run")) != (
+        "python3 scripts/security/validate_frontend_container_gate.py"
     ):
-        if required_text not in record_script:
-            errors.append(
-                f"injected-finding recorder is missing: {required_text}"
-            )
+        errors.append("production-contract validation command must match exactly")
 
-    proof_script = str(proved.get("run", ""))
-    for required_text in (
-        "if python3 scripts/security/frontend_trivy_status.py enforce",
-        "--status-file trivy-frontend-injected-status.json",
-        'payload["status"] == "findings"',
-        'payload["finding_count"] == 1',
-        "Injected CRITICAL frontend Trivy finding was rejected",
-    ):
-        if required_text not in proof_script:
-            errors.append(
-                f"injected-finding blocking proof is missing: {required_text}"
-            )
-
-    validate_script = str(validated.get("run", ""))
-    if "validate_frontend_container_gate.py" not in validate_script:
-        errors.append("injected-finding workflow must validate the production contract")
-
-    upload_action = str(evidence_upload.get("uses", ""))
-    if not re.fullmatch(r"actions/upload-artifact@[0-9a-f]{40}", upload_action):
-        errors.append("injected evidence upload must use a commit-SHA-pinned action")
-    if evidence_upload.get("if") != "always()":
-        errors.append("injected evidence upload must run with if: always()")
-    evidence_paths = str(evidence_upload.get("with", {}).get("path", ""))
-    for required_path in (
-        "trivy-frontend-injected.sarif",
-        "trivy-frontend-injected-status.json",
-    ):
-        if required_path not in evidence_paths:
-            errors.append(f"injected evidence artifact must retain {required_path}")
-    if evidence_upload.get("with", {}).get("retention-days") != 30:
-        errors.append("injected evidence artifact retention must remain 30 days")
+    _validate_artifact_upload(
+        errors,
+        "injected evidence artifact",
+        evidence_upload,
+        expected_name="frontend-container-injected-finding-evidence",
+        expected_paths=EXPECTED_INJECTED_ARTIFACT_PATHS,
+    )
 
     if not (
         generated_index
@@ -279,6 +423,8 @@ def validate() -> list[str]:
         return [*errors, f"unable to load container-security workflow: {exc}"]
 
     errors.extend(_validate_production_triggers(workflow))
+    _reject_run_defaults(errors, "production security workflow", workflow)
+    _reject_run_defaults(errors, "production container-security job", container_job)
     _reject_continue_on_error(errors, "production container-security job", container_job)
     if "if" in container_job:
         errors.append("production container-security job must not be conditional")
@@ -312,6 +458,13 @@ def validate() -> list[str]:
     except ValueError as exc:
         return [*errors, str(exc)]
 
+    _validate_pre_scan_steps(errors, steps, scan_index)
+    _require_exact_keys(
+        errors,
+        "frontend Trivy scan step",
+        scan,
+        {"name", "id", "continue-on-error", "uses", "with"},
+    )
     if scan.get("id") != "trivy_frontend":
         errors.append("frontend Trivy scan must expose id=trivy_frontend")
     if scan.get("continue-on-error") is not True:
@@ -349,11 +502,20 @@ def validate() -> list[str]:
     if "ignore-unfixed" in options:
         errors.append("frontend Trivy gate must not set ignore-unfixed")
 
+    _require_exact_keys(
+        errors,
+        "frontend scan-status recorder step",
+        status_record,
+        {"name", "if", "env", "run"},
+    )
     if status_record.get("if") != "always()":
         errors.append("frontend scan-status recorder must run with if: always()")
     _reject_continue_on_error(errors, "frontend scan-status recorder", status_record)
     status_env = status_record.get("env", {})
-    if status_env.get("FRONTEND_TRIVY_OUTCOME") != "${{ steps.trivy_frontend.outcome }}":
+    expected_status_env = {
+        "FRONTEND_TRIVY_OUTCOME": "${{ steps.trivy_frontend.outcome }}"
+    }
+    if status_env != expected_status_env:
         errors.append("frontend scan-status recorder must consume the raw scan outcome")
     status_script = _normalize_run_command(status_record.get("run"))
     if status_script != EXPECTED_STATUS_RECORD_COMMAND:
@@ -362,19 +524,20 @@ def validate() -> list[str]:
     if sarif_upload.get("if") != "always()":
         errors.append("frontend SARIF upload must run with if: always()")
 
-    if artifact_upload.get("if") != "always()":
-        errors.append("container report artifact upload must run with if: always()")
-    _reject_continue_on_error(errors, "container report artifact upload", artifact_upload)
-    artifact_paths = str(artifact_upload.get("with", {}).get("path", ""))
-    for required_path in (
-        "trivy-frontend.sarif",
-        "trivy-frontend-status.json",
-    ):
-        if required_path not in artifact_paths:
-            errors.append(
-                f"container report artifact must retain {required_path}"
-            )
+    _validate_artifact_upload(
+        errors,
+        "container report artifact",
+        artifact_upload,
+        expected_name="container-security-reports",
+        expected_paths=EXPECTED_PRODUCTION_ARTIFACT_PATHS,
+    )
 
+    _require_exact_keys(
+        errors,
+        "frontend enforcement step",
+        gate,
+        {"name", "if", "run"},
+    )
     if gate.get("if") != "always()":
         errors.append("frontend enforcement step must run with if: always()")
     _reject_continue_on_error(errors, "frontend enforcement step", gate)

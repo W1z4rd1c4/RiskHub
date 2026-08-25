@@ -136,3 +136,4 @@ jobs:
             trivy-frontend-injected.sarif
             trivy-frontend-injected-status.json
           retention-days: 30
+          if-no-files-found: error

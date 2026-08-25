@@ -582,3 +582,198 @@ def test_contract_validator_rejects_skippable_injected_proof_job(
     )
     errors = _validate_contract_workflow_text(tmp_path, workflow)
     assert any("injected-finding contract job" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    ("contract", "anchor"),
+    [
+        (False, "name: Security Scanning\n"),
+        (
+            False,
+            "  container-security:\n"
+            "    name: Container Scan (Trivy + SBOM Correlation)\n"
+            "    runs-on: ubuntu-latest\n",
+        ),
+        (True, "name: Frontend Container Gate Contract\n"),
+        (
+            True,
+            "  injected-finding-contract:\n"
+            "    name: Frontend Container Injected Finding Contract\n"
+            "    runs-on: ubuntu-latest\n",
+        ),
+    ],
+)
+def test_contract_validator_rejects_run_defaults(
+    tmp_path: Path,
+    contract: bool,
+    anchor: str,
+) -> None:
+    source = CONTRACT_WORKFLOW if contract else SECURITY_WORKFLOW
+    workflow = source.read_text(encoding="utf-8").replace(
+        anchor,
+        f"{anchor}defaults:\n  run:\n    shell: echo {{0}}\n"
+        if not anchor.startswith("  ")
+        else f"{anchor}    defaults:\n      run:\n        shell: echo {{0}}\n",
+        1,
+    )
+    errors = (
+        _validate_contract_workflow_text(tmp_path, workflow)
+        if contract
+        else _validate_workflow_text(tmp_path, workflow)
+    )
+    assert any("defaults" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    ("step_name", "metadata", "expected"),
+    [
+        ("Record Frontend Trivy Scan Status", "        shell: echo {0}\n", "keys"),
+        ("Record Frontend Trivy Scan Status", "        working-directory: /tmp\n", "keys"),
+        ("Record Frontend Trivy Scan Status", "", "always"),
+        ("Enforce Frontend Trivy HIGH/CRITICAL Gate", "        shell: echo {0}\n", "keys"),
+        ("Enforce Frontend Trivy HIGH/CRITICAL Gate", "        working-directory: /tmp\n", "keys"),
+        ("Enforce Frontend Trivy HIGH/CRITICAL Gate", "", "always"),
+    ],
+)
+def test_contract_validator_closes_production_critical_step_metadata(
+    tmp_path: Path,
+    step_name: str,
+    metadata: str,
+    expected: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    anchor = f"      - name: {step_name}\n"
+    if metadata:
+        workflow = workflow.replace(anchor, f"{anchor}{metadata}", 1)
+    else:
+        workflow = workflow.replace(
+            f"{anchor}        if: always()\n",
+            f"{anchor}        if: false\n",
+            1,
+        )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any(expected in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    ("step_name", "metadata"),
+    [
+        ("Generate injected Trivy SARIF finding", "        shell: echo {0}\n"),
+        ("Record injected frontend finding", "        working-directory: /tmp\n"),
+        ("Prove injected finding is blocked", "        if: false\n"),
+        ("Validate production workflow contract", "        shell: echo {0}\n"),
+    ],
+)
+def test_contract_validator_closes_injected_critical_step_metadata(
+    tmp_path: Path,
+    step_name: str,
+    metadata: str,
+) -> None:
+    workflow = CONTRACT_WORKFLOW.read_text(encoding="utf-8")
+    anchor = f"      - name: {step_name}\n"
+    workflow = workflow.replace(anchor, f"{anchor}{metadata}", 1)
+    errors = _validate_contract_workflow_text(tmp_path, workflow)
+    assert any("keys" in error or "exact" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    "injection",
+    [
+        "echo 'TRIVY_IGNORE_UNFIXED=true' >> \"$GITHUB_ENV\"",
+        "echo 'TRIVY_IGNOREFILE=.trivyignore' >> \"${GITHUB_ENV}\"",
+        "export TRIVY_CONFIG=trivy.yaml",
+    ],
+)
+def test_contract_validator_rejects_pre_scan_trivy_injection(
+    tmp_path: Path,
+    injection: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8").replace(
+        "        run: docker build -t riskhub-frontend:scan -f frontend/Dockerfile frontend/\n",
+        "        run: |\n"
+        "          docker build -t riskhub-frontend:scan -f frontend/Dockerfile frontend/\n"
+        f"          {injection}\n",
+        1,
+    )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("pre-scan" in error or "TRIVY_" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    ("needle", "replacement"),
+    [
+        (
+            "          python3 scripts/security/frontend_trivy_status.py record \\\n",
+            "          echo python3 scripts/security/frontend_trivy_status.py record \\\n",
+        ),
+        (
+            "          if python3 scripts/security/frontend_trivy_status.py enforce \\\n",
+            "          if echo python3 scripts/security/frontend_trivy_status.py enforce \\\n",
+        ),
+        (
+            "          if python3 scripts/security/frontend_trivy_status.py enforce \\\n",
+            "          # if python3 scripts/security/frontend_trivy_status.py enforce \\\n",
+        ),
+        (
+            "      - name: Prove injected finding is blocked\n        run: |\n",
+            "      - name: Prove injected finding is blocked\n"
+            "        run: |\n          exit 0\n",
+        ),
+    ],
+)
+def test_contract_validator_locks_injected_proof_scripts(
+    tmp_path: Path,
+    needle: str,
+    replacement: str,
+) -> None:
+    workflow = CONTRACT_WORKFLOW.read_text(encoding="utf-8").replace(
+        needle,
+        replacement,
+        1,
+    )
+    errors = _validate_contract_workflow_text(tmp_path, workflow)
+    assert any("script" in error or "command" in error for error in errors)
+
+
+@pytest.mark.parametrize("contract", [False, True])
+@pytest.mark.parametrize(
+    "mutation",
+    ["nonexistent", "negation", "missing-option", "warn", "ignore"],
+)
+def test_contract_validator_locks_evidence_artifact_contract(
+    tmp_path: Path,
+    contract: bool,
+    mutation: str,
+) -> None:
+    source = CONTRACT_WORKFLOW if contract else SECURITY_WORKFLOW
+    workflow = source.read_text(encoding="utf-8")
+    if contract:
+        first_path = "            trivy-frontend-injected.sarif\n"
+        second_path = "            trivy-frontend-injected-status.json\n"
+    else:
+        first_path = "            trivy-backend.sarif\n"
+        second_path = "            trivy-frontend.sarif\n"
+
+    if mutation == "nonexistent":
+        workflow = workflow.replace(first_path, first_path.replace("            ", "            nonexistent/"), 1)
+    elif mutation == "negation":
+        workflow = workflow.replace(second_path, f"{second_path}            !ignored.sarif\n", 1)
+    elif mutation == "missing-option":
+        workflow = workflow.replace("          if-no-files-found: error\n", "", 1)
+    else:
+        option = f"          if-no-files-found: {mutation}\n"
+        if "          if-no-files-found: error\n" in workflow:
+            workflow = workflow.replace(
+                "          if-no-files-found: error\n",
+                option,
+                1,
+            )
+        else:
+            workflow = workflow.replace("          retention-days: 30\n", f"          retention-days: 30\n{option}", 1)
+
+    errors = (
+        _validate_contract_workflow_text(tmp_path, workflow)
+        if contract
+        else _validate_workflow_text(tmp_path, workflow)
+    )
+    assert any("artifact" in error for error in errors)

@@ -364,6 +364,7 @@ jobs:
             sbom-backend.json
             grype-backend.json
           retention-days: 30
+          if-no-files-found: error
 
       - name: Enforce Frontend Trivy HIGH/CRITICAL Gate
         if: always()
