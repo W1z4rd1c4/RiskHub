@@ -19,6 +19,9 @@ RELEASE_WORKFLOW = REPO_ROOT / ".github/workflows/release.yml"
 PYTHON_DEV_LOCK_REFRESH = (
     REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
 )
+FRONTEND_CONTAINER_GATE_CONTRACT = (
+    REPO_ROOT / ".github/workflows/frontend-container-gate-contract.yml"
+)
 
 
 def _ci_contract() -> dict:
@@ -192,6 +195,49 @@ def test_ci_contract_governs_python_dev_lock_refresh_workflow():
     assert "RISKHUB_AUTOMATION_PR_TOKEN" in workflow
     assert "Open lock refresh pull request" in workflow
     assert "changed=false" in workflow
+
+
+def test_ci_contract_governs_frontend_container_gate_contract_workflow():
+    module = _validator_module()
+    payload = _ci_contract()
+    workflow_name = ".github/workflows/frontend-container-gate-contract.yml"
+    relevant_paths = [
+        ".github/workflows/frontend-container-gate-contract.yml",
+        ".github/workflows/security.yml",
+        "scripts/security/frontend_trivy_status.py",
+        "scripts/security/validate_frontend_container_gate.py",
+        "tests/backend/pytest/test_frontend_container_security_contract.py",
+    ]
+
+    assert workflow_name in module.GOVERNED_WORKFLOWS
+    assert payload["workflow_contracts"][workflow_name]["events"] == {
+        "pull_request": {
+            "branches": ["main", "develop"],
+            "paths": relevant_paths,
+        },
+        "push": {
+            "branches": ["main", "develop"],
+            "paths": relevant_paths,
+        },
+        "workflow_dispatch": {"inputs": []},
+    }
+
+    checks = [
+        check for check in payload["checks"] if check["workflow"] == workflow_name
+    ]
+    assert len(checks) == 1
+    check = checks[0]
+    assert check["job_id"] == "injected-finding-contract"
+    assert check["job_name"] == "Frontend Container Injected Finding Contract"
+    assert check["owner"] == "Security/Supply Chain"
+    assert check["runtime_budget"] == "1-5 min"
+    assert check["required_on_protected_main"] is False
+    assert check["continue_on_error"] is False
+    assert "injected qualifying CRITICAL" in check["purpose"]
+    assert "frontend-container-injected-finding-evidence" in check["triage"]
+
+    workflow = FRONTEND_CONTAINER_GATE_CONTRACT.read_text(encoding="utf-8")
+    assert "frontend-container-injected-finding-evidence" in workflow
 
 
 def test_job_condition_normalization_is_exact_not_substring_based():
