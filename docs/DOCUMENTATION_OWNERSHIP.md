@@ -1,6 +1,6 @@
 # Documentation and Work-Tracking Ownership
 
-> **Owner**: RiskHub Maintainer  
+> **Owner**: RiskHub Maintainer
 > **Review trigger**: changes to repository entrypoints, planning topology, or work-tracking policy
 
 This document defines which RiskHub surface is authoritative for each kind of
