@@ -12,7 +12,9 @@ in GitHub Issues, pull requests, and Projects. See
 - [`2026-05-09-deepening-audit.md`](./2026-05-09-deepening-audit.md) — historical
   architecture audit.
 - [`2026-05-17-architecture-improvement-plan.md`](./2026-05-17-architecture-improvement-plan.md)
-  — bounded follow-up plan based on later verification.
+  — historical follow-up plan based on later verification. Its added archive
+  status is recorded in the
+  [`2026-08-25 correction`](../../docs/audits/architecture-improvement-plan-status-2026-08-25.md).
 
 ## Removed Transient Material
 

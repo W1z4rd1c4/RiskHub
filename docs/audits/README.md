@@ -25,6 +25,9 @@ operating posture against the repository state at the cited commit/date.
   durable disposition for the removed session-style developer response,
   superseded mega-plan, and mutable implementation log formerly under
   `.planning/audits/`.
+- [`architecture-improvement-plan-status-2026-08-25.md`](./architecture-improvement-plan-status-2026-08-25.md):
+  additive status correction marking the retained 2026-05-17 improvement plan
+  as historical, non-normative evidence rather than executable work.
 
 ## Notes
 

@@ -11,12 +11,18 @@
 | Current architecture lock check | `make -f scripts/Makefile test-architecture-locks` -> `197 passed`, `1 snapshot passed` |
 | Current authz contract check | `python3 scripts/security/validate_authz_capability_contract.py` -> passed |
 
+> **Added status correction — 2026-08-25:** The May body below is preserved as
+> historical evidence. It is historical, non-normative, and not executable
+> authority; its “implementation-ready,” strict-TDD, and backlog language does
+> not authorize current work. See the
+> [dated status correction](../../docs/audits/architecture-improvement-plan-status-2026-08-25.md).
+
 ## Summary
 
 This document turns the latest architecture audit into an implementation-ready
-plan for improving RiskHub's Module Depth. It covers the latest audit only. The
-superseded 2026-05-09 mega-plan and its preserved blob identity are documented
-in [`docs/audits/legacy-planning-artifact-disposition-2026-08-24.md`](../../docs/audits/legacy-planning-artifact-disposition-2026-08-24.md).
+plan for improving RiskHub's Module Depth. It is intentionally separate from
+`.planning/audits/resolution-plan.md`; this plan covers the latest audit only
+and does not merge or supersede the 2026-05-09 resolution plan.
 
 The implementation rule for every future code change is strict TDD:
 
@@ -298,7 +304,5 @@ Results:
 
 - This document does not claim full backend, frontend, Postgres, or E2E test suites pass.
 - This document does not claim the lower-priority backlog has enough current line anchors to implement without a fresh pre-implementation verification pass.
-- This document does not alter the durable disposition of the superseded
-  2026-05-09 mega-plan recorded in
-  [`docs/audits/legacy-planning-artifact-disposition-2026-08-24.md`](../../docs/audits/legacy-planning-artifact-disposition-2026-08-24.md).
+- This document does not claim to supersede `.planning/audits/resolution-plan.md`.
 - This document does not change runtime behavior, public APIs, schemas, or production Interfaces.

@@ -8,7 +8,9 @@ Authority, ownership, and conflict resolution are defined in
 ## Root Entry Points
 
 - [`README.md`](../README.md): Repository quick start and canonical startup commands.
-- [`AGENTS.md`](../AGENTS.md): Canonical general agent behavior, precedence, and execution protocol.
+- [`AGENTS.md`](../AGENTS.md): Canonical general agent policy and navigation;
+  [`docs/agent/EXECUTION_PROTOCOL.md`](./agent/EXECUTION_PROTOCOL.md) owns the
+  detailed execution procedure.
 - [`docs/README.md`](./README.md): Product and engineering documentation index.
 - [`docs/DOCUMENTATION_OWNERSHIP.md`](./DOCUMENTATION_OWNERSHIP.md): Authority matrix for live work, versioned planning, durable docs, and archives.
 - [`.planning/README.md`](../.planning/README.md): Versioned planning snapshots, codebase maps, and phase archive entry.

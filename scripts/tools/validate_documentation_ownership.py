@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -33,6 +34,13 @@ DECISION_PROVENANCE = (
 ARCHITECTURE_DECISION = (
     REPO_ROOT / "docs/adr/ADR-017-retained-compatibility-surfaces.md"
 )
+ARCHITECTURE_PLAN = (
+    REPO_ROOT / ".planning/audits/2026-05-17-architecture-improvement-plan.md"
+)
+ARCHITECTURE_PLAN_STATUS = (
+    REPO_ROOT / "docs/audits/architecture-improvement-plan-status-2026-08-25.md"
+)
+MINIMUM_COVERAGE_VERIFICATION_DATE = date(2026, 8, 24)
 
 REQUIRED_OWNERSHIP_HEADINGS = {
     "## Operating Model",
@@ -215,6 +223,18 @@ def _coverage_row(text: str, section_id: str) -> str:
     return next((line for line in text.splitlines() if line.startswith(prefix)), "")
 
 
+def _coverage_verification_date_error(value: str) -> str | None:
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        return "must be an ISO date"
+    if parsed.isoformat() != value:
+        return "must be an ISO date"
+    if parsed < MINIMUM_COVERAGE_VERIFICATION_DATE:
+        return f"must be on or after {MINIMUM_COVERAGE_VERIFICATION_DATE.isoformat()}"
+    return None
+
+
 def _section(text: str, heading: str) -> str:
     start = text.find(heading)
     if start < 0:
@@ -352,8 +372,51 @@ def _validate_agent_surfaces() -> list[str]:
             errors.append(f"agent coverage {section_id} must name AGENTS.md")
         if "`docs/agent/CODEX_WORKING_RULES.md`" in row:
             errors.append(f"agent coverage {section_id} makes Codex a policy owner")
-        if "2026-08-24" not in row:
-            errors.append(f"agent coverage {section_id} has not been reverified")
+        verification_date = row.rsplit("|", 2)[1].strip()
+        date_error = _coverage_verification_date_error(verification_date)
+        if date_error:
+            errors.append(
+                f"agent coverage {section_id} verification_date {date_error}: "
+                f"{verification_date}"
+            )
+    return errors
+
+
+def _validate_architecture_plan_status() -> list[str]:
+    errors: list[str] = []
+    if not ARCHITECTURE_PLAN.is_file():
+        return ["missing retained architecture improvement plan"]
+    if not ARCHITECTURE_PLAN_STATUS.is_file():
+        return ["missing architecture improvement plan status correction"]
+
+    plan = _read(ARCHITECTURE_PLAN)
+    for historical_claim in (
+        "`.planning/audits/resolution-plan.md`; this plan covers the latest audit only",
+        "This document does not claim to supersede `.planning/audits/resolution-plan.md`.",
+    ):
+        if historical_claim not in plan:
+            errors.append(
+                f"architecture improvement plan rewrites historical claim: "
+                f"{historical_claim}"
+            )
+    for required in (
+        "Added status correction — 2026-08-25",
+        "historical, non-normative, and not executable",
+        "architecture-improvement-plan-status-2026-08-25.md",
+    ):
+        if required not in plan:
+            errors.append(f"architecture improvement plan is missing status: {required}")
+
+    status = _read(ARCHITECTURE_PLAN_STATUS)
+    for required in (
+        "Architecture Improvement Plan Status Correction — 2026-08-25",
+        "additive correction",
+        "GitHub Issues, pull requests, and Projects own live scope",
+        "`AGENTS.md` owns general agent and contributor policy",
+        "`docs/agent/EXECUTION_PROTOCOL.md` owns the detailed execution procedure",
+    ):
+        if required not in status:
+            errors.append(f"architecture plan status correction is missing: {required}")
     return errors
 
 
@@ -422,6 +485,7 @@ def _validate_artifact_topology() -> list[str]:
         AUDIT_DISPOSITION,
         DECISION_PROVENANCE,
         ARCHITECTURE_DECISION,
+        ARCHITECTURE_PLAN_STATUS,
         REPO_ROOT / ".planning/audits/2026-05-09-deepening-audit.md",
         REPO_ROOT / ".planning/audits/2026-05-17-architecture-improvement-plan.md",
     ):
@@ -473,6 +537,8 @@ def _validate_artifact_topology() -> list[str]:
         (PLANNING_AUDIT_INDEX, "legacy-planning-artifact-disposition-2026-08-24.md"),
         (DOCS_AUDIT_INDEX, "legacy-planning-artifact-disposition-2026-08-24.md"),
         (DOCS_AUDIT_INDEX, "2026-05-09-architecture-cleanup-decisions.md"),
+        (DOCS_AUDIT_INDEX, "architecture-improvement-plan-status-2026-08-25.md"),
+        (PLANNING_AUDIT_INDEX, "architecture-improvement-plan-status-2026-08-25.md"),
         (PLANNING_README, "audits/README.md"),
     ):
         if path.is_file() and required not in _read(path):
@@ -487,6 +553,7 @@ def validate() -> list[str]:
         *_validate_ownership_document(),
         *_validate_links_and_normative_duplication(),
         *_validate_agent_surfaces(),
+        *_validate_architecture_plan_status(),
         *_validate_tool_and_domain_surfaces(),
         *_validate_planning_boundaries(),
         *_validate_artifact_topology(),
