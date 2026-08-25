@@ -46,7 +46,9 @@ const guardedFiles = [
     // The committee body moved to a dashboard tab section (#64); the raw-ID
     // guardrail follows the code so the Top-10 fallback stays label-based.
     'frontend/src/components/dashboard/IctCommitteeSection.tsx',
-    'frontend/src/pages/ictRegisterCommittee/committeePresentation.ts',
+    'frontend/src/components/dashboard/ictCommittee/IctCommitteeExecutiveSummarySection.tsx',
+    'frontend/src/components/dashboard/ictCommittee/IctCommitteeRoiReadinessSection.tsx',
+    'frontend/src/pages/ictRegisterCommittee/buildIctCommitteePresentation.ts',
 ] as const;
 
 const rawIdFallbackPatterns = [

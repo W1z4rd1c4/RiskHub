@@ -13,6 +13,7 @@ UI components for `dashboard` area.
 - `DepartmentTable.tsx`
 - `FilterBar.tsx`
 - `IssueAgingChart.tsx`
+- `ictCommittee/` — private ICT Committee render modules
 - `IssuesSummaryCard.tsx`
 - `KRIBreachHistoryChart.tsx`
 - `KRIBreachWidget.tsx`
@@ -40,3 +41,6 @@ smallest needed filter slice and `useDashboardFilterMutators` for writes. Keep
 `useDashboardFilters` as the compatibility facade for older call sites.
 
 Keep this README updated when responsibilities or structure in this folder change.
+
+`IctCommitteeSection.tsx` owns the ICT Committee screen lifecycle and delegates
+presentation decisions to the headless `buildIctCommitteePresentation` interface.

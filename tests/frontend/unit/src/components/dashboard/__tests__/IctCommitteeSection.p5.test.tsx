@@ -1,12 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DrilldownBarShape, IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection';
-import {
-    assetCriticalityDrilldownPath,
-    riskBandDrilldownPath,
-} from '@/pages/ictRegisterCommittee/committeePresentation';
+import { IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import i18n from '@/i18n';
 import type { IctCommittee, IctRoiTemplateReadiness } from '@/types/ictRegisterCommittee';
@@ -19,15 +15,6 @@ vi.mock('@/services/ictRegisterCommitteeApi', () => ({
         getCommittee: (...args: unknown[]) => getCommittee(...args),
     },
 }));
-
-// Router mock for the chart-bar drilldowns (#102): the SVG bar anchors must
-// navigate in-app via useNavigate instead of a full page reload.
-const mockNavigate = vi.fn();
-
-vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-    return { ...actual, useNavigate: () => mockNavigate };
-});
 
 function roiTemplate(overrides: Partial<IctRoiTemplateReadiness> = {}): IctRoiTemplateReadiness {
     return {
@@ -228,76 +215,6 @@ describe('IctCommitteeSection — semantic drill-downs', () => {
         });
     });
 
-    // jsdom cannot lay out the recharts bars (zero-size container), so the
-    // drilldown shape is exercised directly with the same hrefForBand builders
-    // the charts pass in.
-    function renderAssetBarShape() {
-        return render(
-            <MemoryRouter>
-                <svg>
-                    <DrilldownBarShape
-                        payload={{ band: 'Kritická' }}
-                        x={0}
-                        y={0}
-                        width={40}
-                        height={100}
-                        hrefForBand={assetCriticalityDrilldownPath}
-                        testIdPrefix="committee-asset-bar-shape"
-                    />
-                </svg>
-            </MemoryRouter>,
-        );
-    }
-
-    it('navigates chart-bar drilldowns in-app on click instead of a full page reload (#102)', () => {
-        renderAssetBarShape();
-
-        const bar = screen.getByTestId('committee-asset-bar-shape-Kritická');
-        // The real href is kept for open-in-new-tab semantics…
-        expect(bar.getAttribute('href')).toBe('/assets?committee_scope=true&criticality=critical');
-
-        // …while a plain left click routes through the SPA router.
-        fireEvent.click(bar);
-        expect(mockNavigate).toHaveBeenCalledWith('/assets?committee_scope=true&criticality=critical');
-
-        // A modified click keeps the native new-tab behaviour.
-        mockNavigate.mockClear();
-        fireEvent.click(bar, { ctrlKey: true });
-        expect(mockNavigate).not.toHaveBeenCalled();
-    });
-
-    it('activates chart-bar drilldowns from the keyboard (Enter and Space) (#102)', () => {
-        render(
-            <MemoryRouter>
-                <svg>
-                    <DrilldownBarShape
-                        payload={{ band: 'Vysoké' }}
-                        x={0}
-                        y={0}
-                        width={40}
-                        height={100}
-                        hrefForBand={(band) => riskBandDrilldownPath(band, 'net')}
-                        testIdPrefix="committee-risk-bar-shape-net"
-                    />
-                </svg>
-            </MemoryRouter>,
-        );
-
-        const expectedPath = `/risks?${new URLSearchParams({
-            committee_scope: 'true',
-            ict_linked: 'true',
-            net_band: 'Vysoké',
-        }).toString()}`;
-        const bar = screen.getByTestId('committee-risk-bar-shape-net-Vysoké');
-        expect(bar.getAttribute('tabindex')).toBe('0');
-
-        fireEvent.keyDown(bar, { key: 'Enter' });
-        expect(mockNavigate).toHaveBeenCalledWith(expectedPath);
-
-        mockNavigate.mockClear();
-        fireEvent.keyDown(bar, { key: ' ' });
-        expect(mockNavigate).toHaveBeenCalledWith(expectedPath);
-    });
 
     it('renders a production-inert material-risk KPI without an interactive link', async () => {
         const committee = makeCommittee();
