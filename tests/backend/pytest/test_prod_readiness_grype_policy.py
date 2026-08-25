@@ -16,18 +16,40 @@ if str(SECURITY_SCRIPTS_DIR) not in sys.path:
 def _policy(*, expires_on: str = "2026-09-30") -> str:
     return (
         "ignore:\n"
-        "  - vulnerability: CVE-2026-15308\n"
+        "  - vulnerability: CVE-2026-14456\n"
         '    reason: "Owner: Platform. Decision: temporary acceptance. '
         "Scanner evidence: Grype reports the exact affected package. "
         "No-fix proof: upstream has not released a fixed version. "
         'Reachability: vulnerable path is not used. Exit: upgrade the runtime."\n'
+        "    namespace: nvd:cpe\n"
+        "    fix-state: unknown\n"
+        "    match-type: cpe-match\n"
         f"    expires-on: {expires_on}\n"
         "    package:\n"
-        "      name: python\n"
-        "      version: 3.13.14\n"
-        "      type: binary\n"
-        "      location: /usr/local/bin/python3.13\n"
+        "      name: libcrypto3\n"
+        "      version: 3.5.7-r0\n"
+        "      type: apk\n"
+        "      location: /lib/apk/db/installed\n"
+        "      upstream-name: openssl\n"
     )
+
+
+def test_explicit_empty_grype_ignore_list_is_valid(tmp_path: Path) -> None:
+    from prod_readiness_audit.grype_policy import validate_grype_policy
+
+    policy = tmp_path / "grype-ignore.yaml"
+    policy.write_text("ignore: []\n", encoding="utf-8")
+
+    validate_grype_policy(policy, today=date(2026, 8, 25))
+
+
+def test_exact_nonempty_grype_ignore_list_is_valid(tmp_path: Path) -> None:
+    from prod_readiness_audit.grype_policy import validate_grype_policy
+
+    policy = tmp_path / "grype-ignore.yaml"
+    policy.write_text(_policy(), encoding="utf-8")
+
+    validate_grype_policy(policy, today=date(2026, 8, 25))
 
 
 def test_expired_grype_suppression_fails_closed(tmp_path: Path) -> None:
@@ -109,26 +131,26 @@ def test_grype_suppression_without_required_risk_metadata_fails_closed(
     ("policy_text", "expected_error"),
     (
         (_policy().replace("ignore:\n", "suppressions:\n"), "top-level ignore"),
-        (_policy().replace("CVE-2026-15308", "GHSA-abcd-1234"), "vulnerability"),
-        (_policy().replace("CVE-2026-15308", "CVE-*"), "vulnerability"),
-        (_policy().replace("CVE-2026-15308", ""), "vulnerability"),
-        (_policy().replace("      name: python\n", ""), "package.name"),
-        (_policy().replace("      name: python", "      name: *"), "package.name"),
-        (_policy().replace("      name: python", "      name:"), "package.name"),
+        (_policy().replace("CVE-2026-14456", "GHSA-abcd-1234"), "vulnerability"),
+        (_policy().replace("CVE-2026-14456", "CVE-*"), "vulnerability"),
+        (_policy().replace("CVE-2026-14456", ""), "vulnerability"),
+        (_policy().replace("      name: libcrypto3\n", ""), "package.name"),
+        (_policy().replace("      name: libcrypto3", "      name: *"), "package.name"),
+        (_policy().replace("      name: libcrypto3", "      name:"), "package.name"),
         (
             _policy().replace(
-                "    package:\n      name: python\n      version: 3.13.14\n",
-                "    package:\n      type: binary\n    unrelated:\n      name: python\n      version: 3.13.14\n",
+                "    package:\n      name: libcrypto3\n      version: 3.5.7-r0\n",
+                "    package:\n      type: apk\n    unrelated:\n      name: libcrypto3\n      version: 3.5.7-r0\n",
             ),
             "package.name",
         ),
-        (_policy().replace("      version: 3.13.14\n", ""), "package.version"),
+        (_policy().replace("      version: 3.5.7-r0\n", ""), "package.version"),
         (
-            _policy().replace("      version: 3.13.14", "      version: 3.13.*"),
+            _policy().replace("      version: 3.5.7-r0", "      version: 3.5.*"),
             "package.version",
         ),
         (
-            _policy().replace("      version: 3.13.14", "      version:"),
+            _policy().replace("      version: 3.5.7-r0", "      version:"),
             "package.version",
         ),
     ),
@@ -151,38 +173,47 @@ def test_grype_suppression_requires_exact_vulnerability_and_package_selectors(
 @pytest.mark.parametrize(
     ("policy_text", "expected_error"),
     (
-        (_policy().replace("      type: binary\n", ""), "package.type"),
-        (_policy().replace("      type: binary", "      type: *"), "package.type"),
-        (_policy().replace("      type: binary", "      type: python"), "package.type"),
-        (_policy().replace("      type: binary", "    type: binary"), "package.type"),
+        (_policy().replace("    namespace: nvd:cpe\n", ""), "namespace"),
+        (_policy().replace("    namespace: nvd:cpe", "    namespace: *"), "namespace"),
+        (_policy().replace("    fix-state: unknown\n", ""), "fix-state"),
+        (_policy().replace("    fix-state: unknown", "    fix-state: *"), "fix-state"),
+        (_policy().replace("    match-type: cpe-match\n", ""), "match-type"),
         (
-            _policy().replace("      location: /usr/local/bin/python3.13\n", ""),
+            _policy().replace("    match-type: cpe-match", "    match-type: *"),
+            "match-type",
+        ),
+        (_policy().replace("      type: apk\n", ""), "package.type"),
+        (_policy().replace("      type: apk", "      type: *"), "package.type"),
+        (_policy().replace("      type: apk", "    type: apk"), "package.type"),
+        (
+            _policy().replace("      location: /lib/apk/db/installed\n", ""),
             "package.location",
         ),
         (
             _policy().replace(
-                "      location: /usr/local/bin/python3.13",
-                "      location: /usr/local/**",
+                "      location: /lib/apk/db/installed",
+                "      location: /lib/**",
             ),
             "package.location",
         ),
         (
             _policy().replace(
-                "      location: /usr/local/bin/python3.13",
-                "      location: /usr/local/lib/libpython3.13.so.1.0",
+                "      location: /lib/apk/db/installed",
+                "    location: /lib/apk/db/installed",
             ),
             "package.location",
         ),
+        (_policy().replace("      upstream-name: openssl\n", ""), "upstream-name"),
         (
             _policy().replace(
-                "      location: /usr/local/bin/python3.13",
-                "    location: /usr/local/bin/python3.13",
+                "      upstream-name: openssl",
+                "      upstream-name: *",
             ),
-            "package.location",
+            "upstream-name",
         ),
     ),
 )
-def test_htmlparser_suppression_requires_exact_observed_binary_location(
+def test_grype_suppression_requires_all_generic_exact_evidence_selectors(
     tmp_path: Path, policy_text: str, expected_error: str
 ) -> None:
     from prod_readiness_audit.grype_policy import (
@@ -194,6 +225,140 @@ def test_htmlparser_suppression_requires_exact_observed_binary_location(
     policy.write_text(policy_text, encoding="utf-8")
 
     with pytest.raises(GrypePolicyError, match=expected_error):
+        validate_grype_policy(policy, today=date(2026, 8, 3))
+
+
+@pytest.mark.parametrize(
+    "malformed_value",
+    ("{}", "[libcrypto3]", "null", "~", "", '""', "true", "1"),
+)
+def test_grype_selector_requires_a_nonempty_yaml_string(
+    tmp_path: Path, malformed_value: str
+) -> None:
+    from prod_readiness_audit.grype_policy import (
+        GrypePolicyError,
+        validate_grype_policy,
+    )
+
+    policy = tmp_path / "grype-ignore.yaml"
+    policy.write_text(
+        _policy().replace(
+            "      name: libcrypto3", f"      name: {malformed_value}"
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(GrypePolicyError, match="package.name"):
+        validate_grype_policy(policy, today=date(2026, 8, 3))
+
+
+@pytest.mark.parametrize(
+    ("selector", "expected_error"),
+    (
+        ("      name: libcrypto3", "package.name"),
+        (
+            "      version: 3.5.7-r0",
+            "package.version",
+        ),
+        (
+            "      location: /lib/apk/db/installed",
+            "package.location",
+        ),
+        (
+            "      upstream-name: openssl",
+            "package.upstream-name",
+        ),
+    ),
+)
+@pytest.mark.parametrize(
+    "metacharacter", ("*", "?", "[", "]", "(", ")", "{", "}", "|", "+", "^", "$", "\\")
+)
+def test_grype_package_selectors_reject_pattern_metacharacters(
+    tmp_path: Path,
+    selector: str,
+    expected_error: str,
+    metacharacter: str,
+) -> None:
+    from prod_readiness_audit.grype_policy import (
+        GrypePolicyError,
+        validate_grype_policy,
+    )
+
+    policy = tmp_path / "grype-ignore.yaml"
+    policy.write_text(
+        _policy().replace(selector, f"{selector}{metacharacter}suffix"),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(GrypePolicyError, match=expected_error):
+        validate_grype_policy(policy, today=date(2026, 8, 3))
+
+
+def test_duplicate_grype_suppression_fails_closed(tmp_path: Path) -> None:
+    from prod_readiness_audit.grype_policy import (
+        GrypePolicyError,
+        validate_grype_policy,
+    )
+
+    policy = tmp_path / "grype-ignore.yaml"
+    policy.write_text(_policy() + _policy().removeprefix("ignore:\n"), encoding="utf-8")
+
+    with pytest.raises(GrypePolicyError, match="duplicate"):
+        validate_grype_policy(policy, today=date(2026, 8, 3))
+
+
+def test_duplicate_grype_ignore_collection_fails_closed(tmp_path: Path) -> None:
+    from prod_readiness_audit.grype_policy import (
+        GrypePolicyError,
+        validate_grype_policy,
+    )
+
+    policy = tmp_path / "grype-ignore.yaml"
+    policy.write_text(_policy() + "ignore: []\n", encoding="utf-8")
+
+    with pytest.raises(GrypePolicyError, match="exactly one top-level ignore"):
+        validate_grype_policy(policy, today=date(2026, 8, 3))
+
+
+@pytest.mark.parametrize("ignore_value", ("null", "{}"))
+def test_non_list_grype_ignore_collection_fails_closed(
+    tmp_path: Path, ignore_value: str
+) -> None:
+    from prod_readiness_audit.grype_policy import (
+        GrypePolicyError,
+        validate_grype_policy,
+    )
+
+    policy = tmp_path / "grype-ignore.yaml"
+    policy.write_text(f"ignore: {ignore_value}\n", encoding="utf-8")
+
+    with pytest.raises(GrypePolicyError, match="exactly one top-level ignore list"):
+        validate_grype_policy(policy, today=date(2026, 8, 3))
+
+
+def test_malformed_trailing_grype_yaml_fails_closed(tmp_path: Path) -> None:
+    from prod_readiness_audit.grype_policy import (
+        GrypePolicyError,
+        validate_grype_policy,
+    )
+
+    policy = tmp_path / "grype-ignore.yaml"
+    policy.write_text("ignore: []\ntrailing: [\n", encoding="utf-8")
+
+    with pytest.raises(GrypePolicyError, match="valid YAML"):
+        validate_grype_policy(policy, today=date(2026, 8, 3))
+
+
+def test_duplicate_non_ignore_top_level_key_fails_closed(tmp_path: Path) -> None:
+    from prod_readiness_audit.grype_policy import (
+        GrypePolicyError,
+        validate_grype_policy,
+    )
+
+    policy = tmp_path / "grype-ignore.yaml"
+    policy.write_text("metadata: one\nmetadata: two\nignore: []\n", encoding="utf-8")
+
+    with pytest.raises(GrypePolicyError, match="duplicate YAML key: metadata"):
         validate_grype_policy(policy, today=date(2026, 8, 3))
 
 
@@ -223,3 +388,44 @@ def test_repository_grype_policy_is_valid_before_its_review_date() -> None:
     from prod_readiness_audit.grype_policy import validate_grype_policy
 
     validate_grype_policy(GRYPE_IGNORE, today=date(2026, 8, 3))
+
+
+def test_repository_grype_policy_example_is_complete_and_valid(tmp_path: Path) -> None:
+    from prod_readiness_audit.grype_policy import validate_grype_policy
+
+    text = GRYPE_IGNORE.read_text(encoding="utf-8")
+    example_block = text.split("# Example:\n", maxsplit=1)[1].split(
+        "\n\nignore:\n", maxsplit=1
+    )[0]
+    example = "\n".join(
+        line.removeprefix("# ") for line in example_block.splitlines()
+    )
+    policy = tmp_path / "example-grype-ignore.yaml"
+    policy.write_text(f"{example}\n", encoding="utf-8")
+
+    validate_grype_policy(policy, today=date(2026, 8, 3))
+
+
+def test_repository_grype_policy_has_only_the_two_exact_openssl_acceptances() -> None:
+    text = GRYPE_IGNORE.read_text(encoding="utf-8")
+    active_policy = "\n".join(
+        line for line in text.splitlines() if not line.startswith("#")
+    )
+
+    assert active_policy.count("  - vulnerability: CVE-2026-14456") == 2
+    assert "CVE-2026-15308" not in active_policy
+    assert "CVE-2026-11940" not in active_policy
+    assert "CVE-2026-11972" not in active_policy
+    for package_name in ("libcrypto3", "libssl3"):
+        assert active_policy.count(f"      name: {package_name}") == 1
+    for selector in (
+        "    namespace: nvd:cpe\n",
+        "    fix-state: unknown\n",
+        "    match-type: cpe-match\n",
+        "    expires-on: 2026-09-30\n",
+        "      version: 3.5.7-r0\n",
+        "      type: apk\n",
+        "      location: /lib/apk/db/installed\n",
+        "      upstream-name: openssl\n",
+    ):
+        assert active_policy.count(selector.rstrip()) == 2

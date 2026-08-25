@@ -60,15 +60,6 @@ ICT_REGISTER_MAP_GITLEAKS_FINGERPRINTS = [
 ]
 
 
-def _grype_ignore_entry(text: str, vulnerability: str) -> str:
-    marker = f"  - vulnerability: {vulnerability}"
-    start = text.index(marker)
-    next_entry = text.find("\n  - vulnerability:", start + len(marker))
-    if next_entry == -1:
-        return text[start:]
-    return text[start:next_entry]
-
-
 def _load_validator_module():
     spec = importlib.util.spec_from_file_location(
         "validate_workflow_pins", VALIDATOR_PATH
@@ -534,55 +525,60 @@ def test_security_workflow_runs_container_scan_in_pull_requests() -> None:
     )
 
 
-def _grype_python_runtime_suppressed_cves(text: str) -> list[str]:
+def _grype_runtime_suppressed_cves(text: str) -> list[str]:
     # Derive the suppressed set from the file so the lock tracks the shipped
     # runtime instead of a hardcoded CVE list that rots on every base-image bump.
     # Match real 2-space-indented YAML entries only, not the commented example.
     return re.findall(r"^  - vulnerability: (CVE-\d{4}-\d+)", text, re.MULTILINE)
 
 
-def test_grype_python_runtime_suppressions_are_time_bound() -> None:
+def test_grype_runtime_suppressions_are_time_bound_and_exact() -> None:
     text = GRYPE_IGNORE.read_text(encoding="utf-8")
 
-    suppressed = _grype_python_runtime_suppressed_cves(text)
-    assert suppressed, "expected at least one Python runtime suppression"
+    suppressed = _grype_runtime_suppressed_cves(text)
+    assert suppressed == ["CVE-2026-14456", "CVE-2026-14456"]
     expiry_dates = re.findall(r"\n    expires-on: (\d{4}-\d{2}-\d{2})", text)
     assert len(expiry_dates) == len(suppressed)
     assert len(set(expiry_dates)) == 1, "suppressions must share one review date"
     assert (
         date.fromisoformat(expiry_dates[0]) > date.today()
     ), "grype suppressions have expired; re-review them"
-    python_versions = set(
-        re.findall(r"\n      name: python\n      version: (\S+)", text)
-    )
-    assert (
-        len(python_versions) == 1
-    ), f"suppressions must pin one python version, saw {python_versions}"
-    assert text.count("\n      name: python") == len(suppressed)
-    assert "\n    fix-state:" not in text
+    assert text.count("\n      version: 3.5.7-r0") == len(suppressed)
+    assert text.count("\n      type: apk") == len(suppressed)
+    assert text.count("\n      location: /lib/apk/db/installed") == len(suppressed)
+    assert text.count("\n      upstream-name: openssl") == len(suppressed)
+    assert text.count("\n    namespace: nvd:cpe") == len(suppressed)
+    assert text.count("\n    fix-state: unknown") == len(suppressed)
+    assert text.count("\n    match-type: cpe-match") == len(suppressed)
 
 
-def test_grype_python_runtime_suppressions_include_policy_evidence() -> None:
+def test_grype_runtime_suppressions_include_policy_evidence() -> None:
     text = GRYPE_IGNORE.read_text(encoding="utf-8")
 
-    suppressed = _grype_python_runtime_suppressed_cves(text)
-    assert suppressed, "expected at least one Python runtime suppression"
-    for cve in suppressed:
-        entry = _grype_ignore_entry(text, cve)
+    suppressed = _grype_runtime_suppressed_cves(text)
+    assert suppressed
+    for package_name in ("libcrypto3", "libssl3"):
+        entry = next(
+            block
+            for block in text.split("  - vulnerability: ")[1:]
+            if f"\n      name: {package_name}\n" in block
+        )
         assert "Owner:" in entry
         assert "Decision:" in entry
         assert "Scanner evidence:" in entry
         assert "No-fix proof:" in entry
         assert re.search(r"\n    expires-on: \d{4}-\d{2}-\d{2}", entry)
-        assert "\n      name: python" in entry
-        assert re.search(r"\n      version: 3\.13\.\d+", entry)
+        assert "Reachability:" in entry
+        assert "Exit:" in entry
 
 
 def test_backend_dockerfile_pins_python_alpine_base_digest() -> None:
     text = BACKEND_DOCKERFILE.read_text(encoding="utf-8")
     digests = set(re.findall(r"FROM python:3\.13-alpine@sha256:([0-9a-f]{64})", text))
 
-    assert len(digests) == 1, "all base stages must pin one shared digest"
+    assert digests == {
+        "540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d"
+    }
     digest = digests.pop()
     assert text.count(f"FROM python:3.13-alpine@sha256:{digest}") == 3
     assert not re.search(
