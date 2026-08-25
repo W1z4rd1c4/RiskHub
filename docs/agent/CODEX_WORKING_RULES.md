@@ -1,53 +1,30 @@
-# Codex Working Rules
+# Codex-Specific Working Deltas
 
-Canonical agent operating rules for development workflow and context management.
+This file contains Codex-specific execution deltas only. General repository
+policy is not repeated here.
 
-## Mission
+## Canonical General Rules
 
-- Deliver correct, test-verified changes to RiskHub with minimal unrelated churn.
-- Prefer evidence from repo artifacts over assumptions.
+Follow the canonical sections in [`AGENTS.md`](../../AGENTS.md):
 
-## Source-of-Truth Order
+- [Mission](../../AGENTS.md#mission)
+- [Source-of-Truth Order](../../AGENTS.md#source-of-truth-order)
+- [Active Work Focus](../../AGENTS.md#active-work-focus-default-bias)
+- [Execution Protocol](../../AGENTS.md#execution-protocol)
+- [Repo Hygiene](../../AGENTS.md#repo-hygiene)
+- [Prompting and Tooling Best Practices](../../AGENTS.md#prompting-and-tooling-best-practices-openai-aligned)
 
-Use this precedence when instructions conflict:
+Documentation and work-tracking authority is defined in
+[`docs/DOCUMENTATION_OWNERSHIP.md`](../DOCUMENTATION_OWNERSHIP.md).
 
-1. Explicit user request for the current task.
-2. Active phase plan file (`.planning/phases/<phase>/<plan>-PLAN.md`) when executing a phase.
-3. `.planning/STATE.md` (current truth of progress).
-4. `.planning/ROADMAP.md` (phase-level intent and status).
-5. `.planning/codebase/*.md` (architecture, conventions, testing, concerns).
-6. `docs/BUSINESS_LOGIC.md` and `docs/TESTING.md`.
-7. `AGENTS.md`.
+## Codex-Specific Deltas
 
-Rules:
-- If planning docs conflict with current code behavior, trust code + `.planning/codebase/*`, then note the discrepancy.
-- Ignore `.planning/codebase.bak-*` unless explicitly asked.
+- Resolve repository skills using
+  [`docs/agent/SKILLS_RESOLUTION.md`](./SKILLS_RESOLUTION.md).
+- Prefer repository-local instructions and commands over inferred defaults.
+- When Codex is operating from a referenced Issue or pull request, use that live
+  item for delivery state and use `.planning/` only as commit-scoped technical
+  context, as required by the canonical `AGENTS.md` precedence.
+- Preserve exact repository paths and command output in implementation evidence.
 
-## Active Work Focus (Default Bias)
-
-Unless user redirects, prioritize unresolved work identified as in progress in:
-- `.planning/STATE.md`
-- `.planning/ROADMAP.md`
-
-## Repo Hygiene
-
-- Avoid editing generated/vendor folders:
-  - `frontend/node_modules/`
-  - `frontend/dist/`
-  - `backend/venv/`
-  - `tests/results/backend/coverage_html/`
-  - `tests/results/`
-- Prefer small, reviewable diffs over broad rewrites.
-- Do not modify unrelated files just to satisfy formatting preferences.
-
-## Prompting and Tooling Best Practices (OpenAI-Aligned)
-
-- State objective, constraints, and expected output format before execution.
-- Use strict structured outputs for machine-consumed results when possible.
-- Keep tool/function contracts explicit, minimal, and schema-driven.
-- Batch and parallelize independent operations to reduce latency/cost.
-- Run an eval-like verification loop on behavior-changing work (tests + checks), then iterate once before finalizing.
-- Keep reusable instruction prefixes stable; append task-specific context after them for cache efficiency.
-
-Verification date:
-- 2026-02-16
+Verification date: 2026-08-24

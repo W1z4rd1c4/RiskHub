@@ -1,23 +1,7 @@
--r requirements.txt
-
-# Backend testing
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
-pytest-cov>=4.1.0
-pytest-timeout>=2.3.1
-freezegun==1.5.*
-pytest-postgresql==6.*
-syrupy==4.6.*
-aiosqlite>=0.20.0
-fakeredis>=2.31.0
-sqlalchemy-utils>=0.41,<0.42
-testcontainers[redis]>=4.8.0
-
-# Security/tooling
-ruff==0.6.9
-bandit>=1.7.8
-mypy>=1.18.0
-pre-commit>=3.7.0
-
-# Data migration helpers
-openpyxl>=3.1.0
+# Canonical backend development/test install entrypoint.
+# Human-edited intent lives in requirements-dev.in; exact resolution is installed
+# from requirements-dev-constraints.txt for both local setup and CI.
+# input-sha256: 2a2155a6bb3823c3a697863eb39a7d0dd683f147354811ab45fd75f8a0378494
+# lock-sha256: 83209fbb38e2113757d0e1a22c8378fcea1d40f5dcb08b198dfbc74c3904010a
+-r requirements-dev.in
+-r requirements-dev-constraints.txt

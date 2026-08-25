@@ -1,31 +1,38 @@
 # RiskHub Planning Index
 
-Planning root for active state, roadmap intent, codebase maps, and historical phase archives.
+This tree contains commit-scoped technical context, roadmap history, codebase
+maps, and historical phase/audit records. It is not a live work tracker.
 
-## Active Planning Truth
+Live scope, assignment, priority, blocking, review state, acceptance evidence,
+and closure belong in GitHub Issues, pull requests, and Projects. See
+[`docs/DOCUMENTATION_OWNERSHIP.md`](../docs/DOCUMENTATION_OWNERSHIP.md) for the
+authority and conflict-resolution contract.
 
-- [`.planning/PROJECT.md`](./PROJECT.md)
-- [`.planning/STATE.md`](./STATE.md)
-- [`.planning/ROADMAP.md`](./ROADMAP.md)
+## Versioned Planning Snapshots
+
+- [`PROJECT.md`](./PROJECT.md) — durable project context.
+- [`STATE.md`](./STATE.md) — concise commit-scoped state snapshot; not live
+  delivery status.
+- [`ROADMAP.md`](./ROADMAP.md) — concise commit-scoped roadmap snapshot; phase
+  labels and checkboxes do not establish current work.
 
 ## Codebase Maps
 
-- [`.planning/codebase/ARCHITECTURE.md`](./codebase/ARCHITECTURE.md)
-- [`.planning/codebase/CONCERNS.md`](./codebase/CONCERNS.md)
-- [`.planning/codebase/CONVENTIONS.md`](./codebase/CONVENTIONS.md)
-- [`.planning/codebase/INTEGRATIONS.md`](./codebase/INTEGRATIONS.md)
-- [`.planning/codebase/STACK.md`](./codebase/STACK.md)
-- [`.planning/codebase/STRUCTURE.md`](./codebase/STRUCTURE.md)
-- [`.planning/codebase/TESTING.md`](./codebase/TESTING.md)
+- [`codebase/ARCHITECTURE.md`](./codebase/ARCHITECTURE.md)
+- [`codebase/CONCERNS.md`](./codebase/CONCERNS.md)
+- [`codebase/CONVENTIONS.md`](./codebase/CONVENTIONS.md)
+- [`codebase/INTEGRATIONS.md`](./codebase/INTEGRATIONS.md)
+- [`codebase/STACK.md`](./codebase/STACK.md)
+- [`codebase/STRUCTURE.md`](./codebase/STRUCTURE.md)
+- [`codebase/TESTING.md`](./codebase/TESTING.md)
 
-## Audits
+## Historical Evidence
 
-- [`.planning/audits/2026-05-17-architecture-improvement-plan.md`](./audits/2026-05-17-architecture-improvement-plan.md)
+- [`audits/README.md`](./audits/README.md) — retained dated audit records and the
+  disposition of removed session-style planning artifacts.
+- [`phases/README.md`](./phases/README.md) — historical phase plans and summaries.
 
-## Phase Archives
-
-- [`.planning/phases/README.md`](./phases/README.md)
-
-## Related Tree Entry
+## Related Documentation
 
 - [`docs/DOCUMENTATION_TREE.md`](../docs/DOCUMENTATION_TREE.md)
+- [`docs/audits/legacy-planning-artifact-disposition-2026-08-24.md`](../docs/audits/legacy-planning-artifact-disposition-2026-08-24.md)
