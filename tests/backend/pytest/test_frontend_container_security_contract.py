@@ -1111,3 +1111,71 @@ def test_contract_validator_locks_frontend_code_scanning_upload(
 
     errors = _validate_workflow_text(tmp_path, workflow.replace(original, mutated, 1))
     assert any("frontend SARIF upload" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "overwrite-run",
+        "action",
+        "sarif-file",
+        "category",
+        "if",
+        "continue-false",
+        "continue-expression",
+        "continue-missing",
+        "extra-metadata",
+    ],
+)
+def test_contract_validator_locks_backend_code_scanning_upload(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    original = (
+        "      - name: Upload Trivy Backend Report\n"
+        "        if: always()\n"
+        "        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0\n"
+        "        with:\n"
+        "          sarif_file: 'trivy-backend.sarif'\n"
+        "          category: 'trivy-backend'\n"
+        "        continue-on-error: true\n"
+    )
+    assert original in workflow
+    mutated = original
+    if mutation == "overwrite-run":
+        mutated = (
+            "      - name: Upload Trivy Backend Report\n"
+            "        if: always()\n"
+            "        run: |\n"
+            "          echo '{}' > trivy-frontend.sarif\n"
+            "          echo '{}' > trivy-frontend-status.json\n"
+        )
+    elif mutation == "action":
+        mutated = mutated.replace(
+            "github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa",
+            "attacker/upload-sarif@0123456789012345678901234567890123456789",
+        )
+    elif mutation == "sarif-file":
+        mutated = mutated.replace("trivy-backend.sarif", "trivy-frontend.sarif")
+    elif mutation == "category":
+        mutated = mutated.replace("category: 'trivy-backend'", "category: 'other'")
+    elif mutation == "if":
+        mutated = mutated.replace("if: always()", "if: false")
+    elif mutation == "continue-false":
+        mutated = mutated.replace("continue-on-error: true", "continue-on-error: false")
+    elif mutation == "continue-expression":
+        mutated = mutated.replace(
+            "continue-on-error: true",
+            'continue-on-error: "${{ true }}"',
+        )
+    elif mutation == "continue-missing":
+        mutated = mutated.replace("        continue-on-error: true\n", "")
+    else:
+        mutated = mutated.replace(
+            "        if: always()\n",
+            "        if: always()\n        env:\n          BASH_ENV: /tmp/attacker\n",
+        )
+
+    errors = _validate_workflow_text(tmp_path, workflow.replace(original, mutated, 1))
+    assert any("backend SARIF upload" in error for error in errors)

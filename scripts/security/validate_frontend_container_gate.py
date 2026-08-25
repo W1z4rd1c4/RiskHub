@@ -268,6 +268,27 @@ def _validate_frontend_sarif_upload(errors: list[str], step: dict) -> None:
         errors.append(f"{subject} continue-on-error policy must remain literal true")
 
 
+def _validate_backend_sarif_upload(errors: list[str], step: dict) -> None:
+    subject = "backend SARIF upload"
+    _require_exact_keys(
+        errors,
+        subject,
+        step,
+        {"name", "if", "uses", "with", "continue-on-error"},
+    )
+    if step.get("if") != "always()":
+        errors.append(f"{subject} must run with if: always()")
+    if step.get("uses") != UPLOAD_SARIF_ACTION:
+        errors.append(f"{subject} must use the approved upload-sarif action")
+    if step.get("with") != {
+        "sarif_file": "trivy-backend.sarif",
+        "category": "trivy-backend",
+    }:
+        errors.append(f"{subject} inputs must match exactly")
+    if step.get("continue-on-error") is not True:
+        errors.append(f"{subject} continue-on-error policy must remain literal true")
+
+
 def _validate_pre_scan_steps(
     errors: list[str],
     steps: list[dict],
@@ -601,6 +622,10 @@ def validate() -> list[str]:
             steps,
             "Upload Trivy Frontend Report",
         )
+        _, backend_sarif_upload = _step_by_name(
+            steps,
+            "Upload Trivy Backend Report",
+        )
         artifact_index, artifact_upload = _step_by_name(
             steps,
             "Upload Container Security Reports",
@@ -684,6 +709,7 @@ def validate() -> list[str]:
         errors.append("frontend scan-status recorder command must match exactly")
 
     _validate_frontend_sarif_upload(errors, sarif_upload)
+    _validate_backend_sarif_upload(errors, backend_sarif_upload)
 
     _require_exact_keys(
         errors,
