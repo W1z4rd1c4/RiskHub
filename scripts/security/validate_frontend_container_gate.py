@@ -247,8 +247,14 @@ def _validate_artifact_upload(
         errors.append(f"{subject} artifact must fail when files are missing")
 
 
-def _validate_frontend_sarif_upload(errors: list[str], step: dict) -> None:
-    subject = "frontend SARIF upload"
+def _validate_sarif_upload(
+    errors: list[str],
+    step: dict,
+    *,
+    subject: str,
+    sarif_file: str,
+    category: str,
+) -> None:
     _require_exact_keys(
         errors,
         subject,
@@ -260,29 +266,8 @@ def _validate_frontend_sarif_upload(errors: list[str], step: dict) -> None:
     if step.get("uses") != UPLOAD_SARIF_ACTION:
         errors.append(f"{subject} must use the approved upload-sarif action")
     if step.get("with") != {
-        "sarif_file": "trivy-frontend.sarif",
-        "category": "trivy-frontend",
-    }:
-        errors.append(f"{subject} inputs must match exactly")
-    if step.get("continue-on-error") is not True:
-        errors.append(f"{subject} continue-on-error policy must remain literal true")
-
-
-def _validate_backend_sarif_upload(errors: list[str], step: dict) -> None:
-    subject = "backend SARIF upload"
-    _require_exact_keys(
-        errors,
-        subject,
-        step,
-        {"name", "if", "uses", "with", "continue-on-error"},
-    )
-    if step.get("if") != "always()":
-        errors.append(f"{subject} must run with if: always()")
-    if step.get("uses") != UPLOAD_SARIF_ACTION:
-        errors.append(f"{subject} must use the approved upload-sarif action")
-    if step.get("with") != {
-        "sarif_file": "trivy-backend.sarif",
-        "category": "trivy-backend",
+        "sarif_file": sarif_file,
+        "category": category,
     }:
         errors.append(f"{subject} inputs must match exactly")
     if step.get("continue-on-error") is not True:
@@ -708,8 +693,20 @@ def validate() -> list[str]:
     if status_script != EXPECTED_STATUS_RECORD_COMMAND:
         errors.append("frontend scan-status recorder command must match exactly")
 
-    _validate_frontend_sarif_upload(errors, sarif_upload)
-    _validate_backend_sarif_upload(errors, backend_sarif_upload)
+    _validate_sarif_upload(
+        errors,
+        sarif_upload,
+        subject="frontend SARIF upload",
+        sarif_file="trivy-frontend.sarif",
+        category="trivy-frontend",
+    )
+    _validate_sarif_upload(
+        errors,
+        backend_sarif_upload,
+        subject="backend SARIF upload",
+        sarif_file="trivy-backend.sarif",
+        category="trivy-backend",
+    )
 
     _require_exact_keys(
         errors,
