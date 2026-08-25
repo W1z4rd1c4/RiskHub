@@ -17,8 +17,8 @@ CONTRACT_WORKFLOW_PATH = (
 )
 STATUS_HELPER = REPO_ROOT / "scripts/security/frontend_trivy_status.py"
 SARIF_SCHEMA_URI = (
-    "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/"
-    "sarif-2.1/schema/sarif-schema-2.1.0.json"
+    "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/"
+    "schemas/sarif-schema-2.1.0.json"
 )
 DEFAULT_TRIVY_PATHS = (".trivyignore", "trivy.yaml")
 APPROVED_PRODUCTION_TRIGGERS = {
@@ -106,7 +106,7 @@ EXPECTED_INJECTED_ARTIFACT_PATHS = frozenset(
     }
 )
 EXPECTED_INJECTED_GENERATOR_SHA256 = (
-    "3272083d6bcad943bcf4a2635b68e9c46e69859875bc2557652208b5d5323d43"
+    "4fedc40cf6e7a5590c897b8ceaff4e25dc2450641d47d8a748d64d15725b8d62"
 )
 EXPECTED_INJECTED_PROOF_SHA256 = (
     "8fba6415b4b235b2db594283ac2f21accbf481a48c2235b218ee82b6e8ece8be"
@@ -545,6 +545,8 @@ def validate() -> list[str]:
         helper_text = STATUS_HELPER.read_text(encoding="utf-8")
         for required_text in (
             "SARIF_SCHEMA_URI",
+            "HOSTED_TRIVY_V070_SCHEMA_URI",
+            "ACCEPTED_SARIF_SCHEMA_URIS",
             "TRIVY_DRIVER_FULL_NAME",
             "TRIVY_INFORMATION_URI",
             "KNOWN_SEVERITIES",

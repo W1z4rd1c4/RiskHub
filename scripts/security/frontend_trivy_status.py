@@ -17,9 +17,17 @@ IMAGE = "riskhub-frontend:scan"
 CLEAN_STATUS = "clean"
 VALID_STATUSES = {CLEAN_STATUS, "findings", "scan_failed", "evidence_invalid"}
 SARIF_SCHEMA_URI = (
+    "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/"
+    "schemas/sarif-schema-2.1.0.json"
+)
+HOSTED_TRIVY_V070_SCHEMA_URI = (
     "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/"
     "sarif-2.1/schema/sarif-schema-2.1.0.json"
 )
+ACCEPTED_SARIF_SCHEMA_URIS = {
+    SARIF_SCHEMA_URI,
+    HOSTED_TRIVY_V070_SCHEMA_URI,
+}
 TRIVY_DRIVER_NAME = "Trivy"
 TRIVY_DRIVER_FULL_NAME = "Trivy Vulnerability Scanner"
 TRIVY_INFORMATION_URI = "https://github.com/aquasecurity/trivy"
@@ -91,7 +99,7 @@ def _load_sarif(path: Path) -> tuple[bool, bool, int, str | None, str | None]:
     if not isinstance(payload, dict) or payload.get("version") != "2.1.0":
         return True, False, 0, "sarif_invalid_shape", None
 
-    if payload.get("$schema") != SARIF_SCHEMA_URI:
+    if payload.get("$schema") not in ACCEPTED_SARIF_SCHEMA_URIS:
         return True, False, 0, "sarif_invalid_schema", None
 
     runs = payload.get("runs")

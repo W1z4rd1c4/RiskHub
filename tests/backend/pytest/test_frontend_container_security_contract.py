@@ -15,10 +15,15 @@ VALIDATOR = REPO_ROOT / "scripts/security/validate_frontend_container_gate.py"
 STATUS_HELPER = REPO_ROOT / "scripts/security/frontend_trivy_status.py"
 SECURITY_WORKFLOW = REPO_ROOT / ".github/workflows/security.yml"
 CONTRACT_WORKFLOW = REPO_ROOT / ".github/workflows/frontend-container-gate-contract.yml"
-SARIF_SCHEMA = (
+HOSTED_TRIVY_V070_SARIF_SCHEMA = (
     "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/"
     "sarif-2.1/schema/sarif-schema-2.1.0.json"
 )
+PINNED_CANONICAL_SARIF_SCHEMA = (
+    "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/"
+    "schemas/sarif-schema-2.1.0.json"
+)
+SARIF_SCHEMA = PINNED_CANONICAL_SARIF_SCHEMA
 
 
 def _run_status(*args: str) -> subprocess.CompletedProcess[str]:
@@ -153,6 +158,30 @@ def test_frontend_container_gate_accepts_clean_retained_status(tmp_path: Path) -
     enforced = _run_status("enforce", "--status-file", str(status))
     assert enforced.returncode == 0, enforced.stderr
     assert "status=clean" in enforced.stdout
+
+
+def test_frontend_container_gate_accepts_pinned_canonical_sarif_schema(
+    tmp_path: Path,
+) -> None:
+    sarif = tmp_path / "trivy-frontend.sarif"
+    status = tmp_path / "frontend-status.json"
+    _write_sarif(sarif, schema_uri=PINNED_CANONICAL_SARIF_SCHEMA)
+
+    payload = _record_status(sarif=sarif, status=status)
+    assert payload["status"] == "clean"
+    assert payload["sarif_valid"] is True
+
+
+def test_frontend_container_gate_accepts_hosted_trivy_v070_sarif_schema(
+    tmp_path: Path,
+) -> None:
+    sarif = tmp_path / "trivy-frontend.sarif"
+    status = tmp_path / "frontend-status.json"
+    _write_sarif(sarif, schema_uri=HOSTED_TRIVY_V070_SARIF_SCHEMA)
+
+    payload = _record_status(sarif=sarif, status=status)
+    assert payload["status"] == "clean"
+    assert payload["sarif_valid"] is True
 
 
 def test_frontend_container_gate_retains_missing_sarif_failure(tmp_path: Path) -> None:
