@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO_ROOT / "scripts/security/validate_frontend_container_gate.py"
 STATUS_HELPER = REPO_ROOT / "scripts/security/frontend_trivy_status.py"
@@ -37,6 +39,14 @@ def _validator_module() -> ModuleType:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _validate_workflow_text(tmp_path: Path, workflow: str) -> list[str]:
+    module = _validator_module()
+    mutated = tmp_path / "security.yml"
+    mutated.write_text(workflow, encoding="utf-8")
+    module.WORKFLOW_PATH = mutated
+    return module.validate()
 
 
 def _write_sarif(
@@ -305,16 +315,122 @@ def test_contract_validator_rejects_expression_based_advisory_mode() -> None:
 
 
 def test_contract_validator_rejects_ignore_unfixed(tmp_path: Path) -> None:
-    module = _validator_module()
     workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
     workflow = workflow.replace(
         "          exit-code: '1'\n",
         "          exit-code: '1'\n          ignore-unfixed: true\n",
         1,
     )
-    mutated = tmp_path / "security.yml"
-    mutated.write_text(workflow, encoding="utf-8")
-    module.WORKFLOW_PATH = mutated
-
-    errors = module.validate()
+    errors = _validate_workflow_text(tmp_path, workflow)
     assert any("ignore-unfixed" in error for error in errors)
+
+
+def test_contract_validator_requires_vulnerability_only_scanner(
+    tmp_path: Path,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    workflow = workflow.replace(
+        "          scanners: 'vuln'\n",
+        "          scanners: 'secret'\n",
+        1,
+    )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("scanners" in error and "vuln" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    ("option", "value"),
+    [
+        ("secret", "${{ github.token }}"),
+        ("trivyignores", ".trivyignore"),
+        ("skip-files", "usr/lib/vulnerable.so"),
+        ("ignore-policy", "policy.rego"),
+        ("trivy-config", "trivy.yaml"),
+        ("skip-dirs", "usr/lib"),
+        ("unknown-scan-option", "enabled"),
+    ],
+)
+def test_contract_validator_rejects_extra_frontend_scan_inputs(
+    tmp_path: Path,
+    option: str,
+    value: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    anchor = "          scanners: 'vuln'\n"
+    if anchor not in workflow:
+        anchor = "          exit-code: '1'\n"
+    workflow = workflow.replace(anchor, f"{anchor}          {option}: {value}\n", 1)
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any(option in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    ("anchor", "injected"),
+    [
+        (
+            "permissions:\n  contents: read\n  security-events: write\n",
+            "permissions:\n  contents: read\n  security-events: write\n\nenv:\n  TRIVY_SKIP_FILES: usr/lib/vulnerable.so\n",
+        ),
+        (
+            "  container-security:\n    name: Container Scan (Trivy + SBOM Correlation)\n    runs-on: ubuntu-latest\n",
+            "  container-security:\n    name: Container Scan (Trivy + SBOM Correlation)\n    runs-on: ubuntu-latest\n    env:\n      TRIVY_IGNORE_POLICY: policy.rego\n",
+        ),
+        (
+            "        continue-on-error: true\n        uses: aquasecurity/trivy-action@",
+            "        continue-on-error: true\n        env:\n          TRIVY_SCANNERS: secret\n        uses: aquasecurity/trivy-action@",
+        ),
+    ],
+)
+def test_contract_validator_rejects_trivy_environment_overrides(
+    tmp_path: Path,
+    anchor: str,
+    injected: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    workflow = workflow.replace(anchor, injected, 1)
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("TRIVY_" in error for error in errors)
+
+
+def test_contract_validator_requires_pull_request_trigger(tmp_path: Path) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8").replace(
+        "  pull_request:\n    branches: [main, develop]\n",
+        "",
+        1,
+    )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("pull_request" in error for error in errors)
+
+
+def test_contract_validator_requires_push_to_main(tmp_path: Path) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8").replace(
+        "  push:\n    branches: [main, develop]\n",
+        "  push:\n    branches: [develop]\n",
+        1,
+    )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("push" in error and "main" in error for error in errors)
+
+
+def test_contract_validator_requires_scheduled_runs(tmp_path: Path) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8").replace(
+        "  schedule:\n"
+        "    # Run nightly at 02:00 UTC for resilience smoke checks\n"
+        "    - cron: '0 2 * * *'\n"
+        "    # Run weekly on Sunday at 00:00 UTC\n"
+        "    - cron: '0 0 * * 0'\n",
+        "",
+        1,
+    )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("schedule" in error for error in errors)
+
+
+def test_contract_validator_rejects_conditional_container_job(tmp_path: Path) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8").replace(
+        "  container-security:\n    name: Container Scan (Trivy + SBOM Correlation)\n",
+        "  container-security:\n    name: Container Scan (Trivy + SBOM Correlation)\n    if: false\n",
+        1,
+    )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert any("container-security job" in error and "conditional" in error for error in errors)

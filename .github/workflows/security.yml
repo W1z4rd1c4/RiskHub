@@ -273,6 +273,7 @@ jobs:
           image-ref: 'riskhub-frontend:scan'
           format: 'sarif'
           output: 'trivy-frontend.sarif'
+          scanners: 'vuln'
           severity: 'CRITICAL,HIGH'
           limit-severities-for-sarif: true
           exit-code: '1'

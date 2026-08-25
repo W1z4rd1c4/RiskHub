@@ -42,6 +42,69 @@ def _reject_continue_on_error(errors: list[str], subject: str, node: dict) -> No
         )
 
 
+def _trigger_includes_branch(trigger: object, branch: str) -> bool:
+    if trigger is None:
+        return True
+    if not isinstance(trigger, dict):
+        return False
+
+    branches = trigger.get("branches")
+    if branches is not None:
+        return isinstance(branches, list) and branch in branches
+
+    ignored = trigger.get("branches-ignore")
+    if ignored is None:
+        return True
+    return isinstance(ignored, list) and branch not in ignored
+
+
+def _validate_production_triggers(workflow: dict) -> list[str]:
+    errors: list[str] = []
+    triggers = workflow.get("on", workflow.get(True))
+    if not isinstance(triggers, dict):
+        return ["production security workflow must define trigger mappings"]
+
+    if "pull_request" not in triggers:
+        errors.append("production security workflow must run on pull_request")
+    elif not _trigger_includes_branch(triggers["pull_request"], "main"):
+        errors.append("production pull_request trigger must include main")
+
+    if "push" not in triggers:
+        errors.append("production security workflow must run on push to main")
+    elif not _trigger_includes_branch(triggers["push"], "main"):
+        errors.append("production push trigger must include main")
+
+    schedule = triggers.get("schedule")
+    if not (
+        isinstance(schedule, list)
+        and schedule
+        and all(
+            isinstance(item, dict)
+            and isinstance(item.get("cron"), str)
+            and item["cron"].strip()
+            for item in schedule
+        )
+    ):
+        errors.append("production security workflow must define scheduled runs")
+    return errors
+
+
+def _reject_trivy_environment_overrides(
+    errors: list[str],
+    subject: str,
+    node: dict,
+) -> None:
+    environment = node.get("env")
+    if environment is None:
+        return
+    if not isinstance(environment, dict):
+        errors.append(f"{subject} env must be a mapping without Trivy overrides")
+        return
+    for name in environment:
+        if str(name).upper().startswith("TRIVY_"):
+            errors.append(f"{subject} must not set Trivy override {name!r}")
+
+
 def _validate_injected_finding_workflow() -> list[str]:
     errors: list[str] = []
     if not CONTRACT_WORKFLOW_PATH.is_file():
@@ -202,7 +265,16 @@ def validate() -> list[str]:
     except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
         return [*errors, f"unable to load container-security workflow: {exc}"]
 
+    errors.extend(_validate_production_triggers(workflow))
     _reject_continue_on_error(errors, "production container-security job", container_job)
+    if "if" in container_job:
+        errors.append("production container-security job must not be conditional")
+    _reject_trivy_environment_overrides(errors, "production workflow", workflow)
+    _reject_trivy_environment_overrides(
+        errors,
+        "production container-security job",
+        container_job,
+    )
 
     try:
         scan_index, scan = _step_by_name(steps, "Run Trivy on Frontend")
@@ -236,11 +308,17 @@ def validate() -> list[str]:
     if not re.fullmatch(r"aquasecurity/trivy-action@[0-9a-f]{40}", action):
         errors.append("frontend Trivy action must remain pinned to a full commit SHA")
 
+    _reject_trivy_environment_overrides(errors, "frontend Trivy scan", scan)
+
     options = scan.get("with", {})
+    if not isinstance(options, dict):
+        errors.append("frontend Trivy inputs must be a mapping")
+        options = {}
     expected_options = {
         "image-ref": "riskhub-frontend:scan",
         "format": "sarif",
         "output": "trivy-frontend.sarif",
+        "scanners": "vuln",
         "severity": "CRITICAL,HIGH",
         "exit-code": "1",
         "limit-severities-for-sarif": True,
@@ -251,6 +329,8 @@ def validate() -> list[str]:
                 f"frontend Trivy option {key!r} must be {expected!r}, "
                 f"got {options.get(key)!r}"
             )
+    for key in sorted(set(options) - set(expected_options)):
+        errors.append(f"frontend Trivy option {key!r} is not allowed")
     if "ignore-unfixed" in options:
         errors.append("frontend Trivy gate must not set ignore-unfixed")
 
