@@ -3,7 +3,7 @@
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 > Version: 1.0
-> Last reviewed: 2026-08-23
+> Last reviewed: 2026-08-26
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
@@ -17,6 +17,13 @@ gaps that must stay aligned.
 
 This is an audit and maintenance artifact. It does not introduce SQL RLS, route
 changes, schema changes, or auth/session wire changes.
+
+On 2026-08-26, issue #145 moved ICT Committee display ordering, drill-down
+destinations, semantic tones, matrix cells, narratives, and RoI presentation
+behind the pure `buildIctCommitteePresentation` model. `IctCommitteeSection`
+retains the existing data-fetch, refresh, and backend-403 boundary. Route and
+session authorization, backend enforcement, row visibility, response schemas,
+capability fields, and frontend gate semantics are unchanged.
 
 On 2026-08-18, issue #125 serialized the three CRO-managed risk-threshold rows
 with one deterministic PostgreSQL lock order before tuple validation and atomic

@@ -107,7 +107,9 @@ function snapshot(): IctCommittee {
 
 function translate(key: string, values?: Record<string, unknown>): string {
     const known: Record<string, string> = {
+        'common:fallbacks.unknown': 'Unknown',
         'common:fallbacks.unknown_risk': 'Unknown risk',
+        'common:fallbacks.unknown_threat': 'Unknown threat',
         'common:fallbacks.unknown_vendor': 'Unknown vendor',
     };
     return known[key] ?? `${key}${values ? `:${JSON.stringify(values)}` : ''}`;
@@ -127,6 +129,10 @@ describe('buildIctCommitteePresentation', () => {
     it('owns deterministic ordering, drill-downs, tones, and inert KPI behavior', () => {
         const presentation = buildIctCommitteePresentation(snapshot(), { language: 'en', t: translate });
 
+        expect(presentation.dashboard.navigation).toMatchObject({
+            croHref: '#cro',
+            dqHref: '/ict-register/data-quality',
+        });
         expect(presentation.dashboard.stateTiles.map((tile) => tile.key)).toEqual([
             'process_count',
             'asset_count',
@@ -232,6 +238,29 @@ describe('buildIctCommitteePresentation', () => {
         expect(presentation.executiveSummary.narratives[0].text).toContain(
             'narratives.a34:{"cif":1,"total":2,"bcm":1}',
         );
+        expect(presentation.executiveSummary.narratives[0].className).toBe('text-slate-300 text-sm');
+        expect(presentation.executiveSummary.narratives[4]).toMatchObject({
+            key: 'a38',
+            className: 'text-slate-500 text-sm italic',
+        });
+    });
+
+    it('normalizes unresolved top-risk subject and threat labels for the active locale', () => {
+        const unresolved = snapshot();
+        unresolved.cro.top_risks = [
+            { ...unresolved.cro.top_risks[0], subject_label: '?', threat_label: null },
+            { ...unresolved.cro.top_risks[0], rank: 2, subject_label: '   ', threat_label: '' },
+        ];
+
+        const presentation = buildIctCommitteePresentation(unresolved, { language: 'en', t: translate });
+
+        expect(presentation.executiveSummary.topRisks.map(({ subjectLabel, threatLabel }) => ({
+            subjectLabel,
+            threatLabel,
+        }))).toEqual([
+            { subjectLabel: 'Unknown', threatLabel: 'Unknown threat' },
+            { subjectLabel: 'Unknown', threatLabel: 'Unknown threat' },
+        ]);
     });
 
     it('applies the active locale and human-readable unknown labels to RoI presentation', () => {

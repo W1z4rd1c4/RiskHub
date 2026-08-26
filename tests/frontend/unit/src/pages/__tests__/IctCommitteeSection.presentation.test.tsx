@@ -314,6 +314,8 @@ describe('IctCommitteeSection', () => {
             'CIF functions: 79 of 148 processes; with BCM evidence: 76',
         );
         expect(screen.getByTestId('committee-narrative-a38')).toHaveTextContent('P_Tolerance = 39');
+        expect(screen.getByTestId('committee-narrative-a34')).toHaveClass('text-slate-300', 'text-sm');
+        expect(screen.getByTestId('committee-narrative-a38')).toHaveClass('text-slate-500', 'text-sm', 'italic');
 
         // The two aggregate charts are staged.
         expect(screen.getByTestId('committee-chart-assets')).toBeInTheDocument();
@@ -333,12 +335,31 @@ describe('IctCommitteeSection', () => {
 
         // The workbook's nav-link chrome maps to in-app navigation.
         expect(screen.getByTestId('committee-nav-dq')).toHaveAttribute('href', '/ict-register/data-quality');
+        expect(screen.getByTestId('committee-nav-cro')).toHaveAttribute('href', '#cro');
 
         const dashboard = screen.getByTestId('committee-dashboard');
         const executiveSummary = screen.getByTestId('committee-cro');
         const roiReadiness = screen.getByTestId('committee-roi');
         expect(dashboard.compareDocumentPosition(executiveSummary) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
         expect(executiveSummary.compareDocumentPosition(roiReadiness) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    });
+
+    it('renders localized unknown labels for unresolved top-risk subjects and threats', async () => {
+        const payload = samplePayload();
+        payload.cro.top_risks = [
+            { ...payload.cro.top_risks[0], subject_label: '?', threat_label: null },
+            { ...payload.cro.top_risks[1], subject_label: '   ', threat_label: '' },
+        ];
+        getCommittee.mockResolvedValue(payload);
+        renderSection();
+
+        const unresolvedLookupRow = await screen.findByTestId('committee-top-risk-1');
+        const blankLookupRow = screen.getByTestId('committee-top-risk-2');
+        for (const row of [unresolvedLookupRow, blankLookupRow]) {
+            expect(row).toHaveTextContent('Unknown');
+            expect(row).toHaveTextContent('Unknown threat');
+            expect(row).not.toHaveTextContent('?');
+        }
     });
 
     it('mutes the material KPI as not yet measurable — never a silent 0', async () => {

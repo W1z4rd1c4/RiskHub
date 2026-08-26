@@ -54,10 +54,6 @@ function DrilldownBarShape({
     );
 }
 
-function narrativeClass(key: string): string {
-    return key === 'a38' ? 'text-slate-500 text-sm italic' : 'text-slate-300 text-sm';
-}
-
 function HeatmapLegend({
     label,
     stops,
@@ -351,7 +347,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                     <p
                         key={narrative.key}
                         data-testid={`committee-narrative-${narrative.key}`}
-                        className={narrativeClass(narrative.key)}
+                        className={narrative.className}
                     >
                         {narrative.text}
                     </p>

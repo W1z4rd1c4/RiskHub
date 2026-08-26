@@ -64,8 +64,8 @@ interface TopRiskPresentation {
     netScore: number | null;
     rank: number;
     statusLabel: string | null;
-    subjectLabel: string | null;
-    threatLabel: string | null;
+    subjectLabel: string;
+    threatLabel: string;
     tolerance: string | null;
     toleranceStyle: CellStyle | null;
 }
@@ -122,7 +122,7 @@ export interface IctCommitteePresentation {
             value: string;
         };
         metricsHeading: string;
-        navigation: { croLabel: string; dqHref: string; dqLabel: string };
+        navigation: { croHref: string; croLabel: string; dqHref: string; dqLabel: string };
         stateHeading: string;
         stateTiles: StateTilePresentation[];
         title: string;
@@ -153,7 +153,11 @@ export interface IctCommitteePresentation {
             }>;
             title: string;
         };
-        narratives: Array<{ key: 'a34' | 'a35' | 'a36' | 'a37' | 'a38'; text: string }>;
+        narratives: Array<{
+            className: string;
+            key: 'a34' | 'a35' | 'a36' | 'a37' | 'a38';
+            text: string;
+        }>;
         narrativesTitle: string;
         riskBandChart: Array<{
             band: string;
@@ -299,6 +303,7 @@ const SCALE_LOW: [number, number, number] = [0xff, 0xff, 0xff];
 const SCALE_MID: [number, number, number] = [0xff, 0xeb, 0x84];
 const SCALE_HIGH: [number, number, number] = [0xf8, 0x69, 0x6b];
 const SCALE_MID_ANCHOR = 2;
+const CRO_IN_PAGE_HREF = '#cro';
 const DQ_PAGE = '/ict-register/data-quality';
 const DQ_FINDINGS_PATH = `${DQ_PAGE}?status=findings`;
 
@@ -403,6 +408,11 @@ function localizeUnknownLabel(label: string, translate: Translate): string {
     return label.replace(/\{\{(\w+)\}\}/g, (_full, key: string) => translate(`common:fallbacks.${key}`));
 }
 
+function normalizeLookupLabel(label: string | null, fallback: string): string {
+    const normalized = label?.trim();
+    return normalized && normalized !== '?' ? normalized : fallback;
+}
+
 function readinessBarClass(value: number | null): string {
     if (value === null) return 'bg-slate-500';
     if (value >= 80) return 'bg-success';
@@ -431,6 +441,7 @@ function buildNarratives(
         a38: { tolerance: values.tolerance },
     };
     return (Object.keys(params) as Array<keyof typeof params>).map((key) => ({
+        className: key === 'a38' ? 'text-slate-500 text-sm italic' : 'text-slate-300 text-sm',
         key,
         text: translate(`narratives.${key}`, params[key]),
     }));
@@ -544,7 +555,12 @@ export function buildIctCommitteePresentation(
                 value: translate('dashboard.metrics_columns.value'),
             },
             metricsHeading: translate('dashboard.metrics_heading'),
-            navigation: { croLabel: translate('nav.cro'), dqHref: DQ_PAGE, dqLabel: translate('nav.dq') },
+            navigation: {
+                croHref: CRO_IN_PAGE_HREF,
+                croLabel: translate('nav.cro'),
+                dqHref: DQ_PAGE,
+                dqLabel: translate('nav.dq'),
+            },
             stateHeading: translate('dashboard.state_heading'),
             stateTiles,
             title: translate('dashboard.title'),
@@ -627,8 +643,8 @@ export function buildIctCommitteePresentation(
                 netScore: risk.net_score,
                 rank: risk.rank,
                 statusLabel: risk.status_label,
-                subjectLabel: risk.subject_label,
-                threatLabel: risk.threat_label,
+                subjectLabel: normalizeLookupLabel(risk.subject_label, translate('common:fallbacks.unknown')),
+                threatLabel: normalizeLookupLabel(risk.threat_label, translate('common:fallbacks.unknown_threat')),
                 tolerance: risk.vs_tolerance,
                 toleranceStyle: styleFor(risk.vs_tolerance, TOLERANCE_STYLES),
             })),

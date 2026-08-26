@@ -1,8 +1,9 @@
 {
  "version": "1.0",
- "last_reviewed": "2026-08-23",
- "last_architecture_refactor_reviewed": "2026-08-23",
+ "last_reviewed": "2026-08-26",
+ "last_architecture_refactor_reviewed": "2026-08-26",
  "architecture_refactor_notes": [
+  "2026-08-26: Issue #145 moves ICT Committee display ordering, drill-down destinations, semantic tones, matrix cells, narratives, and RoI presentation behind the pure buildIctCommitteePresentation model. IctCommitteeSection retains the existing data-fetch, refresh, and backend-403 boundary. Route and session authorization, backend enforcement, row visibility, response schemas, capability fields, and frontend gate semantics are unchanged.",
   "2026-08-23: Issue #110 moves access-roster and access-update policy failures in backend/app/services/_access_workflow/policy.py from FastAPI HTTPException to the existing ADR-003 domain taxonomy. ValidationError, AuthorizationError, and NotFoundError retain the existing 400, 403, and 404 projections through the application domain-error handler. Direct policy tests cover the migrated failures, and the access-workflow architecture test keeps that context transport-neutral. Detail strings, actor authority, row visibility, capability fields, frontend gates, and transaction behavior are unchanged.",
   "2026-08-18: Issue #125 serializes the three CRO-managed risk-threshold rows with one deterministic PostgreSQL lock order before tuple validation and atomic value-plus-audit commit. Missing peers continue to use canonical defaults without implicit creation, and non-threshold configuration retains its single-row path. CRO-only mutation authority, route guards, row visibility, response schemas, capability fields, and frontend gates are unchanged.",
   "2026-08-17: Issue #124 aligns generic Issue mutation enforcement with existing closed-Issue capabilities. Generic PATCH, link, and unlink operations reject closed Issues through the canonical terminal-state guard before field checks, target resolution, or link lookup; deliberate workflow behavior remains unchanged. Route guards, row visibility, response schemas, transaction boundaries, and capability field shapes are unchanged.",

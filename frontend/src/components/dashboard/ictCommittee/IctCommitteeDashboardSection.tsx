@@ -18,7 +18,7 @@ export function IctCommitteeDashboardSection({ presentation }: { presentation: D
                         {presentation.navigation.dqLabel}
                     </Link>
                     <a
-                        href="#cro"
+                        href={presentation.navigation.croHref}
                         data-testid="committee-nav-cro"
                         className="text-slate-400 hover:text-accent transition-colors"
                     >
