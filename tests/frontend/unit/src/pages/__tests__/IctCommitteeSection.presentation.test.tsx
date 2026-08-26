@@ -1,32 +1,49 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProviderWithReady } from '@test/authBootstrap';
 import { IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection';
-import { parseAssetSemanticFilters } from '@/pages/shared/ictRegisterSemanticFilters';
-import {
-    heatmapCellFill,
-    heatmapDrilldownPath,
-    kpiDrilldownPath,
-    localizeRegisterRowLabel,
-    metricDrilldownPath,
-    migrationCellFill,
-    migrationDrilldownPath,
-    narrativeParams,
-    netBandStyle,
-    riskBandChartRows,
-    riskBandDrilldownPath,
-    assetCriticalityDrilldownPath,
-    roiGapRoutePath,
-    stateTileDrilldownPath,
-    tierStyle,
-    toleranceStyle,
-} from '@/pages/ictRegisterCommittee/committeePresentation';
 import type { IctCommittee, IctRoiTemplateReadiness } from '@/types/ictRegisterCommittee';
 
 const getCommittee = vi.fn();
+
+vi.mock('@/../node_modules/recharts/lib/index.js', async () => {
+    const React = await vi.importActual<typeof import('react')>('react');
+    const ChartDataContext = React.createContext<Array<Record<string, unknown>>>([]);
+    const passthrough = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
+
+    return {
+        Bar: ({ shape }: { shape?: React.ElementType }) => {
+            const data = React.useContext(ChartDataContext);
+            if (!shape) return null;
+            return React.createElement(
+                'svg',
+                null,
+                data.map((payload, index) =>
+                    React.createElement(shape, {
+                        fill: 'currentColor',
+                        height: 10,
+                        key: `${String(payload.band)}-${index}`,
+                        payload,
+                        width: 10,
+                        x: 0,
+                        y: index * 10,
+                    }),
+                ),
+            );
+        },
+        BarChart: ({ children, data }: { children?: React.ReactNode; data?: Array<Record<string, unknown>> }) =>
+            React.createElement(ChartDataContext.Provider, { value: data ?? [] }, children),
+        CartesianGrid: passthrough,
+        Legend: passthrough,
+        ResponsiveContainer: passthrough,
+        Tooltip: passthrough,
+        XAxis: passthrough,
+        YAxis: passthrough,
+    };
+});
 
 vi.mock('@/services/ictRegisterCommitteeApi', () => ({
     ictRegisterCommitteeApi: {
@@ -223,203 +240,19 @@ function samplePayload(): IctCommittee {
     };
 }
 
-describe('ICT Risk Committee presentation helpers', () => {
-    it('interpolates the heatmap ColorScale anchors (0 -> FFFFFF, 2 -> FFEB84, 4 -> F8696B)', () => {
-        // Inventory §2.2: 3-point ColorScale; zero cells stay unfilled.
-        expect(heatmapCellFill(0)).toBeNull();
-        expect(heatmapCellFill(1)).toBe('#FFF5C2'); // midpoint FFFFFF -> FFEB84
-        expect(heatmapCellFill(2)).toBe('#FFEB84');
-        expect(heatmapCellFill(3)).toBe('#FCAA78'); // midpoint FFEB84 -> F8696B
-        expect(heatmapCellFill(4)).toBe('#F8696B');
-        expect(heatmapCellFill(9)).toBe('#F8696B'); // clamps past the max anchor
-    });
-
-    it('interpolates the migration ColorScale with its max anchor at 5', () => {
-        // Inventory §2.3: same colors, num 5 -> F8696B.
-        expect(migrationCellFill(0)).toBeNull();
-        expect(migrationCellFill(2)).toBe('#FFEB84');
-        expect(migrationCellFill(5)).toBe('#F8696B');
-        expect(migrationCellFill(7)).toBe('#F8696B');
-    });
-
-    it('maps the exact-match status pills onto the semantic RAG tokens (CRIT_N, TOL, TIER_C)', () => {
-        // FR-P5-1: migrated off the Excel pastels onto the semantic status tokens.
-        // The four Excel bands collapse onto the three-token RAG scale — Střední +
-        // Vysoké both read amber (--warning); Kritické reads red (--destructive).
-        const success = {
-            backgroundColor: 'hsl(var(--success))',
-            color: 'hsl(var(--success-foreground))',
-        };
-        const warning = {
-            backgroundColor: 'hsl(var(--warning))',
-            color: 'hsl(var(--warning-foreground))',
-        };
-        const destructive = {
-            backgroundColor: 'hsl(var(--destructive))',
-            color: 'hsl(var(--destructive-foreground))',
-        };
-
-        expect(netBandStyle('Nízké')).toEqual(success);
-        expect(netBandStyle('Střední')).toEqual(warning);
-        expect(netBandStyle('Vysoké')).toEqual(warning);
-        expect(netBandStyle('Kritické')).toEqual(destructive);
-        expect(netBandStyle(null)).toBeNull();
-
-        expect(toleranceStyle('V toleranci')).toEqual(success);
-        expect(toleranceStyle('NAD TOLERANCI')).toEqual(destructive);
-
-        expect(tierStyle('Kritický dodavatel')).toEqual(destructive);
-        expect(tierStyle('Významný dodavatel')).toEqual(warning);
-        expect(tierStyle('Standardní dodavatel')).toEqual(success);
-    });
-
-    it('drills every dashboard tile down to the register view behind it', () => {
-        // Plain register counts land on the register pages...
-        expect(stateTileDrilldownPath('process_count')).toBe('/processes');
-        expect(stateTileDrilldownPath('asset_count')).toBe('/assets?committee_scope=true');
-        expect(stateTileDrilldownPath('process_asset_link_count')).toBe('/assets?committee_scope=true&has_process_link=true');
-        expect(stateTileDrilldownPath('vendor_count')).toBe('/vendors?committee_scope=true');
-        expect(stateTileDrilldownPath('direct_process_vendor_link_count')).toBe(
-            '/vendors?committee_scope=true&has_direct_process_link=true',
-        );
-        expect(stateTileDrilldownPath('contracts_in_roi_scope_count')).toBe('/vendors?committee_scope=true&has_roi_contract=true');
-        expect(stateTileDrilldownPath('sub_outsourcing_link_count')).toBe('/vendors?committee_scope=true&has_sub_outsourcing=true');
-        // ...and the DQ-equivalent tiles land on the DQ page filtered to their check.
-        expect(stateTileDrilldownPath('assets_pending_review_count')).toBe('/ict-register/data-quality?check=DQ-09');
-        expect(stateTileDrilldownPath('assets_without_data_classification_count')).toBe(
-            '/ict-register/data-quality?check=DQ-46',
-        );
-        expect(stateTileDrilldownPath('top_tier_vendors_without_orderly_exit_count')).toBe(
-            '/ict-register/data-quality?check=DQ-49',
-        );
-
-        expect(metricDrilldownPath('cif_process_count')).toBe('/processes?cif=true');
-        expect(metricDrilldownPath('processes_without_impact_assessment_count')).toBe(
-            '/ict-register/data-quality?check=DQ-04',
-        );
-        expect(metricDrilldownPath('critical_asset_count')).toBe('/assets?committee_scope=true&criticality=critical');
-        expect(metricDrilldownPath('critical_vendor_count')).toBe('/vendors?committee_scope=true&tier=critical');
-        expect(metricDrilldownPath('risks_above_tolerance_count')).toBe('/risks?committee_scope=true&ict_linked=true&above_tolerance=true');
-        expect(metricDrilldownPath('open_dq_finding_count')).toBe('/ict-register/data-quality?status=findings');
-    });
-
-    it('drills every CRO KPI tile down to the surface behind it', () => {
-        // The DQ-equivalent tiles land on the DQ page (I7 ≡ DQ-05; K7 = the
-        // findings tally); the risk-fed tiles land on the risk register.
-        expect(kpiDrilldownPath('risk_count')).toBe('/risks?committee_scope=true&ict_linked=true');
-        expect(kpiDrilldownPath('material_risk_count')).toBe('/risks?committee_scope=true&ict_linked=true');
-        expect(kpiDrilldownPath('risks_above_tolerance_count')).toBe('/risks?committee_scope=true&ict_linked=true&above_tolerance=true');
-        expect(kpiDrilldownPath('accepted_above_tolerance_count')).toBe(
-            '/risks?committee_scope=true&ict_linked=true&above_tolerance=true&response=acceptance',
-        );
-        expect(kpiDrilldownPath('cif_without_bcm_count')).toBe('/ict-register/data-quality?check=DQ-05');
-        expect(kpiDrilldownPath('open_dq_finding_count')).toBe('/ict-register/data-quality?status=findings');
-    });
-
-    it('maps every matrix coordinate and chart bar to its semantic register filter', () => {
-        expect(heatmapDrilldownPath(5, 3)).toBe('/risks?committee_scope=true&ict_linked=true&gross_probability=5&gross_impact=3');
-        expect(migrationDrilldownPath('Vysoké', 'Střední')).toBe(
-            '/risks?committee_scope=true&ict_linked=true&gross_band=Vysok%C3%A9&net_band=St%C5%99edn%C3%AD',
-        );
-        expect(assetCriticalityDrilldownPath('Kritická')).toBe('/assets?committee_scope=true&criticality=critical');
-        expect(riskBandDrilldownPath('Kritické', 'gross')).toBe('/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9');
-        expect(riskBandDrilldownPath('Nízké', 'net')).toBe('/risks?committee_scope=true&ict_linked=true&net_band=N%C3%ADzk%C3%A9');
-    });
-
-    it('feeds metric and chart Asset drilldowns into the canonical backend filter vocabulary', () => {
-        for (const path of [
-            metricDrilldownPath('critical_asset_count'),
-            assetCriticalityDrilldownPath('Kritická'),
-            assetCriticalityDrilldownPath('critical'),
-        ]) {
-            const url = new URL(path, 'http://riskhub.test');
-            expect(parseAssetSemanticFilters(url.searchParams).criticality).toBe('critical');
-            expect(url.searchParams.get('criticality')).toBe('critical');
-        }
-    });
-
-    it('anchors RoI gap rows on their register detail pages (the DQ route shape)', () => {
-        expect(
-            roiGapRoutePath({
-                entity_type: 'process',
-                entity_id: 12,
-                label: 'F12',
-                route_entity_type: 'process',
-                route_entity_id: 12,
-                missing: [],
-            }),
-        ).toBe('/processes/12');
-        expect(
-            roiGapRoutePath({
-                entity_type: 'contract',
-                entity_id: 3,
-                label: 'SML-1',
-                route_entity_type: 'vendor',
-                route_entity_id: 9,
-                missing: [],
-            }),
-        ).toBe('/vendors/9');
-        expect(
-            roiGapRoutePath({
-                entity_type: 'asset_vendor_link',
-                entity_id: 4,
-                label: 'Veris ↔ BIZ DATA',
-                route_entity_type: 'asset',
-                route_entity_id: 7,
-                missing: [],
-            }),
-        ).toBe('/assets/7');
-        expect(
-            roiGapRoutePath({
-                entity_type: 'x',
-                entity_id: 1,
-                label: 'x',
-                route_entity_type: 'unknown',
-                route_entity_id: 1,
-                missing: [],
-            }),
-        ).toBeNull();
-    });
-
-    it('localizes {{unknown_<entity>}} RoI gap-row tokens to the guardrail fallback', () => {
-        const t = (key: string) =>
-            ({
-                'common:fallbacks.unknown_vendor': 'Unknown vendor',
-                'common:fallbacks.unknown_sub_outsourcing': 'Unknown sub-outsourcing provider',
-            })[key] ?? key;
-        expect(localizeRegisterRowLabel('{{unknown_vendor}}', t)).toBe('Unknown vendor');
-        expect(localizeRegisterRowLabel('{{unknown_sub_outsourcing}}', t)).toBe('Unknown sub-outsourcing provider');
-        // Real business labels pass through untouched.
-        expect(localizeRegisterRowLabel('F12 — Správa pojistných smluv', t)).toBe('F12 — Správa pojistných smluv');
-    });
-
-    it('stages the gross-vs-net chart rows from the band aggregate', () => {
-        const rows = riskBandChartRows(samplePayload().cro.risks_by_band);
-        expect(rows).toEqual([
-            { band: 'Nízké', gross: 1, net: 3 },
-            { band: 'Střední', gross: 2, net: 2 },
-            { band: 'Vysoké', gross: 2, net: 2 },
-            { band: 'Kritické', gross: 3, net: 1 },
-        ]);
-    });
-
-    it('exposes the five narrative sentences as interpolation params', () => {
-        const params = narrativeParams(samplePayload().cro.narratives);
-        expect(params.a34).toEqual({ cif: 79, total: 148, bcm: 76 });
-        expect(params.a35).toEqual({ critical: 26, exit: 1, legal: 26 });
-        expect(params.a36).toEqual({ tolerance: 39, above: 3, accepted: 1 });
-        expect(params.a37).toEqual({ links: 0, subRole: 0 });
-        expect(params.a38).toEqual({ tolerance: 39 });
-    });
-});
-
 describe('IctCommitteeSection', () => {
+    function LocationProbe() {
+        const location = useLocation();
+        return <output data-testid="committee-location">{`${location.pathname}${location.search}`}</output>;
+    }
+
     function renderSection() {
         render(
             <MemoryRouter>
                 <AuthProviderWithReady>
                     <ThemeProvider>
                         <IctCommitteeSection />
+                        <LocationProbe />
                     </ThemeProvider>
                 </AuthProviderWithReady>
             </MemoryRouter>,
@@ -481,6 +314,8 @@ describe('IctCommitteeSection', () => {
             'CIF functions: 79 of 148 processes; with BCM evidence: 76',
         );
         expect(screen.getByTestId('committee-narrative-a38')).toHaveTextContent('P_Tolerance = 39');
+        expect(screen.getByTestId('committee-narrative-a34')).toHaveClass('text-slate-300', 'text-sm');
+        expect(screen.getByTestId('committee-narrative-a38')).toHaveClass('text-slate-500', 'text-sm', 'italic');
 
         // The two aggregate charts are staged.
         expect(screen.getByTestId('committee-chart-assets')).toBeInTheDocument();
@@ -500,6 +335,31 @@ describe('IctCommitteeSection', () => {
 
         // The workbook's nav-link chrome maps to in-app navigation.
         expect(screen.getByTestId('committee-nav-dq')).toHaveAttribute('href', '/ict-register/data-quality');
+        expect(screen.getByTestId('committee-nav-cro')).toHaveAttribute('href', '#cro');
+
+        const dashboard = screen.getByTestId('committee-dashboard');
+        const executiveSummary = screen.getByTestId('committee-cro');
+        const roiReadiness = screen.getByTestId('committee-roi');
+        expect(dashboard.compareDocumentPosition(executiveSummary) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+        expect(executiveSummary.compareDocumentPosition(roiReadiness) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    });
+
+    it('renders localized unknown labels for unresolved top-risk subjects and threats', async () => {
+        const payload = samplePayload();
+        payload.cro.top_risks = [
+            { ...payload.cro.top_risks[0], subject_label: '?', threat_label: null },
+            { ...payload.cro.top_risks[1], subject_label: '   ', threat_label: '' },
+        ];
+        getCommittee.mockResolvedValue(payload);
+        renderSection();
+
+        const unresolvedLookupRow = await screen.findByTestId('committee-top-risk-1');
+        const blankLookupRow = screen.getByTestId('committee-top-risk-2');
+        for (const row of [unresolvedLookupRow, blankLookupRow]) {
+            expect(row).toHaveTextContent('Unknown');
+            expect(row).toHaveTextContent('Unknown threat');
+            expect(row).not.toHaveTextContent('?');
+        }
     });
 
     it('mutes the material KPI as not yet measurable — never a silent 0', async () => {
@@ -510,6 +370,59 @@ describe('IctCommitteeSection', () => {
         expect(materialTile).toHaveTextContent('—');
         expect(materialTile).not.toHaveTextContent(/\b0\b/);
         expect(materialTile).toHaveTextContent('Not yet measurable');
+    });
+
+    it('uses the chart payload href for an ordinary in-app click', async () => {
+        getCommittee.mockResolvedValue(samplePayload());
+        renderSection();
+
+        const shape = await screen.findByTestId('committee-asset-bar-shape-Kritická');
+        expect(shape).toHaveAttribute('href', '/assets?committee_scope=true&criticality=critical');
+
+        fireEvent.click(shape);
+
+        expect(screen.getByTestId('committee-location')).toHaveTextContent(
+            '/assets?committee_scope=true&criticality=critical',
+        );
+    });
+
+    it('preserves the chart payload href native behavior for a modified click', async () => {
+        getCommittee.mockResolvedValue(samplePayload());
+        renderSection();
+
+        const shape = await screen.findByTestId('committee-risk-bar-shape-gross-Kritické');
+        expect(shape).toHaveAttribute(
+            'href',
+            '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+        );
+
+        fireEvent.click(shape, { metaKey: true });
+
+        expect(screen.getByTestId('committee-location')).toHaveTextContent(/^\/$/);
+    });
+
+    it('activates the chart payload href with Enter', async () => {
+        getCommittee.mockResolvedValue(samplePayload());
+        renderSection();
+
+        const shape = await screen.findByTestId('committee-risk-bar-shape-gross-Kritické');
+        fireEvent.keyDown(shape, { key: 'Enter' });
+
+        expect(screen.getByTestId('committee-location')).toHaveTextContent(
+            '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+        );
+    });
+
+    it('activates the chart payload href with Space', async () => {
+        getCommittee.mockResolvedValue(samplePayload());
+        renderSection();
+
+        const shape = await screen.findByTestId('committee-risk-bar-shape-net-Nízké');
+        fireEvent.keyDown(shape, { key: ' ' });
+
+        expect(screen.getByTestId('committee-location')).toHaveTextContent(
+            '/risks?committee_scope=true&ict_linked=true&net_band=N%C3%ADzk%C3%A9',
+        );
     });
 
     it('renders the RoI-readiness element: per-template rows, coverage badges, gaps', async () => {

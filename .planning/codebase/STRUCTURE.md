@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-08-23
+**Analysis Date:** 2026-08-26
 
 This file is a versioned repository-structure snapshot for the commit that
 contains it. It does not assign live work or determine whether an issue, pull
@@ -44,7 +44,7 @@ request, or project item is open. See
 
 ### Primary subdirectories
 - `frontend/src/pages/` - 234 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
-- `frontend/src/components/` - 315 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
+- `frontend/src/components/` - 319 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
 - `frontend/src/services/` - API client, auth transport, session state packages, domain service wrappers, and split runtime schema modules
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -90,4 +90,4 @@ in the applicable GitHub Issue, pull request, or Project item.
 
 ---
 
-*Structure audit refreshed on 2026-08-23*
+*Structure audit refreshed on 2026-08-26*

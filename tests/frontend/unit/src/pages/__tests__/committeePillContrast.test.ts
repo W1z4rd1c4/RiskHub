@@ -4,11 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import {
-    netBandStyle,
-    tierStyle,
-    toleranceStyle,
-} from '@/pages/ictRegisterCommittee/committeePresentation';
+import { buildIctCommitteePresentation } from '@/pages/ictRegisterCommittee/buildIctCommitteePresentation';
+import type { IctCommittee } from '@/types/ictRegisterCommittee';
 
 /**
  * FR-P5-1 (spec N20, ADR-015) — the Committee Excel-pastel status pills are
@@ -116,11 +113,100 @@ const THEMES = [
     { name: 'light (.theme-light)', selector: '\\.theme-light' },
 ] as const;
 
+const presentation = buildIctCommitteePresentation(
+    {
+        dashboard: {
+            register_state: {
+                process_count: 0,
+                asset_count: 0,
+                process_asset_link_count: 0,
+                vendor_count: 0,
+                assets_pending_review_count: 0,
+                direct_process_vendor_link_count: 0,
+                contracts_in_roi_scope_count: 0,
+                sub_outsourcing_link_count: 0,
+                assets_without_data_classification_count: 0,
+                top_tier_vendors_without_orderly_exit_count: 0,
+            },
+            key_metrics: {
+                cif_process_count: 0,
+                processes_without_impact_assessment_count: 0,
+                critical_asset_count: 0,
+                critical_vendor_count: 0,
+                risks_above_tolerance_count: 0,
+                open_dq_finding_count: 0,
+            },
+        },
+        cro: {
+            kpi: {
+                risk_count: 0,
+                material_risk_count: 0,
+                risks_above_tolerance_count: 0,
+                accepted_above_tolerance_count: 0,
+                cif_without_bcm_count: 0,
+                open_dq_finding_count: 0,
+            },
+            heatmap: { rows: [] },
+            migration_matrix: { rows: [] },
+            top_risks: ['Nízké', 'Střední', 'Vysoké', 'Kritické'].flatMap((band, bandIndex) =>
+                ['V toleranci', 'NAD TOLERANCI'].map((tolerance, toleranceIndex) => ({
+                    rank: bandIndex * 2 + toleranceIndex + 1,
+                    risk_id: bandIndex * 2 + toleranceIndex + 1,
+                    code: `R-${bandIndex}-${toleranceIndex}`,
+                    subject_label: null,
+                    threat_label: null,
+                    gross_score: null,
+                    net_score: null,
+                    net_band: band,
+                    vs_tolerance: tolerance,
+                    status_label: null,
+                })),
+            ),
+            top_vendors: ['Standardní dodavatel', 'Významný dodavatel', 'Kritický dodavatel'].map((tier, index) => ({
+                rank: index + 1,
+                vendor_id: index + 1,
+                name: `Vendor ${index + 1}`,
+                cif_process_count: 0,
+                tier,
+            })),
+            narratives: {
+                cif_process_count: 0,
+                process_count: 0,
+                cif_with_bcm_count: 0,
+                critical_vendor_count: 0,
+                critical_vendors_with_functional_exit_count: 0,
+                critical_vendors_with_identifier_count: 0,
+                tolerance: 0,
+                risks_above_tolerance_count: 0,
+                accepted_above_tolerance_count: 0,
+                sub_outsourcing_link_count: 0,
+                vendors_in_sub_role_count: 0,
+            },
+            assets_by_criticality: [],
+            risks_by_band: [],
+        },
+        roi_readiness: { templates: [], overall_readiness_pct: null, total_gap_row_count: 0 },
+    } satisfies IctCommittee,
+    { language: 'en', t: (key) => key },
+);
+
+function bandStyle(band: string) {
+    return presentation.executiveSummary.topRisks.find((risk) => risk.netBand === band)!.netBandStyle!;
+}
+
+function toleranceStyle(tolerance: string) {
+    return presentation.executiveSummary.topRisks.find((risk) => risk.tolerance === tolerance)!.toleranceStyle!;
+}
+
+function tierStyle(tier: string) {
+    return presentation.executiveSummary.topVendors.find((vendor) => vendor.tier === tier)!.tierStyle!;
+}
+
 // Distinct pill styles the three helpers resolve to.
 const PILLS = [
-    { name: 'success (green)', style: netBandStyle('Nízké')! },
-    { name: 'warning (amber)', style: netBandStyle('Střední')! },
-    { name: 'destructive (red)', style: netBandStyle('Kritické')! },
+    { name: 'success (green)', style: bandStyle('Nízké') },
+    { name: 'warning (amber)', style: bandStyle('Střední') },
+    { name: 'destructive (red)', style: bandStyle('Kritické') },
 ] as const;
 
 describe('committee status pills — semantic-token RAG mapping (FR-P5-1)', () => {
@@ -129,18 +215,18 @@ describe('committee status pills — semantic-token RAG mapping (FR-P5-1)', () =
     const destructive = 'destructive';
 
     it('collapses the four Excel bands onto the three-token RAG scale', () => {
-        expect(tokenOf(netBandStyle('Nízké')!.backgroundColor)).toBe(success);
-        expect(tokenOf(netBandStyle('Střední')!.backgroundColor)).toBe(warning);
-        expect(tokenOf(netBandStyle('Vysoké')!.backgroundColor)).toBe(warning);
-        expect(tokenOf(netBandStyle('Kritické')!.backgroundColor)).toBe(destructive);
+        expect(tokenOf(bandStyle('Nízké').backgroundColor)).toBe(success);
+        expect(tokenOf(bandStyle('Střední').backgroundColor)).toBe(warning);
+        expect(tokenOf(bandStyle('Vysoké').backgroundColor)).toBe(warning);
+        expect(tokenOf(bandStyle('Kritické').backgroundColor)).toBe(destructive);
     });
 
     it('maps tolerance + vendor-tier pills onto the same tokens', () => {
-        expect(tokenOf(toleranceStyle('V toleranci')!.backgroundColor)).toBe(success);
-        expect(tokenOf(toleranceStyle('NAD TOLERANCI')!.backgroundColor)).toBe(destructive);
-        expect(tokenOf(tierStyle('Standardní dodavatel')!.backgroundColor)).toBe(success);
-        expect(tokenOf(tierStyle('Významný dodavatel')!.backgroundColor)).toBe(warning);
-        expect(tokenOf(tierStyle('Kritický dodavatel')!.backgroundColor)).toBe(destructive);
+        expect(tokenOf(toleranceStyle('V toleranci').backgroundColor)).toBe(success);
+        expect(tokenOf(toleranceStyle('NAD TOLERANCI').backgroundColor)).toBe(destructive);
+        expect(tokenOf(tierStyle('Standardní dodavatel').backgroundColor)).toBe(success);
+        expect(tokenOf(tierStyle('Významný dodavatel').backgroundColor)).toBe(warning);
+        expect(tokenOf(tierStyle('Kritický dodavatel').backgroundColor)).toBe(destructive);
     });
 
     it('pairs every pill background with the matching token foreground', () => {
