@@ -46,6 +46,7 @@ const DQ_PAGE = '/ict-register/data-quality';
 const COMMITTEE_PAGE = '/?view=ict-committee';
 const DQ_ENDPOINT = '**/api/v1/ict-register/dq**';
 const COMMITTEE_ENDPOINT = '**/api/v1/ict-register/committee**';
+const TABLE_LOAD_ERROR = "We couldn't load this table. Please try again.";
 
 // Mirror the smoke's deterministic theming: seed the theme into localStorage
 // before first paint AND stub the preferences GET, so every navigation renders
@@ -237,6 +238,7 @@ async function driveLoadingAndError(
     route: string,
     loadingTestId: string,
     errorTestId: string,
+    falseContentSelector: string,
     label: string,
 ): Promise<void> {
     // LOADING — hold the backing request open, scan the aria-busy spinner state.
@@ -255,7 +257,10 @@ async function driveLoadingAndError(
     await page.route(endpoint, holdHandler);
     // Do NOT waitForDataLoad here: [data-loading="true"] is intentionally held.
     await page.goto(route, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId(loadingTestId)).toBeVisible({ timeout: 20000 });
+    const loadingState = page.getByTestId(loadingTestId);
+    await expect(loadingState).toBeVisible({ timeout: 20000 });
+    await expect(loadingState).toHaveAttribute('aria-busy', 'true');
+    await expect(page.locator(falseContentSelector)).toHaveCount(0);
     await axeScanZero(page, [`[data-testid="${loadingTestId}"]`], `${label} loading state (${theme})`);
     release();
 
@@ -274,7 +279,11 @@ async function driveLoadingAndError(
     };
     await page.route(endpoint, errorHandler);
     await page.goto(route, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId(errorTestId)).toBeVisible({ timeout: 20000 });
+    const errorState = page.getByTestId(errorTestId);
+    await expect(errorState).toBeVisible({ timeout: 20000 });
+    await expect(errorState).toContainText(TABLE_LOAD_ERROR);
+    await expect(errorState.getByRole('button', { name: 'Retry' })).toBeVisible();
+    await expect(page.locator(falseContentSelector)).toHaveCount(0);
     await axeScanZero(page, [`[data-testid="${errorTestId}"]`], `${label} error state (${theme})`);
 
     await page.unroute(endpoint);
@@ -302,10 +311,13 @@ test.describe('DORA UX stateful accessibility (WCAG 2.2 AA tags, enforce-only)',
             await driveDisclosureChain(page, theme, vendor!.id); // State 4
             // State 5 (last — it adds/removes route handlers).
             await driveLoadingAndError(
-                page, theme, DQ_ENDPOINT, DQ_PAGE, 'dq-loading', 'dq-error', 'Data-Quality',
+                page, theme, DQ_ENDPOINT, DQ_PAGE, 'dq-loading', 'dq-error',
+                '[data-testid^="dq-summary-"]', 'Data-Quality',
             );
             await driveLoadingAndError(
-                page, theme, COMMITTEE_ENDPOINT, COMMITTEE_PAGE, 'committee-loading', 'committee-error', 'ICT Committee',
+                page, theme, COMMITTEE_ENDPOINT, COMMITTEE_PAGE, 'committee-loading', 'committee-error',
+                '[data-testid^="committee-state-"], [data-testid^="committee-metric-"], [data-testid^="committee-kpi-"]',
+                'ICT Committee',
             );
         });
     }
