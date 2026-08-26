@@ -53,7 +53,8 @@
     "empty": "No checks match the filter",
     "all_clear": {
         "title": "All clear — no findings",
-        "body": "All {{count}} checks pass. No violating rows across the register."
+        "body": "All {{count}} checks pass. No violating rows across the register.",
+        "body_with_unmeasurable": "Passing checks: {{passed}}. Not yet measurable: {{notMeasurable}}. No findings are currently reported."
     },
     "rows_scoped": "Showing {{shown}} of {{count}} rows (limited to your access).",
     "rows_loading": "Loading violation details…",

@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import i18n from '@/i18n';
 import {
     DQ_STATUS_FINDING,
     DQ_STATUS_OK,
@@ -188,6 +189,10 @@ describe('ICT Register DQ presentation helpers', () => {
 describe('IctRegisterDqPage', () => {
     beforeEach(() => {
         getViolations.mockReset();
+    });
+
+    afterEach(async () => {
+        await i18n.changeLanguage('en');
     });
 
     it('loads bounded violation details only after expansion and paginates them', async () => {
@@ -834,7 +839,57 @@ describe('IctRegisterDqPage', () => {
         // The count feeds the copy; findings summary reads a genuine 0.
         expect(allClear).toHaveTextContent('2');
         expect(screen.getByTestId('dq-summary-findings')).toHaveTextContent('0');
+
+        // ADR-015: positive status surfaces use the semantic success tokens in
+        // every theme, including the standalone-text contrast variant. The
+        // card must not opt into the glass theme overrides.
+        expect(allClear).toHaveClass(
+            'rounded-2xl',
+            'p-6',
+            'shadow-glass',
+            'backdrop-blur-xl',
+            'border-success/20',
+            'bg-success/5'
+        );
+        expect(allClear).not.toHaveClass('glass-card');
+        expect(allClear).not.toHaveClass('preserve-color');
+        expect(allClear.querySelector('svg')).toHaveClass('text-success-text');
+        expect(screen.getByText('All clear — no findings')).toHaveClass('text-success-text');
     });
+
+    it.each([
+        ['en', 'Passing checks: 1. Not yet measurable: 1.', 'All 2 checks pass.'],
+        ['cs', 'Kontroly v pořádku: 1. Zatím neměřitelné: 1.', 'Všechny 2 kontroly prošly.'],
+    ] as const)(
+        'keeps the all-clear truthful in %s when one check passes and one is not measurable',
+        async (language, expected, falseClaim) => {
+            await i18n.changeLanguage(language);
+            getDataQuality.mockResolvedValue({
+                checks: [
+                    sampleCheck(),
+                    sampleCheck({
+                        check_id: 'DQ-23',
+                        production_inert: true,
+                    }),
+                ],
+                finding_count: 0,
+            });
+
+            const { IctRegisterDqPage } = await import('@/pages/IctRegisterDqPage');
+            render(
+                <MemoryRouter>
+                    <IctRegisterDqPage />
+                </MemoryRouter>
+            );
+
+            const allClear = await screen.findByTestId('dq-all-clear');
+            expect(allClear).toHaveTextContent(expected);
+            expect(allClear).not.toHaveTextContent(falseClaim);
+            expect(screen.getByTestId('dq-status-DQ-23')).toHaveTextContent(
+                language === 'en' ? 'Not yet measurable' : 'Zatím neměřitelné'
+            );
+        }
+    );
 
     it('hides the all-clear as soon as a finding exists', async () => {
         getDataQuality.mockResolvedValue({
@@ -908,10 +963,44 @@ describe('IctRegisterDqPage', () => {
             </MemoryRouter>
         );
 
-        fireEvent.click(await screen.findByTestId('dq-check-DQ-16'));
+        const disclosure = await screen.findByTestId('dq-check-DQ-16');
+        expect(screen.queryByTestId('dq-rows-scoped-DQ-16')).not.toBeInTheDocument();
+
+        fireEvent.click(disclosure);
         const scoped = await screen.findByTestId('dq-rows-scoped-DQ-16');
         expect(scoped).toHaveTextContent('2');
         expect(scoped).toHaveTextContent('5');
+    });
+
+    it('discloses zero visible rows without offering an empty detail request', async () => {
+        getDataQuality.mockResolvedValue({
+            checks: [
+                sampleCheck({
+                    check_id: 'DQ-16',
+                    status: DQ_STATUS_FINDING,
+                    count: 5,
+                    visible_count: 0,
+                    violating_rows: [],
+                }),
+            ],
+            finding_count: 1,
+        });
+
+        const { IctRegisterDqPage } = await import('@/pages/IctRegisterDqPage');
+        render(
+            <MemoryRouter initialEntries={['/?check=DQ-16']}>
+                <IctRegisterDqPage />
+            </MemoryRouter>
+        );
+
+        const disclosure = await screen.findByTestId('dq-check-DQ-16');
+        expect(disclosure).toBeDisabled();
+        expect(disclosure).not.toHaveAttribute('aria-expanded');
+        expect(disclosure).not.toHaveAttribute('aria-controls');
+        expect(screen.queryByTestId('dq-rows-DQ-16')).not.toBeInTheDocument();
+        const scoped = await screen.findByTestId('dq-rows-scoped-DQ-16');
+        expect(scoped).toHaveTextContent('Showing 0 of 5 rows');
+        expect(getViolations).not.toHaveBeenCalled();
     });
 
     it('omits the scoped note when every violating row is shown', async () => {

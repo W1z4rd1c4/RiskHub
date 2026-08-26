@@ -25,6 +25,8 @@
  * render either language under E2E), following the vendor-derived precedent;
  * the workbook-verbatim API values (check ids, "NÁLEZ") stay language-neutral.
  */
+import type { Page } from '@playwright/test';
+
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ICT_VENDOR } from './fixtures/e2e-data';
 import { getVendorByRegistration } from './helpers/api-auth';
@@ -40,10 +42,101 @@ const FINDING_PILL = /^(Finding|NÁLEZ)$/;
 const NOT_MEASURABLE = /Not yet measurable|Zatím neměřitelné/;
 const ACCESS_DENIED = /Access Denied|Přístup zamítnut/;
 
+const THEMES = ['riskhub', 'dark', 'light'] as const;
+type Theme = (typeof THEMES)[number];
+
 // The seeded broken sub-outsourcing row that uniquely drives DQ-38.
 const BROKEN_SUB_LABEL = 'E2E-SUB-BROKEN Cross-Contract Orphan';
 
+async function applyTheme(page: Page, theme: Theme): Promise<void> {
+    await page.evaluate((value) => {
+        localStorage.setItem('riskhub-theme', value);
+        window.dispatchEvent(
+            new StorageEvent('storage', {
+                key: 'riskhub-theme',
+                newValue: value,
+                storageArea: localStorage,
+            }),
+        );
+    }, theme);
+    await page.waitForFunction(
+        (value) => {
+            const classes = document.documentElement.classList;
+            if (value === 'dark') return classes.contains('theme-dark');
+            if (value === 'light') return classes.contains('theme-light');
+            return !classes.contains('theme-dark') && !classes.contains('theme-light');
+        },
+        theme,
+    );
+}
+
 test.describe('ICT Register — Data Quality page (Deterministic)', () => {
+    test('all-clear card keeps its semantic success surface in every theme', async ({
+        riskManagerPage,
+    }) => {
+        await riskManagerPage.route('**/api/v1/ict-register/dq', async (route) => {
+            await route.fulfill({
+                json: {
+                    checks: [
+                        {
+                            check_id: 'DQ-01',
+                            area: 'Dodavatelé',
+                            title_cs: 'Duplicitní ID kód dodavatele',
+                            severity: 'Vysoká',
+                            threshold: 0,
+                            count: 0,
+                            status: 'OK',
+                            violating_rows: [],
+                        },
+                    ],
+                    finding_count: 0,
+                },
+            });
+        });
+
+        await riskManagerPage.goto(DQ_PAGE);
+        const allClear = riskManagerPage.getByTestId('dq-all-clear');
+        await expect(allClear).toBeVisible();
+        await riskManagerPage.addStyleTag({
+            content: '*,*::before,*::after{transition:none!important;animation:none!important}',
+        });
+
+        const semanticProbe = riskManagerPage.locator('[data-testid="dq-success-probe"]');
+        await riskManagerPage.evaluate(() => {
+            const probe = document.createElement('div');
+            probe.dataset.testid = 'dq-success-probe';
+            probe.className = 'border border-success/20 bg-success/5';
+            document.body.appendChild(probe);
+        });
+
+        for (const theme of THEMES) {
+            await applyTheme(riskManagerPage, theme);
+            const [cardStyles, semanticStyles] = await Promise.all([
+                allClear.evaluate((element) => {
+                    const styles = getComputedStyle(element);
+                    return {
+                        background: styles.backgroundColor,
+                        border: styles.borderTopColor,
+                    };
+                }),
+                semanticProbe.evaluate((element) => {
+                    const styles = getComputedStyle(element);
+                    return {
+                        background: styles.backgroundColor,
+                        border: styles.borderTopColor,
+                    };
+                }),
+            ]);
+
+            expect.soft(cardStyles.background, `${theme} all-clear background`).toBe(
+                semanticStyles.background,
+            );
+            expect.soft(cardStyles.border, `${theme} all-clear border`).toBe(
+                semanticStyles.border,
+            );
+        }
+    });
+
     test('paginates routed violation fixtures and restores the URL across loading, retry, and empty states', async ({
         riskManagerPage,
     }) => {
