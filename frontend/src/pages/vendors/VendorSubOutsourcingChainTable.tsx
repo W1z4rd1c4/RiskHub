@@ -43,80 +43,82 @@ export function VendorSubOutsourcingChainTable({ groups, columns }: VendorSubOut
 
     return (
         <div className="glass-card !p-0 overflow-hidden">
-            <table className="w-full">
-                <thead>
-                    <tr className="border-b border-white/10">
-                        {columns.map((col, index) => (
-                            <th
-                                key={String(col.key)}
-                                id={columnHeaderIds[index]}
-                                scope="col"
-                                className={cn(
-                                    'px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-400',
-                                    col.headerClassName,
-                                )}
-                            >
-                                {col.label}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                {groups.map((group) => {
-                    const isExpanded = !collapsed.has(group.contractId);
-                    const panelId = `vendor-sub-outsourcing-group-panel-${group.contractId}`;
-                    const groupHeaderId = `${tableId}-group-${group.contractId}`;
-                    return (
-                        <Fragment key={group.contractId}>
-                            <tbody className="border-b border-white/10">
-                                <tr className="bg-white/[0.03]">
-                                    <th id={groupHeaderId} colSpan={columns.length} className="px-6 py-3 text-left">
-                                        <button
-                                            type="button"
-                                            onClick={() => toggle(group.contractId)}
-                                            aria-expanded={isExpanded}
-                                            aria-controls={panelId}
-                                            data-testid={`vendor-sub-outsourcing-group-${group.contractId}`}
-                                            className="group inline-flex items-center gap-2 rounded text-left transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                        >
-                                            <ChevronRight
-                                                className={cn(
-                                                    'h-4 w-4 shrink-0 text-slate-400 transition-transform',
-                                                    isExpanded && 'rotate-90',
-                                                )}
-                                                aria-hidden="true"
-                                            />
-                                            <span className="text-sm font-bold text-white">{group.label}</span>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                {t('sub_outsourcing.chain_group.count', { count: group.rows.length })}
-                                            </span>
-                                        </button>
-                                    </th>
-                                </tr>
-                            </tbody>
-                            <tbody id={panelId} className="divide-y divide-white/5 border-b border-white/10">
-                                {isExpanded
-                                    ? group.rows.map((row, index) => (
-                                          <tr
-                                              key={row.entry.id}
-                                              className="hover:bg-white/5 transition-colors"
-                                          >
-                                              {columns.map((col, columnIndex) => (
-                                                  <td
-                                                      key={String(col.key)}
-                                                      headers={`${columnHeaderIds[columnIndex]} ${groupHeaderId}`}
-                                                      className={cn('px-6 py-4', col.className)}
-                                                  >
-                                                      {col.render ? col.render(row, index) : null}
-                                                  </td>
-                                              ))}
-                                          </tr>
-                                      ))
-                                    : null}
-                            </tbody>
-                        </Fragment>
-                    );
-                })}
-            </table>
+            <div className="overflow-x-auto">
+                <table className="w-full">
+                    <thead>
+                        <tr className="border-b border-white/10">
+                            {columns.map((col, index) => (
+                                <th
+                                    key={String(col.key)}
+                                    id={columnHeaderIds[index]}
+                                    scope="col"
+                                    className={cn(
+                                        'px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-400',
+                                        col.headerClassName,
+                                    )}
+                                >
+                                    {col.label}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    {groups.map((group) => {
+                        const isExpanded = !collapsed.has(group.contractId);
+                        const panelId = `vendor-sub-outsourcing-group-panel-${group.contractId}`;
+                        const groupHeaderId = `${tableId}-group-${group.contractId}`;
+                        return (
+                            <Fragment key={group.contractId}>
+                                <tbody className="border-b border-white/10">
+                                    <tr className="bg-white/[0.03]">
+                                        <th id={groupHeaderId} colSpan={columns.length} className="px-6 py-3 text-left">
+                                            <button
+                                                type="button"
+                                                onClick={() => toggle(group.contractId)}
+                                                aria-expanded={isExpanded}
+                                                aria-controls={panelId}
+                                                data-testid={`vendor-sub-outsourcing-group-${group.contractId}`}
+                                                className="group inline-flex items-center gap-2 rounded text-left transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                            >
+                                                <ChevronRight
+                                                    className={cn(
+                                                        'h-4 w-4 shrink-0 text-slate-400 transition-transform',
+                                                        isExpanded && 'rotate-90',
+                                                    )}
+                                                    aria-hidden="true"
+                                                />
+                                                <span className="text-sm font-bold text-white">{group.label}</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                    {t('sub_outsourcing.chain_group.count', { count: group.rows.length })}
+                                                </span>
+                                            </button>
+                                        </th>
+                                    </tr>
+                                </tbody>
+                                <tbody id={panelId} className="divide-y divide-white/5 border-b border-white/10">
+                                    {isExpanded
+                                        ? group.rows.map((row, index) => (
+                                              <tr
+                                                  key={row.entry.id}
+                                                  className="hover:bg-white/5 transition-colors"
+                                              >
+                                                  {columns.map((col, columnIndex) => (
+                                                      <td
+                                                          key={String(col.key)}
+                                                          headers={`${columnHeaderIds[columnIndex]} ${groupHeaderId}`}
+                                                          className={cn('px-6 py-4', col.className)}
+                                                      >
+                                                          {col.render ? col.render(row, index) : null}
+                                                      </td>
+                                                  ))}
+                                              </tr>
+                                          ))
+                                        : null}
+                                </tbody>
+                            </Fragment>
+                        );
+                    })}
+                </table>
+            </div>
         </div>
     );
 }
