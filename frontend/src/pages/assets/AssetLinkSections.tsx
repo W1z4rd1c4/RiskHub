@@ -49,6 +49,11 @@ type PendingLinkRemoval =
     | { kind: 'asset'; id: number; name: string }
     | { kind: 'vendor'; id: number; name: string };
 
+type PendingProcessAction =
+    | { kind: 'add' }
+    | { kind: 'update'; processId: number }
+    | { kind: 'remove'; processId: number };
+
 function sectionShell(
     icon: React.ReactNode,
     title: string,
@@ -72,9 +77,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
     const [linkError, setLinkError] = useState<string | null>(null);
     // FR-P4-8: the single removal awaiting confirmation across all three lists.
     const [pendingRemoval, setPendingRemoval] = useState<PendingLinkRemoval | null>(null);
-    const [pendingProcessAction, setPendingProcessAction] = useState<
-        { kind: 'add' } | { kind: 'update'; processId: number } | { kind: 'remove'; processId: number } | null
-    >(null);
+    const [pendingProcessAction, setPendingProcessAction] = useState<PendingProcessAction | null>(null);
     const [pendingAssetAction, setPendingAssetAction] = useState<'asset_add' | 'vendor_add' | null>(null);
 
     // Picker searches (server-driven; the empty search keeps the first page).
@@ -413,10 +416,17 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         setPendingRemoval(null);
     };
 
+    const openProcessAction = (action: PendingProcessAction) => {
+        setLinkError(null);
+        setPendingProcessAction(action);
+    };
+
     return (
         <>
-            {linkError ? (
-                <div className="glass-card border border-rose-400/30 text-rose-300 text-sm font-medium">
+            {/* The governed Process dialog traps focus, so its rejected-mutation
+                error is announced inside the dialog while it remains open. */}
+            {linkError && pendingProcessAction === null ? (
+                <div role="alert" className="glass-card border border-rose-400/30 text-rose-300 text-sm font-medium">
                     {linkError}
                 </div>
             ) : null}
@@ -471,7 +481,10 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                     type="button"
                                                     data-testid={`asset-process-link-set-primary-${link.process_id}`}
                                                     disabled={processActionBlocked || primarySwapBlocked}
-                                                    onClick={() => setPendingProcessAction({ kind: 'update', processId: link.process_id })}
+                                                    onClick={() => openProcessAction({
+                                                        kind: 'update',
+                                                        processId: link.process_id,
+                                                    })}
                                                     title={(processActionBlocked || primarySwapBlocked)
                                                         ? t('processes:pending_change.link_action_blocked')
                                                         : undefined}
@@ -484,9 +497,10 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                 type="button"
                                                 data-testid={`asset-process-link-remove-${link.process_id}`}
                                                 disabled={processActionBlocked}
-                                                onClick={() =>
-                                                    setPendingProcessAction({ kind: 'remove', processId: link.process_id })
-                                                }
+                                                onClick={() => openProcessAction({
+                                                    kind: 'remove',
+                                                    processId: link.process_id,
+                                                })}
                                                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                                 title={processActionBlocked
                                                     ? t('processes:pending_change.link_action_blocked')
@@ -549,7 +563,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                     type="button"
                                     data-testid="asset-process-link-add"
                                     disabled={!processToLink || addProcessBlocked || addProcessLink.isPending}
-                                    onClick={() => setPendingProcessAction({ kind: 'add' })}
+                                    onClick={() => openProcessAction({ kind: 'add' })}
                                     className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
                                 >
                                     <Plus className="h-4 w-4" />
@@ -821,6 +835,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                         ? 'link_update'
                         : 'link_add'}
                 isLoading={addProcessLink.isPending || setPrimaryProcess.isPending || removeProcessLink.isPending}
+                errorText={linkError}
                 onClose={() => setPendingProcessAction(null)}
                 onConfirm={(reason) => {
                     if (pendingProcessAction?.kind === 'add') addProcessLink.mutate(reason);

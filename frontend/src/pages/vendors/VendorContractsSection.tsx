@@ -233,6 +233,7 @@ export function VendorContractsSection({
         onEdit: openEditForm,
         onArchive: (contract) => {
             if (protectedChangeRequiresApproval) {
+                setSectionError(null);
                 setPendingArchive(contract);
                 return;
             }
@@ -310,7 +311,9 @@ export function VendorContractsSection({
                 ) : null}
             </div>
 
-            {sectionError ? (
+            {/* While the archive dialog is open, its focus trap owns the
+                rejected-mutation alert; after close, the page banner owns it. */}
+            {sectionError && pendingArchive === null ? (
                 <div
                     role="alert"
                     className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300"
@@ -614,6 +617,7 @@ export function VendorContractsSection({
                 confirmLabel={t('contracts.actions.archive')}
                 variant="danger"
                 isLoading={archiveContract.isPending}
+                errorText={sectionError}
                 showInput
                 inputRequired
                 inputLabel={t('form.request_reason')}

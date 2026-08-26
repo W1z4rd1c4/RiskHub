@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 
 import type { Column } from '@/components/tables/SortableTable';
@@ -25,6 +25,8 @@ interface VendorSubOutsourcingChainTableProps {
  */
 export function VendorSubOutsourcingChainTable({ groups, columns }: VendorSubOutsourcingChainTableProps) {
     const { t } = useTranslation('vendors');
+    const tableId = useId();
+    const columnHeaderIds = columns.map((_, index) => `${tableId}-column-${index}`);
     // Collapsed set: a Contract is expanded unless the user has collapsed it.
     const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(() => new Set());
 
@@ -44,9 +46,10 @@ export function VendorSubOutsourcingChainTable({ groups, columns }: VendorSubOut
             <table className="w-full">
                 <thead>
                     <tr className="border-b border-white/10">
-                        {columns.map((col) => (
+                        {columns.map((col, index) => (
                             <th
                                 key={String(col.key)}
+                                id={columnHeaderIds[index]}
                                 scope="col"
                                 className={cn(
                                     'px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-400',
@@ -61,11 +64,12 @@ export function VendorSubOutsourcingChainTable({ groups, columns }: VendorSubOut
                 {groups.map((group) => {
                     const isExpanded = !collapsed.has(group.contractId);
                     const panelId = `vendor-sub-outsourcing-group-panel-${group.contractId}`;
+                    const groupHeaderId = `${tableId}-group-${group.contractId}`;
                     return (
                         <Fragment key={group.contractId}>
                             <tbody className="border-b border-white/10">
                                 <tr className="bg-white/[0.03]">
-                                    <th scope="colgroup" colSpan={columns.length} className="px-6 py-3 text-left">
+                                    <th id={groupHeaderId} colSpan={columns.length} className="px-6 py-3 text-left">
                                         <button
                                             type="button"
                                             onClick={() => toggle(group.contractId)}
@@ -96,9 +100,10 @@ export function VendorSubOutsourcingChainTable({ groups, columns }: VendorSubOut
                                               key={row.entry.id}
                                               className="hover:bg-white/5 transition-colors"
                                           >
-                                              {columns.map((col) => (
+                                              {columns.map((col, columnIndex) => (
                                                   <td
                                                       key={String(col.key)}
+                                                      headers={`${columnHeaderIds[columnIndex]} ${groupHeaderId}`}
                                                       className={cn('px-6 py-4', col.className)}
                                                   >
                                                       {col.render ? col.render(row, index) : null}
