@@ -13,6 +13,12 @@ vi.mock('framer-motion', () => ({
     },
 }));
 
+const ICON_VARIANTS = [
+    { variant: 'danger', token: 'destructive' },
+    { variant: 'warning', token: 'warning' },
+    { variant: 'info', token: 'info' },
+] as const;
+
 function renderConfirmDialog(overrides: Partial<Parameters<typeof ConfirmDialog>[0]> = {}) {
     const props = {
         isOpen: true,
@@ -130,4 +136,21 @@ describe('ConfirmDialog accessibility', () => {
         expect(confirmButton).toHaveClass('bg-warning', 'hover:bg-warning/90', 'text-warning-foreground');
         expect(confirmButton).not.toHaveClass('text-white');
     });
+
+    // Token contrast across default/dark/light themes is owned by
+    // design-system/statusTokenContrast.test.ts; this suite verifies the component wiring.
+    it.each(ICON_VARIANTS)(
+        'uses only the full semantic icon pair for the $variant variant',
+        ({ variant, token }) => {
+            renderConfirmDialog({ variant });
+
+            const dialog = screen.getByRole('alertdialog', { name: 'Delete control evidence' });
+            const icon = dialog.querySelector<SVGElement>('svg.h-6.w-6');
+            expect(icon).toBeInTheDocument();
+            expect(icon?.parentElement).toHaveClass(`bg-${token}`);
+            expect(icon).toHaveClass(`text-${token}-foreground`);
+            expect(icon?.parentElement).not.toHaveClass(`bg-${token}/20`);
+            expect(icon).not.toHaveClass(`text-${token}`);
+        },
+    );
 });
