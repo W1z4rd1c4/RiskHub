@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProviderWithReady } from '@test/authBootstrap';
 import { IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection';
+import i18n from '@/i18n';
 import type { IctCommittee, IctRoiTemplateReadiness } from '@/types/ictRegisterCommittee';
 
 const getCommittee = vi.fn();
@@ -258,6 +259,22 @@ describe('IctCommitteeSection', () => {
             </MemoryRouter>,
         );
     }
+
+    it.each([
+        ['en', 'ICT Committee'],
+        ['cs', 'Výbor pro řízení rizik ICT'],
+    ])('uses the canonical ICT Committee heading in %s', async (language, canonicalHeading) => {
+        await i18n.changeLanguage(language);
+        try {
+            getCommittee.mockResolvedValue(samplePayload());
+            renderSection();
+
+            expect(await screen.findByRole('heading', { level: 1, name: canonicalHeading })).toBeInTheDocument();
+            expect(screen.queryByText('ICT Risk Committee')).not.toBeInTheDocument();
+        } finally {
+            await i18n.changeLanguage('en');
+        }
+    });
 
     it('renders both sheets: tiles, matrices, tables, narratives, and drill-downs', async () => {
         getCommittee.mockResolvedValue(samplePayload());
