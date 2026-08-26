@@ -82,6 +82,18 @@ function renderChainTable() {
 }
 
 describe('VendorSubOutsourcingChainTable (FR-P4-7)', () => {
+    it('nests the table scroll container inside the clipped glass card', () => {
+        renderChainTable();
+
+        const table = screen.getByRole('table');
+        const scrollContainer = table.parentElement;
+        const card = scrollContainer?.parentElement;
+
+        expect(scrollContainer).toHaveClass('overflow-x-auto');
+        expect(card).toHaveClass('glass-card', '!p-0', 'overflow-hidden');
+        expect(card).not.toHaveClass('overflow-x-auto');
+    });
+
     it('groups chain nodes under a per-contract header, expanded by default, indent + rank preserved', () => {
         renderChainTable();
 

@@ -40,7 +40,7 @@ export function DepartmentTable({ canUseDepartmentFilter, metrics }: DepartmentT
 
     return (
         <WidgetShell title={t('department_table.title')}>
-            <div className="w-full overflow-hidden">
+            <div className="w-full overflow-x-auto">
                 <table className="w-full text-left">
                     <thead>
                         <tr className="border-b border-white/5">

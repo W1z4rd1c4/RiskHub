@@ -82,6 +82,14 @@ describe('DepartmentTable', () => {
         vi.clearAllMocks();
     });
 
+    it('places the table directly inside its horizontal scroll container', () => {
+        renderDepartmentTable();
+
+        const table = screen.getByRole('table');
+        expect(table.parentElement).toHaveClass('w-full', 'overflow-x-auto');
+        expect(table.parentElement).not.toHaveClass('overflow-hidden');
+    });
+
     it('sorts departments by name ascending by default and toggles name sorting', () => {
         renderDepartmentTable();
 
