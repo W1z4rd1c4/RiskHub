@@ -180,4 +180,59 @@ describe('VendorContractsSection form — Field migration (#59)', () => {
             'Review governed Contract archive',
         ));
     });
+
+    it('keeps a rejected archive error inside the dialog and allows a successful retry', async () => {
+        mockGetContracts.mockResolvedValue([
+            {
+                id: 7,
+                vendor_id: 1,
+                contract_reference: 'GOV-CTR-7',
+                is_archived: false,
+                capabilities: {
+                    can_read: true,
+                    can_update: true,
+                    can_archive: true,
+                    can_restore: false,
+                },
+                created_at: '2026-01-01T00:00:00Z',
+                updated_at: '2026-01-01T00:00:00Z',
+            },
+        ]);
+        mockArchiveContract
+            .mockRejectedValueOnce(Object.assign(new Error('reason rejected'), { status: 422 }))
+            .mockResolvedValueOnce(undefined);
+        const user = userEvent.setup();
+        renderSection();
+
+        await user.click(await screen.findByTestId('vendor-contract-archive-7'));
+        let dialog = screen.getByRole('alertdialog');
+        await user.type(
+            within(dialog).getByRole('textbox', {
+                name: new RegExp(i18n.t('vendors:form.request_reason')),
+            }),
+            'First governed reason',
+        );
+        await user.click(within(dialog).getByRole('button', {
+            name: i18n.t('vendors:contracts.actions.archive'),
+        }));
+
+        const dialogAlert = await within(dialog).findByRole('alert');
+        expect(dialogAlert).toHaveTextContent(i18n.t('vendors:contracts.errors.mutation_failed'));
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+
+        dialog = screen.getByRole('alertdialog');
+        await user.type(
+            within(dialog).getByRole('textbox', {
+                name: new RegExp(i18n.t('vendors:form.request_reason')),
+            }),
+            'Corrected governed reason',
+        );
+        await user.click(within(dialog).getByRole('button', {
+            name: i18n.t('vendors:contracts.actions.archive'),
+        }));
+
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+        expect(mockArchiveContract).toHaveBeenNthCalledWith(2, 1, 7, 'Corrected governed reason');
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
 });

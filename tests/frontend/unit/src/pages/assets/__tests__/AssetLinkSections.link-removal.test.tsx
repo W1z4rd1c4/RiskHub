@@ -116,6 +116,39 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
         ));
     });
 
+    it('keeps a rejected Process-link mutation error inside the open dialog and allows recovery', async () => {
+        mockRemoveProcessLink
+            .mockRejectedValueOnce(Object.assign(new Error('reason rejected'), { status: 422 }))
+            .mockResolvedValueOnce({});
+        renderSection();
+
+        fireEvent.click(await screen.findByTestId('asset-process-link-remove-100'));
+        let dialog = screen.getByRole('alertdialog');
+        fireEvent.change(within(dialog).getByRole('textbox', { name: /request reason/i }), {
+            target: { value: 'First governed reason' },
+        });
+        fireEvent.click(within(dialog).getByRole('button', {
+            name: i18n.t('processes:link_approval.continue'),
+        }));
+
+        const dialogAlert = await within(dialog).findByRole('alert');
+        expect(dialogAlert).toHaveTextContent(i18n.t('assets:links.errors.mutation_failed'));
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+        dialog = screen.getByRole('alertdialog');
+        fireEvent.change(within(dialog).getByRole('textbox', { name: /request reason/i }), {
+            target: { value: 'Corrected governed reason' },
+        });
+        fireEvent.click(within(dialog).getByRole('button', {
+            name: i18n.t('processes:link_approval.continue'),
+        }));
+
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+        expect(mockRemoveProcessLink).toHaveBeenNthCalledWith(2, 1, 100, 'Corrected governed reason');
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
     it('cancelling the dialog leaves the link untouched', async () => {
         renderSection();
 

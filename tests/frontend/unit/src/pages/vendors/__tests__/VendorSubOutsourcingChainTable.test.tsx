@@ -120,4 +120,25 @@ describe('VendorSubOutsourcingChainTable (FR-P4-7)', () => {
         expect(screen.getByTestId('vendor-sub-outsourcing-provider-1')).toBeInTheDocument();
         expect(screen.getByTestId('vendor-sub-outsourcing-provider-2')).toBeInTheDocument();
     });
+
+    it('associates every chain data cell with its column and per-contract headers', () => {
+        renderChainTable();
+
+        const groupButton = screen.getByTestId('vendor-sub-outsourcing-group-9');
+        const groupHeader = groupButton.closest('th');
+        const panel = document.getElementById(groupButton.getAttribute('aria-controls') ?? '');
+        const dataCells = Array.from(panel?.querySelectorAll('td') ?? []);
+        expect(groupHeader).not.toHaveAttribute('scope', 'colgroup');
+        expect(groupHeader?.id).toBeTruthy();
+        expect(dataCells.length).toBeGreaterThan(0);
+
+        dataCells.forEach((cell) => {
+            const associatedHeaderIds = cell.getAttribute('headers')?.split(/\s+/) ?? [];
+            expect(associatedHeaderIds).toContain(groupHeader?.id);
+            const associatedHeaders = associatedHeaderIds.map((id) => document.getElementById(id));
+            expect(associatedHeaders).toContain(groupHeader);
+            expect(associatedHeaders.some((header) => header?.getAttribute('scope') === 'col')).toBe(true);
+            expect(associatedHeaders.every((header) => header?.tagName === 'TH')).toBe(true);
+        });
+    });
 });
