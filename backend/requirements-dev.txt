@@ -1,7 +1,7 @@
 # Canonical backend development/test install entrypoint.
 # Human-edited intent lives in requirements-dev.in; exact resolution is installed
 # from requirements-dev-constraints.txt for both local setup and CI.
-# input-sha256: 2a2155a6bb3823c3a697863eb39a7d0dd683f147354811ab45fd75f8a0378494
-# lock-sha256: 83209fbb38e2113757d0e1a22c8378fcea1d40f5dcb08b198dfbc74c3904010a
+# input-sha256: 827c382fdb1cd762d9e224cf26ec76f3cc113d6584afa5b540386cbf003e96d6
+# lock-sha256: 74b027d83217acf90dae649d178804c1ef0f40db818e1f911f0ebe9172849d18
 -r requirements-dev.in
 -r requirements-dev-constraints.txt

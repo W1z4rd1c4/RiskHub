@@ -1,13 +1,13 @@
 -r requirements.txt
 
 # Backend testing
-pytest>=8.0.0
+pytest>=9.0.3,<10
 pytest-asyncio>=0.23.0
 pytest-cov>=4.1.0
 pytest-timeout>=2.3.1
 freezegun==1.5.*
 pytest-postgresql==6.*
-syrupy==4.6.*
+syrupy==5.0.*
 aiosqlite>=0.20.0
 fakeredis>=2.31.0
 sqlalchemy-utils>=0.41,<0.42

@@ -21,7 +21,7 @@ AUDIT_LOCK = BACKEND_ROOT / "requirements-prod-readiness-audit-constraints.txt"
 ENTRYPOINT = BACKEND_ROOT / "requirements-dev.txt"
 
 PYTHON_MAJOR_MINOR = (3, 13)
-PIP_VERSION = "26.0"
+PIP_VERSION = "26.2.1"
 PIN_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)==([^\s;]+)$")
 LOCK_HEADER = (
     "# Exact Python 3.13 resolver output for backend development/test and the\n"

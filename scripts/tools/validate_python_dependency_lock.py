@@ -11,6 +11,7 @@ from pathlib import Path
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
+from packaging.version import Version
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = REPO_ROOT / "backend"
@@ -170,16 +171,42 @@ def validate() -> list[str]:
         )
     if locked_versions.get("pip-audit") != "2.10.0":
         errors.append("combined resolver lock must pin pip-audit==2.10.0")
+    pip_version = locked_versions.get("pip")
+    if pip_version is None:
+        errors.append("unsafe pip lock: pip must be pinned at or above 26.1.2")
+    elif Version(pip_version) < Version("26.1.2"):
+        errors.append(
+            f"unsafe pip lock: pip=={pip_version} is below fixed version 26.1.2"
+        )
+    pytest_version = locked_versions.get("pytest")
+    if pytest_version is not None and Version(pytest_version) < Version("9.0.3"):
+        errors.append(
+            f"unsafe pytest lock: pytest=={pytest_version} is below fixed version 9.0.3"
+        )
 
     requested_by_name = {
         canonicalize_name(requirement.name): requirement for requirement in requested
     }
+    pytest_requirement = requested_by_name.get("pytest")
+    if (
+        pytest_requirement is None
+        or str(pytest_requirement.specifier) != "<10,>=9.0.3"
+    ):
+        errors.append(
+            "requirements-dev.in must request pytest>=9.0.3,<10 exactly"
+        )
     pip_audit_requirement = requested_by_name.get("pip-audit")
     if (
         pip_audit_requirement is None
         or str(pip_audit_requirement.specifier) != "==2.10.0"
     ):
         errors.append("requirements-dev.in must request pip-audit==2.10.0 exactly")
+    syrupy_requirement = requested_by_name.get("syrupy")
+    if (
+        syrupy_requirement is None
+        or str(syrupy_requirement.specifier) != "==5.0.*"
+    ):
+        errors.append("requirements-dev.in must request syrupy==5.0.* exactly")
 
     entrypoint_names = {
         canonicalize_name(requirement.name) for requirement in entrypoint_requirements
@@ -213,6 +240,8 @@ def validate() -> list[str]:
 
     if not REFRESH_SCRIPT.is_file():
         errors.append("missing one-command Python dependency lock refresher")
+    elif 'PIP_VERSION = "26.2.1"' not in REFRESH_SCRIPT.read_text(encoding="utf-8"):
+        errors.append("dependency lock refresher must install pip==26.2.1")
     if not PERMISSION_HELPER.is_file():
         errors.append("missing executable GitHub automation permission preflight")
     else:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -31,11 +33,211 @@ def _permission_module() -> ModuleType:
     return module
 
 
+def _dependency_lock_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location(
+        "riskhub_dependency_lock_validator",
+        VALIDATOR,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _temporary_dependency_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    replacements: dict[str, str],
+    pytest_intent_override: str | None = None,
+    syrupy_intent_override: str | None = None,
+) -> ModuleType:
+    module = _dependency_lock_module()
+    input_path = tmp_path / "requirements-dev.in"
+    lock_path = tmp_path / "requirements-dev-constraints.txt"
+    audit_path = tmp_path / "requirements-prod-readiness-audit-constraints.txt"
+    entrypoint_path = tmp_path / "requirements-dev.txt"
+
+    input_content = module.INPUT.read_text(encoding="utf-8")
+    if pytest_intent_override is not None:
+        input_content, replacement_count = re.subn(
+            r"^pytest[^-][^\n]*$",
+            f"pytest{pytest_intent_override}",
+            input_content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        assert replacement_count == 1
+    if syrupy_intent_override is not None:
+        input_content, replacement_count = re.subn(
+            r"^syrupy==[^\n]+$",
+            f"syrupy=={syrupy_intent_override}",
+            input_content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        assert replacement_count == 1
+    input_path.write_text(input_content, encoding="utf-8")
+    for included_name in (
+        "requirements.txt",
+        "requirements-db.txt",
+        "requirements-runtime.txt",
+    ):
+        (tmp_path / included_name).write_bytes(
+            (module.BACKEND_ROOT / included_name).read_bytes()
+        )
+    lock_content = module.LOCK.read_text(encoding="utf-8")
+    for current, replacement in replacements.items():
+        assert current in lock_content
+        lock_content = lock_content.replace(current, replacement)
+    lock_path.write_text(lock_content, encoding="utf-8")
+    audit_path.write_text(lock_content, encoding="utf-8")
+    entrypoint_path.write_text(
+        "# Canonical backend development/test install entrypoint.\n"
+        "# Human-edited intent lives in requirements-dev.in; exact resolution is installed\n"
+        "# from requirements-dev-constraints.txt for both local setup and CI.\n"
+        f"# input-sha256: {hashlib.sha256(input_path.read_bytes()).hexdigest()}\n"
+        f"# lock-sha256: {hashlib.sha256(lock_path.read_bytes()).hexdigest()}\n"
+        "-r requirements-dev.in\n"
+        "-r requirements-dev-constraints.txt\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(module, "INPUT", input_path)
+    monkeypatch.setattr(module, "LOCK", lock_path)
+    monkeypatch.setattr(module, "AUDIT_CONSTRAINTS", audit_path)
+    monkeypatch.setattr(module, "ENTRYPOINT", entrypoint_path)
+    return module
+
+
 def test_backend_development_dependency_lock_contract():
     subprocess.run(
         [sys.executable, str(VALIDATOR)],
         cwd=REPO_ROOT,
         check=True,
+    )
+
+
+def test_dependency_lock_rejects_unsafe_pip(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    module = _temporary_dependency_lock(
+        tmp_path,
+        monkeypatch,
+        replacements={"pip==26.2.1\n": "pip==26.1.1\n"},
+    )
+
+    assert "unsafe pip lock: pip==26.1.1 is below fixed version 26.1.2" in module.validate()
+
+
+def test_dependency_lock_requires_a_pip_pin(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    module = _temporary_dependency_lock(
+        tmp_path,
+        monkeypatch,
+        replacements={"pip==26.2.1\n": ""},
+    )
+
+    assert "unsafe pip lock: pip must be pinned at or above 26.1.2" in module.validate()
+
+
+def test_dependency_lock_rejects_unsafe_pytest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    module = _temporary_dependency_lock(
+        tmp_path,
+        monkeypatch,
+        replacements={"pytest==9.1.1\n": "pytest==9.0.2\n"},
+    )
+
+    assert "unsafe pytest lock: pytest==9.0.2 is below fixed version 9.0.3" in module.validate()
+
+
+def test_dependency_lock_rejects_refresher_pip_version_regression(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    module = _dependency_lock_module()
+    mutated_refresher = tmp_path / "refresh_python_dependency_lock.py"
+    content = module.REFRESH_SCRIPT.read_text(encoding="utf-8")
+    mutated_content, replacement_count = re.subn(
+        r'^PIP_VERSION = "[^"]+"$',
+        'PIP_VERSION = "26.1.1"',
+        content,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    assert replacement_count == 1
+    mutated_refresher.write_text(mutated_content, encoding="utf-8")
+    monkeypatch.setattr(module, "REFRESH_SCRIPT", mutated_refresher)
+
+    assert (
+        "dependency lock refresher must install pip==26.2.1"
+        in module.validate()
+    )
+
+
+def test_dependency_lock_rejects_syrupy_intent_regression(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    module = _temporary_dependency_lock(
+        tmp_path,
+        monkeypatch,
+        replacements={},
+        syrupy_intent_override="4.6.*",
+    )
+
+    assert (
+        "requirements-dev.in must request syrupy==5.0.* exactly"
+        in module.validate()
+    )
+
+
+def test_dependency_lock_rejects_pytest_intent_regression(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    module = _temporary_dependency_lock(
+        tmp_path,
+        monkeypatch,
+        replacements={},
+        pytest_intent_override=">=8.0.0",
+    )
+
+    assert (
+        "requirements-dev.in must request pytest>=9.0.3,<10 exactly"
+        in module.validate()
+    )
+
+
+@pytest.mark.parametrize("mirror_name", ["LOCK", "AUDIT_CONSTRAINTS"])
+def test_dependency_lock_rejects_pip_regression_in_either_mirror(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mirror_name: str,
+):
+    module = _temporary_dependency_lock(
+        tmp_path,
+        monkeypatch,
+        replacements={},
+    )
+    mirror = getattr(module, mirror_name)
+    content = mirror.read_text(encoding="utf-8")
+    assert "pip==26.2.1\n" in content
+    mirror.write_text(
+        content.replace("pip==26.2.1\n", "pip==26.1.1\n"),
+        encoding="utf-8",
+    )
+
+    assert (
+        "development and production-readiness audit locks must be exact mirrors"
+        in module.validate()
     )
 
 

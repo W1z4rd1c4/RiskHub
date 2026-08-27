@@ -57,7 +57,7 @@ root:
 python3 scripts/tools/refresh_python_dependency_lock.py
 ```
 
-The command creates an isolated virtual environment, fixes pip at 26.0, resolves
+The command creates an isolated virtual environment, fixes pip at 26.2.1, resolves
 `requirements-dev.in`, writes both exact lock surfaces, and updates both
 entrypoint fingerprints. It contacts the configured package index and should run
 only in a dedicated dependency-refresh change.
