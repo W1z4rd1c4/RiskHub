@@ -269,13 +269,22 @@ def test_bootstrap_db_uses_module_execution_for_seed_scripts() -> None:
     assert "python -m scripts.bootstrap_sso_user" in text
 
 
-def test_backend_dockerfile_pins_fixed_pip_and_uses_python_healthcheck() -> (
-    None
-):
+def test_backend_dockerfile_keeps_builder_pip_out_of_runtime_images() -> None:
     text = _read(BACKEND_DOCKERFILE)
 
     assert "COPY --chown=riskhub:riskhub scripts ./scripts" not in text
     dockerfile_lines = text.splitlines()
+    stage_bodies: dict[str, str] = {}
+    stage_name: str | None = None
+    for line in dockerfile_lines:
+        stage_match = re.match(r"^FROM\s+\S+(?:\s+AS\s+(\S+))?$", line)
+        if stage_match:
+            stage_name = stage_match.group(1)
+            if stage_name is not None:
+                stage_bodies[stage_name] = ""
+        elif stage_name is not None:
+            stage_bodies[stage_name] += f"{line}\n"
+
     assert any(
         line.startswith("FROM python:3.13-alpine@sha256:")
         and line.endswith(" AS runtime")
@@ -288,7 +297,18 @@ def test_backend_dockerfile_pins_fixed_pip_and_uses_python_healthcheck() -> (
     )
     assert "COPY --from=builder-runtime" in text
     assert "COPY --from=builder-dbtasks" in text
-    assert text.count("pip install --no-cache-dir --upgrade pip==26.2.1") == 4
+    for builder_stage in ("builder-runtime", "builder-dbtasks"):
+        assert (
+            stage_bodies[builder_stage].count(
+                "pip install --no-cache-dir --upgrade pip==26.2.1"
+            )
+            == 1
+        )
+    for runtime_stage in ("runtime", "dbtasks"):
+        runtime_body = stage_bodies[runtime_stage]
+        assert "pip install" not in runtime_body
+        assert "python -m pip uninstall --yes pip" in runtime_body
+        assert "rm -rf /usr/local/lib/python3.13/ensurepip" in runtime_body
     assert "pip==26.1.1" not in text
     assert "FROM runtime AS final" in text
     for script_name in EXPECTED_PROD_BOOTSTRAP_SCRIPTS:

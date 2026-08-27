@@ -35,7 +35,8 @@ FROM python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e0
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --upgrade pip==26.2.1
+RUN python -m pip uninstall --yes pip && \
+    rm -rf /usr/local/lib/python3.13/ensurepip
 RUN apk upgrade --no-cache && apk add --no-cache su-exec
 
 # Create non-root user with a stable uid/gid for host-mounted secret readability.
@@ -81,7 +82,8 @@ FROM python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e0
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --upgrade pip==26.2.1
+RUN python -m pip uninstall --yes pip && \
+    rm -rf /usr/local/lib/python3.13/ensurepip
 RUN apk upgrade --no-cache && apk add --no-cache \
     libpq \
     su-exec
