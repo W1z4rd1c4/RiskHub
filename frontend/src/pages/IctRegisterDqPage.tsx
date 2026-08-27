@@ -96,24 +96,11 @@ function ViolatingRows({
     onPage: (offset: number) => void;
 }) {
     const { t } = useTranslation('ictRegisterDq');
-    // S12 (FR-P5-5): the count badge is the global total, but `violating_rows`
-    // may be RBAC-scoped to fewer rows — say "N of M shown" so the shorter list
-    // never reads as a mismatch with the count.
-    const visibleCount = check.visible_count ?? check.violating_rows.length;
-    const isScoped = visibleCount < check.count;
     const rows = detail?.page?.items ?? check.violating_rows;
     const page = detail?.page;
     const showRows = !detail?.isLoading && !detail?.hasError;
     return (
         <div className="mt-3 border-t border-white/10 pt-3 space-y-1.5">
-            {isScoped ? (
-                <p
-                    data-testid={`dq-rows-scoped-${check.check_id}`}
-                    className="text-slate-500 text-xs italic"
-                >
-                    {t('rows_scoped', { shown: visibleCount, count: check.count })}
-                </p>
-            ) : null}
             {detail?.isLoading ? (
                 <p role="status" className="text-slate-400 text-sm">
                     {t('rows_loading')}
@@ -424,13 +411,18 @@ export function IctRegisterDqPage() {
             {summary.total > 0 && summary.findings === 0 ? (
                 <div
                     data-testid="dq-all-clear"
-                    className="glass-card flex items-center gap-3 border border-emerald-500/20 bg-emerald-500/5"
+                    className="flex items-center gap-3 rounded-2xl border border-success/20 bg-success/5 p-6 shadow-glass backdrop-blur-xl"
                 >
-                    <CheckCircle2 className="h-6 w-6 text-emerald-400 shrink-0" aria-hidden="true" />
+                    <CheckCircle2 className="h-6 w-6 text-success-text shrink-0" aria-hidden="true" />
                     <div>
-                        <p className="text-emerald-400 font-bold">{t('all_clear.title')}</p>
+                        <p className="text-success-text font-bold">{t('all_clear.title')}</p>
                         <p className="text-slate-400 text-sm">
-                            {t('all_clear.body', { count: summary.total })}
+                            {summary.notMeasurable > 0
+                                ? t('all_clear.body_with_unmeasurable', {
+                                      passed: summary.ok,
+                                      notMeasurable: summary.notMeasurable,
+                                  })
+                                : t('all_clear.body', { count: summary.total })}
                         </p>
                     </div>
                 </div>
@@ -469,9 +461,11 @@ export function IctRegisterDqPage() {
 
             <div className="space-y-3" data-testid="dq-check-list">
                 {visibleChecks.map((check) => {
-                    const isExpandable =
-                        (check.visible_count ?? check.violating_rows.length) > 0;
+                    const visibleCount = check.visible_count ?? check.violating_rows.length;
+                    const isExpandable = visibleCount > 0;
                     const isExpanded = queryState.expandedCheckId === check.check_id;
+                    const showScopedRowsNote =
+                        visibleCount < check.count && (visibleCount === 0 || isExpanded);
                     return (
                         <div key={check.check_id} className="glass-card">
                             <button
@@ -518,6 +512,21 @@ export function IctRegisterDqPage() {
                                     <StatusPill check={check} />
                                 </div>
                             </button>
+                            {/* S12 (FR-P5-5): the count badge is global, while
+                                visible_count is RBAC-scoped. Keep that distinction
+                                visible even when zero visible rows make the details
+                                intentionally non-expandable. */}
+                            {showScopedRowsNote ? (
+                                <p
+                                    data-testid={`dq-rows-scoped-${check.check_id}`}
+                                    className="mt-3 text-slate-500 text-xs italic"
+                                >
+                                    {t('rows_scoped', {
+                                        shown: visibleCount,
+                                        count: check.count,
+                                    })}
+                                </p>
+                            ) : null}
                             {isExpandable ? (
                                 <div
                                     id={`dq-panel-${check.check_id}`}

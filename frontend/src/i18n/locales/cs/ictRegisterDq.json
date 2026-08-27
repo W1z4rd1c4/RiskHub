@@ -53,7 +53,8 @@
     "empty": "Filtru neodpovídá žádná kontrola",
     "all_clear": {
         "title": "Vše v pořádku — žádné nálezy",
-        "body": "Všech {{count}} kontrol prošlo. V registru nejsou žádné porušující řádky."
+        "body": "Všech {{count}} kontrol prošlo. V registru nejsou žádné porušující řádky.",
+        "body_with_unmeasurable": "Kontroly v pořádku: {{passed}}. Zatím neměřitelné: {{notMeasurable}}. Aktuálně nejsou hlášeny žádné nálezy."
     },
     "rows_scoped": "Zobrazeno {{shown}} z {{count}} řádků (omezeno dle vašeho přístupu).",
     "rows_loading": "Načítání detailů nálezů…",
