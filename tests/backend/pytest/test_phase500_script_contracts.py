@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROD_SCRIPTS_DIR = REPO_ROOT / "scripts" / "prod"
@@ -350,6 +351,19 @@ def test_dev_compose_bootstrap_uses_dbtasks_target_and_backend_inherits_image_he
         'test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]'
         not in backend_block
     )
+
+
+def test_dev_compose_backend_services_share_managed_logs_volume() -> None:
+    compose = yaml.safe_load(_read(DEV_COMPOSE))
+
+    assert "riskhub_backend_logs" in compose["volumes"]
+    for service_name in ("bootstrap", "backend", "scheduler"):
+        assert "riskhub_backend_logs:/app/logs" in compose["services"][service_name][
+            "volumes"
+        ]
+        assert "./backend/logs:/app/logs" not in compose["services"][service_name][
+            "volumes"
+        ]
 
 
 def test_linux_bundle_builder_stages_only_bootstrap_scripts_and_prunes_dotfiles() -> (

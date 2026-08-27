@@ -163,7 +163,7 @@ ensure_volume() {
 }
 
 container_exists() {
-  docker inspect "$1" >/dev/null 2>&1
+  docker container inspect "$1" >/dev/null 2>&1
 }
 
 rm_container_if_exists() {
@@ -176,13 +176,13 @@ rm_container_if_exists() {
 }
 
 container_image() {
-  docker inspect --format '{{.Config.Image}}' "$1" 2>/dev/null || true
+  docker container inspect --format '{{.Config.Image}}' "$1" 2>/dev/null || true
 }
 
 container_label() {
   local name="$1"
   local key="$2"
-  docker inspect --format "{{ index .Config.Labels \"$key\" }}" "$name" 2>/dev/null || true
+  docker container inspect --format "{{ index .Config.Labels \"$key\" }}" "$name" 2>/dev/null || true
 }
 
 docker_secret_mount_args() {

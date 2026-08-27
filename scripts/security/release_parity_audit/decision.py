@@ -701,6 +701,7 @@ def evaluate_findings_and_decision(
     fingerprints_dir: Path,
     ui_dir: Path,
     iso_now: Callable[[], str],
+    prod_readiness_required: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     findings: list[dict[str, Any]] = []
 
@@ -1059,7 +1060,18 @@ def evaluate_findings_and_decision(
         for fingerprint in runtime_fingerprints
         if fingerprint.get("startup_path_id") == "prod_readiness"
     ]
-    if not prod_readiness:
+    if not prod_readiness_required:
+        prod_readiness = [
+            fingerprint
+            for fingerprint in prod_readiness
+            if fingerprint
+            != {
+                "context_id": "prod_readiness_ingest",
+                "startup_path_id": "prod_readiness",
+                "error": "No existing prod-readiness artifacts found",
+            }
+        ]
+    if not prod_readiness and prod_readiness_required:
         findings.append(
             {
                 "id": "P1-prod-readiness-evidence-invalid",

@@ -72,7 +72,7 @@ def test_managed_container_replacement_stops_gracefully_before_removal(
         "#!/usr/bin/env bash\n"
         'printf \'%s\\t\' "$@" >> "$FAKE_DOCKER_LOG"\n'
         "printf '\\n' >> \"$FAKE_DOCKER_LOG\"\n"
-        'if [[ "${1:-}" == inspect ]]; then exit 0; fi\n'
+        'if [[ "${1:-}" == container && "${2:-}" == inspect ]]; then exit 0; fi\n'
         'if [[ "${1:-}" == stop && -n "${FAKE_DOCKER_STOP_RC:-}" ]]; then '
         'exit "$FAKE_DOCKER_STOP_RC"; fi\n'
         'if [[ "${1:-}" == rm && -n "${FAKE_DOCKER_RM_RC:-}" ]]; then '
@@ -111,7 +111,7 @@ rm_container_if_exists riskhub-backend-scheduler
     result, calls = invoke()
     assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
     assert calls == [
-        ["inspect", "riskhub-backend-scheduler"],
+        ["container", "inspect", "riskhub-backend-scheduler"],
         ["stop", "--time", "30", "riskhub-backend-scheduler"],
         ["rm", "riskhub-backend-scheduler"],
     ]
@@ -119,7 +119,7 @@ rm_container_if_exists riskhub-backend-scheduler
     failed_stop, failed_stop_calls = invoke(FAKE_DOCKER_STOP_RC="23")
     assert failed_stop.returncode == 23
     assert failed_stop_calls == [
-        ["inspect", "riskhub-backend-scheduler"],
+        ["container", "inspect", "riskhub-backend-scheduler"],
         ["stop", "--time", "30", "riskhub-backend-scheduler"],
     ]
 
@@ -490,7 +490,7 @@ def test_smoke_scheduler_runtime_evidence_wait_is_bounded_and_fail_closed(
     docker = fake_bin / "docker"
     docker.write_text(
         "#!/usr/bin/env bash\n"
-        'if [[ "${1:-}" == "ps" || "${1:-}" == "inspect" ]]; then exit 0; fi\n'
+        'if [[ "${1:-}" == "ps" || ( "${1:-}" == "container" && "${2:-}" == "inspect" ) ]]; then exit 0; fi\n'
         'if [[ "$*" == *"http://localhost:8000/"* ]]; then printf "404\\n"; exit 0; fi\n'
         'attempts="${FAKE_RELIABILITY_ATTEMPTS:?}"\n'
         'attempt="$(( $(cat "$attempts" 2>/dev/null || printf 0) + 1 ))"\n'

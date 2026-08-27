@@ -476,6 +476,7 @@ class ReleaseParityAudit:
             fingerprints_dir=self.fingerprints_dir,
             ui_dir=self.ui_dir,
             iso_now=lambda: self._iso(self._utc_now()),
+            prod_readiness_required=self.run_prod_readiness,
         )
         self._write_json(self.artifact_root / "findings.json", self.findings)
         self._write_json(

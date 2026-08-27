@@ -70,11 +70,11 @@ docker_require_release_images() {
 }
 
 docker_container_exists() {
-  docker inspect "$1" >/dev/null 2>&1
+  docker container inspect "$1" >/dev/null 2>&1
 }
 
 docker_image_for_container() {
-  docker inspect --format '{{.Config.Image}}' "$1" 2>/dev/null || true
+  docker container inspect --format '{{.Config.Image}}' "$1" 2>/dev/null || true
 }
 
 docker_deploy_or_upgrade() {

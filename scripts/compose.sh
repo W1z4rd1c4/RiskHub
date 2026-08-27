@@ -101,13 +101,13 @@ resolve_compose_cmd() {
 }
 
 container_exists() {
-  docker inspect "$1" >/dev/null 2>&1
+  docker container inspect "$1" >/dev/null 2>&1
 }
 
 container_label() {
   local name="$1"
   local key="$2"
-  docker inspect --format "{{ index .Config.Labels \"$key\" }}" "$name" 2>/dev/null || true
+  docker container inspect --format "{{ index .Config.Labels \"$key\" }}" "$name" 2>/dev/null || true
 }
 
 refuse_if_phase500_prod_present() {

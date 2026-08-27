@@ -75,7 +75,7 @@ services:
     environment: *backend-environment
     volumes:
       - ./backend:/app
-      - ./backend/logs:/app/logs
+      - riskhub_backend_logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
@@ -96,7 +96,7 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./backend:/app
-      - ./backend/logs:/app/logs
+      - riskhub_backend_logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
@@ -118,7 +118,7 @@ services:
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
     volumes:
       - ./backend:/app
-      - ./backend/logs:/app/logs
+      - riskhub_backend_logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
@@ -148,6 +148,7 @@ services:
 
 volumes:
   postgres_data:
+  riskhub_backend_logs:
 
 networks:
   riskhub-network:

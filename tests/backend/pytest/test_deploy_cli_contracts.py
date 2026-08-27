@@ -144,7 +144,10 @@ case "${subcmd}" in
   pull)
     exit 0
     ;;
-  inspect)
+  container)
+    action="${1:-}"
+    shift || true
+    [[ "$action" == "inspect" ]] || exit 0
     if [[ "${1:-}" == "--format" ]]; then
       shift 2
       container="${1:-}"
@@ -170,6 +173,38 @@ case "${subcmd}" in
     container="${1:-}"
     case "${container}" in
       riskhub-backend) [[ "${DOCKER_BACKEND_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
+      riskhub-frontend) [[ "${DOCKER_FRONTEND_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
+      riskhub-backend-scheduler)
+        [[ "${DOCKER_SCHEDULER_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
+      *) exit 1 ;;
+    esac
+    ;;
+  inspect)
+    if [[ "${1:-}" == "--format" ]]; then
+      shift 2
+      container="${1:-}"
+      case "${container}" in
+        riskhub-backend)
+          [[ "${DOCKER_BACKEND_EXISTS:-0}" == "1" ]] || exit 1
+          printf '%s\n' "${DOCKER_BACKEND_IMAGE:-ghcr.io/example/riskhub-backend:previous}"
+          ;;
+        riskhub-frontend)
+          [[ "${DOCKER_FRONTEND_EXISTS:-0}" == "1" ]] || exit 1
+          printf '%s\n' "${DOCKER_FRONTEND_IMAGE:-ghcr.io/example/riskhub-frontend:previous}"
+          ;;
+        riskhub-backend-scheduler)
+          [[ "${DOCKER_SCHEDULER_EXISTS:-0}" == "1" ]] || exit 1
+          printf '%s\n' "${DOCKER_SCHEDULER_IMAGE:-ghcr.io/example/riskhub-backend:previous}"
+          ;;
+        *)
+          exit 1
+          ;;
+      esac
+      exit 0
+    fi
+    container="${1:-}"
+    case "${container}" in
+      riskhub-backend) [[ "${DOCKER_BACKEND_EXISTS:-0}" == "1" || "${DOCKER_BACKEND_IMAGE_ONLY:-0}" == "1" ]] || container_is_fake_created "$container" ;;
       riskhub-frontend) [[ "${DOCKER_FRONTEND_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
       riskhub-backend-scheduler)
         [[ "${DOCKER_SCHEDULER_EXISTS:-0}" == "1" ]] || container_is_fake_created "$container" ;;
@@ -942,6 +977,50 @@ def test_docker_deploy_requires_backend_db_image_when_version_is_omitted() -> No
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
         assert "--backend-db-image" in output
+
+
+def test_docker_deploy_ignores_image_named_like_backend_container() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-image-only-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+        env["DOCKER_BACKEND_IMAGE_ONLY"] = "1"
+
+        result = _run_cli(
+            [
+                "deploy",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--backend-image",
+                _image("riskhub-backend"),
+                "--backend-db-image",
+                _image("riskhub-backend-db"),
+                "--frontend-image",
+                _image("riskhub-frontend"),
+                "--redis-image",
+                _image("riskhub-redis"),
+                "--dry-run",
+                "--yes",
+            ],
+            env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, output
+        assert "scripts/prod/install_backend.sh" in output
+        assert "Existing docker deployment detected" not in output
 
 
 @pytest.mark.parametrize("command", ["deploy", "upgrade"])

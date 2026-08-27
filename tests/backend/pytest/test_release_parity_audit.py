@@ -1036,6 +1036,69 @@ def test_skip_prod_readiness_reuses_valid_exact_baseline_evidence(
     assert not any(str(item["id"]).startswith("P1-prod-readiness") for item in findings)
 
 
+def _prepare_release_decision_audit(audit: ReleaseParityAudit) -> None:
+    audit.baseline = {
+        "git_sha": BASELINE_GIT_SHA,
+        "git_branch": "main",
+        "is_clean": True,
+    }
+    audit.static_resolution = {"ci_runtime_policy": {}, "dev_startup": {}}
+    audit.toolchain_fingerprint = {}
+    audit.dep_diffs = _valid_dependency_diffs()
+    audit.ui_parity = {"mismatches_same_auth_mode_same_commit": []}
+
+
+def test_skip_prod_readiness_without_existing_evidence_can_go(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(AUDIT_MODULE, "ROOT_DIR", tmp_path)
+    audit = ReleaseParityAudit("skip-without-existing", run_prod_readiness=False)
+    _prepare_release_decision_audit(audit)
+
+    audit._ingest_latest_existing_prod_readiness()
+
+    audit._evaluate_findings_and_decision()
+
+    assert audit.decision["decision"] == "GO"
+    assert not any(
+        item["id"] == "P1-prod-readiness-evidence-invalid"
+        for item in audit.findings
+    )
+
+
+def test_full_prod_readiness_without_evidence_remains_no_go(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(AUDIT_MODULE, "ROOT_DIR", tmp_path)
+    audit = ReleaseParityAudit("full-without-evidence", run_prod_readiness=True)
+    _prepare_release_decision_audit(audit)
+
+    audit._evaluate_findings_and_decision()
+
+    assert audit.decision["decision"] == "NO-GO"
+    assert any(
+        item["id"] == "P1-prod-readiness-evidence-invalid"
+        for item in audit.findings
+    )
+
+
+def test_skip_prod_readiness_with_present_invalid_evidence_remains_no_go(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(AUDIT_MODULE, "ROOT_DIR", tmp_path)
+    audit = ReleaseParityAudit("skip-invalid-existing", run_prod_readiness=False)
+    _prepare_release_decision_audit(audit)
+    audit.runtime_fingerprints = [_scalar_only_prod_readiness_fingerprint()]
+
+    audit._evaluate_findings_and_decision()
+
+    assert audit.decision["decision"] == "NO-GO"
+    assert any(
+        item["id"] == "P1-prod-readiness-evidence-invalid"
+        for item in audit.findings
+    )
+
+
 @pytest.mark.parametrize(
     ("field", "invalid_value"),
     (("report_date", "2026-02-30"), ("run_id", "../invalid")),
