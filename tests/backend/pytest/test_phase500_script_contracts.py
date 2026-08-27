@@ -269,7 +269,7 @@ def test_bootstrap_db_uses_module_execution_for_seed_scripts() -> None:
     assert "python -m scripts.bootstrap_sso_user" in text
 
 
-def test_backend_dockerfile_copies_only_bootstrap_scripts_and_uses_python_healthcheck() -> (
+def test_backend_dockerfile_pins_fixed_pip_and_uses_python_healthcheck() -> (
     None
 ):
     text = _read(BACKEND_DOCKERFILE)
@@ -288,7 +288,8 @@ def test_backend_dockerfile_copies_only_bootstrap_scripts_and_uses_python_health
     )
     assert "COPY --from=builder-runtime" in text
     assert "COPY --from=builder-dbtasks" in text
-    assert text.count("pip install --no-cache-dir --upgrade pip==26.1.1") == 4
+    assert text.count("pip install --no-cache-dir --upgrade pip==26.2.1") == 4
+    assert "pip==26.1.1" not in text
     assert "FROM runtime AS final" in text
     for script_name in EXPECTED_PROD_BOOTSTRAP_SCRIPTS:
         assert (
@@ -393,7 +394,18 @@ def test_frontend_dockerfile_pins_runtime_base_digests() -> None:
     text = _read(FRONTEND_DOCKERFILE)
 
     assert "FROM node:24-alpine@sha256:" in text
-    assert "FROM nginx:alpine@sha256:" in text
+    assert (
+        text.count(
+            "FROM nginx:alpine@sha256:"
+            "db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913"
+            " AS runtime"
+        )
+        == 1
+    )
+    assert (
+        "54f2a904c251d5a34adf545a72d32515a15e08418dae0266e23be2e18c66fefa"
+        not in text
+    )
     assert "FROM node:24-alpine AS" not in text
     assert "FROM nginx:alpine AS" not in text
     assert "apk del --no-cache" in text
@@ -1520,6 +1532,48 @@ def test_prod_readiness_timeout_records_matrix_row_and_continues(
         )
 
         assert state.required_failures == 1
+
+
+def test_prod_readiness_command_preserves_caller_selected_node(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from prod_readiness_audit.commands import ProdReadinessCommand, run_command
+    from prod_readiness_audit.run_state import build_run_state
+
+    home_dir = tmp_path / "home"
+    node24_dir = tmp_path / "node24"
+    node26_dir = tmp_path / "node26"
+    home_dir.mkdir()
+    node24_dir.mkdir()
+    node26_dir.mkdir()
+
+    for directory, version in ((node24_dir, "v24.0.0"), (node26_dir, "v26.0.0")):
+        node = directory / "node"
+        node.write_text(
+            f"#!/usr/bin/env bash\nprintf '%s\\n' '{version}'\n",
+            encoding="utf-8",
+        )
+        node.chmod(0o755)
+
+    (home_dir / ".bash_profile").write_text(
+        f'export PATH="{node26_dir}:$PATH"\n', encoding="utf-8"
+    )
+    monkeypatch.setenv("HOME", str(home_dir))
+    monkeypatch.setenv("PATH", f"{node24_dir}:{os.environ['PATH']}")
+
+    state = build_run_state(root_dir=REPO_ROOT, run_id="node-path-test")
+    state.artifact_root = tmp_path / "artifacts"
+    state.ensure_directories()
+
+    row = run_command(
+        state,
+        ProdReadinessCommand("node_version", "node --version"),
+    )
+
+    assert row["rc"] == 0
+    assert (
+        state.log_dir / "node_version.log"
+    ).read_text(encoding="utf-8") == "$ node --version\n\nv24.0.0\n"
 
 
 def test_prod_readiness_audit_preserves_run_status_and_exit_finalization() -> None:

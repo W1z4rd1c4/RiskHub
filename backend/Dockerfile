@@ -18,14 +18,14 @@ RUN apk add --no-cache \
 FROM builder-base AS builder-runtime
 
 COPY requirements-runtime.txt ./requirements-runtime.txt
-RUN pip install --no-cache-dir --upgrade pip==26.1.1 && \
+RUN pip install --no-cache-dir --upgrade pip==26.2.1 && \
     pip install --no-cache-dir --user -r requirements-runtime.txt
 
 FROM builder-base AS builder-dbtasks
 
 COPY requirements-runtime.txt ./requirements-runtime.txt
 COPY requirements-db.txt ./requirements-db.txt
-RUN pip install --no-cache-dir --upgrade pip==26.1.1 && \
+RUN pip install --no-cache-dir --upgrade pip==26.2.1 && \
     pip install --no-cache-dir --user -r requirements-db.txt
 
 # =============================================================================
@@ -35,7 +35,7 @@ FROM python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e0
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --upgrade pip==26.1.1
+RUN pip install --no-cache-dir --upgrade pip==26.2.1
 RUN apk upgrade --no-cache && apk add --no-cache su-exec
 
 # Create non-root user with a stable uid/gid for host-mounted secret readability.
@@ -81,7 +81,7 @@ FROM python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e0
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --upgrade pip==26.1.1
+RUN pip install --no-cache-dir --upgrade pip==26.2.1
 RUN apk upgrade --no-cache && apk add --no-cache \
     libpq \
     su-exec

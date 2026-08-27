@@ -70,12 +70,12 @@ docker_require_running() {
 }
 
 resolve_compose_cmd() {
-  if command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE=(docker-compose -f "${REPO_ROOT}/docker-compose.yml")
-    return 0
-  fi
   if docker compose version >/dev/null 2>&1; then
     COMPOSE=(docker compose -f "${REPO_ROOT}/docker-compose.yml")
+    return 0
+  fi
+  if command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE=(docker-compose -f "${REPO_ROOT}/docker-compose.yml")
     return 0
   fi
   die "Docker Compose not found. Install docker-compose or enable 'docker compose'."

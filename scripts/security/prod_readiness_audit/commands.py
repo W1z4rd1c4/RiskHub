@@ -62,7 +62,7 @@ def run_command(
     timed_out = False
     try:
         completed = subprocess.run(
-            ["bash", "-lc", spec.command],
+            ["bash", "-c", spec.command],
             cwd=cwd,
             env={
                 **os.environ,

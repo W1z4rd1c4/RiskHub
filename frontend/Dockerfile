@@ -29,10 +29,10 @@ RUN npm run build
 # =============================================================================
 # Stage 2: Production nginx server
 # =============================================================================
-FROM nginx:alpine@sha256:54f2a904c251d5a34adf545a72d32515a15e08418dae0266e23be2e18c66fefa AS runtime
+FROM nginx:alpine@sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913 AS runtime
 
 # Patch base OS packages to the latest point releases on every rebuild so that
-# CVEs fixed in Alpine's stable branch (e.g. openssl 3.5.7-r0) get picked up
+# CVEs fixed in Alpine's stable branch (including OpenSSL fixes) get picked up
 # automatically, not just at the next manual digest bump. Then keep the runtime
 # to plain nginx: the official Alpine image ships optional dynamic modules and
 # their image/curl dependencies that this SPA does not use.
