@@ -400,7 +400,7 @@ export function ApprovalScenariosPanel() {
                                     {canUpdateScenarios && resolveCapabilityFlag(scenario.capabilities, 'can_update') ? (
                                         <button
                                             onClick={() => scenariosResource.openEdit(scenario)}
-                                            className="px-3 py-1.5 text-sm text-accent hover:text-white hover:bg-accent/20 rounded-lg transition-colors"
+                                            className="px-3 py-1.5 text-sm text-accent-text hover:bg-accent/20 rounded-lg transition-colors"
                                         >
                                             {t('admin:approval_scenarios.configure')}
                                         </button>

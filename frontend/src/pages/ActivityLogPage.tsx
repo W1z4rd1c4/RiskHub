@@ -32,8 +32,8 @@ export function ActivityLogPage() {
                 <div className="p-4 bg-rose-500/10 rounded-2xl">
                     <ShieldX className="h-12 w-12 text-rose-400" />
                 </div>
-                <h2 className="text-2xl font-bold text-white">{t('access.denied')}</h2>
-                <p className="text-slate-400 text-center max-w-md">
+                <h2 className="text-2xl font-bold text-foreground">{t('access.denied')}</h2>
+                <p className="text-muted-foreground text-center max-w-md">
                     {t('access.denied_activity_log')}
                 </p>
             </div>
@@ -50,12 +50,12 @@ export function ActivityLogPage() {
                     </div>
                     <div>
                         <h1 className="text-3xl font-bold">{t('admin:activity_log.title')}</h1>
-                        <p className="text-slate-400 text-sm">{t('activity_log.subtitle')}</p>
+                        <p className="text-muted-foreground text-sm">{t('activity_log.subtitle')}</p>
                     </div>
                 </div>
                 <button
                     onClick={() => state.refresh()}
-                    className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-slate-400 hover:text-white"
+                    className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-muted-foreground hover:text-foreground"
                     title={t('tooltips.refresh_log')}
                     aria-label={t('tooltips.refresh_log')}
                 >
@@ -70,9 +70,9 @@ export function ActivityLogPage() {
                         key={tab.id}
                         data-testid={`activity-log-tab-${tab.id}`}
                         onClick={() => state.setActiveTab(tab.id)}
-                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${state.activeTab === tab.id
-                            ? 'bg-accent text-white shadow-lg shadow-accent/25'
-                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${state.activeTab === tab.id
+                            ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/25'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                             }`}
                     >
                         {t(tab.labelKey)}

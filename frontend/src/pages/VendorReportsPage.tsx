@@ -87,14 +87,14 @@ export function VendorReportsPage() {
 
     const renderDepartmentSelector = (selectId: string) => canUseDepartmentFilter && departments.length > 0 ? (
         <div className="flex items-center gap-3">
-            <label htmlFor={selectId} className="text-xs font-bold uppercase tracking-widest text-slate-500">
+            <label htmlFor={selectId} className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 {tCommon('labels.department')}
             </label>
             <select
                 id={selectId}
                 value={departmentId ?? ''}
                 onChange={(event) => setDepartmentId(event.target.value ? Number(event.target.value) : null)}
-                className="min-w-48 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white font-medium"
+                className="min-w-48 bg-nested border border-border rounded-xl px-3 py-2 text-foreground font-medium"
             >
                 <option value="">{tCommon('filters.all_departments')}</option>
                 {departments.map((dept) => (
@@ -109,35 +109,35 @@ export function VendorReportsPage() {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-2xl font-bold text-white">{t('reports.title')}</h1>
-                <p className="text-slate-500 font-medium">{t('reports.subtitle')}</p>
+                <h1 className="text-2xl font-bold text-foreground">{t('reports.title')}</h1>
+                <p className="text-muted-foreground font-medium">{t('reports.subtitle')}</p>
             </div>
 
             {isCapabilitiesLoading ? (
                 <div className="glass-card p-6">
-                    <p className="text-slate-300 font-medium">{t('labels.loading')}</p>
+                    <p className="text-foreground font-medium">{t('labels.loading')}</p>
                 </div>
             ) : !canReadReports ? (
                 <div className="glass-card p-6">
-                    <p className="text-slate-300 font-medium">{t('reports.not_authorized')}</p>
+                    <p className="text-foreground font-medium">{t('reports.not_authorized')}</p>
                 </div>
             ) : (
                 <div className="grid gap-6 lg:grid-cols-2">
                     <section className="glass-card p-6 space-y-4">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                             <Download className="h-4 w-4" />
                             {t('reports.annual.title')}
                         </h3>
 
                         <div className="flex items-center gap-3">
-                            <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                 {t('reports.annual.year')}
                             </label>
                             <input
                                 type="number"
                                 value={year}
                                 onChange={(e) => setYear(Number(e.target.value))}
-                                className="w-28 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+                                className="w-28 bg-nested border border-border rounded-xl px-3 py-2 text-foreground font-mono"
                                 min={2000}
                                 max={2100}
                             />
@@ -151,7 +151,7 @@ export function VendorReportsPage() {
                                     onClick={() => download(
                                         () => vendorReportApi.downloadAnnual(year, 'csv', effectiveDepartmentId),
                                     )}
-                                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center gap-2"
+                                    className="px-4 py-2 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-muted/80 transition-colors disabled:opacity-60 flex items-center gap-2"
                                 >
                                     <FileSpreadsheet className="h-4 w-4" />
                                     {t('reports.annual.download_csv')}
@@ -161,11 +161,11 @@ export function VendorReportsPage() {
                     </section>
 
                     <section className="glass-card p-6 space-y-4">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                             <FileSpreadsheet className="h-4 w-4" />
                             {t('reports.dora.title')}
                         </h3>
-                        <p className="text-sm text-slate-300 font-medium">
+                        <p className="text-sm text-foreground font-medium">
                             {t('reports.dora.subtitle')}
                         </p>
                         {renderDepartmentSelector('vendor-report-dora-department')}
@@ -175,7 +175,7 @@ export function VendorReportsPage() {
                                 onClick={() => download(
                                     () => vendorReportApi.downloadDoraRegister(effectiveDepartmentId),
                                 )}
-                                className="px-4 py-2 rounded-xl bg-accent/20 border border-accent/30 text-accent font-bold hover:bg-accent/30 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
+                                className="px-4 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent-text font-bold hover:bg-accent/20 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
                             >
                                 <Download className="h-4 w-4" />
                                 {t('reports.dora.download')}

@@ -311,7 +311,7 @@ export function VendorSubOutsourcingSection({
                 data-testid={`vendor-sub-outsourcing-field-${field}`}
                 value={fields[field]}
                 onChange={(event) => setField(field)(event.target.value)}
-                className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
+                className="w-full glass rounded-xl px-3 py-2 text-sm text-foreground bg-transparent border border-border focus:border-accent/50 outline-none"
                 {...props}
             />
         </div>
@@ -339,10 +339,10 @@ export function VendorSubOutsourcingSection({
 
     return (
         <div className="glass-card space-y-5">
-            <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-4">
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
                 <div className="flex items-center gap-3">
-                    <Network className="h-5 w-5 text-cyan-400" />
-                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    <Network className="h-5 w-5 text-accent-text" />
+                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                         {t('sub_outsourcing.title')}
                     </h2>
                 </div>
@@ -351,7 +351,7 @@ export function VendorSubOutsourcingSection({
                         type="button"
                         data-testid="vendor-sub-outsourcing-add"
                         onClick={openCreateForm}
-                        className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all flex items-center gap-2"
+                        className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all flex items-center gap-2"
                     >
                         <Plus className="h-4 w-4" />
                         {t('sub_outsourcing.actions.add')}
@@ -364,7 +364,7 @@ export function VendorSubOutsourcingSection({
             {sectionError && pendingArchive === null ? (
                 <div
                     role="alert"
-                    className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300"
+                    className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
                 >
                     {sectionError}
                 </div>
@@ -374,7 +374,7 @@ export function VendorSubOutsourcingSection({
                 <form
                     noValidate
                     data-testid="vendor-sub-outsourcing-form"
-                    className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+                    className="space-y-4 rounded-2xl border border-border bg-nested p-5"
                     onSubmit={(event) => {
                         event.preventDefault();
                         if (protectedChangeRequiresApproval && !requestReason.trim()) {
@@ -419,7 +419,7 @@ export function VendorSubOutsourcingSection({
                             value={fields.note}
                             onChange={(event) => setField('note')(event.target.value)}
                             rows={2}
-                            className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
+                            className="w-full glass rounded-xl px-3 py-2 text-sm text-foreground bg-transparent border border-border focus:border-accent/50 outline-none"
                         />
                     </div>
                     {protectedChangeRequiresApproval ? (
@@ -442,7 +442,7 @@ export function VendorSubOutsourcingSection({
                                     }}
                                     rows={2}
                                     required
-                                    className="w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none"
+                                    className="w-full glass rounded-xl px-3 py-2 text-sm text-foreground bg-transparent border border-border focus:border-accent/50 outline-none"
                                 />
                             )}
                         </Field>
@@ -452,7 +452,7 @@ export function VendorSubOutsourcingSection({
                             type="button"
                             data-testid="vendor-sub-outsourcing-form-cancel"
                             onClick={closeForm}
-                            className="px-4 py-2 glass rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+                            className="px-4 py-2 glass rounded-xl text-sm font-semibold text-foreground hover:text-foreground hover:bg-glass-hover transition-colors flex items-center gap-2"
                         >
                             <X className="h-4 w-4" />
                             {t('actions.cancel')}
@@ -461,7 +461,7 @@ export function VendorSubOutsourcingSection({
                             type="submit"
                             data-testid="vendor-sub-outsourcing-form-save"
                             disabled={saveEntry.isPending || fields.contract_id === ''}
-                            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                            className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                         >
                             <Save className="h-4 w-4" />
                             {editingEntry ? t('actions.save') : t('sub_outsourcing.actions.create')}

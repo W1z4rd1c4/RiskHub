@@ -271,7 +271,7 @@ export function VendorContractsSection({
         setFields((previous) => ({ ...previous, [field]: value }));
 
     const contractInputClass =
-        'w-full glass rounded-xl px-3 py-2 text-sm text-white bg-transparent border border-white/10 focus:border-accent/50 outline-none';
+        'w-full glass rounded-xl px-3 py-2 text-sm text-foreground bg-transparent border border-border focus:border-accent/50 outline-none';
 
     const textInput = (field: keyof ContractFormFields, label: string, props: Record<string, unknown> = {}) => (
         <Field label={label} labelClassName="vendor-label" className="vendor-field space-y-0">
@@ -291,10 +291,10 @@ export function VendorContractsSection({
 
     return (
         <div className="glass-card space-y-5">
-            <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-4">
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
                 <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-emerald-400" />
-                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    <FileText className="h-5 w-5 text-success-text" />
+                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                         {t('contracts.title')}
                     </h2>
                 </div>
@@ -303,7 +303,7 @@ export function VendorContractsSection({
                         type="button"
                         data-testid="vendor-contract-add"
                         onClick={openCreateForm}
-                        className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all flex items-center gap-2"
+                        className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all flex items-center gap-2"
                     >
                         <Plus className="h-4 w-4" />
                         {t('contracts.actions.add')}
@@ -316,7 +316,7 @@ export function VendorContractsSection({
             {sectionError && pendingArchive === null ? (
                 <div
                     role="alert"
-                    className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300"
+                    className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
                 >
                     {sectionError}
                 </div>
@@ -326,7 +326,7 @@ export function VendorContractsSection({
                 <form
                     noValidate
                     data-testid="vendor-contract-form"
-                    className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+                    className="space-y-4 rounded-2xl border border-border bg-nested p-5"
                     onSubmit={(event) => {
                         event.preventDefault();
                         if (protectedChangeRequiresApproval && !requestReason.trim()) {
@@ -341,13 +341,13 @@ export function VendorContractsSection({
                     {closedListsQuery.isError ? (
                         <div
                             role="status"
-                            className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-2.5 text-sm font-medium text-amber-200"
+                            className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-sm font-medium text-warning-text"
                         >
                             <span>{t('contracts.form.lists_failed')}</span>
                             <button
                                 type="button"
                                 onClick={() => void closedListsQuery.refetch()}
-                                className="shrink-0 rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-white/10"
+                                className="shrink-0 rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-glass-hover"
                             >
                                 {t('actions.refresh')}
                             </button>
@@ -539,7 +539,7 @@ export function VendorContractsSection({
                             type="button"
                             data-testid="vendor-contract-form-cancel"
                             onClick={closeForm}
-                            className="px-4 py-2 glass rounded-xl text-sm font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+                            className="px-4 py-2 glass rounded-xl text-sm font-semibold text-foreground hover:text-foreground hover:bg-glass-hover transition-colors flex items-center gap-2"
                         >
                             <X className="h-4 w-4" />
                             {t('actions.cancel')}
@@ -548,7 +548,7 @@ export function VendorContractsSection({
                             type="submit"
                             data-testid="vendor-contract-form-save"
                             disabled={saveContract.isPending}
-                            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                            className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                         >
                             <Save className="h-4 w-4" />
                             {editingContract ? t('actions.save') : t('contracts.actions.create')}
@@ -588,8 +588,8 @@ export function VendorContractsSection({
                     aria-label={t('contracts.archived_heading', { count: archivedContracts.length })}
                     className="space-y-3"
                 >
-                    <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600">
-                        <span className="h-2 w-2 rounded-full bg-slate-600" aria-hidden="true" />
+                    <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
+                        <span className="h-2 w-2 rounded-full bg-muted-foreground" aria-hidden="true" />
                         {t('contracts.archived_heading', { count: archivedContracts.length })}
                     </h3>
                     <div className="opacity-60 transition-opacity hover:opacity-100">

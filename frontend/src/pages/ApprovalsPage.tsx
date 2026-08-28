@@ -40,8 +40,8 @@ export default function ApprovalsPage() {
     return (
         <div className="space-y-8 p-8">
             <div>
-                <h1 className="text-4xl font-black text-white tracking-tighter mb-2">{t('title')}</h1>
-                <p className="text-slate-500 font-medium">{t('page_subtitle')}</p>
+                <h1 className="text-4xl font-black text-foreground tracking-tighter mb-2">{t('title')}</h1>
+                <p className="text-muted-foreground font-medium">{t('page_subtitle')}</p>
             </div>
 
             {filter !== 'risk_assessment' && errorKey && (

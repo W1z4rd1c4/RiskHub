@@ -100,13 +100,13 @@ export function KRIDetailPage() {
             <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex items-center gap-2 text-sm text-slate-500 mb-6"
+                className="flex items-center gap-2 text-sm text-muted-foreground mb-6"
             >
                 <button onClick={() => navigate('/kris')} className="hover:text-white transition-colors flex items-center gap-1">
                     <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.risk_appetite')}
                 </button>
                 <span>/</span>
-                <span className="text-white font-medium truncate max-w-xs">{kri.metric_name}</span>
+                <span className="text-foreground font-medium truncate max-w-xs">{kri.metric_name}</span>
             </motion.div>
 
             {/* Header with Actions */}
@@ -121,14 +121,14 @@ export function KRIDetailPage() {
                             <Target className="h-6 w-6 text-accent" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-black text-white leading-tight">{kri.metric_name}</h1>
+                            <h1 className="text-2xl font-black text-foreground leading-tight">{kri.metric_name}</h1>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${monitoring.badgeClassName}`}>
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black uppercase ${monitoring.badgeClassName}`}>
                                     <MonitoringIcon className="h-3 w-3" />
                                     {t(monitoring.labelKey)}
                                 </span>
                                 {isOverdue && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black uppercase bg-warning/10 text-warning-text border border-warning/20">
                                         <Clock className="h-3 w-3" /> {t('kris:overdue.days_overdue', { days: kri.days_overdue ?? 0 })}
                                     </span>
                                 )}
@@ -136,7 +136,7 @@ export function KRIDetailPage() {
                         </div>
                     </div>
                     {kri.description && (
-                        <p className="text-slate-400 text-sm font-medium mt-3 max-w-2xl leading-relaxed">{kri.description}</p>
+                        <p className="text-muted-foreground text-sm font-medium mt-3 max-w-2xl leading-relaxed">{kri.description}</p>
                     )}
                 </div>
 
@@ -150,7 +150,7 @@ export function KRIDetailPage() {
                         </Button>
                     )}
                     {canRecordValue && (
-                        <Button onClick={() => setIsValueModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500">
+                        <Button onClick={() => setIsValueModalOpen(true)} className="bg-success text-success-foreground hover:bg-success/90">
                             <Plus className="h-4 w-4 mr-1" /> {t('kris:value_modal.title')}
                         </Button>
                     )}
@@ -202,18 +202,18 @@ export function KRIDetailPage() {
             <div className="flex items-center gap-2 border-b border-white/10 mb-6">
                 <button
                     onClick={() => setActiveTab('overview')}
-                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'overview'
-                        ? 'text-accent border-b-2 border-accent'
-                        : 'text-slate-500 hover:text-white'
+                    className={`px-6 py-3 font-bold transition-colors ${activeTab === 'overview'
+                        ? 'text-accent-text border-b-2 border-accent'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
                     <Target className="h-4 w-4 inline mr-2" />{t('common:labels.overview')}
                 </button>
                 <button
                     onClick={() => setActiveTab('history')}
-                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'history'
-                        ? 'text-accent border-b-2 border-accent'
-                        : 'text-slate-500 hover:text-white'
+                    className={`px-6 py-3 font-bold transition-colors ${activeTab === 'history'
+                        ? 'text-accent-text border-b-2 border-accent'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
                     <History className="h-4 w-4 inline mr-2" />{t('common:labels.history')} ({historyTotal})

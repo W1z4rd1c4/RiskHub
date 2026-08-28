@@ -15,7 +15,7 @@ type BuildThreatColumnsParams = {
 };
 
 export function getThreatStatusColor(status: ThreatDisplayStatus): string {
-    return status === 'archived' ? 'text-slate-400 bg-slate-400/10' : 'text-emerald-400 bg-emerald-400/10';
+    return status === 'archived' ? 'text-muted-foreground bg-muted' : 'text-success-text bg-success/10';
 }
 
 export function buildThreatColumns({
@@ -49,14 +49,14 @@ export function buildThreatColumns({
             key: 'category',
             label: t('threats:columns.category'),
             sortable: true,
-            render: (threat) => <span className="text-sm text-slate-300">{threatCategoryLabel(t, threat.category)}</span>,
+            render: (threat) => <span className="text-sm text-foreground">{threatCategoryLabel(t, threat.category)}</span>,
         },
         {
             key: 'threat_steward',
             label: t('threats:columns.threat_steward'),
             sortable: true,
             render: (threat) => (
-                <span className="text-sm text-slate-300">
+                <span className="text-sm text-foreground">
                     {threat.threat_steward?.name ?? t('common:fallbacks.unknown_user')}
                 </span>
             ),
@@ -69,7 +69,7 @@ export function buildThreatColumns({
                 // hover) + `cursor-help` cue; the em-dash placeholder gets neither.
                 <span
                     title={threat.typical_weaknesses ?? undefined}
-                    className={`text-sm text-slate-300 truncate block max-w-[260px] ${
+                    className={`text-sm text-muted-foreground truncate block max-w-[260px] ${
                         threat.typical_weaknesses ? 'cursor-help' : ''
                     }`}
                 >
@@ -81,7 +81,7 @@ export function buildThreatColumns({
             key: 'relevant_subject',
             label: t('threats:columns.relevant_subject'),
             sortable: true,
-            render: (threat) => <span className="text-sm text-slate-300">{threat.relevant_subject ?? '—'}</span>,
+            render: (threat) => <span className="text-sm text-foreground">{threat.relevant_subject ?? '—'}</span>,
         },
         {
             key: 'linked_risk_count',
@@ -90,7 +90,7 @@ export function buildThreatColumns({
             className: 'text-right',
             headerClassName: 'text-right',
             render: (threat) => (
-                <span className="text-sm tabular-nums text-slate-300">{threat.visible_linked_risk_count}</span>
+                <span className="text-sm tabular-nums text-foreground">{threat.visible_linked_risk_count}</span>
             ),
         },
         {

@@ -105,14 +105,14 @@ export function ExecutionHistory({
                     return (
                         <div
                             key={exe.id}
-                            className={`glass-card !p-0 overflow-hidden transition-all duration-300 border ${isExpanded ? 'border-white/20' : 'border-transparent hover:border-white/10'}`}
+                            className={`glass-card !p-0 overflow-hidden border ${isExpanded ? 'border-border' : 'border-transparent'}`}
                         >
                             <div className="p-4 flex items-center gap-4">
                                 <button
                                     type="button"
                                     aria-expanded={isExpanded}
                                     aria-controls={`execution-details-${exe.id}`}
-                                    className="flex flex-1 min-w-0 items-center justify-between gap-4 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+                                    className="flex flex-1 min-w-0 items-center justify-between gap-4 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     onClick={() => setExpandedId(isExpanded ? null : exe.id)}
                                 >
                                     <span className="flex items-center gap-4 min-w-0">
@@ -129,7 +129,7 @@ export function ExecutionHistory({
                                                     {formatDateTimeValue(exe.executed_at, i18n.language)}
                                                 </span>
                                             </span>
-                                            <span className="flex items-center gap-3 text-[10px] text-slate-500 font-medium">
+                                            <span className="flex items-center gap-3 text-xs text-muted-foreground font-medium">
                                                 <span className="flex items-center gap-1">
                                                     <User className="h-3 w-3" />
                                                     {exe.executed_by?.name || t('labels.unknown', { ns: 'common' })}
@@ -137,7 +137,7 @@ export function ExecutionHistory({
                                                 {exe.next_scheduled && (
                                                     <>
                                                         <span className="text-slate-700">|</span>
-                                                        <span className="flex items-center gap-1 text-accent">
+                                                        <span className="flex items-center gap-1 text-accent-text">
                                                             <Calendar className="h-3 w-3" />
                                                             {t('executions.next')}: {formatDateValue(exe.next_scheduled, i18n.language)}
                                                         </span>
@@ -161,7 +161,7 @@ export function ExecutionHistory({
                                     <button
                                         type="button"
                                         onClick={() => setIssueExecution(exe)}
-                                        className="shrink-0 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-accent/50 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 transition-colors"
+                                        className="shrink-0 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-xs font-black uppercase tracking-widest text-foreground hover:border-accent/50 hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                                     >
                                         <span className="inline-flex items-center gap-1.5">
                                             <PlusCircle className="h-3 w-3" />
@@ -176,14 +176,14 @@ export function ExecutionHistory({
                                     <div className="grid md:grid-cols-2 gap-8 mt-2">
                                         {exe.findings && (
                                             <div className="space-y-2">
-                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('executions.findings_evidence')}</h4>
+                                                <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t('executions.findings_evidence')}</h4>
                                                 <p className="text-sm text-slate-300 leading-relaxed font-medium">
                                                     {exe.findings}
                                                 </p>
                                                 {exe.evidence_reference && (
                                                     <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/10 w-fit mt-3">
                                                         <FileText className="h-3.5 w-3.5 text-accent" />
-                                                        <span className="text-[10px] font-bold text-slate-400 truncate max-w-[200px]">
+                                                        <span className="text-xs font-bold text-muted-foreground truncate max-w-[200px]">
                                                             {exe.evidence_reference}
                                                         </span>
                                                     </div>
@@ -192,7 +192,7 @@ export function ExecutionHistory({
                                         )}
                                         {exe.notes && (
                                             <div className="space-y-2">
-                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('executions.additional_notes')}</h4>
+                                                <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t('executions.additional_notes')}</h4>
                                                 <p className="text-sm text-slate-400 leading-relaxed italic">
                                                     {exe.notes}
                                                 </p>

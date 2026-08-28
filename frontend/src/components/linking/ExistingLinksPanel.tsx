@@ -29,7 +29,7 @@ export function ExistingLinksPanel({
 
     return (
         <section className="space-y-4">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-between">
+            <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest flex items-center justify-between">
                 <span>{t('common:labels.details')}</span>
                 <span className="text-accent">{existingLinks.length}</span>
             </h3>
@@ -62,7 +62,7 @@ export function ExistingLinksPanel({
                                         )}
                                     </div>
                                     {link.notes && (
-                                        <p className="text-[10px] text-slate-400 italic line-clamp-1">"{link.notes}"</p>
+                                        <p className="text-xs text-slate-400 italic line-clamp-1">"{link.notes}"</p>
                                     )}
                                 </div>
                                 <button

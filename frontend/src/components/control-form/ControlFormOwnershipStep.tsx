@@ -84,7 +84,7 @@ export function ControlFormOwnershipStep({
             type="button"
             onClick={() => setRoleFilter('')}
             className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${!roleFilter
-              ? 'bg-accent text-white shadow-lg shadow-accent/30'
+              ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/30'
               : 'bg-white/5 text-slate-500 hover:bg-white/10'
               }`}
           >
@@ -105,7 +105,7 @@ export function ControlFormOwnershipStep({
                 }
               }}
               className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${roleFilter === role
-                ? 'bg-accent text-white shadow-lg shadow-accent/30'
+                ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/30'
                 : 'bg-white/5 text-slate-500 hover:bg-white/10'
                 }`}
             >

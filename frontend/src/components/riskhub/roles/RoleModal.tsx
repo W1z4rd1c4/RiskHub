@@ -221,7 +221,7 @@ export function RoleModal({
                         <button
                             type="submit"
                             disabled={saving || permissionsLoading}
-                            className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 transition-colors"
+                            className="px-4 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
                         >
                             {saving ? t('admin:roles_panel.modal.saving') : t('admin:roles_panel.modal.save_role')}
                         </button>

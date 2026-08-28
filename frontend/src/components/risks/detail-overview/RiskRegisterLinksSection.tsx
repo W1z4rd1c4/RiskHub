@@ -138,7 +138,7 @@ function LinkBlock({
                                 setTargetToLink('');
                             }
                         }}
-                        className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                        className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                     >
                         <Plus className="h-4 w-4" />
                         {addLabel}

@@ -83,15 +83,15 @@ export function ActivityLogFilterBar({
         <>
             {/* View Mode Selector */}
             <div className="flex flex-wrap items-center gap-4 p-4 glass-card rounded-2xl border border-white/5">
-                <span className="text-sm font-medium text-slate-400">{t('activity_log.view_label', { ns: 'admin' })}</span>
+                <span className="text-sm font-medium text-muted-foreground">{t('activity_log.view_label', { ns: 'admin' })}</span>
                 <div className="flex items-center gap-1">
                     {viewModes.map(mode => (
                         <button
                             key={mode.id}
                             onClick={() => onViewModeChange(mode.id)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${viewMode === mode.id
-                                ? 'bg-accent/20 text-accent border border-accent/30'
-                                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === mode.id
+                                ? 'bg-accent/10 text-accent-text border border-accent/30'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent'
                                 }`}
                         >
                             {mode.label}
@@ -142,7 +142,7 @@ export function ActivityLogFilterBar({
                         placeholder={t('filters.search_logs')}
                         value={search}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all"
+                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-[border-color,box-shadow]"
                     />
                 </div>
 
@@ -164,7 +164,7 @@ export function ActivityLogFilterBar({
                         type="date"
                         value={dateFrom}
                         onChange={(e) => onDateFromChange(e.target.value)}
-                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-all"
+                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-colors"
                     />
                 </div>
 
@@ -174,7 +174,7 @@ export function ActivityLogFilterBar({
                         type="date"
                         value={dateTo}
                         onChange={(e) => onDateToChange(e.target.value)}
-                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-all"
+                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-colors"
                     />
                 </div>
             </div>

@@ -79,7 +79,7 @@ export function RiskFormOwnershipStep({
                 handleInputChange('owner_id', null);
               }}
               className={`px-2.5 py-1 text-xs rounded-lg transition-all ${!roleFilter
-                ? 'bg-accent text-white'
+                ? 'bg-accent text-accent-foreground'
                 : 'bg-white/5 text-slate-400 hover:bg-white/10'
                 }`}
             >
@@ -100,7 +100,7 @@ export function RiskFormOwnershipStep({
                   }
                 }}
                 className={`px-2.5 py-1 text-xs rounded-lg transition-all capitalize ${roleFilter === role
-                  ? 'bg-accent text-white'
+                  ? 'bg-accent text-accent-foreground'
                   : 'bg-white/5 text-slate-400 hover:bg-white/10'
                   }`}
               >

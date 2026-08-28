@@ -132,14 +132,15 @@ export function CategoryDrillDown<T extends object>({
                 return (
                     <button
                         key={group.key}
+                        type="button"
                         onClick={() => setSelectedCategory(group.key)}
-                        className="glass-card group text-left hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5 transition-all duration-300"
+                        className="glass-card interactive-card group text-left"
                     >
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-bold text-white group-hover:text-accent transition-colors">
+                            <h3 className="text-lg font-bold text-foreground group-hover:text-accent-text transition-colors">
                                 {label}
                             </h3>
-                            <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-accent group-hover:translate-x-1 transition-all" />
+                            <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
                         </div>
 
                         {renderBody && (
@@ -152,7 +153,7 @@ export function CategoryDrillDown<T extends object>({
                             <div className="flex items-center gap-6">
                                 {!hideTotal && (
                                     <div>
-                                        <p className="text-3xl font-black text-white">{group.stats.total}</p>
+                                        <p className="text-3xl font-black text-foreground">{group.stats.total}</p>
                                         <p className="text-xs text-slate-500 uppercase tracking-wider">Items</p>
                                     </div>
                                 )}

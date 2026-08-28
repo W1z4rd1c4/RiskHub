@@ -47,8 +47,8 @@ function DetailField({
 }) {
     return (
         <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
-            <p className="text-sm text-white" data-testid={testId}>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+            <p className="text-sm text-foreground" data-testid={testId}>
                 {value === null || value === undefined || value === '' ? '—' : value}
             </p>
         </div>
@@ -68,16 +68,16 @@ function DerivedCheckField({
     if (value === null || value === undefined) {
         return (
             <div className="space-y-1">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
-                <p className="text-sm text-slate-500">—</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+                <p className="text-sm text-muted-foreground">—</p>
             </div>
         );
     }
     const isOk = code === 'ok';
     return (
         <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
-            <p className={`text-sm font-semibold ${isOk ? 'text-emerald-400' : 'text-rose-300'}`}>{value}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+            <p className={`text-sm font-semibold ${isOk ? 'text-success-text' : 'text-destructive'}`}>{value}</p>
         </div>
     );
 }
@@ -409,15 +409,15 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     </button>
                     <div>
                         <div className="flex items-center gap-3">
-                            <span className="text-xs font-mono font-bold text-accent">{process.f_code}</span>
+                            <span className="text-xs font-mono font-bold text-accent-text">{process.f_code}</span>
                             <span
                                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getProcessStatusColor(status)}`}
                             >
                                 {t(`status.${status}`)}
                             </span>
                         </div>
-                        <h1 className="text-3xl font-bold text-white mt-1">{process.l1_process}</h1>
-                        <p className="text-slate-500 font-medium mt-1">
+                        <h1 className="text-3xl font-bold text-foreground mt-1">{process.l1_process}</h1>
+                        <p className="text-muted-foreground font-medium mt-1">
                             {process.l0_area}
                             {process.l2_subprocess ? ` · ${process.l2_subprocess}` : ''}
                         </p>
@@ -429,7 +429,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             type="button"
                             onClick={() => void restoreProcess()}
                             data-testid="process-detail-restore"
-                            className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
                             <ArchiveRestore className="h-4 w-4" />
                             {t('actions.restore')}
@@ -443,7 +443,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             type="button"
                             onClick={() => navigate(`/processes/${process.id}/edit`)}
                             data-testid="process-detail-edit"
-                            className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
                             <Pencil className="h-4 w-4" />
                             {t('actions.edit')}
@@ -454,7 +454,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             type="button"
                             onClick={() => setIsArchiveDialogOpen(true)}
                             data-testid="process-detail-archive"
-                            className="px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-400/30 text-rose-300 hover:bg-rose-500/20 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
                             <Trash2 className="h-4 w-4" />
                             {tCommon('actions.archive')}
@@ -464,7 +464,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
             </div>
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.ownership')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -488,7 +488,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
             </div>
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.impacts')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -502,7 +502,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
             </div>
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.criticality')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -519,7 +519,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
 
             {process.derived ? (
                 <div className="glass-card space-y-5" data-testid="process-derived-section">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                         {t('derived.title')}
                     </h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -529,7 +529,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             testId="process-derived-score"
                         />
                         <div className="space-y-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                                 {t('derived.criticality_class')}
                             </p>
                             <CriticalityClassPill
@@ -582,7 +582,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
-                                        <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        <tr className="text-xs font-black uppercase tracking-widest text-slate-500">
                                             <th className="py-2 pr-4">{t('derived.transitive.vendor')}</th>
                                             <th className="py-2">{t('derived.transitive.via_asset')}</th>
                                         </tr>

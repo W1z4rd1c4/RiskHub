@@ -60,7 +60,7 @@ export function ResolveOrphanRiskSelection({
                             onClick={() => setSelectedRiskId(risk.id)}
                             className={`w-full text-left p-3 flex items-center gap-3 transition-colors ${selectedRiskId === risk.id ? 'bg-accent/10' : 'hover:bg-white/5'}`}
                         >
-                            <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${selectedRiskId === risk.id ? 'bg-accent text-white' : 'bg-white/5 text-slate-600'}`}>
+                            <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${selectedRiskId === risk.id ? 'bg-accent text-accent-foreground' : 'bg-white/5 text-slate-600'}`}>
                                 <Target className="h-3.5 w-3.5" />
                             </div>
                             <div className="flex-1 min-w-0 flex flex-col">

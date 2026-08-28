@@ -49,7 +49,7 @@ export function SettingsPage() {
                             className={cn(
                                 "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap",
                                 isActive
-                                    ? "bg-accent text-white shadow-lg shadow-accent/20"
+                                    ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20"
                                     : "text-slate-400 hover:text-white hover:bg-white/5"
                             )}
                         >

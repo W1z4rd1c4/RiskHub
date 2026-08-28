@@ -25,24 +25,24 @@ export function VendorPendingChangePanel({
 
     return (
         <section
-            className="glass-card space-y-5 border border-amber-400/30"
+            className="glass-card space-y-5 border border-warning/30"
             data-testid="vendor-pending-change"
             aria-labelledby="vendor-pending-change-title"
         >
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                 <div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <h2 id="vendor-pending-change-title" className="text-sm font-black uppercase tracking-widest text-amber-200">
+                        <h2 id="vendor-pending-change-title" className="text-sm font-black uppercase tracking-widest text-warning-text">
                             {t('pending_change.title')}
                         </h2>
-                        <span className="rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-200">
+                        <span className="rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-bold text-warning-text">
                             {t('pending_change.badge')}
                         </span>
                     </div>
                     {canViewDiff ? (
                         <>
-                            <p className="mt-2 text-sm text-slate-300">{pendingChange.reason}</p>
-                            <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                            <p className="mt-2 text-sm text-foreground">{pendingChange.reason}</p>
+                            <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                                 <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
                                 {t('pending_change.requested_by_at', {
                                     requester: pendingChange.requested_by_name ?? t('pending_change.unknown_requester'),
@@ -58,7 +58,7 @@ export function VendorPendingChangePanel({
                         type="button"
                         onClick={onCancel}
                         disabled={cancelling}
-                        className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-amber-300/30 px-4 py-2 text-sm font-bold text-amber-100 transition-colors hover:bg-amber-300/10 disabled:opacity-50"
+                        className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-warning/30 px-4 py-2 text-sm font-bold text-warning-text transition-colors hover:bg-warning/10 disabled:opacity-50"
                     >
                         <RotateCcw className="h-4 w-4" aria-hidden="true" />
                         {t('pending_change.cancel')}
@@ -75,7 +75,7 @@ export function VendorPendingChangePanel({
                     mutationKind={pendingChange.mutation_kind}
                     testId="vendor-pending-change-diff"
                 />
-            ) : <p className="text-sm text-slate-500">{t('pending_change.diff_restricted')}</p>}
+            ) : <p className="text-sm text-muted-foreground">{t('pending_change.diff_restricted')}</p>}
         </section>
     );
 }

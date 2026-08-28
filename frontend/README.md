@@ -39,6 +39,31 @@ RiskHub frontend is a React 19 + TypeScript SPA built with Vite. It owns the aut
   - Shared UI and domain widgets live in `src/components/`.
   - Translation resources live in `src/i18n/`.
 
+## Theme interface
+
+`src/index.css` defines the same semantic interface for RiskHub, light, and dark themes; `tailwind.config.js` exposes it to components. Components select a meaning from this inventory and do not reinterpret literal colors per theme.
+
+| Meaning | CSS pair or value | Tailwind interface |
+| --- | --- | --- |
+| Base | `--background` / `--foreground` | `bg-background text-foreground` |
+| Card | `--card` / `--card-foreground` | `bg-card text-card-foreground` |
+| Popover | `--popover` / `--popover-foreground` | `bg-popover text-popover-foreground` |
+| Nested surface | `--nested` / `--nested-foreground` | `bg-nested text-nested-foreground` |
+| Glass surface | `--glass` / `--glass-foreground` | `bg-glass text-glass-foreground` or `.glass` |
+| Muted surface and copy | `--muted` / `--muted-foreground` | `bg-muted text-muted-foreground` |
+| Accent fill and opaque hover | `--accent` / `--accent-hover` / `--accent-foreground` | `bg-accent hover:bg-accent-hover text-accent-foreground` |
+| Accent on an ordinary surface | `--accent-text` | `text-accent-text` |
+| Success fill and standalone text | `--success` / `--success-foreground`; `--success-text` | `bg-success text-success-foreground`; `text-success-text` |
+| Warning fill and standalone text | `--warning` / `--warning-foreground`; `--warning-text` | `bg-warning text-warning-foreground`; `text-warning-text` |
+| Destructive fill | `--destructive` / `--destructive-foreground` | `bg-destructive text-destructive-foreground` |
+| Information fill | `--info` / `--info-foreground` | `bg-info text-info-foreground` |
+| Decorative border | `--border` | `border-border` |
+| Input boundary | `--input` | `border-input` |
+| Focus indication | `--ring` | `ring-ring` |
+| Meaningful muted icon | `--icon-muted` | `text-icon-muted` |
+
+Literal `white` remains literal white. Use `accent-foreground` on an accent fill and `accent-text` on ordinary surfaces. Base `.glass-card` surfaces are static; an actionable card must opt into `.interactive-card`. User-readable copy is at least 12px (`text-xs`). Two bounded counters may remain at 10px: abbreviated permissions and their overflow count (`data-testid="permission-summary-badge"`), and the numeric linked-risk count (`data-testid="control-linked-risk-count"`). Reduced-motion behavior is owned by the global `prefers-reduced-motion` rule and Framer Motion configuration in `App.tsx`.
+
 ## Commands
 
 ```bash

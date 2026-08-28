@@ -143,7 +143,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                             <motion.button
                                 key={risk.id}
                                 onClick={() => handleRiskClick(risk.id)}
-                                className="w-full text-left p-4 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-all group"
+                                className="w-full text-left p-4 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors group"
                                 whileHover={{ x: 4 }}
                             >
                                 <div className="flex items-start justify-between gap-4">
@@ -162,7 +162,9 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                                     </div>
                                     <div className="flex flex-col items-end gap-1 shrink-0">
                                         <div className="flex items-center gap-2">
-                                            <span className={`text-sm font-bold ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}>
+                                            <span
+                                                className={`text-sm font-bold ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
+                                            >
                                                 Score: {risk.net_score}
                                             </span>
                                             <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-white transition-colors" />

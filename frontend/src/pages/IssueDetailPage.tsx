@@ -99,7 +99,7 @@ export function IssueDetailPage() {
                 <button
                     type="button"
                     onClick={() => navigate('/issues')}
-                    className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2"
+                    className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors flex items-center gap-2"
                 >
                     <ArrowLeft className="h-4 w-4" />
                     {t('actions.back_to_issues')}
@@ -115,14 +115,14 @@ export function IssueDetailPage() {
                     <button
                         type="button"
                         onClick={() => navigate('/issues')}
-                        className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest"
+                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent transition-colors uppercase tracking-widest"
                     >
                         <ArrowLeft className="h-3.5 w-3.5" />
                         {t('actions.back_to_issues')}
                     </button>
 
                     <div className="flex flex-wrap items-center gap-2.5">
-                        <h2 className="text-4xl font-black text-white tracking-tighter">{issue.title}</h2>
+                        <h2 className="text-4xl font-black text-foreground tracking-tighter">{issue.title}</h2>
                         <span className={issuePill(issueStatusClass(issue.status))}>
                             {statusLabel(issue.status)}
                         </span>
@@ -131,7 +131,7 @@ export function IssueDetailPage() {
                         </span>
                     </div>
 
-                    <p className="text-slate-500 font-medium max-w-3xl">{formattedDescription}</p>
+                    <p className="text-muted-foreground font-medium max-w-3xl">{formattedDescription}</p>
                 </div>
 
                 <button
@@ -142,7 +142,7 @@ export function IssueDetailPage() {
                             void refreshHistory();
                         }
                     }}
-                    className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/40 transition-all"
+                    className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/40 transition-colors"
                     title={t('actions.refresh')}
                     aria-label={t('actions.refresh')}
                 >
@@ -162,8 +162,8 @@ export function IssueDetailPage() {
                             role="tab"
                             aria-selected={isActive}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-all ${
-                                isActive ? 'text-accent border-b-2 border-accent' : 'text-slate-500 hover:text-white'
+                            className={`inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-colors ${
+                                isActive ? 'text-accent-text border-b-2 border-accent' : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
                             <TabIcon className="h-4 w-4" />

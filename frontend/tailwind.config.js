@@ -26,6 +26,16 @@ export default {
 					DEFAULT: 'hsl(var(--popover))',
 					foreground: 'hsl(var(--popover-foreground))'
 				},
+				nested: {
+					DEFAULT: 'hsl(var(--nested))',
+					foreground: 'hsl(var(--nested-foreground))'
+				},
+				glass: {
+					DEFAULT: 'hsl(var(--glass))',
+					foreground: 'hsl(var(--glass-foreground))',
+					hover: 'hsl(var(--glass-hover))',
+					'hover-border': 'hsl(var(--glass-hover-border))'
+				},
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))'
@@ -40,7 +50,9 @@ export default {
 				},
 				accent: {
 					DEFAULT: 'hsl(var(--accent))',
-					foreground: 'hsl(var(--accent-foreground))'
+					foreground: 'hsl(var(--accent-foreground))',
+					hover: 'hsl(var(--accent-hover))',
+					text: 'hsl(var(--accent-text))'
 				},
 				destructive: {
 					DEFAULT: 'hsl(var(--destructive))',
@@ -62,7 +74,8 @@ export default {
 				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
-				ring: 'hsl(var(--ring))'
+				ring: 'hsl(var(--ring))',
+				'icon-muted': 'hsl(var(--icon-muted))'
 			}
 		}
 	},
@@ -71,4 +84,3 @@ export default {
 		require("@tailwindcss/typography")
 	],
 }
-

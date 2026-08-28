@@ -90,7 +90,7 @@ export function KriRegisterFilterBar({
 
     const renderOptional = (key: OptionalKriFilter) => {
         if (key === 'breach_only') {
-            return <label className="flex items-center gap-2 text-sm text-slate-300">
+            return <label className="flex items-center gap-2 text-sm text-foreground">
                 <input type="checkbox" checked={filters.breach_only} onChange={(event) => onFilterChange('breach_only', event.target.checked)} className="accent-accent" />
                 {labels[key]}
             </label>;
@@ -120,7 +120,7 @@ export function KriRegisterFilterBar({
         lifecycleControl={<div className="flex flex-wrap gap-3">
             <ThemedSelect value={filters.lifecycle} onValueChange={(value) => onFilterChange('lifecycle', value as KRILifecycle)} triggerAriaLabel={t('register.filters.lifecycle')} triggerTestId="kris-lifecycle-filter-trigger" contentTestId="kris-lifecycle-filter-content" optionTestIdPrefix="kris-lifecycle-filter-option" options={['active', 'archived', 'all'].map((value) => ({ value, label: t(`register.lifecycle.${value}`) }))} />
             <ThemedSelect value={filters.monitoring_status} onValueChange={(value) => onFilterChange('monitoring_status', value as KriRegisterFilters['monitoring_status'])} allowEmpty emptyLabel={t('filters.all')} triggerAriaLabel={t('columns.status')} triggerTestId="kris-monitoring-filter-trigger" contentTestId="kris-monitoring-filter-content" optionTestIdPrefix="kris-monitoring-filter-option" options={(facets.monitoring_status?.length ? facets.monitoring_status : DEFAULT_MONITORING.map((value) => ({ value, label: value, count: 0, selected: false, disabled: false }))).map((option) => ({ value: option.value, label: facets.monitoring_status?.length ? `${t(`monitoring.${option.value}`, option.label)} (${option.count})` : t(`monitoring.${option.value}`, option.label), disabled: option.disabled }))} />
-            <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-slate-300"><input type="checkbox" checked={filters.timeliness_status === 'due_soon'} onChange={(event) => onFilterChange('timeliness_status', event.target.checked ? 'due_soon' : '')} className="accent-accent" />{t('filters.due_soon')}</label>
+            <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-foreground"><input type="checkbox" checked={filters.timeliness_status === 'due_soon'} onChange={(event) => onFilterChange('timeliness_status', event.target.checked ? 'due_soon' : '')} className="accent-accent" />{t('filters.due_soon')}</label>
         </div>}
         onAddFilter={(key) => setActiveKeys((current) => [...new Set([...current, key as OptionalKriFilter])])}
         onClearAll={() => { setActiveKeys([]); onClearAll(); }}
@@ -134,10 +134,10 @@ export function KriRegisterFilterBar({
         testIdPrefix="kris"
     >
         <div className="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
-            <button type="button" data-testid="kris-status-filter-all" onClick={onClearAll} className={`px-3 py-2 rounded-xl text-xs font-bold uppercase ${filters.lifecycle === 'active' && !filters.monitoring_status && !filters.timeliness_status ? 'bg-accent text-white' : 'bg-white/5 text-slate-400'}`}>{t('filters.all')}</button>
-            {DEFAULT_MONITORING.map((status) => <button key={status} type="button" data-testid={`kris-status-filter-${status}`} onClick={() => onFilterChange('monitoring_status', status)} className={`px-3 py-2 rounded-xl text-xs font-bold uppercase ${filters.lifecycle === 'active' && filters.monitoring_status === status ? 'bg-accent text-white' : 'bg-white/5 text-slate-400'}`}>{t(`monitoring.${status}`)}</button>)}
-            <button type="button" data-testid="kris-status-filter-due_soon" onClick={() => onFilterChange('timeliness_status', 'due_soon')} className={`px-3 py-2 rounded-xl text-xs font-bold uppercase ${filters.lifecycle === 'active' && filters.timeliness_status === 'due_soon' ? 'bg-accent text-white' : 'bg-white/5 text-slate-400'}`}>{t('filters.due_soon')}</button>
-            <button type="button" data-testid="kris-status-filter-archived" onClick={() => onFilterChange('lifecycle', 'archived')} className={`px-3 py-2 rounded-xl text-xs font-bold uppercase ${filters.lifecycle === 'archived' ? 'bg-accent text-white' : 'bg-white/5 text-slate-400'}`}>{t('filters.archived')}</button>
+            <button type="button" data-testid="kris-status-filter-all" onClick={onClearAll} className={`px-3 py-2 rounded-xl text-xs font-bold uppercase ${filters.lifecycle === 'active' && !filters.monitoring_status && !filters.timeliness_status ? 'bg-accent text-accent-foreground' : 'bg-white/5 text-muted-foreground'}`}>{t('filters.all')}</button>
+            {DEFAULT_MONITORING.map((status) => <button key={status} type="button" data-testid={`kris-status-filter-${status}`} onClick={() => onFilterChange('monitoring_status', status)} className={`px-3 py-2 rounded-xl text-xs font-bold uppercase ${filters.lifecycle === 'active' && filters.monitoring_status === status ? 'bg-accent text-accent-foreground' : 'bg-white/5 text-muted-foreground'}`}>{t(`monitoring.${status}`)}</button>)}
+            <button type="button" data-testid="kris-status-filter-due_soon" onClick={() => onFilterChange('timeliness_status', 'due_soon')} className={`px-3 py-2 rounded-xl text-xs font-bold uppercase ${filters.lifecycle === 'active' && filters.timeliness_status === 'due_soon' ? 'bg-accent text-accent-foreground' : 'bg-white/5 text-muted-foreground'}`}>{t('filters.due_soon')}</button>
+            <button type="button" data-testid="kris-status-filter-archived" onClick={() => onFilterChange('lifecycle', 'archived')} className={`px-3 py-2 rounded-xl text-xs font-bold uppercase ${filters.lifecycle === 'archived' ? 'bg-accent text-accent-foreground' : 'bg-white/5 text-muted-foreground'}`}>{t('filters.archived')}</button>
         </div>
         {activeKeys.map((key) => <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3"><button type="button" aria-label={t('register.filters.remove', { label: labels[key] })} onClick={() => remove(key)} className="absolute right-2 top-2"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>{renderOptional(key)}</div>)}
     </RegisterListToolbar>;

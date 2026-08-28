@@ -23,7 +23,7 @@ type BuildProcessColumnsParams = {
 };
 
 export function getProcessStatusColor(status: ProcessDisplayStatus): string {
-    return status === 'archived' ? 'text-slate-400 bg-slate-400/10' : 'text-emerald-400 bg-emerald-400/10';
+    return status === 'archived' ? 'text-muted-foreground bg-muted' : 'text-success-text bg-success/10';
 }
 
 export function buildProcessColumns({
@@ -38,7 +38,7 @@ export function buildProcessColumns({
             sortable: true,
             className: 'w-[90px]',
             render: (process) => (
-                <span className="text-xs font-mono font-bold text-accent">{process.f_code}</span>
+                <span className="text-xs font-mono font-bold text-accent-text">{process.f_code}</span>
             ),
         },
         {

@@ -15,7 +15,7 @@ export function RiskTypeBadge({ label, color, title, className, testId }: RiskTy
             title={title}
             data-testid={testId}
             className={cn(
-                'inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-white',
+                'inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2 py-1 text-xs font-black uppercase tracking-widest text-foreground',
                 className,
             )}
         >

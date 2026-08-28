@@ -120,7 +120,7 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
                                 key={link.id}
                                 className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
                             >
-                                <span className="text-sm font-bold text-white truncate">
+                                <span className="text-sm font-bold text-foreground truncate">
                                     {threatRiskLinkRowLabel(link, t('common:fallbacks.unknown_risk'))}
                                 </span>
                                 {canManageLinks && canDeleteThreatRiskLink(link) ? (
@@ -157,7 +157,7 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
                             data-testid="threat-risk-link-add"
                             disabled={targetRiskId === null || addRiskLink.isPending}
                             onClick={() => addRiskLink.mutate()}
-                            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                            className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
                         >
                             <Plus className="h-4 w-4" />
                             {t('links.add')}

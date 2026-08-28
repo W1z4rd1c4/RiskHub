@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { ArrowUpRight, Star } from 'lucide-react';
 
 import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
@@ -21,74 +20,73 @@ export function VendorLinkedRiskCard({ risk, onClick }: VendorLinkedRiskCardProp
     const netScore = risk.net_score ?? 0;
 
     return (
-        <motion.button
+        <button
             type="button"
-            whileHover={{ y: -4, scale: 1.01 }}
             onClick={onClick}
-            className="glass-card p-5 text-left group flex flex-col h-full"
+            className="glass-card interactive-card p-5 text-left group flex flex-col h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
             <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <RiskTypeBadge label={getDisplayName(riskType)} color={riskTypeColor} />
                         {risk.is_priority ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-amber-300 bg-amber-400/10 border border-amber-400/20">
-                                <Star className="h-3 w-3 fill-amber-300" />
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-black uppercase tracking-widest text-warning-text bg-warning/10 border border-warning/20">
+                                <Star className="h-3 w-3 fill-warning-text" />
                                 {t('risks:fields.is_priority')}
                             </span>
                         ) : null}
                     </div>
                     <h4
-                        className="text-white font-bold text-sm leading-tight group-hover:text-accent transition-colors line-clamp-2"
+                        className="text-foreground font-bold text-sm leading-tight group-hover:text-accent-text transition-colors line-clamp-2"
                         title={`${risk.risk_id_code}: ${risk.name}`}
                     >
                         {risk.risk_id_code}: {risk.name}
                     </h4>
                 </div>
-                <div className="shrink-0 rounded-xl bg-white/5 border border-white/10 p-2 text-slate-500 group-hover:text-accent group-hover:border-accent/30 transition-colors">
+                <div className="shrink-0 rounded-xl bg-nested border border-border p-2 text-muted-foreground group-hover:text-accent-text group-hover:border-accent/30 transition-colors">
                     <ArrowUpRight className="h-4 w-4" />
                 </div>
             </div>
 
             <div className="mt-auto space-y-4">
                 <div className="flex flex-wrap gap-2">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${getScoreBadgeColor(grossScore)}`}>
+                    <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-widest border ${getScoreBadgeColor(grossScore)}`}>
                         {t('common:labels.gross')}: {grossScore}
                     </span>
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${getScoreBadgeColor(netScore)}`}>
+                    <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-widest border ${getScoreBadgeColor(netScore)}`}>
                         {t('common:labels.net')}: {netScore}
                     </span>
                 </div>
 
                 <div className="space-y-2">
                     <div className="flex items-center justify-between gap-3">
-                        <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                        <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">
                             {t('common:labels.process')}
                         </span>
-                        <span className="text-xs text-white font-semibold truncate">
+                        <span className="text-xs text-foreground font-semibold truncate">
                             {risk.process}
                         </span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                        <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                        <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">
                             {t('common:labels.department')}
                         </span>
-                        <span className="text-xs text-slate-300 font-semibold truncate">
+                        <span className="text-xs text-foreground font-semibold truncate">
                             {risk.department_name || t('common:fallbacks.not_available')}
                         </span>
                     </div>
                     {risk.category ? (
                         <div className="flex items-center justify-between gap-3">
-                            <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                            <span className="text-xs text-muted-foreground font-black uppercase tracking-widest">
                                 {t('common:labels.category')}
                             </span>
-                            <span className="text-xs text-slate-300 font-semibold truncate">
+                            <span className="text-xs text-foreground font-semibold truncate">
                                 {risk.category}
                             </span>
                         </div>
                     ) : null}
                 </div>
             </div>
-        </motion.button>
+        </button>
     );
 }

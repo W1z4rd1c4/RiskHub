@@ -120,7 +120,7 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
                         <Filter className="h-4 w-4" />
                         <span>{t('dashboard:filters.title')}</span>
                         {activeFilterChips.length > 0 && (
-                            <span className="ml-1 w-5 h-5 rounded-full bg-accent text-white text-xs flex items-center justify-center">
+                            <span className="ml-1 w-5 h-5 rounded-full bg-accent text-accent-foreground text-xs flex items-center justify-center">
                                 {activeFilterChips.length}
                             </span>
                         )}

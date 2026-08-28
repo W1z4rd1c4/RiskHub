@@ -18,7 +18,7 @@ export function buildIssueColumns({
             label: t('issues:columns.issue'),
             sortable: true,
             render: (issue) => <div className="space-y-1">
-                <p className="text-sm font-semibold text-white">{issue.title}</p>
+                <p className="text-sm font-semibold text-foreground">{issue.title}</p>
                 <div className="flex flex-wrap items-center gap-2">
                     <span className={issuePill(issueStatusClass(issue.status))}>
                         {t(`issues:status.${issue.status}`, issue.status.replaceAll('_', ' '))}
@@ -32,17 +32,17 @@ export function buildIssueColumns({
         {
             key: 'department_name',
             label: t('issues:columns.department'),
-            render: (issue) => <span className="text-sm text-slate-300">{issue.department_name || t('issues:fallbacks.unknown_department')}</span>,
+            render: (issue) => <span className="text-sm text-foreground">{issue.department_name || t('issues:fallbacks.unknown_department')}</span>,
         },
         {
             key: 'owner_user_name',
             label: t('issues:columns.owner'),
-            render: (issue) => <span className="text-sm text-slate-300">{issue.owner_user_name || t('issues:fallbacks.unassigned')}</span>,
+            render: (issue) => <span className="text-sm text-foreground">{issue.owner_user_name || t('issues:fallbacks.unassigned')}</span>,
         },
         {
             key: 'source_type',
             label: t('issues:columns.source'),
-            render: (issue) => <span className="text-sm text-slate-300">
+            render: (issue) => <span className="text-sm text-foreground">
                 {issue.source_display || t(`issues:source.${issue.source_type}`, issue.source_type.replaceAll('_', ' '))}
             </span>,
         },
@@ -50,13 +50,13 @@ export function buildIssueColumns({
             key: 'due_at',
             label: t('issues:columns.due'),
             sortable: true,
-            render: (issue) => <span className="text-sm text-slate-300">{formatIssueDateTime(issue.due_at, language, t('issues:fallbacks.not_set'))}</span>,
+            render: (issue) => <span className="text-sm text-foreground">{formatIssueDateTime(issue.due_at, language, t('issues:fallbacks.not_set'))}</span>,
         },
         {
             key: 'opened_at',
             label: t('issues:columns.opened'),
             sortable: true,
-            render: (issue) => <span className="text-sm text-slate-300">{formatIssueDateTime(issue.opened_at, language, t('issues:fallbacks.not_set'))}</span>,
+            render: (issue) => <span className="text-sm text-foreground">{formatIssueDateTime(issue.opened_at, language, t('issues:fallbacks.not_set'))}</span>,
         },
     ];
 }

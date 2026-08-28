@@ -85,15 +85,15 @@ export function getActivityEntityLabel(entityType: string): string {
 }
 
 export const ACTION_COLORS: Record<string, string> = {
-    create: 'text-emerald-400 bg-emerald-400/10',
-    update: 'text-blue-400 bg-blue-400/10',
-    delete: 'text-rose-400 bg-rose-400/10',
-    archive: 'text-slate-400 bg-slate-400/10',
-    approve: 'text-emerald-400 bg-emerald-400/10',
-    reject: 'text-rose-400 bg-rose-400/10',
-    status_change: 'text-amber-400 bg-amber-400/10',
-    link: 'text-purple-400 bg-purple-400/10',
-    unlink: 'text-orange-400 bg-orange-400/10',
-    login: 'text-emerald-400 bg-emerald-400/10',
-    failed_login: 'text-rose-400 bg-rose-400/10',
+    create: 'text-success-text bg-success/10',
+    update: 'text-accent-text bg-info/10',
+    delete: 'text-destructive bg-destructive/10',
+    archive: 'text-muted-foreground bg-muted',
+    approve: 'text-success-text bg-success/10',
+    reject: 'text-destructive bg-destructive/10',
+    status_change: 'text-warning-text bg-warning/10',
+    link: 'text-accent-text bg-accent/10',
+    unlink: 'text-warning-text bg-warning/10',
+    login: 'text-success-text bg-success/10',
+    failed_login: 'text-destructive bg-destructive/10',
 };

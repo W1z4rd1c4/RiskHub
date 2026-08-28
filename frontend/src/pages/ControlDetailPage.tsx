@@ -86,7 +86,7 @@ export function ControlDetailPage() {
                 </div>
                 <button
                     onClick={() => navigate('/controls')}
-                    className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2"
+                    className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors flex items-center gap-2"
                 >
                     <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.controls')}
                 </button>
@@ -134,21 +134,21 @@ export function ControlDetailPage() {
                 <div className="space-y-2">
                     <button
                         onClick={() => navigate('/controls')}
-                        className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest mb-4"
+                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest mb-4"
                     >
                         <ArrowLeft className="h-3 w-3" /> {t('controls:detail.back_to_catalog')}
                     </button>
                     <div className="flex items-center gap-4">
-                        <h2 className="text-4xl font-black text-white tracking-tighter">{control.name}</h2>
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 ${getControlStatusColor(displayStatus)}`}>
+                        <h2 className="text-4xl font-black text-foreground tracking-tighter">{control.name}</h2>
+                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border border-white/10 ${getControlStatusColor(displayStatus)}`}>
                             {t(`controls:status.${displayStatus}`)}
                         </span>
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${monitoring.badgeClassName}`}>
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${monitoring.badgeClassName}`}>
                             <MonitoringIcon className="h-3 w-3" />
                             {t(monitoring.labelKey)}
                         </span>
                     </div>
-                    <p className="text-slate-500 font-medium max-w-2xl">{control.description}</p>
+                    <p className="text-muted-foreground font-medium max-w-2xl">{control.description}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -167,7 +167,7 @@ export function ControlDetailPage() {
                     {canUpdateControl && (
                         <button
                             onClick={() => navigate(`/controls/${control.id}/edit`)}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-lg hover:shadow-accent/20"
+                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-[border-color,color,box-shadow] hover:shadow-lg hover:shadow-accent/20"
                             title={t('controls:edit_control')}
                         >
                             <Edit className="h-5 w-5" />
@@ -176,7 +176,7 @@ export function ControlDetailPage() {
                     {control.is_archived ? (
                         canRestoreControl && <button
                             onClick={workflow.handleRestore}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"
+                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-colors"
                             title={t('controls:actions.unarchive')}
                         >
                             <RotateCcw className="h-5 w-5" />
@@ -184,7 +184,7 @@ export function ControlDetailPage() {
                     ) : (
                         canArchiveControl && <button
                             onClick={() => workflow.setIsArchiveDialogOpen(true)}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
+                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-colors"
                         >
                             <Trash2 className="h-5 w-5" />
                         </button>
@@ -196,18 +196,18 @@ export function ControlDetailPage() {
             <div className="flex items-center gap-2 border-b border-white/10">
                 <button
                     onClick={() => workflow.setActiveTab('overview')}
-                    className={`px-6 py-3 font-bold transition-all ${workflow.activeTab === 'overview'
-                        ? 'text-accent border-b-2 border-accent'
-                        : 'text-slate-500 hover:text-white'
+                    className={`px-6 py-3 font-bold transition-colors ${workflow.activeTab === 'overview'
+                        ? 'text-accent-text border-b-2 border-accent'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
                     <Target className="h-4 w-4 inline mr-2" />{t('controls:tabs.overview')}
                 </button>
                 <button
                     onClick={() => workflow.setActiveTab('history')}
-                    className={`px-6 py-3 font-bold transition-all ${workflow.activeTab === 'history'
-                        ? 'text-accent border-b-2 border-accent'
-                        : 'text-slate-500 hover:text-white'
+                    className={`px-6 py-3 font-bold transition-colors ${workflow.activeTab === 'history'
+                        ? 'text-accent-text border-b-2 border-accent'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
                     <History className="h-4 w-4 inline mr-2" />{t('controls:detail.execution_history')}
@@ -252,8 +252,9 @@ export function ControlDetailPage() {
                         </h3>
                         {canLogExecution && (
                             <button
+                                data-testid="control-log-execution"
                                 onClick={() => workflow.setIsLogModalOpen(true)}
-                                className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2 group-hover:shadow-lg group-hover:shadow-accent/30"
+                                className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent hover:text-accent-foreground transition-[background-color,color,box-shadow] flex items-center gap-2 group-hover:shadow-lg group-hover:shadow-accent/30"
                             >
                                 <Plus className="h-3.5 w-3.5" />
                                 {t('controls:execution.log_execution')}

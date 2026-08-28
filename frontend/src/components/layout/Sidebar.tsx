@@ -120,13 +120,13 @@ export function Sidebar() {
                 <div className="flex items-center justify-between px-2 mb-10">
                     <div className="flex items-center gap-3">
                         <div className="bg-accent p-2 rounded-xl">
-                            <Shield className="h-6 w-6 text-white" />
+                            <Shield className="h-6 w-6 text-accent-foreground" />
                         </div>
-                        <span className="text-xl font-bold tracking-tight text-white font-heading">
+                        <span className="text-xl font-bold tracking-tight text-foreground font-heading">
                             {hasAccentSuffix ? (
                                 <>
                                     {brandPrefix}
-                                    <span className="text-accent">{brandAccentSuffix}</span>
+                                    <span className="text-accent-text">{brandAccentSuffix}</span>
                                 </>
                             ) : (
                                 brandName
@@ -149,7 +149,7 @@ export function Sidebar() {
                         >
                             <p
                                 id={`sidebar-group-${section.group}`}
-                                className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-300"
+                                className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
                             >
                                 {section.label}
                             </p>
@@ -161,14 +161,14 @@ export function Sidebar() {
                                         to={item.href}
                                         aria-current={isActive ? 'page' : undefined}
                                         className={cn(
-                                            'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200',
+                                            'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200',
                                             isActive
                                                 ? 'sidebar-nav-link--active'
-                                                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                                : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
                                         )}
                                     >
                                         <div className="sidebar-nav-content flex items-center gap-3">
-                                            <item.icon className={cn('sidebar-nav-icon h-5 w-5', isActive ? '' : 'text-slate-500 group-hover:text-white')} />
+                                            <item.icon className={cn('sidebar-nav-icon h-5 w-5', isActive ? '' : 'text-icon-muted group-hover:text-foreground')} />
                                             {item.label}
                                         </div>
                                         {item.badge !== undefined && (
@@ -188,11 +188,11 @@ export function Sidebar() {
                     {user && (
                         <div className="flex items-center gap-3 px-2">
                             <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                                <span className="text-xs font-bold text-accent">{user.name.charAt(0)}</span>
+                                <span className="text-xs font-bold text-accent-text">{user.name.charAt(0)}</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                                <p className="text-xs text-slate-300 truncate">{user.role_display_name}</p>
+                                <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{user.role_display_name}</p>
                             </div>
                         </div>
                     )}
@@ -200,7 +200,7 @@ export function Sidebar() {
                         onClick={handleLogout}
                         data-testid="logout-button"
                         disabled={logoutPending}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-300 hover:bg-rose-500/10 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-xl transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {logoutPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
                         {t('user_menu.logout')}

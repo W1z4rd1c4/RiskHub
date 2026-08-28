@@ -28,8 +28,8 @@ export function UsersAccessStats({
                     <Users className="h-6 w-6 text-purple-400" />
                 </div>
                 <div>
-                    <p className="text-sm text-slate-400">{t('access.stats.total_users')}</p>
-                    <p className="text-2xl font-bold text-white">{totalCount}</p>
+                    <p className="text-sm text-muted-foreground">{t('access.stats.total_users')}</p>
+                    <p className="text-2xl font-bold text-foreground">{totalCount}</p>
                 </div>
             </div>
             <div className="glass-card p-4 flex items-center gap-4">
@@ -37,8 +37,8 @@ export function UsersAccessStats({
                     <UserCheck className="h-6 w-6 text-emerald-400" />
                 </div>
                 <div>
-                    <p className="text-sm text-slate-400">{t('access.stats.active')}</p>
-                    <p className="text-2xl font-bold text-white">{activeCount}</p>
+                    <p className="text-sm text-muted-foreground">{t('access.stats.active')}</p>
+                    <p className="text-2xl font-bold text-foreground">{activeCount}</p>
                 </div>
             </div>
             <div className="glass-card p-4 flex items-center gap-4">
@@ -46,8 +46,8 @@ export function UsersAccessStats({
                     <Crown className="h-6 w-6 text-amber-400" />
                 </div>
                 <div>
-                    <p className="text-sm text-slate-400">{t('access.stats.privileged')}</p>
-                    <p className="text-2xl font-bold text-white">{privilegedCount}</p>
+                    <p className="text-sm text-muted-foreground">{t('access.stats.privileged')}</p>
+                    <p className="text-2xl font-bold text-foreground">{privilegedCount}</p>
                 </div>
             </div>
             {isPlatformAdmin && (
@@ -56,8 +56,8 @@ export function UsersAccessStats({
                         <Server className="h-6 w-6 text-slate-400" />
                     </div>
                     <div>
-                        <p className="text-sm text-slate-400">{t('access.stats.sys_admins')}</p>
-                        <p className="text-2xl font-bold text-white">{users.filter((user) => user.role.name === 'admin').length}</p>
+                        <p className="text-sm text-muted-foreground">{t('access.stats.sys_admins')}</p>
+                        <p className="text-2xl font-bold text-foreground">{users.filter((user) => user.role.name === 'admin').length}</p>
                     </div>
                 </div>
             )}

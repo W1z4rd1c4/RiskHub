@@ -249,37 +249,37 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
 
     return (
         <div className="glass-card space-y-6" data-testid="vendor-register-links-section">
-            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+            <div className="flex items-center gap-3 border-b border-border pb-4">
                 <Workflow className="h-5 w-5 text-accent" />
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('register_links.title')}
                 </h2>
             </div>
 
             {sectionError ? (
-                <div className="border border-rose-400/30 rounded-xl px-4 py-3 text-rose-300 text-sm font-medium">
+                <div className="border border-destructive/30 rounded-xl px-4 py-3 text-destructive text-sm font-medium">
                     {sectionError}
                 </div>
             ) : null}
 
             {canReadAssetLinks ? (
                 <div className="space-y-4" data-testid="vendor-asset-links-block">
-                    <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500">
-                        <Boxes className="h-4 w-4 text-indigo-400" />
+                    <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
+                        <Boxes className="h-4 w-4 text-accent-text" />
                         {t('register_links.assets_title')}
                     </h3>
                     {assetRows.length === 0 ? (
-                        <p className="text-xs text-slate-500">{t('register_links.assets_empty')}</p>
+                        <p className="text-xs text-muted-foreground">{t('register_links.assets_empty')}</p>
                     ) : (
                         <ul className="space-y-2" data-testid="vendor-asset-links">
                             {assetRows.map((row) => (
                                 <li
                                     key={row.link.id}
-                                    className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                                    className="flex flex-wrap items-center justify-between gap-3 bg-nested border border-border rounded-xl px-4 py-3"
                                 >
                                     <div className="min-w-0">
-                                        <span className="text-sm font-bold text-white truncate">{row.name}</span>
-                                        <p className="text-xs text-slate-500">
+                                        <span className="text-sm font-bold text-foreground truncate">{row.name}</span>
+                                        <p className="text-xs text-muted-foreground">
                                             {row.meta || t('register_links.no_metadata')}
                                         </p>
                                     </div>
@@ -294,7 +294,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                                     linkId: row.link.id,
                                                 })
                                             }
-                                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                             title={t('register_links.remove')}
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -306,7 +306,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                     )}
 
                     {canManageAssetLinks ? (
-                        <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                             <div className="md:col-span-2">
                                 <SearchableEntitySelect
                                     value={assetToLink}
@@ -332,7 +332,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                 data-testid="vendor-asset-link-add"
                                 disabled={!assetToLink || !assetLinkServiceCode || addAssetLink.isPending}
                                 onClick={() => setPendingAssetAction({ kind: 'add' })}
-                                className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                                className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                             >
                                 <Plus className="h-4 w-4" />
                                 {t('register_links.add')}
@@ -344,26 +344,26 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
 
             {canReadProcessLinks ? (
                 <div className="space-y-4" data-testid="vendor-process-links-block">
-                    <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500">
-                        <Workflow className="h-4 w-4 text-emerald-400" />
+                    <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
+                        <Workflow className="h-4 w-4 text-success-text" />
                         {t('register_links.processes_title')}
                     </h3>
                     {processRows.length === 0 ? (
-                        <p className="text-xs text-slate-500">{t('register_links.processes_empty')}</p>
+                        <p className="text-xs text-muted-foreground">{t('register_links.processes_empty')}</p>
                     ) : (
                         <ul className="space-y-2" data-testid="vendor-process-links">
                             {processRows.map((row) => (
                                 <li
                                     key={row.link.id}
-                                    className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                                    className="flex flex-wrap items-center justify-between gap-3 bg-nested border border-border rounded-xl px-4 py-3"
                                 >
                                     <div className="min-w-0">
-                                        <span className="text-sm font-bold text-white truncate">{row.name}</span>
-                                        <p className="text-xs text-slate-500">
+                                        <span className="text-sm font-bold text-foreground truncate">{row.name}</span>
+                                        <p className="text-xs text-muted-foreground">
                                             {row.meta || t('register_links.no_metadata')}
                                         </p>
                                         {row.processEditBlocked ? (
-                                            <p className="mt-1 text-xs font-medium text-amber-300">
+                                            <p className="mt-1 text-xs font-medium text-warning-text">
                                                 {t('processes:pending_change.link_action_blocked')}
                                             </p>
                                         ) : null}
@@ -379,7 +379,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                                     linkId: row.link.id,
                                                 })
                                             }
-                                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                             title={row.processEditBlocked
                                                 ? t('processes:pending_change.link_action_blocked')
                                                 : t('register_links.remove')}
@@ -393,7 +393,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                     )}
 
                     {canManageProcessLinks ? (
-                        <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                             <div className="md:col-span-4">
                                 <SearchableEntitySelect
                                     value={processToLink}
@@ -410,13 +410,13 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                 data-testid="vendor-process-link-add"
                                 disabled={!processToLink || addProcessBlocked || addProcessLink.isPending}
                                 onClick={() => setPendingProcessAction({ kind: 'add' })}
-                                className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                                className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                             >
                                 <Plus className="h-4 w-4" />
                                 {t('register_links.add')}
                             </button>
                             {addProcessBlocked ? (
-                                <p className="md:col-span-5 text-xs font-medium text-amber-300">
+                                <p className="md:col-span-5 text-xs font-medium text-warning-text">
                                     {t('processes:pending_change.link_action_blocked')}
                                 </p>
                             ) : null}

@@ -80,7 +80,7 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds }: RemoteP
 
     return (
         <fieldset className="space-y-2" data-testid={`vendors-filter-control-${definition.key}`}>
-            <legend className="text-xs font-bold text-slate-300">{label}</legend>
+            <legend className="text-xs font-bold text-foreground">{label}</legend>
             <input
                 type="search"
                 value={search}
@@ -88,13 +88,13 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds }: RemoteP
                 placeholder={t('register.filters.search_options')}
                 aria-label={t('register.filters.search_options_for', { label })}
                 data-testid={`vendors-filter-${definition.key}-search`}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-accent/50"
+                className="w-full rounded-lg border border-border bg-nested px-3 py-2 text-sm text-foreground outline-none focus:border-accent/50"
             />
-            <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-white/5 p-2" aria-busy={isLoading}>
+            <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-border p-2" aria-busy={isLoading}>
                 {options.map((option) => {
                     const checked = selectedIds.includes(option.id);
                     return (
-                        <label key={option.id} className="flex items-start gap-2 rounded px-2 py-1 text-xs text-slate-300 hover:bg-white/5">
+                        <label key={option.id} className="flex items-start gap-2 rounded px-2 py-1 text-xs text-foreground hover:bg-glass-hover">
                             <input
                                 type="checkbox"
                                 checked={checked}
@@ -109,13 +109,13 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds }: RemoteP
                             />
                             <span className="min-w-0">
                                 <span className="block truncate">{option.label}</span>
-                                {option.secondary_label ? <span className="block truncate text-slate-500">{option.secondary_label}</span> : null}
+                                {option.secondary_label ? <span className="block truncate text-muted-foreground">{option.secondary_label}</span> : null}
                             </span>
                         </label>
                     );
                 })}
                 {!isLoading && options.length === 0 ? (
-                    <p className="px-2 py-1 text-xs text-slate-500">{t('register.filters.no_options')}</p>
+                    <p className="px-2 py-1 text-xs text-muted-foreground">{t('register.filters.no_options')}</p>
                 ) : null}
             </div>
         </fieldset>
@@ -137,12 +137,12 @@ function FacetMultiFilter({
 }) {
     return (
         <fieldset className="space-y-2" data-testid={`vendors-filter-control-${definition.key}`}>
-            <legend className="text-xs font-bold text-slate-300">{label}</legend>
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-white/5 p-2">
+            <legend className="text-xs font-bold text-foreground">{label}</legend>
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
                 {options.map((option) => {
                     const checked = selected.includes(option.value);
                     return (
-                        <label key={option.value} className="flex items-center justify-between gap-2 rounded px-2 py-1 text-xs text-slate-300 hover:bg-white/5">
+                        <label key={option.value} className="flex items-center justify-between gap-2 rounded px-2 py-1 text-xs text-foreground hover:bg-glass-hover">
                             <span className="flex items-center gap-2">
                                 <input
                                     type="checkbox"
@@ -158,7 +158,7 @@ function FacetMultiFilter({
                                 />
                                 {option.label}
                             </span>
-                            <span className="tabular-nums text-slate-500">{option.count}</span>
+                            <span className="tabular-nums text-muted-foreground">{option.count}</span>
                         </label>
                     );
                 })}
@@ -267,7 +267,7 @@ export function VendorRegisterFilterBar({
             option ? `${t(translationKey)} (${option.count})` : t(translationKey)
         );
         return (
-            <label key={definition.key} className="space-y-2 text-xs font-bold text-slate-300" data-testid={`vendors-filter-control-${definition.key}`}>
+            <label key={definition.key} className="space-y-2 text-xs font-bold text-foreground" data-testid={`vendors-filter-control-${definition.key}`}>
                 <span>{label}</span>
                 <select
                     value={current === null ? '' : String(current)}
@@ -276,7 +276,7 @@ export function VendorRegisterFilterBar({
                         definition.key,
                         event.target.value === '' ? null : event.target.value === 'true',
                     )}
-                    className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white"
+                    className="w-full rounded-lg border border-border bg-nested px-3 py-2 text-sm text-foreground"
                 >
                     <option value="">{t('register.boolean.any')}</option>
                     <option value="true" disabled={Boolean(trueFacet?.disabled && current !== true)}>
@@ -333,12 +333,12 @@ export function VendorRegisterFilterBar({
             {activeKeys.map((key) => {
                 const definition = VENDOR_REGISTER_CONFIG.filters.find((item) => item.key === key);
                 return definition ? (
-                    <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3">
+                    <div key={key} className="relative rounded-xl border border-border bg-nested p-3">
                         <button
                             type="button"
                             onClick={() => removeFilter(key)}
                             aria-label={t('register.filters.remove', { label: labels[key] })}
-                            className="absolute right-2 top-2 rounded p-1 text-slate-500 hover:bg-white/10 hover:text-white"
+                            className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-glass-hover hover:text-foreground"
                         >
                             <X className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>

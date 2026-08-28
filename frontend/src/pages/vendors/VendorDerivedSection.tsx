@@ -25,8 +25,8 @@ function Field({
 }) {
     return (
         <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
-            <p className="text-sm text-white" data-testid={testId}>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+            <p className="text-sm text-foreground" data-testid={testId}>
                 {value === null || value === undefined || value === '' ? '—' : value}
             </p>
         </div>
@@ -42,7 +42,7 @@ function PillField({
 }) {
     return (
         <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
             {children}
         </div>
     );
@@ -57,10 +57,10 @@ export function VendorDerivedSection({ derived }: { derived: VendorDerived }) {
 
     return (
         <div className="glass-card space-y-5" data-testid="vendor-derived-section">
-            <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-4">
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
                 <div className="flex items-center gap-3">
                     <Cpu className="h-5 w-5 text-accent" />
-                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                         {t('derived.title')}
                     </h2>
                 </div>
@@ -111,17 +111,17 @@ export function VendorDerivedSection({ derived }: { derived: VendorDerived }) {
                 />
             </div>
 
-            <div className="space-y-3 border-t border-white/5 pt-4" data-testid="vendor-derived-transitive">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+            <div className="space-y-3 border-t border-border pt-4" data-testid="vendor-derived-transitive">
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     {t('derived.transitive.title')}
                 </h3>
                 {derived.transitive_process_links.length === 0 ? (
-                    <p className="text-sm text-slate-500">{t('derived.transitive.empty')}</p>
+                    <p className="text-sm text-muted-foreground">{t('derived.transitive.empty')}</p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead>
-                                <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                <tr className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                                     <th className="py-2 pr-4">{t('derived.transitive.process')}</th>
                                     <th className="py-2 pr-4">{t('derived.transitive.process_cif')}</th>
                                     <th className="py-2 pr-4">{t('derived.transitive.process_criticality')}</th>
@@ -132,18 +132,18 @@ export function VendorDerivedSection({ derived }: { derived: VendorDerived }) {
                                 {derived.transitive_process_links.map((link, index) => (
                                     <tr
                                         key={`${link.process_id}-${link.via_asset_id}-${index}`}
-                                        className="border-t border-white/5 text-sm"
+                                        className="border-t border-border text-sm"
                                         data-testid={`vendor-derived-transitive-row-${index}`}
                                     >
-                                        <td className="py-2 pr-4 font-medium text-white">{link.process_name}</td>
-                                        <td className="py-2 pr-4 text-slate-300">{vendorValueLabel(t, 'cif', link.process_cif)}</td>
+                                        <td className="py-2 pr-4 font-medium text-foreground">{link.process_name}</td>
+                                        <td className="py-2 pr-4 text-foreground">{vendorValueLabel(t, 'cif', link.process_cif)}</td>
                                         <td className="py-2 pr-4">
                                             <CriticalityClassPill
                                                 criticalityClass={link.process_criticality}
                                                 displayValue={vendorValueLabel(t, 'max_criticality', link.process_criticality)}
                                             />
                                         </td>
-                                        <td className="py-2 text-slate-300">{link.via_asset_name}</td>
+                                        <td className="py-2 text-foreground">{link.via_asset_name}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -152,8 +152,8 @@ export function VendorDerivedSection({ derived }: { derived: VendorDerived }) {
                 )}
             </div>
 
-            <div className="space-y-4 border-t border-white/5 pt-4">
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+            <div className="space-y-4 border-t border-border pt-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                     {t('derived.inputs.title')}
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">

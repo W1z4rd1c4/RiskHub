@@ -32,13 +32,13 @@ export function buildApprovalListParams(filter: ApprovalsFilter): ApprovalListPa
 export function getApprovalStatusBadge(status: ApprovalStatus): string {
     switch (status) {
         case 'pending':
-            return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
+            return 'text-warning-text border-warning/20 bg-warning/10';
         case 'pending_privileged':
-            return 'text-violet-400 border-violet-400/20 bg-violet-400/5';
+            return 'text-accent-text border-accent/20 bg-accent/10';
         case 'approved':
-            return 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5';
+            return 'text-success-text border-success/20 bg-success/10';
         case 'rejected':
-            return 'text-rose-400 border-rose-400/20 bg-rose-400/5';
+            return 'text-destructive border-destructive/20 bg-destructive/10';
         case 'expired':
             return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
         case 'cancelled':
@@ -51,11 +51,11 @@ export function getApprovalActionBadge(action: ApprovalActionType): string {
     switch (action) {
         case 'delete':
         case 'archive':
-            return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
+            return 'text-destructive bg-destructive/10 border-destructive/20';
         case 'create':
-            return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+            return 'text-success-text bg-success/10 border-success/20';
         case 'edit':
-            return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
+            return 'text-accent-text bg-info/10 border-info/20';
         default:
             return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
     }

@@ -13,6 +13,12 @@ interface ThemeContextType {
     setTheme: (theme: Theme) => void;
 }
 
+const THEME_DOM: Record<Theme, { rootClass: string; colorScheme: 'light' | 'dark'; themeColor: string }> = {
+    riskhub: { rootClass: 'theme-riskhub', colorScheme: 'dark', themeColor: '#0f172a' },
+    dark: { rootClass: 'theme-dark', colorScheme: 'dark', themeColor: '#000000' },
+    light: { rootClass: 'theme-light', colorScheme: 'light', themeColor: '#f8fafc' },
+};
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const isValidTheme = (value: string | null): value is Theme =>
@@ -26,16 +32,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         return isValidTheme(stored) ? stored : 'riskhub';
     });
 
-    // Apply theme class to document
+    // Keep application tokens and native browser chrome on the same theme.
     useEffect(() => {
         const root = document.documentElement;
+        const themeDom = THEME_DOM[theme];
+        const themeColorMeta = document.head.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+
         root.classList.remove('theme-light', 'theme-dark', 'theme-riskhub');
-        if (theme === 'light') {
-            root.classList.add('theme-light');
-        } else if (theme === 'dark') {
-            root.classList.add('theme-dark');
+        root.classList.add(themeDom.rootClass);
+        root.style.colorScheme = themeDom.colorScheme;
+        if (themeColorMeta) {
+            themeColorMeta.content = themeDom.themeColor;
         }
-        // riskhub is default, no class needed (uses :root variables)
     }, [theme]);
 
     // Listen for storage changes (multi-tab sync)

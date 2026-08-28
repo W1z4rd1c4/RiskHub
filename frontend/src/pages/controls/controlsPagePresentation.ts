@@ -8,15 +8,14 @@ export const CONTROL_GROUP_NO_PROCESS = '__no_process__';
 export const CONTROL_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
 export const CONTROL_GROUP_UNKNOWN_RISK = '__unknown_risk__';
 export const ARCHIVED_CONTROL_FILTER = 'archived' as const;
-export const ARCHIVED_CONTROL_BADGE_CLASS_NAME = 'text-yellow-400 bg-yellow-400/10';
+export const ARCHIVED_CONTROL_BADGE_CLASS_NAME = 'text-muted-foreground bg-muted';
 export type ControlDisplayStatus = ControlStatus | typeof ARCHIVED_CONTROL_FILTER;
 
 export function getControlRiskLevelColor(level: number): string {
-    if (level >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-    if (level >= 4) return 'text-orange-400 bg-orange-400/10 border-orange-400/20';
-    if (level >= 3) return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-    if (level >= 2) return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
-    return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+    if (level >= 4) return 'text-destructive bg-destructive/10 border-destructive/20';
+    if (level >= 3) return 'text-warning-text bg-warning/10 border-warning/20';
+    if (level >= 2) return 'text-accent-text bg-info/10 border-info/20';
+    return 'text-success-text bg-success/10 border-success/20';
 }
 
 export function getControlDisplayStatus(control: { status: ControlStatus; is_archived: boolean }): ControlDisplayStatus {
@@ -28,17 +27,17 @@ export function getControlStatusColor(status: ControlDisplayStatus): string {
         case ARCHIVED_CONTROL_FILTER:
             return ARCHIVED_CONTROL_BADGE_CLASS_NAME;
         case ControlStatus.ACTIVE:
-            return 'text-emerald-400 bg-emerald-400/10';
+            return 'text-success-text bg-success/10';
         case ControlStatus.DRAFT:
-            return 'text-slate-400 bg-slate-400/10';
+            return 'text-muted-foreground bg-muted';
         case ControlStatus.INACTIVE:
-            return 'text-rose-400 bg-rose-400/10';
+            return 'text-destructive bg-destructive/10';
         case 'active':
         case 'draft':
         case 'inactive':
-            return 'text-slate-400 bg-slate-400/10';
+            return 'text-muted-foreground bg-muted';
         default:
-            return 'text-slate-400 bg-slate-400/10';
+            return 'text-muted-foreground bg-muted';
     }
 }
 

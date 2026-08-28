@@ -13,7 +13,8 @@ import type { KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
 type BadgeTone = {
     badgeClassName: string;
     textClassName: string;
-    gaugeClassName: string;
+    gaugeToneClassName: string;
+    gaugeZoneClassName: string;
     icon: LucideIcon;
 };
 
@@ -25,33 +26,38 @@ type MonitoringMeta<TStatus extends string> = BadgeTone & {
 
 const BADGE_TONES = {
     success: {
-        badgeClassName: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-        textClassName: 'text-emerald-400',
-        gaugeClassName: 'bg-emerald-500 shadow-lg shadow-emerald-500/35',
+        badgeClassName: 'bg-success/10 text-success-text border border-success/20',
+        textClassName: 'text-success-text',
+        gaugeToneClassName: 'text-success-text',
+        gaugeZoneClassName: 'text-success/20',
         icon: CheckCircle2,
     },
     warning: {
-        badgeClassName: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
-        textClassName: 'text-amber-400',
-        gaugeClassName: 'bg-amber-500 shadow-lg shadow-amber-500/35',
+        badgeClassName: 'bg-warning/10 text-warning-text border border-warning/20',
+        textClassName: 'text-warning-text',
+        gaugeToneClassName: 'text-warning-text',
+        gaugeZoneClassName: 'text-warning/20',
         icon: Clock3,
     },
     danger: {
-        badgeClassName: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
-        textClassName: 'text-rose-400',
-        gaugeClassName: 'bg-rose-500 shadow-lg shadow-rose-500/35',
+        badgeClassName: 'bg-destructive/10 text-destructive border border-destructive/20',
+        textClassName: 'text-destructive',
+        gaugeToneClassName: 'text-destructive',
+        gaugeZoneClassName: 'text-destructive/20',
         icon: AlertTriangle,
     },
     info: {
-        badgeClassName: 'bg-sky-500/10 text-sky-300 border border-sky-500/20',
-        textClassName: 'text-sky-300',
-        gaugeClassName: 'bg-sky-400 shadow-lg shadow-sky-400/35',
+        badgeClassName: 'bg-info/10 text-accent-text border border-info/20',
+        textClassName: 'text-accent-text',
+        gaugeToneClassName: 'text-accent-text',
+        gaugeZoneClassName: 'text-info/20',
         icon: Sparkles,
     },
     neutral: {
-        badgeClassName: 'bg-white/10 text-slate-300 border border-white/10',
-        textClassName: 'text-slate-300',
-        gaugeClassName: 'bg-slate-500 shadow-lg shadow-slate-500/35',
+        badgeClassName: 'bg-muted text-muted-foreground border border-border',
+        textClassName: 'text-muted-foreground',
+        gaugeToneClassName: 'text-muted-foreground',
+        gaugeZoneClassName: 'text-muted-foreground/20',
         icon: ShieldQuestion,
     },
 } as const;

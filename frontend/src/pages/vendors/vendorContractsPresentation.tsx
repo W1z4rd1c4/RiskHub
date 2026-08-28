@@ -15,7 +15,7 @@ export function getContractDisplayStatus(
 }
 
 export function getContractStatusColor(status: ContractDisplayStatus): string {
-    return status === 'archived' ? 'text-slate-400 bg-slate-400/10' : 'text-emerald-400 bg-emerald-400/10';
+    return status === 'archived' ? 'text-muted-foreground bg-muted' : 'text-success-text bg-success/10';
 }
 
 /**
@@ -88,17 +88,17 @@ export function buildVendorContractColumns({
             className: 'w-[220px] min-w-[160px]',
             render: (contract) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-bold text-white">
+                    <span className="text-sm font-bold text-foreground">
                         {contract.contract_reference ?? '—'}
                     </span>
                     {contract.internal_contract_number ? (
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-muted-foreground">
                             {contract.internal_contract_number}
                         </span>
                     ) : null}
                     {isContractReferenceDuplicate(contract) ? (
                         <span
-                            className="inline-flex w-fit items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-300"
+                            className="inline-flex w-fit items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-warning-text"
                             data-testid={`vendor-contract-duplicate-${contract.id}`}
                         >
                             {t('vendors:contracts.columns.duplicate_flag')}
@@ -111,7 +111,7 @@ export function buildVendorContractColumns({
             key: 'arrangement_type',
             label: t('vendors:contracts.columns.arrangement_type'),
             render: (contract) => (
-                <span className="text-sm text-slate-300">{contract.arrangement_type ?? '—'}</span>
+                <span className="text-sm text-foreground">{contract.arrangement_type ?? '—'}</span>
             ),
         },
         {
@@ -120,18 +120,18 @@ export function buildVendorContractColumns({
             render: (contract) => (
                 <div className="flex flex-wrap items-center gap-1.5">
                     {contract.main_contract === 'Ano' ? (
-                        <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-300">
+                        <span className="inline-flex items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-warning-text">
                             {t('vendors:contracts.columns.main_flag')}
                         </span>
                     ) : null}
                     {contract.roi_scope === 'Ano' ? (
-                        <span className="inline-flex items-center rounded-full border border-indigo-400/30 bg-indigo-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-indigo-300">
+                        <span className="inline-flex items-center rounded-full border border-info/30 bg-info/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-accent-text">
                             {t('vendors:contracts.columns.roi_flag')}
                         </span>
                     ) : null}
                     {contract.derived?.cif === 'Ano' ? (
                         <span
-                            className="inline-flex items-center rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-rose-300"
+                            className="inline-flex items-center rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-destructive"
                             data-testid={`vendor-contract-cif-${contract.id}`}
                         >
                             {t('vendors:contracts.columns.cif')}
@@ -140,7 +140,7 @@ export function buildVendorContractColumns({
                     {contract.main_contract !== 'Ano' &&
                     contract.roi_scope !== 'Ano' &&
                     contract.derived?.cif !== 'Ano' ? (
-                        <span className="text-sm text-slate-500">—</span>
+                        <span className="text-sm text-muted-foreground">—</span>
                     ) : null}
                 </div>
             ),
@@ -151,13 +151,13 @@ export function buildVendorContractColumns({
             render: (contract) =>
                 contract.derived ? (
                     <span
-                        className="text-sm text-slate-300"
+                        className="text-sm text-foreground"
                         data-testid={`vendor-contract-chain-${contract.id}`}
                     >
                         {contract.derived.sub_outsourcing_chain}
                     </span>
                 ) : (
-                    <span className="text-sm text-slate-500">—</span>
+                    <span className="text-sm text-muted-foreground">—</span>
                 ),
         },
         {
@@ -169,7 +169,7 @@ export function buildVendorContractColumns({
                 const start = formatDateValue(contract.start_date, locale);
                 const end = formatDateValue(contract.end_date, locale);
                 return (
-                    <span className="text-sm text-slate-300 tabular-nums">
+                    <span className="text-sm text-foreground tabular-nums">
                         {start || '—'} → {end || '—'}
                     </span>
                 );
@@ -183,7 +183,7 @@ export function buildVendorContractColumns({
             className: 'text-right',
             headerClassName: 'text-right',
             render: (contract) => (
-                <span className="text-sm text-slate-300 tabular-nums">
+                <span className="text-sm text-foreground tabular-nums">
                     {formatContractCost(contract) ?? '—'}
                 </span>
             ),
@@ -214,7 +214,7 @@ export function buildVendorContractColumns({
                             type="button"
                             data-testid={`vendor-contract-edit-${contract.id}`}
                             onClick={(event) => onEdit(contract, event)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-glass-hover transition-colors"
                             aria-label={t('vendors:contracts.actions.edit')}
                             title={t('vendors:contracts.actions.edit')}
                         >
@@ -226,7 +226,7 @@ export function buildVendorContractColumns({
                             type="button"
                             data-testid={`vendor-contract-archive-${contract.id}`}
                             onClick={(event) => void onArchive(contract, event)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             aria-label={t('vendors:contracts.actions.archive')}
                             title={t('vendors:contracts.actions.archive')}
                         >
@@ -238,7 +238,7 @@ export function buildVendorContractColumns({
                             type="button"
                             data-testid={`vendor-contract-restore-${contract.id}`}
                             onClick={(event) => void onRestore(contract, event)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-glass-hover transition-colors"
                             aria-label={t('vendors:contracts.actions.restore')}
                             title={t('vendors:contracts.actions.restore')}
                         >

@@ -124,6 +124,7 @@ describe('ControlDetailPage execution status refresh', () => {
         );
 
         await screen.findByText('Quarterly Access Review');
+        expect(screen.getByText('controls:status.active')).toBeInTheDocument();
         expect(screen.getByText('controls:monitoring.failed')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /controls:detail.execution_history/i }));

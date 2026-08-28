@@ -21,7 +21,7 @@ const TAB_BASE =
 function tabClassName(isActive: boolean) {
     return `${TAB_BASE} ${
         isActive
-            ? 'bg-accent text-white'
+            ? 'bg-accent text-accent-foreground'
             : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
     }`;
 }

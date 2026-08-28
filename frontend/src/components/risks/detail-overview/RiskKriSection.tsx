@@ -28,12 +28,12 @@ export function RiskKriSection({
             <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <div className="flex items-center gap-3">
                     <FileText className="h-5 w-5 text-amber-400" />
-                    <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('overview.risk_appetite_indicators', { ns: 'risks' })}</h3>
+                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.risk_appetite_indicators', { ns: 'risks' })}</h3>
                 </div>
                 {canCreateKri && (
                     <button
                         onClick={onNavigateToNewKri}
-                        className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/20 transition-all font-bold"
+                        className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent/20 transition-colors font-bold"
                     >
                         <Plus className="h-3 w-3 inline mr-1" /> {t('overview.add_kri', { ns: 'risks' })}
                     </button>
@@ -58,7 +58,7 @@ export function RiskKriSection({
             ) : (
                 <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-white/5 rounded-2xl">
                     <p className="text-slate-600 text-sm font-medium mb-2">{t('common:empty.no_kris_configured')}</p>
-                    <p className="text-[10px] text-slate-700 max-w-xs mx-auto">{t('overview.kris_help_text', { ns: 'risks' })}</p>
+                    <p className="text-xs text-slate-700 max-w-xs mx-auto">{t('overview.kris_help_text', { ns: 'risks' })}</p>
                 </div>
             )}
         </motion.div>

@@ -140,7 +140,7 @@ export function DirectoryUserImportPanel({
                                     type="button"
                                     onClick={() => handleImport(entry)}
                                     disabled={isImportingOid === entry.external_id}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-accent/80 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     <UserPlus className="h-3.5 w-3.5" />
                                     {isImportingOid === entry.external_id

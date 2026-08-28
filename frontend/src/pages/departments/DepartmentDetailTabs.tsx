@@ -7,8 +7,8 @@ interface DepartmentDetailTabsProps {
 }
 
 const tabClassName = (isActive: boolean) =>
-    `px-6 py-3 font-bold transition-all ${
-        isActive ? 'text-accent border-b-2 border-accent' : 'text-slate-500 hover:text-white'
+    `px-6 py-3 font-bold transition-colors ${
+        isActive ? 'text-accent-text border-b-2 border-accent' : 'text-muted-foreground hover:text-foreground'
     }`;
 
 export function DepartmentDetailTabs({

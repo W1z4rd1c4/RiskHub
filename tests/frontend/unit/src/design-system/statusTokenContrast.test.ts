@@ -19,6 +19,7 @@ import { describe, expect, it } from 'vitest';
  */
 
 const WCAG_AA_TEXT = 4.5;
+const WCAG_UI = 3;
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
 const indexCss = readFileSync(resolve(repoRoot, 'frontend/src/index.css'), 'utf8');
@@ -108,11 +109,74 @@ const THEMES = [
 
 const STATUS_TOKENS = ['destructive', 'success', 'warning', 'info'] as const;
 
+const SURFACE_TEXT_PAIRS = [
+  ['background', 'foreground'],
+  ['card', 'card-foreground'],
+  ['popover', 'popover-foreground'],
+  ['nested', 'nested-foreground'],
+  ['glass', 'glass-foreground'],
+  ['muted', 'muted-foreground'],
+] as const;
+
+const UI_AGAINST_BASE = ['input', 'icon-muted'] as const;
+
 const cases = THEMES.flatMap(({ name, selector }) =>
   STATUS_TOKENS.map((token) => ({ theme: name, selector, token })),
 );
 
 describe('semantic status tokens — WCAG AA contrast (FR-P1-3, N20)', () => {
+  it.each(THEMES)('documents contrast-safe surface/foreground pairs in $name', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+
+    for (const [surface, foreground] of SURFACE_TEXT_PAIRS) {
+      const ratio = contrastRatio(readHsl(block, surface), readHsl(block, foreground));
+      expect(
+        ratio,
+        `--${surface} vs --${foreground} @ ${name} = ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+    }
+  });
+
+  it.each(THEMES)('documents distinguishable control/icon semantics in $name', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+
+    expect(block, '--border').toContain('--border:');
+
+    for (const token of UI_AGAINST_BASE) {
+      const ratio = contrastRatio(readHsl(block, token), readHsl(block, 'background'));
+      expect(
+        ratio,
+        `--${token} vs --background @ ${name} = ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(WCAG_UI);
+    }
+  });
+
+  it.each(THEMES)('accent fill and standalone accent text are readable in $name', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    const accentFillRatio = contrastRatio(readHsl(block, 'accent'), readHsl(block, 'accent-foreground'));
+    const accentHoverRatio = contrastRatio(readHsl(block, 'accent-hover'), readHsl(block, 'accent-foreground'));
+    const accentTextRatio = contrastRatio(readHsl(block, 'accent-text'), readHsl(block, 'background'));
+
+    expect(
+      accentFillRatio,
+      `--accent vs --accent-foreground @ ${name} = ${accentFillRatio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+    expect(
+      accentHoverRatio,
+      `--accent-hover vs --accent-foreground @ ${name} = ${accentHoverRatio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+    expect(
+      accentTextRatio,
+      `--accent-text vs --background @ ${name} = ${accentTextRatio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+  });
+
+  it.each(THEMES)('focus ring is distinguishable from the $name background', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    const ratio = contrastRatio(readHsl(block, 'ring'), readHsl(block, 'background'));
+    expect(ratio, `--ring vs --background @ ${name} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(WCAG_UI);
+  });
+
   it.each(cases)('$token bg/fg pair clears AA text contrast in $theme', ({ selector, token, theme }) => {
     const block = themeBlock(indexCss, selector);
     const bg = readHsl(block, token);

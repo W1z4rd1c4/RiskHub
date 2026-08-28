@@ -22,7 +22,7 @@ export function buildKriColumns({
             key: 'metric_name',
             label: t('kris:columns.metric'),
             sortable: true,
-            render: (kri) => <span className="font-medium text-white">{kri.metric_name}</span>,
+            render: (kri) => <span className="font-medium text-foreground">{kri.metric_name}</span>,
         },
         {
             key: 'current_value',
@@ -31,14 +31,14 @@ export function buildKriColumns({
             render: (kri) => {
                 const monitoring = getKriMonitoringMeta(kri.monitoring_status);
                 return <span className={`font-black ${monitoring.textClassName}`}>
-                    {formatNumber(kri.current_value)} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
+                    {formatNumber(kri.current_value)} <span className="text-muted-foreground font-normal text-xs">{kri.unit}</span>
                 </span>;
             },
         },
         {
             key: 'lower_limit',
             label: t('kris:columns.limits'),
-            render: (kri) => <span className="text-xs text-slate-500">
+            render: (kri) => <span className="text-xs text-muted-foreground">
                 {formatNumber(kri.lower_limit)} - {formatNumber(kri.upper_limit)}
             </span>,
         },
@@ -50,11 +50,11 @@ export function buildKriColumns({
                 const monitoring = getKriMonitoringMeta(kri.monitoring_status);
                 const Icon = monitoring.icon;
                 return <div className="flex flex-wrap items-center gap-2">
-                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase w-fit ${monitoring.badgeClassName}`}>
+                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold uppercase w-fit ${monitoring.badgeClassName}`}>
                         <Icon className="h-3 w-3" aria-hidden="true" />
                         {t(monitoring.labelKey)}
                     </span>
-                    {kri.is_archived ? <span className="rounded-md bg-slate-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-300">{t('kris:filters.archived')}</span> : null}
+                    {kri.is_archived ? <span className="rounded-md bg-slate-500/15 px-2 py-0.5 text-xs font-bold uppercase text-slate-300">{t('kris:filters.archived')}</span> : null}
                 </div>;
             },
         },
@@ -62,7 +62,7 @@ export function buildKriColumns({
             key: 'risk_process',
             label: t('kris:columns.risk'),
             sortable: true,
-            render: (kri) => <span className="text-white text-xs font-bold block truncate max-w-[150px]" title={kri.risk_process ?? undefined}>
+            render: (kri) => <span className="text-foreground text-xs font-bold block truncate max-w-[150px]" title={kri.risk_process ?? undefined}>
                 {kri.risk_process || t('common:fallbacks.unknown_risk')}
             </span>,
         },
@@ -70,7 +70,7 @@ export function buildKriColumns({
             key: 'risk_description',
             label: t('kris:columns.description'),
             sortable: true,
-            render: (kri) => <span className="text-slate-400 text-xs font-medium block truncate max-w-[200px]" title={kri.risk_description ?? undefined}>
+            render: (kri) => <span className="text-muted-foreground text-xs font-medium block truncate max-w-[200px]" title={kri.risk_description ?? undefined}>
                 {kri.risk_description || t('common:fallbacks.not_available')}
             </span>,
         },
@@ -82,7 +82,7 @@ export function buildKriColumns({
                     type="button"
                     onClick={(event) => onRestore(kri.id, event)}
                     data-testid={`kri-unarchive-${kri.id}`}
-                    className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
+                    className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-xs font-black uppercase tracking-wider"
                 >{t('kris:actions.unarchive')}</button> : null}
             </div>,
         },

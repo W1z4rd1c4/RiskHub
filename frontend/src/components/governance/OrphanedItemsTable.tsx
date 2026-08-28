@@ -55,9 +55,9 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
     if (items.length === 0) {
         return (
             <div className="glass-card text-center py-16">
-                <AlertTriangle className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-white mb-2">{t('governance.all_clear')}</h3>
-                <p className="text-slate-500 max-w-md mx-auto">
+                <AlertTriangle className="h-12 w-12 text-success-text mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-foreground mb-2">{t('governance.all_clear')}</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
                     {t('governance.no_orphans')}
                 </p>
             </div>
@@ -65,10 +65,10 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
     }
 
     return (
-        <div className="glass-card !p-0 overflow-hidden">
+        <div data-testid="governance-orphaned-table" className="glass-card !p-0 overflow-hidden">
             <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-amber-400" />
+                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-warning-text" />
                     {t('governance.orphaned_items')} ({filteredItems.length})
                 </h3>
                 <div className="flex items-center gap-2">
@@ -94,13 +94,13 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-white/5">
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_type')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_name')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_description')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_department')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_previous_owner')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_orphaned')}</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_actions')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_type')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_name')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_description')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_department')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_previous_owner')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_orphaned')}</th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_actions')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -120,28 +120,28 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                             <div className={`p-1.5 rounded-lg transition-transform group-hover:scale-110 ${item.item_type === 'risk' ? 'bg-rose-500/10 text-rose-400' : 'bg-accent/10 text-accent'}`}>
                                                 <Icon className="h-4 w-4" />
                                             </div>
-                                            <span className="text-sm font-medium text-white">
+                                            <span className="text-sm font-medium text-foreground">
                                                 {typeLabels[item.item_type] || item.item_type}
                                             </span>
                                         </div>
                                     </td>
                                     <td className="px-4 py-3">
                                         <div>
-                                            <p className="text-sm font-bold text-white group-hover:text-accent transition-colors">{item.item_name}</p>
-                                            {(item.item_type === 'asset' || item.item_type === 'vendor') && item.responsibility_role ? <p className="text-[10px] font-bold uppercase text-amber-300">{t(`governance.responsibility_role.${item.responsibility_role}`)}</p> : null}
+                                            <p className="text-sm font-bold text-foreground group-hover:text-accent-text transition-colors">{item.item_name}</p>
+                                            {(item.item_type === 'asset' || item.item_type === 'vendor') && item.responsibility_role ? <p className="text-xs font-bold uppercase text-muted-foreground">{t(`governance.responsibility_role.${item.responsibility_role}`)}</p> : null}
                                         </div>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <p className="text-xs text-slate-500 line-clamp-2 max-w-md">{item.item_description || '-'}</p>
+                                        <p className="text-xs text-muted-foreground line-clamp-2 max-w-md">{item.item_description || '-'}</p>
                                     </td>
                                     <td className="px-4 py-3">
                                         {item.department_name === 'Uncategorised' ? (
-                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit">
+                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-warning text-warning-foreground border border-warning/20 w-fit">
                                                 <Building2 className="h-3 w-3" />
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Uncategorised</span>
+                                                <span className="text-xs font-bold uppercase tracking-wider">Uncategorised</span>
                                             </div>
                                         ) : (
-                                            <span className="text-sm text-slate-400 font-medium">
+                                            <span className="text-sm text-muted-foreground font-medium">
                                                 {item.department_name || 'N/A'}
                                             </span>
                                         )}
@@ -152,13 +152,13 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                                 <UserCheck className="h-3 w-3 text-slate-500" />
                                             </div>
                                             <div>
-                                                <p className="text-sm font-medium text-white">{item.previous_owner_name}</p>
-                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{item.previous_owner_email}</p>
+                                                <p className="text-sm font-medium text-foreground">{item.previous_owner_name}</p>
+                                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-tighter">{item.previous_owner_email}</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <span className={`text-xs font-bold uppercase tracking-widest ${old ? 'text-amber-400' : 'text-slate-500'}`}>
+                                        <span className={`text-xs font-bold uppercase tracking-widest ${old ? 'text-foreground' : 'text-muted-foreground'}`}>
                                             {formatRelativeDateValue(item.orphaned_at, i18n.language)}
                                         </span>
                                     </td>
@@ -169,7 +169,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                                     type="button"
                                                     onClick={() => onView(item)}
                                                     aria-label={`${t('common:actions.view')} ${item.item_name}`}
-                                                    className="inline-flex items-center justify-center p-2 bg-white/5 hover:bg-accent text-slate-300 hover:text-white rounded-xl transition-all border border-white/10 hover:border-accent/50 shadow-sm active:scale-95"
+                                                    className="inline-flex items-center justify-center p-2 bg-white/5 hover:bg-accent-hover text-muted-foreground hover:text-accent-foreground rounded-xl transition-all border border-white/10 hover:border-accent/50 shadow-sm active:scale-95"
                                                 >
                                                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                                                 </button>
@@ -178,7 +178,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                                 <button
                                                     type="button"
                                                     onClick={() => onResolve(item)}
-                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-accent text-white hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 group-hover:border-accent/50 shadow-sm active:scale-95"
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-accent-hover text-foreground hover:text-accent-foreground text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 group-hover:border-accent/50 shadow-sm active:scale-95"
                                                 >
                                                     <UserCheck className="h-3.5 w-3.5" />
                                                     {t('governance.resolve')}

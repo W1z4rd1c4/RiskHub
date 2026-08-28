@@ -67,9 +67,9 @@ export function RiskDetailPage() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'active': return 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5';
-            case 'emerging': return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
-            default: return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
+            case 'active': return 'text-success-text border-success/20 bg-success/10';
+            case 'emerging': return 'text-warning-text border-warning/20 bg-warning/10';
+            default: return 'text-muted-foreground border-border bg-muted';
         }
     };
 
@@ -101,7 +101,7 @@ export function RiskDetailPage() {
                 </div>
                 <button
                     onClick={() => navigate('/risks')}
-                    className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2"
+                    className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors flex items-center gap-2"
                 >
                     <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.risks')}
                 </button>
@@ -146,23 +146,23 @@ export function RiskDetailPage() {
                 <div className="space-y-2">
                     <button
                         onClick={() => navigate('/risks')}
-                        className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest mb-4"
+                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest mb-4"
                     >
                         <ArrowLeft className="h-3 w-3" /> {t('risks:actions.back_to_register')}
                     </button>
                     <div className="flex items-center gap-4">
-                        <h2 className="text-4xl font-black text-white tracking-tighter">{risk.name}</h2>
+                        <h2 className="text-4xl font-black text-foreground tracking-tighter">{risk.name}</h2>
                         {risk.is_priority && (
                             <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
                         )}
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusColor(displayStatus)}`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border ${getStatusColor(displayStatus)}`}>
                             {displayStatus}
                         </span>
                     </div>
-                    <div className="flex items-center gap-3 text-slate-500 text-sm font-medium">
+                    <div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
                         <span>{risk.process}</span>
                     </div>
-                    <p className="text-slate-500 font-medium max-w-2xl">{risk.description}</p>
+                    <p className="text-muted-foreground font-medium max-w-2xl">{risk.description}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -182,7 +182,7 @@ export function RiskDetailPage() {
                             onClick={() => navigate(`/risks/${risk.id}/edit`)}
                             title={t('risks:edit_risk')}
                             aria-label={t('risks:edit_risk')}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-lg hover:shadow-accent/20"
+                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-[border-color,color,box-shadow] hover:shadow-lg hover:shadow-accent/20"
                         >
                             <Edit className="h-5 w-5" />
                         </button>
@@ -191,7 +191,7 @@ export function RiskDetailPage() {
                         canRestoreRisk && (
                             <button
                                 onClick={handleRestore}
-                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"
+                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-colors"
                                 title={t('risks:tooltips.unarchive_risk')}
                             >
                                 <RotateCcw className="h-5 w-5" />
@@ -203,7 +203,7 @@ export function RiskDetailPage() {
                                 onClick={() => setIsDeleteDialogOpen(true)}
                                 title={t('actions.archive')}
                                 aria-label={t('actions.archive')}
-                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
+                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-colors"
                             >
                                 <Trash2 className="h-5 w-5" />
                             </button>
@@ -216,9 +216,9 @@ export function RiskDetailPage() {
             <div className="flex items-center gap-2 border-b border-white/10">
                 <button
                     onClick={() => setActiveTab('overview')}
-                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'overview'
-                        ? 'text-accent border-b-2 border-accent'
-                        : 'text-slate-500 hover:text-white'
+                    className={`px-6 py-3 font-bold transition-colors ${activeTab === 'overview'
+                        ? 'text-accent-text border-b-2 border-accent'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
                     <Target className="h-4 w-4 inline mr-2" />
@@ -226,9 +226,9 @@ export function RiskDetailPage() {
                 </button>
                 <button
                     onClick={() => setActiveTab('history')}
-                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'history'
-                        ? 'text-accent border-b-2 border-accent'
-                        : 'text-slate-500 hover:text-white'
+                    className={`px-6 py-3 font-bold transition-colors ${activeTab === 'history'
+                        ? 'text-accent-text border-b-2 border-accent'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
                     <History className="h-4 w-4 inline mr-2" />
@@ -236,9 +236,9 @@ export function RiskDetailPage() {
                 </button>
                 <button
                     onClick={() => setActiveTab('assessment')}
-                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'assessment'
-                        ? 'text-accent border-b-2 border-accent'
-                        : 'text-slate-500 hover:text-white'
+                    className={`px-6 py-3 font-bold transition-colors ${activeTab === 'assessment'
+                        ? 'text-accent-text border-b-2 border-accent'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
                     <FileText className="h-4 w-4 inline mr-2" />

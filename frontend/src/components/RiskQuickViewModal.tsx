@@ -138,7 +138,7 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
             <div className="p-6 border-t border-white/10 bg-white/5 flex justify-end">
                 <button
                     onClick={() => navigate(`/risks/${risk.id}`)}
-                    className="px-6 py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-accent/20"
+                    className="px-6 py-2.5 bg-accent hover:bg-accent-hover text-accent-foreground text-sm font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-accent/20"
                 >
                     {t('risks:view_risk')} <div className="text-[10px] opacity-60">→</div>
                 </button>

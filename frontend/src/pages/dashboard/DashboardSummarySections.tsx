@@ -61,26 +61,27 @@ export function DashboardSummarySections({
                 className="grid gap-6 md:grid-cols-2 lg:grid-cols-6"
             >
                 {stats.map((stat) => (
-                    <motion.div
+                    <motion.button
+                        type="button"
                         key={stat.title}
                         variants={item}
-                        className="glass-card group flex flex-col justify-between cursor-pointer hover:ring-2 hover:ring-accent/50 transition-all"
+                        className="glass-card interactive-card group flex flex-col justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         onClick={() => onStatSelect(stat.path)}
                     >
                         <div className="flex justify-between items-start mb-6">
                             <div className={`${stat.bg} p-3 rounded-xl`}>
                                 <stat.icon className={`h-6 w-6 ${stat.color}`} />
                             </div>
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                            <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
                                 <TrendingUp className="h-3 w-3" />
                                 {stat.trend}
                             </div>
                         </div>
                         <div>
                             <p className="text-sm font-bold text-slate-500 mb-1">{stat.title}</p>
-                            <h3 className="text-4xl font-black text-white tracking-tighter">{stat.value}</h3>
+                            <h3 className="text-4xl font-black text-foreground tracking-tighter">{stat.value}</h3>
                         </div>
-                    </motion.div>
+                    </motion.button>
                 ))}
             </motion.div>
 
@@ -113,7 +114,7 @@ export function DashboardSummarySections({
                     transition={{ delay: 0.5 }}
                     className="glass-card"
                 >
-                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
                         <ClipboardList className="h-5 w-5 text-accent" />
                         {categoryAnalyticsTitle}
                     </h3>

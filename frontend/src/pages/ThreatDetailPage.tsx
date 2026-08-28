@@ -36,8 +36,8 @@ function DetailField({
 }) {
     return (
         <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
-            <p className="text-sm text-white whitespace-pre-wrap" data-testid={testId}>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+            <p className="text-sm text-foreground whitespace-pre-wrap" data-testid={testId}>
                 {value === null || value === undefined || value === '' ? '—' : value}
             </p>
         </div>
@@ -350,7 +350,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     <div>
                         <div className="flex items-center gap-3">
                             {threat.category ? (
-                                <span className="text-xs font-bold text-accent">{threatCategoryLabel(t, threat.category)}</span>
+                                <span className="text-xs font-bold text-accent-text">{threatCategoryLabel(t, threat.category)}</span>
                             ) : null}
                             <span
                                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getThreatStatusColor(status)}`}
@@ -358,9 +358,9 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                                 {t(`status.${status}`)}
                             </span>
                         </div>
-                        <h1 className="text-3xl font-bold text-white mt-1">{threat.name}</h1>
+                        <h1 className="text-3xl font-bold text-foreground mt-1">{threat.name}</h1>
                         {threat.relevant_subject ? (
-                            <p className="text-slate-500 font-medium mt-1">{threat.relevant_subject}</p>
+                            <p className="text-muted-foreground font-medium mt-1">{threat.relevant_subject}</p>
                         ) : null}
                     </div>
                 </div>
@@ -392,7 +392,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                             type="button"
                             onClick={() => setIsArchiveDialogOpen(true)}
                             data-testid="threat-detail-archive"
-                            className="px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-400/30 text-rose-300 hover:bg-rose-500/20 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
                             <Trash2 className="h-4 w-4" />
                             {tCommon('actions.archive')}
@@ -402,7 +402,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
             </div>
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.details')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -421,7 +421,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                 {threat.notes ? (
                     <div className="space-y-1">
                         <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.notes')}</p>
-                        <p className="text-sm text-slate-300 whitespace-pre-wrap">{threat.notes}</p>
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{threat.notes}</p>
                     </div>
                 ) : null}
             </div>

@@ -135,7 +135,7 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent/90 disabled:opacity-50 transition-colors"
+                        className="flex items-center gap-1 px-3 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
                     >
                         {saving ? (
                             <span className="animate-spin">⏳</span>

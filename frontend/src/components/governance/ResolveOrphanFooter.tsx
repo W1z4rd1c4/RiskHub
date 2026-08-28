@@ -91,7 +91,7 @@ export function ResolveOrphanFooter({
                     <button
                         onClick={onSubmit}
                         disabled={!canSubmit}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent text-white text-xs font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg active:scale-95"
+                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent text-accent-foreground text-xs font-black uppercase tracking-widest rounded-xl hover:bg-accent-hover transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg active:scale-95"
                     >
                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
                         {tAdmin(submitLabelKey)}

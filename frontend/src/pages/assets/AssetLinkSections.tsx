@@ -456,7 +456,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                             {link.is_primary ? (
                                                 <span
                                                     data-testid={`asset-process-link-primary-${link.process_id}`}
-                                                    className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-300"
+                                                    className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-xs font-black uppercase tracking-widest text-amber-300"
                                                 >
                                                     <Star className="h-3 w-3" />
                                                     {t('links.processes.primary')}
@@ -564,7 +564,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                     data-testid="asset-process-link-add"
                                     disabled={!processToLink || addProcessBlocked || addProcessLink.isPending}
                                     onClick={() => openProcessAction({ kind: 'add' })}
-                                    className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                                    className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
                                     <Plus className="h-4 w-4" />
                                     {t('links.add')}
@@ -688,7 +688,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                     data-testid="asset-asset-link-add"
                                     disabled={!assetToLink || addAssetLink.isPending}
                                     onClick={() => setPendingAssetAction('asset_add')}
-                                    className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                                    className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
                                     <Plus className="h-4 w-4" />
                                     {t('links.add')}
@@ -801,7 +801,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                     data-testid="asset-vendor-link-add"
                                     disabled={!vendorLinkPayload || addVendorLink.isPending}
                                     onClick={() => setPendingAssetAction('vendor_add')}
-                                    className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                                    className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
                                     <Plus className="h-4 w-4" />
                                     {t('links.add')}

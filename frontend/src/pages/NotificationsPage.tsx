@@ -104,7 +104,7 @@ export function NotificationsPage() {
                 <button
                     onClick={() => { setActiveTab('all'); setPage(0); }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'all'
-                        ? 'bg-accent text-white'
+                        ? 'bg-accent text-accent-foreground'
                         : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                         }`}
                 >
@@ -113,7 +113,7 @@ export function NotificationsPage() {
                 <button
                     onClick={() => { setActiveTab('unread'); setPage(0); }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'unread'
-                        ? 'bg-accent text-white'
+                        ? 'bg-accent text-accent-foreground'
                         : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                         }`}
                 >

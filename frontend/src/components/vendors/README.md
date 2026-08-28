@@ -55,6 +55,6 @@ shared vendor linked-entity shell. Concrete tabs supply a
 and `toExistingLink` functions while keeping their domain-specific cards and
 dialog modes.
 
-`vendorRoute.css` and `vendorRouteUi.tsx` are the vendor-route-family surface
-system. They provide the shared glass-stack primitives used by the core detail
-view and the new/edit form without changing vendor business logic.
+`vendorRoute.css` and `vendorRouteUi.tsx` provide the vendor-route-family
+layout primitives. Their presentation consumes the global semantic theme
+tokens used by the rest of the frontend.

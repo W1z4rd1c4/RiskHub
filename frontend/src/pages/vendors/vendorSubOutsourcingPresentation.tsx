@@ -15,7 +15,7 @@ export function getSubOutsourcingDisplayStatus(
 }
 
 export function getSubOutsourcingStatusColor(status: SubOutsourcingDisplayStatus): string {
-    return status === 'archived' ? 'text-slate-400 bg-slate-400/10' : 'text-emerald-400 bg-emerald-400/10';
+    return status === 'archived' ? 'text-muted-foreground bg-muted' : 'text-success-text bg-success/10';
 }
 
 /**
@@ -198,12 +198,12 @@ export function buildVendorSubOutsourcingColumns({
                     animate={{ paddingLeft: `${depth * DEPTH_INDENT_PX}px` }}
                     transition={{ duration: 0 }}
                 >
-                    <span className="text-sm font-bold text-white">
-                        {depth > 0 ? <span className="text-slate-500">↳ </span> : null}
+                    <span className="text-sm font-bold text-foreground">
+                        {depth > 0 ? <span className="text-muted-foreground">↳ </span> : null}
                         {entry.sub_provider_name ?? '—'}
                     </span>
                     {entry.identifier_type || entry.identifier_value ? (
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-muted-foreground">
                             {[entry.identifier_type, entry.identifier_value].filter(Boolean).join(': ')}
                         </span>
                     ) : null}
@@ -222,22 +222,22 @@ export function buildVendorSubOutsourcingColumns({
                         <span
                             className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold ${
                                 broken
-                                    ? 'text-rose-300 bg-rose-500/10 border-rose-400/30'
-                                    : 'text-cyan-300 bg-cyan-400/10 border-cyan-400/20'
+                                    ? 'text-destructive bg-destructive/10 border-destructive/30'
+                                    : 'text-accent-text bg-info/10 border-info/20'
                             }`}
                         >
                             {entry.derived ? formatSubOutsourcingRank(entry) : '—'}
                         </span>
                         {broken ? (
                             <span
-                                className="text-[10px] font-black uppercase tracking-widest text-rose-300"
+                                className="text-xs font-black uppercase tracking-widest text-destructive"
                                 data-testid={`vendor-sub-outsourcing-chain-error-${entry.id}`}
                             >
                                 {t('vendors:sub_outsourcing.chain_status.chain_error')}
                             </span>
                         ) : null}
                         {duplicate ? (
-                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">
+                            <span className="text-xs font-black uppercase tracking-widest text-warning-text">
                                 {t('vendors:sub_outsourcing.chain_status.duplicate')}
                             </span>
                         ) : null}
@@ -250,10 +250,10 @@ export function buildVendorSubOutsourcingColumns({
             label: t('vendors:sub_outsourcing.columns.contract'),
             render: ({ entry }) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-slate-300">{getContractLabel(entry)}</span>
+                    <span className="text-sm text-foreground">{getContractLabel(entry)}</span>
                     {entry.derived?.critical_service === 'Ano' ? (
                         <span
-                            className="inline-flex w-fit items-center rounded-full border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-rose-300"
+                            className="inline-flex w-fit items-center rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-xs font-black uppercase tracking-widest text-destructive"
                             data-testid={`vendor-sub-outsourcing-critical-${entry.id}`}
                         >
                             {t('vendors:sub_outsourcing.columns.critical_service')}
@@ -266,14 +266,14 @@ export function buildVendorSubOutsourcingColumns({
             key: 'country',
             label: t('vendors:sub_outsourcing.columns.country'),
             className: 'w-[90px]',
-            render: ({ entry }) => <span className="text-sm text-slate-300">{entry.country ?? '—'}</span>,
+            render: ({ entry }) => <span className="text-sm text-foreground">{entry.country ?? '—'}</span>,
         },
         {
             key: 'ict_service_code',
             label: t('vendors:sub_outsourcing.columns.ict_service'),
             className: 'w-[110px]',
             render: ({ entry }) => (
-                <span className="text-sm text-slate-300">{entry.ict_service_code ?? '—'}</span>
+                <span className="text-sm text-foreground">{entry.ict_service_code ?? '—'}</span>
             ),
         },
         {
@@ -302,7 +302,7 @@ export function buildVendorSubOutsourcingColumns({
                             type="button"
                             data-testid={`vendor-sub-outsourcing-edit-${entry.id}`}
                             onClick={(event) => onEdit(entry, event)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-glass-hover transition-colors"
                             title={t('vendors:sub_outsourcing.actions.edit')}
                         >
                             <Pencil className="h-4 w-4" />
@@ -313,7 +313,7 @@ export function buildVendorSubOutsourcingColumns({
                             type="button"
                             data-testid={`vendor-sub-outsourcing-archive-${entry.id}`}
                             onClick={(event) => void onArchive(entry, event)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             title={t('vendors:sub_outsourcing.actions.archive')}
                         >
                             <Trash2 className="h-4 w-4" />
@@ -324,7 +324,7 @@ export function buildVendorSubOutsourcingColumns({
                             type="button"
                             data-testid={`vendor-sub-outsourcing-restore-${entry.id}`}
                             onClick={(event) => void onRestore(entry, event)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-glass-hover transition-colors"
                             title={t('vendors:sub_outsourcing.actions.restore')}
                         >
                             <ArchiveRestore className="h-4 w-4" />

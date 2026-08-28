@@ -61,7 +61,7 @@ vi.mock('react-router-dom', () => ({
 }));
 
 describe('RiskDrilldownModal risk thresholds', () => {
-    it('uses configured thresholds for listed risk score colors', async () => {
+    it('renders the configured high severity and listed score', async () => {
         vi.mocked(dashboardApi.fetchRisksByCell).mockResolvedValue([
             {
                 id: 7,
@@ -85,8 +85,7 @@ describe('RiskDrilldownModal risk thresholds', () => {
         );
 
         expect(await screen.findByText('Threshold Risk')).toBeInTheDocument();
-        const score = screen.getByText('Score: 15');
-        expect(score).toHaveClass('text-orange-400');
-        expect(score).not.toHaveClass('text-rose-400');
+        expect(screen.getByText('issues.severity.high')).toBeVisible();
+        expect(screen.getByText('Score: 15')).toBeVisible();
     });
 });

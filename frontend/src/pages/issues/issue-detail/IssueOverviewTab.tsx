@@ -68,7 +68,7 @@ export function IssueOverviewTab({ issue, locale, sourceLabel, t }: IssueOvervie
                                                     : t('fallbacks.unknown_link'))}
                                         </p>
                                         {link.is_source_link ? (
-                                            <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                                            <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent-text">
                                                 {t('detail.fields.source')}
                                             </span>
                                         ) : null}

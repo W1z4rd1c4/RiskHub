@@ -167,7 +167,7 @@ export function SortableTable<T extends object>({
                             scope="col"
                             aria-sort={getAriaSort(col, key)}
                             className={cn(
-                                'px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-400',
+                                'px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground',
                                 col.headerClassName
                             )}
                         >
@@ -175,7 +175,7 @@ export function SortableTable<T extends object>({
                                 <button
                                     type="button"
                                     onClick={() => handleSort(key)}
-                                    className="group inline-flex items-center gap-2 uppercase tracking-wider transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
+                                    className="group inline-flex items-center gap-2 uppercase tracking-wider transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
                                 >
                                     {col.label}
                                     {getSortIcon(key)}

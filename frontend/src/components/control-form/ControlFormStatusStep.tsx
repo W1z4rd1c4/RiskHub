@@ -22,7 +22,7 @@ export function ControlFormStatusStep({ formData, handleInputChange, t }: Contro
                         onChange={(event) => handleInputChange('risk_level', parseInt(event.target.value))}
                         className="flex-1 accent-accent"
                     />
-                    <span className="w-12 h-12 rounded-xl bg-accent text-white flex items-center justify-center font-black text-xl shadow-lg shadow-accent/25">
+                    <span className="w-12 h-12 rounded-xl bg-accent text-accent-foreground flex items-center justify-center font-black text-xl shadow-lg shadow-accent/25">
                         {formData.risk_level}
                     </span>
                 </div>
@@ -35,7 +35,7 @@ export function ControlFormStatusStep({ formData, handleInputChange, t }: Contro
                             key={status}
                             type="button"
                             onClick={() => handleInputChange('status', status)}
-                            className={`py-3 rounded-xl border-2 font-bold uppercase tracking-widest text-[10px] transition-all ${formData.status === status ? 'bg-accent/10 border-accent text-accent' : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'
+                            className={`py-3 rounded-xl border-2 font-bold uppercase tracking-widest text-xs transition-colors ${formData.status === status ? 'bg-accent/10 border-accent text-accent-text' : 'bg-white/5 border-white/5 text-slate-500 hover:text-accent-text'
                                 }`}
                         >
                             {status}

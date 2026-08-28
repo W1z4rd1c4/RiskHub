@@ -38,9 +38,9 @@ export function VendorLinkedControlsTab({ vendorId, canCreateControl, canEdit, p
             canCreate={canCreateControl}
             canEdit={canEdit}
             protectedChangeRequiresApproval={protectedChangeRequiresApproval}
-            headerColorClass="text-white"
+            headerColorClass="text-foreground"
             i18nKeys={{ addAction: 'links.actions.add_control', archived: 'links.archived_controls', dialogTitle: 'links.dialogs.link_controls_title', empty: 'links.controls.empty', subtitle: 'links.controls.subtitle', tabTitle: 'tabs.linked_controls' }}
-            icon={<CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+            icon={<CheckCircle2 className="h-5 w-5 text-success-text" />}
             linkDialogMode="risk-to-control"
             motionDelay={0.05}
             onAdd={onAddControl}

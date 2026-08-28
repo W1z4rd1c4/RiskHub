@@ -144,7 +144,7 @@ export function LinkManagementDialog({
                 <div className="p-6 border-t border-white/5 bg-white/[0.02]">
                     <button
                         onClick={onClose}
-                        className="w-full text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors py-2"
+                        className="w-full text-xs font-black uppercase tracking-widest text-slate-300 hover:text-white transition-colors py-2"
                     >
                         {t('common:actions.close')}
                     </button>

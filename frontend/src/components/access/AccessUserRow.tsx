@@ -47,13 +47,13 @@ function UserCapabilitySummary({ expandedUserId, onToggleExpand, user }: Pick<Ac
     if (user.role.name === 'admin') {
         return (
             <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">{t('access.capabilities.user_management')}</span>
-                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">{t('access.capabilities.system_health')}</span>
-                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">{t('access.capabilities.technical_logs')}</span>
-                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">{t('access.capabilities.session_management')}</span>
+                <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs border border-border">{t('access.capabilities.user_management')}</span>
+                <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs border border-border">{t('access.capabilities.system_health')}</span>
+                <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs border border-border">{t('access.capabilities.technical_logs')}</span>
+                <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs border border-border">{t('access.capabilities.session_management')}</span>
                 <button
                     onClick={() => onToggleExpand(user.id)}
-                    className="p-1 text-slate-500 hover:text-white rounded transition-colors"
+                    className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
                     title={t('access.matrix.show_all_capabilities')}
                     aria-label={t('access.matrix.show_all_capabilities')}
                 >
@@ -66,13 +66,13 @@ function UserCapabilitySummary({ expandedUserId, onToggleExpand, user }: Pick<Ac
     if (user.role.name === 'cro') {
         return (
             <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">{t('access.capabilities.risk_types')}</span>
-                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">{t('access.capabilities.global_config')}</span>
-                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">{t('access.capabilities.approval_rules')}</span>
-                <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded text-xs border border-purple-500/30">{t('access.capabilities.all_business_data')}</span>
+                <span className="px-2 py-0.5 bg-warning/10 text-warning-text rounded text-xs border border-warning/30">{t('access.capabilities.risk_types')}</span>
+                <span className="px-2 py-0.5 bg-warning/10 text-warning-text rounded text-xs border border-warning/30">{t('access.capabilities.global_config')}</span>
+                <span className="px-2 py-0.5 bg-warning/10 text-warning-text rounded text-xs border border-warning/30">{t('access.capabilities.approval_rules')}</span>
+                <span className="px-2 py-0.5 bg-accent/10 text-accent-text rounded text-xs border border-accent/30">{t('access.capabilities.all_business_data')}</span>
                 <button
                     onClick={() => onToggleExpand(user.id)}
-                    className="p-1 text-slate-500 hover:text-white rounded transition-colors"
+                    className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
                     title={t('access.matrix.show_all_capabilities')}
                     aria-label={t('access.matrix.show_all_capabilities')}
                 >
@@ -87,7 +87,7 @@ function UserCapabilitySummary({ expandedUserId, onToggleExpand, user }: Pick<Ac
             <PermissionChips permissions={user.effective_permissions} maxVisible={4} />
             <button
                 onClick={() => onToggleExpand(user.id)}
-                className="p-1 text-slate-500 hover:text-white rounded transition-colors"
+                className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
                 title={t('access.matrix.show_all_permissions')}
                 aria-label={t('access.matrix.show_all_permissions')}
             >
@@ -118,12 +118,12 @@ export function AccessUserRow({
             <tr className="group hover:bg-white/5 transition-colors">
                 <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold">
+                        <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent-text font-bold">
                             {presentationModel.safeName.charAt(0)}
                         </div>
                         <div>
-                            <p className="font-medium text-white group-hover:text-accent transition-colors">{presentationModel.safeName}</p>
-                            <p className="text-xs text-slate-500 flex items-center gap-1">
+                            <p className="font-medium text-foreground group-hover:text-accent-text transition-colors">{presentationModel.safeName}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Mail className="h-3 w-3" />
                                 {presentationModel.emailText}
                             </p>
@@ -132,16 +132,16 @@ export function AccessUserRow({
                 </td>
                 <td className="py-4 px-4">
                     <div className="space-y-1">
-                        <p className="text-sm text-white flex items-center gap-1.5">
+                        <p className="text-sm text-foreground flex items-center gap-1.5">
                             <Shield className="h-3.5 w-3.5 text-purple-400" />
                             {presentationModel.roleText}
                         </p>
-                        <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                             <Building2 className="h-3.5 w-3.5 text-slate-500" />
                             {user.department_name || t('access.table.no_department')}
                         </p>
                         {user.external_id && (
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-muted-foreground">
                                 {t('users.directory_status_label')}{' '}
                                 <span className="text-slate-300">
                                     {presentationModel.directoryStatus || t('common:fallbacks.not_available')}
@@ -185,8 +185,8 @@ export function AccessUserRow({
                         className={cn(
                             'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
                             user.is_active
-                                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-500 border border-rose-500/20',
+                                ? 'bg-success/10 text-success-text border border-success/20'
+                                : 'bg-destructive/10 text-destructive border border-destructive/20',
                         )}
                     >
                         {user.is_active ? t('access.status.active') : t('access.status.inactive')}
@@ -197,7 +197,7 @@ export function AccessUserRow({
                         {actionModel.canEdit && (
                             <button
                                 onClick={() => onEditAccess(user)}
-                                className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                                className="p-2 text-muted-foreground hover:text-foreground hover:bg-nested rounded-lg transition-colors"
                                 title={t('access.actions.edit_access')}
                                 aria-label={t('access.actions.edit_access')}
                             >
@@ -208,7 +208,7 @@ export function AccessUserRow({
                             <button
                                 onClick={() => onToggleStatus(user)}
                                 className={cn(
-                                    'p-2 rounded-lg transition-all',
+                                    'p-2 rounded-lg transition-colors',
                                     user.is_active
                                         ? 'text-rose-400 hover:bg-rose-500/10 hover:text-rose-300'
                                         : 'text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300',

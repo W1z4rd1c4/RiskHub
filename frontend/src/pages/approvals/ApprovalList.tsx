@@ -92,14 +92,14 @@ export function ApprovalList({
                     <div className="p-6 flex flex-col lg:flex-row lg:items-center gap-6">
                         <div className="flex flex-col gap-2 min-w-[120px]">
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">
                                     {t(`entity_types.${approval.resource_type}`)}
                                 </span>
                             </div>
                             <div className="flex gap-2">
                                 <span
                                     className={cn(
-                                        'px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border flex items-center gap-1 w-fit',
+                                        'px-2 py-1 rounded text-xs font-black uppercase tracking-widest border flex items-center gap-1 w-fit',
                                         getApprovalActionBadge(approval.action_type),
                                     )}
                                 >
@@ -114,17 +114,17 @@ export function ApprovalList({
                         </div>
 
                         <div className="flex-1">
-                            <h3 className="text-base font-bold text-white mb-1">{approval.resource_name}</h3>
-                            <p className="text-sm text-slate-400 mb-2">
-                                <span className="text-slate-600">{t('approvals:labels.re')}</span> {approval.reason}
+                            <h3 className="text-base font-bold text-foreground mb-1">{approval.resource_name}</h3>
+                            <p className="text-sm text-muted-foreground mb-2">
+                                <span className="text-muted-foreground">{t('approvals:labels.re')}</span> {approval.reason}
                             </p>
-                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
                                     {formatDateValue(approval.created_at, locale)}
                                 </span>
                                 <span>
-                                    {t('labels.by')} <span className="text-accent">{approval.requested_by_name}</span>
+                                    {t('labels.by')} <span className="text-accent-text">{approval.requested_by_name}</span>
                                 </span>
                             </div>
 
@@ -134,8 +134,8 @@ export function ApprovalList({
                                         <span
                                             className={
                                                 approval.status === 'approved'
-                                                    ? 'text-emerald-400'
-                                                    : 'text-rose-400'
+                                                    ? 'text-success-text'
+                                                    : 'text-destructive'
                                             }
                                         >
                                             {approval.status === 'approved'
@@ -150,7 +150,7 @@ export function ApprovalList({
                                         </span>
                                         {approval.resolved_by_name && (
                                             <span>
-                                                {t('labels.by')} <span className="text-accent">{approval.resolved_by_name}</span>
+                                                {t('labels.by')} <span className="text-accent-text">{approval.resolved_by_name}</span>
                                             </span>
                                         )}
                                     </div>
@@ -164,7 +164,7 @@ export function ApprovalList({
                         <div className="flex items-center gap-4 justify-between lg:justify-end min-w-[200px]">
                             <span
                                 className={cn(
-                                    'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border',
+                                    'px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border',
                                     getApprovalStatusBadge(approval.status),
                                 )}
                             >
@@ -192,7 +192,7 @@ export function ApprovalList({
                                         {resolveCapabilityFlag(approval.capabilities, 'can_approve') && (
                                             <button
                                                 onClick={() => onApprove(approval)}
-                                                className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors border border-emerald-500/20"
+                                                className="p-2 bg-success/10 hover:bg-success/20 text-success-text rounded-lg transition-colors border border-success/20"
                                                 title={t('common:actions.approve')}
                                                 aria-label={t('common:actions.approve')}
                                             >
@@ -202,7 +202,7 @@ export function ApprovalList({
                                         {resolveCapabilityFlag(approval.capabilities, 'can_reject') && (
                                             <button
                                                 onClick={() => onReject(approval)}
-                                                className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border border-rose-500/20"
+                                                className="p-2 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg transition-colors border border-destructive/20"
                                                 title={t('common:actions.reject')}
                                                 aria-label={t('common:actions.reject')}
                                             >
@@ -241,7 +241,7 @@ export function ApprovalList({
                                     exit={{ height: 0, opacity: 0 }}
                                     className="bg-white/[0.02] border-t border-white/5 px-6 py-4"
                                 >
-                                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                                    <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">
                                         {t('labels.proposed_changes')}
                                     </h4>
                                     {approval.governed_mutation ? (
@@ -261,15 +261,18 @@ export function ApprovalList({
                                                     key={field}
                                                     className="bg-black/20 rounded-lg p-3 border border-white/5"
                                                 >
-                                                    <span className="block text-[10px] text-accent font-bold uppercase mb-1">
+                                                    <span
+                                                        data-testid="approval-pending-change-field"
+                                                        className="block text-xs text-accent-text font-bold uppercase mb-1"
+                                                    >
                                                         {field}
                                                     </span>
                                                     <div className="flex items-center gap-2 text-xs">
-                                                        <span className="text-rose-400 line-through opacity-70">
+                                                        <span className="text-destructive line-through">
                                                             {String(change.old)}
                                                         </span>
                                                         <span className="text-slate-600">→</span>
-                                                        <span className="text-emerald-400 font-bold">
+                                                        <span className="text-success-text font-bold">
                                                             {String(change.new)}
                                                         </span>
                                                     </div>

@@ -68,14 +68,14 @@ export function CollectionGroupDrillDown<T>({
                     <button
                         type="button"
                         onClick={onBack}
-                        className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                        className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         {t('actions.back')}
                     </button>
                     <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-bold text-white">{label}</h3>
-                        <span className="px-2 py-1 rounded-full bg-accent/20 text-accent text-xs font-bold">
+                        <h3 className="text-xl font-bold text-foreground">{label}</h3>
+                        <span className="px-2 py-1 rounded-full bg-accent/20 text-accent-text text-xs font-bold">
                             {t('tables.items_count', { count: totalCount })}
                         </span>
                     </div>
@@ -85,7 +85,7 @@ export function CollectionGroupDrillDown<T>({
                     renderTable(items)
                 ) : (
                     <div className="glass-card text-center py-12">
-                        <p className="text-slate-400">{emptyMessage ?? t('empty.no_data_available')}</p>
+                        <p className="text-muted-foreground">{emptyMessage ?? t('empty.no_data_available')}</p>
                     </div>
                 )}
 
@@ -103,7 +103,7 @@ export function CollectionGroupDrillDown<T>({
     if (groups.length === 0) {
         return (
             <div className="glass-card text-center py-12">
-                <p className="text-slate-400">{emptyMessage ?? t('empty.no_data_available')}</p>
+                <p className="text-muted-foreground">{emptyMessage ?? t('empty.no_data_available')}</p>
             </div>
         );
     }
@@ -118,13 +118,13 @@ export function CollectionGroupDrillDown<T>({
                         data-testid="register-group-card"
                         data-group-value={card.value}
                         onClick={() => onSelectGroup(card.value, card.label)}
-                        className="glass-card group text-left hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5 transition-all duration-300"
+                        className="glass-card interactive-card group text-left"
                     >
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-bold text-white group-hover:text-accent transition-colors">
+                            <h3 className="text-lg font-bold text-foreground group-hover:text-accent-text transition-colors">
                                 {card.label}
                             </h3>
-                            <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-accent group-hover:translate-x-1 transition-all" />
+                            <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
                         </div>
 
                         {renderGroupBody && <div className="mb-4">{renderGroupBody(card.group)}</div>}
@@ -132,7 +132,7 @@ export function CollectionGroupDrillDown<T>({
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-6">
                                 <div>
-                                    <p className="text-3xl font-black text-white">{card.count}</p>
+                                    <p className="text-3xl font-black text-foreground">{card.count}</p>
                                     <p className="text-xs text-slate-500 uppercase tracking-wider">{t('tables.items')}</p>
                                 </div>
                                 {card.showActive && (

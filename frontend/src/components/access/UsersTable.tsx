@@ -55,16 +55,16 @@ export function UsersTable({
             <table className="w-full text-left border-collapse">
                 <thead>
                     <tr className="border-b border-white/10">
-                        <th className="py-4 px-4 text-sm font-semibold text-slate-300">{t('access.table.user')}</th>
-                        <th className="py-4 px-4 text-sm font-semibold text-slate-300">{t('access.table.role_department')}</th>
+                        <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.user')}</th>
+                        <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.role_department')}</th>
                         {isAccessMode && (
-                            <th className="py-4 px-4 text-sm font-semibold text-slate-300">{t('access.table.scope')}</th>
+                            <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.scope')}</th>
                         )}
                         {isAccessMode && (
-                            <th className="py-4 px-4 text-sm font-semibold text-slate-300">{t('access.table.permissions')}</th>
+                            <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.permissions')}</th>
                         )}
-                        <th className="py-4 px-4 text-sm font-semibold text-slate-300">{t('access.table.status')}</th>
-                        <th className="py-4 px-4 text-sm font-semibold text-slate-300 text-right">{t('access.table.actions')}</th>
+                        <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.status')}</th>
+                        <th className="py-4 px-4 text-sm font-semibold text-muted-foreground text-right">{t('access.table.actions')}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">

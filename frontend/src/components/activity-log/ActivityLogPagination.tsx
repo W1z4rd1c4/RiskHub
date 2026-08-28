@@ -47,7 +47,7 @@ export function ActivityLogPagination({ page, setPage, limit, total, isLoading }
                                 key={item}
                                 onClick={() => setPage(item)}
                                 className={`h-9 w-9 rounded-xl text-sm transition-all ${
-                                    page === item ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'hover:bg-white/10'
+                                    page === item ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/20' : 'hover:bg-white/10'
                                 }`}
                             >
                                 {item + 1}

@@ -99,7 +99,7 @@ export function AuditTrailPage() {
                             onClick={() => reportApi.downloadAuditTrailCsv({ result: resultFilter || undefined }).catch((error: unknown) => {
                                 logError('Failed to download audit trail CSV.', error);
                             })}
-                            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all bg-white/5 rounded-lg border border-white/10 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20"
+                            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-accent-text transition-colors bg-white/5 rounded-lg border border-white/10 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20"
                         >
                             <Sheet className="h-3.5 w-3.5" />
                             CSV

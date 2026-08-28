@@ -19,7 +19,7 @@ export function getEffectivenessClassName(effectiveness: string): string {
 
 export function getMetadataBadgeClassName(effectiveness: string): string {
     return cn(
-        'px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border font-mono',
+        'px-2 py-0.5 rounded text-xs font-black uppercase tracking-widest border font-mono',
         getEffectivenessClassName(effectiveness),
     );
 }

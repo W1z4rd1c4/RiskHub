@@ -72,7 +72,7 @@ export function RiskLinkedControlsSection({
                                 setDialogMode('search-only');
                                 setIsLinkDialogOpen(true);
                             }}
-                            className="flex items-center gap-2 px-4 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all border-r border-accent/20"
+                            className="flex items-center gap-2 px-4 py-1.5 text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent/10 transition-colors border-r border-accent/20"
                         >
                             <LinkIcon className="h-3 w-3" />
                             {t('overview.link_existing', { ns: 'risks' })}
@@ -80,7 +80,7 @@ export function RiskLinkedControlsSection({
                         {canCreateLinkedControl && (
                             <button
                                 onClick={onOpenCreateControl}
-                                className="flex items-center gap-2 px-3 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all"
+                                className="flex items-center gap-2 px-3 py-1.5 text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent/10 transition-colors"
                                 title={t('overview.create_new_control', { ns: 'risks' })}
                             >
                                 <Plus className="h-3.5 w-3.5" />
@@ -100,7 +100,7 @@ export function RiskLinkedControlsSection({
                     <ControlGroup links={activeControls} onNavigateToControl={onNavigateToControl} gapClassName="gap-6" />
                     {draftControls.length > 0 && (
                         <div className="mt-8">
-                            <h4 className="text-[10px] font-black text-amber-500/70 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <h4 className="text-xs font-black text-amber-500/70 uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-amber-500/50" />
                                 {t('overview.draft_controls', { ns: 'risks', count: draftControls.length })}
                             </h4>
@@ -110,12 +110,12 @@ export function RiskLinkedControlsSection({
                                 gapClassName="gap-4"
                                 className="opacity-60"
                             />
-                            <p className="text-[10px] text-slate-600 italic mt-3">{t('overview.draft_controls_help', { ns: 'risks' })}</p>
+                            <p className="text-xs text-slate-600 italic mt-3">{t('overview.draft_controls_help', { ns: 'risks' })}</p>
                         </div>
                     )}
                     {archivedControls.length > 0 && (
                         <div className="mt-8">
-                            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-slate-600" />
                                 {t('overview.archived_controls', { ns: 'risks', count: archivedControls.length })}
                             </h4>
@@ -136,7 +136,7 @@ export function RiskLinkedControlsSection({
                         setDialogMode('links-only');
                         setIsLinkDialogOpen(true);
                     }}
-                    className="w-full mt-6 py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all"
+                    className="w-full mt-6 py-3 border border-dashed border-white/10 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-colors"
                 >
                     {t('overview.manage_existing_links', { ns: 'risks' })}
                 </button>

@@ -88,6 +88,8 @@ describe('ApprovalList action gating', () => {
 
         expect(screen.getByTitle('common:actions.approve')).toBeInTheDocument();
         expect(screen.queryByTitle('common:actions.reject')).not.toBeInTheDocument();
+        expect(screen.getByText('request_types.update')).toBeInTheDocument();
+        expect(screen.getByText('status.pending')).toBeInTheDocument();
     });
 
     it('shows approve and reject for privileged-resolver rows', () => {

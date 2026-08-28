@@ -9,11 +9,11 @@ import { vendorOwnerDisplayName, vendorOwnerMetadata } from './vendorDetailPrese
 import { getVendorDisplayStatus } from './vendorsPagePresentation';
 
 function scorePill(score: number) {
-    if (score >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-    if (score >= 4) return 'text-orange-400 bg-orange-400/10 border-orange-400/20';
-    if (score >= 3) return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-    if (score >= 2) return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
-    return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+    if (score >= 5) return 'text-destructive bg-destructive/10 border-destructive/20';
+    if (score >= 4) return 'text-warning-text bg-warning/10 border-warning/20';
+    if (score >= 3) return 'text-accent-text bg-info/10 border-info/20';
+    if (score >= 2) return 'text-muted-foreground bg-muted border-border';
+    return 'text-success-text bg-success/10 border-success/20';
 }
 
 interface BuildVendorColumnsOptions {
@@ -29,8 +29,8 @@ export function buildVendorColumns({ onRestore, t }: BuildVendorColumnsOptions):
             sortable: true,
             render: (vendor) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-bold text-white">{vendor.name}</span>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-sm font-bold text-foreground">{vendor.name}</span>
+                    <span className="text-xs text-muted-foreground">
                         {vendor.process || t('vendors:grouping.no_process')}
                     </span>
                 </div>
@@ -41,7 +41,7 @@ export function buildVendorColumns({ onRestore, t }: BuildVendorColumnsOptions):
             label: t('vendors:columns.department'),
             sortable: true,
             render: (vendor) => (
-                <div className="flex items-center gap-2 text-xs text-slate-300">
+                <div className="flex items-center gap-2 text-xs text-foreground">
                     <Building2 className="h-3 w-3 text-accent" aria-hidden="true" />
                     <span>{vendor.department_name || t('vendors:labels.unassigned')}</span>
                 </div>
@@ -52,11 +52,11 @@ export function buildVendorColumns({ onRestore, t }: BuildVendorColumnsOptions):
             label: t('vendors:columns.owner'),
             sortable: true,
             render: (vendor) => (
-                <div className="flex items-start gap-2 text-xs text-slate-300">
+                <div className="flex items-start gap-2 text-xs text-foreground">
                     <User className="h-3 w-3 text-accent" aria-hidden="true" />
                     <span className="flex flex-col">
                         <span>{vendorOwnerDisplayName(vendor.outsourcing_owner, vendor.ownership_status, t)}</span>
-                        <span className="text-[10px] text-slate-500">
+                        <span className="text-xs text-muted-foreground">
                             {vendorOwnerMetadata(vendor.outsourcing_owner, t)}
                         </span>
                     </span>
@@ -68,7 +68,7 @@ export function buildVendorColumns({ onRestore, t }: BuildVendorColumnsOptions):
             label: t('vendors:columns.type'),
             sortable: true,
             render: (vendor) => (
-                <span className="text-xs font-medium text-slate-400">
+                <span className="text-xs font-medium text-muted-foreground">
                     {t(`vendors:type.${vendor.vendor_type}`, vendor.vendor_type)}
                 </span>
             ),
@@ -94,13 +94,13 @@ export function buildVendorColumns({ onRestore, t }: BuildVendorColumnsOptions):
                 const displayStatus = getVendorDisplayStatus(vendor);
                 return (
                     <div className="flex flex-col items-start gap-1">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase text-slate-300 bg-white/5 border border-white/10">
+                        <span className="px-2 py-0.5 rounded-md text-xs font-bold uppercase text-foreground bg-nested border border-border">
                             {t(`vendors:status.${displayStatus}`, displayStatus)}
                         </span>
                         {resolveCapabilityFlag(vendor.capabilities, 'has_pending_change') ? (
                             <span
                                 data-testid={`vendor-pending-change-${vendor.id}`}
-                                className="inline-flex items-center rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-200"
+                                className="inline-flex items-center rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-bold text-warning-text"
                             >
                                 {t('vendors:pending_change.badge')}
                             </span>
@@ -120,7 +120,7 @@ export function buildVendorColumns({ onRestore, t }: BuildVendorColumnsOptions):
                             type="button"
                             onClick={(event) => onRestore(vendor.id, event)}
                             data-testid={`vendor-unarchive-${vendor.id}`}
-                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
+                            className="px-2 py-1 rounded-md border border-success/30 text-success-text hover:bg-success/10 text-xs font-black uppercase tracking-wider"
                         >
                             {t('vendors:actions.unarchive')}
                         </button>

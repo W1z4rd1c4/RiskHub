@@ -13,6 +13,7 @@ export const REQUIRED_A11Y_SPECS = [
   'accessibility-smoke.spec.ts',
   'dora-ux-stateful-a11y.spec.ts',
   'dialog-render-sites.spec.ts',
+  'theme-contrast-matrix.spec.ts',
 ];
 
 export function assertA11ySpecsCollected(output) {

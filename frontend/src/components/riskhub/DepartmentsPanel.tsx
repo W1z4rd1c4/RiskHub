@@ -188,7 +188,7 @@ export function DepartmentsPanel() {
                     {canCreate ? (
                         <button
                             onClick={panel.openCreate}
-                            className="flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-colors"
                         >
                             <Plus className="h-4 w-4" />
                             {t('admin:departments_panel.add_department')}

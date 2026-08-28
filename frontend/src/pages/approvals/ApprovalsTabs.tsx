@@ -17,10 +17,10 @@ export function ApprovalsTabs({ filter, onChange, t }: ApprovalsTabsProps) {
                     key={tab.value}
                     onClick={() => onChange(tab.value)}
                     className={cn(
-                        'px-4 py-2 text-sm font-bold rounded-xl transition-all',
+                        'px-4 py-2 text-sm font-bold rounded-xl transition-colors',
                         filter === tab.value
-                            ? 'bg-accent text-white shadow-lg shadow-accent/20'
-                            : 'text-slate-400 hover:text-white hover:bg-white/5',
+                            ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/20'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-white/5',
                     )}
                 >
                     {t(tab.labelKey)}

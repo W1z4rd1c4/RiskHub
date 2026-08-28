@@ -51,7 +51,7 @@ export function UsersFilterBar({
                     <input
                         type="text"
                         placeholder={t('access.search_placeholder')}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 transition-[border-color,box-shadow]"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -93,7 +93,7 @@ export function UsersFilterBar({
             {/* Row 2: Permission Filters (Access Mode only) */}
             {isAccessMode && (
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                    <span className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                         <Key className="h-3.5 w-3.5" />
                         {t('access.filter_by_capability')}
                     </span>
@@ -121,7 +121,7 @@ export function UsersFilterBar({
                             {t('access.clear')}
                         </button>
                     )}
-                    <span className="text-xs text-slate-500 ml-2">
+                    <span className="text-xs text-muted-foreground ml-2">
                         {t('access.of_users', { count: filteredCount, total: totalCount })}
                     </span>
                 </div>

@@ -74,6 +74,10 @@ describe('shared native interaction semantics', () => {
     expect(buttons).toHaveLength(2);
     expect(buttons[0]!.contains(buttons[1]!)).toBe(false);
     expect(container.querySelector('[role="button"]')).toBeNull();
+    expect(screen.getByText('Level')).toBeVisible();
+    expect(screen.getByText('3/5')).toBeVisible();
+    expect(screen.getByText('Freq')).toBeVisible();
+    expect(screen.getByText('quarterly')).toBeVisible();
 
     await user.click(buttons[1]!);
     expect(onUnarchive).toHaveBeenCalledWith(7);

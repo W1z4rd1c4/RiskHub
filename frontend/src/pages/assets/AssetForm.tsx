@@ -547,7 +547,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                     type="submit"
                     disabled={isSubmitting || accountabilityScenarioUnavailable}
                     data-testid="asset-form-submit"
-                    className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                    className="px-5 py-2.5 rounded-xl bg-accent text-accent-foreground font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                 >
                     <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
                     {submitLabel}

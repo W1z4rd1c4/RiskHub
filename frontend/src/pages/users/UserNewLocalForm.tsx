@@ -143,7 +143,7 @@ export function UserNewLocalForm({
                 </button>
                 <button
                     disabled={isLoading}
-                    className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-white px-8 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
+                    className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-foreground px-8 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
                 >
                     {isLoading ? (
                         <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

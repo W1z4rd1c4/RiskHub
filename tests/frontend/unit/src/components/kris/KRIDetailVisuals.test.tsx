@@ -47,7 +47,7 @@ vi.mock('@/i18n/formatters', () => ({
 
 vi.mock('@/lib/monitoringStatus', () => ({
     getKriMonitoringMeta: () => ({
-        gaugeClassName: 'bg-emerald-500',
+        gaugeToneClassName: 'text-success-text',
         textClassName: 'text-emerald-500',
     }),
 }));

@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { CollectionGroupDrillDown } from '@/components/tables/CollectionGroupDrillDown';
+import { CategoryDrillDown } from '@/components/tables/CategoryDrillDown';
 import i18n from '@/i18n';
 
 const localizedGroupLabel = (group: { value: string; label: string }) => {
@@ -71,6 +73,46 @@ describe('CollectionGroupDrillDown localization', () => {
         renderGroups();
         expect(screen.getByText('Items')).toBeInTheDocument();
         expect(screen.getByText('Active')).toBeInTheDocument();
+    });
+
+    it('keeps both drill-down card variants as native, activatable buttons', async () => {
+        await i18n.changeLanguage('en');
+        const user = userEvent.setup();
+        const onSelectGroup = vi.fn();
+        const { unmount } = render(
+            <CollectionGroupDrillDown
+                currentPage={1}
+                groups={[{ value: 'owner:1', label: 'Owner', count: 3 }]}
+                items={[]}
+                itemsPerPage={20}
+                onBack={vi.fn()}
+                onPageChange={vi.fn()}
+                onSelectGroup={onSelectGroup}
+                renderTable={() => null}
+                selectedGroupLabel={null}
+                selectedGroupValue={null}
+                totalCount={3}
+                totalPages={1}
+            />,
+        );
+        const collectionCard = screen.getByRole('button', { name: /Owner/ });
+        expect(collectionCard).toHaveAttribute('type', 'button');
+        await user.click(collectionCard);
+        expect(onSelectGroup).toHaveBeenCalledWith('owner:1', 'Owner');
+        unmount();
+
+        render(
+            <CategoryDrillDown
+                data={[{ id: 1, group: 'Operations', name: 'Item' }]}
+                groupBy="group"
+                keyExtractor={(item) => item.id}
+                renderItem={(item) => <span>{item.name}</span>}
+            />,
+        );
+        const categoryCard = screen.getByRole('button', { name: /Operations/ });
+        expect(categoryCard).toHaveAttribute('type', 'button');
+        await user.click(categoryCard);
+        expect(screen.getByText('Item')).toBeVisible();
     });
 
     it('renders group counters in Czech', async () => {

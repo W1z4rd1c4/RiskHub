@@ -16,6 +16,19 @@
     --popover: 222 47% 11%;
     --popover-foreground: 213 31% 91%;
 
+    /* UX-24 theme-pair inventory. Base/card/popover/nested/glass/muted are
+       text-bearing surface pairs. Accent fill and accent text are deliberately
+       separate. Input, ring and icon-muted are the 3:1 control/icon semantics;
+       border remains the decorative divider semantic. */
+    --nested: 222 40% 17%;
+    --nested-foreground: 213 31% 91%;
+    --glass: 222 40% 15%;
+    --glass-foreground: 213 31% 91%;
+    --glass-hover: 222 35% 20%;
+    --glass-hover-border: 215 20% 48%;
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+    --icon-muted: 215 20% 70%;
+
     --primary: 210 40% 98%;
     --primary-foreground: 222 47% 11%;
 
@@ -23,11 +36,13 @@
     --secondary-foreground: 210 40% 98%;
 
     --muted: 222 47% 15%;
-    --muted-foreground: 215.4 16.3% 56.9%;
+    --muted-foreground: 215 20% 70%;
 
     --accent: 210 100% 50%;
     /* Electric Blue */
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 222 47% 11%;
+    --accent-hover: 210 100% 55%;
+    --accent-text: 210 100% 65%;
 
     --destructive: 0 91% 71%;
     --destructive-foreground: 222 47% 11%;
@@ -53,7 +68,7 @@
     --info-foreground: 210 40% 98%;
 
     --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --input: 215 20% 48%;
     --ring: 212.7 26.8% 83.9%;
 
     --radius: 1rem;
@@ -80,13 +95,38 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 @layer components {
   .glass {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-glass;
+    @apply backdrop-blur-xl border;
+    background-color: hsl(var(--glass));
+    border-color: hsl(var(--border));
+    box-shadow: var(--glass-shadow);
+    color: hsl(var(--glass-foreground));
   }
 
   .glass-card {
-    @apply glass rounded-2xl p-6 transition-all duration-300 hover:bg-white/10 hover:border-white/20;
+    @apply glass rounded-2xl p-6;
+    transition-property: none;
+  }
+
+  .interactive-card {
+    transition-property: background-color, border-color, box-shadow, transform;
+    transition-duration: 300ms;
+  }
+
+  .interactive-card:hover {
+    background-color: hsl(var(--glass-hover));
+    border-color: hsl(var(--glass-hover-border));
   }
 
   .docs-reader-surface {
@@ -184,7 +224,7 @@
   }
 
   .btn-primary {
-    @apply px-8 py-3 bg-white text-slate-950 font-semibold rounded-full hover:bg-slate-200 transition-all duration-300 flex items-center gap-2;
+    @apply px-8 py-3 bg-white text-slate-950 font-semibold rounded-full hover:bg-slate-200 transition-colors duration-300 flex items-center gap-2;
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -214,6 +254,15 @@
   --popover: 0 0% 3%;
   --popover-foreground: 0 0% 95%;
 
+  --nested: 0 0% 9%;
+  --nested-foreground: 0 0% 95%;
+  --glass: 0 0% 6%;
+  --glass-foreground: 0 0% 95%;
+  --glass-hover: 0 0% 12%;
+  --glass-hover-border: 0 0% 24%;
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --icon-muted: 0 0% 70%;
+
   --primary: 0 0% 95%;
   --primary-foreground: 0 0% 0%;
 
@@ -221,10 +270,12 @@
   --secondary-foreground: 0 0% 95%;
 
   --muted: 0 0% 12%;
-  --muted-foreground: 0 0% 60%;
+  --muted-foreground: 0 0% 70%;
 
   --accent: 210 100% 50%;
-  --accent-foreground: 0 0% 100%;
+  --accent-foreground: 222 47% 11%;
+  --accent-hover: 210 100% 55%;
+  --accent-text: 210 100% 65%;
 
   --destructive: 0 91% 71%;
   --destructive-foreground: 222 47% 11%;
@@ -240,7 +291,7 @@
   --info-foreground: 0 0% 100%;
 
   --border: 0 0% 15%;
-  --input: 0 0% 15%;
+  --input: 0 0% 38%;
   --ring: 0 0% 80%;
 }
 
@@ -258,27 +309,6 @@
     radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.08) 0px, transparent 50%),
     radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.08) 0px, transparent 50%),
     radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.08) 0px, transparent 50%);
-}
-
-/* True Dark - Glassmorphism */
-.theme-dark .glass {
-  background-color: rgba(255, 255, 255, 0.03) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-.theme-dark .glass-card:not(.preserve-color) {
-  background-color: rgba(255, 255, 255, 0.03) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-.theme-dark .glass-card:not(.preserve-color):hover {
-  background-color: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-/* Preserve colors for matrix cells - don't override bg in dark theme */
-.theme-dark .glass-card.preserve-color {
-  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 /* True Dark - Sidebar */
@@ -339,6 +369,15 @@
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
 
+  --nested: 220 14% 94%;
+  --nested-foreground: 222 47% 11%;
+  --glass: 0 0% 100%;
+  --glass-foreground: 222 47% 11%;
+  --glass-hover: 220 14% 96%;
+  --glass-hover-border: 215 20% 55%;
+  --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --icon-muted: 215 25% 35%;
+
   --primary: 222 47% 11%;
   --primary-foreground: 0 0% 100%;
 
@@ -346,18 +385,19 @@
   --secondary-foreground: 222 47% 11%;
 
   --muted: 220 14% 96%;
-  --muted-foreground: 215.4 16.3% 40%;
+  --muted-foreground: 215 25% 35%;
 
   --accent: 210 100% 50%;
-  --accent-foreground: 0 0% 100%;
+  --accent-foreground: 222 47% 11%;
+  --accent-hover: 210 100% 55%;
+  --accent-text: 210 100% 35%;
 
   --destructive: 0 74% 42%;
   --destructive-foreground: 0 0% 100%;
 
   /* Semantic status tokens (ADR-015 / FR-P1-1) — see :root for rationale.
      --success-text: on the light surfaces the deep-green fill token itself is
-     the readable text shade (the vendorRoute.css light theme reuses it the
-     same way), so no lightening here.
+     the readable text shade, so no lightening is needed here.
      --warning-text: unlike --success, the amber fill token fails as text on
      the light surfaces (~2.05:1), so a darkened amber is used instead — AA
      against --background is enforced by statusTokenContrast.test.ts. */
@@ -371,30 +411,8 @@
   --info-foreground: 0 0% 100%;
 
   --border: 220 13% 85%;
-  --input: 220 13% 85%;
+  --input: 215 20% 55%;
   --ring: 222 47% 11%;
-}
-
-/* Light theme - Base colors */
-.theme-light,
-.theme-light body {
-  color: #1e293b !important;
-  background-color: #f8fafc !important;
-}
-
-/* Light theme - Headings */
-.theme-light h1,
-.theme-light h2,
-.theme-light h3,
-.theme-light h4,
-.theme-light h5,
-.theme-light h6 {
-  color: #0f172a !important;
-}
-
-/* Light theme - Override white text classes */
-.theme-light .text-white {
-  color: #0f172a !important;
 }
 
 .notification-count-badge,
@@ -403,43 +421,8 @@
   color: #f8fafc !important;
 }
 
-.theme-light .text-slate-300 {
-  color: #334155 !important;
-}
-
-.theme-light .text-slate-400 {
-  color: #475569 !important;
-}
-
-.theme-light .text-slate-500 {
-  color: #64748b !important;
-}
-
 .theme-light [data-testid="logout-button"] {
   color: #be123c !important;
-}
-
-/* Light theme - Glassmorphism */
-.theme-light .glass {
-  background-color: rgba(255, 255, 255, 0.85) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
-  backdrop-filter: blur(12px);
-}
-
-.theme-light .glass-card:not(.preserve-color) {
-  background-color: rgba(255, 255, 255, 0.9) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-}
-
-.theme-light .glass-card:not(.preserve-color):hover {
-  background-color: rgba(255, 255, 255, 1) !important;
-  border-color: rgba(0, 0, 0, 0.12) !important;
-}
-
-/* Preserve colors for matrix cells - don't override bg in light theme */
-.theme-light .glass-card.preserve-color {
-  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Light theme - Mesh gradient background */
@@ -459,12 +442,7 @@
    and the vendor-route field theming in the light theme. */
 
 /* Light theme - Tables */
-.theme-light table {
-  color: #1e293b;
-}
-
 .theme-light th {
-  color: #475569 !important;
   background-color: rgba(241, 245, 249, 0.8) !important;
 }
 
@@ -474,10 +452,6 @@
 
 .theme-light tr:hover {
   background-color: rgba(241, 245, 249, 0.5) !important;
-}
-
-.theme-light td {
-  color: #1e293b !important;
 }
 
 .theme-light .docs-reader-surface {
@@ -579,32 +553,6 @@
 
 .theme-light .hover\:bg-white\/10:hover {
   background-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-/* Light theme - Hover text colors (prevent white-on-white) */
-.theme-light .hover\:text-white:hover {
-  color: #0f172a !important;
-}
-
-.theme-light .group:hover .group-hover\:text-white {
-  color: #0f172a !important;
-}
-
-.theme-light .text-white\/60 {
-  color: rgba(15, 23, 42, 0.6) !important;
-}
-
-.theme-light .text-white\/70 {
-  color: rgba(15, 23, 42, 0.7) !important;
-}
-
-.theme-light .text-white\/80 {
-  color: rgba(15, 23, 42, 0.8) !important;
-}
-
-/* Exception: accent-hover buttons should keep white text on hover */
-.theme-light .hover\:bg-accent:hover.hover\:text-white:hover {
-  color: #ffffff !important;
 }
 
 /* Light theme - Scrollbar */

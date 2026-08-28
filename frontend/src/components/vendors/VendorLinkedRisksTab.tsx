@@ -39,9 +39,9 @@ export function VendorLinkedRisksTab({ vendorId, canCreateRisk, canEdit, protect
             canCreate={canCreateRisk}
             canEdit={canEdit}
             protectedChangeRequiresApproval={protectedChangeRequiresApproval}
-            headerColorClass="text-white"
+            headerColorClass="text-foreground"
             i18nKeys={{ addAction: 'links.actions.add_risk', archived: 'links.archived_risks', dialogTitle: 'links.dialogs.link_risks_title', empty: 'links.risks.empty', subtitle: 'links.risks.subtitle', tabTitle: 'tabs.linked_risks' }}
-            icon={<LinkIcon className="h-5 w-5 text-indigo-400" />}
+            icon={<LinkIcon className="h-5 w-5 text-accent-text" />}
             linkDialogMode="control-to-risk"
             onAdd={onAddRisk}
             onNavigate={onNavigateToRisk}

@@ -71,7 +71,7 @@ export function LinkSearchFilters({
                 )}
             </div>
 
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-300">
                 <Filter className="h-3 w-3" />
                 {t('common:actions.filter')}
                 {isLoadingLookups && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
@@ -87,6 +87,7 @@ export function LinkSearchFilters({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <ThemedSelect
+                    className="border-white/20 bg-slate-800/80 text-slate-100"
                     value={selectedDeptId?.toString() ?? ''}
                     onValueChange={(value) => onDeptIdChange(value ? Number(value) : null)}
                     placeholder={t('filters.all_departments')}
@@ -99,6 +100,7 @@ export function LinkSearchFilters({
                 />
 
                 <ThemedSelect
+                    className="border-white/20 bg-slate-800/80 text-slate-100"
                     value={selectedProcess}
                     onValueChange={onProcessChange}
                     placeholder={t('filters.all_processes')}
@@ -108,6 +110,7 @@ export function LinkSearchFilters({
                 />
 
                 <ThemedSelect
+                    className="border-white/20 bg-slate-800/80 text-slate-100"
                     value={selectedCategory}
                     onValueChange={onCategoryChange}
                     placeholder={t('filters.all_categories')}
@@ -120,7 +123,7 @@ export function LinkSearchFilters({
             {hasActiveFilters && (
                 <button
                     onClick={clearAllFilters}
-                    className="flex items-center gap-2 text-[10px] text-slate-500 hover:text-accent transition-colors mt-1 ml-1 self-start group"
+                    className="flex items-center gap-2 text-xs text-slate-500 hover:text-accent transition-colors mt-1 ml-1 self-start group"
                 >
                     <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
                     {t('common:actions.clear')}

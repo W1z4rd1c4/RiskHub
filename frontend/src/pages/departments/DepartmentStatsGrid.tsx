@@ -108,7 +108,7 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
                 <article
                     key={key}
                     data-testid={`department-overview-card-${key}`}
-                    className="glass-card group flex flex-col text-left transition-all hover:bg-white/5"
+                    className="glass-card group flex flex-col text-left"
                 >
                     <button
                         type="button"
@@ -119,11 +119,11 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
                     >
                         <span className="mb-2 flex items-center gap-3">
                             <Icon className="h-5 w-5 text-accent transition-transform group-hover:scale-110" aria-hidden="true" />
-                            <span className="text-xs uppercase tracking-wider text-slate-300">
+                            <span className="text-xs uppercase tracking-wider text-muted-foreground">
                                 {t(`department_detail.tabs.${key}`)}
                             </span>
                         </span>
-                        <span className="block text-3xl font-black text-white">
+                        <span className="block text-3xl font-black text-foreground">
                             {count ?? t('fallbacks.not_available')}
                         </span>
                     </button>
@@ -137,7 +137,7 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
                                     count: action.count ?? t('fallbacks.not_available'),
                                 })}`}
                                 onClick={() => onSelectTab(key, action.filters)}
-                                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-400 hover:border-accent/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:border-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                             >
                                 {t(action.labelKey, {
                                     count: action.count ?? t('fallbacks.not_available'),

@@ -52,7 +52,7 @@ export function ViewSwitcher({ value, onChange, className, exclude = [] }: ViewS
                     className={cn(
                         'px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200',
                         value === option.value
-                            ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                            ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/20'
                             : 'text-slate-400 hover:text-white hover:bg-white/5'
                     )}
                 >

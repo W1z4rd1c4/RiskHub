@@ -32,12 +32,12 @@ export function LinkSearchResultItem({
                 <span className="text-xs font-bold text-white truncate group-hover:text-accent transition-colors text-balance flex items-center gap-2">
                     <span>{presentation.title}</span>
                     {presentation.isArchived && (
-                        <span className="px-1 py-0.5 rounded bg-white/10 border border-white/10 text-slate-300 text-[9px] uppercase tracking-widest">
+                        <span className="px-1 py-0.5 rounded bg-white/10 border border-white/10 text-slate-300 text-xs uppercase tracking-widest">
                             {t('labels.archived')}
                         </span>
                     )}
                 </span>
-                <span className="text-[10px] text-slate-500 mt-0.5">
+                <span className="text-xs text-slate-500 mt-0.5">
                     <span className="flex items-center gap-1">
                         {presentation.primaryMeta}
                         {presentation.secondaryMeta && (
@@ -53,12 +53,12 @@ export function LinkSearchResultItem({
                 {mode === 'risk-to-control' && (
                     <>
                         <div className="flex flex-col items-end">
-                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Level</span>
-                            <span className="text-[10px] font-bold text-white">{result.risk_level}/5</span>
+                            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Level</span>
+                            <span className="text-xs font-bold text-white">{result.risk_level}/5</span>
                         </div>
                         <div className="flex flex-col items-end min-w-[60px]">
-                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest text-right">Freq</span>
-                            <span className="text-[10px] font-bold text-white capitalize">{result.frequency}</span>
+                            <span className="text-xs font-black text-slate-500 uppercase tracking-widest text-right">Freq</span>
+                            <span className="text-xs font-bold text-white capitalize">{result.frequency}</span>
                         </div>
                     </>
                 )}
@@ -71,7 +71,7 @@ export function LinkSearchResultItem({
                 <button
                     type="button"
                     onClick={() => { void onUnarchive(result.id); }}
-                    className="m-3 ml-0 self-center px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest"
+                    className="m-3 ml-0 self-center px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-xs font-black uppercase tracking-widest"
                 >
                     {presentation.unarchiveLabel}
                 </button>

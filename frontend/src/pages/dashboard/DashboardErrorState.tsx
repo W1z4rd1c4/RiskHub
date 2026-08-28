@@ -21,7 +21,7 @@ export function DashboardErrorState({
                 <p className="text-slate-500 mb-6">{detail}</p>
                 <button
                     onClick={onRetry}
-                    className="px-6 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/80 transition-all"
+                    className="px-6 py-2 bg-accent text-accent-foreground rounded-xl font-bold hover:bg-accent-hover transition-colors"
                 >
                     {retryLabel}
                 </button>

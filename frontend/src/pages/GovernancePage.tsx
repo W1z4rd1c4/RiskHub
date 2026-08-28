@@ -113,7 +113,7 @@ function GovernancePageInner() {
                     type="button"
                     onClick={() => { void overviewQuery.refresh(); }}
                     disabled={overviewQuery.isFetching}
-                    className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground disabled:opacity-50"
                     aria-label={t('governance.refresh')}
                 >
                     <RefreshCw
@@ -231,15 +231,15 @@ function GovernancePageInner() {
                 <div className={`${bar.bg} p-3 rounded-xl`}>
                     <bar.icon className={`h-6 w-6 ${bar.color}`} aria-hidden="true" />
                 </div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" aria-hidden="true" />
                     {bar.trend}
                 </div>
             </div>
             <div className="relative z-10">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">{bar.subtitle}</p>
-                <p className="text-sm font-bold text-white/70 mb-2">{bar.title}</p>
-                <h3 className="text-4xl font-black text-white tracking-tighter">{bar.value}</h3>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{bar.subtitle}</p>
+                <p className="text-sm font-bold text-muted-foreground mb-2">{bar.title}</p>
+                <h3 className="text-4xl font-black text-foreground tracking-tighter">{bar.value}</h3>
             </div>
         </>
     );
@@ -248,8 +248,8 @@ function GovernancePageInner() {
         <div className="space-y-10">
             <div className="flex justify-between items-end">
                 <div>
-                    <h2 className="text-3xl font-black text-white mb-2">{t('governance.title')}</h2>
-                    <p className="text-slate-500 font-medium">{t('governance.subtitle')}</p>
+                    <h2 className="text-3xl font-black text-foreground mb-2">{t('governance.title')}</h2>
+                    <p className="text-muted-foreground font-medium">{t('governance.subtitle')}</p>
                     {(lastScanAt || scanStatus) && (
                         <p className="text-xs text-slate-500 mt-2">
                             {scanStatus ? `${scanStatus}` : ''}
@@ -266,7 +266,7 @@ function GovernancePageInner() {
                     >
                         <RefreshCw className="h-5 w-5" aria-hidden="true" />
                     </button>
-                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                    <div className="flex items-center gap-2 text-xs font-black text-muted-foreground uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         {t('governance.live_status')}
                     </div>
@@ -281,10 +281,6 @@ function GovernancePageInner() {
             >
                 {statBars.map((bar) => {
                     const isActive = activeTab === bar.id;
-                    const cardClassName = `glass-card group flex flex-col justify-between transition-all relative overflow-hidden ${isActive
-                        ? 'ring-2 ring-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
-                        : 'hover:bg-white/5 grayscale-[0.5] opacity-70 hover:opacity-100 hover:grayscale-0'
-                    }`;
                     return bar.clickable ? (
                         <motion.button
                             key={bar.id}
@@ -292,7 +288,11 @@ function GovernancePageInner() {
                             variants={item}
                             onClick={() => selectTab(bar.id as GovernanceItemType)}
                             aria-pressed={isActive}
-                            className={`${cardClassName} cursor-pointer text-left`}
+                            data-testid={`governance-filter-card-${bar.id}`}
+                            className={`glass-card interactive-card group flex flex-col justify-between relative overflow-hidden cursor-pointer text-left ${isActive
+                                ? 'ring-2 ring-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                                : 'grayscale-[0.5] opacity-70 hover:opacity-100 hover:grayscale-0'
+                            }`}
                         >
                             {statCardContents(bar, isActive)}
                         </motion.button>
@@ -300,7 +300,8 @@ function GovernancePageInner() {
                         <motion.div
                             key={bar.id}
                             variants={item}
-                            className={`${cardClassName} cursor-default grayscale-0 opacity-100`}
+                            data-testid={`governance-filter-card-${bar.id}`}
+                            className="glass-card group flex flex-col justify-between relative overflow-hidden cursor-default grayscale-0 opacity-100"
                         >
                             {statCardContents(bar, false)}
                         </motion.div>
@@ -316,7 +317,7 @@ function GovernancePageInner() {
             >
                 <div className="flex items-center gap-3 mb-6">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
+                    <span className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground">
                         {activeTab === 'risk'
                             ? t('governance.orphaned_risks_section')
                             : activeTab === 'control'

@@ -155,35 +155,35 @@ export function VendorOverviewTab({
                 animate={{ opacity: 1, y: 0 }}
                 className="glass-card"
             >
-                <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
+                <div className="flex items-center gap-3 border-b border-border pb-4 mb-6">
                     <ShieldCheck className="h-5 w-5 text-accent" />
-                    <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('detail.overview')}</h3>
+                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('detail.overview')}</h3>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <div className="rounded-2xl border border-border bg-nested p-5">
+                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                             {t('overview.summary.risk_score')}
                         </p>
-                        <div className="mt-3 text-3xl font-black text-white">{vendor.risk_score_1_5}/5</div>
-                        <p className="mt-2 text-xs text-slate-500">{t('overview.summary.risk_score_hint')}</p>
+                        <div className="mt-3 text-3xl font-black text-foreground">{vendor.risk_score_1_5}/5</div>
+                        <p className="mt-2 text-xs text-muted-foreground">{t('overview.summary.risk_score_hint')}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <div className="rounded-2xl border border-border bg-nested p-5">
+                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                             {t('columns.status')}
                         </p>
-                        <div className="mt-3 text-xl font-black text-white">
+                        <div className="mt-3 text-xl font-black text-foreground">
                             {t(`status.${displayStatus}`, displayStatus)}
                         </div>
-                        <p className="mt-2 text-xs text-slate-500">{t('overview.summary.type_hint', { type: t(`type.${vendor.vendor_type}`, vendor.vendor_type) })}</p>
+                        <p className="mt-2 text-xs text-muted-foreground">{t('overview.summary.type_hint', { type: t(`type.${vendor.vendor_type}`, vendor.vendor_type) })}</p>
                     </div>
                     {canViewAnyLinkedExposure ? (
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <div className="rounded-2xl border border-border bg-nested p-5">
+                            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                                 {t('overview.summary.linked_exposure')}
                             </p>
-                            <div className="mt-3 text-3xl font-black text-white">{linkedExposureCount}</div>
-                            <p className="mt-2 text-xs text-slate-500">
+                            <div className="mt-3 text-3xl font-black text-foreground">{linkedExposureCount}</div>
+                            <p className="mt-2 text-xs text-muted-foreground">
                                 {t('overview.summary.linked_exposure_hint', {
                                     controls: canViewLinkedControls ? activeLinkedControls.length : 0,
                                     kris: canViewLinkedKris ? activeLinkedKRIs.length : 0,
@@ -192,8 +192,8 @@ export function VendorOverviewTab({
                             </p>
                         </div>
                     ) : null}
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <div className="rounded-2xl border border-border bg-nested p-5">
+                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                             {t('overview.summary.flags')}
                         </p>
                         {vendorFlags.length > 0 ? (
@@ -201,14 +201,14 @@ export function VendorOverviewTab({
                                 {vendorFlags.map((flag) => (
                                     <span
                                         key={flag}
-                                        className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-emerald-300 bg-emerald-400/10 border border-emerald-400/20"
+                                        className="px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-widest text-success-text bg-success/10 border border-success/20"
                                     >
                                         {flag}
                                     </span>
                                 ))}
                             </div>
                         ) : (
-                            <p className="mt-3 text-sm text-slate-400">{t('overview.summary.no_flags')}</p>
+                            <p className="mt-3 text-sm text-muted-foreground">{t('overview.summary.no_flags')}</p>
                         )}
                     </div>
                 </div>
@@ -221,35 +221,35 @@ export function VendorOverviewTab({
                 className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
             >
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <Tag className="h-5 w-5 text-purple-400" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('detail.classification')}</h3>
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
+                        <Tag className="h-5 w-5 text-accent-text" />
+                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('detail.classification')}</h3>
                     </div>
 
                     <div className="space-y-5">
                         <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('columns.type')}</span>
-                            <span className="text-sm text-white font-medium">{t(`type.${vendor.vendor_type}`, vendor.vendor_type)}</span>
+                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('columns.type')}</span>
+                            <span className="text-sm text-foreground font-medium">{t(`type.${vendor.vendor_type}`, vendor.vendor_type)}</span>
                         </div>
                         <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('form.country')}</span>
-                            <span className="text-sm text-white font-medium">{vendorValueLabel(t, 'country', vendor.country)}</span>
+                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('form.country')}</span>
+                            <span className="text-sm text-foreground font-medium">{vendorValueLabel(t, 'country', vendor.country)}</span>
                         </div>
                         <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('form.legal_name')}</span>
-                            <span className="text-sm text-white font-medium text-right">{vendor.legal_name || '—'}</span>
+                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('form.legal_name')}</span>
+                            <span className="text-sm text-foreground font-medium text-right">{vendor.legal_name || '—'}</span>
                         </div>
                         <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('form.registration_id')}</span>
-                            <span className="text-sm text-white font-medium">{vendor.registration_id || '—'}</span>
+                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('form.registration_id')}</span>
+                            <span className="text-sm text-foreground font-medium">{vendor.registration_id || '—'}</span>
                         </div>
                     </div>
                 </motion.div>
 
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
                         <User className="h-5 w-5 text-accent" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('detail.ownership')}</h3>
+                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('detail.ownership')}</h3>
                     </div>
 
                     <div className="space-y-5">
@@ -258,29 +258,29 @@ export function VendorOverviewTab({
                                 {ownerName[0] || 'U'}
                             </div>
                             <div>
-                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('columns.owner')}</p>
-                                <p className="text-sm font-bold text-white leading-snug">{ownerName}</p>
-                                <p className="text-xs text-slate-500">{vendorOwnerMetadata(vendor.outsourcing_owner, t)}</p>
+                                <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{t('columns.owner')}</p>
+                                <p className="text-sm font-bold text-foreground leading-snug">{ownerName}</p>
+                                <p className="text-xs text-muted-foreground">{vendorOwnerMetadata(vendor.outsourcing_owner, t)}</p>
                             </div>
                         </div>
                         <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
+                            <div className="w-8 h-8 rounded-full bg-nested border border-border flex items-center justify-center text-muted-foreground">
                                 <Building2 className="h-4 w-4" />
                             </div>
                             <div>
-                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('columns.department')}</p>
-                                <p className="text-sm font-bold text-white leading-snug">{vendor.department_name || t('labels.unassigned')}</p>
+                                <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{t('columns.department')}</p>
+                                <p className="text-sm font-bold text-foreground leading-snug">{vendor.department_name || t('labels.unassigned')}</p>
                             </div>
                         </div>
                         <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('form.process')}</span>
-                            <span className="text-sm text-white font-medium text-right">
+                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('form.process')}</span>
+                            <span className="text-sm text-foreground font-medium text-right">
                                 {vendor.process}{vendor.subprocess ? ` / ${vendor.subprocess}` : ''}
                             </span>
                         </div>
                         <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('form.website')}</span>
-                            <span className="text-sm text-slate-300 font-medium text-right truncate">
+                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('form.website')}</span>
+                            <span className="text-sm text-foreground font-medium text-right truncate">
                                 {vendor.website || '—'}
                             </span>
                         </div>
@@ -288,39 +288,39 @@ export function VendorOverviewTab({
                 </motion.div>
 
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <LinkIcon className="h-5 w-5 text-indigo-400" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('detail.connections')}</h3>
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
+                        <LinkIcon className="h-5 w-5 text-accent-text" />
+                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('detail.connections')}</h3>
                     </div>
 
                     <div className="space-y-4">
                         {canViewLinkedRisks ? (
                             <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_risks')}</span>
-                                <span className="text-lg text-white font-black">{activeLinkedRisks.length}</span>
+                                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('tabs.linked_risks')}</span>
+                                <span className="text-lg text-foreground font-black">{activeLinkedRisks.length}</span>
                             </div>
                         ) : null}
                         {canViewLinkedControls ? (
                             <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_controls')}</span>
-                                <span className="text-lg text-white font-black">{activeLinkedControls.length}</span>
+                                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('tabs.linked_controls')}</span>
+                                <span className="text-lg text-foreground font-black">{activeLinkedControls.length}</span>
                             </div>
                         ) : null}
                         {canViewLinkedKris ? (
                             <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_kris')}</span>
-                                <span className="text-lg text-white font-black">{activeLinkedKRIs.length}</span>
+                                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('tabs.linked_kris')}</span>
+                                <span className="text-lg text-foreground font-black">{activeLinkedKRIs.length}</span>
                             </div>
                         ) : null}
                         {canViewAnyLinkedExposure ? (
                             <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('overview.summary.linked_exposure')}</span>
-                                <span className="text-lg text-white font-black">{linkedExposureCount}</span>
+                                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('overview.summary.linked_exposure')}</span>
+                                <span className="text-lg text-foreground font-black">{linkedExposureCount}</span>
                             </div>
                         ) : null}
                         <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('overview.summary.replaceability')}</span>
-                            <span className="text-sm text-white font-medium">
+                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('overview.summary.replaceability')}</span>
+                            <span className="text-sm text-foreground font-medium">
                                 {vendorValueLabel(t, 'replaceability', vendor.replaceability)}
                             </span>
                         </div>
@@ -403,7 +403,7 @@ export function VendorOverviewTab({
                 />
             </div>
 
-            <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">
+            <div className="flex items-center justify-end gap-6 text-xs text-muted-foreground font-medium">
                 <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     {t('overview.meta.created_at')}: {formatDateTime(vendor.created_at, i18n.language)}

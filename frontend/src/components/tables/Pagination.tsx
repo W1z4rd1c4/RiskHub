@@ -88,7 +88,7 @@ export function Pagination({
                                 className={cn(
                                     'w-10 h-10 rounded-lg text-sm font-medium transition-all duration-200',
                                     currentPage === pageNum
-                                        ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                                        ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/20'
                                         : 'glass hover:bg-white/10 text-slate-400 hover:text-white'
                                 )}
                             >

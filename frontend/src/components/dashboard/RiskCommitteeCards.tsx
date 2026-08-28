@@ -78,7 +78,7 @@ function CriticalRisksCard({ summary, t }: { summary: DashboardCommitteeSummary;
         >
             <div className="flex items-center gap-2 mb-6">
                 <AlertTriangle className="h-5 w-5 text-rose-400" />
-                <h3 className="text-lg font-bold text-white">{t('risk_committee.critical_risks')}</h3>
+                <h3 className="text-lg font-bold text-foreground">{t('risk_committee.critical_risks')}</h3>
             </div>
 
             {summary.critical_risks.length === 0 ? (
@@ -93,22 +93,24 @@ function CriticalRisksCard({ summary, t }: { summary: DashboardCommitteeSummary;
                             <div className="flex items-start justify-between gap-2 mb-2">
                                 <div className="flex flex-col gap-0.5">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm font-bold text-white leading-tight">
+                                        <span className="text-sm font-bold text-foreground leading-tight">
                                             {risk.name}
                                         </span>
                                         {risk.is_priority && (
                                             <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-bold uppercase tracking-widest">
                                         <span>{risk.process}</span>
                                     </div>
                                 </div>
-                                <span className={`text-sm font-black shrink-0 ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}>
+                                <span
+                                    className={`text-sm font-black shrink-0 ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
+                                >
                                     {risk.net_score}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-3 mb-3 text-[10px] text-slate-400 font-medium bg-white/5 w-fit px-2 py-1 rounded-lg border border-white/5">
+                            <div className="flex items-center gap-3 mb-3 text-xs text-muted-foreground font-medium bg-nested w-fit px-2 py-1 rounded-lg border border-border">
                                 <div className="flex items-center gap-1.5">
                                     <div className="w-1.5 h-1.5 rounded-full bg-accent/50" />
                                     <span>{risk.owner_name}</span>
@@ -116,7 +118,7 @@ function CriticalRisksCard({ summary, t }: { summary: DashboardCommitteeSummary;
                                 <span className="w-px h-2 bg-white/10" />
                                 <span>{risk.department_name}</span>
                             </div>
-                            <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">
+                            <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
                                 {risk.description}
                             </p>
                         </div>
@@ -145,7 +147,7 @@ function CriticalVendorsCard({
         >
             <div className="flex items-center gap-2 mb-6">
                 <Handshake className="h-5 w-5 text-blue-400" />
-                <h3 className="text-lg font-bold text-white">{t('risk_committee.critical_vendors')}</h3>
+                <h3 className="text-lg font-bold text-foreground">{t('risk_committee.critical_vendors')}</h3>
             </div>
 
             {summary.critical_vendors.length === 0 ? (
@@ -159,12 +161,12 @@ function CriticalVendorsCard({
                             className="w-full text-left bg-white/5 rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors"
                         >
                             <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-bold text-white truncate">{v.name}</p>
+                                <p className="text-sm font-bold text-foreground truncate">{v.name}</p>
                                 <span className={`text-sm font-black ${getVendorRiskColor(v.risk_score_1_5)}`}>
                                     {v.risk_score_1_5}/5
                                 </span>
                             </div>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+                            <p className="text-xs text-slate-500 uppercase tracking-widest">
                                 {v.department_name} · {v.process}{v.subprocess ? ` / ${v.subprocess}` : ''}
                             </p>
                         </button>
@@ -187,7 +189,7 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
         >
             <div className="flex items-center gap-2 mb-6">
                 <Building2 className="h-5 w-5 text-purple-400" />
-                <h3 className="text-lg font-bold text-white">{t('sections.risk_exposure_by_dept')}</h3>
+                <h3 className="text-lg font-bold text-foreground">{t('sections.risk_exposure_by_dept')}</h3>
             </div>
 
             {summary.department_exposure.length === 0 ? (
@@ -204,7 +206,7 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
                                 className="bg-white/5 rounded-xl p-4 border border-white/5"
                             >
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-bold text-white">{dept.name}</span>
+                                    <span className="text-sm font-bold text-foreground">{dept.name}</span>
                                     <span className={`text-sm font-black ${riskScoreVariantClass('text', dept.total_exposure, thresholds)}`}>
                                         {dept.total_exposure}
                                     </span>
@@ -219,7 +221,7 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
                                         />
                                     </div>
                                 </div>
-                                <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+                                <p className="text-xs text-slate-500 uppercase tracking-widest">
                                     {dept.risk_count} risk{dept.risk_count !== 1 ? 's' : ''}
                                 </p>
                             </div>
@@ -241,7 +243,7 @@ function RecentActivityCard({ summary, t }: { summary: DashboardCommitteeSummary
         >
             <div className="flex items-center gap-2 mb-6">
                 <Activity className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-bold text-white">{t('sections.recent_activity')}</h3>
+                <h3 className="text-lg font-bold text-foreground">{t('sections.recent_activity')}</h3>
             </div>
 
             {summary.recent_activity.length === 0 ? (
@@ -254,14 +256,14 @@ function RecentActivityCard({ summary, t }: { summary: DashboardCommitteeSummary
                             className="bg-white/5 rounded-xl p-3 border border-white/5"
                         >
                             <div className="flex items-start gap-2">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${ACTION_COLORS[activity.action] || 'bg-slate-500/20 text-slate-400'}`}>
+                                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${ACTION_COLORS[activity.action] || 'bg-slate-500/20 text-slate-400'}`}>
                                     {t(`risk_committee.actions.${activity.action}`, activity.action)}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs text-white font-medium truncate">
+                                    <p className="text-xs text-foreground font-medium truncate">
                                         {activity.entity_name}
                                     </p>
-                                    <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
+                                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                                         <Clock className="h-3 w-3" />
                                         {formatTimeAgo(activity.created_at, t)}
                                     </p>

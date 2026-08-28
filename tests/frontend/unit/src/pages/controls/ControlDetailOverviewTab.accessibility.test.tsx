@@ -40,7 +40,7 @@ describe('ControlDetailOverviewTab linked-risk controls', () => {
                 control={{
                     id: 7,
                     name: 'Access review',
-                    risk_level: 3,
+                    risk_level: 2,
                     frequency: 'quarterly',
                     control_form: 'preventive',
                 } as never}
@@ -68,12 +68,11 @@ describe('ControlDetailOverviewTab linked-risk controls', () => {
         const archivedButton = screen.getByRole('button', { name: /Archived risk/i });
         expect(activeButton).not.toHaveAttribute('role');
         expect(archivedButton).not.toHaveAttribute('role');
-        expect(activeButton.className).toContain('focus-visible:ring-2');
-        expect(archivedButton.className).toContain('focus-visible:ring-2');
-
-        activeButton.focus();
+        await user.tab();
+        expect(activeButton).toHaveFocus();
         await user.keyboard('{Enter}');
-        archivedButton.focus();
+        await user.tab();
+        expect(archivedButton).toHaveFocus();
         await user.keyboard(' ');
         expect(onRiskClick).toHaveBeenNthCalledWith(1, 41, expect.any(Object));
         expect(onRiskClick).toHaveBeenNthCalledWith(2, 42, expect.any(Object));

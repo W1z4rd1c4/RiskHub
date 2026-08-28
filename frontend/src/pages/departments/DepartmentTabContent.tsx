@@ -71,16 +71,16 @@ export function DepartmentTabContent({
                                     <li key={entry.id}>
                                         <button
                                             type="button"
-                                            className="flex w-full items-center justify-between py-3 text-left text-sm text-slate-300 hover:text-white"
+                                            className="flex w-full items-center justify-between py-3 text-left text-sm text-foreground"
                                             onClick={() => navigate(`/controls/${entry.control_id}`)}
                                         >
                                             <span>
                                                 <strong>{entry.control_name}</strong>
-                                                <span className="ml-2 text-xs text-slate-500">
+                                                <span className="ml-2 text-xs text-muted-foreground">
                                                     {t('labels.by')} {entry.executed_by} · {formatDateValue(entry.executed_at, i18n.language)}
                                                 </span>
                                             </span>
-                                            <span className="text-xs uppercase text-slate-400">{entry.result}</span>
+                                            <span className="text-xs uppercase text-muted-foreground">{entry.result}</span>
                                         </button>
                                     </li>
                                 ))}

@@ -124,7 +124,7 @@ export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSel
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="group relative overflow-hidden rounded-2xl border border-white/5 p-5 transition-all hover:border-accent/30 glass-card"
+                        className="relative overflow-hidden rounded-2xl border border-white/5 p-5 glass-card"
                     >
                         {(() => {
                             const entityTypeLabel = getActivityEntityLabel(entry.entity_type);
@@ -139,14 +139,14 @@ export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSel
                             <div className="min-w-0 flex-1">
                                 <div className="mb-1 flex items-center justify-between">
                                     <div className="flex items-center gap-2 text-sm">
-                                        <span className="font-semibold text-slate-200">{entry.actor_name}</span>
-                                        <span className="text-slate-500">{ACTION_LABELS[entry.action] ?? entry.action}</span>
-                                        <span className="font-medium text-accent/80">{entityTypeLabel}</span>
+                                        <span className="font-semibold text-foreground">{entry.actor_name}</span>
+                                        <span className="text-muted-foreground">{ACTION_LABELS[entry.action] ?? entry.action}</span>
+                                        <span className="font-medium text-accent-text">{entityTypeLabel}</span>
                                         {showEntityName ? (
-                                            <span className="truncate font-medium text-slate-200">{entry.entity_name}</span>
+                                            <span className="truncate font-medium text-foreground">{entry.entity_name}</span>
                                         ) : null}
                                     </div>
-                                    <div className="flex items-center gap-4 text-xs text-slate-500">
+                                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                         <div
                                             className="flex items-center gap-1.5"
                                             title={formatDateTimeValue(entry.created_at, i18n.language)}
@@ -156,7 +156,7 @@ export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSel
                                         </div>
                                     </div>
                                 </div>
-                                <p className="line-clamp-1 text-sm text-slate-400">{entry.description}</p>
+                                <p className="line-clamp-1 text-sm text-muted-foreground">{entry.description}</p>
 
                                 {entry.changes && Object.keys(entry.changes).length > 0 && (
                                     <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -165,20 +165,20 @@ export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSel
                                             return (
                                                 <div
                                                     key={field}
-                                                    className="rounded-lg border border-white/5 bg-black/30 p-2 text-[11px]"
+                                                    className="rounded-lg border border-border bg-muted p-2 text-xs"
                                                 >
                                                     <div className="mb-1 font-bold uppercase tracking-wider text-slate-500">
                                                         {field.replace(/_/g, ' ')}
                                                     </div>
                                                     <div className="flex items-center gap-1.5 overflow-hidden">
                                                         <span
-                                                            className="max-w-[80px] truncate line-through text-rose-400/80"
+                                                            className="max-w-[80px] truncate line-through text-destructive"
                                                             title={oldValue}
                                                         >
                                                             {oldValue}
                                                         </span>
                                                         <ArrowRight className="h-2.5 w-2.5 shrink-0 text-slate-600" />
-                                                        <span className="truncate text-emerald-400" title={newValue}>
+                                                        <span className="truncate text-success-text" title={newValue}>
                                                             {newValue}
                                                         </span>
                                                     </div>

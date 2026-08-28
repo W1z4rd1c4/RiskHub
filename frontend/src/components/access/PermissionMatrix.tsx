@@ -16,9 +16,9 @@ interface PermissionMatrixProps {
 
 // Action styling configuration
 const actionStyles: Record<string, { color: string; bg: string; border: string }> = {
-    read: { color: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/20' },
-    write: { color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20' },
-    delete: { color: 'text-rose-400', bg: 'bg-rose-400/10', border: 'border-rose-400/20' },
+    read: { color: 'text-accent-text', bg: 'bg-info/10', border: 'border-info/20' },
+    write: { color: 'text-success-text', bg: 'bg-success/10', border: 'border-success/20' },
+    delete: { color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/20' },
 };
 
 // Resource configuration
@@ -96,7 +96,7 @@ export function PermissionMatrix({
     return (
         <div className={cn('grid grid-cols-1 gap-1', className)}>
             {/* Header for the "table" */}
-            <div className="hidden md:grid grid-cols-[180px_1fr] px-4 py-2 border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+            <div className="hidden md:grid grid-cols-[180px_1fr] px-4 py-2 border-b border-border text-xs font-black uppercase tracking-widest text-muted-foreground">
                 <div>{t('access.matrix.resource', { ns: 'admin' })}</div>
                 <div className="flex gap-4">{t('access.matrix.permissions_capabilities', { ns: 'admin' })}</div>
             </div>
@@ -109,10 +109,10 @@ export function PermissionMatrix({
                     <div key={resource} className="grid md:grid-cols-[180px_1fr] items-center group hover:bg-white/[0.02] rounded-lg transition-colors py-1">
                         {/* Resource Identity */}
                         <div className="px-4 py-2 flex items-center gap-2.5">
-                            <span className="text-base grayscale group-hover:grayscale-0 transition-all">{config.icon}</span>
+                            <span className="text-base grayscale group-hover:grayscale-0 transition-[filter]">{config.icon}</span>
                             <div>
-                                <p className="text-xs font-bold text-white leading-none">{t(config.labelKey)}</p>
-                                <p className="text-[10px] text-slate-500 mt-1 leading-none">{t(config.descriptionKey)}</p>
+                                <p className="text-xs font-bold text-foreground leading-none">{t(config.labelKey)}</p>
+                                <p className="text-xs text-muted-foreground mt-1 leading-none">{t(config.descriptionKey)}</p>
                             </div>
                         </div>
 
@@ -121,21 +121,22 @@ export function PermissionMatrix({
                             {actions.sort().map((action) => {
                                 const perm = `${resource}:${action}`;
                                 const enabled = localPermissions.has(perm);
-                                const style = actionStyles[action] || { color: 'text-slate-400', bg: 'bg-white/5', border: 'border-white/10' };
+                                const style = actionStyles[action] || { color: 'text-muted-foreground', bg: 'bg-nested', border: 'border-border' };
                                 const descKey = actionDescriptions[resource]?.[action];
                                 const desc = descKey ? t(descKey) : action;
 
                                 return (
                                     <button
                                         key={perm}
+                                        data-testid="permission-matrix-action"
                                         type="button"
                                         disabled={!editable}
                                         onClick={() => togglePermission(resource, action)}
                                         className={cn(
-                                            "flex items-center gap-2 px-2.5 py-1 rounded-md border text-[10px] font-bold uppercase tracking-wider transition-all",
+                                            "flex items-center gap-2 px-2.5 py-1 rounded-md border text-xs font-bold uppercase tracking-wider transition-[background-color,border-color,color,filter,transform]",
                                             enabled
                                                 ? `${style.bg} ${style.border} ${style.color}`
-                                                : "bg-transparent border-transparent text-slate-600 hover:text-slate-400 grayscale",
+                                                : "bg-transparent border-transparent text-muted-foreground hover:text-foreground grayscale",
                                             editable && "cursor-pointer active:scale-95"
                                         )}
                                         title={desc}
@@ -147,7 +148,7 @@ export function PermissionMatrix({
                                             {enabled && <Check className="h-2.5 w-2.5" />}
                                         </div>
                                         <span>{action}</span>
-                                        <span className="normal-case font-medium text-slate-500 ml-1 border-l border-white/10 pl-2 hidden lg:inline">
+                                        <span className="normal-case font-medium text-muted-foreground ml-1 border-l border-border pl-2 hidden lg:inline">
                                             {desc}
                                         </span>
                                     </button>
@@ -159,7 +160,7 @@ export function PermissionMatrix({
             })}
 
             {editable && (
-                <div className="mt-2 px-4 py-2 flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-t border-white/5">
+                <div className="mt-2 px-4 py-2 flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest border-t border-border">
                     <Info className="h-3.5 w-3.5 text-accent" />
                     {t('access.matrix.click_to_toggle', { ns: 'admin' })}
                 </div>
@@ -171,9 +172,9 @@ export function PermissionMatrix({
 // ... PermissionChips remains the same as it was already compact ...
 export function PermissionChips({ permissions, maxVisible = 5, className }: { permissions: string[], maxVisible?: number, className?: string }) {
     const actionColors: Record<string, string> = {
-        read: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-        write: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-        delete: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+        read: 'bg-info/10 text-accent-text border-info/20',
+        write: 'bg-success/10 text-success-text border-success/20',
+        delete: 'bg-destructive/10 text-destructive border-destructive/20',
     };
 
     const visible = permissions.slice(0, maxVisible);
@@ -187,7 +188,8 @@ export function PermissionChips({ permissions, maxVisible = 5, className }: { pe
                     return (
                         <span
                             key={perm}
-                            className="px-1.5 py-0.5 text-[10px] font-medium rounded border bg-slate-500/20 text-slate-400 border-slate-500/30"
+                            data-testid="permission-summary-badge"
+                            className="px-1.5 py-0.5 text-[10px] font-medium rounded border bg-muted text-muted-foreground border-border"
                             title={perm}
                         >
                             {perm}
@@ -198,9 +200,10 @@ export function PermissionChips({ permissions, maxVisible = 5, className }: { pe
                 return (
                     <span
                         key={perm}
+                        data-testid="permission-summary-badge"
                         className={cn(
                             'px-1.5 py-0.5 text-[10px] font-medium rounded border',
-                            actionColors[action] || 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+                            actionColors[action] || 'bg-muted text-muted-foreground border-border'
                         )}
                         title={perm}
                     >
@@ -209,7 +212,7 @@ export function PermissionChips({ permissions, maxVisible = 5, className }: { pe
                 );
             })}
             {remaining > 0 && (
-                <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-white/10 text-slate-400 border border-white/10">
+                <span data-testid="permission-summary-badge" className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-muted text-muted-foreground border border-border">
                     +{remaining}
                 </span>
             )}

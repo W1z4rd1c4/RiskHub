@@ -202,8 +202,8 @@ export function RegisterListShell<TItem extends object, TView extends string>({
             <div className="space-y-8" data-testid={`${testIdPrefix}-register-shell`}>
                 <header className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-white">{title}</h1>
-                        <p className="text-slate-400 font-medium mt-1">{subtitle}</p>
+                        <h1 className="text-3xl font-bold text-foreground">{title}</h1>
+                        <p className="text-muted-foreground font-medium mt-1">{subtitle}</p>
                     </div>
                     <div className="flex items-center gap-3">
                         {canExport && exportDialog ? (
@@ -212,7 +212,7 @@ export function RegisterListShell<TItem extends object, TView extends string>({
                                 onClick={() => setIsExportDialogOpen(true)}
                                 disabled={isExporting}
                                 data-testid={`${testIdPrefix}-export-button`}
-                                className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
+                                className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
                             >
                                 <Download className="h-4 w-4" aria-hidden="true" />
                                 {exportLabel}
@@ -223,7 +223,7 @@ export function RegisterListShell<TItem extends object, TView extends string>({
                                 type="button"
                                 onClick={onCreate}
                                 data-testid={`${testIdPrefix}-create-button`}
-                                className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all flex items-center gap-2"
+                                className="px-5 py-2.5 rounded-xl bg-accent text-accent-foreground font-bold hover:bg-accent-hover transition-colors flex items-center gap-2"
                             >
                                 <Plus className="h-5 w-5" aria-hidden="true" />
                                 {createLabel}
@@ -241,10 +241,10 @@ export function RegisterListShell<TItem extends object, TView extends string>({
                             data-testid={`${testIdPrefix}-view-${option.value}`}
                             onClick={() => onViewChange(option.value)}
                             className={cn(
-                                'px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200',
+                                'px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200',
                                 view === option.value
                                     ? 'bg-accent text-slate-950 shadow-lg shadow-accent/20'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5',
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5',
                             )}
                         >
                             {option.label}

@@ -47,8 +47,8 @@ function DetailField({
 }) {
     return (
         <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
-            <p className="text-sm text-white" data-testid={testId}>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+            <p className="text-sm text-foreground" data-testid={testId}>
                 {value === null || value === undefined || value === '' ? '—' : value}
             </p>
         </div>
@@ -68,7 +68,7 @@ function DerivedPillField({
 }) {
     return (
         <div className="space-y-1" data-testid={testId}>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
             <CriticalityClassPill criticalityClass={criticalityClass} displayValue={displayValue} />
         </div>
     );
@@ -300,11 +300,11 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                                 {t(`status.${status}`)}
                             </span>
                             {asset.asset_type ? (
-                                <span className="text-xs font-bold text-slate-400">{t(`values.asset_type.${asset.asset_type}`)}</span>
+                                <span className="text-xs font-bold text-muted-foreground">{t(`values.asset_type.${asset.asset_type}`)}</span>
                             ) : null}
                         </div>
-                        <h1 className="text-3xl font-bold text-white mt-1">{asset.name}</h1>
-                        <p className="text-slate-500 font-medium mt-1">
+                        <h1 className="text-3xl font-bold text-foreground mt-1">{asset.name}</h1>
+                        <p className="text-muted-foreground font-medium mt-1">
                             {asset.asset_level ? t(`values.asset_level.${asset.asset_level}`) : ''}
                             {asset.deployment_model ? `${asset.asset_level ? ' · ' : ''}${t(`values.deployment_model.${asset.deployment_model}`)}` : ''}
                         </p>
@@ -316,7 +316,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             type="button"
                             onClick={() => void restoreAsset()}
                             data-testid="asset-detail-restore"
-                            className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
                             <ArchiveRestore className="h-4 w-4" />
                             {t('actions.restore')}
@@ -327,7 +327,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             type="button"
                             onClick={() => navigate(`/assets/${asset.id}/edit`)}
                             data-testid="asset-detail-edit"
-                            className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
                             <Pencil className="h-4 w-4" />
                             {t('actions.edit')}
@@ -338,7 +338,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             type="button"
                             onClick={() => setIsArchiveDialogOpen(true)}
                             data-testid="asset-detail-archive"
-                            className="px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-400/30 text-rose-300 hover:bg-rose-500/20 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
                             <Trash2 className="h-4 w-4" />
                             {tCommon('actions.archive')}
@@ -348,7 +348,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
             </div>
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.identity')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -360,14 +360,14 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 </div>
                 {asset.description ? (
                     <div className="space-y-1">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.description')}</p>
-                        <p className="text-sm text-slate-300 whitespace-pre-wrap">{asset.description}</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('form.description')}</p>
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{asset.description}</p>
                     </div>
                 ) : null}
             </div>
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.ownership')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -383,7 +383,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
             </div>
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.ratings')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-5">

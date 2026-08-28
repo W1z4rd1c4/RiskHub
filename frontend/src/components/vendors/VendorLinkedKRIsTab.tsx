@@ -40,9 +40,9 @@ export function VendorLinkedKRIsTab({ vendorId, canCreateKri, canEdit, protected
             canEdit={canEdit}
             protectedChangeRequiresApproval={protectedChangeRequiresApproval}
             dataTestIdPrefix="vendor-linked-kris"
-            headerColorClass="text-white"
+            headerColorClass="text-foreground"
             i18nKeys={{ addAction: 'links.actions.add_kri', archived: 'links.archived_kris', dialogTitle: 'links.dialogs.link_kris_title', empty: 'links.kris.empty', subtitle: 'links.kris.subtitle', tabTitle: 'tabs.linked_kris' }}
-            icon={<Target className="h-5 w-5 text-amber-400" />}
+            icon={<Target className="h-5 w-5 text-warning-text" />}
             linkDialogMode="vendor-to-kri"
             motionDelay={0.1}
             onAdd={onAddKri}

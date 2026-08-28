@@ -53,9 +53,9 @@ Vendor detail also owns lifecycle parity at the route shell level: active
 vendors can be archived from the hero, while inactive vendors expose restore
 in the same action cluster.
 
-The individual vendor route family (`view`, `edit`, `new`) now shares a
-vendor-local glass-stack design layer. Shell concerns stay here, while shared
-surface primitives live in
+The individual vendor route family (`view`, `edit`, `new`) shares the global
+semantic theme through vendor-specific layout primitives. Shell concerns stay
+here, while those primitives live in
 `frontend/src/components/vendors/vendorRouteUi.tsx`
 and
 `frontend/src/components/vendors/vendorRoute.css`.

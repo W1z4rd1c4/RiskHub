@@ -46,14 +46,14 @@ export function VendorSubOutsourcingChainTable({ groups, columns }: VendorSubOut
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead>
-                        <tr className="border-b border-white/10">
+                        <tr className="border-b border-border">
                             {columns.map((col, index) => (
                                 <th
                                     key={String(col.key)}
                                     id={columnHeaderIds[index]}
                                     scope="col"
                                     className={cn(
-                                        'px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-400',
+                                        'px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground',
                                         col.headerClassName,
                                     )}
                                 >
@@ -68,8 +68,8 @@ export function VendorSubOutsourcingChainTable({ groups, columns }: VendorSubOut
                         const groupHeaderId = `${tableId}-group-${group.contractId}`;
                         return (
                             <Fragment key={group.contractId}>
-                                <tbody className="border-b border-white/10">
-                                    <tr className="bg-white/[0.03]">
+                                <tbody className="border-b border-border">
+                                    <tr className="bg-nested">
                                         <th id={groupHeaderId} colSpan={columns.length} className="px-6 py-3 text-left">
                                             <button
                                                 type="button"
@@ -77,29 +77,29 @@ export function VendorSubOutsourcingChainTable({ groups, columns }: VendorSubOut
                                                 aria-expanded={isExpanded}
                                                 aria-controls={panelId}
                                                 data-testid={`vendor-sub-outsourcing-group-${group.contractId}`}
-                                                className="group inline-flex items-center gap-2 rounded text-left transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                                className="group inline-flex items-center gap-2 rounded text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                             >
                                                 <ChevronRight
                                                     className={cn(
-                                                        'h-4 w-4 shrink-0 text-slate-400 transition-transform',
+                                                        'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
                                                         isExpanded && 'rotate-90',
                                                     )}
                                                     aria-hidden="true"
                                                 />
-                                                <span className="text-sm font-bold text-white">{group.label}</span>
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                <span className="text-sm font-bold text-foreground">{group.label}</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                                                     {t('sub_outsourcing.chain_group.count', { count: group.rows.length })}
                                                 </span>
                                             </button>
                                         </th>
                                     </tr>
                                 </tbody>
-                                <tbody id={panelId} className="divide-y divide-white/5 border-b border-white/10">
+                                <tbody id={panelId} className="divide-y divide-white/5 border-b border-border">
                                     {isExpanded
                                         ? group.rows.map((row, index) => (
                                               <tr
                                                   key={row.entry.id}
-                                                  className="hover:bg-white/5 transition-colors"
+                                                  className="hover:bg-glass-hover transition-colors"
                                               >
                                                   {columns.map((col, columnIndex) => (
                                                       <td

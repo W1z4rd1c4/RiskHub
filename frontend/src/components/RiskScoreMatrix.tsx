@@ -63,7 +63,7 @@ export function RiskScoreMatrix({
             <div className="flex gap-1">
                 {/* Y-axis label */}
                 <div className="flex flex-col items-center justify-center mr-1">
-                    <span className={`${labelClass} text-slate-500 font-bold -rotate-90 whitespace-nowrap`}>
+                    <span className={`${labelClass} text-muted-foreground font-bold -rotate-90 whitespace-nowrap`}>
                         {t('matrix.probability_axis')}
                     </span>
                 </div>
@@ -81,7 +81,7 @@ export function RiskScoreMatrix({
                                     className={`
                                         ${cellClass} ${riskScoreVariantClass('matrix-cell', p * i, thresholds)}
                                         rounded-sm flex items-center justify-center font-bold
-                                        transition-all duration-200 m-0.5
+                                        transition-[background-color,border-color,box-shadow,transform] duration-200 m-0.5
                                         ${onSelect ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}
                                         ${isSelected(p, i)
                                             ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 scale-110 z-10'
@@ -92,7 +92,7 @@ export function RiskScoreMatrix({
                                     title={t('matrix.cell_title', { probability: p, impact: i, score: p * i })}
                                 >
                                     {isSelected(p, i) && (
-                                        <span className="text-white font-black">{p * i}</span>
+                                        <span className="text-foreground font-black">{p * i}</span>
                                     )}
                                 </motion.div>
                             ))}
@@ -102,7 +102,7 @@ export function RiskScoreMatrix({
             </div>
 
             {/* X-axis label */}
-            <span className={`${labelClass} text-slate-500 font-bold mt-2`}>
+            <span className={`${labelClass} text-muted-foreground font-bold mt-2`}>
                 {t('matrix.impact_axis')}
             </span>
 

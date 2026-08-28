@@ -169,7 +169,7 @@ export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) 
                     <button
                         onClick={() => mutation.mutate(form)}
                         disabled={mutation.isPending}
-                        className="px-4 py-2 bg-accent hover:bg-accent/80 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+                        className="px-4 py-2 bg-accent hover:bg-accent-hover text-accent-foreground rounded-lg transition-colors font-medium disabled:opacity-50"
                     >
                         {mutation.isPending ? t('audit.saving') : t('audit.save_settings')}
                     </button>
