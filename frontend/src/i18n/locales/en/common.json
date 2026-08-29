@@ -404,7 +404,12 @@
     },
     "view_entity": "View {{entity}}",
     "view_row": "View details",
-    "row_actions": "Actions"
+    "row_actions": "Actions",
+    "horizontal_scroll_region": "Scrollable data table",
+    "more_columns_right": "More columns to the right"
+  },
+  "detail_header": {
+    "identifier_separator": "Identifier separator"
   },
   "fallbacks": {
     "unknown": "Unknown",

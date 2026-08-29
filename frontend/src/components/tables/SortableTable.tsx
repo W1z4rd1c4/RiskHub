@@ -13,7 +13,7 @@
  *     data replaces the table; a failed refetch that still holds data keeps the
  *     stale rows and surfaces a non-blocking retry banner.
  */
-import { useState, useMemo } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -58,6 +58,94 @@ interface SortableTableProps<T> {
     rowHref?: (item: T) => string;
     /** Accessible entity name for the `View …` link label (used with `rowHref`). */
     rowLabel?: (item: T) => string;
+    /** Optional accessible name when multiple table regions share one view. */
+    horizontalRegionLabel?: string;
+}
+
+interface HorizontalTableViewportProps {
+    children: React.ReactNode;
+    continuationLabel: string;
+    regionLabel: string;
+}
+
+function HorizontalTableViewport({
+    children,
+    continuationLabel,
+    regionLabel,
+}: HorizontalTableViewportProps) {
+    const viewportRef = useRef<HTMLDivElement>(null);
+    const cueId = useId();
+    const [hasOverflow, setHasOverflow] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    const measure = useCallback(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+        const nextHasOverflow = viewport.scrollWidth > viewport.clientWidth + 1;
+        setHasOverflow(nextHasOverflow);
+        setCanScrollRight(nextHasOverflow && viewport.scrollLeft + viewport.clientWidth < viewport.scrollWidth - 1);
+    }, []);
+
+    useEffect(() => {
+        measure();
+        window.addEventListener('resize', measure);
+        const viewport = viewportRef.current;
+        viewport?.addEventListener('scroll', measure);
+        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+        if (observer && viewport) {
+            observer.observe(viewport);
+            if (viewport.firstElementChild) {
+                observer.observe(viewport.firstElementChild);
+            }
+        }
+        return () => {
+            window.removeEventListener('resize', measure);
+            viewport?.removeEventListener('scroll', measure);
+            observer?.disconnect();
+        };
+    }, [measure]);
+
+    useEffect(() => {
+        measure();
+    }, [children, measure]);
+
+    useEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+        viewport.tabIndex = hasOverflow ? 0 : -1;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (!hasOverflow || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+            event.preventDefault();
+            const direction = event.key === 'ArrowRight' ? 1 : -1;
+            const next = viewport.scrollLeft + direction * Math.max(120, viewport.clientWidth * 0.75);
+            viewport.scrollLeft = Math.max(0, Math.min(next, viewport.scrollWidth - viewport.clientWidth));
+            measure();
+        };
+        viewport.addEventListener('keydown', handleKeyDown);
+        return () => viewport.removeEventListener('keydown', handleKeyDown);
+    }, [hasOverflow, measure]);
+
+    return (
+        <div className="relative">
+            <div
+                ref={viewportRef}
+                role="region"
+                aria-label={regionLabel}
+                aria-describedby={canScrollRight ? cueId : undefined}
+                className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+            >
+                {children}
+            </div>
+            {canScrollRight ? (
+                <span
+                    id={cueId}
+                    className="pointer-events-none absolute bottom-2 right-2 rounded-md border border-border bg-background/95 px-2 py-1 text-xs font-medium text-foreground shadow-lg"
+                >
+                    {continuationLabel}
+                </span>
+            ) : null}
+        </div>
+    );
 }
 
 function getItemValue<T extends object>(item: T, key: string): unknown {
@@ -81,11 +169,13 @@ export function SortableTable<T extends object>({
     skeletonRowCount = 5,
     rowHref,
     rowLabel,
+    horizontalRegionLabel,
 }: SortableTableProps<T>) {
     const { t } = useTranslation('common');
     const [internalSortKey, setInternalSortKey] = useState<string | null>(null);
     const [internalSortDirection, setInternalSortDirection] = useState<SortDirection>(null);
     const resolvedEmptyMessage = emptyMessage ?? t('empty.no_data_available');
+    const resolvedHorizontalRegionLabel = horizontalRegionLabel ?? t('tables.horizontal_scroll_region');
 
     const isControlled = onSort !== undefined;
     const currentSortKey = isControlled ? controlledSortKey : internalSortKey;
@@ -211,7 +301,10 @@ export function SortableTable<T extends object>({
                 aria-busy="true"
                 data-testid="sortable-table-skeleton"
             >
-                <div className="overflow-x-auto">
+                <HorizontalTableViewport
+                    regionLabel={resolvedHorizontalRegionLabel}
+                    continuationLabel={t('tables.more_columns_right')}
+                >
                     <table className="w-full">
                         {renderHeader()}
                         <tbody className="divide-y divide-white/5">
@@ -226,7 +319,7 @@ export function SortableTable<T extends object>({
                             ))}
                         </tbody>
                     </table>
-                </div>
+                </HorizontalTableViewport>
             </div>
         );
     }
@@ -244,7 +337,10 @@ export function SortableTable<T extends object>({
         // `overflow-x-auto` scroll container lets dense/wide columns scroll at `>= lg`
         // instead of being clipped.
         <div className={cn('glass-card !p-0 overflow-hidden', className)}>
-            <div className="overflow-x-auto">
+            <HorizontalTableViewport
+                regionLabel={resolvedHorizontalRegionLabel}
+                continuationLabel={t('tables.more_columns_right')}
+            >
                 <table className="w-full">
                     {renderHeader()}
                     <tbody className="divide-y divide-white/5">
@@ -287,7 +383,7 @@ export function SortableTable<T extends object>({
                         ))}
                     </tbody>
                 </table>
-            </div>
+            </HorizontalTableViewport>
         </div>
     );
 

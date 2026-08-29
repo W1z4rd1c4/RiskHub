@@ -103,23 +103,23 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
     ];
 
     return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" data-testid="department-stats-grid">
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" data-testid="department-stats-grid">
             {cards.map(({ key, count, health, icon: Icon }) => (
                 <article
                     key={key}
                     data-testid={`department-overview-card-${key}`}
-                    className="glass-card group flex flex-col text-left"
+                    className="glass-card group flex min-w-0 flex-col text-left"
                 >
                     <button
                         type="button"
                         data-testid={`department-overview-card-${key}-total`}
                         aria-label={`${t(`department_detail.tabs.${key}`)} ${count ?? t('fallbacks.not_available')}`}
                         onClick={() => onSelectTab(key)}
-                        className="w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        className="min-w-0 w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                         <span className="mb-2 flex items-center gap-3">
                             <Icon className="h-5 w-5 text-accent transition-transform group-hover:scale-110" aria-hidden="true" />
-                            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                            <span className="min-w-0 break-words text-xs uppercase tracking-wider text-muted-foreground [overflow-wrap:anywhere]">
                                 {t(`department_detail.tabs.${key}`)}
                             </span>
                         </span>
@@ -127,7 +127,7 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
                             {count ?? t('fallbacks.not_available')}
                         </span>
                     </button>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 flex min-w-0 flex-wrap gap-2">
                         {health.map((action) => (
                             <button
                                 key={action.key}
@@ -137,7 +137,7 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
                                     count: action.count ?? t('fallbacks.not_available'),
                                 })}`}
                                 onClick={() => onSelectTab(key, action.filters)}
-                                className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:border-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                                className="max-w-full whitespace-normal break-words rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-muted-foreground [overflow-wrap:anywhere] hover:border-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                             >
                                 {t(action.labelKey, {
                                     count: action.count ?? t('fallbacks.not_available'),

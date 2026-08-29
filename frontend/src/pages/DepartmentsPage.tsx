@@ -90,33 +90,33 @@ export function DepartmentsPage() {
                     </p>
                 </div>
             ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {departments.map((dept) => (
                         <button
                             key={dept.id}
                             onClick={() => navigate(`/departments/${dept.id}`)}
                             className="glass-card interactive-card hover:border-accent/40 group cursor-pointer text-left"
                         >
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-white/5 p-3 rounded-xl group-hover:bg-accent/10 transition-colors">
+                            <div className="mb-6 flex min-w-0 flex-wrap items-start justify-between gap-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-4">
+                                    <div className="shrink-0 bg-white/5 p-3 rounded-xl group-hover:bg-accent/10 transition-colors">
                                         <Building2 className="h-6 w-6 text-slate-500 group-hover:text-accent" />
                                     </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold text-foreground group-hover:text-accent-text transition-colors">
+                                    <div className="min-w-0">
+                                        <h3 className="max-w-full break-words text-lg font-bold text-foreground [overflow-wrap:anywhere] group-hover:text-accent-text transition-colors">
                                             {dept.name}
                                         </h3>
-                                        <p className="text-xs text-muted-foreground font-mono">{dept.code}</p>
+                                        <p className="max-w-full break-words text-xs text-muted-foreground [overflow-wrap:anywhere] font-mono">{dept.code}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                                     {dept.breaching_kri_count > 0 && (
-                                        <div className="px-2 py-1 rounded-full bg-warning/10 text-warning-text text-xs font-black">
+                                        <div className="max-w-full whitespace-normal break-words px-2 py-1 rounded-full bg-warning/10 text-warning-text text-xs font-black [overflow-wrap:anywhere]">
                                             {dept.breaching_kri_count} {t('kris:status.breached').toUpperCase()}
                                         </div>
                                     )}
                                     {dept.high_risk_count > 0 && (
-                                        <div className="px-2 py-1 rounded-full bg-destructive/10 text-destructive text-xs font-black">
+                                        <div className="max-w-full whitespace-normal break-words px-2 py-1 rounded-full bg-destructive/5 text-destructive text-xs font-black [overflow-wrap:anywhere]">
                                             {dept.high_risk_count} {t('dashboard:risk_levels.critical').toUpperCase()}
                                         </div>
                                     )}
@@ -124,7 +124,7 @@ export function DepartmentsPage() {
                             </div>
 
                             {/* Metrics Grid */}
-                            <div className="grid grid-cols-5 gap-2 text-center">
+                            <div className="grid min-w-0 grid-cols-2 gap-2 text-center xl:grid-cols-5 [&>div]:min-w-0 [&_span]:max-w-full [&_span]:break-words [&_span]:[overflow-wrap:anywhere]">
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
                                     <Users className="h-4 w-4 text-blue-400" />
                                     <span className="text-lg font-black text-foreground">{dept.user_count}</span>

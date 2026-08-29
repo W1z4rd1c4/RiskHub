@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
@@ -45,6 +45,16 @@ export function Sidebar() {
     const unreadNotificationCount = shellSummaryQuery.data?.unread_notifications_count ?? 0;
     const [notificationCountOverride, setNotificationCountOverride] = useState<number | null>(null);
     const notificationRefreshTimeoutRef = useRef<number | null>(null);
+    const navigationRef = useRef<HTMLElement>(null);
+    const [hasMoreDestinationsBelow, setHasMoreDestinationsBelow] = useState(false);
+
+    const measureNavigationOverflow = useCallback(() => {
+        const navigation = navigationRef.current;
+        if (!navigation) return;
+        setHasMoreDestinationsBelow(
+            navigation.scrollTop + navigation.clientHeight < navigation.scrollHeight - 1,
+        );
+    }, []);
 
     useEffect(() => {
         if (notificationCountOverride !== null && unreadNotificationCount === notificationCountOverride) {
@@ -108,6 +118,34 @@ export function Sidebar() {
         location.pathname,
         navGroups.flatMap((section) => section.items.map((item) => item.href)),
     );
+    const navigationContentSignature = navGroups
+        .map((section) => `${section.label}:${section.items.map((item) => item.label).join(',')}`)
+        .join('|');
+
+    useEffect(() => {
+        const navigation = navigationRef.current;
+        if (!navigation) return;
+        measureNavigationOverflow();
+        navigation.addEventListener('scroll', measureNavigationOverflow);
+        window.addEventListener('resize', measureNavigationOverflow);
+        const observer = typeof ResizeObserver === 'undefined'
+            ? null
+            : new ResizeObserver(measureNavigationOverflow);
+        observer?.observe(navigation);
+        for (const child of navigation.children) {
+            observer?.observe(child);
+        }
+        return () => {
+            navigation.removeEventListener('scroll', measureNavigationOverflow);
+            window.removeEventListener('resize', measureNavigationOverflow);
+            observer?.disconnect();
+        };
+    }, [measureNavigationOverflow, navigationContentSignature]);
+
+    const handleNavItemFocus = (element: HTMLElement) => {
+        element.scrollIntoView({ block: 'nearest' });
+        measureNavigationOverflow();
+    };
 
     const brandName = tCommon('brand.name');
     const brandAccentSuffix = 'Hub';
@@ -115,9 +153,9 @@ export function Sidebar() {
     const brandPrefix = hasAccentSuffix ? brandName.slice(0, -brandAccentSuffix.length) : brandName;
 
     return (
-        <aside className="fixed inset-y-0 left-0 z-50 hidden lg:flex w-72 flex-col p-6">
-            <div className="glass-card h-full flex flex-col p-4">
-                <div className="flex items-center justify-between px-2 mb-10">
+        <aside className="fixed inset-y-0 left-0 z-50 hidden lg:flex w-72 min-h-0 flex-col p-6">
+            <div className="glass-card h-full min-h-0 flex flex-col p-4">
+                <div className="mb-6 flex shrink-0 items-center justify-between px-2">
                     <div className="flex items-center gap-3">
                         <div className="bg-accent p-2 rounded-xl">
                             <Shield className="h-6 w-6 text-accent-foreground" />
@@ -139,52 +177,67 @@ export function Sidebar() {
                     />
                 </div>
 
-                <nav className="flex-1 space-y-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    {navGroups.map((section) => (
-                        <div
-                            key={section.group}
-                            role="group"
-                            aria-labelledby={`sidebar-group-${section.group}`}
-                            className="space-y-1"
-                        >
-                            <p
-                                id={`sidebar-group-${section.group}`}
-                                className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                <div className="flex min-h-0 flex-1 flex-col">
+                    <nav
+                        ref={navigationRef}
+                        aria-label={t('primary_navigation')}
+                        className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain pr-2 [scrollbar-gutter:stable]"
+                    >
+                        {navGroups.map((section) => (
+                            <div
+                                key={section.group}
+                                role="group"
+                                aria-labelledby={`sidebar-group-${section.group}`}
+                                className="space-y-1"
                             >
-                                {section.label}
-                            </p>
-                            {section.items.map((item) => {
-                                const isActive = item.href === activeHref;
-                                return (
-                                    <Link
-                                        key={item.href}
-                                        to={item.href}
-                                        aria-current={isActive ? 'page' : undefined}
-                                        className={cn(
-                                            'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200',
-                                            isActive
-                                                ? 'sidebar-nav-link--active'
-                                                : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
-                                        )}
-                                    >
-                                        <div className="sidebar-nav-content flex items-center gap-3">
-                                            <item.icon className={cn('sidebar-nav-icon h-5 w-5', isActive ? '' : 'text-icon-muted group-hover:text-foreground')} />
-                                            {item.label}
-                                        </div>
-                                        {item.badge !== undefined && (
-                                            <span className="sidebar-nav-badge text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                                {item.badge}
-                                            </span>
-                                        )}
-                                        {isActive && item.badge === undefined && <ChevronRight className="sidebar-nav-chevron h-4 w-4" />}
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    ))}
-                </nav>
+                                <p
+                                    id={`sidebar-group-${section.group}`}
+                                    className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                                >
+                                    {section.label}
+                                </p>
+                                {section.items.map((item) => {
+                                    const isActive = item.href === activeHref;
+                                    return (
+                                        <Link
+                                            key={item.href}
+                                            to={item.href}
+                                            aria-current={isActive ? 'page' : undefined}
+                                            onFocus={(event) => handleNavItemFocus(event.currentTarget)}
+                                            className={cn(
+                                                'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200',
+                                                isActive
+                                                    ? 'sidebar-nav-link--active'
+                                                    : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                                            )}
+                                        >
+                                            <div className="sidebar-nav-content flex items-center gap-3">
+                                                <item.icon className={cn('sidebar-nav-icon h-5 w-5', isActive ? '' : 'text-icon-muted group-hover:text-foreground')} />
+                                                {item.label}
+                                            </div>
+                                            {item.badge !== undefined && (
+                                                <span className="sidebar-nav-badge text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                    {item.badge}
+                                                </span>
+                                            )}
+                                            {isActive && item.badge === undefined && <ChevronRight className="sidebar-nav-chevron h-4 w-4" />}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        ))}
+                    </nav>
+                    {hasMoreDestinationsBelow ? (
+                        <p
+                            aria-live="polite"
+                            className="pointer-events-none shrink-0 bg-gradient-to-t from-background/95 to-transparent px-2 pt-2 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                        >
+                            {t('more_destinations_below')}
+                        </p>
+                    ) : null}
+                </div>
 
-                <div className="mt-auto pt-6 border-t border-white/10 space-y-4">
+                <div className="mt-4 shrink-0 space-y-4 border-t border-white/10 pt-4">
                     {user && (
                         <div className="flex items-center gap-3 px-2">
                             <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">

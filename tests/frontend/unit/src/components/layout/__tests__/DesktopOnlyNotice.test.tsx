@@ -31,6 +31,13 @@ describe('DesktopOnlyNotice (FR-P5-2 / finding C6, ADR-014)', () => {
         expect(enLayout.desktop_only.accessible_alternative.toLowerCase()).toContain('administrator');
     });
 
+    it('states honestly in both locales that workflows are unavailable below the desktop boundary', () => {
+        expect(enLayout.desktop_only.body).toContain('workflows are unavailable');
+        expect(csLayout.desktop_only.body.toLowerCase()).toContain('pracovní postupy riskhubu nejsou dostupné');
+        expect(enLayout.desktop_only.body).not.toContain('may not display as intended');
+        expect(csLayout.desktop_only.body).not.toContain('nemusí zobrazit podle očekávání');
+    });
+
     it('never instructs users to reduce zoom (that would disable a low-vision aid)', () => {
         render(<DesktopOnlyNotice />);
 

@@ -579,6 +579,7 @@ export function VendorContractsSection({
                     isError={contractsErrorContract.showErrorBlock}
                     onRetry={() => void contractsQuery.refetch()}
                     emptyMessage={t('contracts.empty')}
+                    horizontalRegionLabel={t('contracts.active_table_label')}
                 />
             ) : null}
 
@@ -597,6 +598,7 @@ export function VendorContractsSection({
                             data={archivedContracts}
                             columns={columns}
                             keyExtractor={(contract) => contract.id}
+                            horizontalRegionLabel={t('contracts.archived_table_label')}
                         />
                     </div>
                 </section>

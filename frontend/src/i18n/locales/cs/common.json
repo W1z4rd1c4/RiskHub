@@ -404,7 +404,12 @@
     },
     "view_entity": "Zobrazit {{entity}}",
     "view_row": "Zobrazit detail",
-    "row_actions": "Akce"
+    "row_actions": "Akce",
+    "horizontal_scroll_region": "Posuvná datová tabulka",
+    "more_columns_right": "Další sloupce vpravo"
+  },
+  "detail_header": {
+    "identifier_separator": "Oddělovač identifikátoru"
   },
   "fallbacks": {
     "unknown": "Neznámé",

@@ -381,6 +381,8 @@
   "contracts": {
     "title": "Contracts",
     "empty": "No contracts yet.",
+    "active_table_label": "Active contracts table",
+    "archived_table_label": "Archived contracts table",
     "archived_heading": "Archived contracts ({{count}})",
     "archive_confirm": "Archive contract {{reference}}? Approved data remains unchanged until any required approval is completed.",
     "columns": {

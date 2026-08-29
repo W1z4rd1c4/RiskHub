@@ -24,6 +24,7 @@ import { apiClient } from '@/services/apiClient';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
+import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 import { useControlDetailWorkflow } from '@/pages/controls/useControlDetailWorkflow';
@@ -129,17 +130,19 @@ export function ControlDetailPage() {
                 />
             )}
 
-            {/* Header / Breadcrumb */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                <div className="space-y-2">
+            <EntityDetailHeader
+                backAction={(
                     <button
                         onClick={() => navigate('/controls')}
-                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest mb-4"
+                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest"
                     >
                         <ArrowLeft className="h-3 w-3" /> {t('controls:detail.back_to_catalog')}
                     </button>
-                    <div className="flex items-center gap-4">
-                        <h2 className="text-4xl font-black text-foreground tracking-tighter">{control.name}</h2>
+                )}
+                identifierSeparatorLabel={t('detail_header.identifier_separator')}
+                title={control.name}
+                statuses={(
+                    <>
                         <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border border-white/10 ${getControlStatusColor(displayStatus)}`}>
                             {t(`controls:status.${displayStatus}`)}
                         </span>
@@ -147,11 +150,11 @@ export function ControlDetailPage() {
                             <MonitoringIcon className="h-3 w-3" />
                             {t(monitoring.labelKey)}
                         </span>
-                    </div>
-                    <p className="text-muted-foreground font-medium max-w-2xl">{control.description}</p>
-                </div>
-
-                <div className="flex items-center gap-3">
+                    </>
+                )}
+                description={control.description}
+                actions={(
+                    <>
                     <ContextualIssueAction
                         buttonLabel={tIssues('actions.new_issue')}
                         canCreateIssue={canCreateIssue}
@@ -189,8 +192,9 @@ export function ControlDetailPage() {
                             <Trash2 className="h-5 w-5" />
                         </button>
                     )}
-                </div>
-            </div>
+                    </>
+                )}
+            />
 
             {/* Tabs */}
             <div className="flex items-center gap-2 border-b border-white/10">

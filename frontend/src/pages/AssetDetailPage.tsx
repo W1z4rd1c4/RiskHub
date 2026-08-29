@@ -12,6 +12,7 @@ import { assetApi } from '@/services/assetApi';
 import { approvalsApi } from '@/services/approvalsApi';
 import type { Asset } from '@/types/asset';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
+import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
@@ -281,8 +282,8 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 </div>
             ) : null}
 
-            <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
-                <div className="flex items-start gap-3">
+            <EntityDetailHeader
+                backAction={(
                     <button
                         type="button"
                         onClick={() => navigate('/assets')}
@@ -292,8 +293,11 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </button>
-                    <div>
-                        <div className="flex items-center gap-3">
+                )}
+                identifierSeparatorLabel={tCommon('detail_header.identifier_separator')}
+                title={asset.name}
+                statuses={(
+                    <>
                             <span
                                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getAssetStatusColor(status)}`}
                             >
@@ -302,15 +306,17 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             {asset.asset_type ? (
                                 <span className="text-xs font-bold text-muted-foreground">{t(`values.asset_type.${asset.asset_type}`)}</span>
                             ) : null}
-                        </div>
-                        <h1 className="text-3xl font-bold text-foreground mt-1">{asset.name}</h1>
-                        <p className="text-muted-foreground font-medium mt-1">
+                    </>
+                )}
+                metadata={(
+                    <span>
                             {asset.asset_level ? t(`values.asset_level.${asset.asset_level}`) : ''}
                             {asset.deployment_model ? `${asset.asset_level ? ' · ' : ''}${t(`values.deployment_model.${asset.deployment_model}`)}` : ''}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
+                    </span>
+                )}
+                description={asset.description}
+                actions={(
+                    <>
                     {canRestore && (
                         <button
                             type="button"
@@ -344,8 +350,9 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             {tCommon('actions.archive')}
                         </button>
                     )}
-                </div>
-            </div>
+                    </>
+                )}
+            />
 
             <div className="glass-card space-y-5">
                 <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
@@ -358,12 +365,6 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     <DetailField label={t('form.physical_location')} value={asset.physical_location} />
                     <DetailField label={t('form.alternative_names')} value={asset.alternative_names} />
                 </div>
-                {asset.description ? (
-                    <div className="space-y-1">
-                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('form.description')}</p>
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{asset.description}</p>
-                    </div>
-                ) : null}
             </div>
 
             <div className="glass-card space-y-5">

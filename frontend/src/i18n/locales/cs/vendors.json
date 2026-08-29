@@ -381,6 +381,8 @@
   "contracts": {
     "title": "Smlouvy",
     "empty": "Zatím žádné smlouvy.",
+    "active_table_label": "Tabulka aktivních smluv",
+    "archived_table_label": "Tabulka archivovaných smluv",
     "archived_heading": "Archivované smlouvy ({{count}})",
     "archive_confirm": "Archivovat smlouvu {{reference}}? Schválená data zůstanou beze změny až do dokončení případného povinného schválení.",
     "columns": {

@@ -21,6 +21,7 @@ import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuesti
 import { useTranslation } from '@/i18n/hooks';
 import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
+import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 import { useRiskDetailState } from '@/pages/detail/useRiskDetailState';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 import { getRiskDisplayStatus } from '@/pages/risks/risksPagePresentation';
@@ -141,31 +142,30 @@ export function RiskDetailPage() {
                 </div>
             )}
 
-            {/* Header / Breadcrumb */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                <div className="space-y-2">
+            <EntityDetailHeader
+                backAction={(
                     <button
                         onClick={() => navigate('/risks')}
-                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest mb-4"
+                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest"
                     >
                         <ArrowLeft className="h-3 w-3" /> {t('risks:actions.back_to_register')}
                     </button>
-                    <div className="flex items-center gap-4">
-                        <h2 className="text-4xl font-black text-foreground tracking-tighter">{risk.name}</h2>
-                        {risk.is_priority && (
-                            <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
-                        )}
+                )}
+                identifier={risk.risk_id_code}
+                identifierSeparatorLabel={t('detail_header.identifier_separator')}
+                title={risk.name}
+                titleAdornment={risk.is_priority ? <Star className="h-5 w-5 text-amber-400 fill-amber-400" /> : undefined}
+                statuses={(
+                    <>
                         <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border ${getStatusColor(displayStatus)}`}>
                             {displayStatus}
                         </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
-                        <span>{risk.process}</span>
-                    </div>
-                    <p className="text-muted-foreground font-medium max-w-2xl">{risk.description}</p>
-                </div>
-
-                <div className="flex items-center gap-3">
+                    </>
+                )}
+                metadata={<span>{risk.process}</span>}
+                description={risk.description}
+                actions={(
+                    <>
                     <ContextualIssueAction
                         buttonLabel={tIssues('actions.new_issue')}
                         canCreateIssue={canCreateIssue}
@@ -209,8 +209,9 @@ export function RiskDetailPage() {
                             </button>
                         )
                     )}
-                </div>
-            </div>
+                    </>
+                )}
+            />
 
             {/* Tabs */}
             <div className="flex items-center gap-2 border-b border-white/10">

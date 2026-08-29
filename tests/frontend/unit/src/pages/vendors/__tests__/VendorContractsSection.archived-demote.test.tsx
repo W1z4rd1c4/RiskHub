@@ -80,6 +80,9 @@ describe('VendorContractsSection archived demotion (FR-P4-6 / S9)', () => {
 
         // The active contract renders (outside the archived section).
         await screen.findByText('SML-ACTIVE');
+        expect(screen.getByRole('region', {
+            name: i18n.t('vendors:contracts.active_table_label'),
+        })).toBeVisible();
 
         const archivedSection = screen.getByTestId('vendor-contracts-archived');
         // The archived contract lives inside the demoted section…
@@ -92,7 +95,28 @@ describe('VendorContractsSection archived demotion (FR-P4-6 / S9)', () => {
             'aria-label',
             i18n.t('vendors:contracts.archived_heading', { count: 1 }),
         );
+        expect(within(archivedSection).getByRole('region', {
+            name: i18n.t('vendors:contracts.archived_table_label'),
+        })).toBeVisible();
         expect(archivedSection.querySelector('.opacity-60')).not.toBeNull();
+    });
+
+    it('localizes both table landmark names in Czech', async () => {
+        await i18n.changeLanguage('cs');
+        mockGetContracts.mockResolvedValue([
+            makeContract({ id: 1, contract_reference: 'SML-ACTIVE', is_archived: false }),
+            makeContract({ id: 2, contract_reference: 'SML-ARCHIVED', is_archived: true }),
+        ]);
+
+        renderSection();
+
+        await screen.findByText('SML-ARCHIVED');
+        expect(screen.getByRole('region', {
+            name: i18n.t('vendors:contracts.active_table_label'),
+        })).toBeVisible();
+        expect(screen.getByRole('region', {
+            name: i18n.t('vendors:contracts.archived_table_label'),
+        })).toBeVisible();
     });
 
     it('shows the archived section without a contradictory empty state when every contract is archived', async () => {
