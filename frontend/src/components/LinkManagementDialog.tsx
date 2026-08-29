@@ -17,6 +17,7 @@ import { ExistingLinksPanel, type ExistingLinkItem } from './linking/ExistingLin
 import { useTranslation } from '@/i18n/hooks';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DialogShell } from '@/components/DialogShell';
+import { Button } from '@/components/ui/button';
 import { getLinkDialogTitle } from './linking/linkModes';
 import type { LinkMode } from './linking/linkTypes';
 import { useLinkManagementWorkflow } from './linking/useLinkManagementWorkflow';
@@ -90,13 +91,16 @@ export function LinkManagementDialog({
                             {getLinkDialogTitle(mode, t, { title, showSearch })}
                         </h2>
                     </div>
-                    <button
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="iconCompact"
                         onClick={onClose}
-                        className="p-2 text-slate-500 hover:text-white transition-colors rounded-lg hover:bg-white/5"
                         title={t('common:actions.close')}
+                        aria-label={t('common:actions.close')}
                     >
-                        <X className="h-5 w-5" />
-                    </button>
+                        <X className="h-5 w-5" aria-hidden="true" />
+                    </Button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-8">
@@ -142,12 +146,14 @@ export function LinkManagementDialog({
 
                 {/* Footer */}
                 <div className="p-6 border-t border-white/5 bg-white/[0.02]">
-                    <button
+                    <Button
+                        type="button"
+                        variant="secondary"
                         onClick={onClose}
-                        className="w-full text-xs font-black uppercase tracking-widest text-slate-300 hover:text-white transition-colors py-2"
+                        className="w-full text-xs font-black uppercase tracking-widest"
                     >
                         {t('common:actions.close')}
-                    </button>
+                    </Button>
                 </div>
             </DialogShell>
             <ConfirmDialog

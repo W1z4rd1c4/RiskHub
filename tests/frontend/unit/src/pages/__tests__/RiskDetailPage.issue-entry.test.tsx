@@ -9,6 +9,7 @@ const mockGetRisk = vi.fn();
 const mockGetLinkedControls = vi.fn();
 const mockGetLinkedVendors = vi.fn();
 const mockGetOverdue = vi.fn();
+const mockLinkControl = vi.fn();
 let canIssueWrite = true;
 
 vi.mock('react-router-dom', async () => {
@@ -30,6 +31,7 @@ vi.mock('@/services/riskApi', () => ({
         getRisk: (...args: unknown[]) => mockGetRisk(...args),
         getLinkedControls: (...args: unknown[]) => mockGetLinkedControls(...args),
         getLinkedVendors: (...args: unknown[]) => mockGetLinkedVendors(...args),
+        linkControl: (...args: unknown[]) => mockLinkControl(...args),
     },
 }));
 
@@ -51,7 +53,12 @@ vi.mock('@/components/ConfirmDialog', () => ({
 }));
 
 vi.mock('@/components/risks/RiskDetailOverviewTab', () => ({
-    RiskDetailOverviewTab: () => <div>Overview tab</div>,
+    RiskDetailOverviewTab: ({ onLinkControl }: { onLinkControl: (controlId: number, effectiveness: 'high') => Promise<void> }) => (
+        <div>
+            Overview tab
+            <button type="button" onClick={() => void onLinkControl(99, 'high')}>Trigger link failure</button>
+        </div>
+    ),
 }));
 
 vi.mock('@/components/risks/RiskDetailKriHistoryTab', () => ({
@@ -91,6 +98,7 @@ describe('RiskDetailPage issue entry', () => {
         mockGetLinkedControls.mockResolvedValue([]);
         mockGetLinkedVendors.mockResolvedValue([]);
         mockGetOverdue.mockResolvedValue([]);
+        mockLinkControl.mockResolvedValue({});
     });
 
     it('shows create-issue entry and opens contextual modal with business label', async () => {
@@ -149,5 +157,30 @@ describe('RiskDetailPage issue entry', () => {
         await screen.findByRole('heading', { name: /access denied/i });
         expect(screen.queryByText('Risk Not Found')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the error-state back action non-submitting and operational', async () => {
+        mockGetRisk.mockRejectedValueOnce(
+            new ApiClientError({ status: 500, messageKey: 'errorKeys.unexpected' })
+        );
+
+        render(<RiskDetailPage />);
+
+        const back = await screen.findByRole('button', { name: 'Risk Register' });
+        expect(back).toHaveAttribute('type', 'button');
+        fireEvent.click(back);
+        expect(mockNavigate).toHaveBeenCalledWith('/risks');
+    });
+
+    it('exposes an adequate named action for dismissing a link error', async () => {
+        mockLinkControl.mockRejectedValueOnce(new Error('link failed'));
+        render(<RiskDetailPage />);
+        await screen.findByText('Liquidity Risk');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Trigger link failure' }));
+        const close = await screen.findByRole('button', { name: 'Close' });
+        expect(close).toHaveAttribute('type', 'button');
+        fireEvent.click(close);
+        expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
     });
 });

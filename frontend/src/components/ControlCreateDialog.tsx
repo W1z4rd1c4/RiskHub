@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { X, ShieldPlus } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { DialogShell } from './DialogShell';
+import { Button } from './ui/button';
 import { ControlForm } from './control-form/ControlFormContainer';
 
 interface ControlCreateDialogProps {
@@ -33,13 +34,16 @@ export function ControlCreateDialog({ isOpen, onClose, onSuccess }: ControlCreat
                         {t('controls:create_control')}
                     </h2>
                 </div>
-                <button
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="iconCompact"
                     onClick={onClose}
-                    className="p-2 text-slate-500 hover:text-white transition-colors rounded-lg hover:bg-white/5"
                     title={t('common:actions.close')}
+                    aria-label={t('common:actions.close')}
                 >
-                    <X className="h-5 w-5" />
-                </button>
+                    <X className="h-5 w-5" aria-hidden="true" />
+                </Button>
             </div>
 
             {/* Scrollable Form Container */}

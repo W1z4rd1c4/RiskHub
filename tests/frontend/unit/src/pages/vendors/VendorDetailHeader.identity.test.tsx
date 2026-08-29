@@ -55,4 +55,25 @@ describe('VendorDetailHeader identity', () => {
         expect(screen.getByRole('heading', { level: 1, name: vendor.name })).toBeVisible();
         expect(screen.queryByRole('separator')).not.toBeInTheDocument();
     });
+
+    it('exposes safe, named detail actions with decorative icons hidden from assistive technology', () => {
+        render(
+            <VendorDetailHeader
+                {...handlers}
+                canArchive
+                canCreateIssue
+                canEdit
+                canRestore
+                vendor={vendor}
+            />,
+        );
+
+        const actions = screen.getAllByRole('button');
+        expect(actions).toHaveLength(5);
+        actions.forEach((action) => {
+            expect(action).toHaveAttribute('type', 'button');
+            expect(action).toHaveAccessibleName();
+        });
+        expect(document.querySelectorAll('button svg:not([aria-hidden="true"])')).toHaveLength(0);
+    });
 });

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     asset: null as Asset | null,
     canEdit: true,
     canViewGovernance: true,
+    error: null as string | null,
 }));
 
 vi.mock('@/authz/useAuthz', () => ({
@@ -33,7 +34,7 @@ vi.mock('@/pages/assets/useAssetDetailState', () => ({
         canArchive: true,
         canEdit: mocks.canEdit,
         canRestore: false,
-        error: null,
+        error: mocks.error,
         fetchAsset: vi.fn(),
         isAccessDenied: false,
         isLoading: false,
@@ -182,6 +183,7 @@ describe('AssetDetailPage ownership resolution', () => {
         mocks.asset = pendingAsset();
         mocks.canEdit = true;
         mocks.canViewGovernance = true;
+        mocks.error = null;
     });
 
     it('propagates the active Czech locale to pending-change timestamps', () => {
@@ -225,6 +227,86 @@ describe('AssetDetailPage ownership resolution', () => {
             rules: { 'color-contrast': { enabled: false } },
         });
         expect(results.violations.map((violation) => violation.id)).toEqual([]);
+    });
+
+    it('keeps the governance resolution action capability-gated without removing the back action', () => {
+        mocks.asset = pendingAsset('ict_owner');
+        mocks.canViewGovernance = false;
+        renderPage('edit');
+
+        expect(screen.queryByRole('button', { name: 'detail.resolve_in_governance' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'actions.back_to_register' })).toBeInTheDocument();
+    });
+
+    it('keeps the error-state back action named, non-submitting, and operational', async () => {
+        const user = userEvent.setup();
+        mocks.asset = null;
+        mocks.error = 'errors.load_failed';
+        renderPage('view');
+
+        const back = screen.getByRole('button', { name: 'actions.back_to_register' });
+        expect(back).toHaveAttribute('type', 'button');
+        await user.click(back);
+        expect(screen.getByTestId('location')).toHaveTextContent('/assets');
+    });
+
+    it.each([
+        {
+            label: 'governed edit blocked',
+            asset: governedPendingAsset,
+            mode: 'edit' as const,
+            expectedPath: '/assets/75',
+            assertState: () => {
+                expect(screen.getByTestId('asset-pending-change')).toBeInTheDocument();
+                expect(screen.queryByTestId('asset-form')).not.toBeInTheDocument();
+            },
+        },
+        {
+            label: 'ownership governance edit blocked',
+            asset: pendingAsset,
+            mode: 'edit' as const,
+            expectedPath: '/assets/75',
+            assertState: () => {
+                expect(screen.getByTestId('asset-orphan-edit-blocked')).toBeInTheDocument();
+                expect(screen.getByRole('button', { name: 'detail.resolve_in_governance' })).toBeInTheDocument();
+                expect(screen.queryByTestId('asset-form')).not.toBeInTheDocument();
+            },
+        },
+        {
+            label: 'ordinary edit',
+            asset: ownedAsset,
+            mode: 'edit' as const,
+            expectedPath: '/assets/75',
+            assertState: () => {
+                expect(screen.getByTestId('asset-form')).toBeInTheDocument();
+            },
+        },
+        {
+            label: 'detail view',
+            asset: ownedAsset,
+            mode: 'view' as const,
+            expectedPath: '/assets',
+            assertState: () => {
+                expect(screen.getByTestId('asset-detail-back')).toBeInTheDocument();
+                expect(screen.getByTestId('asset-detail-edit')).toBeInTheDocument();
+            },
+        },
+    ])('keeps the $label back action on the shared public control contract', async ({
+        asset,
+        mode,
+        expectedPath,
+        assertState,
+    }) => {
+        const user = userEvent.setup();
+        mocks.asset = asset();
+        renderPage(mode);
+        assertState();
+
+        const back = screen.getByRole('button', { name: 'actions.back_to_register' });
+        expect(back).toHaveAttribute('type', 'button');
+
+        await user.click(back);
+        expect(screen.getByTestId('location')).toHaveTextContent(expectedPath);
     });
 
     it('renders owner metadata without exposing emails or raw ownership IDs', () => {

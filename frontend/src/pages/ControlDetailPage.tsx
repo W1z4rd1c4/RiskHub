@@ -16,6 +16,7 @@ import type { Control } from '@/types/control';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
+import { Button } from '@/components/ui/button';
 import { ControlRiskLoadingOverlay } from '@/components/controls/ControlRiskLoadingOverlay';
 import { useTranslation } from '@/i18n/hooks';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
@@ -85,12 +86,14 @@ export function ControlDetailPage() {
                     <h3 className="text-xl font-bold text-white uppercase tracking-tight">{t('access.control_not_found')}</h3>
                     <p className="text-slate-500 mt-2 font-medium">{t('errors.not_found')}</p>
                 </div>
-                <button
+                <Button
+                    type="button"
+                    variant="secondary"
                     onClick={() => navigate('/controls')}
-                    className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors flex items-center gap-2"
+                    className="mt-4 font-bold"
                 >
-                    <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.controls')}
-                </button>
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t('navigation:tabs.controls')}
+                </Button>
             </div>
         );
     }
@@ -132,12 +135,14 @@ export function ControlDetailPage() {
 
             <EntityDetailHeader
                 backAction={(
-                    <button
+                    <Button
+                        type="button"
+                        variant="secondary"
                         onClick={() => navigate('/controls')}
-                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest"
+                        className="text-xs font-black uppercase tracking-widest"
                     >
-                        <ArrowLeft className="h-3 w-3" /> {t('controls:detail.back_to_catalog')}
-                    </button>
+                        <ArrowLeft className="h-3 w-3" aria-hidden="true" /> {t('controls:detail.back_to_catalog')}
+                    </Button>
                 )}
                 identifierSeparatorLabel={t('detail_header.identifier_separator')}
                 title={control.name}
@@ -168,29 +173,39 @@ export function ControlDetailPage() {
                     />
                     {/* Edit button: show for controls:write OR control owner */}
                     {canUpdateControl && (
-                        <button
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
                             onClick={() => navigate(`/controls/${control.id}/edit`)}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-[border-color,color,box-shadow] hover:shadow-lg hover:shadow-accent/20"
                             title={t('controls:edit_control')}
+                            aria-label={t('controls:edit_control')}
                         >
-                            <Edit className="h-5 w-5" />
-                        </button>
+                            <Edit className="h-5 w-5" aria-hidden="true" />
+                        </Button>
                     )}
                     {control.is_archived ? (
-                        canRestoreControl && <button
+                        canRestoreControl && <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
                             onClick={workflow.handleRestore}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-colors"
                             title={t('controls:actions.unarchive')}
+                            aria-label={t('controls:actions.unarchive')}
                         >
-                            <RotateCcw className="h-5 w-5" />
-                        </button>
+                            <RotateCcw className="h-5 w-5" aria-hidden="true" />
+                        </Button>
                     ) : (
-                        canArchiveControl && <button
+                        canArchiveControl && <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
                             onClick={() => workflow.setIsArchiveDialogOpen(true)}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-colors"
+                            title={t('actions.archive')}
+                            aria-label={t('actions.archive')}
                         >
-                            <Trash2 className="h-5 w-5" />
-                        </button>
+                            <Trash2 className="h-5 w-5" aria-hidden="true" />
+                        </Button>
                     )}
                     </>
                 )}

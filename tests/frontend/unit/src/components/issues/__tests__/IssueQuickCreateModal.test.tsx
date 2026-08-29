@@ -87,4 +87,26 @@ describe('IssueQuickCreateModal', () => {
         expect(screen.queryByText('Context source not found')).not.toBeInTheDocument();
         expect(onCreated).not.toHaveBeenCalled();
     });
+
+    it('announces and disables the submit action while creation is pending', async () => {
+        createContextualMock.mockReturnValueOnce(new Promise(() => {}));
+
+        render(
+            <IssueQuickCreateModal
+                isOpen
+                onClose={onClose}
+                onCreated={onCreated}
+                contextEntityType="risk"
+                contextEntityId={123}
+                contextEntityLabel="Claims Settlement Risk"
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Create Issue' }));
+
+        const submit = await screen.findByRole('button', { name: /Creating/ });
+        expect(submit).toBeDisabled();
+        expect(submit).toHaveAttribute('aria-busy', 'true');
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    });
 });

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Button } from '@/components/ui/button';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
@@ -100,12 +101,14 @@ export function RiskDetailPage() {
                         {errorKey ? t(errorKey, { ns: 'errorKeys' }) : t('errors.not_found')}
                     </p>
                 </div>
-                <button
+                <Button
+                    type="button"
+                    variant="secondary"
                     onClick={() => navigate('/risks')}
-                    className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors flex items-center gap-2"
+                    className="mt-4 font-bold"
                 >
-                    <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.risks')}
-                </button>
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t('navigation:tabs.risks')}
+                </Button>
             </div>
         );
     }
@@ -134,22 +137,31 @@ export function RiskDetailPage() {
             {/* Link Error Message */}
             {linkErrorKey && (
                 <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
+                    <AlertCircle className="h-4 w-4" aria-hidden="true" />
                     {t(linkErrorKey, { ns: 'errorKeys' })}
-                    <button onClick={() => setLinkErrorKey(null)} className="ml-auto opacity-50 hover:opacity-100">
-                        <XCircle className="h-3 w-3" />
-                    </button>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="iconCompact"
+                        onClick={() => setLinkErrorKey(null)}
+                        aria-label={t('actions.close')}
+                        className="ml-auto opacity-50 hover:opacity-100"
+                    >
+                        <XCircle className="h-3 w-3" aria-hidden="true" />
+                    </Button>
                 </div>
             )}
 
             <EntityDetailHeader
                 backAction={(
-                    <button
+                    <Button
+                        type="button"
+                        variant="secondary"
                         onClick={() => navigate('/risks')}
-                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest"
+                        className="text-xs font-black uppercase tracking-widest"
                     >
-                        <ArrowLeft className="h-3 w-3" /> {t('risks:actions.back_to_register')}
-                    </button>
+                        <ArrowLeft className="h-3 w-3" aria-hidden="true" /> {t('risks:actions.back_to_register')}
+                    </Button>
                 )}
                 identifier={risk.risk_id_code}
                 identifierSeparatorLabel={t('detail_header.identifier_separator')}
@@ -178,35 +190,42 @@ export function RiskDetailPage() {
                         onOpen={() => setIsIssueModalOpen(true)}
                     />
                     {canUpdateRisk && (
-                        <button
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
                             onClick={() => navigate(`/risks/${risk.id}/edit`)}
                             title={t('risks:edit_risk')}
                             aria-label={t('risks:edit_risk')}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-[border-color,color,box-shadow] hover:shadow-lg hover:shadow-accent/20"
                         >
-                            <Edit className="h-5 w-5" />
-                        </button>
+                            <Edit className="h-5 w-5" aria-hidden="true" />
+                        </Button>
                     )}
                     {risk.is_archived ? (
                         canRestoreRisk && (
-                            <button
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="icon"
                                 onClick={handleRestore}
-                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-colors"
                                 title={t('risks:tooltips.unarchive_risk')}
+                                aria-label={t('risks:tooltips.unarchive_risk')}
                             >
-                                <RotateCcw className="h-5 w-5" />
-                            </button>
+                                <RotateCcw className="h-5 w-5" aria-hidden="true" />
+                            </Button>
                         )
                     ) : (
                         canArchiveRisk && (
-                            <button
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
                                 onClick={() => setIsDeleteDialogOpen(true)}
                                 title={t('actions.archive')}
                                 aria-label={t('actions.archive')}
-                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-colors"
                             >
-                                <Trash2 className="h-5 w-5" />
-                            </button>
+                                <Trash2 className="h-5 w-5" aria-hidden="true" />
+                            </Button>
                         )
                     )}
                     </>

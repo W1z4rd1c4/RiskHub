@@ -2,6 +2,7 @@ import { ArrowLeft, XCircle } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
 
+import { Button } from '@/components/ui/button';
 import { VendorSurface } from '@/components/vendors/vendorRouteUi';
 
 interface VendorDetailErrorStateProps {
@@ -38,9 +39,9 @@ export function VendorDetailErrorState({ error, onBack }: VendorDetailErrorState
                         <h3 className="vendor-title text-2xl font-black">{t('errors.vendor_not_found')}</h3>
                         <p className="mt-2 text-sm vendor-muted">{error || t('errors.not_found')}</p>
                     </div>
-                    <button onClick={onBack} className="vendor-button">
-                        <ArrowLeft className="h-4 w-4" /> {t('title')}
-                    </button>
+                    <Button type="button" variant="outline" onClick={onBack}>
+                        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t('title')}
+                    </Button>
                 </VendorSurface>
             </div>
         </div>

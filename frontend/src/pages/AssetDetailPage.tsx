@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Button } from '@/components/ui/button';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
@@ -147,14 +148,16 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         return (
             <div className="space-y-8">
                 <div className="flex items-start gap-3">
-                    <button
+                    <Button
                         type="button"
+                        variant="secondary"
+                        size="icon"
                         onClick={() => navigate('/assets')}
                         aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                        className="shrink-0"
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    </Button>
                     <div>
                         <h1 className="text-3xl font-bold text-white">{t('actions.new')}</h1>
                         <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
@@ -186,13 +189,14 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{error ?? t('errors.not_found')}</p>
                 </div>
-                <button
+                <Button
                     type="button"
+                    variant="secondary"
                     onClick={() => navigate('/assets')}
-                    className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white transition-colors text-sm font-semibold"
+                    className="font-semibold"
                 >
                     {t('actions.back_to_register')}
-                </button>
+                </Button>
             </div>
         );
     }
@@ -201,7 +205,15 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         if (resolveCapabilityFlag(asset.capabilities, 'business_edit_blocked')) {
             return (
                 <div className="space-y-8">
-                    <button type="button" onClick={() => navigate(`/assets/${asset.id}`)} aria-label={t('actions.back_to_register')} className="p-2.5 glass rounded-xl text-slate-400 hover:text-white"><ArrowLeft className="h-4 w-4" aria-hidden="true" /></button>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => navigate(`/assets/${asset.id}`)}
+                        aria-label={t('actions.back_to_register')}
+                    >
+                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    </Button>
                     {asset.pending_change ? (
                         <AssetPendingChangePanel
                             pendingChange={asset.pending_change}
@@ -216,7 +228,15 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         if (asset.ownership_status === 'pending_governance') {
             return (
                 <div className="space-y-8">
-                    <button type="button" onClick={() => navigate(`/assets/${asset.id}`)} aria-label={t('actions.back_to_register')} className="p-2.5 glass rounded-xl text-slate-400 hover:text-white"><ArrowLeft className="h-4 w-4" aria-hidden="true" /></button>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => navigate(`/assets/${asset.id}`)}
+                        aria-label={t('actions.back_to_register')}
+                    >
+                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    </Button>
                     <div role="alert" data-testid="asset-orphan-edit-blocked" className="glass-card flex items-center justify-between gap-4 border border-amber-400/30 text-amber-200">
                         <p className="text-sm font-medium">{t('detail.ownership_pending')}</p>
                         {authz.canViewGovernance ? <button type="button" onClick={() => navigate('/governance?type=asset')} className="rounded-xl bg-amber-400/10 px-4 py-2 text-sm font-bold">{t('detail.resolve_in_governance')}</button> : null}
@@ -230,14 +250,16 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         return (
             <div className="space-y-8">
                 <div className="flex items-start gap-3">
-                    <button
+                    <Button
                         type="button"
+                        variant="secondary"
+                        size="icon"
                         onClick={() => navigate(`/assets/${asset.id}`)}
                         aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                        className="shrink-0"
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    </Button>
                     <div>
                         <h1 className="text-3xl font-bold text-white">{t('actions.edit')}</h1>
                         <p className="text-slate-500 font-medium mt-1">{asset.name}</p>
@@ -284,15 +306,17 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
 
             <EntityDetailHeader
                 backAction={(
-                    <button
+                    <Button
                         type="button"
+                        variant="secondary"
+                        size="icon"
                         onClick={() => navigate('/assets')}
                         data-testid="asset-detail-back"
                         aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                        className="shrink-0"
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    </Button>
                 )}
                 identifierSeparatorLabel={tCommon('detail_header.identifier_separator')}
                 title={asset.name}
@@ -318,37 +342,37 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 actions={(
                     <>
                     {canRestore && (
-                        <button
+                        <Button
                             type="button"
+                            variant="secondary"
                             onClick={() => void restoreAsset()}
                             data-testid="asset-detail-restore"
-                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
-                            <ArchiveRestore className="h-4 w-4" />
+                            <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
                             {t('actions.restore')}
-                        </button>
+                        </Button>
                     )}
                     {canEdit && !resolveCapabilityFlag(asset.capabilities, 'business_edit_blocked') && asset.ownership_status !== 'pending_governance' && (
-                        <button
+                        <Button
                             type="button"
+                            variant="secondary"
                             onClick={() => navigate(`/assets/${asset.id}/edit`)}
                             data-testid="asset-detail-edit"
-                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" aria-hidden="true" />
                             {t('actions.edit')}
-                        </button>
+                        </Button>
                     )}
                     {canArchive && !resolveCapabilityFlag(asset.capabilities, 'business_edit_blocked') && (
-                        <button
+                        <Button
                             type="button"
+                            variant="destructive"
                             onClick={() => setIsArchiveDialogOpen(true)}
                             data-testid="asset-detail-archive"
-                            className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
                             {tCommon('actions.archive')}
-                        </button>
+                        </Button>
                     )}
                     </>
                 )}

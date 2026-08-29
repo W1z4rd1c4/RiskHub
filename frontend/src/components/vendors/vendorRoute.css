@@ -101,76 +101,6 @@
   margin-top: 4px;
 }
 
-.vendor-button {
-  align-items: center;
-  background: hsl(var(--nested));
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) - 2px);
-  color: hsl(var(--foreground));
-  display: inline-flex;
-  font-size: 0.875rem;
-  font-weight: 600;
-  gap: 8px;
-  justify-content: center;
-  min-height: 40px;
-  padding: 0 14px;
-  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
-}
-
-.vendor-button:hover {
-  background: hsl(var(--glass-hover));
-  border-color: hsl(var(--glass-hover-border));
-}
-
-.vendor-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.vendor-button--primary {
-  background: hsl(var(--accent));
-  border-color: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
-}
-
-.vendor-button--primary:hover {
-  background: hsl(var(--accent-hover));
-  border-color: hsl(var(--accent-hover));
-}
-
-.vendor-button--danger {
-  background: hsl(var(--destructive) / 0.1);
-  border-color: hsl(var(--destructive) / 0.3);
-  color: hsl(var(--destructive));
-}
-
-.vendor-button--danger:hover {
-  background: hsl(var(--destructive) / 0.15);
-}
-
-.vendor-button--success {
-  background: hsl(var(--success) / 0.1);
-  border-color: hsl(var(--success) / 0.3);
-  color: hsl(var(--success-text));
-}
-
-.vendor-button--success:hover {
-  background: hsl(var(--success) / 0.15);
-}
-
-.vendor-button--ghost {
-  border-color: transparent;
-  color: hsl(var(--muted-foreground));
-  padding-left: 8px;
-  padding-right: 8px;
-}
-
-.vendor-button--ghost:hover {
-  background: transparent;
-  border-color: transparent;
-  color: hsl(var(--foreground));
-}
-
 .vendor-badge {
   align-items: center;
   border: 1px solid hsl(var(--border));
@@ -601,8 +531,10 @@
 
 .vendor-input,
 .vendor-textarea,
-.vendor-route input:not([type="checkbox"]):not([type="range"]):not([type="radio"]),
-.vendor-route textarea {
+:where(
+  .vendor-route input:not([type="checkbox"]):not([type="range"]):not([type="radio"]),
+  .vendor-route textarea
+) {
   background: hsl(var(--nested));
   border: 1px solid hsl(var(--border));
   border-radius: calc(var(--radius) - 2px);
@@ -613,39 +545,23 @@
   transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
 }
 
-.vendor-route input:not([type="checkbox"]):not([type="range"]):not([type="radio"]):focus,
-.vendor-route textarea:focus,
+:where(
+  .vendor-route input:not([type="checkbox"]):not([type="range"]):not([type="radio"]):focus,
+  .vendor-route textarea:focus
+),
 .vendor-input:focus,
 .vendor-textarea:focus {
   border-color: hsl(var(--accent) / 0.34);
   box-shadow: 0 0 0 3px hsl(var(--accent) / 0.12);
 }
 
-.vendor-route input::placeholder,
-.vendor-route textarea::placeholder {
+:where(.vendor-route input::placeholder, .vendor-route textarea::placeholder) {
   color: hsl(var(--muted-foreground));
 }
 
-.vendor-route input:disabled,
-.vendor-route textarea:disabled {
+:where(.vendor-route input:disabled, .vendor-route textarea:disabled) {
   cursor: not-allowed;
   opacity: 0.7;
-}
-
-.vendor-route [data-radix-select-trigger] {
-  background: hsl(var(--nested));
-  border-color: hsl(var(--border));
-  border-radius: calc(var(--radius) - 2px);
-  color: hsl(var(--foreground));
-  min-height: 40px;
-}
-
-.vendor-route [data-radix-select-trigger]:hover {
-  border-color: hsl(var(--glass-hover-border));
-}
-
-.vendor-route [data-radix-select-trigger] svg {
-  color: hsl(var(--muted-foreground));
 }
 
 .vendor-suggestion-box {

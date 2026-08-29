@@ -1,5 +1,6 @@
 import { useCallback, useId, useRef, useState } from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 import { DialogShell } from './DialogShell';
 
@@ -122,15 +123,16 @@ export function ConfirmDialog({
                         {message}
                     </p>
                 </div>
-                <button
+                <Button
                     type="button"
+                    variant="secondary"
+                    size="iconCompact"
                     onClick={handleClose}
                     disabled={isLoading}
                     aria-label={t('actions.close')}
-                    className="p-1.5 text-slate-500 hover:text-white hover:bg-white/10 rounded-lg transition-all disabled:opacity-50"
                 >
-                    <X className="h-4 w-4" />
-                </button>
+                    <X className="h-4 w-4" aria-hidden="true" />
+                </Button>
             </div>
 
             {/* Optional Input Field */}
@@ -170,30 +172,24 @@ export function ConfirmDialog({
 
             {/* Actions */}
             <div className="confirm-dialog-actions flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5">
-                <button
+                <Button
                     type="button"
+                    variant="secondary"
                     onClick={handleClose}
                     disabled={isLoading}
-                    className="px-4 py-2.5 text-sm font-semibold text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all disabled:opacity-50"
                 >
                     {resolvedCancelLabel}
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
                     ref={confirmRef}
                     onClick={handleConfirm}
                     disabled={isConfirmDisabled}
-                    className={`px-4 py-2.5 text-sm font-semibold ${styles.buttonText} rounded-xl transition-all focus:outline-none focus:ring-2 disabled:opacity-50 ${styles.buttonBg} ${styles.buttonRing}`}
+                    isLoading={isLoading}
+                    className={`${styles.buttonText} ${styles.buttonBg} ${styles.buttonRing}`}
                 >
-                    {isLoading ? (
-                        <span className="flex items-center gap-2">
-                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            {t('labels.loading')}
-                        </span>
-                    ) : (
-                        resolvedConfirmLabel
-                    )}
-                </button>
+                    {isLoading ? t('labels.loading') : resolvedConfirmLabel}
+                </Button>
             </div>
         </DialogShell>
     );

@@ -1,5 +1,6 @@
 import { useCallback, useId, useRef, useState, type FormEvent } from 'react';
-import { X, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { X, Trash2, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
 import { DialogShell } from './DialogShell';
@@ -90,15 +91,17 @@ export function ArchiveConfirmDialog({
                             </p>
                         </div>
                     </div>
-                    <button
+                    <Button
                         type="button"
+                        variant="secondary"
+                        size="iconCompact"
                         onClick={handleClose}
                         disabled={isSubmitting}
                         aria-label={t('actions.close')}
-                        className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-colors disabled:opacity-50"
+                        className="rounded-full"
                     >
-                        <X className="h-5 w-5" />
-                    </button>
+                        <X className="h-5 w-5" aria-hidden="true" />
+                    </Button>
                 </div>
             </div>
 
@@ -122,7 +125,7 @@ export function ArchiveConfirmDialog({
 
                     <div className="space-y-2">
                         <label htmlFor={reasonId} className="block">
-                            <span className="block mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                            <span className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
                                 {t('labels.archive_reason')} <span className="text-rose-400">*</span>
                             </span>
                             <textarea
@@ -140,31 +143,28 @@ export function ArchiveConfirmDialog({
 
                 {/* Footer */}
                 <div className="p-6 border-t border-white/5 bg-white/[0.02] flex items-center justify-end gap-3">
-                    <button
+                    <Button
                         type="button"
+                        variant="secondary"
                         onClick={handleClose}
                         disabled={isSubmitting}
-                        className="px-6 py-2.5 rounded-xl border border-white/10 text-sm font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-50"
                     >
                         {t('actions.cancel')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="submit"
+                        variant="destructive"
                         disabled={isSubmitting || !reason.trim()}
-                        className="px-6 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[120px] justify-center"
+                        isLoading={isSubmitting}
+                        className="min-w-[120px]"
                     >
-                        {isSubmitting ? (
+                        {isSubmitting ? `${t('labels.archiving')}...` : (
                             <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                {t('labels.archiving')}...
-                            </>
-                        ) : (
-                            <>
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4" aria-hidden="true" />
                                 {t('actions.archive')}
                             </>
                         )}
-                    </button>
+                    </Button>
                 </div>
             </form>
         </DialogShell>

@@ -118,6 +118,18 @@ describe('SessionsPanel', () => {
         });
     });
 
+    it('announces a pending directory check without changing its capability gate', async () => {
+        checkAllDirectoryUsersMock.mockReturnValueOnce(new Promise(() => {}));
+        render(<SessionsPanel />, { wrapper: createWrapper() });
+
+        await screen.findByText('Session User');
+        fireEvent.click(screen.getByRole('button', { name: 'users.check_directory' }));
+
+        const action = await screen.findByRole('button', { name: /users.checking_directory/ });
+        expect(action).toBeDisabled();
+        expect(action).toHaveAttribute('aria-busy', 'true');
+    });
+
     it('shows a directory check failure message when check-all fails', async () => {
         checkAllDirectoryUsersMock.mockRejectedValueOnce(new Error('directory unavailable'));
 

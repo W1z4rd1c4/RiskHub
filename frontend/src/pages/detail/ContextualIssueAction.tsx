@@ -1,5 +1,6 @@
 import { FileText } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import type { Issue, IssueContextEntityType } from '@/types/issue';
 
@@ -29,13 +30,15 @@ export function ContextualIssueAction({
     return (
         <>
             {canCreateIssue && (
-                <button
+                <Button
+                    type="button"
+                    variant="outline"
                     onClick={onOpen}
-                    className="px-4 py-2.5 bg-white/5 border border-border rounded-xl text-foreground hover:border-accent/50 transition-colors flex items-center gap-2"
+                    className="bg-white/5 text-foreground hover:border-accent/50"
                 >
-                    <FileText className="h-4 w-4" />
+                    <FileText className="h-4 w-4" aria-hidden="true" />
                     {buttonLabel}
-                </button>
+                </Button>
             )}
             <IssueQuickCreateModal
                 isOpen={isOpen}

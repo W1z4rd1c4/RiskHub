@@ -132,6 +132,7 @@ describe('ArchiveConfirmDialog accessibility', () => {
 
         await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Close' })).toBeDisabled());
         expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled();
+        expect(within(dialog).getByRole('button', { name: /Archiving/ })).toHaveAttribute('aria-busy', 'true');
 
         await user.keyboard('{Escape}');
         expect(props.onClose).not.toHaveBeenCalled();

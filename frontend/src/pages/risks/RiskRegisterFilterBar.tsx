@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 
 import { RegisterListToolbar, type RegisterFilterChip } from '@/components/ict-register/RegisterListToolbar';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { Button } from '@/components/ui/button';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { useTranslation } from '@/i18n/hooks';
 import type { CollectionFacetOption } from '@/types/collection';
@@ -122,7 +123,7 @@ export function RiskRegisterFilterBar({
             filterCountLabel={t('register.filters.active_count', { count: chips.length })}
             filtersLabel={t('register.filters.add')}
             isLoading={isLoading}
-            lifecycleControl={<ThemedSelect value={isPopulationLocked ? 'all' : filters.lifecycle} disabled={isPopulationLocked} onValueChange={(value) => onFilterChange('lifecycle', value as RiskLifecycleFilter)} triggerTestId="risks-lifecycle-filter-trigger" contentTestId="risks-lifecycle-filter-content" optionTestIdPrefix="risks-lifecycle-filter-option" options={['active', 'archived', 'all'].map((value) => ({ value, label: t(`register.lifecycle.${value}`) }))} />}
+            lifecycleControl={<ThemedSelect value={isPopulationLocked ? 'all' : filters.lifecycle} disabled={isPopulationLocked} onValueChange={(value) => onFilterChange('lifecycle', value as RiskLifecycleFilter)} triggerAriaLabel={t('register.filters.lifecycle')} triggerTestId="risks-lifecycle-filter-trigger" contentTestId="risks-lifecycle-filter-content" optionTestIdPrefix="risks-lifecycle-filter-option" options={['active', 'archived', 'all'].map((value) => ({ value, label: t(`register.lifecycle.${value}`) }))} />}
             onAddFilter={(key) => setActiveKeys((current) => [...new Set([...current, key as OptionalRiskFilter])])}
             onClearAll={() => { setActiveKeys([]); onClearAll(); }}
             onRefresh={onRefresh}
@@ -139,8 +140,8 @@ export function RiskRegisterFilterBar({
                 { value: 'emerging', label: t('status.emerging'), count: 0, selected: false, disabled: false },
             ]).filter((option) => option.value !== 'archived').map((option) => facetOption(option, t(`status.${option.value}`, option.label)))} />
             <ThemedSelect value={filters.risk_type} onValueChange={(value) => onFilterChange('risk_type', value)} allowEmpty emptyLabel={t('filters.all_types')} triggerAriaLabel={t('filters.all_types')} options={(facets.risk_type?.length ? facets.risk_type.map((option) => facetOption(option, riskTypeLabel(option.value, option.label))) : riskTypes.map((type) => ({ value: type.code, label: riskTypeLabel(type.code, type.display_name) })))} />
-            <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300"><input type="checkbox" checked={filters.is_priority === true} onChange={(event) => onFilterChange('is_priority', event.target.checked ? true : null)} className="accent-accent" />{t('filters.priority_only')}</label>
-            {activeKeys.map((key) => <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3"><button type="button" aria-label={t('register.filters.remove', { label: labels[key] })} onClick={() => remove(key)} className="absolute right-2 top-2"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>{key === 'has_breach' ? booleanControl({ anyLabel: t('common:filters.all'), current: filters.has_breach, label: labels[key], noLabel: t('common:actions.no'), onChange: (value) => onFilterChange('has_breach', value), options: facets.has_breach ?? [], yesLabel: t('common:actions.yes') }) : <label className="flex items-center gap-2 text-xs font-bold text-slate-300"><input type="checkbox" checked={filters.critical} onChange={(event) => onFilterChange('critical', event.target.checked)} className="accent-accent" />{labels[key]}</label>}</div>)}
+            <label className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-bold text-foreground"><input type="checkbox" checked={filters.is_priority === true} onChange={(event) => onFilterChange('is_priority', event.target.checked ? true : null)} className="accent-accent" />{t('filters.priority_only')}</label>
+            {activeKeys.map((key) => <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3 pr-12"><Button variant="secondary" size="iconCompact" aria-label={t('register.filters.remove', { label: labels[key] })} onClick={() => remove(key)} className="absolute right-2 top-2"><X aria-hidden="true" /></Button>{key === 'has_breach' ? booleanControl({ anyLabel: t('common:filters.all'), current: filters.has_breach, label: labels[key], noLabel: t('common:actions.no'), onChange: (value) => onFilterChange('has_breach', value), options: facets.has_breach ?? [], yesLabel: t('common:actions.yes') }) : <label className="flex items-center gap-2 text-xs font-bold text-foreground"><input type="checkbox" checked={filters.critical} onChange={(event) => onFilterChange('critical', event.target.checked)} className="accent-accent" />{labels[key]}</label>}</div>)}
         </RegisterListToolbar>
     );
 }

@@ -179,6 +179,20 @@ describe('VendorForm', () => {
         expect(createVendorMock).not.toHaveBeenCalled();
     });
 
+    it('associates the Vendor identity labels with their editable fields', () => {
+        renderWithQueryClient(<VendorForm onSaved={vi.fn()} onCancel={vi.fn()} />);
+
+        for (const label of [
+            'form.name',
+            'form.legal_name',
+            'form.registration_id',
+            'form.website',
+            'form.description',
+        ]) {
+            expect(screen.getByRole('textbox', { name: label })).toBeInTheDocument();
+        }
+    });
+
     it('autofills the department from the selected owner and submits the mapped payload', async () => {
         const onSaved = vi.fn();
         renderWithQueryClient(<VendorForm onSaved={onSaved} onCancel={vi.fn()} />);

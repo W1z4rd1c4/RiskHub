@@ -2,15 +2,14 @@ import { useMemo, useState } from 'react';
 import { AlertCircle, Save, X } from 'lucide-react';
 
 import { Field } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
 import { IMPACT_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { cn } from '@/lib/utils';
 import type { Vendor } from '@/types/vendor';
 import {
-    VendorActionButton,
     VendorInlineMessage,
 } from '@/components/vendors/vendorRouteUi';
 
@@ -230,19 +229,20 @@ export function VendorFormContainer({
 
             <div className="flex items-center justify-end gap-3">
                 {onCancel ? (
-                    <VendorActionButton type="button" onClick={onCancel}>
-                        <X className="h-4 w-4" />
+                    <Button type="button" variant="outline" onClick={onCancel}>
+                        <X className="h-4 w-4" aria-hidden="true" />
                         {t('actions.cancel')}
-                    </VendorActionButton>
+                    </Button>
                 ) : null}
-                <VendorActionButton
+                <Button
                     type="submit"
-                    variant="primary"
                     disabled={isSubmitting || accountabilityScenarioUnavailable}
+                    isLoading={isSubmitting}
+                    className="bg-accent text-accent-foreground hover:bg-accent-hover hover:text-accent-foreground"
                 >
-                    <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
+                    {!isSubmitting ? <Save className="h-4 w-4" aria-hidden="true" /> : null}
                     {submitLabel}
-                </VendorActionButton>
+                </Button>
             </div>
         </form>
     );

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FileDown, RefreshCw } from 'lucide-react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { adminKeys } from '@/lib/queryKeys';
@@ -25,7 +26,7 @@ export function AuditLogsPanel() {
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [selectedLogExtra, setSelectedLogExtra] = useState<Record<string, unknown> | null>(null);
 
-    const { data, isLoading, refetch } = useQuery({
+    const { data, isFetching, isLoading, refetch } = useQuery({
         queryKey: adminKeys.auditLogs(lines, eventFilter),
         queryFn: () => adminApi.getAuditLogs({ lines, event_type: eventFilter || undefined }),
         refetchInterval: autoRefresh ? 5000 : false,
@@ -88,6 +89,7 @@ export function AuditLogsPanel() {
 
                 <div className="flex items-center gap-3">
                     <ThemedSelect
+                        triggerAriaLabel={t('audit.all_events')}
                         value={eventFilter}
                         onValueChange={setEventFilter}
                         placeholder={t('audit.all_events')}
@@ -97,6 +99,7 @@ export function AuditLogsPanel() {
                     />
 
                     <ThemedSelect
+                        triggerAriaLabel={t('audit.last_n', { count: lines })}
                         value={lines.toString()}
                         onValueChange={(value) => setLines(parseInt(value))}
                         options={[
@@ -109,32 +112,38 @@ export function AuditLogsPanel() {
 
                     {canExportLoadedAuditLogs && (
                         <div className="flex gap-2">
-                            <button
+                            <Button
+                                type="button"
+                                variant="secondary"
                                 onClick={() => exportAuditLogsToCsv(logs)}
-                                className="admin-surface-muted admin-text flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-white/10"
                                 title={t('console.export_csv')}
                             >
-                                <FileDown className="h-4 w-4" />
+                                <FileDown className="h-4 w-4" aria-hidden="true" />
                                 CSV
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="secondary"
                                 onClick={() => exportAuditLogsToJson(logs)}
-                                className="admin-surface-muted admin-text flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-white/10"
                                 title={t('console.export_json')}
                             >
-                                <FileDown className="h-4 w-4" />
+                                <FileDown className="h-4 w-4" aria-hidden="true" />
                                 JSON
-                            </button>
+                            </Button>
                         </div>
                     )}
 
-                    <button
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
                         onClick={() => refetch()}
-                        className="admin-tab-inactive rounded-lg p-2 transition-colors hover:bg-white/5"
+                        isLoading={isFetching}
                         title={t('console.manual_refresh')}
+                        aria-label={t('console.manual_refresh')}
                     >
-                        <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
-                    </button>
+                        {!isFetching ? <RefreshCw className="h-4 w-4" aria-hidden="true" /> : null}
+                    </Button>
                 </div>
             </div>
 

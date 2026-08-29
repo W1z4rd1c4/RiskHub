@@ -13,6 +13,7 @@ import {
   E2E_VENDORS,
 } from './fixtures/e2e-data';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
+import { renderedContrast } from './helpers/renderedContrast';
 import {
   describeLiveNetworkFailure,
   describeLiveNetworkResponse,
@@ -767,6 +768,24 @@ test.describe('validated application dialog render sites', () => {
       await expect(surface).toBeVisible();
       await driver.ready?.(page, surface);
       await expect(surface).toHaveAttribute('aria-modal', 'true');
+      if (site.id === 'archive.control-detail') {
+        const reasonInput = surface.locator('textarea').first();
+        const reasonLabel = reasonInput.locator('xpath=ancestor::label[1]/span[1]');
+        await expect(reasonLabel).toBeVisible();
+        const fontSize = await reasonLabel.evaluate((node) => Number.parseFloat(getComputedStyle(node).fontSize));
+        expect(fontSize, 'required archive reason label readability').toBeGreaterThanOrEqual(12);
+        await reasonInput.fill('Contrast verification');
+        const archiveAction = surface.locator('button[type="submit"]');
+        await expect(archiveAction).toBeEnabled();
+        const normalBackground = await archiveAction.evaluate((node) => getComputedStyle(node).backgroundColor);
+        expect(await renderedContrast(archiveAction), 'archive action normal contrast').toBeGreaterThanOrEqual(4.5);
+        await archiveAction.hover();
+        await expect.poll(
+          () => archiveAction.evaluate((node) => getComputedStyle(node).backgroundColor),
+          { message: 'archive action reaches its hover treatment' },
+        ).not.toBe(normalBackground);
+        expect(await renderedContrast(archiveAction), 'archive action hover contrast').toBeGreaterThanOrEqual(4.5);
+      }
       const accessibleName = await surface.evaluate((node) => {
         const ids = node.getAttribute('aria-labelledby')?.split(/\s+/) ?? [];
         return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();

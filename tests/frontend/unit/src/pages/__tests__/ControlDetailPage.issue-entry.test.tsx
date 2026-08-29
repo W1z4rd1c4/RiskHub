@@ -169,4 +169,21 @@ describe('ControlDetailPage issue entry', () => {
         expect(screen.queryByText('Control Not Found')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
+
+    it('keeps the error-state back action non-submitting and operational', async () => {
+        mockGetControl.mockRejectedValueOnce(
+            new ApiClientError({ status: 500, messageKey: 'errorKeys.unexpected' })
+        );
+
+        render(
+            <MemoryRouter initialEntries={['/controls/13']}>
+                <ControlDetailPage />
+            </MemoryRouter>
+        );
+
+        const back = await screen.findByRole('button', { name: 'Control Catalog' });
+        expect(back).toHaveAttribute('type', 'button');
+        fireEvent.click(back);
+        expect(mockNavigate).toHaveBeenCalledWith('/controls');
+    });
 });

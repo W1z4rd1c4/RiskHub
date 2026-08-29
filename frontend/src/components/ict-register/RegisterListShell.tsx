@@ -9,6 +9,7 @@ import {
     type SortDirection,
 } from '@/components/tables';
 import { TableErrorState } from '@/components/tables/tableError';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CollectionGroup } from '@/types/collection';
 
@@ -207,48 +208,48 @@ export function RegisterListShell<TItem extends object, TView extends string>({
                     </div>
                     <div className="flex items-center gap-3">
                         {canExport && exportDialog ? (
-                            <button
-                                type="button"
+                            <Button
+                                variant="secondary"
                                 onClick={() => setIsExportDialogOpen(true)}
-                                disabled={isExporting}
+                                isLoading={isExporting}
                                 data-testid={`${testIdPrefix}-export-button`}
-                                className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
+                                className="font-semibold"
                             >
-                                <Download className="h-4 w-4" aria-hidden="true" />
+                                {!isExporting ? <Download aria-hidden="true" /> : null}
                                 {exportLabel}
-                            </button>
+                            </Button>
                         ) : null}
                         {canCreate && onCreate ? (
-                            <button
-                                type="button"
+                            <Button
                                 onClick={onCreate}
                                 data-testid={`${testIdPrefix}-create-button`}
-                                className="px-5 py-2.5 rounded-xl bg-accent text-accent-foreground font-bold hover:bg-accent-hover transition-colors flex items-center gap-2"
+                                className="bg-accent px-5 font-bold text-accent-foreground hover:bg-accent-hover hover:text-accent-foreground"
                             >
-                                <Plus className="h-5 w-5" aria-hidden="true" />
+                                <Plus aria-hidden="true" />
                                 {createLabel}
-                            </button>
+                            </Button>
                         ) : null}
                     </div>
                 </header>
 
                 <div className="flex flex-wrap gap-1 p-1 glass rounded-xl">
                     {views.map((option) => (
-                        <button
+                        <Button
                             key={option.value}
-                            type="button"
+                            variant="secondary"
+                            size="compact"
                             aria-pressed={view === option.value}
                             data-testid={`${testIdPrefix}-view-${option.value}`}
                             onClick={() => onViewChange(option.value)}
                             className={cn(
-                                'px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200',
+                                'px-4 text-sm font-medium duration-200',
                                 view === option.value
-                                    ? 'bg-accent text-slate-950 shadow-lg shadow-accent/20'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5',
+                                    ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/20 hover:bg-accent hover:text-accent-foreground'
+                                    : '',
                             )}
                         >
                             {option.label}
-                        </button>
+                        </Button>
                     ))}
                 </div>
 

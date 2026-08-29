@@ -2,7 +2,8 @@ import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 
 import { VendorForm } from '@/components/VendorForm';
-import { VendorActionButton, VendorSurface } from '@/components/vendors/vendorRouteUi';
+import { Button } from '@/components/ui/button';
+import { VendorSurface } from '@/components/vendors/vendorRouteUi';
 import type { Vendor } from '@/types/vendor';
 import type { ProcessApprovalQueuedResponse } from '@/types/process';
 
@@ -32,9 +33,16 @@ export function VendorFormView({
             <div className="vendor-page space-y-8">
                 <VendorSurface tone="emphasis" className="space-y-4">
                     <div className="flex items-start gap-3">
-                        <VendorActionButton variant="ghost" onClick={onBack} className="shrink-0">
-                            <ArrowLeft className="h-4 w-4" />
-                        </VendorActionButton>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={onBack}
+                            className="shrink-0"
+                            aria-label={t('actions.back_to_register')}
+                        >
+                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                        </Button>
                         <div className="min-w-0">
                             <h1 className="vendor-title text-3xl font-black tracking-tight">
                             {mode === 'new' ? t('actions.new') : t('actions.edit')}

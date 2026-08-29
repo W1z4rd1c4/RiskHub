@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 
 import { RegisterListToolbar, type RegisterFilterChip } from '@/components/ict-register/RegisterListToolbar';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { Button } from '@/components/ui/button';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { assetApi } from '@/services/assetApi';
@@ -176,7 +177,7 @@ export function AssetRegisterFilterBar({ facets, filters, isLifecycleLocked = fa
         availableFilters={ASSET_REGISTER_CONFIG.filters.filter(({ key }) => !activeKeys.includes(key)).map(({ key }) => ({ value: key, label: labels[key] }))}
         chips={chips} clearAllLabel={t('register.filters.clear_all')} filterCountLabel={t('register.filters.active_count', { count: chips.length })}
         filtersLabel={t('register.filters.add')} isLoading={isLoading}
-        lifecycleControl={<ThemedSelect value={isLifecycleLocked ? 'all' : filters.lifecycle} disabled={isLifecycleLocked} onValueChange={(value) => onFilterChange('lifecycle', value as AssetLifecycleFilter)} triggerTestId="assets-status-filter-trigger" contentTestId="assets-status-filter-content" optionTestIdPrefix="assets-status-filter-option"
+        lifecycleControl={<ThemedSelect value={isLifecycleLocked ? 'all' : filters.lifecycle} disabled={isLifecycleLocked} onValueChange={(value) => onFilterChange('lifecycle', value as AssetLifecycleFilter)} triggerAriaLabel={t('register.filters.lifecycle')} triggerTestId="assets-status-filter-trigger" contentTestId="assets-status-filter-content" optionTestIdPrefix="assets-status-filter-option"
             options={['active', 'archived', 'all'].map((value) => ({ value, label: t(`register.lifecycle.${value}`), disabled: value === 'all' ? false : Boolean(facets.lifecycle?.find((item) => item.value === value)?.disabled && filters.lifecycle !== value) }))} />}
         onAddFilter={(key) => setActiveKeys((current) => [...new Set([...current, key as AssetFilterKey])])}
         onClearAll={() => { setActiveKeys([]); onClearAll(); }} onRefresh={onRefresh} onRemoveFilter={removeFilter}
@@ -184,8 +185,8 @@ export function AssetRegisterFilterBar({ facets, filters, isLifecycleLocked = fa
         search={search} searchPlaceholder={t('filters.search_placeholder')} testIdPrefix="assets">
         {activeKeys.map((key) => {
             const definition = ASSET_REGISTER_CONFIG.filters.find((item) => item.key === key);
-            return definition ? <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3">
-                <button type="button" onClick={() => removeFilter(key)} aria-label={t('register.filters.remove', { label: labels[key] })} className="absolute right-2 top-2 rounded p-1 text-slate-500 hover:bg-white/10 hover:text-white"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>
+            return definition ? <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3 pr-12">
+                <Button variant="secondary" size="iconCompact" onClick={() => removeFilter(key)} aria-label={t('register.filters.remove', { label: labels[key] })} className="absolute right-2 top-2"><X aria-hidden="true" /></Button>
                 {renderControl(definition)}
             </div> : null;
         })}

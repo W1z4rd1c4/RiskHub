@@ -5,6 +5,7 @@ import { useTranslation } from '@/i18n/hooks';
 import type { DirectoryImportResponse } from '@/types/directory';
 import { DirectoryUserImportPanel } from '@/components/users/DirectoryUserImportPanel';
 import { DialogShell } from '@/components/DialogShell';
+import { Button } from '@/components/ui/button';
 
 interface ADUserPickerProps {
     isOpen: boolean;
@@ -28,14 +29,15 @@ export function ADUserPicker({ isOpen, onClose, onImported }: ADUserPickerProps)
                 <h3 id={titleId} className="text-lg font-semibold text-white">
                     {t('users.add_from_ad')}
                 </h3>
-                <button
+                <Button
                     type="button"
+                    variant="secondary"
+                    size="iconCompact"
                     onClick={onClose}
-                    className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
                     aria-label={t('common:actions.close')}
                 >
-                    <X className="h-4 w-4" />
-                </button>
+                    <X className="h-4 w-4" aria-hidden="true" />
+                </Button>
             </div>
             <DirectoryUserImportPanel onImported={onImported} />
         </DialogShell>

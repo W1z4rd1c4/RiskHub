@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 
 import { RegisterListToolbar, type RegisterFilterChip } from '@/components/ict-register/RegisterListToolbar';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { Button } from '@/components/ui/button';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { threatApi } from '@/services/threatApi';
@@ -274,6 +275,7 @@ export function ThreatRegisterFilterBar({
                 <ThemedSelect
                     value={filters.lifecycle}
                     onValueChange={(value) => onFilterChange('lifecycle', value as ThreatLifecycleFilter)}
+                    triggerAriaLabel={t('register.filters.lifecycle')}
                     triggerTestId="threats-status-filter-trigger"
                     contentTestId="threats-status-filter-content"
                     optionTestIdPrefix="threats-status-filter-option"
@@ -307,15 +309,16 @@ export function ThreatRegisterFilterBar({
                 const definition = THREAT_REGISTER_CONFIG.filters.find((candidate) => candidate.key === key);
                 if (!definition) return null;
                 return (
-                    <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3">
-                        <button
-                            type="button"
+                    <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3 pr-12">
+                        <Button
+                            variant="secondary"
+                            size="iconCompact"
                             onClick={() => removeFilter(key)}
                             aria-label={t('register.filters.remove', { label: labels[key] })}
-                            className="absolute right-2 top-2 rounded p-1 text-slate-500 hover:bg-white/10 hover:text-white"
+                            className="absolute right-2 top-2"
                         >
-                            <X className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
+                            <X aria-hidden="true" />
+                        </Button>
                         {renderControl(definition)}
                     </div>
                 );

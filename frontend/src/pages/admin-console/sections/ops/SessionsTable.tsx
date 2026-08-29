@@ -1,6 +1,7 @@
 import { UserX } from 'lucide-react';
 
 import { formatDateTimeValue } from '@/i18n/formatters';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import type { ActiveSession } from '@/services/adminApi';
@@ -64,13 +65,16 @@ export function SessionsTable({ canRevokeSessions, onRevoke, sessions }: Session
                                 </td>
                                 <td className="py-3 px-4 text-right">
                                     {canRevokeSessions && !presentation.isRevoked && (
-                                        <button
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="compact"
                                             onClick={() => onRevoke(session)}
-                                            className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-colors ml-auto"
+                                            className="ml-auto"
                                         >
-                                            <UserX className="h-4 w-4" />
+                                            <UserX className="h-4 w-4" aria-hidden="true" />
                                             {t('sessions.revoke')}
-                                        </button>
+                                        </Button>
                                     )}
                                     {presentation.isRevoked && (
                                         <span className="text-xs text-red-500 font-medium px-3 py-1.5">{t('sessions.access_revoked')}</span>

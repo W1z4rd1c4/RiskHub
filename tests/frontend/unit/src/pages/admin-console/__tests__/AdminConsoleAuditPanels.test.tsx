@@ -182,6 +182,26 @@ describe('AuditLogsPanel', () => {
         expect(await screen.findByText('audit.settings_saved_notice')).toBeInTheDocument();
     });
 
+    it('programmatically labels each log rotation input', async () => {
+        renderAuditLogsPanel();
+
+        const inputs = await screen.findAllByRole('spinbutton');
+        expect(inputs).toHaveLength(4);
+        inputs.forEach((input) => expect(input).toHaveAccessibleName());
+    });
+
+    it('announces a pending log settings save', async () => {
+        updateLogConfigMock.mockReturnValueOnce(new Promise(() => {}));
+        renderAuditLogsPanel();
+
+        await screen.findByDisplayValue('25');
+        fireEvent.click(screen.getByRole('button', { name: 'audit.save_settings' }));
+
+        const save = await screen.findByRole('button', { name: /audit.saving/ });
+        expect(save).toBeDisabled();
+        expect(save).toHaveAttribute('aria-busy', 'true');
+    });
+
     it('keeps saved log rotation settings authoritative over stale cached config', async () => {
         getLogConfigMock
             .mockResolvedValueOnce({

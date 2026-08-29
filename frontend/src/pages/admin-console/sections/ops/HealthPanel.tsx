@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Clock, Database, MemoryStick, RefreshCw, Users } from 'lucide-react';
 
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,7 @@ export function HealthPanel() {
     });
 
     const health = healthQuery.data;
+    const isRefreshing = healthQuery.isFetching || schedulerQuery.isFetching || outboxQuery.isFetching;
 
     if (healthQuery.isLoading) {
         return <div className="admin-muted text-center py-8">{t('health.loading')}</div>;
@@ -43,17 +45,19 @@ export function HealthPanel() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="admin-title text-lg font-semibold">{t('health.title')}</h3>
-                <button
+                <Button
+                    type="button"
+                    variant="secondary"
                     onClick={() => {
                         void healthQuery.refresh();
                         void schedulerQuery.refresh();
                         void outboxQuery.refresh();
                     }}
-                    className="admin-tab-inactive flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-white/10 rounded-lg transition-colors"
+                    isLoading={isRefreshing}
                 >
-                    <RefreshCw className="h-4 w-4" />
+                    {!isRefreshing ? <RefreshCw className="h-4 w-4" aria-hidden="true" /> : null}
                     {t('health.refresh')}
-                </button>
+                </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

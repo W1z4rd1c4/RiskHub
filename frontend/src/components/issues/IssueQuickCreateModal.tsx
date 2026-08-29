@@ -1,12 +1,14 @@
 import { useEffect, useId, useMemo, useState } from 'react';
-import { AlertTriangle, Loader2, PlusCircle, X } from 'lucide-react';
+import { AlertTriangle, PlusCircle, X } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { DialogShell } from '@/components/DialogShell';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { issuesApi } from '@/services/issuesApi';
 import { apiClient } from '@/services/apiClient';
 import type { Issue, IssueContextEntityType, IssueSeverity } from '@/types/issue';
-import { ISSUE_FIELD, ISSUE_LABEL, ISSUE_TEXTAREA } from './issueUi';
+import { ISSUE_LABEL, ISSUE_TEXTAREA } from './issueUi';
 import { fromDateTimeLocalInputValue, toDateTimeLocalInputValue } from '@/utils/dateTimeLocal';
 
 interface IssueQuickCreateModalProps {
@@ -110,14 +112,15 @@ export function IssueQuickCreateModal({
                         {t('quick_create.context_label')}: <span className="text-slate-200">{contextEntityLabel}</span>
                     </p>
                 </div>
-                <button
+                <Button
                     type="button"
+                    variant="secondary"
+                    size="iconCompact"
                     onClick={onClose}
-                    className="p-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
                     aria-label={t('quick_create.close')}
                 >
-                    <X className="h-4 w-4" />
-                </button>
+                    <X className="h-4 w-4" aria-hidden="true" />
+                </Button>
             </div>
 
             {errorKey && (
@@ -134,12 +137,12 @@ export function IssueQuickCreateModal({
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5 md:col-span-2">
                     <span id={titleLabelId} className={ISSUE_LABEL}>{t('form.fields.title')}</span>
-                    <input
+                    <Input
                         type="text"
                         aria-labelledby={titleLabelId}
                         value={title}
                         onChange={(event) => setTitle(event.target.value)}
-                        className={ISSUE_FIELD}
+                        className="border-white/10 bg-white/5 text-white placeholder:text-slate-600 focus-visible:ring-accent/50"
                         placeholder={t('form.placeholders.title')}
                     />
                 </div>
@@ -157,12 +160,12 @@ export function IssueQuickCreateModal({
 
                 <div className="space-y-1.5">
                     <span id={dueDateLabelId} className={ISSUE_LABEL}>{t('form.fields.due_date')}</span>
-                    <input
+                    <Input
                         type="datetime-local"
                         aria-labelledby={dueDateLabelId}
                         value={dueAt}
                         onChange={(event) => setDueAt(event.target.value)}
-                        className={`${ISSUE_FIELD} h-10`}
+                        className="border-white/10 bg-white/5 text-white focus-visible:ring-accent/50"
                     />
                 </div>
 
@@ -179,25 +182,26 @@ export function IssueQuickCreateModal({
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">
-                <button
+                <Button
                     type="button"
+                    variant="secondary"
                     onClick={onClose}
-                    className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
                     disabled={isSubmitting}
                 >
                     {t('actions.cancel')}
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
                     onClick={handleSubmit}
                     disabled={isSubmitting}
-                    className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                    isLoading={isSubmitting}
+                    className="bg-accent text-accent-foreground hover:bg-accent-hover hover:text-accent-foreground"
                 >
-                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
+                    {!isSubmitting ? <PlusCircle className="h-4 w-4" aria-hidden="true" /> : null}
                     {isSubmitting
                         ? t('quick_create.creating')
                         : t('quick_create.submit')}
-                </button>
+                </Button>
             </div>
         </DialogShell>
     );

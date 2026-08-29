@@ -1,5 +1,6 @@
 import { ArrowLeft, Edit, FileText, RotateCcw, Trash2 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 import type { Vendor } from '@/types/vendor';
@@ -62,14 +63,15 @@ export function VendorDetailHeader({
     return (
         <EntityDetailHeader
             backAction={(
-                <button
+                <Button
                     type="button"
+                    variant="secondary"
                     onClick={onBack}
-                    className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors hover:text-accent-text"
+                    className="text-xs font-black uppercase tracking-widest"
                 >
-                    <ArrowLeft className="h-3 w-3" />
+                    <ArrowLeft className="h-3 w-3" aria-hidden="true" />
                     {t('actions.back_to_register')}
-                </button>
+                </Button>
             )}
             identifier={vendor.registration_id}
             identifierSeparatorLabel={tCommon('detail_header.identifier_separator')}
@@ -105,47 +107,53 @@ export function VendorDetailHeader({
             actions={(
                 <>
                 {canCreateIssue ? (
-                    <button
+                    <Button
                         type="button"
+                        variant="secondary"
                         onClick={onOpenIssueModal}
-                        className="flex items-center gap-2 rounded-xl border border-border bg-nested px-4 py-2.5 text-muted-foreground transition-colors hover:border-accent/50 hover:text-foreground"
                     >
-                        <FileText className="h-4 w-4" />
+                        <FileText className="h-4 w-4" aria-hidden="true" />
                         {tIssues('actions.new_issue')}
-                    </button>
+                    </Button>
                 ) : null}
 
                 {canEdit ? (
-                    <button
+                    <Button
                         type="button"
+                        variant="secondary"
+                        size="icon"
                         onClick={onEdit}
-                        className="rounded-xl border border-border bg-nested p-3 text-muted-foreground transition-colors hover:border-accent/50 hover:text-foreground"
                         title={t('actions.edit')}
+                        aria-label={t('actions.edit')}
                     >
-                        <Edit className="h-5 w-5" />
-                    </button>
+                        <Edit className="h-5 w-5" aria-hidden="true" />
+                    </Button>
                 ) : null}
 
                 {canRestore ? (
-                    <button
+                    <Button
                         type="button"
+                        variant="secondary"
+                        size="icon"
                         onClick={onRestore}
-                        className="rounded-xl border border-border bg-nested p-3 text-muted-foreground transition-colors hover:border-success/50 hover:text-success-text"
                         title={t('actions.unarchive')}
+                        aria-label={t('actions.unarchive')}
                     >
-                        <RotateCcw className="h-5 w-5" />
-                    </button>
+                        <RotateCcw className="h-5 w-5" aria-hidden="true" />
+                    </Button>
                 ) : null}
 
                 {canArchive ? (
-                    <button
+                    <Button
                         type="button"
+                        variant="destructive"
+                        size="icon"
                         onClick={onArchive}
-                        className="rounded-xl border border-border bg-nested p-3 text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
                         title={tCommon('actions.archive')}
+                        aria-label={tCommon('actions.archive')}
                     >
-                        <Trash2 className="h-5 w-5" />
-                    </button>
+                        <Trash2 className="h-5 w-5" aria-hidden="true" />
+                    </Button>
                 ) : null}
                 </>
             )}

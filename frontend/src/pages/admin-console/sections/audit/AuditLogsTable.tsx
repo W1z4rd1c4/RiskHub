@@ -1,6 +1,7 @@
 import type { RecentLogEntry } from '@/services/adminApi';
 import { cn } from '@/lib/utils';
 import { formatDateTimeValue } from '@/i18n/formatters';
+import { Button } from '@/components/ui/button';
 
 import { formatAuditEvent, formatAuditUser, getAuditEventClassName } from './auditPresentation';
 
@@ -40,7 +41,7 @@ export function AuditLogsTable({ logs, language, resolveUserName, t, onViewDetai
                                 </td>
                                 <td className="py-3 px-4">
                                     <span className={cn(
-                                        'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider',
+                                        'px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider',
                                         getAuditEventClassName(log.event),
                                     )}>
                                         {formatAuditEvent(log.event, t('common:fallbacks.unknown'))}
@@ -58,12 +59,15 @@ export function AuditLogsTable({ logs, language, resolveUserName, t, onViewDetai
                                     {log.client_ip || t('common:fallbacks.not_available')}
                                 </td>
                                 <td className="py-3 px-4 text-right">
-                                    <button
-                                        className="text-xs text-accent hover:underline"
+                                    <Button
+                                        type="button"
+                                        variant="link"
+                                        size="compact"
+                                        className="text-accent"
                                         onClick={() => onViewDetails(log.extra || {})}
                                     >
                                         {t('audit.view')}
-                                    </button>
+                                    </Button>
                                 </td>
                             </tr>
                         ))

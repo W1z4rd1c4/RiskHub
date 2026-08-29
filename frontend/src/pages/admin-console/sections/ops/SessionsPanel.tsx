@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { adminKeys } from '@/lib/queryKeys';
-import { cn } from '@/lib/utils';
 import { adminApi, type ActiveSession } from '@/services/adminApi';
 import { ApiClientError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
@@ -84,16 +84,19 @@ export function SessionsPanel() {
                         {t('sessions.description')}
                     </p>
                     {canRunDirectoryCheckAll && (
-                        <button
+                        <Button
+                            type="button"
+                            variant="secondary"
                             onClick={handleCheckAllDirectory}
                             disabled={directorySyncing}
-                            className="inline-flex items-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs text-sky-200 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                            isLoading={directorySyncing}
+                            className="text-xs"
                         >
-                            <RefreshCw className={cn('h-3.5 w-3.5', directorySyncing && 'animate-spin')} />
+                            {!directorySyncing ? <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> : null}
                             {directorySyncing
                                 ? t('users.checking_directory')
                                 : t('users.check_directory')}
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>

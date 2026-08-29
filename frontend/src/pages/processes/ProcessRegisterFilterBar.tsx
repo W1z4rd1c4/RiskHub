@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 
 import { RegisterListToolbar, type RegisterFilterChip } from '@/components/ict-register/RegisterListToolbar';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { Button } from '@/components/ui/button';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { processApi } from '@/services/processApi';
@@ -284,6 +285,7 @@ export function ProcessRegisterFilterBar({
                 <ThemedSelect
                     value={filters.lifecycle}
                     onValueChange={(value) => onFilterChange('lifecycle', value as ProcessLifecycleFilter)}
+                    triggerAriaLabel={t('register.filters.lifecycle')}
                     triggerTestId="processes-status-filter-trigger"
                     contentTestId="processes-status-filter-content"
                     optionTestIdPrefix="processes-status-filter-option"
@@ -320,10 +322,10 @@ export function ProcessRegisterFilterBar({
                 const definition = PROCESS_REGISTER_CONFIG.filters.find((candidate) => candidate.key === key);
                 if (!definition) return null;
                 return (
-                    <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3">
-                        <button type="button" onClick={() => removeFilter(key)} aria-label={t('register.filters.remove', { label: labels[key] })} className="absolute right-2 top-2 rounded p-1 text-slate-500 hover:bg-white/10 hover:text-white">
-                            <X className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
+                    <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3 pr-12">
+                        <Button variant="secondary" size="iconCompact" onClick={() => removeFilter(key)} aria-label={t('register.filters.remove', { label: labels[key] })} className="absolute right-2 top-2">
+                            <X aria-hidden="true" />
+                        </Button>
                         {renderControl(definition)}
                     </div>
                 );

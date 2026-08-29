@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 
 import { RegisterListToolbar, type RegisterFilterChip } from '@/components/ict-register/RegisterListToolbar';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { Button } from '@/components/ui/button';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { vendorValueLabel } from '@/lib/vendorValues';
@@ -306,6 +307,7 @@ export function VendorRegisterFilterBar({
                     value={isLifecycleLocked ? 'all' : filters.lifecycle}
                     onValueChange={(value) => onFilterChange('lifecycle', value as VendorLifecycleFilter)}
                     disabled={isLifecycleLocked}
+                    triggerAriaLabel={t('register.filters.lifecycle')}
                     triggerTestId="vendors-status-filter-trigger"
                     contentTestId="vendors-status-filter-content"
                     optionTestIdPrefix="vendors-status-filter-option"
@@ -333,15 +335,16 @@ export function VendorRegisterFilterBar({
             {activeKeys.map((key) => {
                 const definition = VENDOR_REGISTER_CONFIG.filters.find((item) => item.key === key);
                 return definition ? (
-                    <div key={key} className="relative rounded-xl border border-border bg-nested p-3">
-                        <button
-                            type="button"
+                    <div key={key} className="relative rounded-xl border border-border bg-nested p-3 pr-12">
+                        <Button
+                            variant="secondary"
+                            size="iconCompact"
                             onClick={() => removeFilter(key)}
                             aria-label={t('register.filters.remove', { label: labels[key] })}
-                            className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-glass-hover hover:text-foreground"
+                            className="absolute right-2 top-2"
                         >
-                            <X className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
+                            <X aria-hidden="true" />
+                        </Button>
                         {renderControl(definition)}
                     </div>
                 ) : null;

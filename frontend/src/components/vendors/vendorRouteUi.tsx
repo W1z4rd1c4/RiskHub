@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -6,7 +6,6 @@ import './vendorRoute.css';
 
 type VendorSurfaceElement = 'article' | 'div' | 'section';
 type VendorSurfaceTone = 'default' | 'emphasis' | 'muted';
-type VendorButtonVariant = 'danger' | 'ghost' | 'primary' | 'secondary' | 'success';
 type VendorBadgeTone = 'danger' | 'info' | 'neutral' | 'success' | 'warn';
 type VendorMessageTone = 'danger' | 'success' | 'neutral' | 'warn';
 
@@ -23,10 +22,6 @@ interface VendorSectionHeaderProps {
     description?: ReactNode;
     icon?: ReactNode;
     title: ReactNode;
-}
-
-interface VendorActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: VendorButtonVariant;
 }
 
 interface VendorBadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -90,31 +85,6 @@ export function VendorSectionHeader({
             </div>
             {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
         </div>
-    );
-}
-
-export function VendorActionButton({
-    children,
-    className,
-    type = 'button',
-    variant = 'secondary',
-    ...props
-}: VendorActionButtonProps) {
-    return (
-        <button
-            type={type}
-            className={cn(
-                'vendor-button',
-                variant === 'primary' && 'vendor-button--primary',
-                variant === 'danger' && 'vendor-button--danger',
-                variant === 'success' && 'vendor-button--success',
-                variant === 'ghost' && 'vendor-button--ghost',
-                className,
-            )}
-            {...props}
-        >
-            {children}
-        </button>
     );
 }
 

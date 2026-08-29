@@ -10,6 +10,12 @@ layout and interaction rhythm, including the table/grouping branch, loading,
 empty, error and access-denied states, pagination, capability-gated page actions,
 and export-dialog lifecycle. Entity pages supply declarative views and filters,
 columns, rows, and domain callbacks; they must not recreate shell orchestration.
+The toolbar owns the non-stretching desktop geometry for search, lifecycle
+filters, the native Add-filter selector, refresh, and active-filter removal.
+The shell owns export, create, and view controls. All eight register callers
+must use these owners so wrapped lifecycle content cannot stretch adjacent
+40px controls. The only compact actions in this seam are the named 32px view
+and remove controls.
 
 URL parsing/serialization lives in `frontend/src/pages/shared/registerListQuery.ts`
 and reusable async collection state in

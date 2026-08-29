@@ -176,6 +176,27 @@ describe('RegisterListShell', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
+    it('uses the shared action loading contract without changing create or view behavior', () => {
+        const onCreate = vi.fn();
+        renderShell({
+            canCreate: true,
+            isExporting: true,
+            onCreate,
+            exportDialog: () => null,
+        });
+
+        const exportButton = screen.getByTestId('processes-export-button');
+        expect(exportButton).toBeDisabled();
+        expect(exportButton).toHaveAttribute('aria-busy', 'true');
+
+        const createButton = screen.getByTestId('processes-create-button');
+        expect(createButton).toHaveAttribute('type', 'button');
+        fireEvent.click(createButton);
+        expect(onCreate).toHaveBeenCalledOnce();
+
+        expect(screen.getByTestId('processes-view-all')).toHaveAttribute('type', 'button');
+    });
+
     it('owns loading, error/retry, empty, and access-denied rendering', () => {
         const onRetry = vi.fn();
         const { rerender } = renderShell({ items: [], isLoading: true, totalCount: 0, totalPages: 1, onRetry });

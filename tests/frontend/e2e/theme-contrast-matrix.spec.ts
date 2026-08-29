@@ -1,9 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
-import { getApiBaseUrl, getControlByName, getDemoTokenByAccountName } from './helpers/api-auth';
+import { getApiBaseUrl, getControlByName, getDemoTokenByAccountName, getVendorByRegistration } from './helpers/api-auth';
 import { DEMO_ACCOUNTS, loginAsDemoUser, logout } from './helpers/login';
-import { E2E_CONTROLS } from './fixtures/e2e-data';
+import { E2E_CONTROLS, E2E_VENDORS } from './fixtures/e2e-data';
+import { renderedContrast } from './helpers/renderedContrast';
 import { waitForDataLoad } from './helpers/wait';
 
 type AuditTheme = 'riskhub' | 'light' | 'dark';
@@ -126,6 +127,55 @@ async function expectReadableTypography(locator: Locator, label: string): Promis
   expect(fontSize, `${label} font-size`).toBeGreaterThanOrEqual(12);
 }
 
+async function settledComputedColors(locator: Locator, label: string): Promise<{ background: string; foreground: string }> {
+  let previous = '';
+  let stableSamples = 0;
+  await expect.poll(async () => {
+    const current = await locator.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return JSON.stringify({ background: style.backgroundColor, foreground: style.color });
+    });
+    stableSamples = current === previous ? stableSamples + 1 : 0;
+    previous = current;
+    return stableSamples;
+  }, { intervals: [100, 100, 100, 100], message: `${label} computed hover colors settle`, timeout: 3_000 })
+    .toBeGreaterThanOrEqual(2);
+  return JSON.parse(previous) as { background: string; foreground: string };
+}
+
+async function expectCanonicalNeutralHover(page: Page, locator: Locator, label: string): Promise<void> {
+  await expect(locator, label).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect.poll(() => locator.evaluate((element) => element.matches(':hover')), { message: `${label} leaves hover` }).toBe(false);
+  expect(await renderedContrast(locator), `${label} normal contrast`).toBeGreaterThanOrEqual(4.5);
+  const semanticBackground = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--secondary))');
+  const semanticChannels = semanticBackground.match(/[\d.]+/g)?.map(Number) ?? [];
+  await locator.hover();
+  await expect.poll(() => locator.evaluate((element) => element.matches(':hover')), { message: `${label} enters hover` }).toBe(true);
+  const hoverColors = await settledComputedColors(locator, label);
+  expect(await renderedContrast(locator), `${label} hover contrast`).toBeGreaterThanOrEqual(4.5);
+  const hoverChannels = hoverColors.background.match(/[\d.]+/g)?.map(Number) ?? [];
+  semanticChannels.slice(0, 3).forEach((channel, index) => {
+    expect(Math.abs((hoverChannels[index] ?? Number.POSITIVE_INFINITY) - channel), `${label} semantic hover background channel ${index}`)
+      .toBeLessThanOrEqual(1);
+  });
+  expect(hoverColors.foreground, `${label} semantic hover foreground`)
+    .toBe(await resolveThemeColor(page, 'color', 'hsl(var(--secondary-foreground))'));
+}
+
+async function expectCanonicalActiveViewHover(page: Page, locator: Locator, label: string): Promise<void> {
+  await expect(locator, label).toBeVisible();
+  await expect(locator, `${label} active state`).toHaveAttribute('aria-pressed', 'true');
+  await page.mouse.move(0, 0);
+  await locator.hover();
+  const hoverColors = await settledComputedColors(locator, label);
+  expect(await renderedContrast(locator), `${label} settled hover contrast`).toBeGreaterThanOrEqual(4.5);
+  expect(hoverColors.background, `${label} settled hover background`)
+    .toBe(await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--accent))'));
+  expect(hoverColors.foreground, `${label} settled hover foreground`)
+    .toBe(await resolveThemeColor(page, 'color', 'hsl(var(--accent-foreground))'));
+}
+
 async function expectSemanticFocusRing(
   page: Page,
   locator: Locator,
@@ -209,6 +259,74 @@ async function expectCitedMutedForegrounds(
 }
 
 test.describe('UX-24 audited theme matrix', () => {
+  for (const theme of THEMES) {
+    test(`keeps migrated Button hover pairs readable and semantic in ${theme}`, async ({ page }) => {
+      test.setTimeout(180_000);
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await seedTheme(page, theme);
+      await loginAsDemoUser(page, DEMO_ACCOUNTS.RISK_MANAGER);
+      const routes = await resolveAuditRoutes(page);
+      const assetRoute = routes.find((route) => route.startsWith('/assets/'));
+      const riskRoute = routes.find((route) => route.startsWith('/risks/'));
+      expect(assetRoute).toBeTruthy();
+      expect(riskRoute).toBeTruthy();
+
+      await visit(page, assetRoute!);
+      await page.getByTestId('asset-detail-archive').click();
+      await expectCanonicalNeutralHover(
+        page,
+        page.getByRole('alertdialog').getByRole('button', { name: /cancel/i }),
+        `${theme} Confirm cancel`,
+      );
+
+      await visit(page, riskRoute!);
+      await page.getByRole('button', { name: /link existing/i }).first().click();
+      const linkDialog = page.getByTestId('link-management-dialog');
+      await expectCanonicalNeutralHover(
+        page,
+        linkDialog.getByRole('button', { name: /close/i }).last(),
+        `${theme} Link Management footer`,
+      );
+
+      await visit(page, '/risks');
+      await expectCanonicalActiveViewHover(page, page.getByTestId('risks-view-all'), `${theme} active register view`);
+      await page.getByTestId('risks-lifecycle-filter-trigger').click();
+      await page.getByTestId('risks-lifecycle-filter-option-archived').click();
+      await expectCanonicalNeutralHover(page, page.getByTestId('risks-export-button'), `${theme} register export`);
+      const chip = page.locator('[data-testid^="risks-filter-chip-"]').first();
+      await expectCanonicalNeutralHover(page, chip.getByRole('button'), `${theme} toolbar chip remove`);
+      await expectCanonicalNeutralHover(page, page.getByTestId('risks-clear-filters'), `${theme} toolbar Clear all`);
+
+      const activeVendor = await getVendorByRegistration(E2E_VENDORS.ACTIVE_PRIMARY.registration_id);
+      const archivedVendor = await getVendorByRegistration(E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id);
+      expect(activeVendor?.id).toBeTruthy();
+      expect(archivedVendor?.id).toBeTruthy();
+      await visit(page, `/vendors/${activeVendor!.id}`);
+      const archive = page.getByRole('button', { name: /^archive$/i });
+      await expect(archive, `${theme} Vendor archive`).toBeVisible();
+      expect(await renderedContrast(archive), `${theme} Vendor archive normal contrast`).toBeGreaterThanOrEqual(4.5);
+      await archive.hover();
+      await settledComputedColors(archive, `${theme} Vendor archive`);
+      expect(await renderedContrast(archive), `${theme} Vendor archive hover contrast`).toBeGreaterThanOrEqual(4.5);
+      await visit(page, `/vendors/${archivedVendor!.id}`);
+      await expectCanonicalNeutralHover(
+        page,
+        page.getByRole('button', { name: /unarchive/i }),
+        `${theme} Vendor restore`,
+      );
+
+      await logout(page);
+      await loginAsDemoUser(page, DEMO_ACCOUNTS.ADMIN);
+      await visit(page, '/admin');
+      await page.getByRole('button', { name: /active sessions/i }).click();
+      await expectCanonicalNeutralHover(
+        page,
+        page.getByRole('button', { name: /check ad|zkontrolovat ad/i }),
+        `${theme} Sessions directory check`,
+      );
+    });
+  }
+
   for (const theme of THEMES) {
     for (const viewport of VIEWPORTS) {
       test(`has zero rendered contrast violations in ${theme} at ${viewport.width}px`, async ({ page }, testInfo: TestInfo) => {

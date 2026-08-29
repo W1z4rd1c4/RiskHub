@@ -127,5 +127,35 @@ test.describe('Admin Console', () => {
                 audit_log_retention_count: 9,
             });
         });
+
+        test('renders the primary audit event label at a readable size', async ({ page }) => {
+            await page.route('**/api/v1/admin/logs/audit**', async (route) => {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        entries: [{
+                            timestamp: '2026-08-29T08:00:00Z',
+                            level: 'INFO',
+                            event: 'user_update',
+                            logger_name: 'audit',
+                            request_id: 'req-readable-event',
+                            user_id: null,
+                            client_ip: '127.0.0.1',
+                            feature: 'users',
+                            extra: {},
+                        }],
+                        total_lines: 1,
+                        file_path: 'audit.json.log',
+                    }),
+                });
+            });
+
+            await page.getByRole('button', { name: /Audit Logs|Auditní logy/i }).click();
+            const eventLabel = page.locator('tbody span').filter({ hasText: /user update/i }).first();
+            await expect(eventLabel).toBeVisible({ timeout: 15_000 });
+            const fontSize = await eventLabel.evaluate((node) => Number.parseFloat(getComputedStyle(node).fontSize));
+            expect(fontSize).toBeGreaterThanOrEqual(12);
+        });
     });
 });

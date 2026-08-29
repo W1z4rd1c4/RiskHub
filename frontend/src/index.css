@@ -71,7 +71,14 @@
     --input: 215 20% 48%;
     --ring: 212.7 26.8% 83.9%;
 
-    --radius: 1rem;
+    /* UX-24 semantic radius scale: compact controls use md, ordinary controls
+       use lg, cards/dialogs use 2xl, and pills use Tailwind's full shape. */
+    --radius-sm: 0.5rem;
+    --radius-md: 0.625rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 0.875rem;
+    --radius-2xl: 1rem;
+    --radius: var(--radius-2xl);
   }
 }
 
@@ -613,16 +620,6 @@
 .theme-light .confirm-dialog-actions {
   background-color: rgba(0, 0, 0, 0.02);
   border-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-.theme-light .confirm-dialog-actions button:first-child {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  border-color: rgba(0, 0, 0, 0.1) !important;
-  color: #334155 !important;
-}
-
-.theme-light .confirm-dialog-actions button:first-child:hover {
-  background-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 .theme-light .confirm-dialog-input {

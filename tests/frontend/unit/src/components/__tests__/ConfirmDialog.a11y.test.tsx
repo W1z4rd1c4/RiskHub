@@ -111,6 +111,7 @@ describe('ConfirmDialog accessibility', () => {
         const dialog = screen.getByRole('alertdialog', { name: 'Delete control evidence' });
         expect(within(dialog).getByRole('button', { name: 'Close' })).toBeDisabled();
         expect(within(dialog).getByRole('button', { name: 'Keep evidence' })).toBeDisabled();
+        expect(within(dialog).getByRole('button', { name: /Loading/ })).toHaveAttribute('aria-busy', 'true');
 
         await user.keyboard('{Escape}');
         expect(props.onClose).not.toHaveBeenCalled();

@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Settings2 } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/hooks';
 import { adminKeys } from '@/lib/queryKeys';
 import { adminApi, type LogConfig } from '@/services/adminApi';
@@ -16,18 +19,19 @@ interface LogConfigNumberInputProps {
 
 function LogConfigNumberInput({ label, hint, value, onChange }: LogConfigNumberInputProps) {
     return (
-        <div className="space-y-2">
-            <label className="admin-muted text-sm">{label}</label>
-            <input
-                type="number"
-                value={value}
-                onChange={(event) => onChange(Number(event.target.value))}
-                className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
-                min="1"
-                max="500"
-            />
-            <p className="admin-subtle text-xs">{hint}</p>
-        </div>
+        <Field label={label} help={hint} className="space-y-2" labelClassName="admin-muted text-sm">
+            {(control) => (
+                <Input
+                    {...control}
+                    type="number"
+                    value={value}
+                    onChange={(event) => onChange(Number(event.target.value))}
+                    className="border-white/10 bg-slate-900 text-white focus-visible:ring-accent"
+                    min="1"
+                    max="500"
+                />
+            )}
+        </Field>
     );
 }
 
@@ -166,13 +170,15 @@ export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) 
                     )}
                 </div>
                 {canUpdateLogConfig && (
-                    <button
+                    <Button
+                        type="button"
                         onClick={() => mutation.mutate(form)}
                         disabled={mutation.isPending}
-                        className="px-4 py-2 bg-accent hover:bg-accent-hover text-accent-foreground rounded-lg transition-colors font-medium disabled:opacity-50"
+                        isLoading={mutation.isPending}
+                        className="bg-accent text-accent-foreground hover:bg-accent-hover hover:text-accent-foreground"
                     >
                         {mutation.isPending ? t('audit.saving') : t('audit.save_settings')}
-                    </button>
+                    </Button>
                 )}
             </div>
         </div>
