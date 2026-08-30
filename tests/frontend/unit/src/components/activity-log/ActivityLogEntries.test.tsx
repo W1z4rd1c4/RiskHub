@@ -26,8 +26,7 @@ function renderEntries(entries: ActivityLogEntry[]) {
     render(
         <ActivityLogEntries
             entries={entries}
-            isLoading={false}
-            errorType={null}
+            outcome={{ kind: 'content', isRefreshing: false }}
             needsRiskSelection={false}
             onRetry={() => {}}
         />
@@ -124,8 +123,7 @@ describe('ActivityLogEntries', () => {
         render(
             <ActivityLogEntries
                 entries={[]}
-                isLoading={false}
-                errorType={null}
+                outcome={{ kind: 'empty', isRefreshing: false }}
                 needsRiskSelection
                 onRetry={() => {}}
             />

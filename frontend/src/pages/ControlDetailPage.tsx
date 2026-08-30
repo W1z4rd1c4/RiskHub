@@ -1,12 +1,11 @@
 import { useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     ArrowLeft,
     Edit,
     Trash2,
     History,
-    XCircle,
     Plus,
     Target,
     RotateCcw
@@ -21,27 +20,29 @@ import { ControlRiskLoadingOverlay } from '@/components/controls/ControlRiskLoad
 import { useTranslation } from '@/i18n/hooks';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
-import { apiClient } from '@/services/apiClient';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
+import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
-import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
-import { useControlDetailWorkflow } from '@/pages/controls/useControlDetailWorkflow';
+import { controlDetailTabs, useControlDetailWorkflow } from '@/pages/controls/useControlDetailWorkflow';
 import { getControlDisplayStatus, getControlStatusColor } from '@/pages/controls/controlsPagePresentation';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from '@/pages/shared/registerReturnContext';
+import { useContentTabs } from '@/hooks/useContentTabs';
 
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const location = useLocation();
+    const [searchParams] = useSearchParams();
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/controls');
     const { t } = useTranslation(['common', 'controls', 'errorKeys']);
     const { t: tIssues } = useTranslation('issues');
     const loadControl = useCallback((controlId: number) => controlApi.getControl(controlId), []);
     const {
-        errorKey,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         refetch: fetchControl,
         resource: control,
         resourceId: controlId,
@@ -49,21 +50,27 @@ export function ControlDetailPage() {
         entity: 'control',
         rawId: id,
         load: loadControl,
-        toErrorKey: (error) => apiClient.toUiMessageKey(error),
     });
 
-    const workflow = useControlDetailWorkflow({ control, controlId, fetchControl, navigate });
+    const workflow = useControlDetailWorkflow({ control, controlId, fetchControl, navigate, returnTo });
+    const { setApprovalMessage } = workflow;
+    const { getPanelProps, getTabProps } = useContentTabs({
+        tabs: controlDetailTabs,
+        activeTab: workflow.activeTab,
+        onChange: workflow.setActiveTab,
+        idPrefix: 'control-detail',
+    });
 
     useEffect(() => {
         const flash = (location.state as { controlFlash?: { message: string; tone: 'warn' } } | null)?.controlFlash;
         if (!flash) {
             return;
         }
-        workflow.setApprovalMessage({ key: flash.message, isError: false });
-        void navigate(location.pathname, { replace: true });
-    }, [location.pathname, location.state, navigate, workflow]);
+        setApprovalMessage({ key: flash.message, isError: false });
+        void navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true });
+    }, [location.hash, location.pathname, location.search, location.state, navigate, setApprovalMessage]);
 
-    if (isLoading) {
+    if (loadOutcome === 'loading') {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
@@ -72,29 +79,14 @@ export function ControlDetailPage() {
         );
     }
 
-    if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
-    }
-
-    if (errorKey || !control) {
+    if (loadOutcome === 'unavailable' || !control) {
         return (
-            <div className="glass-card flex flex-col items-center justify-center p-20 text-center gap-4">
-                <div className="bg-rose-500/20 p-4 rounded-full">
-                    <XCircle className="h-10 w-10 text-rose-500" />
-                </div>
-                <div>
-                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">{t('access.control_not_found')}</h3>
-                    <p className="text-slate-500 mt-2 font-medium">{t('errors.not_found')}</p>
-                </div>
-                <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => navigate('/controls')}
-                    className="mt-4 font-bold"
-                >
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t('navigation:tabs.controls')}
-                </Button>
-            </div>
+            <DetailLoadUnavailableState
+                backLabel={t('navigation:tabs.controls')}
+                isRetrying={isRetrying}
+                onBack={() => navigate(returnTo)}
+                onRetry={controlId === null ? undefined : () => void fetchControl()}
+            />
         );
     }
 
@@ -120,6 +112,9 @@ export function ControlDetailPage() {
 
     return (
         <div className="space-y-8">
+            {loadOutcome === 'stale-with-error' ? (
+                <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchControl()} />
+            ) : null}
             {/* Approval/Error Message Banner */}
             {workflow.approvalMessage && (
                 <DetailActionBanner
@@ -138,7 +133,7 @@ export function ControlDetailPage() {
                     <Button
                         type="button"
                         variant="secondary"
-                        onClick={() => navigate('/controls')}
+                        onClick={() => navigate(returnTo)}
                         className="text-xs font-black uppercase tracking-widest"
                     >
                         <ArrowLeft className="h-3 w-3" aria-hidden="true" /> {t('controls:detail.back_to_catalog')}
@@ -177,7 +172,7 @@ export function ControlDetailPage() {
                             type="button"
                             variant="secondary"
                             size="icon"
-                            onClick={() => navigate(`/controls/${control.id}/edit`)}
+                            onClick={() => navigate(appendRegisterReturnTo(`/controls/${control.id}/edit`, returnTo))}
                             title={t('controls:edit_control')}
                             aria-label={t('controls:edit_control')}
                         >
@@ -212,9 +207,9 @@ export function ControlDetailPage() {
             />
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10">
+            <div className="flex items-center gap-2 border-b border-white/10" role="tablist" aria-label={control.name}>
                 <button
-                    onClick={() => workflow.setActiveTab('overview')}
+                    {...getTabProps('overview', 0)}
                     className={`px-6 py-3 font-bold transition-colors ${workflow.activeTab === 'overview'
                         ? 'text-accent-text border-b-2 border-accent'
                         : 'text-muted-foreground hover:text-foreground'
@@ -223,7 +218,7 @@ export function ControlDetailPage() {
                     <Target className="h-4 w-4 inline mr-2" />{t('controls:tabs.overview')}
                 </button>
                 <button
-                    onClick={() => workflow.setActiveTab('history')}
+                    {...getTabProps('history', 1)}
                     className={`px-6 py-3 font-bold transition-colors ${workflow.activeTab === 'history'
                         ? 'text-accent-text border-b-2 border-accent'
                         : 'text-muted-foreground hover:text-foreground'
@@ -234,8 +229,8 @@ export function ControlDetailPage() {
             </div>
 
             {/* Overview Tab */}
-            {workflow.activeTab === 'overview' && (
-                <ControlDetailOverviewTab
+            <div {...getPanelProps('overview')}>
+                {workflow.activeTab === 'overview' && <ControlDetailOverviewTab
                     control={control}
                     t={t}
                     linkedRisks={workflow.linkedRisks}
@@ -254,12 +249,12 @@ export function ControlDetailPage() {
                     onUnlinkRisk={workflow.handleUnlinkRisk}
                     onRiskClick={workflow.handleRiskClick}
                     onCloseRiskModal={workflow.closeRiskModal}
-                />
-            )}
+                />}
+            </div>
 
             {/* History Tab */}
-            {workflow.activeTab === 'history' && (
-                <motion.div
+            <div {...getPanelProps('history')}>
+                {workflow.activeTab === 'history' && <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="glass-card"
@@ -282,15 +277,15 @@ export function ControlDetailPage() {
                     </div>
 
                     <ExecutionHistory
-                        key={workflow.historyKey}
                         controlId={control.id}
                         controlName={control.name}
                         canCreateIssue={canCreateIssue}
                         createIssueLabel={tIssues('actions.new_issue')}
                         onIssueCreated={(issue) => navigate(`/issues/${issue.id}`)}
+                        refreshKey={workflow.historyKey}
                     />
-                </motion.div>
-            )}
+                </motion.div>}
+            </div>
 
             <ExecutionLogModal
                 isOpen={workflow.isLogModalOpen}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { SortDirection } from '@/components/tables';
@@ -16,6 +16,7 @@ import {
 } from '../shared/collectionPageState';
 import {
     buildRegisterUrlParams,
+    normalizeRegisterUrlParams,
     parseRegisterUrlState,
     type RegisterSortState,
 } from '../shared/registerListQuery';
@@ -58,22 +59,19 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
     const sort = validSort(urlState.sort);
     const groupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [currentPage, setCurrentPage] = useState(1);
+    const currentPage = urlState.page;
     const [facets, setFacets] = useState<ThreatFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
         applyFailure,
         applySuccess,
-        capabilities,
-        errorKey,
-        groups,
-        hasLoadedOnce,
-        isAccessDenied,
-        isLoading,
-        items,
+        beginQuery,
+        commitQueryIdentity,
+        forQuery,
+        isLoading: collectionIsLoading,
+        isQueryCurrent,
         setErrorKey,
         setIsLoading,
-        totalCount,
     } = useCollectionDataState<ThreatListItem, ThreatListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
@@ -86,14 +84,21 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
         sort,
         view: viewMode,
     }), [currentPage, debouncedSearch, filters, groupValue, sort, viewMode]);
+    const queryIdentity = JSON.stringify(listParams);
+    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const queryState = forQuery(queryIdentity);
+    const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const visibleFacets = queryState.isCurrentQuery ? facets : {};
 
     const fetchThreats = useCallback(async () => {
         const currentRequest = beginRequest();
+        if (!beginQuery(queryIdentity)) setFacets({});
         setIsLoading(true);
         try {
             const response = await threatApi.getThreats(listParams);
             if (!isCurrentRequest(currentRequest)) return;
-            applySuccess({
+            applySuccess(queryIdentity, {
                 items: response.items,
                 groups: response.groups ?? [],
                 capabilities: response.capabilities ?? null,
@@ -107,9 +112,18 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
         } finally {
             if (isCurrentRequest(currentRequest)) setIsLoading(false);
         }
-    }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
+    }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => setCurrentPage(1), [serializedParams]);
+    useEffect(() => {
+        const params = new URLSearchParams(serializedParams);
+        if (!normalizeRegisterUrlParams(params, {
+            allowedSortFields: THREAT_SORT_FIELDS,
+            allowedViews: THREAT_VIEWS,
+            canonicalizeFilters: (rawFilters) => serializeThreatRegisterFilters(parseThreatRegisterFilters(rawFilters)),
+            defaultView: 'all',
+        })) return;
+        setSearchParams(params, { replace: true });
+    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchThreats(); }, [fetchThreats]);
 
     const writeUrl = useCallback((next: {
@@ -121,14 +135,21 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
     }, replace = false) => {
         const params = buildRegisterUrlParams({
             filters: serializeThreatRegisterFilters(next.filters ?? filters),
+            page: 1,
             search: next.search ?? urlState.search,
             selectedGroupValue: next.group === undefined ? groupValue : next.group,
             sort: next.sort === undefined ? sort : next.sort,
             view: next.view ?? viewMode,
         }, new URLSearchParams(serializedParams));
         setSearchParams(params, { replace });
-        setCurrentPage(1);
     }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+
+    const setCurrentPage = useCallback((page: number) => {
+        const params = new URLSearchParams(serializedParams);
+        if (page > 1) params.set('page', String(page));
+        else params.delete('page');
+        setSearchParams(params);
+    }, [serializedParams, setSearchParams]);
 
     const updateFilter = useCallback(<K extends keyof ThreatRegisterFilters>(
         key: K,
@@ -136,13 +157,14 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
     ) => writeUrl({ filters: { ...filters, [key]: value }, group: null }), [filters, writeUrl]);
 
     const restoreThreat = useCallback(async (threatId: number) => {
+        const restoreQueryIdentity = queryIdentity;
         try {
             await threatApi.restoreThreat(threatId);
-            await fetchThreats();
+            if (isQueryCurrent(restoreQueryIdentity)) await fetchThreats();
         } catch (error) {
-            setErrorKey(apiClient.toUiMessageKey(error));
+            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
         }
-    }, [fetchThreats, setErrorKey]);
+    }, [fetchThreats, isQueryCurrent, queryIdentity, setErrorKey]);
 
     const exportThreats = useCallback(async () => {
         setIsExporting(true);
@@ -153,12 +175,10 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
                 limit: DEFAULT_LIST_PAGE_SIZE,
                 search: urlState.search.trim() || undefined,
             }, language);
-        } catch (error) {
-            setErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setIsExporting(false);
         }
-    }, [language, listParams, setErrorKey, urlState.search]);
+    }, [language, listParams, urlState.search]);
 
     return {
         capabilities,
@@ -167,7 +187,7 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
         currentPage,
         errorKey,
         exportThreats,
-        facets,
+        facets: visibleFacets,
         fetchThreats,
         filters,
         groups,

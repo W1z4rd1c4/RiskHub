@@ -10,9 +10,9 @@ import {
     Sheet,
     Shield,
     ShieldX,
-    Target
+    Target,
+    RefreshCw
 } from 'lucide-react';
-import { isForbiddenApiError } from '@/services/apiClient';
 import { executionApi } from '@/services/executionApi';
 import { reportApi } from '@/services/reportApi';
 import type { ExecutionAuditItem, ExecutionListCapabilities, ExecutionResult } from '@/types/execution';
@@ -22,6 +22,11 @@ import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getExecutionResultMeta } from '@/lib/executionResult';
 import { logError } from '@/services/logger';
+import {
+    resolveCollectionOutcome,
+    useCollectionDataState,
+    useLatestRequestGuard,
+} from '@/pages/shared/collectionPageState';
 
 const AUDIT_TRAIL_SKELETON_ROWS = 5;
 
@@ -29,38 +34,80 @@ export function AuditTrailPage() {
     const { t, i18n } = useTranslation(['controls', 'common']);
     const navigate = useNavigate();
 
-    const [executions, setExecutions] = useState<ExecutionAuditItem[]>([]);
-    const [capabilities, setCapabilities] = useState<ExecutionListCapabilities | null>(null);
-    const [totalCount, setTotalCount] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
-    const [accessDenied, setAccessDenied] = useState(false);
+    const {
+        applyFailure,
+        applySuccess,
+        beginQuery,
+        forQuery,
+        isLoading: collectionIsLoading,
+        setIsLoading,
+    } = useCollectionDataState<ExecutionAuditItem, ExecutionListCapabilities>();
+    const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
     const [resultFilter, setResultFilter] = useState<ExecutionResult | ''>('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [isCsvExporting, setIsCsvExporting] = useState(false);
+    const [csvError, setCsvError] = useState<{ result?: ExecutionResult } | null>(null);
     const limit = 50;
+    const queryKey = `${currentPage}:${resultFilter}`;
+    const queryState = forQuery(queryKey);
+    const {
+        capabilities,
+        items: executions,
+        totalCount,
+    } = queryState;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const outcome = resolveCollectionOutcome(queryState, isLoading);
 
     const fetchExecutions = useCallback(async () => {
+        const requestQuery = queryKey;
+        const requestId = beginRequest();
+        setIsLoading(true);
         try {
-            setIsLoading(true);
             const skip = (currentPage - 1) * limit;
             const data = await executionApi.getExecutions({
                 skip,
                 limit,
                 result: resultFilter || undefined
             });
-            setExecutions(data.items);
-            setTotalCount(data.total);
-            setCapabilities(data.capabilities ?? null);
-            setAccessDenied(false);
+            if (!isCurrentRequest(requestId)) return;
+            applySuccess(requestQuery, {
+                items: data.items,
+                groups: [],
+                capabilities: data.capabilities ?? null,
+                total: data.total,
+            });
         } catch (err) {
-            setExecutions([]);
-            setTotalCount(0);
-            setCapabilities(null);
-            setAccessDenied(isForbiddenApiError(err));
+            if (!isCurrentRequest(requestId)) return;
+            applyFailure(err, { fallbackErrorKey: 'common:tables.error.message' });
             logError('Failed to fetch audit trail:', err);
         } finally {
-            setIsLoading(false);
+            if (isCurrentRequest(requestId)) {
+                setIsLoading(false);
+            }
         }
-    }, [currentPage, resultFilter]);
+    }, [
+        applyFailure,
+        applySuccess,
+        beginRequest,
+        currentPage,
+        isCurrentRequest,
+        queryKey,
+        resultFilter,
+        setIsLoading,
+    ]);
+
+    const downloadCsv = useCallback(async (result?: ExecutionResult) => {
+        setIsCsvExporting(true);
+        setCsvError(null);
+        try {
+            await reportApi.downloadAuditTrailCsv({ result });
+        } catch (error) {
+            logError('Failed to download audit trail CSV.', error);
+            setCsvError({ result });
+        } finally {
+            setIsCsvExporting(false);
+        }
+    }, []);
 
     // Reset page when filter changes
     useEffect(() => {
@@ -68,10 +115,11 @@ export function AuditTrailPage() {
     }, [resultFilter]);
 
     useEffect(() => {
+        beginQuery(queryKey);
         void fetchExecutions();
-    }, [fetchExecutions]);
+    }, [beginQuery, fetchExecutions, queryKey]);
 
-    if (accessDenied) {
+    if (outcome.kind === 'denied') {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <div className="p-4 bg-rose-500/10 rounded-2xl">
@@ -85,6 +133,29 @@ export function AuditTrailPage() {
         );
     }
 
+    if (outcome.kind === 'fatal-error') {
+        return (
+            <div className="space-y-8">
+                <div>
+                    <h2 className="text-3xl font-black text-white mb-2">{t('audit_trail.title')}</h2>
+                    <p className="text-slate-500 font-medium">{t('audit_trail.subtitle')}</p>
+                </div>
+                <div role="alert" className="glass-card flex flex-wrap items-center justify-between gap-4 border-rose-500/30">
+                    <p className="text-sm font-semibold text-rose-200">{t(outcome.errorKey)}</p>
+                    <button
+                        type="button"
+                        aria-busy={outcome.isRetrying}
+                        disabled={outcome.isRetrying}
+                        onClick={() => void fetchExecutions()}
+                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-white/10 rounded-lg border border-white/10 hover:bg-white/15 disabled:cursor-wait disabled:opacity-60"
+                    >
+                        {t('common:actions.retry')}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -94,12 +165,23 @@ export function AuditTrailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        aria-label={t('common:actions.refresh')}
+                        onClick={() => void fetchExecutions()}
+                        disabled={isLoading}
+                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-accent-text transition-colors bg-white/5 rounded-lg border border-white/10 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20 disabled:cursor-wait disabled:opacity-60"
+                    >
+                        <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                        {t('common:actions.refresh')}
+                    </button>
                     {resolveCapabilityFlag(capabilities, 'can_export_csv') ? (
                         <button
-                            onClick={() => reportApi.downloadAuditTrailCsv({ result: resultFilter || undefined }).catch((error: unknown) => {
-                                logError('Failed to download audit trail CSV.', error);
-                            })}
-                            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-accent-text transition-colors bg-white/5 rounded-lg border border-white/10 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20"
+                            type="button"
+                            aria-busy={isCsvExporting}
+                            disabled={isCsvExporting}
+                            onClick={() => void downloadCsv(resultFilter || undefined)}
+                            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-accent-text transition-colors bg-white/5 rounded-lg border border-white/10 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20 disabled:cursor-wait disabled:opacity-60"
                         >
                             <Sheet className="h-3.5 w-3.5" />
                             CSV
@@ -107,6 +189,34 @@ export function AuditTrailPage() {
                     ) : null}
                 </div>
             </div>
+
+            {outcome.kind === 'stale-with-error' ? (
+                <div role="alert" className="glass-card flex flex-wrap items-center justify-between gap-4 border-amber-500/30">
+                    <p className="text-sm font-semibold text-amber-100">{t(outcome.errorKey)}</p>
+                    <button
+                        type="button"
+                        aria-busy={outcome.isRetrying}
+                        disabled={outcome.isRetrying}
+                        onClick={() => void fetchExecutions()}
+                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-white/10 rounded-lg border border-white/10 hover:bg-white/15 disabled:cursor-wait disabled:opacity-60"
+                    >
+                        {t('common:actions.retry')}
+                    </button>
+                </div>
+            ) : null}
+
+            {csvError ? (
+                <div role="alert" className="glass-card flex flex-wrap items-center justify-between gap-4 border-rose-500/30">
+                    <p className="text-sm font-semibold text-rose-200">{t('common:export.errors.failed')}</p>
+                    <button
+                        type="button"
+                        onClick={() => void downloadCsv(csvError.result)}
+                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-white/10 rounded-lg border border-white/10 hover:bg-white/15"
+                    >
+                        {t('common:actions.retry')}
+                    </button>
+                </div>
+            ) : null}
 
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 glass-card flex items-center gap-4 !py-3">
@@ -168,7 +278,7 @@ export function AuditTrailPage() {
                                         <td className="px-6 py-6"><div className="h-4 w-10 bg-white/5 rounded ml-auto" /></td>
                                     </tr>
                                 ))
-                            ) : executions.length === 0 ? (
+                            ) : outcome.kind === 'empty' ? (
                                 <tr>
                                     <td colSpan={8} className="px-6 py-24 text-center">
                                         <div className="bg-white/5 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6">

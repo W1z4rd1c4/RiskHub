@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Edit2, Trash2, Target, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
 import { KRIModal } from '@/components/kri/KRIModal';
@@ -13,12 +13,16 @@ import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { formatMetricNumberValue } from '@/i18n/formatters';
-import { useKriDetailState } from '@/pages/detail/useKriDetailState';
-import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
+import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
+import { kriDetailTabs, useKriDetailState } from '@/pages/detail/useKriDetailState';
+import { resolveRegisterReturnTo } from '@/pages/shared/registerReturnContext';
+import { useContentTabs } from '@/hooks/useContentTabs';
 
 export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/kris');
     const { t, i18n } = useTranslation('common');
     const { t: tErrors } = useTranslation('errorKeys');
     const { t: tIssues } = useTranslation('issues');
@@ -34,17 +38,19 @@ export function KRIDetailPage() {
         handleSave,
         history,
         historyTotal,
-        isAccessDenied,
         isDeleteDialogOpen,
         isDeleting,
         isEditModalOpen,
         isIssueModalOpen,
-        isLoading,
+        isRetrying,
         isLoadingHistory,
         isOverdue,
         isValueModalOpen,
         kri,
+        kriId,
         linkedRisk,
+        loadOutcome,
+        refreshKri,
         refreshHistory,
         selectedHistoryEntry,
         setActiveTab,
@@ -54,14 +60,20 @@ export function KRIDetailPage() {
         setIsIssueModalOpen,
         setIsValueModalOpen,
         setSelectedHistoryEntry,
-    } = useKriDetailState({ rawId: id });
+    } = useKriDetailState({ rawId: id, returnTo });
+    const { getPanelProps, getTabProps } = useContentTabs({
+        tabs: kriDetailTabs,
+        activeTab,
+        onChange: setActiveTab,
+        idPrefix: 'kri-detail',
+    });
 
     // formatNumber is still needed for overview tab
     const formatNumber = (val: number): string => {
         return formatMetricNumberValue(val, i18n.language);
     };
 
-    if (isLoading) {
+    if (loadOutcome === 'loading') {
         return (
             <div className="p-8 animate-pulse" aria-busy="true" data-loading="true">
                 <div className="h-8 w-64 bg-white/5 rounded-lg mb-8" />
@@ -70,20 +82,14 @@ export function KRIDetailPage() {
         );
     }
 
-    if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
-    }
-
-    if (!kri) {
+    if (loadOutcome === 'unavailable' || !kri) {
         return (
-            <div className="p-8 flex flex-col items-center justify-center min-h-[60vh]">
-                <Target className="h-16 w-16 text-slate-700 mb-4" />
-                <h2 className="text-xl font-bold text-white mb-2">{t('access.kri_not_found')}</h2>
-                <p className="text-sm text-slate-500 mb-6">{t('access.kri_not_found_desc')}</p>
-                <Button onClick={() => navigate('/kris')} variant="outline">
-                    <ArrowLeft className="h-4 w-4 mr-2" /> {t('navigation:tabs.risk_appetite')}
-                </Button>
-            </div>
+            <DetailLoadUnavailableState
+                backLabel={t('navigation:tabs.risk_appetite')}
+                isRetrying={isRetrying}
+                onBack={() => navigate(returnTo)}
+                onRetry={kriId === null ? undefined : () => void refreshKri()}
+            />
         );
     }
 
@@ -96,13 +102,18 @@ export function KRIDetailPage() {
 
     return (
         <div className="p-8">
+            {loadOutcome === 'stale-with-error' ? (
+                <div className="mb-6">
+                    <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void refreshKri()} />
+                </div>
+            ) : null}
             {/* Breadcrumb */}
             <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="flex items-center gap-2 text-sm text-muted-foreground mb-6"
             >
-                <button onClick={() => navigate('/kris')} className="hover:text-white transition-colors flex items-center gap-1">
+                <button onClick={() => navigate(returnTo)} className="hover:text-white transition-colors flex items-center gap-1">
                     <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.risk_appetite')}
                 </button>
                 <span>/</span>
@@ -199,9 +210,9 @@ export function KRIDetailPage() {
             ) : null}
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10 mb-6">
+            <div className="flex items-center gap-2 border-b border-white/10 mb-6" role="tablist" aria-label={kri.metric_name}>
                 <button
-                    onClick={() => setActiveTab('overview')}
+                    {...getTabProps('overview', 0)}
                     className={`px-6 py-3 font-bold transition-colors ${activeTab === 'overview'
                         ? 'text-accent-text border-b-2 border-accent'
                         : 'text-muted-foreground hover:text-foreground'
@@ -210,7 +221,7 @@ export function KRIDetailPage() {
                     <Target className="h-4 w-4 inline mr-2" />{t('common:labels.overview')}
                 </button>
                 <button
-                    onClick={() => setActiveTab('history')}
+                    {...getTabProps('history', 1)}
                     className={`px-6 py-3 font-bold transition-colors ${activeTab === 'history'
                         ? 'text-accent-text border-b-2 border-accent'
                         : 'text-muted-foreground hover:text-foreground'
@@ -221,17 +232,17 @@ export function KRIDetailPage() {
             </div>
 
             {/* Tab Content */}
-            {activeTab === 'overview' && (
-                <KRIDetailOverviewTab
+            <div {...getPanelProps('overview')}>
+                {activeTab === 'overview' && <KRIDetailOverviewTab
                     kri={kri}
                     linkedRisk={linkedRisk}
                     dueDate={dueDate}
                     formatNumber={formatNumber}
-                />
-            )}
+                />}
+            </div>
 
-            {activeTab === 'history' && (
-                <KRIDetailHistoryTab
+            <div {...getPanelProps('history')}>
+                {activeTab === 'history' && <KRIDetailHistoryTab
                     history={history}
                     historyTotal={historyTotal}
                     isLoadingHistory={isLoadingHistory}
@@ -240,12 +251,12 @@ export function KRIDetailPage() {
                     unit={kri.unit}
                     onSelectEntry={setSelectedHistoryEntry}
                     canRequestCorrection={canRequestHistoryCorrection}
-                />
-            )}
+                />}
+            </div>
 
             {/* Edit Modal */}
             {
-                kri && (
+                kri && isEditModalOpen && (
                     <KRIModal
                         risk_id={kri.risk_id}
                         kri={kri}

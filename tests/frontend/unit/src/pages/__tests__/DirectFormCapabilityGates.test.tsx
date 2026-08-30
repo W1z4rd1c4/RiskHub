@@ -75,7 +75,12 @@ vi.mock('@/components/kri-form/KRIFormContainer', () => ({
 }));
 
 vi.mock('@/components/RiskForm', () => ({
-    RiskForm: () => <div data-testid="risk-form" />,
+    RiskForm: ({ onCancel, onSuccess }: { onCancel?: () => void; onSuccess?: (riskId: number) => void }) => (
+        <div data-testid="risk-form">
+            <button type="button" onClick={() => onCancel?.()}>cancel risk form</button>
+            <button type="button" onClick={() => onSuccess?.(10)}>save risk form</button>
+        </div>
+    ),
 }));
 
 vi.mock('@/pages/vendors/VendorFormView', () => ({
@@ -174,6 +179,26 @@ describe('direct create/edit form capability gates', () => {
 
         await waitFor(() => expect(mockGetRisk).toHaveBeenCalledWith(10));
         expect(screen.queryByTestId('risk-form')).not.toBeInTheDocument();
+    });
+
+    it('returns direct Risk edit cancel and save to the exact safe list working set', async () => {
+        const returnTo = '/risks?q=claims&view=department&page=3#group-heading';
+        mockParams = { id: '10' };
+        mockSearchParams = new URLSearchParams({ return_to: returnTo });
+
+        renderWithQueryClient(<RiskEditPage />);
+        await screen.findByTestId('risk-form');
+
+        screen.getByRole('button', { name: 'cancel risk form' }).click();
+        expect(mockNavigate).toHaveBeenCalledWith(
+            `/risks/10?return_to=${encodeURIComponent(returnTo)}`,
+        );
+
+        mockNavigate.mockClear();
+        screen.getByRole('button', { name: 'save risk form' }).click();
+        expect(mockNavigate).toHaveBeenCalledWith(
+            `/risks/10?return_to=${encodeURIComponent(returnTo)}`,
+        );
     });
 
     it('hides direct control create when collection can_create is missing or false', async () => {

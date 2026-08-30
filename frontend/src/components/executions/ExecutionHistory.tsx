@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     Calendar,
     User,
@@ -17,6 +18,10 @@ import { useTranslation } from '@/i18n/hooks';
 import { formatDateTimeValue, formatDateValue } from '@/i18n/formatters';
 import { getExecutionResultMeta } from '@/lib/executionResult';
 import { logError } from '@/services/logger';
+import {
+    resolveCollectionOutcome,
+    useCollectionDataState,
+} from '@/pages/shared/collectionPageState';
 
 interface ExecutionHistoryProps {
     controlId: number;
@@ -24,6 +29,18 @@ interface ExecutionHistoryProps {
     canCreateIssue?: boolean;
     createIssueLabel?: string;
     onIssueCreated?: (issue: Issue) => void;
+    refreshKey?: number;
+}
+
+const EXECUTION_QUERY_PARAM = 'execution';
+
+function parseExecutionId(values: string[]): number | null {
+    if (values.length !== 1) {
+        return null;
+    }
+
+    const parsed = Number(values[0]);
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 export function ExecutionHistory({
@@ -32,58 +49,185 @@ export function ExecutionHistory({
     canCreateIssue = false,
     createIssueLabel,
     onIssueCreated,
+    refreshKey = 0,
 }: ExecutionHistoryProps) {
     const { t, i18n } = useTranslation(['controls', 'common', 'issues']);
-    const [executions, setExecutions] = useState<ControlExecution[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [hasLoadError, setHasLoadError] = useState(false);
-    const [expandedId, setExpandedId] = useState<number | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const serializedParams = searchParams.toString();
+    const requestedExecutionValues = searchParams.getAll(EXECUTION_QUERY_PARAM);
+    const expandedId = parseExecutionId(requestedExecutionValues);
+    const needsExecutionNormalization = requestedExecutionValues.length > 0
+        && (requestedExecutionValues.length !== 1
+            || expandedId === null
+            || requestedExecutionValues[0] !== String(expandedId));
+    const queryIdentity = String(controlId);
+    const collection = useCollectionDataState<ControlExecution>();
+    const {
+        applyFailure,
+        applySuccess,
+        beginQuery,
+        commitQueryIdentity,
+        forQuery,
+        isLoading: collectionIsLoading,
+        isQueryCurrent,
+        setIsLoading,
+    } = collection;
+    useLayoutEffect(
+        () => commitQueryIdentity(queryIdentity),
+        [commitQueryIdentity, queryIdentity],
+    );
+    const queryState = forQuery(queryIdentity);
+    const executions = queryState.items;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const outcome = resolveCollectionOutcome(queryState, isLoading);
     const [issueExecution, setIssueExecution] = useState<ControlExecution | null>(null);
+    const latestRequestRef = useRef(0);
+    const pendingRetryRef = useRef<string | null>(null);
 
-    const fetchExecutions = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            setHasLoadError(false);
-            const data = await controlApi.getExecutions(controlId);
-            setExecutions(data);
-        } catch (err) {
-            logError('Error fetching execution history:', err);
-            setHasLoadError(true);
-        } finally {
-            setIsLoading(false);
+    const updateExpandedId = useCallback((nextId: number | null, replace = false) => {
+        const next = new URLSearchParams(serializedParams);
+        if (nextId === null) {
+            next.delete(EXECUTION_QUERY_PARAM);
+        } else {
+            next.set(EXECUTION_QUERY_PARAM, String(nextId));
         }
-    }, [controlId]);
+        setSearchParams(next, { replace });
+    }, [serializedParams, setSearchParams]);
 
     useEffect(() => {
-        void fetchExecutions();
-    }, [fetchExecutions]);
+        if (needsExecutionNormalization) {
+            updateExpandedId(expandedId, true);
+        }
+    }, [expandedId, needsExecutionNormalization, updateExpandedId]);
 
-    if (isLoading && executions.length === 0) {
+    useEffect(() => {
+        const hasSuccessfulCollection = outcome.kind === 'content' || outcome.kind === 'empty';
+        if (
+            hasSuccessfulCollection
+            && expandedId !== null
+            && !executions.some((execution) => execution.id === expandedId)
+        ) {
+            updateExpandedId(null, true);
+        }
+    }, [executions, expandedId, outcome.kind, updateExpandedId]);
+
+    const fetchExecutions = useCallback(async () => {
+        const requestControlId = controlId;
+        const requestQueryIdentity = queryIdentity;
+        if (!isQueryCurrent(requestQueryIdentity)) {
+            return;
+        }
+        const requestId = ++latestRequestRef.current;
+        try {
+            setIsLoading(true);
+            const data = await controlApi.getExecutions(requestControlId);
+            if (
+                latestRequestRef.current !== requestId
+                || !isQueryCurrent(requestQueryIdentity)
+            ) {
+                return;
+            }
+            applySuccess(requestQueryIdentity, {
+                items: data,
+                groups: [],
+                capabilities: null,
+                total: data.length,
+            });
+        } catch (err) {
+            if (
+                latestRequestRef.current === requestId
+                && isQueryCurrent(requestQueryIdentity)
+            ) {
+                logError('Error fetching execution history:', err);
+                applyFailure(err, { fallbackErrorKey: 'errors.load_history_failed' });
+            }
+        } finally {
+            if (
+                latestRequestRef.current === requestId
+                && isQueryCurrent(requestQueryIdentity)
+            ) {
+                setIsLoading(false);
+            }
+        }
+    }, [applyFailure, applySuccess, controlId, isQueryCurrent, queryIdentity, setIsLoading]);
+
+    useEffect(() => {
+        beginQuery(queryIdentity);
+        void fetchExecutions();
+    }, [beginQuery, fetchExecutions, queryIdentity, refreshKey]);
+
+    useEffect(() => {
+        setIssueExecution(null);
+    }, [controlId]);
+
+    const retryExecutions = useCallback(async () => {
+        const retryQueryIdentity = queryIdentity;
+        if (pendingRetryRef.current === retryQueryIdentity) {
+            return;
+        }
+        pendingRetryRef.current = retryQueryIdentity;
+        try {
+            await fetchExecutions();
+        } finally {
+            if (pendingRetryRef.current === retryQueryIdentity) {
+                pendingRetryRef.current = null;
+            }
+        }
+    }, [fetchExecutions, queryIdentity]);
+
+    if (outcome.kind === 'initial-loading') {
         return (
-            <div className="flex flex-col items-center justify-center p-12 text-slate-500 gap-3">
+            <div className="flex flex-col items-center justify-center p-12 text-slate-500 gap-3" role="status">
                 <History className="h-8 w-8 animate-pulse text-slate-600" />
                 <p className="text-sm font-medium">{t('loading.history', { ns: 'common' })}</p>
             </div>
         );
     }
 
-    if (hasLoadError) {
+    if (outcome.kind === 'denied') {
         return (
-            <div className="flex flex-col items-center justify-center p-12 text-rose-200 border-2 border-dashed border-rose-500/20 rounded-2xl gap-3">
+            <div role="alert" className="flex flex-col items-center justify-center p-12 text-rose-200 border-2 border-dashed border-rose-500/20 rounded-2xl gap-3">
                 <AlertTriangle className="h-8 w-8 text-rose-400" />
-                <p className="text-sm font-medium">{t('errors.load_history_failed', { ns: 'controls' })}</p>
-                <button
-                    type="button"
-                    onClick={() => void fetchExecutions()}
-                    className="px-4 py-2 rounded-xl border border-rose-400/20 bg-rose-400/10 text-xs font-black uppercase tracking-widest text-rose-100 hover:bg-rose-400/20 transition-colors"
-                >
-                    {t('errors.try_again', { ns: 'controls' })}
-                </button>
+                <p className="text-sm font-medium">{t('errors.history_access_denied', { ns: 'controls' })}</p>
             </div>
         );
     }
 
-    if (executions.length === 0) {
+    let loadError: string | null = null;
+    let isRetrying = false;
+    if (outcome.kind === 'fatal-error') {
+        loadError = t('errors.load_history_failed', { ns: 'controls' });
+        isRetrying = outcome.isRetrying;
+    } else if (outcome.kind === 'stale-with-error') {
+        loadError = t('errors.history_stale', { ns: 'controls' });
+        isRetrying = outcome.isRetrying;
+    }
+    const errorState = loadError ? (
+        <div role="alert" className="flex items-center gap-3 p-4 text-rose-200 border border-rose-500/20 bg-rose-500/5 rounded-2xl">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-rose-400" />
+            <p className="text-sm font-medium">{loadError}</p>
+            <button
+                type="button"
+                onClick={() => void retryExecutions()}
+                aria-busy={isRetrying}
+                aria-disabled={isRetrying}
+                className="ml-auto px-4 py-2 rounded-xl border border-rose-400/20 bg-rose-400/10 text-xs font-black uppercase tracking-widest text-rose-100 hover:bg-rose-400/20 transition-colors"
+            >
+                {t('errors.try_again', { ns: 'controls' })}
+            </button>
+            {isRetrying ? <span role="status" className="sr-only">{t('status.history_retrying', { ns: 'controls' })}</span> : null}
+        </div>
+    ) : null;
+
+    if (outcome.kind === 'fatal-error') {
+        return (
+            <div className="flex flex-col gap-3">
+                {errorState}
+            </div>
+        );
+    }
+
+    if (outcome.kind === 'empty') {
         return (
             <div className="flex flex-col items-center justify-center p-12 text-slate-600 border-2 border-dashed border-white/5 rounded-2xl gap-2">
                 <History className="h-8 w-8 opacity-20" />
@@ -95,6 +239,7 @@ export function ExecutionHistory({
 
     return (
         <>
+            {errorState ? <div className="mb-4">{errorState}</div> : null}
             <div className="space-y-4">
                 {executions.map((exe) => {
                     const config = getExecutionResultMeta(exe.result);
@@ -113,7 +258,7 @@ export function ExecutionHistory({
                                     aria-expanded={isExpanded}
                                     aria-controls={`execution-details-${exe.id}`}
                                     className="flex flex-1 min-w-0 items-center justify-between gap-4 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                    onClick={() => setExpandedId(isExpanded ? null : exe.id)}
+                                    onClick={() => updateExpandedId(isExpanded ? null : exe.id)}
                                 >
                                     <span className="flex items-center gap-4 min-w-0">
                                         <span className={`p-2 rounded-lg border ${config.badgeClassName}`}>
@@ -205,17 +350,19 @@ export function ExecutionHistory({
                     );
                 })}
             </div>
-            <IssueQuickCreateModal
-                isOpen={issueExecution !== null}
-                onClose={() => setIssueExecution(null)}
-                contextEntityType="execution"
-                contextEntityId={issueExecution?.id ?? 0}
-                contextEntityLabel={controlName ?? (issueExecution ? formatDateTimeValue(issueExecution.executed_at, i18n.language) : '')}
-                onCreated={(issue) => {
-                    onIssueCreated?.(issue);
-                    setIssueExecution(null);
-                }}
-            />
+            {issueExecution?.control_id === controlId && (
+                <IssueQuickCreateModal
+                    isOpen
+                    onClose={() => setIssueExecution(null)}
+                    contextEntityType="execution"
+                    contextEntityId={issueExecution.id}
+                    contextEntityLabel={controlName ?? formatDateTimeValue(issueExecution.executed_at, i18n.language)}
+                    onCreated={(issue) => {
+                        onIssueCreated?.(issue);
+                        setIssueExecution(null);
+                    }}
+                />
+            )}
         </>
     );
 }

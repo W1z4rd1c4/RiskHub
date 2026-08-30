@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
@@ -9,6 +9,7 @@ import type { CollectionGroup } from '@/types/collection';
 import type { ThreatListItem, ThreatSortField } from '@/types/threat';
 
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { buildThreatColumns } from './threats/threatColumns';
 import { ThreatRegisterFilterBar } from './threats/ThreatRegisterFilterBar';
 import { THREAT_REGISTER_CONFIG, type ThreatRegisterView } from './threats/threatRegisterConfig';
@@ -17,6 +18,8 @@ import { useThreatsPageState } from './threats/useThreatsPageState';
 
 export function ThreatsPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/threats');
     const { language } = useLanguage();
     const { t } = useTranslation('threats');
     const state = useThreatsPageState(language);
@@ -50,7 +53,7 @@ export function ThreatsPage() {
             onViewChange={state.updateViewMode}
             canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
             canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-            onCreate={() => void navigate('/threats/new')}
+            onCreate={() => void navigate(appendRegisterReturnTo('/threats/new', returnTo))}
             createLabel={t('actions.new')}
             exportLabel={t('actions.export')}
             exportDialog={({ isOpen, onClose }) => (
@@ -75,8 +78,8 @@ export function ThreatsPage() {
             columns={columns}
             table={{
                 keyExtractor: (threat) => threat.id,
-                onRowClick: (threat) => void navigate(`/threats/${threat.id}`),
-                rowHref: (threat) => `/threats/${threat.id}`,
+                onRowClick: (threat) => void navigate(appendRegisterReturnTo(`/threats/${threat.id}`, returnTo)),
+                rowHref: (threat) => appendRegisterReturnTo(`/threats/${threat.id}`, returnTo),
                 rowLabel: (threat) => threat.name,
                 sortKey: state.sortField,
                 sortDirection: state.sortDirection,

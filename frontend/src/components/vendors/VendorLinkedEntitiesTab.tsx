@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle, Link as LinkIcon, Loader2, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +17,12 @@ import {
 } from './useVendorLinkedEntities';
 
 type DialogMode = 'links-only' | 'search-only';
+
+export type VendorLinkedRegionSummary =
+    | { status: 'loading' }
+    | { status: 'success'; activeCount: number }
+    | { status: 'failed' }
+    | { status: 'denied' };
 
 export interface VendorLinkedEntitiesTabProps<T extends { id: number }> {
     vendorId: number;
@@ -46,6 +52,7 @@ export interface VendorLinkedEntitiesTabProps<T extends { id: number }> {
     dataTestIdPrefix?: string;
     addButtonTestId?: string;
     motionDelay?: number;
+    onCollectionStateChange?: (summary: VendorLinkedRegionSummary) => void;
 }
 
 export function VendorLinkedEntitiesTab<T extends { id: number }>({
@@ -64,6 +71,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
     dataTestIdPrefix,
     addButtonTestId,
     motionDelay = 0,
+    onCollectionStateChange,
 }: VendorLinkedEntitiesTabProps<T>) {
     const { t } = useTranslation(['vendors', 'common']);
     const navigate = useNavigate();
@@ -75,7 +83,30 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
     >(null);
     const [isGovernedSubmitting, setIsGovernedSubmitting] = useState(false);
     const [mutationError, setMutationError] = useState<string | null>(null);
+    const isDenied = entities.outcome.kind === 'denied';
     const testId = (suffix: string) => dataTestIdPrefix ? `${dataTestIdPrefix}-${suffix}` : undefined;
+
+    useEffect(() => {
+        if (!onCollectionStateChange) {
+            return;
+        }
+        switch (entities.outcome.kind) {
+            case 'content':
+            case 'empty':
+                onCollectionStateChange({ status: 'success', activeCount: entities.active.length });
+                break;
+            case 'denied':
+                onCollectionStateChange({ status: 'denied' });
+                break;
+            case 'fatal-error':
+            case 'stale-with-error':
+                onCollectionStateChange({ status: 'failed' });
+                break;
+            case 'initial-loading':
+                onCollectionStateChange({ status: 'loading' });
+                break;
+        }
+    }, [entities.active.length, entities.outcome.kind, onCollectionStateChange]);
 
     const confirmGovernedAction = async (reason: string) => {
         if (pendingGovernedAction === null) {
@@ -99,6 +130,99 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
         }
     };
 
+    function renderEntityLists(): ReactNode {
+        return (
+            <>
+                {entities.active.length > 0 ? (
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {entities.active.map((item) => renderCard(item, () => onNavigate(item.id)))}
+                    </div>
+                ) : null}
+                {entities.archived.length > 0 ? (
+                    <div className="mt-8">
+                        <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-muted-foreground" />{t(i18nKeys.archived, { count: entities.archived.length })}</h4>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-50 hover:opacity-100 transition-opacity">
+                            {entities.archived.map((item) => renderCard(item, () => onNavigate(item.id)))}
+                        </div>
+                    </div>
+                ) : null}
+            </>
+        );
+    }
+
+    let collectionContent: ReactNode = null;
+    switch (entities.outcome.kind) {
+        case 'initial-loading':
+            collectionContent = (
+                <div role="status" className="flex items-center gap-3 text-muted-foreground font-medium">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t('labels.loading')}
+                </div>
+            );
+            break;
+        case 'denied':
+            collectionContent = (
+                <div role="alert" className="mb-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">
+                    <AlertCircle className="h-5 w-5" />
+                    {t('links.errors.access_denied')}
+                </div>
+            );
+            break;
+        case 'fatal-error':
+            collectionContent = (
+                <div role="alert" className="mb-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">
+                    <AlertCircle className="h-5 w-5" />
+                    <span>{t('links.errors.load_failed')}</span>
+                    <button
+                        type="button"
+                        onClick={() => void entities.retry()}
+                        aria-busy={entities.outcome.isRetrying}
+                        aria-disabled={entities.outcome.isRetrying}
+                        className="ml-auto rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-black uppercase tracking-widest hover:bg-destructive/20"
+                    >
+                        {t('actions.retry', { ns: 'common' })}
+                    </button>
+                    {entities.outcome.isRetrying ? (
+                        <span role="status" className="sr-only">{t('links.status.retrying')}</span>
+                    ) : null}
+                </div>
+            );
+            break;
+        case 'empty':
+            collectionContent = (
+                <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl">
+                    <p className="text-xs text-muted-foreground font-medium">{t(i18nKeys.empty)}</p>
+                </div>
+            );
+            break;
+        case 'stale-with-error':
+            collectionContent = (
+                <>
+                    <div role="alert" className="mb-4 p-4 bg-warning/10 border border-warning/20 rounded-xl flex items-center gap-3 text-warning-text text-sm font-medium">
+                        <AlertCircle className="h-5 w-5" />
+                        <span>{t('links.errors.stale')}</span>
+                        <button
+                            type="button"
+                            onClick={() => void entities.retry()}
+                            aria-busy={entities.outcome.isRetrying}
+                            aria-disabled={entities.outcome.isRetrying}
+                            className="ml-auto rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs font-black uppercase tracking-widest hover:bg-warning/20"
+                        >
+                            {t('actions.retry', { ns: 'common' })}
+                        </button>
+                        {entities.outcome.isRetrying ? (
+                            <span role="status" className="sr-only">{t('links.status.retrying')}</span>
+                        ) : null}
+                    </div>
+                    {renderEntityLists()}
+                </>
+            );
+            break;
+        case 'content':
+            collectionContent = renderEntityLists();
+            break;
+    }
+
     return (
         <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -115,7 +239,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                         <p className="text-sm text-muted-foreground mt-1">{t(i18nKeys.subtitle)}</p>
                     </div>
                 </div>
-                {canEdit ? (
+                {canEdit && !isDenied ? (
                     <div className="flex items-stretch bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
                         <button type="button" onClick={() => { setDialogMode('search-only'); setIsDialogOpen(true); }} data-testid={testId('link-existing')} className="flex items-center gap-2 px-4 py-1.5 text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent/10 transition-colors border-r border-accent/20">
                             <LinkIcon className="h-3 w-3" />
@@ -143,44 +267,14 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                 </div>
             ) : null}
 
-            {entities.isLoading ? (
-                <div className="flex items-center gap-3 text-muted-foreground font-medium">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading')}
-                </div>
-            ) : entities.error ? (
-                <div className="mb-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">
-                    <AlertCircle className="h-5 w-5" />
-                    {t(entities.error)}
-                </div>
-            ) : entities.items.length === 0 ? (
-                <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl">
-                    <p className="text-xs text-muted-foreground font-medium">{t(i18nKeys.empty)}</p>
-                </div>
-            ) : (
-                <>
-                    {entities.active.length > 0 ? (
-                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            {entities.active.map((item) => renderCard(item, () => onNavigate(item.id)))}
-                        </div>
-                    ) : null}
-                    {entities.archived.length > 0 ? (
-                        <div className="mt-8">
-                            <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-muted-foreground" />{t(i18nKeys.archived, { count: entities.archived.length })}</h4>
-                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-50 hover:opacity-100 transition-opacity">
-                                {entities.archived.map((item) => renderCard(item, () => onNavigate(item.id)))}
-                            </div>
-                        </div>
-                    ) : null}
-                </>
-            )}
+            {collectionContent}
 
-            {canEdit ? (
+            {canEdit && !isDenied ? (
                 <button type="button" onClick={() => { setDialogMode('links-only'); setIsDialogOpen(true); }} data-testid={testId('manage-existing')} className="w-full mt-6 py-3 border border-dashed border-border rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-accent/40 hover:bg-glass-hover transition-colors">
                     {t('links.actions.manage_existing')}
                 </button>
             ) : null}
-            {canEdit ? (
+            {canEdit && !isDenied ? (
                 <LinkManagementDialog
                     mode={linkDialogMode}
                     title={t(i18nKeys.dialogTitle)}
@@ -208,7 +302,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                     showLinkMetadataBadge={false}
                 />
             ) : null}
-            {protectedChangeRequiresApproval ? (
+            {protectedChangeRequiresApproval && !isDenied ? (
                 <GovernedMutationReasonDialog
                     isOpen={pendingGovernedAction !== null}
                     reasonRequired

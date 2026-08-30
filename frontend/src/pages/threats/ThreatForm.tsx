@@ -8,6 +8,7 @@ import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { lookupApi } from '@/services/lookupApi';
@@ -60,6 +61,21 @@ function initialFields(threat?: Threat): FormFields {
     };
 }
 
+function buildThreatFormPayload(fields: FormFields) {
+    return {
+        ...buildThreatWritePayload({
+            name: fields.name,
+            category: fields.category,
+            description: fields.description,
+            typical_weaknesses: fields.typical_weaknesses,
+            relevant_subject: fields.relevant_subject,
+            notes: fields.notes,
+        }),
+        threat_steward_user_id: Number(fields.threat_steward_user_id),
+        ...(fields.request_reason.trim() ? { request_reason: fields.request_reason.trim() } : {}),
+    };
+}
+
 export function ThreatForm({
     initialData,
     isEdit = false,
@@ -74,6 +90,14 @@ export function ThreatForm({
     const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormFields, string>>>({});
     const [stewardSearch, setStewardSearch] = useState('');
     const accountabilityScenario = useAccountabilityReassignmentScenario();
+    const {
+        acceptCurrentSnapshot,
+        confirmationDialog,
+        requestLocalLeave,
+    } = useDirtyTaskGuard({
+        busy: isSubmitting,
+        currentSnapshot: JSON.stringify(buildThreatFormPayload(fields)),
+    });
 
     const stewardChanged = Boolean(
         isEdit
@@ -148,18 +172,7 @@ export function ThreatForm({
             return;
         }
 
-        const payload = {
-            ...buildThreatWritePayload({
-            name: fields.name,
-            category: fields.category,
-            description: fields.description,
-            typical_weaknesses: fields.typical_weaknesses,
-            relevant_subject: fields.relevant_subject,
-            notes: fields.notes,
-            }),
-            threat_steward_user_id: Number(fields.threat_steward_user_id),
-            ...(fields.request_reason.trim() ? { request_reason: fields.request_reason.trim() } : {}),
-        };
+        const payload = buildThreatFormPayload(fields);
 
         try {
             setIsSubmitting(true);
@@ -167,6 +180,7 @@ export function ThreatForm({
             const saved = isEdit && initialData
                 ? await threatApi.updateThreat(initialData.id, payload)
                 : await threatApi.createThreat(payload);
+            acceptCurrentSnapshot();
             if (isApprovalCreatedResponse(saved)) {
                 onApprovalQueued?.(saved);
             } else {
@@ -193,6 +207,7 @@ export function ThreatForm({
                     {...control}
                     data-testid={testId}
                     value={fields[field]}
+                    disabled={isSubmitting}
                     rows={3}
                     onChange={(event) => setField(field, event.target.value)}
                     className={TEXTAREA_CLASS}
@@ -243,6 +258,7 @@ export function ThreatForm({
                                 ref={registerFieldRef('name')}
                                 data-testid="threat-form-name"
                                 value={fields.name}
+                                disabled={isSubmitting}
                                 required
                                 onChange={(event) => setField('name', event.target.value)}
                             />
@@ -253,6 +269,7 @@ export function ThreatForm({
                             <ThemedSelect
                                 {...control}
                                 value={fields.category}
+                                disabled={isSubmitting}
                                 onValueChange={(value) => setField('category', value)}
                                 options={categoryOptions}
                                 allowEmpty
@@ -276,6 +293,7 @@ export function ThreatForm({
                                 options={stewardOptions}
                                 searchValue={stewardSearch}
                                 onSearchChange={setStewardSearch}
+                                disabled={isSubmitting}
                                 placeholder={t('form.steward_placeholder')}
                                 searchPlaceholder={t('form.steward_search')}
                                 triggerTestId="threat-form-steward"
@@ -289,6 +307,7 @@ export function ThreatForm({
                                 {...control}
                                 data-testid="threat-form-relevant-subject"
                                 value={fields.relevant_subject}
+                                disabled={isSubmitting}
                                 onChange={(event) => setField('relevant_subject', event.target.value)}
                             />
                         )}
@@ -317,6 +336,7 @@ export function ThreatForm({
                                 ref={registerFieldRef('request_reason')}
                                 data-testid="threat-form-request-reason"
                                 value={fields.request_reason}
+                                disabled={isSubmitting}
                                 rows={3}
                                 onChange={(event) => setField('request_reason', event.target.value)}
                                 className={TEXTAREA_CLASS}
@@ -330,9 +350,10 @@ export function ThreatForm({
                 {onCancel ? (
                     <button
                         type="button"
-                        onClick={onCancel}
+                        onClick={() => requestLocalLeave(onCancel)}
+                        disabled={isSubmitting}
                         data-testid="threat-form-cancel"
-                        className="px-5 py-2.5 glass rounded-xl text-slate-300 hover:text-white transition-colors text-sm font-semibold flex items-center gap-2"
+                        className="px-5 py-2.5 glass rounded-xl text-slate-300 hover:text-white transition-colors text-sm font-semibold flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <X className="h-4 w-4" />
                         {t('actions.cancel')}
@@ -348,6 +369,7 @@ export function ThreatForm({
                     {submitLabel}
                 </button>
             </div>
+            {confirmationDialog}
         </form>
     );
 }

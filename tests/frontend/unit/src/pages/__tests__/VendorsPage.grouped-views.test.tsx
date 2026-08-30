@@ -2,13 +2,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 
 import { VendorsPage } from '@/pages/VendorsPage';
 import { ApiClientError } from '@/services/apiClient';
 import type { Vendor, VendorListParams } from '@/types/vendor';
 
 const mockGetVendors = vi.fn();
+const mockDownloadExport = vi.fn();
 const mockNavigate = vi.fn();
 let hasRiskRead = true;
 let vendorCollectionCapabilities: Record<string, boolean> | undefined;
@@ -169,10 +170,16 @@ function buildVendorGroups(items: Vendor[], groupBy: string) {
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
+        downloadExport: (...args: unknown[]) => mockDownloadExport(...args),
         getVendors: (...args: unknown[]) => mockGetVendors(...args),
         restoreVendor: vi.fn(),
     },
 }));
+
+function LocationProbe() {
+    const location = useLocation();
+    return <output data-testid="location">{`${location.pathname}${location.search}${location.hash}`}</output>;
+}
 
 vi.mock('@/services/reportApi', () => ({
     reportApi: {
@@ -197,6 +204,7 @@ describe('VendorsPage grouped views', () => {
             can_export: true,
         };
         vi.clearAllMocks();
+        mockDownloadExport.mockResolvedValue(undefined);
         mockGetVendors.mockImplementation((params: VendorListParams = {}) => {
             const filtered = filterVendors(params);
             const offset = params.offset ?? 0;
@@ -246,6 +254,36 @@ describe('VendorsPage grouped views', () => {
 
         await screen.findByText('Claims Cloud Platform');
         expect(screen.getByTestId('vendors-export-button')).toBeInTheDocument();
+    });
+
+    it('keeps the register, dialog, and URL visible when export fails and allows retry', async () => {
+        const url = '/vendors?q=cloud&source=audit#group-heading';
+        mockDownloadExport
+            .mockRejectedValueOnce(new ApiClientError({ status: 500, messageKey: 'errorKeys.server' }))
+            .mockResolvedValueOnce(undefined);
+
+        render(
+            <MemoryRouter initialEntries={[url]}>
+                <VendorsPage />
+                <LocationProbe />
+            </MemoryRouter>,
+        );
+
+        await screen.findByText('Claims Cloud Platform');
+        await userEvent.click(screen.getByTestId('vendors-export-button'));
+        await userEvent.click(screen.getByTestId('export-submit-button'));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Export failed. Try again.');
+        expect(screen.getByTestId('vendors-export-dialog')).toBeVisible();
+        expect(screen.getByText('Claims Cloud Platform')).toBeInTheDocument();
+        expect(screen.getByTestId('location')).toHaveTextContent(url);
+
+        await userEvent.click(screen.getByTestId('export-submit-button'));
+
+        await waitFor(() => expect(screen.queryByTestId('vendors-export-dialog')).not.toBeInTheDocument());
+        expect(mockDownloadExport).toHaveBeenCalledTimes(2);
+        expect(screen.getByText('Claims Cloud Platform')).toBeInTheDocument();
+        expect(screen.getByTestId('location')).toHaveTextContent(url);
     });
 
     it('renders denied and clears collection actions when vendor reads are forbidden', async () => {

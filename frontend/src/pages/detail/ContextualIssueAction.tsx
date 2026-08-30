@@ -40,14 +40,16 @@ export function ContextualIssueAction({
                     {buttonLabel}
                 </Button>
             )}
-            <IssueQuickCreateModal
-                isOpen={isOpen}
-                onClose={onClose}
-                contextEntityType={contextEntityType}
-                contextEntityId={contextEntityId}
-                contextEntityLabel={contextEntityLabel}
-                onCreated={onCreated}
-            />
+            {isOpen && (
+                <IssueQuickCreateModal
+                    isOpen
+                    onClose={onClose}
+                    contextEntityType={contextEntityType}
+                    contextEntityId={contextEntityId}
+                    contextEntityLabel={contextEntityLabel}
+                    onCreated={onCreated}
+                />
+            )}
         </>
     );
 }

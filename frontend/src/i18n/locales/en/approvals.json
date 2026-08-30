@@ -88,6 +88,14 @@
         "no_matching": "There are no approval requests matching your current filter.",
         "no_questionnaires": "There are no open questionnaires assigned to you right now."
     },
+    "errors": {
+        "questionnaire_load_failed": "Could not load questionnaire inbox. Try again.",
+        "questionnaire_stale": "Questionnaire assignments may be out of date. Try again.",
+        "questionnaire_access_denied": "You do not have access to questionnaire assignments."
+    },
+    "status": {
+        "questionnaire_retrying": "Retrying questionnaire inbox."
+    },
     "labels": {
         "proposed_changes": "Proposed Changes",
         "approved_on": "Approved on {{date}} at {{time}}",

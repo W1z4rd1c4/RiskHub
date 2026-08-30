@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act } from 'react';
+import { act, useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
@@ -33,11 +33,15 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useNavigate: () => vi.fn(),
         useParams: () => ({ id: '42' }),
+        useSearchParams: () => {
+            const [params, setParams] = useState(new URLSearchParams());
+            return [params, (next: URLSearchParams) => setParams(new URLSearchParams(next))] as const;
+        },
     };
 });
 
 function renderIssueDetailPage() {
-    const queryClient = createTestQueryClient();
+    const queryClient = createTestQueryClient({ defaultOptions: { queries: { retryDelay: 0 } } });
     const rendered = render(
         <QueryClientProvider client={queryClient}>
             <IssueDetailPage />
@@ -171,7 +175,7 @@ describe('IssueDetailPage tabs', () => {
         expect(screen.queryByText('You do not have permission to view issues.')).not.toBeInTheDocument();
     });
 
-    it('renders view denied when backend issue detail returns forbidden', async () => {
+    it('renders the non-leaky unavailable state when backend issue detail returns forbidden', async () => {
         mockGetIssue.mockRejectedValueOnce(
             new ApiClientError({
                 status: 403,
@@ -181,7 +185,8 @@ describe('IssueDetailPage tabs', () => {
 
         renderIssueDetailPage();
 
-        await screen.findByText('You do not have permission to view issues.');
+        await screen.findByRole('heading', { name: /record unavailable/i });
+        expect(screen.queryByText('You do not have permission to view issues.')).not.toBeInTheDocument();
         expect(screen.queryByText('Issue Not Found')).not.toBeInTheDocument();
         expect(screen.queryByTestId('issue-overview-panel')).not.toBeInTheDocument();
     });
@@ -462,12 +467,12 @@ describe('IssueDetailPage tabs', () => {
 
     it('shows the fatal error screen when the initial issue load fails without cached data', async () => {
         mockGetIssue.mockReset();
-        mockGetIssue.mockRejectedValueOnce(new Error('backend unavailable'));
+        mockGetIssue.mockRejectedValue(new Error('backend unavailable'));
 
         renderIssueDetailPage();
 
-        expect(await screen.findByText('Issue Not Found')).toBeInTheDocument();
-        expect(screen.getByText('Something went wrong. Please try again.')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: /record unavailable/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
         expect(screen.queryByTestId('issue-overview-panel')).not.toBeInTheDocument();
         expect(screen.queryByText('Access Review Gap')).not.toBeInTheDocument();
     });
@@ -500,7 +505,7 @@ describe('IssueDetailPage tabs', () => {
                 remediation_plan: null,
                 exceptions: [],
             })
-            .mockRejectedValueOnce(new Error('temporary upstream failure'));
+            .mockRejectedValue(new Error('temporary upstream failure'));
 
         const rendered = renderIssueDetailPage();
 
@@ -515,7 +520,8 @@ describe('IssueDetailPage tabs', () => {
             }
         });
 
-        await waitFor(() => expect(mockGetIssue).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(mockGetIssue).toHaveBeenCalledTimes(3));
+        expect(screen.getByText('This information may be out of date')).toBeInTheDocument();
         expect(screen.getByText('Access Review Gap')).toBeInTheDocument();
         expect(screen.getByTestId('issue-overview-panel')).toBeInTheDocument();
         expect(screen.queryByText('Issue Not Found')).not.toBeInTheDocument();
@@ -586,7 +592,7 @@ describe('IssueDetailPage tabs', () => {
                 remediation_plan: null,
                 exceptions: [],
             })
-            .mockRejectedValueOnce(new Error('forbidden'));
+            .mockRejectedValue(new Error('forbidden'));
 
         renderIssueDetailPage();
 
@@ -596,10 +602,10 @@ describe('IssueDetailPage tabs', () => {
             setAuthenticatedSession(99, 'External Reviewer');
         });
 
-        expect(await screen.findByText('Issue Not Found')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: /record unavailable/i })).toBeInTheDocument();
         expect(screen.queryByTestId('issue-overview-panel')).not.toBeInTheDocument();
         expect(screen.queryByText('Access Review Gap')).not.toBeInTheDocument();
-        expect(mockGetIssue).toHaveBeenCalledTimes(2);
+        expect(mockGetIssue).toHaveBeenCalledTimes(3);
     });
 
     it('clears cached issue history when the authenticated user changes', async () => {

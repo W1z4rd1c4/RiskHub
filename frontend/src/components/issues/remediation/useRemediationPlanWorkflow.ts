@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { issueDetailQueryKey, issueHistoryQueryKey } from '@/lib/queryKeys/issues';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { apiClient } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
 import { useSessionSnapshot } from '@/services/session';
@@ -13,17 +14,6 @@ interface UseRemediationPlanWorkflowOptions {
     issue: Issue;
 }
 
-type WorkflowField =
-    | 'assignOwnerId'
-    | 'assignDueAt'
-    | 'progressPercent'
-    | 'remediationStatus'
-    | 'blockerReason'
-    | 'completionNotes'
-    | 'exceptionReason'
-    | 'exceptionExpiresAt'
-    | 'validationNote';
-
 interface IssueWorkflowDraft {
     assignOwnerId: string;
     assignDueAt: string;
@@ -31,8 +21,12 @@ interface IssueWorkflowDraft {
     remediationStatus: string;
     blockerReason: string;
     completionNotes: string;
+    exceptionExpiresAt: string;
+    exceptionReason: string;
     validationNote: string;
 }
+
+type WorkflowField = keyof IssueWorkflowDraft;
 
 export const REMEDIATION_STATUSES: IssueRemediationStatus[] = ['draft', 'active', 'blocked', 'completed'];
 
@@ -44,14 +38,31 @@ function draftFromIssue(issue: Issue): IssueWorkflowDraft {
         remediationStatus: issue.remediation_plan?.status ?? 'active',
         blockerReason: issue.remediation_plan?.blocker_reason ?? '',
         completionNotes: issue.remediation_plan?.completion_notes ?? '',
+        exceptionExpiresAt: '',
+        exceptionReason: '',
         validationNote: issue.validation_note ?? '',
     };
+}
+
+function workflowSnapshot(draft: IssueWorkflowDraft): string {
+    return JSON.stringify([
+        draft.assignOwnerId,
+        draft.assignDueAt,
+        draft.progressPercent,
+        draft.remediationStatus,
+        draft.blockerReason,
+        draft.completionNotes,
+        draft.exceptionReason,
+        draft.exceptionExpiresAt,
+        draft.validationNote,
+    ]);
 }
 
 export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflowOptions) {
     const queryClient = useQueryClient();
     const session = useSessionSnapshot();
     const initialDraft = draftFromIssue(issue);
+    const acceptedDraftRef = useRef<IssueWorkflowDraft>(initialDraft);
     const dirtyFieldsRef = useRef<Set<WorkflowField>>(new Set());
     const issueIdRef = useRef(issue.id);
     const [assignOwnerId, setAssignOwnerIdState] = useState<string>(initialDraft.assignOwnerId);
@@ -67,6 +78,21 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
     const [isOwnersLoading, setIsOwnersLoading] = useState<boolean>(false);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const currentDraft: IssueWorkflowDraft = {
+        assignDueAt,
+        assignOwnerId,
+        blockerReason,
+        completionNotes,
+        exceptionExpiresAt,
+        exceptionReason,
+        progressPercent,
+        remediationStatus,
+        validationNote,
+    };
+    const { acceptCurrentSnapshot, confirmationDialog } = useDirtyTaskGuard({
+        busy: isSubmitting,
+        currentSnapshot: workflowSnapshot(currentDraft),
+    });
 
     const isClosed = issue.status === 'closed';
     const canUseOwnerLookup = resolveCapabilityFlag(issue.capabilities, 'can_use_owner_lookup');
@@ -93,8 +119,15 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
         setter: Dispatch<SetStateAction<string>>,
     ): Dispatch<SetStateAction<string>> {
         return (value) => {
-            dirtyFieldsRef.current.add(field);
-            setter(value);
+            setter((previous) => {
+                const next = typeof value === 'function' ? value(previous) : value;
+                if (next === acceptedDraftRef.current[field]) {
+                    dirtyFieldsRef.current.delete(field);
+                } else {
+                    dirtyFieldsRef.current.add(field);
+                }
+                return next;
+            });
         };
     }
 
@@ -125,6 +158,7 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
             value: string,
         ) => {
             if (resetAll || !dirtyFieldsRef.current.has(field)) {
+                acceptedDraftRef.current[field] = value;
                 setter(value);
             }
         };
@@ -138,19 +172,32 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
         applyClean('validationNote', setValidationNoteState, draft.validationNote);
 
         if (resetAll) {
+            acceptedDraftRef.current.exceptionReason = '';
+            acceptedDraftRef.current.exceptionExpiresAt = '';
             setExceptionReasonState('');
             setExceptionExpiresAtState('');
         }
-    }, []);
+        acceptCurrentSnapshot(workflowSnapshot(acceptedDraftRef.current));
+    }, [acceptCurrentSnapshot]);
+
+    const resetAcceptedField = useCallback((
+        field: 'exceptionReason' | 'exceptionExpiresAt',
+        setter: Dispatch<SetStateAction<string>>,
+    ) => {
+        dirtyFieldsRef.current.delete(field);
+        acceptedDraftRef.current[field] = '';
+        setter('');
+        acceptCurrentSnapshot(workflowSnapshot(acceptedDraftRef.current));
+    }, [acceptCurrentSnapshot]);
 
     useEffect(() => {
         const issueChanged = issueIdRef.current !== issue.id;
         if (issueChanged) {
             issueIdRef.current = issue.id;
+            setIsSubmitting(false);
         }
         applyDraftFromIssue(issue, issueChanged);
         setErrorKey(null);
-        setIsSubmitting(false);
     }, [applyDraftFromIssue, issue]);
 
     useEffect(() => {
@@ -164,11 +211,22 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
             .listAssignableOwners(issue.department_id)
             .then((owners) => {
                 setOwnerOptions(owners);
+                const isAssignable = (ownerId: string) => (
+                    owners.some((owner) => String(owner.id) === ownerId)
+                );
+                if (
+                    acceptedDraftRef.current.assignOwnerId
+                    && !isAssignable(acceptedDraftRef.current.assignOwnerId)
+                    && !dirtyFieldsRef.current.has('assignOwnerId')
+                ) {
+                    acceptedDraftRef.current.assignOwnerId = '';
+                    acceptCurrentSnapshot(workflowSnapshot(acceptedDraftRef.current));
+                }
                 setAssignOwnerIdState((previous) => {
                     if (!previous) {
                         return previous;
                     }
-                    return owners.some((owner) => String(owner.id) === previous) ? previous : '';
+                    return isAssignable(previous) ? previous : '';
                 });
             })
             .catch(() => {
@@ -177,7 +235,7 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
             .finally(() => {
                 setIsOwnersLoading(false);
             });
-    }, [canUseOwnerLookup, isClosed, issue.department_id]);
+    }, [acceptCurrentSnapshot, canUseOwnerLookup, isClosed, issue.department_id]);
 
     async function syncIssue(updatedIssue: Issue, acknowledgedFields: WorkflowField[] = []): Promise<void> {
         markFieldsClean(acknowledgedFields);
@@ -266,8 +324,7 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
 
         await runMutation(async () => {
             await issuesApi.requestException(issue.id, { reason: exceptionReason.trim() });
-            markFieldsClean(['exceptionReason']);
-            setExceptionReasonState('');
+            resetAcceptedField('exceptionReason', setExceptionReasonState);
             await refreshIssue();
         });
     }
@@ -288,8 +345,7 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
                 exception_id: requestedExceptionId,
                 expires_at: expiresAt,
             });
-            markFieldsClean(['exceptionExpiresAt']);
-            setExceptionExpiresAtState('');
+            resetAcceptedField('exceptionExpiresAt', setExceptionExpiresAtState);
             await refreshIssue();
         });
     }
@@ -320,6 +376,7 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
         canStartRemediation,
         canUpdateProgress,
         completionNotes,
+        confirmationDialog,
         errorKey,
         exceptionExpiresAt,
         exceptionReason,

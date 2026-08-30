@@ -1,24 +1,41 @@
-import { useId } from 'react';
+import { useCallback, useId, useRef } from 'react';
 import { X, ShieldPlus } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { DialogShell } from './DialogShell';
 import { Button } from './ui/button';
 import { ControlForm } from './control-form/ControlFormContainer';
+import type { ControlFormLocationState } from './control-form/useControlFormWorkflow';
 
 interface ControlCreateDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onSuccess: (controlId: number) => void;
+    onSuccess: (
+        controlId: number,
+        locationState?: ControlFormLocationState,
+        acceptNavigation?: () => void,
+    ) => void | Promise<void>;
 }
 
 export function ControlCreateDialog({ isOpen, onClose, onSuccess }: ControlCreateDialogProps) {
     const { t } = useTranslation(['controls', 'common']);
     const titleId = useId();
+    const closeRequestRef = useRef<(() => void) | null>(null);
+    const registerCloseRequest = useCallback((requestClose: (() => void) | null) => {
+        closeRequestRef.current = requestClose;
+    }, []);
+    const requestClose = useCallback(() => {
+        const registeredRequest = closeRequestRef.current;
+        if (registeredRequest) {
+            registeredRequest();
+        } else {
+            onClose();
+        }
+    }, [onClose]);
 
     return (
         <DialogShell
             isOpen={isOpen}
-            onClose={onClose}
+            onClose={requestClose}
             titleId={titleId}
             containerClassName="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-8"
             backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
@@ -38,7 +55,7 @@ export function ControlCreateDialog({ isOpen, onClose, onSuccess }: ControlCreat
                     type="button"
                     variant="secondary"
                     size="iconCompact"
-                    onClick={onClose}
+                    onClick={requestClose}
                     title={t('common:actions.close')}
                     aria-label={t('common:actions.close')}
                 >
@@ -51,6 +68,7 @@ export function ControlCreateDialog({ isOpen, onClose, onSuccess }: ControlCreat
                 <ControlForm
                     onSuccess={onSuccess}
                     onCancel={onClose}
+                    registerCloseRequest={registerCloseRequest}
                 />
             </div>
         </DialogShell>

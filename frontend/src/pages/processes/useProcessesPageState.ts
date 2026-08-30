@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { SortDirection } from '@/components/tables';
@@ -16,7 +16,6 @@ import type {
 } from '@/types/process';
 
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
-import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import type { ProcessSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 import {
     getTotalPages,
@@ -25,6 +24,7 @@ import {
 } from '../shared/collectionPageState';
 import {
     buildRegisterUrlParams,
+    normalizeRegisterUrlParams,
     parseRegisterUrlState,
     type RegisterSortState,
 } from '../shared/registerListQuery';
@@ -67,26 +67,20 @@ export function useProcessesPageState(
     const sort = validSort(urlState.sort);
     const selectedGroupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [localCurrentPage, setLocalCurrentPage] = useState(1);
-    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
-        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
-    });
+    const currentPage = urlState.page;
     const [facets, setFacets] = useState<ProcessFacets>({});
     const [pendingCreations, setPendingCreations] = useState<ProcessPendingCreationRead[]>([]);
     const [isExporting, setIsExporting] = useState(false);
     const {
         applyFailure,
         applySuccess,
-        capabilities,
-        errorKey,
-        groups,
-        hasLoadedOnce,
-        isAccessDenied,
-        isLoading,
-        items,
+        beginQuery,
+        commitQueryIdentity,
+        forQuery,
+        isLoading: collectionIsLoading,
+        isQueryCurrent,
         setErrorKey,
         setIsLoading,
-        totalCount,
     } = useCollectionDataState<Process, ProcessListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
@@ -105,14 +99,25 @@ export function useProcessesPageState(
         sort,
         view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, selectedGroupValue, sort, viewMode]);
+    const queryIdentity = JSON.stringify(listParams);
+    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const queryState = forQuery(queryIdentity);
+    const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const visibleFacets = queryState.isCurrentQuery ? facets : {};
+    const visiblePendingCreations = queryState.isCurrentQuery ? pendingCreations : [];
 
     const fetchProcesses = useCallback(async () => {
         const currentRequest = beginRequest();
+        if (!beginQuery(queryIdentity)) {
+            setFacets({});
+            setPendingCreations([]);
+        }
         setIsLoading(true);
         try {
             const response = await processApi.getProcesses(listParams);
             if (!isCurrentRequest(currentRequest)) return;
-            applySuccess({
+            applySuccess(queryIdentity, {
                 items: response.items,
                 groups: response.groups ?? [],
                 capabilities: response.capabilities ?? null,
@@ -123,18 +128,25 @@ export function useProcessesPageState(
         } catch (error) {
             if (!isCurrentRequest(currentRequest)) return;
             const patch = applyFailure(error, { toErrorKey: apiClient.toUiMessageKey.bind(apiClient) });
-            setPendingCreations([]);
             if (patch.isAccessDenied) {
                 setFacets({});
+                setPendingCreations([]);
             }
         } finally {
             if (isCurrentRequest(currentRequest)) setIsLoading(false);
         }
-    }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
+    }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
     useEffect(() => {
-        if (!isDepartmentScoped) setLocalCurrentPage(1);
-    }, [isDepartmentScoped, serializedParams]);
+        const params = new URLSearchParams(serializedParams);
+        if (!normalizeRegisterUrlParams(params, {
+            allowedSortFields: PROCESS_SORT_FIELDS,
+            allowedViews: PROCESS_VIEWS,
+            canonicalizeFilters: (rawFilters) => serializeProcessRegisterFilters(parseProcessRegisterFilters(rawFilters)),
+            defaultView: 'all',
+        })) return;
+        setSearchParams(params, { replace: true });
+    }, [serializedParams, setSearchParams]);
 
     useEffect(() => {
         void fetchProcesses();
@@ -149,14 +161,21 @@ export function useProcessesPageState(
     }, replace = false) => {
         const params = buildRegisterUrlParams({
             filters: serializeProcessRegisterFilters(next.filters ?? filters),
+            page: 1,
             search: next.search ?? urlState.search,
             selectedGroupValue: next.group === undefined ? selectedGroupValue : next.group,
             sort: next.sort === undefined ? sort : next.sort,
             view: next.view ?? viewMode,
         }, new URLSearchParams(serializedParams));
-        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
-        if (!isDepartmentScoped) setCurrentPage(1);
-    }, [filters, isDepartmentScoped, selectedGroupValue, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(params, { replace });
+    }, [filters, selectedGroupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+
+    const setCurrentPage = useCallback((page: number) => {
+        const params = new URLSearchParams(serializedParams);
+        if (page > 1) params.set('page', String(page));
+        else params.delete('page');
+        setSearchParams(params);
+    }, [serializedParams, setSearchParams]);
 
     const updateSearch = useCallback((value: string) => writeUrl({ search: value, group: null }, true), [writeUrl]);
     const updateFilter = useCallback(<K extends keyof ProcessRegisterFilters>(key: K, value: ProcessRegisterFilters[K]) => {
@@ -174,13 +193,14 @@ export function useProcessesPageState(
     }, [writeUrl]);
 
     const restoreProcess = useCallback(async (processId: number) => {
+        const restoreQueryIdentity = queryIdentity;
         try {
             await processApi.restoreProcess(processId);
-            await fetchProcesses();
+            if (isQueryCurrent(restoreQueryIdentity)) await fetchProcesses();
         } catch (error) {
-            setErrorKey(apiClient.toUiMessageKey(error));
+            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
         }
-    }, [fetchProcesses, setErrorKey]);
+    }, [fetchProcesses, isQueryCurrent, queryIdentity, setErrorKey]);
 
     const exportProcesses = useCallback(async () => {
         setIsExporting(true);
@@ -191,12 +211,10 @@ export function useProcessesPageState(
                 limit: DEFAULT_LIST_PAGE_SIZE,
                 search: urlState.search.trim() || undefined,
             }, language);
-        } catch (error) {
-            setErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setIsExporting(false);
         }
-    }, [language, listParams, setErrorKey, urlState.search]);
+    }, [language, listParams, urlState.search]);
 
     return {
         capabilities,
@@ -205,7 +223,7 @@ export function useProcessesPageState(
         currentPage,
         errorKey,
         exportProcesses,
-        facets,
+        facets: visibleFacets,
         fetchProcesses,
         filters,
         groups,
@@ -215,7 +233,7 @@ export function useProcessesPageState(
         isLoading,
         items,
         limit: DEFAULT_LIST_PAGE_SIZE,
-        pendingCreations,
+        pendingCreations: visiblePendingCreations,
         restoreProcess,
         search: urlState.search,
         selectGroup: (value: string, _label?: string) => selectGroup(value),

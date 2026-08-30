@@ -1,7 +1,9 @@
 {
   "title": "Oznámení",
   "subtitle": {
-    "unread_count": "{{count}} nepřečtených"
+    "unread_count": "{{count}} nepřečtených",
+    "stale": "Počty oznámení nemusí být aktuální.",
+    "unavailable": "Počty oznámení nejsou dostupné."
   },
   "tabs": {
     "all": "Vše",
@@ -13,7 +15,13 @@
   },
   "errors": {
     "update_read_state": "Oznámení se nepodařilo aktualizovat. Zkuste to znovu.",
-    "mark_all_read": "Oznámení se nepodařilo označit jako přečtená. Zkuste to znovu."
+    "mark_all_read": "Oznámení se nepodařilo označit jako přečtená. Zkuste to znovu.",
+    "load_failed": "Oznámení se nepodařilo načíst. Zkuste to znovu.",
+    "list_stale": "Oznámení nemusí být aktuální. Zkuste to znovu.",
+    "access_denied": "K oznámením nemáte přístup."
+  },
+  "status": {
+    "retrying": "Oznámení se načítají znovu."
   },
   "pagination": {
     "page_of": "Strana {{page}} z {{total}}"

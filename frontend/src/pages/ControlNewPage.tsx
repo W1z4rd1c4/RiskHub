@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ControlForm } from '@/components/control-form/ControlFormContainer';
+import type { ControlFormLocationState } from '@/components/control-form/useControlFormWorkflow';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { controlApi } from '@/services/controlApi';
@@ -13,6 +14,7 @@ import { vendorLinkApi } from '@/services/vendorLinkApi';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
 
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { combineCapabilityGateStates, useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import {
     coerceVendorContext,
@@ -28,6 +30,7 @@ export function ControlNewPage() {
         searchParams.get('return_to'),
     );
     const isVendorContext = vendorId !== null && returnTo !== null;
+    const controlListReturnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/controls');
     const [vendorContextState, setVendorContextState] = useState<'loading' | 'allowed' | 'denied'>(
         isVendorContext ? 'loading' : 'allowed',
     );
@@ -78,16 +81,26 @@ export function ControlNewPage() {
         });
     };
 
-    const handleVendorContextSuccess = async (controlId: number) => {
+    const handleVendorContextSuccess = async (
+        controlId: number,
+        _locationState?: ControlFormLocationState,
+        acceptNavigation?: () => void,
+    ) => {
         if (!vendorId || !returnTo) {
+            acceptNavigation?.();
             void navigate(`/controls/${controlId}`);
             return;
         }
 
+        const finish = (flash: VendorDetailFlash) => {
+            acceptNavigation?.();
+            navigateToVendor(flash);
+        };
+
         try {
             const result = await vendorLinkApi.linkControl(vendorId, controlId);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToVendor({
+                finish({
                     tone: 'warn',
                     message: t('vendors:links.controls.created_but_not_linked'),
                     ctaHref: `/controls/${controlId}`,
@@ -95,7 +108,7 @@ export function ControlNewPage() {
                 });
                 return;
             }
-            navigateToVendor({
+            finish({
                 tone: 'success',
                 message: t('vendors:links.controls.created_and_linked'),
                 ctaHref: `/controls/${controlId}`,
@@ -103,7 +116,7 @@ export function ControlNewPage() {
             });
         } catch (error) {
             logError('Control created but failed to link vendor context.', error);
-            navigateToVendor({
+            finish({
                 tone: 'warn',
                 message: t('vendors:links.controls.created_but_not_linked'),
                 ctaHref: `/controls/${controlId}`,
@@ -118,7 +131,7 @@ export function ControlNewPage() {
         <div className="space-y-8">
             <div className="flex flex-col gap-2">
                 <button
-                    onClick={() => navigate(isVendorContext ? returnTo! : '/controls')}
+                    onClick={() => navigate(isVendorContext ? returnTo! : controlListReturnTo)}
                     className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest mb-2"
                 >
                     <ArrowLeft className="h-3 w-3" />
@@ -138,8 +151,13 @@ export function ControlNewPage() {
                 >
                     <ControlForm
                         allowRiskLinking={!isVendorContext}
-                        onSuccess={isVendorContext ? handleVendorContextSuccess : undefined}
-                        onCancel={isVendorContext ? () => navigate(returnTo!) : undefined}
+                        onSuccess={isVendorContext
+                            ? handleVendorContextSuccess
+                            : (controlId, locationState) => navigate(
+                                appendRegisterReturnTo(`/controls/${controlId}`, controlListReturnTo),
+                                locationState ? { state: locationState } : undefined,
+                            )}
+                        onCancel={() => navigate(isVendorContext ? returnTo! : controlListReturnTo)}
                         firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
                     />
                 </motion.div>

@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Link as LinkIcon, Plus } from 'lucide-react';
+import { CheckCircle2, Link as LinkIcon, Plus, TriangleAlert } from 'lucide-react';
 
 import { ControlCreateDialog } from '@/components/ControlCreateDialog';
+import type { ControlFormLocationState } from '@/components/control-form/useControlFormWorkflow';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { ControlGaugeCard } from '@/components/controls/ControlGaugeCard';
 import { useTranslation } from '@/i18n/hooks';
@@ -51,6 +53,7 @@ export function RiskLinkedControlsSection({
     canUnlinkControls,
 }: RiskLinkedControlsSectionProps) {
     const { t } = useTranslation(['risks', 'common']);
+    const [controlFlash, setControlFlash] = useState<ControlFormLocationState['controlFlash'] | null>(null);
     const hasControls = activeControls.length > 0 || draftControls.length > 0 || archivedControls.length > 0;
 
     return (
@@ -90,6 +93,16 @@ export function RiskLinkedControlsSection({
                     </div>
                 )}
             </div>
+
+            {controlFlash && (
+                <div
+                    role="status"
+                    className="mb-6 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100"
+                >
+                    <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
+                    <span>{controlFlash.message}</span>
+                </div>
+            )}
 
             {!hasControls ? (
                 <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl">
@@ -156,8 +169,9 @@ export function RiskLinkedControlsSection({
             <ControlCreateDialog
                 isOpen={isCreateDialogOpen}
                 onClose={() => setIsCreateDialogOpen(false)}
-                onSuccess={() => {
+                onSuccess={(_controlId, locationState) => {
                     setIsCreateDialogOpen(false);
+                    setControlFlash(locationState?.controlFlash ?? null);
                     onRefreshData();
                 }}
             />

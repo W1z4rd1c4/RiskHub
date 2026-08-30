@@ -1,10 +1,9 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft,
     Edit,
     Trash2,
     Star,
-    AlertTriangle,
     History,
     FileText,
     Target,
@@ -22,14 +21,18 @@ import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuesti
 import { useTranslation } from '@/i18n/hooks';
 import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
+import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
-import { useRiskDetailState } from '@/pages/detail/useRiskDetailState';
-import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
+import { riskDetailTabs, useRiskDetailState } from '@/pages/detail/useRiskDetailState';
 import { getRiskDisplayStatus } from '@/pages/risks/risksPagePresentation';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from '@/pages/shared/registerReturnContext';
+import { useContentTabs } from '@/hooks/useContentTabs';
 
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/risks');
     const { t } = useTranslation('common');
     const { t: tIssues } = useTranslation('issues');
     const { getColor, getDisplayName } = useRiskTypes();
@@ -37,7 +40,6 @@ export function RiskDetailPage() {
         activeTab,
         approvalMessage,
         dialogMode,
-        errorKey,
         handleArchive,
         handleLinkControl,
         handleRestore,
@@ -45,17 +47,18 @@ export function RiskDetailPage() {
         isCreateDialogOpen,
         isDeleteDialogOpen,
         isDeleting,
-        isAccessDenied,
         isHistoryLoading,
         isIssueModalOpen,
         isLinkDialogOpen,
-        isLoading,
+        isRetrying,
         kriHistoryItems,
         linkErrorKey,
         linkedControls,
         linkedVendors,
+        loadOutcome,
         overdueKRIs,
         refreshData,
+        resourceId,
         risk,
         setActiveTab,
         setApprovalMessage,
@@ -65,7 +68,13 @@ export function RiskDetailPage() {
         setIsIssueModalOpen,
         setIsLinkDialogOpen,
         setLinkErrorKey,
-    } = useRiskDetailState({ rawId: id });
+    } = useRiskDetailState({ rawId: id, returnTo });
+    const { getPanelProps, getTabProps } = useContentTabs({
+        tabs: riskDetailTabs,
+        activeTab,
+        onChange: setActiveTab,
+        idPrefix: 'risk-detail',
+    });
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -76,7 +85,7 @@ export function RiskDetailPage() {
     };
 
 
-    if (isLoading) {
+    if (loadOutcome === 'loading') {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4" aria-busy="true" data-loading="true">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
@@ -85,31 +94,14 @@ export function RiskDetailPage() {
         );
     }
 
-    if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
-    }
-
-    if (errorKey || !risk) {
+    if (loadOutcome === 'unavailable' || !risk) {
         return (
-            <div className="glass-card flex flex-col items-center justify-center p-20 text-center gap-4">
-                <div className="bg-rose-500/20 p-4 rounded-full">
-                    <AlertTriangle className="h-10 w-10 text-rose-500" />
-                </div>
-                <div>
-                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">{t('access.risk_not_found')}</h3>
-                    <p className="text-slate-500 mt-2 font-medium">
-                        {errorKey ? t(errorKey, { ns: 'errorKeys' }) : t('errors.not_found')}
-                    </p>
-                </div>
-                <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => navigate('/risks')}
-                    className="mt-4 font-bold"
-                >
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t('navigation:tabs.risks')}
-                </Button>
-            </div>
+            <DetailLoadUnavailableState
+                backLabel={t('navigation:tabs.risks')}
+                isRetrying={isRetrying}
+                onBack={() => navigate(returnTo)}
+                onRetry={resourceId === null ? undefined : () => void refreshData()}
+            />
         );
     }
 
@@ -121,6 +113,9 @@ export function RiskDetailPage() {
 
     return (
         <div className="space-y-8">
+            {loadOutcome === 'stale-with-error' ? (
+                <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void refreshData()} />
+            ) : null}
             {/* Approval/Error Message Banner */}
             {approvalMessage && (
                 <DetailActionBanner
@@ -157,7 +152,7 @@ export function RiskDetailPage() {
                     <Button
                         type="button"
                         variant="secondary"
-                        onClick={() => navigate('/risks')}
+                        onClick={() => navigate(returnTo)}
                         className="text-xs font-black uppercase tracking-widest"
                     >
                         <ArrowLeft className="h-3 w-3" aria-hidden="true" /> {t('risks:actions.back_to_register')}
@@ -194,7 +189,7 @@ export function RiskDetailPage() {
                             type="button"
                             variant="secondary"
                             size="icon"
-                            onClick={() => navigate(`/risks/${risk.id}/edit`)}
+                            onClick={() => navigate(appendRegisterReturnTo(`/risks/${risk.id}/edit`, returnTo))}
                             title={t('risks:edit_risk')}
                             aria-label={t('risks:edit_risk')}
                         >
@@ -233,9 +228,9 @@ export function RiskDetailPage() {
             />
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10">
+            <div className="flex items-center gap-2 border-b border-white/10" role="tablist" aria-label={risk.name}>
                 <button
-                    onClick={() => setActiveTab('overview')}
+                    {...getTabProps('overview', 0)}
                     className={`px-6 py-3 font-bold transition-colors ${activeTab === 'overview'
                         ? 'text-accent-text border-b-2 border-accent'
                         : 'text-muted-foreground hover:text-foreground'
@@ -245,7 +240,7 @@ export function RiskDetailPage() {
                     {t('risks:tabs.overview')}
                 </button>
                 <button
-                    onClick={() => setActiveTab('history')}
+                    {...getTabProps('history', 1)}
                     className={`px-6 py-3 font-bold transition-colors ${activeTab === 'history'
                         ? 'text-accent-text border-b-2 border-accent'
                         : 'text-muted-foreground hover:text-foreground'
@@ -255,7 +250,7 @@ export function RiskDetailPage() {
                     {t('risks:tabs.history')}
                 </button>
                 <button
-                    onClick={() => setActiveTab('assessment')}
+                    {...getTabProps('assessment', 2)}
                     className={`px-6 py-3 font-bold transition-colors ${activeTab === 'assessment'
                         ? 'text-accent-text border-b-2 border-accent'
                         : 'text-muted-foreground hover:text-foreground'
@@ -267,8 +262,8 @@ export function RiskDetailPage() {
             </div>
 
             {/* Overview Tab */}
-            {activeTab === 'overview' && (
-                <RiskDetailOverviewTab
+            <div {...getPanelProps('overview')}>
+                {activeTab === 'overview' && <RiskDetailOverviewTab
                     risk={risk}
                     linkedControls={linkedControls}
                     linkedVendors={linkedVendors}
@@ -289,22 +284,22 @@ export function RiskDetailPage() {
                     setDialogMode={setDialogMode}
                     isCreateDialogOpen={isCreateDialogOpen}
                     setIsCreateDialogOpen={setIsCreateDialogOpen}
-                />
-            )}
+                />}
+            </div>
 
             {/* History Tab */}
-            {activeTab === 'history' && (
-                <RiskDetailKriHistoryTab
+            <div {...getPanelProps('history')}>
+                {activeTab === 'history' && <RiskDetailKriHistoryTab
                     items={kriHistoryItems}
                     loading={isHistoryLoading}
                     hasKRIs={!!(risk.kris && risk.kris.length > 0)}
-                />
-            )}
+                />}
+            </div>
 
             {/* Risk Assessment Tab */}
-            {activeTab === 'assessment' && (
-                <RiskDetailQuestionnairesTab risk={risk} />
-            )}
+            <div {...getPanelProps('assessment')}>
+                {activeTab === 'assessment' && <RiskDetailQuestionnairesTab risk={risk} />}
+            </div>
 
             {/* Delete Confirmation Dialog */}
             <ConfirmDialog

@@ -3,7 +3,10 @@ import { Link as LinkIcon } from 'lucide-react';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedRisk } from '@/types/vendorLink';
 
-import { VendorLinkedEntitiesTab } from './VendorLinkedEntitiesTab';
+import {
+    VendorLinkedEntitiesTab,
+    type VendorLinkedRegionSummary,
+} from './VendorLinkedEntitiesTab';
 import { VendorLinkedRiskCard } from './VendorLinkedRiskCard';
 
 const risksAdapter = {
@@ -30,9 +33,10 @@ interface VendorLinkedRisksTabProps {
     protectedChangeRequiresApproval: boolean;
     onAddRisk: () => void;
     onNavigateToRisk: (riskId: number) => void;
+    onCollectionStateChange?: (summary: VendorLinkedRegionSummary) => void;
 }
 
-export function VendorLinkedRisksTab({ vendorId, canCreateRisk, canEdit, protectedChangeRequiresApproval, onAddRisk, onNavigateToRisk }: VendorLinkedRisksTabProps) {
+export function VendorLinkedRisksTab({ vendorId, canCreateRisk, canEdit, protectedChangeRequiresApproval, onAddRisk, onNavigateToRisk, onCollectionStateChange }: VendorLinkedRisksTabProps) {
     return (
         <VendorLinkedEntitiesTab
             adapter={risksAdapter}
@@ -44,6 +48,7 @@ export function VendorLinkedRisksTab({ vendorId, canCreateRisk, canEdit, protect
             icon={<LinkIcon className="h-5 w-5 text-accent-text" />}
             linkDialogMode="control-to-risk"
             onAdd={onAddRisk}
+            onCollectionStateChange={onCollectionStateChange}
             onNavigate={onNavigateToRisk}
             renderCard={(risk, onClick) => <VendorLinkedRiskCard key={risk.id} risk={risk} onClick={onClick} />}
             vendorId={vendorId}

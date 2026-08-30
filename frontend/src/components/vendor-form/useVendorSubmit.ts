@@ -22,6 +22,7 @@ interface UseVendorSubmitOptions {
     onApprovalQueued?: (queued: ProcessApprovalQueuedResponse) => void;
     requestReason: string;
     requestReasonRequired: boolean;
+    onAccepted: () => void;
     onValidationError?: (field: VendorFormField | 'request_reason') => void;
     setError: (value: string | null) => void;
     setRequestReasonError: (value: string | null) => void;
@@ -37,6 +38,7 @@ export function useVendorSubmit({
     onApprovalQueued,
     requestReason,
     requestReasonRequired,
+    onAccepted,
     onValidationError,
     setError,
     setRequestReasonError,
@@ -80,6 +82,7 @@ export function useVendorSubmit({
                         ...(buildVendorPayload(formData) as VendorCreate),
                         ...requestReasonPayload,
                     });
+            onAccepted();
             if (isProcessApprovalQueuedResponse(saved)) {
                 onApprovalQueued?.(saved);
                 return;

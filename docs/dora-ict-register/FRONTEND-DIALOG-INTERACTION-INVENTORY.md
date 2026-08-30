@@ -15,11 +15,11 @@ The current validated tree contains:
 | Level | Meaning | Current validated count |
 |---|---|---:|
 | `implementation_surface` | A component that implements `DialogShell`, including inline owners and the transparent `RiskHubModalFrame` wrapper | 26 |
-| `application_render_site` | A concrete production consumer of an implementation surface | 54 |
+| `application_render_site` | A concrete production consumer of an implementation surface | 55 |
 | `non_dialog_surface` | An overlay-like surface with a different interaction contract | 5 |
 | executable unit contract case | A unique implementation or consumer-specific variant, plus the production loading overlay | 29 |
 
-The 54 render sites include all shared-dialog call sites and the three concrete
+The 55 render sites include all shared-dialog call sites and the three concrete
 `RiskHubModalFrame` consumers. The generic frame is not counted as a substitute
 for those consumers.
 
@@ -71,9 +71,9 @@ no copied test-only overlay markup.
 ### Browser render-site matrix
 
 `tests/frontend/e2e/dialog-render-sites.spec.ts` reads the same manifest and
-creates one Playwright test for each of the 54 `application_render_site` rows,
+creates one Playwright test for each of the 55 `application_render_site` rows,
 plus a registry-integrity assertion that proves exact driver/manifest equality.
-The 23 component-owned render sites open through owner harnesses that mount the
+The 24 component-owned render sites open through owner harnesses that mount the
 production source parents; the 31 page-owned sites drive real authenticated
 application routes. No driver mounts a leaf dialog directly. Every render-site
 case verifies semantic role/name, initial focus, forward and reverse focus

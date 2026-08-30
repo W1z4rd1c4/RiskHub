@@ -1,27 +1,14 @@
-import { MemoryRouter } from 'react-router-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
+import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 
 const fetchOverviewMock = vi.fn();
 const fetchDashboardSummaryMock = vi.fn();
 const downloadSummaryCsvMock = vi.fn();
-const setDepartmentIdMock = vi.fn();
 let canViewCommitteeMock = false;
-let dashboardFiltersMock = {
-    departmentId: null as number | null,
-    riskLevel: 'all' as const,
-    controlStatus: null as string | null,
-    controlForm: null as string | null,
-};
-
-vi.mock('@/contexts/DashboardFilterContext', () => ({
-    useDashboardFilters: () => ({
-        filters: dashboardFiltersMock,
-        setDepartmentId: setDepartmentIdMock,
-    }),
-}));
 
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({
@@ -82,20 +69,33 @@ function createWrapper() {
     const queryClient = createTestQueryClient();
 
     return function Wrapper({ children }: { children: React.ReactNode }) {
-        return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+        return (
+            <QueryClientProvider client={queryClient}>
+                <DashboardFilterProvider>{children}</DashboardFilterProvider>
+            </QueryClientProvider>
+        );
     };
+}
+
+function LocationProbe() {
+    const location = useLocation();
+    return <output data-testid="location">{location.pathname}{location.search}{location.hash}</output>;
+}
+
+function createDeferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((promiseResolve, promiseReject) => {
+        resolve = promiseResolve;
+        reject = promiseReject;
+    });
+    return { promise, reject, resolve };
 }
 
 describe('DashboardPage overview aggregation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         canViewCommitteeMock = false;
-        dashboardFiltersMock = {
-            departmentId: null,
-            riskLevel: 'all',
-            controlStatus: null,
-            controlForm: null,
-        };
         fetchOverviewMock.mockResolvedValue({
             summary: {
                 total_controls: 10,
@@ -295,12 +295,6 @@ describe('DashboardPage overview aggregation', () => {
     });
 
     it('clears stale hidden department focus when backend capability denies filtering', async () => {
-        dashboardFiltersMock = {
-            departmentId: 10,
-            riskLevel: 'all',
-            controlStatus: null,
-            controlForm: null,
-        };
         fetchOverviewMock.mockResolvedValueOnce({
             summary: {
                 total_controls: 10,
@@ -333,23 +327,18 @@ describe('DashboardPage overview aggregation', () => {
         });
 
         render(
-            <MemoryRouter>
+            <MemoryRouter initialEntries={['/?departmentId=10&viewMode=department']}>
                 <DashboardPage />
+                <LocationProbe />
             </MemoryRouter>,
             { wrapper: createWrapper() },
         );
 
-        await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
-        await waitFor(() => expect(setDepartmentIdMock).toHaveBeenCalledWith(null));
+        await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalled());
+        await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/?viewMode=department'));
     });
 
     it('exports summary without hidden department focus when filtering is disallowed', async () => {
-        dashboardFiltersMock = {
-            departmentId: 10,
-            riskLevel: 'all',
-            controlStatus: null,
-            controlForm: null,
-        };
         fetchOverviewMock.mockResolvedValueOnce({
             summary: {
                 total_controls: 10,
@@ -382,17 +371,53 @@ describe('DashboardPage overview aggregation', () => {
         });
 
         render(
-            <MemoryRouter>
+            <MemoryRouter initialEntries={['/?departmentId=10&viewMode=department']}>
                 <DashboardPage />
+                <LocationProbe />
             </MemoryRouter>,
             { wrapper: createWrapper() },
         );
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
-        await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
-
-        fireEvent.click(screen.getByTitle('actions.export_summary_excel'));
+        await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/?viewMode=department'));
+        fireEvent.click(await screen.findByTitle('actions.export_summary_excel'));
 
         expect(downloadSummaryCsvMock).toHaveBeenCalledWith({ departmentId: null });
+    });
+
+    it('announces a failed filtered export and retries the captured department without changing the URL', async () => {
+        const firstExport = createDeferred<void>();
+        downloadSummaryCsvMock
+            .mockReturnValueOnce(firstExport.promise)
+            .mockResolvedValueOnce(undefined);
+
+        render(
+            <MemoryRouter initialEntries={['/?departmentId=10&viewMode=department&source=audit#summary']}>
+                <DashboardPage />
+                <LocationProbe />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
+        const exportButton = await screen.findByTitle('actions.export_summary_excel');
+        const initialUrl = screen.getByTestId('location').textContent;
+        fireEvent.click(exportButton);
+
+        expect(exportButton).toBeDisabled();
+        await act(async () => {
+            firstExport.reject(new Error('dashboard export unavailable'));
+        });
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('export.errors.failed');
+        expect(screen.getByTestId('location')).toHaveTextContent(initialUrl ?? '');
+
+        fireEvent.click(screen.getByRole('button', { name: 'actions.retry' }));
+
+        await waitFor(() => expect(downloadSummaryCsvMock).toHaveBeenCalledTimes(2));
+        expect(downloadSummaryCsvMock).toHaveBeenNthCalledWith(1, { departmentId: 10 });
+        expect(downloadSummaryCsvMock).toHaveBeenNthCalledWith(2, { departmentId: 10 });
+        await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+        expect(screen.getByTestId('location')).toHaveTextContent(initialUrl ?? '');
     });
 });

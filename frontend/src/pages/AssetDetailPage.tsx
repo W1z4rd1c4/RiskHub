@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -15,8 +15,8 @@ import type { Asset } from '@/types/asset';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 
+import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
-import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { AssetForm } from './assets/AssetForm';
 import { AssetLinkSections } from './assets/AssetLinkSections';
@@ -33,6 +33,7 @@ import {
 } from './assets/assetsPagePresentation';
 import { getAssetStatusColor } from './assets/assetColumns';
 import { useAssetDetailState, type AssetDetailMode } from './assets/useAssetDetailState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 interface AssetDetailPageProps {
     mode?: AssetDetailMode;
@@ -78,6 +79,9 @@ function DerivedPillField({
 
 export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/assets');
+    const assetDetailPath = (assetId: number) => appendRegisterReturnTo(`/assets/${assetId}`, returnTo);
     const { t, i18n } = useTranslation('assets');
     const { t: tCommon } = useTranslation('common');
     const authz = useAuthz();
@@ -91,13 +95,13 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         canArchive,
         canEdit,
         canRestore,
-        error,
         fetchAsset,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
+        assetId,
         restoreAsset,
         setAsset,
-    } = useAssetDetailState({ mode, notFoundMessage: t('errors.not_found') });
+    } = useAssetDetailState({ mode });
 
     const createGateState = useCreateCapabilityGate({
         enabled: mode === 'new',
@@ -116,7 +120,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
                 return;
             }
-            void navigate('/assets');
+            void navigate(returnTo);
         } catch (archiveError) {
             logError('Failed to archive asset:', archiveError);
             setActionError(t('errors.archive_failed'));
@@ -152,7 +156,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         type="button"
                         variant="secondary"
                         size="icon"
-                        onClick={() => navigate('/assets')}
+                        onClick={() => navigate(returnTo)}
                         aria-label={t('actions.back_to_register')}
                         className="shrink-0"
                     >
@@ -164,52 +168,45 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     </div>
                 </div>
                 <AssetForm
-                    onSaved={(saved: Asset) => navigate(`/assets/${saved.id}`)}
+                    onSaved={(saved: Asset) => navigate(assetDetailPath(saved.id))}
                     onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
-                    onCancel={() => navigate('/assets')}
+                    onCancel={() => navigate(returnTo)}
                 />
             </div>
         );
     }
 
-    if (isLoading) {
+    if (loadOutcome === 'loading') {
         return (
             <div className="glass-card animate-pulse text-sm text-slate-400">{tCommon('loading.generic')}</div>
         );
     }
 
-    if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
-    }
-
-    if (error || !asset) {
+    if (loadOutcome === 'unavailable' || !asset) {
         return (
-            <div className="glass-card space-y-4">
-                <div className="flex items-start gap-3 text-rose-300">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{error ?? t('errors.not_found')}</p>
-                </div>
-                <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => navigate('/assets')}
-                    className="font-semibold"
-                >
-                    {t('actions.back_to_register')}
-                </Button>
-            </div>
+            <DetailLoadUnavailableState
+                backLabel={t('actions.back_to_register')}
+                isRetrying={isRetrying}
+                onBack={() => navigate(returnTo)}
+                onRetry={assetId === null ? undefined : () => void fetchAsset()}
+            />
         );
     }
+
+    const staleWarning = loadOutcome === 'stale-with-error' ? (
+        <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchAsset()} />
+    ) : null;
 
     if (mode === 'edit') {
         if (resolveCapabilityFlag(asset.capabilities, 'business_edit_blocked')) {
             return (
                 <div className="space-y-8">
+                    {staleWarning}
                     <Button
                         type="button"
                         variant="secondary"
                         size="icon"
-                        onClick={() => navigate(`/assets/${asset.id}`)}
+                        onClick={() => navigate(assetDetailPath(asset.id))}
                         aria-label={t('actions.back_to_register')}
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -228,11 +225,12 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         if (asset.ownership_status === 'pending_governance') {
             return (
                 <div className="space-y-8">
+                    {staleWarning}
                     <Button
                         type="button"
                         variant="secondary"
                         size="icon"
-                        onClick={() => navigate(`/assets/${asset.id}`)}
+                        onClick={() => navigate(assetDetailPath(asset.id))}
                         aria-label={t('actions.back_to_register')}
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -249,12 +247,13 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         }
         return (
             <div className="space-y-8">
+                {staleWarning}
                 <div className="flex items-start gap-3">
                     <Button
                         type="button"
                         variant="secondary"
                         size="icon"
-                        onClick={() => navigate(`/assets/${asset.id}`)}
+                        onClick={() => navigate(assetDetailPath(asset.id))}
                         aria-label={t('actions.back_to_register')}
                         className="shrink-0"
                     >
@@ -270,10 +269,10 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     isEdit
                     onSaved={(saved: Asset) => {
                         setAsset(saved);
-                        void navigate(`/assets/${saved.id}`);
+                        void navigate(assetDetailPath(saved.id));
                     }}
                     onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
-                    onCancel={() => navigate(`/assets/${asset.id}`)}
+                    onCancel={() => navigate(assetDetailPath(asset.id))}
                 />
             </div>
         );
@@ -283,6 +282,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
 
     return (
         <div className="space-y-8">
+            {staleWarning}
             {actionError ? (
                 <div className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -310,7 +310,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         type="button"
                         variant="secondary"
                         size="icon"
-                        onClick={() => navigate('/assets')}
+                        onClick={() => navigate(returnTo)}
                         data-testid="asset-detail-back"
                         aria-label={t('actions.back_to_register')}
                         className="shrink-0"
@@ -356,7 +356,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         <Button
                             type="button"
                             variant="secondary"
-                            onClick={() => navigate(`/assets/${asset.id}/edit`)}
+                            onClick={() => navigate(appendRegisterReturnTo(`/assets/${asset.id}/edit`, returnTo))}
                             data-testid="asset-detail-edit"
                         >
                             <Pencil className="h-4 w-4" aria-hidden="true" />

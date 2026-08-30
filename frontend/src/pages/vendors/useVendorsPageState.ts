@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { SortDirection } from '@/components/tables';
@@ -16,7 +16,6 @@ import type {
 } from '@/types/vendor';
 
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
-import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import {
     getTotalPages,
     useCollectionDataState,
@@ -25,6 +24,7 @@ import {
 import type { VendorSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 import {
     buildRegisterUrlParams,
+    normalizeRegisterUrlParams,
     parseRegisterUrlState,
     type RegisterSortState,
 } from '../shared/registerListQuery';
@@ -77,25 +77,19 @@ export function useVendorsPageState(
     const sort = validSort(urlState.sort);
     const groupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [localCurrentPage, setLocalCurrentPage] = useState(1);
-    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
-        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
-    });
+    const currentPage = urlState.page;
     const [facets, setFacets] = useState<VendorFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
         applyFailure,
         applySuccess,
-        capabilities,
-        errorKey,
-        groups,
-        hasLoadedOnce,
-        isAccessDenied,
-        isLoading,
-        items,
+        beginQuery,
+        commitQueryIdentity,
+        forQuery,
+        isLoading: collectionIsLoading,
+        isQueryCurrent,
         setErrorKey,
         setIsLoading,
-        totalCount,
     } = useCollectionDataState<Vendor, VendorListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
@@ -126,14 +120,21 @@ export function useVendorsPageState(
         sort,
         view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, groupValue, sort, viewMode]);
+    const queryIdentity = JSON.stringify(listParams);
+    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const queryState = forQuery(queryIdentity);
+    const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const visibleFacets = queryState.isCurrentQuery ? facets : {};
 
     const fetchVendors = useCallback(async () => {
         const currentRequest = beginRequest();
+        if (!beginQuery(queryIdentity)) setFacets({});
         setIsLoading(true);
         try {
             const response = await vendorApi.getVendors(listParams);
             if (!isCurrentRequest(currentRequest)) return;
-            applySuccess({
+            applySuccess(queryIdentity, {
                 items: response.items,
                 groups: response.groups ?? [],
                 capabilities: response.capabilities ?? null,
@@ -143,17 +144,25 @@ export function useVendorsPageState(
         } catch (error) {
             if (!isCurrentRequest(currentRequest)) return;
             const patch = applyFailure(error, {
-                clearOnNonForbidden: true,
                 fallbackErrorKey: 'errors.load_failed',
                 toErrorKey: apiClient.toUiMessageKey.bind(apiClient),
             });
-            if (patch.items || patch.isAccessDenied) setFacets({});
+            if (patch.isAccessDenied) setFacets({});
         } finally {
             if (isCurrentRequest(currentRequest)) setIsLoading(false);
         }
-    }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
+    }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => { if (!isDepartmentScoped) setLocalCurrentPage(1); }, [isDepartmentScoped, serializedParams]);
+    useEffect(() => {
+        const params = new URLSearchParams(serializedParams);
+        if (!normalizeRegisterUrlParams(params, {
+            allowedSortFields: VENDOR_SORT_FIELDS,
+            allowedViews: VENDOR_VIEWS,
+            canonicalizeFilters: (rawFilters) => serializeVendorRegisterFilters(parseVendorRegisterFilters(rawFilters)),
+            defaultView: 'all',
+        })) return;
+        setSearchParams(params, { replace: true });
+    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchVendors(); }, [fetchVendors]);
 
     const writeUrl = useCallback((next: {
@@ -165,14 +174,21 @@ export function useVendorsPageState(
     }, replace = false) => {
         const params = buildRegisterUrlParams({
             filters: serializeVendorRegisterFilters(next.filters ?? filters),
+            page: 1,
             search: next.search ?? urlState.search,
             selectedGroupValue: next.group === undefined ? groupValue : next.group,
             sort: next.sort === undefined ? sort : next.sort,
             view: next.view ?? viewMode,
         }, new URLSearchParams(serializedParams));
-        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
-        if (!isDepartmentScoped) setCurrentPage(1);
-    }, [filters, groupValue, isDepartmentScoped, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(params, { replace });
+    }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+
+    const setCurrentPage = useCallback((page: number) => {
+        const params = new URLSearchParams(serializedParams);
+        if (page > 1) params.set('page', String(page));
+        else params.delete('page');
+        setSearchParams(params);
+    }, [serializedParams, setSearchParams]);
 
     useEffect(() => {
         if (
@@ -190,13 +206,14 @@ export function useVendorsPageState(
     ) => writeUrl({ filters: { ...filters, [key]: value }, group: null }), [filters, writeUrl]);
 
     const restoreVendor = useCallback(async (vendorId: number) => {
+        const restoreQueryIdentity = queryIdentity;
         try {
             await vendorApi.restoreVendor(vendorId);
-            await fetchVendors();
+            if (isQueryCurrent(restoreQueryIdentity)) await fetchVendors();
         } catch (error) {
-            setErrorKey(apiClient.toUiMessageKey(error));
+            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
         }
-    }, [fetchVendors, setErrorKey]);
+    }, [fetchVendors, isQueryCurrent, queryIdentity, setErrorKey]);
 
     const exportVendors = useCallback(async () => {
         setIsExporting(true);
@@ -207,12 +224,10 @@ export function useVendorsPageState(
                 limit: DEFAULT_LIST_PAGE_SIZE,
                 search: urlState.search.trim() || undefined,
             }, language);
-        } catch (error) {
-            setErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setIsExporting(false);
         }
-    }, [language, listParams, setErrorKey, urlState.search]);
+    }, [language, listParams, urlState.search]);
 
     return {
         capabilities,
@@ -221,7 +236,7 @@ export function useVendorsPageState(
         currentPage,
         errorKey,
         exportVendors,
-        facets,
+        facets: visibleFacets,
         fetchVendors,
         filters,
         groups,

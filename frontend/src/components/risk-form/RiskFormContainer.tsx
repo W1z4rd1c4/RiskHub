@@ -29,7 +29,7 @@ import { useRiskLookups } from './useRiskLookups';
 interface RiskFormProps {
     initialData?: Risk;
     isEdit?: boolean;
-    onSuccess?: (riskId: number) => void | Promise<void>;
+    onSuccess?: (riskId: number, acceptNavigation?: () => void) => void | Promise<void>;
     onCancel?: () => void;
     firstStepBackLabel?: string;
 }
@@ -65,6 +65,7 @@ export function RiskForm({
 
     const {
         approvalQueued,
+        confirmationDialog,
         currentStep,
         error,
         fieldErrors,
@@ -73,6 +74,7 @@ export function RiskForm({
         handleInputChange,
         nextStep,
         prevStep,
+        requestLocalLeave,
         setApprovalQueued,
         setCurrentStep,
         submit,
@@ -94,12 +96,13 @@ export function RiskForm({
     const uniqueRoles = getUniqueRiskOwnerRoles(users);
 
     return (
+        <>
         <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
             {/* Multi-step indicator */}
             <StepIndicator
                 steps={steps}
                 currentStep={currentStep}
-                isStepClickable={(idx) => isEdit || idx < currentStep}
+                isStepClickable={(idx) => !isSubmitting && (isEdit || idx < currentStep)}
                 onStepClick={(idx) => setCurrentStep(idx)}
             />
 
@@ -122,7 +125,7 @@ export function RiskForm({
                     </div>
                 )}
 
-                <div className="flex-1 space-y-6">
+                <fieldset disabled={isSubmitting} className="min-w-0 flex-1 space-y-6">
                     {currentStep === 0 && (
                         <RiskFormIdentityStep
                             t={t}
@@ -165,19 +168,23 @@ export function RiskForm({
                         />
                     )}
 
-                </div>
+                </fieldset>
 
                 {/* Footer Controls */}
                 <div className="mt-12 flex justify-between items-center pt-8 border-t border-white/5">
                     <button
                         type="button"
+                        aria-disabled={isSubmitting}
                         onClick={() => {
+                            if (isSubmitting) return;
                             if (currentStep === 0) {
-                                if (onCancel) {
-                                    onCancel();
-                                } else {
-                                    void navigate('/risks');
-                                }
+                                requestLocalLeave(() => {
+                                    if (onCancel) {
+                                        onCancel();
+                                    } else {
+                                        void navigate('/risks');
+                                    }
+                                });
                                 return;
                             }
                             prevStep();
@@ -191,7 +198,11 @@ export function RiskForm({
                     {currentStep < steps.length - 1 ? (
                         <button
                             type="button"
-                            onClick={nextStep}
+                            aria-disabled={isSubmitting}
+                            onClick={(event) => {
+                                if (isSubmitting) return;
+                                nextStep(event);
+                            }}
                             data-testid="risk-form-next-button"
                             className="btn-primary"
                         >
@@ -210,6 +221,8 @@ export function RiskForm({
                     )}
                 </div>
             </div>
-        </form >
+        </form>
+        {confirmationDialog}
+        </>
     );
 }

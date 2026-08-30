@@ -9,6 +9,7 @@ import { riskApi } from '@/services/riskApi';
 import type { DetailActionMessage } from '@/pages/detail/DetailActionBanner';
 import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
+import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 import type { HistoryTimelineItem } from '@/types/history';
 import type { OverdueKRI } from '@/types/kri';
 import type { ControlEffectiveness, Risk, RiskControlLink } from '@/types/risk';
@@ -18,6 +19,7 @@ import { buildRiskKriHistoryItems } from './riskDetailHistory';
 
 export type RiskDetailTabView = 'overview' | 'history' | 'assessment';
 export type RiskLinkDialogMode = 'both' | 'search-only' | 'links-only';
+export const riskDetailTabs = ['overview', 'history', 'assessment'] as const;
 
 interface RiskDetailData {
     linkedControls: RiskControlLink[];
@@ -28,6 +30,7 @@ interface RiskDetailData {
 
 interface UseRiskDetailStateArgs {
     rawId: string | undefined;
+    returnTo: string;
 }
 
 async function loadRiskDetail(riskId: number): Promise<RiskDetailData> {
@@ -40,10 +43,13 @@ async function loadRiskDetail(riskId: number): Promise<RiskDetailData> {
     return { linkedControls, linkedVendors, overdueKRIs, risk };
 }
 
-export function useRiskDetailState({ rawId }: UseRiskDetailStateArgs) {
+export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) {
     const navigate = useNavigate();
     const { i18n, t } = useTranslation('common');
-    const [activeTab, setActiveTab] = useState<RiskDetailTabView>('overview');
+    const [activeTab, setActiveTab] = useContentTabQuery<RiskDetailTabView>({
+        tabs: riskDetailTabs,
+        defaultTab: 'overview',
+    });
     const [approvalMessage, setApprovalMessage] = useState<DetailActionMessage | null>(null);
     const [dialogMode, setDialogMode] = useState<RiskLinkDialogMode>('both');
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -55,9 +61,8 @@ export function useRiskDetailState({ rawId }: UseRiskDetailStateArgs) {
     const [linkErrorKey, setLinkErrorKey] = useState<string | null>(null);
 
     const {
-        errorKey,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         refetch,
         resource,
         resourceId,
@@ -66,7 +71,6 @@ export function useRiskDetailState({ rawId }: UseRiskDetailStateArgs) {
         entity: 'risk',
         rawId,
         load: loadRiskDetail,
-        toErrorKey: (error) => apiClient.toUiMessageKey(error),
     });
 
     const risk = resource?.risk ?? null;
@@ -120,10 +124,10 @@ export function useRiskDetailState({ rawId }: UseRiskDetailStateArgs) {
             archive: () => riskApi.deleteRisk(risk.id, reason || 'Archived by user'),
             approvalKey: 'risks:messages.archive_submitted_for_approval',
             closeDialog: () => setIsDeleteDialogOpen(false),
-            onImmediate: () => navigate('/risks'),
+            onImmediate: () => navigate(returnTo),
         });
         setIsDeleteDialogOpen(false);
-    }, [navigate, risk, runArchive]);
+    }, [navigate, returnTo, risk, runArchive]);
 
     const handleRestore = useCallback(async () => {
         if (!risk) return;
@@ -168,17 +172,16 @@ export function useRiskDetailState({ rawId }: UseRiskDetailStateArgs) {
         activeTab,
         approvalMessage,
         dialogMode,
-        errorKey,
-        isAccessDenied,
         isCreateDialogOpen,
         isDeleteDialogOpen,
         isDeleting,
         isHistoryLoading,
         isIssueModalOpen,
         isLinkDialogOpen,
-        isLoading,
+        isRetrying,
         kriHistoryItems,
         linkErrorKey,
+        loadOutcome,
         linkedControls: resource?.linkedControls ?? [],
         linkedVendors: resource?.linkedVendors ?? [],
         overdueKRIs: resource?.overdueKRIs ?? [],

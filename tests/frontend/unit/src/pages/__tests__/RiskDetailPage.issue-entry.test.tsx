@@ -1,8 +1,9 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RiskDetailPage } from '@/pages/RiskDetailPage';
 import { ApiClientError } from '@/services/apiClient';
 import { renderWithQueryClient as render } from '@test/render';
+import { createTestQueryClient } from '@test/queryClient';
 
 const mockNavigate = vi.fn();
 const mockGetRisk = vi.fn();
@@ -10,7 +11,9 @@ const mockGetLinkedControls = vi.fn();
 const mockGetLinkedVendors = vi.fn();
 const mockGetOverdue = vi.fn();
 const mockLinkControl = vi.fn();
+const mockDeleteRisk = vi.fn();
 let canIssueWrite = true;
+let mockSearchParams = new URLSearchParams();
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -18,6 +21,7 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useParams: () => ({ id: '7' }),
         useNavigate: () => mockNavigate,
+        useSearchParams: () => [mockSearchParams],
     };
 });
 
@@ -32,6 +36,7 @@ vi.mock('@/services/riskApi', () => ({
         getLinkedControls: (...args: unknown[]) => mockGetLinkedControls(...args),
         getLinkedVendors: (...args: unknown[]) => mockGetLinkedVendors(...args),
         linkControl: (...args: unknown[]) => mockLinkControl(...args),
+        deleteRisk: (...args: unknown[]) => mockDeleteRisk(...args),
     },
 }));
 
@@ -49,7 +54,17 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
 }));
 
 vi.mock('@/components/ConfirmDialog', () => ({
-    ConfirmDialog: () => null,
+    ConfirmDialog: ({
+        isOpen,
+        onConfirm,
+    }: {
+        isOpen: boolean;
+        onConfirm: (reason?: string) => void;
+    }) => isOpen ? (
+        <button type="button" onClick={() => onConfirm('Risk no longer applies')}>
+            confirm-risk-archive
+        </button>
+    ) : null,
 }));
 
 vi.mock('@/components/risks/RiskDetailOverviewTab', () => ({
@@ -83,6 +98,7 @@ describe('RiskDetailPage issue entry', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         canIssueWrite = true;
+        mockSearchParams = new URLSearchParams();
         mockGetRisk.mockImplementation(async () => ({
             id: 7,
             name: 'Liquidity Risk',
@@ -93,12 +109,15 @@ describe('RiskDetailPage issue entry', () => {
             kris: [],
             capabilities: {
                 can_create_issue: canIssueWrite,
+                can_update: true,
+                can_archive_immediately: true,
             },
         }));
         mockGetLinkedControls.mockResolvedValue([]);
         mockGetLinkedVendors.mockResolvedValue([]);
         mockGetOverdue.mockResolvedValue([]);
         mockLinkControl.mockResolvedValue({});
+        mockDeleteRisk.mockResolvedValue(undefined);
     });
 
     it('shows create-issue entry and opens contextual modal with business label', async () => {
@@ -144,7 +163,7 @@ describe('RiskDetailPage issue entry', () => {
         expect(screen.getByText('archived')).toBeInTheDocument();
     });
 
-    it('renders denied instead of not found when risk detail is forbidden', async () => {
+    it('renders the non-leaky unavailable state when risk detail is forbidden', async () => {
         mockGetRisk.mockRejectedValueOnce(
             new ApiClientError({
                 status: 403,
@@ -154,22 +173,41 @@ describe('RiskDetailPage issue entry', () => {
 
         render(<RiskDetailPage />);
 
-        await screen.findByRole('heading', { name: /access denied/i });
+        await screen.findByRole('heading', { name: /record unavailable/i });
+        expect(screen.queryByRole('heading', { name: /access denied/i })).not.toBeInTheDocument();
         expect(screen.queryByText('Risk Not Found')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 
     it('keeps the error-state back action non-submitting and operational', async () => {
-        mockGetRisk.mockRejectedValueOnce(
+        mockGetRisk.mockRejectedValue(
             new ApiClientError({ status: 500, messageKey: 'errorKeys.unexpected' })
         );
 
-        render(<RiskDetailPage />);
+        render(<RiskDetailPage />, {
+            queryClient: createTestQueryClient({ defaultOptions: { queries: { retryDelay: 0 } } }),
+        });
 
         const back = await screen.findByRole('button', { name: 'Risk Register' });
         expect(back).toHaveAttribute('type', 'button');
         fireEvent.click(back);
         expect(mockNavigate).toHaveBeenCalledWith('/risks');
+    });
+
+    it('keeps the safe Risk list return destination on visible Back and edit navigation', async () => {
+        const returnTo = '/risks?q=claims&view=department&page=3#group-heading';
+        mockSearchParams = new URLSearchParams({ return_to: returnTo });
+        render(<RiskDetailPage />);
+        await screen.findByText('Liquidity Risk');
+
+        fireEvent.click(screen.getByRole('button', { name: /back to register/i }));
+        expect(mockNavigate).toHaveBeenCalledWith(returnTo);
+
+        mockNavigate.mockClear();
+        fireEvent.click(screen.getByRole('button', { name: /edit risk/i }));
+        expect(mockNavigate).toHaveBeenCalledWith(
+            `/risks/7/edit?return_to=${encodeURIComponent(returnTo)}`,
+        );
     });
 
     it('exposes an adequate named action for dismissing a link error', async () => {
@@ -182,5 +220,18 @@ describe('RiskDetailPage issue entry', () => {
         expect(close).toHaveAttribute('type', 'button');
         fireEvent.click(close);
         expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
+    });
+
+    it('returns an immediately archived Risk to its exact validated list working set', async () => {
+        const returnTo = '/risks?q=liquidity&page=4#group-heading';
+        mockSearchParams = new URLSearchParams({ return_to: returnTo });
+        render(<RiskDetailPage />);
+        await screen.findByText('Liquidity Risk');
+
+        fireEvent.click(screen.getByRole('button', { name: /archive/i }));
+        fireEvent.click(await screen.findByRole('button', { name: 'confirm-risk-archive' }));
+
+        await waitFor(() => expect(mockDeleteRisk).toHaveBeenCalledWith(7, 'Risk no longer applies'));
+        expect(mockNavigate).toHaveBeenCalledWith(returnTo);
     });
 });

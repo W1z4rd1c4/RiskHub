@@ -26,7 +26,7 @@ export function ActivityLogPage() {
     const state = useActivityLogPageState();
     const readDenied = state.capabilities !== null && !resolveCapabilityFlag(state.capabilities, 'can_read');
 
-    if (state.errorType === 'access_denied' || readDenied) {
+    if (state.outcome.kind === 'denied' || readDenied) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <div className="p-4 bg-rose-500/10 rounded-2xl">
@@ -55,7 +55,8 @@ export function ActivityLogPage() {
                 </div>
                 <button
                     onClick={() => state.refresh()}
-                    className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-muted-foreground hover:text-foreground"
+                    disabled={state.isSearchSettling}
+                    className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-muted-foreground hover:text-foreground disabled:cursor-wait disabled:opacity-60"
                     title={t('tooltips.refresh_log')}
                     aria-label={t('tooltips.refresh_log')}
                 >
@@ -94,11 +95,11 @@ export function ActivityLogPage() {
                 viewMode={state.viewMode}
                 onViewModeChange={state.setViewMode}
                 selectedActorId={state.selectedActorId}
-                onActorChange={(id) => { state.setSelectedActorId(id); state.setPage(0); }}
+                onActorChange={state.setSelectedActorId}
                 selectedDepartmentId={state.selectedDepartmentId}
-                onDepartmentChange={(id) => { state.setSelectedDepartmentId(id); state.setPage(0); }}
+                onDepartmentChange={state.setSelectedDepartmentId}
                 selectedRiskId={state.selectedRiskId}
-                onRiskChange={(id) => { state.setSelectedRiskId(id); state.setPage(0); }}
+                onRiskChange={state.setSelectedRiskId}
                 actors={state.actors}
                 departments={state.departments}
                 risks={state.risks}
@@ -109,8 +110,7 @@ export function ActivityLogPage() {
             {/* Entries List */}
             <ActivityLogEntries
                 entries={state.entries}
-                isLoading={state.isLoading}
-                errorType={state.errorType}
+                outcome={state.outcome}
                 needsRiskSelection={state.needsRiskSelection}
                 onRetry={state.refresh}
             />

@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderWithoutProviders as render, screen, waitFor } from '@test/render';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { RiskForm } from '@/components/RiskForm';
 import { ControlForm } from '@/components/control-form/ControlFormContainer';
 // KRIForm import omitted - not used in current tests
@@ -155,11 +155,10 @@ describe('RiskForm UI - Approval Response Handling', () => {
 
         const mockRisk = createMockRisk();
 
-        render(
-            <MemoryRouter initialEntries={['/risks/1/edit']}>
-                <RiskForm initialData={mockRisk} isEdit={true} />
-            </MemoryRouter>
-        );
+        const router = createMemoryRouter([
+            { path: '/risks/:id/edit', element: <RiskForm initialData={mockRisk} isEdit /> },
+        ], { initialEntries: ['/risks/1/edit'] });
+        render(<RouterProvider router={router} />);
 
         await flushInitialFormEffects();
 
@@ -183,14 +182,11 @@ describe('RiskForm UI - Approval Response Handling', () => {
 
         const mockRisk = createMockRisk();
 
-        render(
-            <MemoryRouter initialEntries={['/risks/1/edit']}>
-                <Routes>
-                    <Route path="/risks/:id/edit" element={<RiskForm initialData={mockRisk} isEdit={true} />} />
-                    <Route path="/risks" element={<div>Risk List Page</div>} />
-                </Routes>
-            </MemoryRouter>
-        );
+        const router = createMemoryRouter([
+            { path: '/risks/:id/edit', element: <RiskForm initialData={mockRisk} isEdit /> },
+            { path: '/risks', element: <div>Risk List Page</div> },
+        ], { initialEntries: ['/risks/1/edit'] });
+        render(<RouterProvider router={router} />);
 
         await flushInitialFormEffects();
 
@@ -221,11 +217,10 @@ describe('ControlForm UI - Approval Response Handling', () => {
 
         const mockControl = createMockControl();
 
-        render(
-            <MemoryRouter initialEntries={['/controls/1/edit']}>
-                <ControlForm initialData={mockControl} isEdit={true} />
-            </MemoryRouter>
-        );
+        const router = createMemoryRouter([
+            { path: '/controls/:id/edit', element: <ControlForm initialData={mockControl} isEdit /> },
+        ], { initialEntries: ['/controls/1/edit'] });
+        render(<RouterProvider router={router} />);
 
         await flushInitialFormEffects();
 

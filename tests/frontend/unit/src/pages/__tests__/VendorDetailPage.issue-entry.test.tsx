@@ -9,7 +9,7 @@ const mockGetVendor = vi.fn();
 const mockArchiveVendor = vi.fn();
 const mockCancelApproval = vi.fn();
 let canIssueWrite = true;
-let mockLocation = { pathname: '/vendors/31', search: '', state: null as null | object };
+let mockLocation = { pathname: '/vendors/31', search: '', hash: '', state: null as null | object };
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -76,7 +76,7 @@ describe('VendorDetailPage issue entry', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         canIssueWrite = true;
-        mockLocation = { pathname: '/vendors/31', search: '', state: null };
+        mockLocation = { pathname: '/vendors/31', search: '', hash: '', state: null };
         mockGetVendor.mockImplementation(async () => ({
             id: 31,
             name: 'Atlas Cloud Services',
@@ -124,7 +124,7 @@ describe('VendorDetailPage issue entry', () => {
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 
-    it('renders denied instead of not found when vendor detail is forbidden', async () => {
+    it('renders the non-leaky unavailable state when vendor detail is forbidden', async () => {
         mockGetVendor.mockRejectedValueOnce(
             new ApiClientError({
                 status: 403,
@@ -134,7 +134,8 @@ describe('VendorDetailPage issue entry', () => {
 
         render(<VendorDetailPage />);
 
-        await screen.findByRole('heading', { name: /access denied/i });
+        await screen.findByRole('heading', { name: /record unavailable/i });
+        expect(screen.queryByRole('heading', { name: /access denied/i })).not.toBeInTheDocument();
         expect(screen.queryByText('Atlas Cloud Services')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
@@ -235,6 +236,61 @@ describe('VendorDetailPage issue entry', () => {
         expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=87');
     });
 
+    it('preserves the list return context when linked-create flash state is cleared, dismissed, and Back is used', async () => {
+        const returnTo = '/vendors?q=cloud&page=3#group-heading';
+        mockLocation = {
+            pathname: '/vendors/31',
+            search: `?return_to=${encodeURIComponent(returnTo)}`,
+            hash: '#linked-result',
+            state: {
+                vendorFlash: {
+                    tone: 'success',
+                    message: 'Risk created and linked.',
+                },
+            },
+        };
+
+        render(<VendorDetailPage />);
+
+        const flashMessage = await screen.findByText('Risk created and linked.');
+        const detailLocation = `${mockLocation.pathname}${mockLocation.search}${mockLocation.hash}`;
+        await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(detailLocation, { replace: true }));
+
+        const dismissButton = flashMessage.closest('.vendor-inline-message')?.querySelector('button');
+        expect(dismissButton).not.toBeNull();
+        fireEvent.click(dismissButton!);
+        expect(mockNavigate).toHaveBeenLastCalledWith(detailLocation, { replace: true });
+
+        fireEvent.click(screen.getByRole('button', { name: /back to register/i }));
+        expect(mockNavigate).toHaveBeenLastCalledWith(returnTo);
+    });
+
+    it('replace-normalizes only invalid legacy detail keys and preserves the working set', async () => {
+        const returnTo = '/vendors?q=cloud&page=3#group-heading';
+        const preservedSearch = new URLSearchParams({
+            return_to: returnTo,
+            source: 'review',
+        });
+        const legacySearch = new URLSearchParams(preservedSearch);
+        legacySearch.set('tab', 'operations');
+        legacySearch.set('section', 'sla');
+        mockLocation = {
+            pathname: '/vendors/31',
+            search: `?${legacySearch.toString()}`,
+            hash: '#vendor-summary',
+            state: null,
+        };
+
+        render(<VendorDetailPage />);
+
+        await screen.findByText('Atlas Cloud Services');
+        await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({
+            pathname: '/vendors/31',
+            search: `?${preservedSearch.toString()}`,
+            hash: '#vendor-summary',
+        }, { replace: true }));
+    });
+
     it('re-runs deep-link scrolling when only the vendor pathname changes', async () => {
         let scheduledFrame: FrameRequestCallback | null = null;
         const requestAnimationFrameSpy = vi
@@ -250,6 +306,7 @@ describe('VendorDetailPage issue entry', () => {
         mockLocation = {
             pathname: '/vendors/31',
             search: '?tab=assessments&section=schedule',
+            hash: '',
             state: null,
         };
 
@@ -271,6 +328,7 @@ describe('VendorDetailPage issue entry', () => {
         mockLocation = {
             pathname: '/vendors/32',
             search: '?tab=assessments&section=schedule',
+            hash: '',
             state: null,
         };
 

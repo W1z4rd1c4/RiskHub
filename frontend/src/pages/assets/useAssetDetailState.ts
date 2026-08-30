@@ -11,16 +11,14 @@ export type AssetDetailMode = 'view' | 'new' | 'edit';
 
 interface UseAssetDetailStateOptions {
     mode: AssetDetailMode;
-    notFoundMessage: string;
 }
 
-export function useAssetDetailState({ mode, notFoundMessage }: UseAssetDetailStateOptions) {
+export function useAssetDetailState({ mode }: UseAssetDetailStateOptions) {
     const { id } = useParams<{ id: string }>();
 
     const {
-        errorKey,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         refetch: fetchAsset,
         resource: asset,
         resourceId: assetId,
@@ -28,10 +26,8 @@ export function useAssetDetailState({ mode, notFoundMessage }: UseAssetDetailSta
     } = useDetailQuery<Asset>({
         enabled: mode !== 'new',
         entity: 'asset',
-        invalidIdErrorKey: notFoundMessage,
         rawId: id,
         load: (assetId) => assetApi.getAsset(assetId),
-        toErrorKey: () => notFoundMessage,
     });
 
     const restoreAsset = useCallback(async () => {
@@ -50,10 +46,9 @@ export function useAssetDetailState({ mode, notFoundMessage }: UseAssetDetailSta
         canArchive: resolveCapabilityFlag(asset?.capabilities, 'can_archive'),
         canEdit: resolveCapabilityFlag(asset?.capabilities, 'can_update'),
         canRestore: resolveCapabilityFlag(asset?.capabilities, 'can_restore'),
-        error: errorKey,
         fetchAsset,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         asset,
         assetId,
         restoreAsset,

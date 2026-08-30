@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
@@ -15,12 +15,15 @@ import { resolveRiskTypeDisplayName, RISK_REGISTER_CONFIG, type RiskRegisterView
 import { formatRiskGroupLabel, RISK_GROUP_UNKNOWN_RISK_TYPE } from './risks/risksPagePresentation';
 import { useRisksPageState } from './risks/useRisksPageState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
 import { parseRiskSemanticFilters } from './shared/ictRegisterSemanticFilters';
 import { useIctRegisterSemanticPageState } from './shared/useIctRegisterPageState';
 
 export function RisksPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/risks');
     const { language } = useLanguage();
     const { t } = useTranslation('risks');
     const pendingApprovalIds = usePendingApprovalIds('risk');
@@ -39,14 +42,14 @@ export function RisksPage() {
         views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
         view={state.viewMode} onViewChange={state.updateViewMode}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')} canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-        onCreate={() => void navigate('/risks/new')} createLabel={t('new_risk')} exportLabel={t('actions.export')}
+        onCreate={() => void navigate(appendRegisterReturnTo('/risks/new', returnTo))} createLabel={t('new_risk')} exportLabel={t('actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog isOpen={isOpen} onClose={onClose}
             onCurrentViewSubmit={async () => { await state.exportCurrentRisks(); onClose(); }}
             onSubmit={async (payload) => { await state.exportRiskSnapshot(payload); onClose(); }}
             isSubmitting={state.isExporting} dataTestId="risks-export-dialog" title={t('register.export.title')} />}
         isAccessDenied={state.isAccessDenied} isError={Boolean(state.errorKey)} errorMessage={state.errorKey ? t(state.errorKey) : undefined}
         isExporting={state.isExporting} isLoading={state.isLoading} items={state.items} columns={columns}
-        table={{ keyExtractor: (risk) => risk.id, onRowClick: (risk) => void navigate(`/risks/${risk.id}`), rowHref: (risk) => `/risks/${risk.id}`, rowLabel: (risk) => risk.name, sortKey: state.sortField, sortDirection: state.sortDirection, onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection) }}
+        table={{ keyExtractor: (risk) => risk.id, onRowClick: (risk) => void navigate(appendRegisterReturnTo(`/risks/${risk.id}`, returnTo)), rowHref: (risk) => appendRegisterReturnTo(`/risks/${risk.id}`, returnTo), rowLabel: (risk) => risk.name, sortKey: state.sortField, sortDirection: state.sortDirection, onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection) }}
         currentPage={state.currentPage} totalPages={state.totalPages} totalCount={state.totalCount} itemsPerPage={state.limit}
         onPageChange={state.setCurrentPage} onRetry={() => void state.fetchRisks()}
         emptyMessage={state.hasLoadedOnce ? t('empty_state.no_risks') : t('common:loading.data')}

@@ -41,7 +41,8 @@
     "inactive": "Neaktivní",
     "archived": "Archivované",
     "under_review": "V revizi",
-    "deprecated": "Zastaralé"
+    "deprecated": "Zastaralé",
+    "history_retrying": "Opakované načítání historie exekucí"
   },
   "monitoring": {
     "new": "Nové",
@@ -96,6 +97,8 @@
   },
   "errors": {
     "load_history_failed": "Nepodařilo se načíst historii exekucí. Zkuste to prosím znovu.",
+    "history_stale": "Historie exekucí nemusí být aktuální. Zkuste to znovu.",
+    "history_access_denied": "K historii exekucí nemáte přístup.",
     "load_failed": "Nepodařilo se načíst kontroly. Zkontrolujte prosím připojení.",
     "title": "Chyba při načítání kontrol",
     "try_again": "Zkusit znovu"
@@ -135,6 +138,8 @@
     "no_findings": "Žádná zjištění nebyla zaznamenána."
   },
   "form": {
+    "risk_link_failed_after_create": "Kontrola byla vytvořena, ale propojení s vybraným rizikem se nezdařilo.",
+    "risk_link_failed_after_update": "Kontrola byla aktualizována, ale propojení s vybraným rizikem se nezdařilo.",
     "steps": {
       "identity": "Identita",
       "ownership": "Vlastnictví",

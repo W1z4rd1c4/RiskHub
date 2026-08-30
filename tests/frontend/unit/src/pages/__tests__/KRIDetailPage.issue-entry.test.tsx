@@ -16,6 +16,7 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useParams: () => ({ id: '21' }),
         useNavigate: () => mockNavigate,
+        useSearchParams: () => [new URLSearchParams()],
     };
 });
 
@@ -112,7 +113,7 @@ describe('KRIDetailPage issue entry', () => {
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 
-    it('renders denied instead of not found when KRI detail is forbidden', async () => {
+    it('renders the non-leaky unavailable state when KRI detail is forbidden', async () => {
         mockGetKRI.mockRejectedValueOnce(
             new ApiClientError({
                 status: 403,
@@ -122,7 +123,8 @@ describe('KRIDetailPage issue entry', () => {
 
         render(<KRIDetailPage />);
 
-        await screen.findByRole('heading', { name: /access denied/i });
+        await screen.findByRole('heading', { name: /record unavailable/i });
+        expect(screen.queryByRole('heading', { name: /access denied/i })).not.toBeInTheDocument();
         expect(screen.queryByText('KRI Not Found')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });

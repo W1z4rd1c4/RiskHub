@@ -46,25 +46,51 @@ export function getVendorDetailScrollTargetId(tab: string | null, section: strin
     return null;
 }
 
-export function shouldNormalizeVendorDetailSearch(search: string): boolean {
+export function normalizeVendorDetailSearch(search: string): string | null {
     if (!search) {
-        return false;
+        return null;
     }
 
     const params = new URLSearchParams(search);
     if (!params.has('tab') && !params.has('section')) {
-        return false;
+        return null;
     }
 
-    return getVendorDetailScrollTargetId(params.get('tab'), params.get('section')) === null;
+    if (getVendorDetailScrollTargetId(params.get('tab'), params.get('section')) !== null) {
+        return null;
+    }
+
+    params.delete('tab');
+    params.delete('section');
+    const normalizedSearch = params.toString();
+    return normalizedSearch ? `?${normalizedSearch}` : '';
+}
+
+function parseVendorId(raw: string | null): number | null {
+    if (!raw || !/^[1-9]\d*$/.test(raw)) return null;
+    const vendorId = Number(raw);
+    return Number.isSafeInteger(vendorId) ? vendorId : null;
+}
+
+function isExactVendorDetailReturnTo(candidate: string, vendorId: number): boolean {
+    const expectedPath = buildVendorDetailPath(vendorId);
+    const pathEnd = candidate.search(/[?#]/);
+    const rawPath = pathEnd === -1 ? candidate : candidate.slice(0, pathEnd);
+    if (rawPath !== expectedPath) return false;
+
+    try {
+        const parsed = new URL(candidate, 'https://riskhub.invalid');
+        return parsed.origin === 'https://riskhub.invalid' && parsed.pathname === expectedPath;
+    } catch {
+        return false;
+    }
 }
 
 export function coerceVendorContext(vendorIdRaw: string | null, returnToRaw: string | null): {
     vendorId: number | null;
     returnTo: string | null;
 } {
-    const parsedVendorId = Number.parseInt(vendorIdRaw ?? '', 10);
-    const vendorId = Number.isFinite(parsedVendorId) && parsedVendorId > 0 ? parsedVendorId : null;
+    const vendorId = parseVendorId(vendorIdRaw);
     if (!vendorId) {
         return {
             vendorId: null,
@@ -73,7 +99,7 @@ export function coerceVendorContext(vendorIdRaw: string | null, returnToRaw: str
     }
 
     const trimmedReturnTo = returnToRaw?.trim() || null;
-    const safeReturnTo = trimmedReturnTo && /^\/vendors\/\d+(?:[/?#].*)?$/.test(trimmedReturnTo)
+    const safeReturnTo = trimmedReturnTo && isExactVendorDetailReturnTo(trimmedReturnTo, vendorId)
         ? trimmedReturnTo
         : buildVendorDetailPath(vendorId);
 

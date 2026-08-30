@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -16,6 +17,10 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useParams: () => ({ id: '13' }),
         useNavigate: () => mockNavigate,
+        useSearchParams: () => {
+            const [params, setParams] = useState(new URLSearchParams());
+            return [params, (next: URLSearchParams) => setParams(new URLSearchParams(next))] as const;
+        },
     };
 });
 
@@ -127,7 +132,7 @@ describe('ControlDetailPage execution status refresh', () => {
         expect(screen.getByText('controls:status.active')).toBeInTheDocument();
         expect(screen.getByText('controls:monitoring.failed')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /controls:detail.execution_history/i }));
+        fireEvent.click(screen.getByRole('tab', { name: /controls:detail.execution_history/i }));
         await screen.findByTestId('execution-history-renders');
         expect(screen.getByText(/^history-renders:/)).toBeInTheDocument();
 
@@ -145,5 +150,27 @@ describe('ControlDetailPage execution status refresh', () => {
         await waitFor(() => {
             expect(historyRenderCount).toBeGreaterThan(1);
         });
+    });
+
+    it('clears partial-link flash state without dropping search or hash context', async () => {
+        const detailLocation = '/controls/13?return_to=%2Fcontrols%3Fq%3Dpayments%23group-heading#linked-result';
+        render(
+            <MemoryRouter initialEntries={[{
+                pathname: '/controls/13',
+                search: '?return_to=%2Fcontrols%3Fq%3Dpayments%23group-heading',
+                hash: '#linked-result',
+                state: {
+                    controlFlash: {
+                        tone: 'warn',
+                        message: 'Control created, but linking the selected risk failed.',
+                    },
+                },
+            }]}>
+                <ControlDetailPage />
+            </MemoryRouter>,
+        );
+
+        await screen.findByText('Quarterly Access Review');
+        await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(detailLocation, { replace: true }));
     });
 });

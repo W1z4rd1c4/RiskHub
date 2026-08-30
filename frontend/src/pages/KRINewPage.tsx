@@ -10,6 +10,7 @@ import { logError } from '@/services/logger';
 import { vendorApi } from '@/services/vendorApi';
 
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { combineCapabilityGateStates, useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { coerceVendorContext } from './vendors/vendorDetailPresentation';
 
@@ -27,6 +28,7 @@ export function KRINewPage() {
         searchParams.get('return_to'),
     );
     const isVendorContext = vendorId !== null && returnTo !== null;
+    const kriListReturnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/kris');
     const [vendorName, setVendorName] = useState<string | undefined>(undefined);
     const [vendorRequiresApproval, setVendorRequiresApproval] = useState(false);
     const [vendorContextState, setVendorContextState] = useState<'loading' | 'allowed' | 'denied'>(
@@ -79,7 +81,7 @@ export function KRINewPage() {
             void navigate(returnTo);
             return;
         }
-        void navigate('/kris');
+        void navigate(kriListReturnTo);
     };
 
     const gateState = combineCapabilityGateStates([createGateState, vendorContextState]);
@@ -89,7 +91,7 @@ export function KRINewPage() {
             <div className="space-y-3">
                 <button
                     onClick={() => {
-                        void navigate(isVendorContext ? returnTo! : '/kris');
+                        void navigate(isVendorContext ? returnTo! : kriListReturnTo);
                     }}
                     className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest"
                 >
@@ -114,7 +116,10 @@ export function KRINewPage() {
             ) : (
                 <KRIForm
                     initialData={preselectedRiskId ? { risk_id: preselectedRiskId } : undefined}
-                    onCancel={isVendorContext ? handleVendorContextCancel : undefined}
+                    onCancel={isVendorContext ? handleVendorContextCancel : () => navigate(kriListReturnTo)}
+                    onSuccess={isVendorContext
+                        ? undefined
+                        : (kriId) => navigate(appendRegisterReturnTo(`/kris/${kriId}`, kriListReturnTo))}
                     firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
                     vendorContext={isVendorContext ? {
                         vendorId,

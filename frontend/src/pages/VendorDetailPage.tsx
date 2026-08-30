@@ -10,20 +10,18 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { approvalsApi } from '@/services/approvalsApi';
 import { vendorApi } from '@/services/vendorApi';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
+import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
-import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { VendorOverviewTab } from './vendors/VendorOverviewTab';
 import { VendorDetailHeader } from './vendors/VendorDetailHeader';
 import { VendorFormView } from './vendors/VendorFormView';
 import { VendorPendingChangePanel } from './vendors/VendorPendingChangePanel';
 import { useVendorDetailState } from './vendors/useVendorDetailState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { logError } from '@/services/logger';
-import {
-    buildVendorDetailPath,
-    type VendorDetailMode,
-} from './vendors/vendorDetailPresentation';
-import { VendorDetailErrorState, VendorDetailLoadingState } from './vendors/VendorDetailStates';
+import { type VendorDetailMode } from './vendors/vendorDetailPresentation';
+import { VendorDetailLoadingState } from './vendors/VendorDetailStates';
 import {
     useNormalizeLegacyVendorDetailSearch,
     useVendorDeepLinkScroll,
@@ -66,6 +64,8 @@ function VendorOwnershipPendingMessage({ canViewGovernance }: VendorOwnershipPen
 export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const navigate = useNavigate();
     const location = useLocation();
+    const returnTo = resolveRegisterReturnTo(new URLSearchParams(location.search).get('return_to'), '/vendors');
+    const vendorDetailPath = (vendorId: number) => appendRegisterReturnTo(`/vendors/${vendorId}`, returnTo);
     const { t, i18n } = useTranslation('vendors');
     const authz = useAuthz();
 
@@ -81,18 +81,15 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         canLinkRisk,
         canRestore,
         closeIssueModal,
-        error,
         fetchVendor,
-        isAccessDenied,
         isIssueModalOpen,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         openIssueModal,
         restoreVendor,
         vendor,
-    } = useVendorDetailState({
-        mode,
-        notFoundMessage: t('errors.not_found'),
-    });
+        vendorId,
+    } = useVendorDetailState({ mode });
     const { t: tCommon } = useTranslation('common');
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -117,7 +114,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                 void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
                 return;
             }
-            void navigate('/vendors');
+            void navigate(returnTo);
         } catch (error) {
             logError('Failed to archive vendor:', error);
             setActionMessage({
@@ -155,31 +152,39 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         return (
             <VendorFormView
                 mode="new"
-                onBack={() => navigate('/vendors')}
-                onSaved={(saved) => navigate(`/vendors/${saved.id}`)}
+                onBack={() => navigate(returnTo)}
+                onSaved={(saved) => navigate(vendorDetailPath(saved.id))}
                 onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
-                onCancel={() => navigate('/vendors')}
+                onCancel={() => navigate(returnTo)}
             />
         );
     }
 
-    if (isLoading) {
+    if (loadOutcome === 'loading') {
         return <VendorDetailLoadingState />;
     }
 
-    if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
+    if (loadOutcome === 'unavailable' || !vendor) {
+        return (
+            <DetailLoadUnavailableState
+                backLabel={t('title')}
+                isRetrying={isRetrying}
+                onBack={() => navigate(returnTo)}
+                onRetry={vendorId === null ? undefined : () => void fetchVendor()}
+            />
+        );
     }
 
-    if (error || !vendor) {
-        return <VendorDetailErrorState error={error} onBack={() => navigate('/vendors')} />;
-    }
+    const staleWarning = loadOutcome === 'stale-with-error' ? (
+        <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchVendor()} />
+    ) : null;
 
     if (mode === 'edit') {
         if (resolveCapabilityFlag(vendor.capabilities, 'business_edit_blocked')) {
             return (
                 <div className="vendor-route">
                     <div className="vendor-page space-y-8">
+                        {staleWarning}
                         {vendor.pending_change ? (
                             <VendorPendingChangePanel
                                 pendingChange={vendor.pending_change}
@@ -190,7 +195,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                                     : undefined}
                             />
                         ) : null}
-                        <button type="button" onClick={() => navigate(`/vendors/${vendor.id}`)} className="text-sm font-bold text-accent">
+                        <button type="button" onClick={() => navigate(vendorDetailPath(vendor.id))} className="text-sm font-bold text-accent">
                             {t('actions.back_to_register')}
                         </button>
                     </div>
@@ -201,8 +206,9 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
             return (
                 <div className="vendor-route">
                     <div className="vendor-page space-y-6">
+                        {staleWarning}
                         <VendorOwnershipPendingMessage canViewGovernance={authz.canViewGovernance} />
-                        <button type="button" onClick={() => navigate(`/vendors/${vendor.id}`)} className="text-sm font-bold text-accent">
+                        <button type="button" onClick={() => navigate(vendorDetailPath(vendor.id))} className="text-sm font-bold text-accent">
                             {t('actions.back_to_register')}
                         </button>
                     </div>
@@ -214,20 +220,24 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         }
 
         return (
-            <VendorFormView
-                mode="edit"
-                vendor={vendor}
-                onBack={() => navigate(`/vendors/${vendor.id}`)}
-                onSaved={(saved) => navigate(`/vendors/${saved.id}`)}
-                onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
-                onCancel={() => navigate(`/vendors/${vendor.id}`)}
-            />
+            <div className="space-y-6">
+                {staleWarning}
+                <VendorFormView
+                    mode="edit"
+                    vendor={vendor}
+                    onBack={() => navigate(vendorDetailPath(vendor.id))}
+                    onSaved={(saved) => navigate(vendorDetailPath(saved.id))}
+                    onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
+                    onCancel={() => navigate(vendorDetailPath(vendor.id))}
+                />
+            </div>
         );
     }
 
     return (
         <div className="vendor-route">
             <div className="vendor-page space-y-8">
+                {staleWarning}
                 {actionMessage && (
                 <VendorInlineMessage tone={actionMessage.tone}>
                     {actionMessage.tone === 'warn' ? (
@@ -281,9 +291,9 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     canCreateIssue={canCreateIssue}
                     canRestore={canRestore}
                     onArchive={() => setIsDeleteDialogOpen(true)}
-                    onBack={() => navigate('/vendors')}
+                    onBack={() => navigate(returnTo)}
                     onOpenIssueModal={openIssueModal}
-                    onEdit={() => navigate(`/vendors/${vendor.id}/edit`)}
+                    onEdit={() => navigate(appendRegisterReturnTo(`/vendors/${vendor.id}/edit`, returnTo))}
                     onRestore={() => void restoreVendor()}
                 />
 
@@ -295,9 +305,9 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     canCreateControl={canCreateLinkedControl}
                     canCreateKri={canCreateLinkedKri}
                     canCreateRisk={canCreateLinkedRisk}
-                    onAddControl={() => navigate(`/controls/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
-                    onAddKri={() => navigate(`/kris/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
-                    onAddRisk={() => navigate(`/risks/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
+                    onAddControl={() => navigate(`/controls/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(vendorDetailPath(vendor.id))}`)}
+                    onAddKri={() => navigate(`/kris/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(vendorDetailPath(vendor.id))}`)}
+                    onAddRisk={() => navigate(`/risks/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(vendorDetailPath(vendor.id))}`)}
                     onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
                     onNavigateToKri={(kriId) => navigate(`/kris/${kriId}`)}
                     onNavigateToRisk={(riskId) => navigate(`/risks/${riskId}`)}

@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
+import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 
 // FR-P4-3/4 (#64): the ICT Committee is a URL-addressable dashboard tab at
 // /?view=ict-committee, sibling to the Risk Committee tab. These specs pin the
@@ -14,13 +15,6 @@ import { createTestQueryClient } from '@test/queryClient';
 const fetchOverviewMock = vi.fn();
 let canViewCommitteeMock = false;
 let canViewIctCommitteeMock = false;
-
-vi.mock('@/contexts/DashboardFilterContext', () => ({
-    useDashboardFilters: () => ({
-        filters: { departmentId: null, riskLevel: 'all', controlStatus: null, controlForm: null },
-        setDepartmentId: vi.fn(),
-    }),
-}));
 
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({
@@ -77,9 +71,11 @@ function renderDashboard(initialEntries: string[] = ['/']) {
     return render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={initialEntries}>
-                <DashboardPage />
-                <LocationProbe />
-                <BackButton />
+                <DashboardFilterProvider>
+                    <DashboardPage />
+                    <LocationProbe />
+                    <BackButton />
+                </DashboardFilterProvider>
             </MemoryRouter>
         </QueryClientProvider>,
     );

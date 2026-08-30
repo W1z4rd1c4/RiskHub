@@ -31,7 +31,7 @@ export function KriModalFooter({
                 {showDelete ? (
                     <button
                         onClick={onDeleteClick}
-                        disabled={isDeleting}
+                        disabled={isDeleting || isSaving}
                         className="p-3 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
                         title={t('delete_kri', { ns: 'kris' })}
                     >
@@ -42,7 +42,8 @@ export function KriModalFooter({
             <div className="flex items-center gap-3">
                 <button
                     onClick={onClose}
-                    className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
+                    disabled={isDeleting || isSaving}
+                    className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors disabled:cursor-wait disabled:opacity-50"
                 >
                     {t('actions.cancel', { ns: 'common' })}
                 </button>

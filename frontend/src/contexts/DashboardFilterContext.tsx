@@ -17,7 +17,7 @@ export interface DashboardFilters {
     controlForm: string | null;
 }
 
-interface DashboardFilterSnapshot {
+export interface DashboardFilterSnapshot {
     filters: DashboardFilters;
     viewMode: ViewMode;
     hasActiveFilters: boolean;
@@ -30,6 +30,7 @@ interface DashboardFilterMutators {
     setControlForm: (form: string | null) => void;
     setViewMode: (mode: ViewMode) => void;
     resetFilters: () => void;
+    replaceSnapshot: (snapshot: Pick<DashboardFilterSnapshot, 'filters' | 'viewMode'>) => void;
 }
 
 const defaultFilters: DashboardFilters = {
@@ -136,6 +137,20 @@ function createDashboardFilterStore(): DashboardFilterStore {
                 return defaultSnapshot;
             });
         },
+        replaceSnapshot: (next) => {
+            updateSnapshot(current => {
+                if (
+                    current.viewMode === next.viewMode
+                    && current.filters.departmentId === next.filters.departmentId
+                    && current.filters.riskLevel === next.filters.riskLevel
+                    && current.filters.controlStatus === next.filters.controlStatus
+                    && current.filters.controlForm === next.filters.controlForm
+                ) {
+                    return current;
+                }
+                return buildSnapshot(next.filters, next.viewMode);
+            });
+        },
     };
 }
 
@@ -176,6 +191,7 @@ export function useDashboardFilterMutators(): DashboardFilterMutators {
             setControlForm: store.setControlForm,
             setViewMode: store.setViewMode,
             resetFilters: store.resetFilters,
+            replaceSnapshot: store.replaceSnapshot,
         }),
         [store],
     );

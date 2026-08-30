@@ -16,14 +16,17 @@ import type { KriFormStatePatch } from "./useKriFormState";
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 interface UseKriSubmitArgs {
+  acceptCurrentSnapshot: (snapshot?: string) => void;
   effectiveVendorIds: number[];
   formData: Partial<KRICreate>;
   isEdit: boolean;
+  isSubmitting: boolean;
   isSelectedRiskLinkedToVendor: boolean;
   kriId?: number;
   navigate: NavigateFunction;
   onSuccess?: (kriId: number) => void | Promise<void>;
   setStatePatch: (patch: KriFormStatePatch) => void;
+  submittedSnapshot: string;
   t: TranslateFn;
   validateStep1: () => boolean;
   validateStep2: () => boolean;
@@ -36,17 +39,16 @@ interface KriCreateOptions {
 }
 
 async function submitProtectedParentRiskLink(
-  navigate: NavigateFunction,
   vendorContext: KRIFormVendorContext | null,
   riskId: number | null | undefined,
   options: KriCreateOptions,
-): Promise<boolean> {
+): Promise<number | null> {
   if (
     !vendorContext?.protectedChangeRequiresApproval ||
     !options.linkRiskFirst ||
     !riskId
   ) {
-    return false;
+    return null;
   }
 
   const result = await vendorLinkApi.linkRisk(
@@ -55,48 +57,47 @@ async function submitProtectedParentRiskLink(
     options.requestReason,
   );
   if (isProcessApprovalQueuedResponse(result)) {
-    navigateToApprovalRequest(navigate, result.approval_id);
-    return true;
+    return result.approval_id;
   }
-  return false;
+  return null;
 }
 
 export function useKriSubmit({
+  acceptCurrentSnapshot,
   effectiveVendorIds,
   formData,
   isEdit,
+  isSubmitting,
   isSelectedRiskLinkedToVendor,
   kriId,
   navigate,
   onSuccess,
   setStatePatch,
+  submittedSnapshot,
   t,
   validateStep1,
   validateStep2,
   vendorContext,
 }: UseKriSubmitArgs) {
-  const isProtectedVendorContext = Boolean(
-    vendorContext?.protectedChangeRequiresApproval,
-  );
+  const isProtectedVendorContext = Boolean(vendorContext?.protectedChangeRequiresApproval);
 
   const finalizeCreate = useCallback(
     async (options: KriCreateOptions = {}) => {
-      if (!validateStep1() || !validateStep2()) {
-        return;
-      }
+      if (!validateStep1() || !validateStep2()) return;
 
       // A protected Vendor must not be linked through the direct create
       // payload — the relationship goes through the governed
       // vendor.link.kri.add route after the KRI exists (#100).
       try {
         setStatePatch({ approvalQueued: null, error: null, isSubmitting: true });
-        const parentRiskLinkQueued = await submitProtectedParentRiskLink(
-          navigate,
+        const parentRiskApprovalId = await submitProtectedParentRiskLink(
           vendorContext,
           formData.risk_id,
           options,
         );
-        if (parentRiskLinkQueued) {
+        if (parentRiskApprovalId !== null) {
+          acceptCurrentSnapshot(submittedSnapshot);
+          navigateToApprovalRequest(navigate, parentRiskApprovalId);
           return;
         }
         const newKRI = await kriApi.createKRI({
@@ -112,7 +113,6 @@ export function useKriSubmit({
               ? [vendorContext.vendorId]
               : undefined,
         });
-
         if (vendorContext) {
           let linkedDirectly = true;
           if (isProtectedVendorContext) {
@@ -123,6 +123,7 @@ export function useKriSubmit({
                 options.requestReason,
               );
               if (isProcessApprovalQueuedResponse(result)) {
+                acceptCurrentSnapshot(submittedSnapshot);
                 navigateToApprovalRequest(navigate, result.approval_id);
                 return;
               }
@@ -131,6 +132,7 @@ export function useKriSubmit({
               linkedDirectly = false;
             }
           }
+          acceptCurrentSnapshot(submittedSnapshot);
           void navigate(vendorContext.returnTo, {
             state: {
               vendorFlash: {
@@ -146,10 +148,8 @@ export function useKriSubmit({
           return;
         }
 
-        if (onSuccess) {
-          await onSuccess(newKRI.id);
-          return;
-        }
+        acceptCurrentSnapshot(submittedSnapshot);
+        if (onSuccess) return onSuccess(newKRI.id);
 
         void navigate(`/kris/${newKRI.id}`);
       } catch (error: unknown) {
@@ -168,11 +168,13 @@ export function useKriSubmit({
     },
     [
       effectiveVendorIds,
+      acceptCurrentSnapshot,
       formData,
       isProtectedVendorContext,
       navigate,
       onSuccess,
       setStatePatch,
+      submittedSnapshot,
       t,
       validateStep1,
       validateStep2,
@@ -183,10 +185,7 @@ export function useKriSubmit({
   const beginCreate = useCallback(
     async (options: KriCreateOptions = {}) => {
       if (isProtectedVendorContext) {
-        setStatePatch({
-          isMismatchDialogOpen: false,
-          pendingGovernedCreate: options,
-        });
+        setStatePatch({ isMismatchDialogOpen: false, pendingGovernedCreate: options });
         return;
       }
       await finalizeCreate(options);
@@ -198,16 +197,12 @@ export function useKriSubmit({
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
 
-      if (!validateStep1() || !validateStep2()) {
-        return;
-      }
+      if (isSubmitting) return;
+
+      if (!validateStep1() || !validateStep2()) return;
 
       if (!isEdit) {
-        if (
-          vendorContext &&
-          formData.risk_id &&
-          !isSelectedRiskLinkedToVendor
-        ) {
+        if (vendorContext && formData.risk_id && !isSelectedRiskLinkedToVendor) {
           setStatePatch({ isMismatchDialogOpen: true });
           return;
         }
@@ -226,17 +221,14 @@ export function useKriSubmit({
           });
           const parsed = parseUpdateResult(result);
           if (parsed.kind === "approval") {
-            setStatePatch({
-              approvalQueued: {
-                message: parsed.message,
-              },
-              isSubmitting: false,
-            });
+            acceptCurrentSnapshot(submittedSnapshot);
+            setStatePatch({ approvalQueued: { message: parsed.message }, isSubmitting: false });
             return;
           }
         }
 
         if (kriId) {
+          acceptCurrentSnapshot(submittedSnapshot);
           void navigate(`/kris/${kriId}`);
         }
       } catch (error: unknown) {
@@ -251,13 +243,16 @@ export function useKriSubmit({
     },
     [
       effectiveVendorIds,
+      acceptCurrentSnapshot,
       beginCreate,
       formData,
       isEdit,
+      isSubmitting,
       isSelectedRiskLinkedToVendor,
       kriId,
       navigate,
       setStatePatch,
+      submittedSnapshot,
       validateStep1,
       validateStep2,
       vendorContext,

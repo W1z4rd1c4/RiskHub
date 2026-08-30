@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { logError } from '@/services/logger';
 
 import { RiskCommitteeSection } from '@/components/dashboard/RiskCommitteeSection';
 import { IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection';
@@ -16,6 +17,11 @@ import { DashboardOverviewContent } from './dashboard/DashboardOverviewContent';
 import { DashboardViewTabs, type DashboardView } from './dashboard/DashboardViewTabs';
 import { exportDashboardSummary, openDashboardPath } from './dashboard/dashboardNavigation';
 import { useDashboardOverviewState } from './dashboard/useDashboardOverviewState';
+import {
+    buildDashboardFilterUrlParams,
+    dashboardFilterSnapshotsEqual,
+    parseDashboardFilterUrlState,
+} from './dashboard/dashboardFilterUrlState';
 
 // `?view=` addresses the active dashboard tab (issue #64). Overview is the
 // canonical default (no param). A requested view is honored only when the user
@@ -37,11 +43,91 @@ function resolveActiveView(
 }
 
 export function DashboardPage() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const { filters, replaceSnapshot, viewMode } = useDashboardFilters();
+    const { t } = useTranslation('dashboard');
+    const serializedParams = searchParams.toString();
+    const requestedSnapshot = useMemo(
+        () => parseDashboardFilterUrlState(searchParams),
+        [searchParams],
+    );
+    const canonicalParams = useMemo(
+        () => buildDashboardFilterUrlParams(
+            requestedSnapshot.filters,
+            requestedSnapshot.viewMode,
+            searchParams,
+        ),
+        [requestedSnapshot, searchParams],
+    );
+    const canonicalSerialized = canonicalParams.toString();
+    const currentSnapshot = useMemo(
+        () => ({ filters, viewMode }),
+        [filters, viewMode],
+    );
+    const snapshotsMatch = dashboardFilterSnapshotsEqual(currentSnapshot, requestedSnapshot);
+    const [observedUrl, setObservedUrl] = useState<string | null>(null);
+    const urlChanged = observedUrl !== serializedParams;
+    const needsUrlHydration = urlChanged && !snapshotsMatch;
+
+    useLayoutEffect(() => {
+        if (observedUrl !== serializedParams) {
+            setObservedUrl(serializedParams);
+            if (!snapshotsMatch) {
+                replaceSnapshot(requestedSnapshot);
+            }
+        }
+    }, [
+        replaceSnapshot,
+        requestedSnapshot,
+        serializedParams,
+        snapshotsMatch,
+        observedUrl,
+    ]);
+
+    useEffect(() => {
+        if (serializedParams === canonicalSerialized) return;
+        setObservedUrl(canonicalSerialized);
+        setSearchParams(canonicalParams, { replace: true });
+    }, [canonicalParams, canonicalSerialized, serializedParams, setSearchParams]);
+
+    useEffect(() => {
+        if (
+            serializedParams !== canonicalSerialized
+            || urlChanged
+            || snapshotsMatch
+            || observedUrl !== serializedParams
+        ) return;
+        const next = buildDashboardFilterUrlParams(filters, viewMode, searchParams);
+        setObservedUrl(next.toString());
+        setSearchParams(next);
+    }, [
+        canonicalSerialized,
+        filters,
+        observedUrl,
+        searchParams,
+        serializedParams,
+        setSearchParams,
+        snapshotsMatch,
+        urlChanged,
+        viewMode,
+    ]);
+
+    if (needsUrlHydration) {
+        return <DashboardLoadingState label={t('loading')} />;
+    }
+
+    return <DashboardPageContent />;
+}
+
+function DashboardPageContent() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { filters, setDepartmentId } = useDashboardFilters();
+    const { filters } = useDashboardFilters();
     const authz = useAuthz();
     const { t } = useTranslation('dashboard');
+    const { t: tCommon } = useTranslation('common');
+    const [isExporting, setIsExporting] = useState(false);
+    const [exportError, setExportError] = useState<{ departmentId: number | null } | null>(null);
 
     const [selectedCell, setSelectedCell] = useState<{
         probability: number;
@@ -115,11 +201,26 @@ export function DashboardPage() {
     const canUseDepartmentFilter = resolveCapabilityFlag(capabilities, 'can_use_department_filter');
     const exportDepartmentId = canUseDepartmentFilter ? filters.departmentId : null;
 
+    const handleExport = async (departmentId: number | null) => {
+        setIsExporting(true);
+        setExportError(null);
+        try {
+            await exportDashboardSummary(departmentId);
+        } catch (error) {
+            logError('Failed to export dashboard summary.', error);
+            setExportError({ departmentId });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     useEffect(() => {
         if (capabilities !== null && capabilities !== undefined && !resolveCapabilityFlag(capabilities, 'can_use_department_filter') && filters.departmentId !== null) {
-            setDepartmentId(null);
+            const next = new URLSearchParams(searchParams);
+            next.delete('departmentId');
+            setSearchParams(next, { replace: true });
         }
-    }, [capabilities, filters.departmentId, setDepartmentId]);
+    }, [capabilities, filters.departmentId, searchParams, setSearchParams]);
 
     // The overview's own loading / error only replaces the screen while the
     // overview tab is active. Committee tabs are never blocked by the overview
@@ -145,12 +246,30 @@ export function DashboardPage() {
         <div className="space-y-10">
                 <DashboardHeader
                     canExport={canExport}
-                    onExport={() => exportDashboardSummary(exportDepartmentId)}
+                    isExporting={isExporting}
+                    onExport={() => void handleExport(exportDepartmentId)}
                 subtitle={t('page_subtitle')}
                 title={t('title')}
                 exportLabel={t('actions.export_summary_excel')}
                 liveDataLabel={t('live_data')}
             />
+
+            {exportError ? (
+                <div
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100"
+                    role="alert"
+                >
+                    <p className="font-medium">{tCommon('export.errors.failed')}</p>
+                    <button
+                        type="button"
+                        disabled={isExporting}
+                        onClick={() => void handleExport(exportError.departmentId)}
+                        className="rounded-lg border border-rose-300/30 px-3 py-1.5 font-bold hover:bg-rose-300/10 disabled:opacity-60"
+                    >
+                        {tCommon('actions.retry')}
+                    </button>
+                </div>
+            ) : null}
 
             <DashboardViewTabs
                 activeView={activeView}

@@ -21,15 +21,44 @@ const getControlFormErrorKey = (error: unknown, fallback = 'errorKeys.unknown'):
 };
 
 interface SubmitLinkState {
+    acceptCurrentSnapshot: (snapshot?: string) => void;
     selectedRiskId: number | undefined;
     riskEffectiveness: ControlEffectiveness;
     linkNotes: string;
+    submittedSnapshot: string;
+}
+
+export function createControlFormSnapshot(
+    formData: Partial<Control>,
+    linkState: Pick<SubmitLinkState, 'selectedRiskId' | 'riskEffectiveness' | 'linkNotes'>,
+): string {
+    const hasSelectedRisk = linkState.selectedRiskId !== undefined;
+    return JSON.stringify([
+        formData.name ?? '',
+        formData.description ?? '',
+        formData.control_form ?? '',
+        formData.data_source ?? '',
+        formData.methodology_reference ?? '',
+        formData.control_owner_id ?? null,
+        formData.department_id ?? null,
+        formData.process_owner_position ?? '',
+        formData.frequency ?? '',
+        formData.risk_level ?? null,
+        formData.status ?? '',
+        linkState.selectedRiskId ?? null,
+        hasSelectedRisk ? linkState.riskEffectiveness : null,
+        hasSelectedRisk ? linkState.linkNotes : '',
+    ]);
 }
 
 interface UseControlFormWorkflowArgs {
     initialData?: Control;
     isEdit: boolean;
-    onSuccess?: (controlId: number) => void | Promise<void>;
+    onSuccess?: (
+        controlId: number,
+        locationState?: ControlFormLocationState,
+        acceptNavigation?: () => void,
+    ) => void | Promise<void>;
     users: UserLookupItem[];
     t: SafeTFunction;
 }
@@ -37,6 +66,10 @@ interface UseControlFormWorkflowArgs {
 interface ControlFlashState {
     tone: 'warn';
     message: string;
+}
+
+export interface ControlFormLocationState {
+    controlFlash: ControlFlashState;
 }
 
 export function useControlFormWorkflow({ initialData, isEdit, onSuccess, users, t }: UseControlFormWorkflowArgs) {
@@ -80,7 +113,13 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, users, 
         return true;
     };
 
-    const submit = async ({ selectedRiskId, riskEffectiveness, linkNotes }: SubmitLinkState) => {
+    const submit = async ({
+        acceptCurrentSnapshot,
+        selectedRiskId,
+        riskEffectiveness,
+        linkNotes,
+        submittedSnapshot,
+    }: SubmitLinkState) => {
         const submissionError = getControlFormSubmissionError(formData, t);
         if (submissionError) {
             setError(submissionError);
@@ -98,6 +137,7 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, users, 
                 const result = await controlApi.updateControl(initialData.id, formData as ControlUpdate);
                 const parsed = parseUpdateResult(result);
                 if (parsed.kind === 'approval') {
+                    acceptCurrentSnapshot(submittedSnapshot);
                     setApprovalQueued({ message: parsed.message });
                     setIsSubmitting(false);
                     return;
@@ -116,16 +156,23 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, users, 
                         notes: linkNotes,
                     });
                 } catch (linkErr) {
-                    logError('Control created but failed to link risk:', linkErr);
+                    logError('Control saved but failed to link risk:', linkErr);
                     controlFlash = {
                         tone: 'warn',
-                        message: 'Control created, but linking the selected risk failed.',
+                        message: t(isEdit
+                            ? 'controls:form.risk_link_failed_after_update'
+                            : 'controls:form.risk_link_failed_after_create'),
                     };
                 }
             }
 
+            acceptCurrentSnapshot(submittedSnapshot);
             if (onSuccess && controlId) {
-                await onSuccess(controlId);
+                await onSuccess(
+                    controlId,
+                    controlFlash ? { controlFlash } : undefined,
+                    () => acceptCurrentSnapshot(submittedSnapshot),
+                );
             } else if (controlId) {
                 void navigate(`/controls/${controlId}`, controlFlash ? { state: { controlFlash } } : undefined);
             } else {

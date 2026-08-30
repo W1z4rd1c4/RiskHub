@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { KRIFormContainer as KRIForm } from "@/components/kri-form/KRIFormContainer";
@@ -67,16 +67,18 @@ const initialData = {
 };
 
 function renderEditForm() {
-  render(
-    <MemoryRouter>
+  const router = createMemoryRouter([{
+    path: "/",
+    element: (
       <KRIForm
         initialData={initialData}
         initialLinkedVendorIds={[12]}
         isEdit
         kriId={21}
       />
-    </MemoryRouter>,
-  );
+    ),
+  }]);
+  render(<RouterProvider router={router} />);
 }
 
 async function advanceToDetailsAndSelectVendor() {

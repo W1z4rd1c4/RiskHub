@@ -32,10 +32,18 @@
     "mark_all_read": "Označit vše jako přečtené",
     "request_correction": "Požádat o opravu",
     "deleting": "Mazání...",
-    "retry": "Zkusit znovu"
+    "retry": "Zkusit znovu",
+    "stay": "Zůstat",
+    "leave": "Odejít"
   },
   "brand": {
     "name": "RiskHub"
+  },
+  "detail_load": {
+    "unavailable_title": "Záznam není dostupný",
+    "unavailable_description": "Tento záznam teď nelze načíst. Zkuste to znovu nebo se vraťte do registru.",
+    "stale_title": "Tyto informace mohou být zastaralé",
+    "stale_description": "Nejnovější data záznamu se nepodařilo načíst. Poslední úspěšná verze zůstává viditelná."
   },
   "formats": {
     "excel": "CSV"
@@ -152,6 +160,7 @@
   "confirmation": {
     "delete_title": "Potvrdit smazání",
     "delete_message": "Opravdu chcete smazat tuto položku? Tuto akci nelze vrátit zpět.",
+    "unsaved_title": "Neuložené změny",
     "unsaved_changes": "Máte neuložené změny. Opravdu chcete odejít?",
     "archive_title": "Archivovat {{type}}",
     "archive_reversible": "Tuto akci může administrátor vrátit zpět.",
@@ -212,7 +221,8 @@
     "platform_docs": "Načítání dokumentace platformy...",
     "risk_data": "Načítání dat rizika...",
     "control_data": "Načítání dat kontroly...",
-    "history": "Načítání historie..."
+    "history": "Načítání historie...",
+    "activity_log": "Načítání logu aktivit..."
   },
   "empty": {
     "no_data": "Žádná data",
@@ -330,6 +340,8 @@
     "subtitle": "Přehled zaznamenaných akcí uživatelů a systému.",
     "failed_to_load": "Nepodařilo se načíst log aktivit.",
     "failed_to_load_help": "Zkuste to prosím znovu nebo upravte filtry.",
+    "may_be_out_of_date": "Log aktivit nemusí být aktuální. Poslední úspěšně načtené záznamy zůstávají zobrazené.",
+    "retrying": "Opakuji načtení logu aktivit...",
     "try_adjusting_filters": "Zkuste upravit filtry nebo časový rozsah.",
     "entities": {
       "kri": "KRI",

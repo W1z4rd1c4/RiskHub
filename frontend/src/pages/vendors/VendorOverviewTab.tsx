@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
     Building2,
@@ -13,12 +13,11 @@ import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { vendorValueLabel } from '@/lib/vendorValues';
-import { vendorLinkApi } from '@/services/vendorLinkApi';
-import type { LinkedControl, LinkedKRI, LinkedRisk } from '@/types/vendorLink';
 import type { Vendor } from '@/types/vendor';
 import { VendorLinkedControlsTab } from '@/components/vendors/VendorLinkedControlsTab';
 import { VendorLinkedKRIsTab } from '@/components/vendors/VendorLinkedKRIsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
+import type { VendorLinkedRegionSummary } from '@/components/vendors/VendorLinkedEntitiesTab';
 
 import { VendorContractsSection } from './VendorContractsSection';
 import { VendorDerivedSection } from './VendorDerivedSection';
@@ -28,10 +27,18 @@ import { getVendorDisplayStatus } from './vendorsPagePresentation';
 import { vendorOwnerDisplayName, vendorOwnerMetadata } from './vendorDetailPresentation';
 
 interface VendorOverviewSummary {
-    linkedRisks: LinkedRisk[];
-    linkedControls: LinkedControl[];
-    linkedKRIs: LinkedKRI[];
+    vendorId: number;
+    linkedRisks: VendorLinkedRegionSummary;
+    linkedControls: VendorLinkedRegionSummary;
+    linkedKRIs: VendorLinkedRegionSummary;
 }
+
+const createVendorOverviewSummary = (vendorId: number): VendorOverviewSummary => ({
+    vendorId,
+    linkedRisks: { status: 'loading' },
+    linkedControls: { status: 'loading' },
+    linkedKRIs: { status: 'loading' },
+});
 
 interface VendorOverviewTabProps {
     canCreateControl: boolean;
@@ -85,11 +92,9 @@ export function VendorOverviewTab({
     vendor,
 }: VendorOverviewTabProps) {
     const { t, i18n } = useTranslation(['vendors', 'common']);
-    const [summary, setSummary] = useState<VendorOverviewSummary>({
-        linkedRisks: [],
-        linkedControls: [],
-        linkedKRIs: [],
-    });
+    const [summary, setSummary] = useState<VendorOverviewSummary>(() => (
+        createVendorOverviewSummary(vendor.id)
+    ));
     const displayStatus = getVendorDisplayStatus(vendor);
     const ownerName = vendorOwnerDisplayName(vendor.outsourcing_owner, vendor.ownership_status, t);
     const canViewLinkedRisks = resolveCapabilityFlag(vendor.capabilities, 'can_view_linked_risks');
@@ -102,43 +107,48 @@ export function VendorOverviewTab({
         'protected_change_requires_approval',
     );
     const canViewAnyLinkedExposure = canViewLinkedRisks || canViewLinkedControls || canViewLinkedKris;
-
-    const refreshSummary = useCallback(async () => {
-        const [linkedRisksResult, linkedControlsResult, linkedKRIsResult] = await Promise.allSettled([
-            canViewLinkedRisks
-                ? vendorLinkApi.getLinkedRisks(vendor.id)
-                : Promise.resolve([] as LinkedRisk[]),
-            canViewLinkedControls
-                ? vendorLinkApi.getLinkedControls(vendor.id)
-                : Promise.resolve([] as LinkedControl[]),
-            canViewLinkedKris
-                ? vendorLinkApi.getLinkedKRIs(vendor.id)
-                : Promise.resolve([] as LinkedKRI[]),
-        ]);
-        setSummary({
-            linkedRisks: linkedRisksResult.status === 'fulfilled' ? linkedRisksResult.value : [],
-            linkedControls: linkedControlsResult.status === 'fulfilled' ? linkedControlsResult.value : [],
-            linkedKRIs: linkedKRIsResult.status === 'fulfilled' ? linkedKRIsResult.value : [],
-        });
-    }, [canViewLinkedControls, canViewLinkedKris, canViewLinkedRisks, vendor.id]);
-
-    useEffect(() => {
-        void refreshSummary();
-    }, [refreshSummary]);
-
-    const activeLinkedRisks = useMemo(
-        () => summary.linkedRisks.filter((risk) => !risk.is_archived),
-        [summary.linkedRisks],
-    );
-    const activeLinkedControls = useMemo(
-        () => summary.linkedControls.filter((control) => !control.is_archived),
-        [summary.linkedControls],
-    );
-    const activeLinkedKRIs = useMemo(
-        () => summary.linkedKRIs.filter((kri) => !kri.is_archived),
-        [summary.linkedKRIs],
-    );
-    const linkedExposureCount = activeLinkedRisks.length + activeLinkedControls.length + activeLinkedKRIs.length;
+    const currentSummary = summary.vendorId === vendor.id
+        ? summary
+        : createVendorOverviewSummary(vendor.id);
+    const updateLinkedRisks = useCallback((next: VendorLinkedRegionSummary) => {
+        setSummary((current) => ({
+            ...(current.vendorId === vendor.id ? current : createVendorOverviewSummary(vendor.id)),
+            linkedRisks: next,
+        }));
+    }, [vendor.id]);
+    const updateLinkedControls = useCallback((next: VendorLinkedRegionSummary) => {
+        setSummary((current) => ({
+            ...(current.vendorId === vendor.id ? current : createVendorOverviewSummary(vendor.id)),
+            linkedControls: next,
+        }));
+    }, [vendor.id]);
+    const updateLinkedKris = useCallback((next: VendorLinkedRegionSummary) => {
+        setSummary((current) => ({
+            ...(current.vendorId === vendor.id ? current : createVendorOverviewSummary(vendor.id)),
+            linkedKRIs: next,
+        }));
+    }, [vendor.id]);
+    const visibleLinkedSummaries = [
+        canViewLinkedRisks ? currentSummary.linkedRisks : null,
+        canViewLinkedControls ? currentSummary.linkedControls : null,
+        canViewLinkedKris ? currentSummary.linkedKRIs : null,
+    ].filter((region): region is VendorLinkedRegionSummary => region !== null);
+    const linkedExposureComplete = visibleLinkedSummaries.length > 0
+        && visibleLinkedSummaries.every((region) => region.status === 'success');
+    const linkedExposureCount = linkedExposureComplete
+        ? visibleLinkedSummaries.reduce(
+            (count, region) => count + (region.status === 'success' ? region.activeCount : 0),
+            0,
+        )
+        : null;
+    const renderLinkedCount = (region: VendorLinkedRegionSummary) => {
+        if (region.status === 'success') {
+            return region.activeCount;
+        }
+        return region.status === 'loading'
+            ? t('labels.loading')
+            : t('overview.summary.unavailable');
+    };
     const vendorFlags = [
         vendor.supports_important_core_insurance_function
             ? t('flags.supports_core_function')
@@ -177,7 +187,7 @@ export function VendorOverviewTab({
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">{t('overview.summary.type_hint', { type: t(`type.${vendor.vendor_type}`, vendor.vendor_type) })}</p>
                     </div>
-                    {canViewAnyLinkedExposure ? (
+                    {canViewAnyLinkedExposure && linkedExposureCount !== null ? (
                         <div className="rounded-2xl border border-border bg-nested p-5">
                             <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                                 {t('overview.summary.linked_exposure')}
@@ -185,9 +195,15 @@ export function VendorOverviewTab({
                             <div className="mt-3 text-3xl font-black text-foreground">{linkedExposureCount}</div>
                             <p className="mt-2 text-xs text-muted-foreground">
                                 {t('overview.summary.linked_exposure_hint', {
-                                    controls: canViewLinkedControls ? activeLinkedControls.length : 0,
-                                    kris: canViewLinkedKris ? activeLinkedKRIs.length : 0,
-                                    risks: canViewLinkedRisks ? activeLinkedRisks.length : 0,
+                                    controls: canViewLinkedControls && currentSummary.linkedControls.status === 'success'
+                                        ? currentSummary.linkedControls.activeCount
+                                        : 0,
+                                    kris: canViewLinkedKris && currentSummary.linkedKRIs.status === 'success'
+                                        ? currentSummary.linkedKRIs.activeCount
+                                        : 0,
+                                    risks: canViewLinkedRisks && currentSummary.linkedRisks.status === 'success'
+                                        ? currentSummary.linkedRisks.activeCount
+                                        : 0,
                                 })}
                             </p>
                         </div>
@@ -297,22 +313,28 @@ export function VendorOverviewTab({
                         {canViewLinkedRisks ? (
                             <div className="flex justify-between items-center gap-4">
                                 <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('tabs.linked_risks')}</span>
-                                <span className="text-lg text-foreground font-black">{activeLinkedRisks.length}</span>
+                                <span className="text-lg text-foreground font-black">
+                                    {renderLinkedCount(currentSummary.linkedRisks)}
+                                </span>
                             </div>
                         ) : null}
                         {canViewLinkedControls ? (
                             <div className="flex justify-between items-center gap-4">
                                 <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('tabs.linked_controls')}</span>
-                                <span className="text-lg text-foreground font-black">{activeLinkedControls.length}</span>
+                                <span className="text-lg text-foreground font-black">
+                                    {renderLinkedCount(currentSummary.linkedControls)}
+                                </span>
                             </div>
                         ) : null}
                         {canViewLinkedKris ? (
                             <div className="flex justify-between items-center gap-4">
                                 <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('tabs.linked_kris')}</span>
-                                <span className="text-lg text-foreground font-black">{activeLinkedKRIs.length}</span>
+                                <span className="text-lg text-foreground font-black">
+                                    {renderLinkedCount(currentSummary.linkedKRIs)}
+                                </span>
                             </div>
                         ) : null}
-                        {canViewAnyLinkedExposure ? (
+                        {canViewAnyLinkedExposure && linkedExposureCount !== null ? (
                             <div className="flex justify-between items-center gap-4">
                                 <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('overview.summary.linked_exposure')}</span>
                                 <span className="text-lg text-foreground font-black">{linkedExposureCount}</span>
@@ -343,6 +365,7 @@ export function VendorOverviewTab({
                         protectedChangeRequiresApproval={protectedChangeRequiresApproval}
                         onAddRisk={onAddRisk}
                         onNavigateToRisk={onNavigateToRisk}
+                        onCollectionStateChange={updateLinkedRisks}
                     />
                 </div>
             ) : null}
@@ -356,6 +379,7 @@ export function VendorOverviewTab({
                         protectedChangeRequiresApproval={protectedChangeRequiresApproval}
                         onAddControl={onAddControl}
                         onNavigateToControl={onNavigateToControl}
+                        onCollectionStateChange={updateLinkedControls}
                     />
                 </div>
             ) : null}
@@ -369,6 +393,7 @@ export function VendorOverviewTab({
                         protectedChangeRequiresApproval={protectedChangeRequiresApproval}
                         onAddKri={onAddKri}
                         onNavigateToKri={onNavigateToKri}
+                        onCollectionStateChange={updateLinkedKris}
                     />
                 </div>
             ) : null}

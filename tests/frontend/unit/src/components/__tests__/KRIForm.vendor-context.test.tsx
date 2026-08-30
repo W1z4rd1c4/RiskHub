@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render as rtlRender, screen, waitFor, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KRIFormContainer as KRIForm } from '@/components/kri-form/KRIFormContainer';
@@ -55,6 +57,11 @@ vi.mock('@/services/kriApi', () => ({
         updateKRI: vi.fn(),
     },
 }));
+
+function render(ui: ReactElement) {
+    const router = createMemoryRouter([{ path: '/', element: ui }]);
+    return rtlRender(<RouterProvider router={router} />);
+}
 
 describe('KRIForm vendor and vendor-assignment flows', () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

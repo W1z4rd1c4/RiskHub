@@ -6,9 +6,30 @@ import type {
     VendorType,
     VendorUpdate,
 } from '@/types/vendor';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 import type { DepartmentLookup, VendorFormData, VendorFormField } from './vendorForm.types';
 import { VENDOR_REGISTER_DATE_FIELDS, VENDOR_REGISTER_TEXT_FIELDS } from './vendorForm.types';
+
+interface VendorApprovalScenario {
+    isEnabled: boolean;
+    requiresApproval: (key: string) => boolean;
+}
+
+export function vendorOwnerChangeRequiresApproval(
+    vendor: Vendor | undefined,
+    accountabilityChanged: boolean,
+    scenario: VendorApprovalScenario,
+): boolean {
+    if (!accountabilityChanged) return false;
+    if (scenario.isEnabled) return true;
+    if (!scenario.requiresApproval('protected_vendor_edit')) return false;
+    return (
+        vendor?.derived?.tier === 'critical'
+        || vendor?.derived?.tier === 'significant'
+        || resolveCapabilityFlag(vendor?.capabilities, 'protected_change_requires_approval')
+    );
+}
 
 export function buildOwnerOptions(
     users: Array<{

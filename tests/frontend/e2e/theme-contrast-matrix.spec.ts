@@ -318,7 +318,7 @@ test.describe('UX-24 audited theme matrix', () => {
       await logout(page);
       await loginAsDemoUser(page, DEMO_ACCOUNTS.ADMIN);
       await visit(page, '/admin');
-      await page.getByRole('button', { name: /active sessions/i }).click();
+      await page.getByRole('tab', { name: /active sessions/i }).click();
       await expectCanonicalNeutralHover(
         page,
         page.getByRole('button', { name: /check ad|zkontrolovat ad/i }),
@@ -422,15 +422,16 @@ test.describe('UX-24 audited theme matrix', () => {
     }
     await visit(page, riskRoute);
 
+    const grossRiskMatrix = page.getByRole('group', { name: 'Gross Risk' });
     const semanticBands = [
-      { title: 'P:1 × I:1 = 1', token: '--success' },
-      { title: 'P:1 × I:5 = 5', token: '--info' },
-      { title: 'P:2 × I:5 = 10', token: '--warning' },
-      { title: 'P:4 × I:4 = 16', token: '--destructive' },
+      { selector: '.bg-success\\/40', token: '--success' },
+      { selector: '.bg-info\\/40', token: '--info' },
+      { selector: '.bg-warning\\/40', token: '--warning' },
+      { selector: '.bg-destructive\\/40', token: '--destructive' },
     ] as const;
 
     for (const band of semanticBands) {
-      const cell = page.locator(`[title="${band.title}"]`).first();
+      const cell = grossRiskMatrix.locator(band.selector).first();
       await expect(cell).toBeVisible();
       const semanticColor = await resolveThemeColor(
         page,
@@ -460,6 +461,8 @@ test.describe('UX-24 audited theme matrix', () => {
     const lightForeground = await resolveThemeColor(page, 'color', 'hsl(var(--foreground))');
     const lightMutedForeground = await resolveThemeColor(page, 'color', 'hsl(var(--muted-foreground))');
     const lightAccentText = await resolveThemeColor(page, 'color', 'hsl(var(--accent-text))');
+    const lightSecondaryForeground = await resolveThemeColor(page, 'color', 'hsl(var(--secondary-foreground))');
+    const lightSecondaryHover = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--secondary) / 0.8)');
     const lightWarning = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--warning))');
     const lightWarningText = await resolveThemeColor(page, 'color', 'hsl(var(--warning-text))');
     const lightWarningForeground = await resolveThemeColor(page, 'color', 'hsl(var(--warning-foreground))');
@@ -666,7 +669,11 @@ test.describe('UX-24 audited theme matrix', () => {
     await expect.poll(
       () => riskBackButton.evaluate((element) => getComputedStyle(element).color),
       { message: 'Risk detail Back action reaches the readable hover foreground' },
-    ).toBe(lightAccentText);
+    ).toBe(lightSecondaryForeground);
+    await expect.poll(
+      () => riskBackButton.evaluate((element) => getComputedStyle(element).backgroundColor),
+      { message: 'Risk detail Back action reaches the secondary hover surface' },
+    ).toBe(lightSecondaryHover);
     const classificationCard = page.locator('main .glass-card').filter({
       has: page.getByRole('heading', { name: 'Classification' }),
     });
@@ -870,8 +877,12 @@ test.describe('UX-24 audited theme matrix', () => {
     await expect.poll(
       () => controlBackButton.evaluate((element) => getComputedStyle(element).color),
       { message: 'Control detail Back action reaches the readable hover foreground' },
-    ).toBe(lightAccentText);
-    await page.getByRole('button', { name: 'Execution History' }).click();
+    ).toBe(lightSecondaryForeground);
+    await expect.poll(
+      () => controlBackButton.evaluate((element) => getComputedStyle(element).backgroundColor),
+      { message: 'Control detail Back action reaches the secondary hover surface' },
+    ).toBe(lightSecondaryHover);
+    await page.getByRole('tab', { name: 'Execution History' }).click();
     await expect(page.getByRole('heading', { name: 'Execution Audit Trail' })).toBeVisible();
     const logExecutionButton = page.getByRole('button', { name: 'Log Execution' });
     await expect(logExecutionButton).toBeVisible();
@@ -1273,7 +1284,11 @@ test.describe('UX-24 audited theme matrix', () => {
     await expect.poll(
       () => vendorBackButton.evaluate((element) => getComputedStyle(element).color),
       { message: 'Vendor detail Back action reaches the readable hover foreground' },
-    ).toBe(lightAccentText);
+    ).toBe(lightSecondaryForeground);
+    await expect.poll(
+      () => vendorBackButton.evaluate((element) => getComputedStyle(element).backgroundColor),
+      { message: 'Vendor detail Back action reaches the secondary hover surface' },
+    ).toBe(lightSecondaryHover);
     const accentText = await resolveThemeColor(page, 'color', 'hsl(var(--accent-text))');
     const linkedControlCard = page.getByRole('button', { name: /UX-24 Linked Control/i });
     const linkedControlTitle = linkedControlCard.getByRole('heading', { name: 'UX-24 Linked Control' });

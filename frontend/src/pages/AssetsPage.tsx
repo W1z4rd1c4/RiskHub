@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
@@ -16,9 +16,12 @@ import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
 import { parseAssetSemanticFilters } from './shared/ictRegisterSemanticFilters';
 import { useIctRegisterSemanticPageState } from './shared/useIctRegisterPageState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 export function AssetsPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/assets');
     const { language } = useLanguage();
     const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } = useIctRegisterSemanticPageState(parseAssetSemanticFilters);
     const { t } = useTranslation('assets');
@@ -36,7 +39,7 @@ export function AssetsPage() {
         view={state.viewMode} onViewChange={state.updateViewMode}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
         canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-        onCreate={() => void navigate('/assets/new')} createLabel={t('actions.new')} exportLabel={t('actions.export')}
+        onCreate={() => void navigate(appendRegisterReturnTo('/assets/new', returnTo))} createLabel={t('actions.new')} exportLabel={t('actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog isOpen={isOpen} onClose={onClose}
             onSubmit={async () => { await state.exportAssets(); onClose(); }} isSubmitting={state.isExporting}
             dataTestId="assets-export-dialog" title={t('register.export.title')} />}
@@ -44,8 +47,8 @@ export function AssetsPage() {
         errorMessage={state.errorKey ? t(state.errorKey) : undefined} isExporting={state.isExporting}
         isLoading={state.isLoading} items={state.items} columns={columns}
         table={{
-            keyExtractor: (asset) => asset.id, onRowClick: (asset) => void navigate(`/assets/${asset.id}`),
-            rowHref: (asset) => `/assets/${asset.id}`, rowLabel: (asset) => asset.name,
+            keyExtractor: (asset) => asset.id, onRowClick: (asset) => void navigate(appendRegisterReturnTo(`/assets/${asset.id}`, returnTo)),
+            rowHref: (asset) => appendRegisterReturnTo(`/assets/${asset.id}`, returnTo), rowLabel: (asset) => asset.name,
             sortKey: state.sortField, sortDirection: state.sortDirection,
             onSort: (key, direction) => state.updateSort(direction ? key as AssetSortField : null, direction as SortDirection),
         }}

@@ -1,5 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
@@ -13,9 +13,12 @@ import { ISSUE_REGISTER_CONFIG, type IssueRegisterView } from './issues/issueReg
 import { IssuesFilterBar } from './issues/IssuesFilterBar';
 import { formatIssueGroupLabel } from './issues/issuesPagePresentation';
 import { useIssuesPageState } from './issues/useIssuesPageState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 export function IssuesPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/issues');
     const { t, i18n } = useTranslation(['issues', 'common']);
     const language = i18n.language as SupportedLanguage;
     const state = useIssuesPageState(language);
@@ -32,7 +35,7 @@ export function IssuesPage() {
         onViewChange={state.updateViewMode}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
         canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-        onCreate={() => void navigate('/issues/new')}
+        onCreate={() => void navigate(appendRegisterReturnTo('/issues/new', returnTo))}
         createLabel={t('actions.new_issue')}
         exportLabel={t('common:actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog
@@ -53,8 +56,8 @@ export function IssuesPage() {
         columns={columns}
         table={{
             keyExtractor: (issue) => issue.id,
-            onRowClick: (issue) => void navigate(`/issues/${issue.id}`),
-            rowHref: (issue) => `/issues/${issue.id}`,
+            onRowClick: (issue) => void navigate(appendRegisterReturnTo(`/issues/${issue.id}`, returnTo)),
+            rowHref: (issue) => appendRegisterReturnTo(`/issues/${issue.id}`, returnTo),
             rowLabel: (issue) => issue.title,
             sortKey: state.sortField,
             sortDirection: state.sortDirection,

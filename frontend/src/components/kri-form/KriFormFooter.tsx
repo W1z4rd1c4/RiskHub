@@ -29,13 +29,23 @@ export function KriFormFooter({
                 <>
                     <button
                         type="button"
-                        onClick={onCancel}
+                        aria-disabled={isSubmitting}
+                        onClick={() => {
+                            if (!isSubmitting) onCancel();
+                        }}
                         className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 transition-colors hover:text-white"
                     >
                         <X className="h-4 w-4" />
                         {cancelLabel}
                     </button>
-                    <button type="button" onClick={onNext} className="btn-primary">
+                    <button
+                        type="button"
+                        aria-disabled={isSubmitting}
+                        onClick={() => {
+                            if (!isSubmitting) onNext();
+                        }}
+                        className="btn-primary aria-disabled:cursor-wait aria-disabled:opacity-60"
+                    >
                         {t('common:actions.next')}
                     </button>
                 </>
@@ -43,12 +53,19 @@ export function KriFormFooter({
                 <>
                     <button
                         type="button"
-                        onClick={onBack}
+                        aria-disabled={isSubmitting}
+                        onClick={() => {
+                            if (!isSubmitting) onBack();
+                        }}
                         className="text-sm font-bold text-slate-400 transition-colors hover:text-white"
                     >
                         {t('common:actions.back')}
                     </button>
-                    <button type="submit" disabled={isSubmitting} className="btn-primary px-8">
+                    <button
+                        type="submit"
+                        aria-disabled={isSubmitting}
+                        className="btn-primary px-8 aria-disabled:cursor-wait aria-disabled:opacity-60"
+                    >
                         {isSubmitting
                             ? t('common:loading.generic')
                             : isEdit

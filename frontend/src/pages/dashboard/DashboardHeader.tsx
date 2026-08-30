@@ -2,6 +2,7 @@ import { FileText } from 'lucide-react';
 
 interface DashboardHeaderProps {
     canExport: boolean;
+    isExporting: boolean;
     onExport: () => void;
     subtitle: string;
     title: string;
@@ -11,6 +12,7 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({
     canExport,
+    isExporting,
     onExport,
     subtitle,
     title,
@@ -27,6 +29,8 @@ export function DashboardHeader({
                 {canExport ? (
                     <button
                         onClick={onExport}
+                        disabled={isExporting}
+                        aria-busy={isExporting}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
                         title={exportLabel}
                     >

@@ -88,6 +88,14 @@
         "no_matching": "Neexistují žádné žádosti odpovídající aktuálnímu filtru.",
         "no_questionnaires": "Momentálně nemáte žádné otevřené dotazníky k vyplnění."
     },
+    "errors": {
+        "questionnaire_load_failed": "Schránku dotazníků se nepodařilo načíst. Zkuste to znovu.",
+        "questionnaire_stale": "Přiřazení dotazníků nemusí být aktuální. Zkuste to znovu.",
+        "questionnaire_access_denied": "K přiřazeným dotazníkům nemáte přístup."
+    },
+    "status": {
+        "questionnaire_retrying": "Schránka dotazníků se načítá znovu."
+    },
     "labels": {
         "proposed_changes": "Navrhované změny",
         "approved_on": "Schváleno {{date}} v {{time}}",

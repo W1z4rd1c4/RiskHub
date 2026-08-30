@@ -1,5 +1,12 @@
 import { Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  Navigate,
+  Route,
+  RouterProvider,
+  Routes,
+  createBrowserRouter,
+  useLocation,
+} from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MotionConfig } from 'framer-motion';
 import { useTranslation } from '@/i18n/hooks';
@@ -77,15 +84,20 @@ function AppRoutes() {
   );
 }
 
+const router = createBrowserRouter([
+  {
+    path: '*',
+    element: <AppRoutes />,
+  },
+]);
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
           <MotionConfig reducedMotion="user">
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
+            <RouterProvider router={router} />
           </MotionConfig>
         </ThemeProvider>
       </AuthProvider>

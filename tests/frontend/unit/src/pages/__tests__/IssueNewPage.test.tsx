@@ -20,6 +20,7 @@ vi.mock('react-router-dom', async () => {
     return {
         ...actual,
         useNavigate: () => mockNavigate,
+        useSearchParams: () => [new URLSearchParams()],
     };
 });
 
@@ -52,7 +53,7 @@ describe('IssueNewPage', () => {
         expect(await screen.findByText('Create Issue')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Submit issue' }));
-        expect(mockNavigate).toHaveBeenCalledWith('/issues/17');
+        expect(mockNavigate).toHaveBeenCalledWith('/issues/17?return_to=%2Fissues');
     });
 
     it('hides create form when backend capability denies issue creation', async () => {

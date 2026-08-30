@@ -5,7 +5,7 @@ import {
     canEditVendorByOwnership,
     coerceVendorContext,
     getVendorDetailScrollTargetId,
-    shouldNormalizeVendorDetailSearch,
+    normalizeVendorDetailSearch,
 } from '@/pages/vendors/vendorDetailPresentation';
 
 describe('Vendor detail presentation helpers', () => {
@@ -29,6 +29,13 @@ describe('Vendor detail presentation helpers', () => {
             vendorId: 42,
             returnTo: '/vendors/42',
         });
+        expect(coerceVendorContext(
+            '42',
+            '/vendors/42?tab=contracts&source=linked-create#vendor-contracts',
+        )).toEqual({
+            vendorId: 42,
+            returnTo: '/vendors/42?tab=contracts&source=linked-create#vendor-contracts',
+        });
         expect(coerceVendorContext('42', '/risks/99')).toEqual({
             vendorId: 42,
             returnTo: '/vendors/42',
@@ -36,6 +43,38 @@ describe('Vendor detail presentation helpers', () => {
         expect(coerceVendorContext('oops', '/vendors/42')).toEqual({
             vendorId: null,
             returnTo: null,
+        });
+    });
+
+    it.each([
+        '12junk',
+        '12.5',
+        '0',
+        '-12',
+        '01',
+        ' 12 ',
+        '9007199254740992',
+    ])('rejects non-exact positive Vendor ID %s', (vendorIdRaw) => {
+        expect(coerceVendorContext(vendorIdRaw, '/vendors/12')).toEqual({
+            vendorId: null,
+            returnTo: null,
+        });
+    });
+
+    it.each([
+        '/vendors/13',
+        '/vendors/12/edit',
+        '/vendors/12/contracts',
+        '//vendors/12',
+        'https://outside.example/vendors/12',
+        '/vendors/12/../13',
+        '/vendors/12/%2e%2e/13',
+        '/vendors/%31%32',
+        '/vendors/12%2Fedit',
+    ])('rejects unsafe or mismatched Vendor return destination %s', (returnToRaw) => {
+        expect(coerceVendorContext('12', returnToRaw)).toEqual({
+            vendorId: 12,
+            returnTo: '/vendors/12',
         });
     });
 
@@ -47,10 +86,10 @@ describe('Vendor detail presentation helpers', () => {
     });
 
     it('normalizes legacy vendor detail tab searches while preserving supported deep links', () => {
-        expect(shouldNormalizeVendorDetailSearch('?tab=sla')).toBe(true);
-        expect(shouldNormalizeVendorDetailSearch('?tab=operations&section=sla')).toBe(true);
-        expect(shouldNormalizeVendorDetailSearch('?tab=assessments&section=schedule')).toBe(false);
-        expect(shouldNormalizeVendorDetailSearch('?filter=active')).toBe(false);
-        expect(shouldNormalizeVendorDetailSearch('')).toBe(false);
+        expect(normalizeVendorDetailSearch('?tab=sla')).toBe('');
+        expect(normalizeVendorDetailSearch('?source=review&tab=operations&section=sla')).toBe('?source=review');
+        expect(normalizeVendorDetailSearch('?tab=assessments&section=schedule')).toBeNull();
+        expect(normalizeVendorDetailSearch('?filter=active')).toBeNull();
+        expect(normalizeVendorDetailSearch('')).toBeNull();
     });
 });

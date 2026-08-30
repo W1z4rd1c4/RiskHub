@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
@@ -122,6 +123,42 @@ function toNullableInt(value: string): number | null {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
+function buildAssetFormPayload(fields: FormFields) {
+    return buildAssetWritePayload({
+        name: fields.name,
+        asset_type: fields.asset_type,
+        asset_level: fields.asset_level,
+        description: fields.description,
+        physical_location: fields.physical_location,
+        deployment_model: fields.deployment_model,
+        alternative_names: fields.alternative_names,
+        business_owner_user_id: Number(fields.business_owner_user_id),
+        ict_owner_user_id: Number(fields.ict_owner_user_id),
+        owning_department_id: Number(fields.owning_department_id),
+        gdpr_relevance: fields.gdpr_relevance,
+        ai_relevance: fields.ai_relevance,
+        data_classification: fields.data_classification,
+        confidentiality_rating: toNullableInt(fields.confidentiality_rating),
+        integrity_rating: toNullableInt(fields.integrity_rating),
+        availability_rating: toNullableInt(fields.availability_rating),
+        authenticity_rating: toNullableInt(fields.authenticity_rating),
+        impact_client: toNullableInt(fields.impact_client),
+        impact_regulatory: toNullableInt(fields.impact_regulatory),
+        substitutability_rating: toNullableInt(fields.substitutability_rating),
+        vendor_dependency_rating: toNullableInt(fields.vendor_dependency_rating),
+        internet_exposed: fields.internet_exposed,
+        preliminary_criticality: fields.preliminary_criticality,
+        lifecycle_state: fields.lifecycle_state,
+        standard_support_end_date: fields.standard_support_end_date,
+        extended_support_end_date: fields.extended_support_end_date,
+        custom_support_end_date: fields.custom_support_end_date,
+        last_legacy_risk_assessment_date: fields.last_legacy_risk_assessment_date,
+        review_state: fields.review_state,
+        notes: fields.notes,
+        request_reason: fields.request_reason.trim() || undefined,
+    });
+}
+
 export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueued, onCancel }: AssetFormProps) {
     const { t } = useTranslation('assets');
     const [fields, setFields] = useState<FormFields>(() => initialFields(initialData));
@@ -131,6 +168,14 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
     const [businessOwnerSearch, setBusinessOwnerSearch] = useState('');
     const [ictOwnerSearch, setIctOwnerSearch] = useState('');
     const [departmentSearch, setDepartmentSearch] = useState('');
+    const {
+        acceptCurrentSnapshot,
+        confirmationDialog,
+        requestLocalLeave,
+    } = useDirtyTaskGuard({
+        busy: isSubmitting,
+        currentSnapshot: JSON.stringify(buildAssetFormPayload(fields)),
+    });
     const accountabilityScenario = useAccountabilityReassignmentScenario();
 
     const accountabilityChanged = Boolean(
@@ -276,39 +321,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
             return;
         }
 
-        const payload = buildAssetWritePayload({
-            name: fields.name,
-            asset_type: fields.asset_type,
-            asset_level: fields.asset_level,
-            description: fields.description,
-            physical_location: fields.physical_location,
-            deployment_model: fields.deployment_model,
-            alternative_names: fields.alternative_names,
-            business_owner_user_id: Number(fields.business_owner_user_id),
-            ict_owner_user_id: Number(fields.ict_owner_user_id),
-            owning_department_id: Number(fields.owning_department_id),
-            gdpr_relevance: fields.gdpr_relevance,
-            ai_relevance: fields.ai_relevance,
-            data_classification: fields.data_classification,
-            confidentiality_rating: toNullableInt(fields.confidentiality_rating),
-            integrity_rating: toNullableInt(fields.integrity_rating),
-            availability_rating: toNullableInt(fields.availability_rating),
-            authenticity_rating: toNullableInt(fields.authenticity_rating),
-            impact_client: toNullableInt(fields.impact_client),
-            impact_regulatory: toNullableInt(fields.impact_regulatory),
-            substitutability_rating: toNullableInt(fields.substitutability_rating),
-            vendor_dependency_rating: toNullableInt(fields.vendor_dependency_rating),
-            internet_exposed: fields.internet_exposed,
-            preliminary_criticality: fields.preliminary_criticality,
-            lifecycle_state: fields.lifecycle_state,
-            standard_support_end_date: fields.standard_support_end_date,
-            extended_support_end_date: fields.extended_support_end_date,
-            custom_support_end_date: fields.custom_support_end_date,
-            last_legacy_risk_assessment_date: fields.last_legacy_risk_assessment_date,
-            review_state: fields.review_state,
-            notes: fields.notes,
-            request_reason: fields.request_reason.trim() || undefined,
-        });
+        const payload = buildAssetFormPayload(fields);
 
         try {
             setIsSubmitting(true);
@@ -316,6 +329,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
             const saved = isEdit && initialData
                 ? await assetApi.updateAsset(initialData.id, payload)
                 : await assetApi.createAsset(payload);
+            acceptCurrentSnapshot();
             if (isProcessApprovalQueuedResponse(saved)) {
                 onApprovalQueued?.(saved);
             } else {
@@ -382,6 +396,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
 
     return (
         <form noValidate onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
+            <fieldset disabled={isSubmitting} className="min-w-0 space-y-6 border-0 p-0">
             {error || hasFieldErrors ? (
                 <div role="alert" className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -536,7 +551,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                 {onCancel ? (
                     <button
                         type="button"
-                        onClick={onCancel}
+                        onClick={() => requestLocalLeave(onCancel)}
                         className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                     >
                         <X className="h-4 w-4" />
@@ -553,6 +568,8 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                     {submitLabel}
                 </button>
             </div>
+            </fieldset>
+            {confirmationDialog}
         </form>
     );
 }

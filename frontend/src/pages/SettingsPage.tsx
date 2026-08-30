@@ -1,16 +1,27 @@
-import { useState } from 'react';
 import { User, Palette, Globe, BookOpen, Bell } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { ProfileSettings, AppearanceSettings, LocalizationSettings, DocumentationSettings, NotificationSettings } from '@/components/settings';
+import { useContentTabQuery } from '@/hooks/useContentTabQuery';
+import { useContentTabs } from '@/hooks/useContentTabs';
 
-type TabId = 'profile' | 'appearance' | 'localization' | 'notifications' | 'documentation';
+const settingsTabs = ['profile', 'appearance', 'localization', 'notifications', 'documentation'] as const;
+type TabId = (typeof settingsTabs)[number];
 
 export function SettingsPage() {
     const { t } = useTranslation('settings');
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<TabId>('profile');
+    const [activeTab, setActiveTab] = useContentTabQuery<TabId>({
+        tabs: settingsTabs,
+        defaultTab: 'profile',
+    });
+    const { getPanelProps, getTabProps } = useContentTabs({
+        tabs: settingsTabs,
+        activeTab,
+        onChange: setActiveTab,
+        idPrefix: 'settings',
+    });
 
     const tabs = [
         { id: 'profile' as TabId, label: t('tabs.profile'), icon: User },
@@ -38,13 +49,13 @@ export function SettingsPage() {
             </header>
 
             {/* Tab Navigation */}
-            <div className="glass-card p-2 flex gap-2 overflow-x-auto">
-                {tabs.map((tab) => {
+            <div className="glass-card p-2 flex gap-2 overflow-x-auto" role="tablist" aria-label={t('title')}>
+                {tabs.map((tab, index) => {
                     const isActive = activeTab === tab.id;
                     return (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
+                            {...getTabProps(tab.id, index)}
                             data-testid={`settings-tab-${tab.id}`}
                             className={cn(
                                 "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap",
@@ -61,23 +72,15 @@ export function SettingsPage() {
             </div>
 
             {/* Tab Content */}
-            <div className="glass-card p-6">
-                {activeTab === 'profile' && user && (
-                    <ProfileSettings user={user} />
-                )}
-                {activeTab === 'appearance' && (
-                    <AppearanceSettings />
-                )}
-                {activeTab === 'localization' && (
-                    <LocalizationSettings />
-                )}
-                {activeTab === 'notifications' && (
-                    <NotificationSettings />
-                )}
-                {activeTab === 'documentation' && (
-                    <DocumentationSettings />
-                )}
-            </div>
+            {settingsTabs.map((tab) => (
+                <div key={tab} className="glass-card p-6" {...getPanelProps(tab)}>
+                    {activeTab === tab && tab === 'profile' && user ? <ProfileSettings user={user} /> : null}
+                    {activeTab === tab && tab === 'appearance' ? <AppearanceSettings /> : null}
+                    {activeTab === tab && tab === 'localization' ? <LocalizationSettings /> : null}
+                    {activeTab === tab && tab === 'notifications' ? <NotificationSettings /> : null}
+                    {activeTab === tab && tab === 'documentation' ? <DocumentationSettings /> : null}
+                </div>
+            ))}
         </div>
     );
 }

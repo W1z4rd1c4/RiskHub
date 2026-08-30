@@ -1,13 +1,15 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { ControlDetailPage } from '@/pages/ControlDetailPage';
 import { ApiClientError } from '@/services/apiClient';
 import { renderWithQueryClient as render } from '@test/render';
+import { createTestQueryClient } from '@test/queryClient';
 
 const mockNavigate = vi.fn();
 const mockGetControl = vi.fn();
 const mockGetLinkedRisks = vi.fn();
+const mockDeleteControl = vi.fn();
 let canIssueWrite = true;
 
 vi.mock('react-router-dom', async () => {
@@ -32,6 +34,7 @@ vi.mock('@/services/controlApi', () => ({
     controlApi: {
         getControl: (...args: unknown[]) => mockGetControl(...args),
         getLinkedRisks: (...args: unknown[]) => mockGetLinkedRisks(...args),
+        deleteControl: (...args: unknown[]) => mockDeleteControl(...args),
     },
 }));
 
@@ -54,7 +57,17 @@ vi.mock('@/components/executions/ExecutionLogModal', () => ({
 }));
 
 vi.mock('@/components/ArchiveConfirmDialog', () => ({
-    ArchiveConfirmDialog: () => null,
+    ArchiveConfirmDialog: ({
+        isOpen,
+        onConfirm,
+    }: {
+        isOpen: boolean;
+        onConfirm: (reason: string) => void;
+    }) => isOpen ? (
+        <button type="button" onClick={() => onConfirm('Control retired')}>
+            confirm-control-archive
+        </button>
+    ) : null,
 }));
 
 vi.mock('@/components/RiskQuickViewModal', () => ({
@@ -91,9 +104,11 @@ describe('ControlDetailPage issue entry', () => {
             data_source: 'IAM export',
             capabilities: {
                 can_create_issue: canIssueWrite,
+                can_archive_immediately: true,
             },
         }));
         mockGetLinkedRisks.mockResolvedValue([]);
+        mockDeleteControl.mockResolvedValue(undefined);
     });
 
     it('shows create-issue action and opens contextual modal with control name', async () => {
@@ -151,7 +166,7 @@ describe('ControlDetailPage issue entry', () => {
         expect(screen.queryByText(/^active$/i)).not.toBeInTheDocument();
     });
 
-    it('renders denied instead of not found when control detail is forbidden', async () => {
+    it('renders the non-leaky unavailable state when control detail is forbidden', async () => {
         mockGetControl.mockRejectedValueOnce(
             new ApiClientError({
                 status: 403,
@@ -165,25 +180,43 @@ describe('ControlDetailPage issue entry', () => {
             </MemoryRouter>
         );
 
-        await screen.findByRole('heading', { name: /access denied/i });
+        await screen.findByRole('heading', { name: /record unavailable/i });
+        expect(screen.queryByRole('heading', { name: /access denied/i })).not.toBeInTheDocument();
         expect(screen.queryByText('Control Not Found')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 
     it('keeps the error-state back action non-submitting and operational', async () => {
-        mockGetControl.mockRejectedValueOnce(
+        mockGetControl.mockRejectedValue(
             new ApiClientError({ status: 500, messageKey: 'errorKeys.unexpected' })
         );
 
         render(
             <MemoryRouter initialEntries={['/controls/13']}>
                 <ControlDetailPage />
-            </MemoryRouter>
+            </MemoryRouter>,
+            { queryClient: createTestQueryClient({ defaultOptions: { queries: { retryDelay: 0 } } }) },
         );
 
         const back = await screen.findByRole('button', { name: 'Control Catalog' });
         expect(back).toHaveAttribute('type', 'button');
         fireEvent.click(back);
         expect(mockNavigate).toHaveBeenCalledWith('/controls');
+    });
+
+    it('returns an immediately archived Control to its exact validated list working set', async () => {
+        const returnTo = '/controls?q=access&page=4#group-heading';
+        render(
+            <MemoryRouter initialEntries={[`/controls/13?return_to=${encodeURIComponent(returnTo)}`]}>
+                <ControlDetailPage />
+            </MemoryRouter>,
+        );
+
+        await screen.findByText('Quarterly Access Review');
+        fireEvent.click(screen.getByRole('button', { name: /archive/i }));
+        fireEvent.click(await screen.findByRole('button', { name: 'confirm-control-archive' }));
+
+        await waitFor(() => expect(mockDeleteControl).toHaveBeenCalledWith(13, 'Control retired'));
+        expect(mockNavigate).toHaveBeenCalledWith(returnTo);
     });
 });

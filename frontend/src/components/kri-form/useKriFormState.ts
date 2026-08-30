@@ -41,6 +41,24 @@ const defaultFormData: Partial<KRICreate> = {
     reporting_owner_id: undefined,
 };
 
+export function createKriFormSnapshot(
+    formData: Partial<KRICreate>,
+    selectedVendorIds: number[],
+): string {
+    return JSON.stringify([
+        formData.risk_id ?? null,
+        formData.metric_name ?? '',
+        formData.description ?? '',
+        formData.current_value ?? null,
+        formData.lower_limit ?? null,
+        formData.upper_limit ?? null,
+        formData.unit ?? '',
+        formData.frequency ?? '',
+        formData.reporting_owner_id ?? null,
+        [...selectedVendorIds].sort((left, right) => left - right),
+    ]);
+}
+
 function createInitialState(
     initialData: Partial<KRICreate> | undefined,
     initialLinkedVendorIds: number[],

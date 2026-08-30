@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -11,8 +11,8 @@ import { approvalsApi } from '@/services/approvalsApi';
 import { threatApi } from '@/services/threatApi';
 import type { Threat } from '@/types/threat';
 
+import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
-import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ThreatForm } from './threats/ThreatForm';
 import { ThreatPendingChangePanel } from './threats/ThreatPendingChangePanel';
@@ -20,6 +20,7 @@ import { ThreatRiskLinksSection } from './threats/ThreatRiskLinksSection';
 import { getThreatDisplayStatus, threatCategoryLabel } from './threats/threatsPagePresentation';
 import { getThreatStatusColor } from './threats/threatColumns';
 import { useThreatDetailState, type ThreatDetailMode } from './threats/useThreatDetailState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 interface ThreatDetailPageProps {
     mode?: ThreatDetailMode;
@@ -81,6 +82,9 @@ function StewardshipAlert({
 
 export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/threats');
+    const threatDetailPath = (threatId: number) => appendRegisterReturnTo(`/threats/${threatId}`, returnTo);
     const authz = useAuthz();
     const { t, i18n } = useTranslation('threats');
     const { t: tCommon } = useTranslation('common');
@@ -93,14 +97,14 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         canArchive,
         canEdit,
         canRestore,
-        error,
         fetchThreat,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
+        threatId,
         setThreat,
         threat,
         restoreThreat,
-    } = useThreatDetailState({ mode, notFoundMessage: t('errors.not_found') });
+    } = useThreatDetailState({ mode });
 
     const createGateState = useCreateCapabilityGate({
         enabled: mode === 'new',
@@ -115,7 +119,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         try {
             setIsArchiving(true);
             await threatApi.archiveThreat(threat.id);
-            void navigate('/threats');
+            void navigate(returnTo);
         } catch (archiveError) {
             logError('Failed to archive threat:', archiveError);
             setActionError(t('errors.archive_failed'));
@@ -149,7 +153,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                 <div className="flex items-start gap-3">
                     <button
                         type="button"
-                        onClick={() => navigate('/threats')}
+                        onClick={() => navigate(returnTo)}
                         aria-label={t('actions.back_to_register')}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
                     >
@@ -161,48 +165,42 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     </div>
                 </div>
                 <ThreatForm
-                    onSaved={(saved: Threat) => navigate(`/threats/${saved.id}`)}
-                    onCancel={() => navigate('/threats')}
+                    onSaved={(saved: Threat) => navigate(threatDetailPath(saved.id))}
+                    onCancel={() => navigate(returnTo)}
                 />
             </div>
         );
     }
 
-    if (isLoading) {
+    if (loadOutcome === 'loading') {
         return (
             <div className="glass-card animate-pulse text-sm text-slate-400">{tCommon('loading.generic')}</div>
         );
     }
 
-    if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
-    }
-
-    if (error || !threat) {
+    if (loadOutcome === 'unavailable' || !threat) {
         return (
-            <div className="glass-card space-y-4">
-                <div className="flex items-start gap-3 text-rose-300">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{error ?? t('errors.not_found')}</p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => navigate('/threats')}
-                    className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white transition-colors text-sm font-semibold"
-                >
-                    {t('actions.back_to_register')}
-                </button>
-            </div>
+            <DetailLoadUnavailableState
+                backLabel={t('actions.back_to_register')}
+                isRetrying={isRetrying}
+                onBack={() => navigate(returnTo)}
+                onRetry={threatId === null ? undefined : () => void fetchThreat()}
+            />
         );
     }
+
+    const staleWarning = loadOutcome === 'stale-with-error' ? (
+        <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchThreat()} />
+    ) : null;
 
     if (mode === 'edit') {
         if (resolveCapabilityFlag(threat.capabilities, 'business_edit_blocked')) {
             return (
                 <div className="space-y-8">
+                    {staleWarning}
                     <button
                         type="button"
-                        onClick={() => navigate(`/threats/${threat.id}`)}
+                        onClick={() => navigate(threatDetailPath(threat.id))}
                         aria-label={t('actions.back_to_register')}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white"
                     >
@@ -224,10 +222,11 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         if (threat.stewardship_status === 'pending_governance') {
             return (
                 <div className="space-y-8">
+                    {staleWarning}
                     <div className="flex items-start gap-3">
                         <button
                             type="button"
-                            onClick={() => navigate(`/threats/${threat.id}`)}
+                            onClick={() => navigate(threatDetailPath(threat.id))}
                             aria-label={t('actions.back_to_register')}
                             className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
                         >
@@ -256,10 +255,11 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         }
         return (
             <div className="space-y-8">
+                {staleWarning}
                 <div className="flex items-start gap-3">
                     <button
                         type="button"
-                        onClick={() => navigate(`/threats/${threat.id}`)}
+                        onClick={() => navigate(threatDetailPath(threat.id))}
                         aria-label={t('actions.back_to_register')}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
                     >
@@ -290,9 +290,9 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                         // navigating so the saved controlled values render
                         // immediately instead of waiting for stale-time expiry.
                         setThreat(saved);
-                        void navigate(`/threats/${saved.id}`);
+                        void navigate(threatDetailPath(saved.id));
                     }}
-                    onCancel={() => navigate(`/threats/${threat.id}`)}
+                    onCancel={() => navigate(threatDetailPath(threat.id))}
                 />
             </div>
         );
@@ -302,6 +302,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
 
     return (
         <div className="space-y-8">
+            {staleWarning}
             {actionError ? (
                 <div className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -340,7 +341,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                 <div className="flex items-start gap-3">
                     <button
                         type="button"
-                        onClick={() => navigate('/threats')}
+                        onClick={() => navigate(returnTo)}
                         data-testid="threat-detail-back"
                         aria-label={t('actions.back_to_register')}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
@@ -379,7 +380,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     {canEdit && !threat.pending_change && threat.stewardship_status !== 'pending_governance' && (
                         <button
                             type="button"
-                            onClick={() => navigate(`/threats/${threat.id}/edit`)}
+                            onClick={() => navigate(appendRegisterReturnTo(`/threats/${threat.id}/edit`, returnTo))}
                             data-testid="threat-detail-edit"
                             className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >

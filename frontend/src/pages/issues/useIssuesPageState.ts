@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
@@ -12,9 +12,8 @@ import { reportApi } from '@/services/reportApi';
 import type { IssueFacets, IssueListCapabilities, IssueSummary } from '@/types/issue';
 
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
-import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
-import { buildRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import { buildIssueExportFilters, parseIssuesPageQueryParams } from './issuesPagePresentation';
 import {
     buildIssueRegisterListParams,
@@ -68,15 +67,12 @@ export function useIssuesPageState(language: SupportedLanguage = 'en') {
     ), [legacyState.sortDirection, legacyState.sortField, urlState.sort]);
     const selectedGroupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [localCurrentPage, setLocalCurrentPage] = useState(1);
-    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
-        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
-    });
+    const currentPage = urlState.page;
     const [facets, setFacets] = useState<IssueFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
-        applyFailure, applySuccess, capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied,
-        isLoading, items, setIsLoading, totalCount,
+        applyFailure, applySuccess, beginQuery, commitQueryIdentity, forQuery,
+        isLoading: collectionIsLoading, setIsLoading,
     } = useCollectionDataState<IssueSummary, IssueListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
@@ -84,13 +80,20 @@ export function useIssuesPageState(language: SupportedLanguage = 'en') {
         currentPage, filters: effectiveFilters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
         search: debouncedSearch, sort, view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, selectedGroupValue, sort, viewMode]);
+    const queryIdentity = JSON.stringify(listParams);
+    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const queryState = forQuery(queryIdentity);
+    const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const visibleFacets = queryState.isCurrentQuery ? facets : {};
     const fetchIssues = useCallback(async () => {
         const request = beginRequest();
+        if (!beginQuery(queryIdentity)) setFacets({});
         setIsLoading(true);
         try {
             const response = await issuesApi.list(listParams);
             if (!isCurrentRequest(request)) return;
-            applySuccess({ items: response.items, groups: response.groups ?? [], capabilities: response.capabilities ?? null, total: response.total });
+            applySuccess(queryIdentity, { items: response.items, groups: response.groups ?? [], capabilities: response.capabilities ?? null, total: response.total });
             setFacets(response.facets ?? {});
         } catch (error) {
             if (!isCurrentRequest(request)) return;
@@ -99,9 +102,18 @@ export function useIssuesPageState(language: SupportedLanguage = 'en') {
         } finally {
             if (isCurrentRequest(request)) setIsLoading(false);
         }
-    }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
+    }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => { if (!isDepartmentScoped) setLocalCurrentPage(1); }, [isDepartmentScoped, serializedParams]);
+    useEffect(() => {
+        const params = new URLSearchParams(serializedParams);
+        if (!normalizeRegisterUrlParams(params, {
+            allowedSortFields: ISSUE_SORT_FIELDS,
+            allowedViews: ISSUE_VIEWS,
+            canonicalizeFilters: (rawFilters) => serializeIssueRegisterFilters(parseIssueRegisterFilters(rawFilters)),
+            defaultView: 'all',
+        })) return;
+        setSearchParams(params, { replace: true });
+    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchIssues(); }, [fetchIssues]);
 
     const writeUrl = useCallback((next: {
@@ -111,13 +123,18 @@ export function useIssuesPageState(language: SupportedLanguage = 'en') {
         const existing = new URLSearchParams(serializedParams);
         ['status', 'severity', 'severity_group', 'overdue', 'exclude_active_exceptions', 'include_closed', 'sort_by', 'sort_order'].forEach((key) => existing.delete(key));
         const params = buildRegisterUrlParams({
-            filters: serializeIssueRegisterFilters(next.filters ?? filters), search: next.search ?? urlState.search,
+            filters: serializeIssueRegisterFilters(next.filters ?? filters), page: 1, search: next.search ?? urlState.search,
             selectedGroupValue: next.group === undefined ? selectedGroupValue : next.group,
             sort: next.sort === undefined ? sort : next.sort, view: next.view ?? viewMode,
         }, existing);
-        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
-        if (!isDepartmentScoped) setCurrentPage(1);
-    }, [filters, isDepartmentScoped, selectedGroupValue, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(params, { replace });
+    }, [filters, selectedGroupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+    const setCurrentPage = useCallback((page: number) => {
+        const params = new URLSearchParams(serializedParams);
+        if (page > 1) params.set('page', String(page));
+        else params.delete('page');
+        setSearchParams(params);
+    }, [serializedParams, setSearchParams]);
     const updateFilter = useCallback(<K extends keyof IssueRegisterFilters>(key: K, value: IssueRegisterFilters[K]) => {
         const next = { ...filters, [key]: value };
         if (key === 'status' && value === 'closed') next.include_closed = true;
@@ -145,7 +162,7 @@ export function useIssuesPageState(language: SupportedLanguage = 'en') {
 
     return {
         capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,
-        errorKey, exportCurrentIssues, exportIssueSnapshot, facets, fetchIssues, filters, groups,
+        errorKey, exportCurrentIssues, exportIssueSnapshot, facets: visibleFacets, fetchIssues, filters, groups,
         hasLoadedOnce, isAccessDenied, isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
         search: urlState.search, selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
         selectedGroupLabel: groupLabel(groups, selectedGroupValue), selectedGroupValue, setCurrentPage,

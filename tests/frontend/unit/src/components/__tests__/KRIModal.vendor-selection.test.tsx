@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KRIModal } from '@/components/kri/KRIModal';
@@ -56,11 +57,16 @@ describe('KRIModal vendor selection', () => {
         };
     }
 
+    function renderModal(modal: React.ReactElement) {
+        const router = createMemoryRouter([{ path: '/', element: modal }]);
+        return render(<RouterProvider router={router} />);
+    }
+
     it('passes the selected vendors to the save handler when editing a KRI', async () => {
         const onSave = vi.fn().mockResolvedValue({ kind: 'updated' });
         const onClose = vi.fn();
 
-        render(
+        renderModal(
             <KRIModal
                 risk_id={101}
                 kri={existingKri()}
@@ -96,7 +102,7 @@ describe('KRIModal vendor selection', () => {
         );
         const onClose = vi.fn();
 
-        render(
+        renderModal(
             <KRIModal
                 risk_id={101}
                 kri={existingKri()}
@@ -116,7 +122,7 @@ describe('KRIModal vendor selection', () => {
     it('creates a KRI with the parent risk id and current value', async () => {
         const onSave = vi.fn().mockResolvedValue({ kind: 'updated' });
 
-        render(
+        renderModal(
             <KRIModal
                 risk_id={101}
                 isOpen
@@ -145,7 +151,7 @@ describe('KRIModal vendor selection', () => {
     it('excludes readonly current value from edit save payload', async () => {
         const onSave = vi.fn().mockResolvedValue({ kind: 'updated' });
 
-        render(
+        renderModal(
             <KRIModal
                 risk_id={101}
                 kri={existingKri({ current_value: 42 })}
@@ -168,7 +174,7 @@ describe('KRIModal vendor selection', () => {
     it('blocks saving while required draft fields are missing', async () => {
         const onSave = vi.fn().mockResolvedValue({ kind: 'updated' });
 
-        render(
+        renderModal(
             <KRIModal
                 risk_id={101}
                 isOpen
@@ -186,7 +192,7 @@ describe('KRIModal vendor selection', () => {
     it('confirms delete before calling the delete handler', async () => {
         const onDelete = vi.fn().mockResolvedValue(undefined);
 
-        render(
+        renderModal(
             <KRIModal
                 risk_id={101}
                 kri={existingKri()}

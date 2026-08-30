@@ -5,6 +5,7 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 import { issuesApi } from '@/services/issuesApi';
 import { apiClient } from '@/services/apiClient';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import type {
     Issue,
     IssueCreatePayload,
@@ -42,6 +43,20 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
     const [isOwnersLoading, setIsOwnersLoading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const {
+        acceptCurrentSnapshot,
+        confirmationDialog,
+    } = useDirtyTaskGuard({
+        busy: isCreating,
+        currentSnapshot: JSON.stringify([
+            title,
+            description,
+            departmentId,
+            ownerId,
+            severity,
+            dueAt,
+        ]),
+    });
 
     useEffect(() => {
         let cancelled = false;
@@ -134,6 +149,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
         setErrorKey(null);
         try {
             const created = await issuesApi.create(payload);
+            acceptCurrentSnapshot();
             onCreated(created);
         } catch (createError) {
             setErrorKey(apiClient.toUiMessageKey(createError));
@@ -158,6 +174,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                     <input
                         type="text"
                         value={title}
+                        disabled={isCreating}
                         onChange={(event) => setTitle(event.target.value)}
                         placeholder={t('form.placeholders.title')}
                         className={ISSUE_FIELD}
@@ -168,6 +185,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                     <label className={ISSUE_LABEL}>{t('form.fields.severity')}</label>
                     <ThemedSelect
                         value={severity}
+                        disabled={isCreating}
                         onValueChange={(value) => setSeverity(value as IssueSeverity)}
                         options={severityOptions.map((option) => ({ label: option.label, value: option.value }))}
                         className="w-full"
@@ -178,6 +196,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                     <label className={ISSUE_LABEL}>{t('form.fields.department')}</label>
                     <ThemedSelect
                         value={departmentId}
+                        disabled={isCreating}
                         onValueChange={setDepartmentId}
                         options={departmentOptions.map((department) => ({
                             value: String(department.id),
@@ -208,7 +227,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                                     : t('fallbacks.unassigned')
                         }
                         placeholder={t('form.placeholders.owner')}
-                        disabled={!departmentId || isOwnersLoading}
+                        disabled={isCreating || !departmentId || isOwnersLoading}
                         className="w-full"
                     />
                 </div>
@@ -218,6 +237,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                     <input
                         type="datetime-local"
                         value={dueAt}
+                        disabled={isCreating}
                         onChange={(event) => setDueAt(event.target.value)}
                         className={`${ISSUE_FIELD} h-10`}
                     />
@@ -227,6 +247,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                     <label className={ISSUE_LABEL}>{t('form.fields.description')}</label>
                     <textarea
                         value={description}
+                        disabled={isCreating}
                         onChange={(event) => setDescription(event.target.value)}
                         placeholder={t('form.placeholders.description')}
                         className={ISSUE_TEXTAREA}
@@ -239,7 +260,8 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
+                        disabled={isCreating}
+                        className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <X className="h-4 w-4" />
                         {t('actions.cancel')}
@@ -260,6 +282,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                     </span>
                 </button>
             </div>
+            {confirmationDialog}
         </section>
     );
 }

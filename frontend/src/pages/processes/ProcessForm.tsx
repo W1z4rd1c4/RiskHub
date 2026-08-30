@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { ictRegisterKeys } from '@/lib/queryKeys';
@@ -113,6 +114,34 @@ function toNullableInt(value: string): number | null {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
+function buildProcessFormPayload(fields: FormFields) {
+    return buildProcessWritePayload({
+        l0_area: fields.l0_area,
+        l1_process: fields.l1_process,
+        l2_subprocess: fields.l2_subprocess,
+        process_owner_user_id: Number(fields.process_owner_user_id),
+        owning_department_id: Number(fields.owning_department_id),
+        impact_client: toNullableInt(fields.impact_client),
+        impact_market_operations: toNullableInt(fields.impact_market_operations),
+        impact_regulatory: toNullableInt(fields.impact_regulatory),
+        impact_financial: toNullableInt(fields.impact_financial),
+        impact_reputational: toNullableInt(fields.impact_reputational),
+        mtpd_hours: toNullableInt(fields.mtpd_hours),
+        preliminary_criticality: fields.preliminary_criticality,
+        cif_override: fields.cif_override,
+        licensed_activity: fields.licensed_activity,
+        rto_hours: toNullableInt(fields.rto_hours),
+        rpo_hours: toNullableInt(fields.rpo_hours),
+        bcm_link: fields.bcm_link,
+        last_dr_test_date: fields.last_dr_test_date,
+        dr_test_result: fields.dr_test_result,
+        interruption_impact: fields.interruption_impact,
+        assessment_date: fields.assessment_date,
+        notes: fields.notes,
+        request_reason: fields.request_reason.trim() || undefined,
+    });
+}
+
 export function ProcessForm({
     initialData,
     isEdit = false,
@@ -128,6 +157,14 @@ export function ProcessForm({
     const [ownerSearch, setOwnerSearch] = useState('');
     const [departmentSearch, setDepartmentSearch] = useState('');
     const [serverRequiredRoutingSignature, setServerRequiredRoutingSignature] = useState<string | null>(null);
+    const {
+        acceptCurrentSnapshot,
+        confirmationDialog,
+        requestLocalLeave,
+    } = useDirtyTaskGuard({
+        busy: isSubmitting,
+        currentSnapshot: JSON.stringify(buildProcessFormPayload(fields)),
+    });
     const accountabilityScenario = useAccountabilityReassignmentScenario();
     const protectedChangeRequiresApproval = resolveCapabilityFlag(
         initialData?.capabilities,
@@ -327,33 +364,7 @@ export function ProcessForm({
             return;
         }
 
-        const payload = buildProcessWritePayload({
-            l0_area: fields.l0_area,
-            l1_process: fields.l1_process,
-            l2_subprocess: fields.l2_subprocess,
-            process_owner_user_id: Number(fields.process_owner_user_id),
-            owning_department_id: Number(fields.owning_department_id),
-            impact_client: toNullableInt(fields.impact_client),
-            impact_market_operations: toNullableInt(fields.impact_market_operations),
-            impact_regulatory: toNullableInt(fields.impact_regulatory),
-            impact_financial: toNullableInt(fields.impact_financial),
-            impact_reputational: toNullableInt(fields.impact_reputational),
-            mtpd_hours: toNullableInt(fields.mtpd_hours),
-            preliminary_criticality: fields.preliminary_criticality,
-            cif_override: fields.cif_override,
-            licensed_activity: fields.licensed_activity,
-            rto_hours: toNullableInt(fields.rto_hours),
-            rpo_hours: toNullableInt(fields.rpo_hours),
-            bcm_link: fields.bcm_link,
-            last_dr_test_date: fields.last_dr_test_date,
-            dr_test_result: fields.dr_test_result,
-            interruption_impact: fields.interruption_impact,
-            assessment_date: fields.assessment_date,
-            notes: fields.notes,
-        });
-        if (fields.request_reason.trim()) {
-            payload.request_reason = fields.request_reason.trim();
-        }
+        const payload = buildProcessFormPayload(fields);
 
         try {
             setIsSubmitting(true);
@@ -361,6 +372,7 @@ export function ProcessForm({
             const result = isEdit && initialData
                 ? await processApi.updateProcess(initialData.id, payload)
                 : await processApi.createProcess(payload);
+            acceptCurrentSnapshot();
             if (isProcessApprovalQueuedResponse(result)) {
                 setServerRequiredRoutingSignature(null);
                 onApprovalQueued?.(result);
@@ -384,7 +396,7 @@ export function ProcessForm({
                     ...current,
                     request_reason: t('form.errors.request_reason_required'),
                 }));
-                fieldRefs.current.request_reason?.focus();
+                requestAnimationFrame(() => fieldRefs.current.request_reason?.focus());
             } else {
                 setError(t('form.errors.save_failed'));
             }
@@ -446,6 +458,7 @@ export function ProcessForm({
 
     return (
         <form noValidate onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
+            <fieldset disabled={isSubmitting} className="min-w-0 space-y-6 border-0 p-0">
             {error || hasFieldErrors ? (
                 <div role="alert" className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -631,7 +644,7 @@ export function ProcessForm({
                 {onCancel ? (
                     <button
                         type="button"
-                        onClick={onCancel}
+                        onClick={() => requestLocalLeave(onCancel)}
                         className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                     >
                         <X className="h-4 w-4" />
@@ -652,6 +665,8 @@ export function ProcessForm({
                             : t('actions.create')}
                 </button>
             </div>
+            </fieldset>
+            {confirmationDialog}
         </form>
     );
 }

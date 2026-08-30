@@ -33,6 +33,7 @@
     { "id": "issue.execution-history", "component": "IssueQuickCreateModal", "file": "frontend/src/components/executions/ExecutionHistory.tsx", "verificationCaseId": "owner.issue-quick-create-modal" },
     { "id": "mismatch.kri-form", "component": "KriMismatchDialog", "file": "frontend/src/components/kri-form/KriCreateDialogs.tsx", "verificationCaseId": "owner.kri-mismatch-dialog" },
     { "id": "confirm.kri-modal", "component": "ConfirmDialog", "file": "frontend/src/components/kri/KRIModal.tsx", "verificationCaseId": "owner.confirm-dialog" },
+    { "id": "confirm.dirty-task-guard", "component": "ConfirmDialog", "file": "frontend/src/hooks/useDirtyTaskGuard.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "role-modal.roles-panel", "component": "RoleModal", "file": "frontend/src/components/riskhub/RolesPanel.tsx", "verificationCaseId": "owner.role-modal" },
     { "id": "role-delete.roles-panel", "component": "RoleDeleteDialog", "file": "frontend/src/components/riskhub/RolesPanel.tsx", "verificationCaseId": "owner.role-delete-dialog" },
     { "id": "questionnaire.risk-detail-tab", "component": "RiskQuestionnaireDetail", "file": "frontend/src/components/risks/RiskDetailQuestionnairesTab.tsx", "verificationCaseId": "owner.risk-questionnaire-detail" },

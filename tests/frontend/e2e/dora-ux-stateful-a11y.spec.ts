@@ -591,7 +591,7 @@ async function driveUx157ApprovalsAndTheme(
 
     await page.goto('/settings');
     await waitForDataLoad(page);
-    await page.getByRole('button', { name: config.labels.appearanceTab, exact: true }).click();
+    await page.getByRole('tab', { name: config.labels.appearanceTab, exact: true }).click();
     const group = page.getByRole('group', { name: config.labels.theme });
     const themeLabels: Record<AuditTheme, string> = {
         riskhub: config.labels.themeRiskHub,

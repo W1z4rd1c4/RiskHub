@@ -184,7 +184,8 @@
       "flags": "Profile flags",
       "no_flags": "No special flags",
       "type_hint": "Type: {{type}}",
-      "replaceability": "Replaceability"
+      "replaceability": "Replaceability",
+      "unavailable": "Unavailable"
     },
     "meta": {
       "created_at": "Created",
@@ -213,6 +214,14 @@
     "archived_risks": "Archived risks ({{count}})",
     "archived_controls": "Archived controls ({{count}})",
     "archived_kris": "Archived KRIs ({{count}})",
+    "errors": {
+      "load_failed": "This linked register is unavailable.",
+      "stale": "This linked register may be out of date. The last successful items remain visible.",
+      "access_denied": "You do not have access to this linked register."
+    },
+    "status": {
+      "retrying": "Retrying linked register load..."
+    },
     "dialogs": {
       "link_risks_title": "Link Risks to Vendor",
       "link_controls_title": "Link Controls to Vendor",
@@ -367,6 +376,7 @@
     "title": "Vendor Reports",
     "subtitle": "Exports for annual vendor risk management reporting and DORA register.",
     "not_authorized": "You do not have access to vendor reports.",
+    "unavailable": "Vendor reports are temporarily unavailable. Try again.",
     "annual": {
       "title": "Annual Vendor Management Report",
       "year": "Year",

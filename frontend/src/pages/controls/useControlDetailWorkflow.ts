@@ -8,14 +8,17 @@ import type { Control, ControlRiskLink } from '@/types/control';
 import type { ControlEffectiveness, Risk } from '@/types/risk';
 import type { DetailActionMessage } from '@/pages/detail/DetailActionBanner';
 import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
+import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 
 type TabView = 'overview' | 'history';
+export const controlDetailTabs = ['overview', 'history'] as const;
 
 interface ControlDetailWorkflowArgs {
     control: Control | null;
     controlId: number | null;
     fetchControl: () => Promise<void>;
     navigate: NavigateFunction;
+    returnTo: string;
 }
 
 export function useControlDetailWorkflow({
@@ -23,13 +26,17 @@ export function useControlDetailWorkflow({
     controlId,
     fetchControl,
     navigate,
+    returnTo,
 }: ControlDetailWorkflowArgs) {
     const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [historyKey, setHistoryKey] = useState(0);
-    const [activeTab, setActiveTab] = useState<TabView>('overview');
+    const [activeTab, setActiveTab] = useContentTabQuery<TabView>({
+        tabs: controlDetailTabs,
+        defaultTab: 'overview',
+    });
     const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
     const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
     const [isLoadingRisk, setIsLoadingRisk] = useState(false);
@@ -66,7 +73,7 @@ export function useControlDetailWorkflow({
             archive: () => controlApi.deleteControl(control.id, reason),
             approvalKey: 'controls:detail.archive_approval_submitted',
             closeDialog: () => setIsArchiveDialogOpen(false),
-            onImmediate: () => navigate('/controls'),
+            onImmediate: () => navigate(returnTo),
         });
     }
 

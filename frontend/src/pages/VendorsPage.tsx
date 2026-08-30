@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
@@ -12,6 +12,7 @@ import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
 import { parseVendorSemanticFilters } from './shared/ictRegisterSemanticFilters';
 import { useIctRegisterSemanticPageState } from './shared/useIctRegisterPageState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { VendorRegisterFilterBar } from './vendors/VendorRegisterFilterBar';
 import { buildVendorColumns } from './vendors/vendorColumns';
 import { VENDOR_REGISTER_CONFIG, type VendorRegisterView } from './vendors/vendorRegisterConfig';
@@ -20,6 +21,8 @@ import { useVendorsPageState } from './vendors/useVendorsPageState';
 
 export function VendorsPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/vendors');
     const { i18n, t } = useTranslation('vendors');
     const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } =
         useIctRegisterSemanticPageState(parseVendorSemanticFilters);
@@ -56,7 +59,7 @@ export function VendorsPage() {
             onViewChange={state.updateViewMode}
             canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
             canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-            onCreate={() => void navigate('/vendors/new')}
+            onCreate={() => void navigate(appendRegisterReturnTo('/vendors/new', returnTo))}
             createLabel={t('actions.new')}
             exportLabel={t('actions.export')}
             exportDialog={({ isOpen, onClose }) => (
@@ -81,8 +84,8 @@ export function VendorsPage() {
             columns={columns}
             table={{
                 keyExtractor: (vendor) => vendor.id,
-                onRowClick: (vendor) => void navigate(`/vendors/${vendor.id}`),
-                rowHref: (vendor) => `/vendors/${vendor.id}`,
+                onRowClick: (vendor) => void navigate(appendRegisterReturnTo(`/vendors/${vendor.id}`, returnTo)),
+                rowHref: (vendor) => appendRegisterReturnTo(`/vendors/${vendor.id}`, returnTo),
                 rowLabel: (vendor) => vendor.name,
                 sortKey: state.sortField,
                 sortDirection: state.sortDirection,

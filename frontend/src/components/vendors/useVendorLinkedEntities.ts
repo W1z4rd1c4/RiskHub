@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
 import type { ExistingLinkItem } from '@/components/linking/ExistingLinksPanel';
+import {
+    resolveCollectionOutcome,
+    useCollectionDataState,
+} from '@/pages/shared/collectionPageState';
 import { logError } from '@/services/logger';
 import { isProcessApprovalQueuedResponse, type ProcessApprovalQueuedResponse } from '@/types/process';
 
@@ -17,26 +21,88 @@ export function useVendorLinkedEntities<T>(
     vendorId: number,
     adapter: VendorLinkedEntitiesAdapter<T>,
 ) {
-    const [items, setItems] = useState<T[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const queryIdentity = String(vendorId);
+    const collection = useCollectionDataState<T>();
+    const {
+        applyFailure,
+        applySuccess,
+        beginQuery,
+        commitQueryIdentity,
+        forQuery,
+        isLoading: collectionIsLoading,
+        isQueryCurrent,
+        setIsLoading,
+    } = collection;
+    useLayoutEffect(
+        () => commitQueryIdentity(queryIdentity),
+        [commitQueryIdentity, queryIdentity],
+    );
+    const queryState = forQuery(queryIdentity);
+    const items = queryState.items;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const outcome = resolveCollectionOutcome(queryState, isLoading);
+    const latestRequestRef = useRef(0);
+    const pendingRetryRef = useRef<string | null>(null);
 
     const refresh = useCallback(async () => {
+        const requestVendorId = vendorId;
+        const requestQueryIdentity = queryIdentity;
+        if (!isQueryCurrent(requestQueryIdentity)) {
+            return;
+        }
+        const requestId = ++latestRequestRef.current;
         try {
             setIsLoading(true);
-            setItems(await adapter.fetch(vendorId));
-            setError(null);
+            const nextItems = await adapter.fetch(requestVendorId);
+            if (
+                latestRequestRef.current !== requestId
+                || !isQueryCurrent(requestQueryIdentity)
+            ) {
+                return;
+            }
+            applySuccess(requestQueryIdentity, {
+                items: nextItems,
+                groups: [],
+                capabilities: null,
+                total: nextItems.length,
+            });
         } catch (err) {
-            logError(adapter.errorLogPrefix, err);
-            setError('errors.load_failed');
+            if (
+                latestRequestRef.current === requestId
+                && isQueryCurrent(requestQueryIdentity)
+            ) {
+                logError(adapter.errorLogPrefix, err);
+                applyFailure(err, { fallbackErrorKey: 'links.errors.load_failed' });
+            }
         } finally {
-            setIsLoading(false);
+            if (
+                latestRequestRef.current === requestId
+                && isQueryCurrent(requestQueryIdentity)
+            ) {
+                setIsLoading(false);
+            }
         }
-    }, [adapter, vendorId]);
+    }, [adapter, applyFailure, applySuccess, isQueryCurrent, queryIdentity, setIsLoading, vendorId]);
 
     useEffect(() => {
+        beginQuery(queryIdentity);
         void refresh();
-    }, [refresh]);
+    }, [beginQuery, queryIdentity, refresh]);
+
+    const retry = useCallback(async () => {
+        const retryQueryIdentity = queryIdentity;
+        if (pendingRetryRef.current === retryQueryIdentity) {
+            return;
+        }
+        pendingRetryRef.current = retryQueryIdentity;
+        try {
+            await refresh();
+        } finally {
+            if (pendingRetryRef.current === retryQueryIdentity) {
+                pendingRetryRef.current = null;
+            }
+        }
+    }, [queryIdentity, refresh]);
 
     const active = useMemo(() => items.filter((item) => !adapter.isArchived(item)), [adapter, items]);
     const archived = useMemo(() => items.filter((item) => adapter.isArchived(item)), [adapter, items]);
@@ -49,25 +115,51 @@ export function useVendorLinkedEntities<T>(
         entityId: number,
         requestReason?: string,
     ): Promise<ProcessApprovalQueuedResponse | null> => {
-        const result = await adapter.link(vendorId, entityId, requestReason);
+        const mutationVendorId = vendorId;
+        const mutationQueryIdentity = queryIdentity;
+        const result = await adapter.link(mutationVendorId, entityId, requestReason);
+        if (!isQueryCurrent(mutationQueryIdentity)) {
+            return null;
+        }
         if (isProcessApprovalQueuedResponse(result)) {
             return result;
         }
         await refresh();
         return null;
-    }, [adapter, refresh, vendorId]);
+    }, [adapter, isQueryCurrent, queryIdentity, refresh, vendorId]);
 
     const unlink = useCallback(async (
         entityId: number,
         requestReason?: string,
     ): Promise<ProcessApprovalQueuedResponse | null> => {
-        const result = await adapter.unlink(vendorId, entityId, requestReason);
+        const mutationVendorId = vendorId;
+        const mutationQueryIdentity = queryIdentity;
+        const result = await adapter.unlink(mutationVendorId, entityId, requestReason);
+        if (!isQueryCurrent(mutationQueryIdentity)) {
+            return null;
+        }
         if (isProcessApprovalQueuedResponse(result)) {
             return result;
         }
         await refresh();
         return null;
-    }, [adapter, refresh, vendorId]);
+    }, [adapter, isQueryCurrent, queryIdentity, refresh, vendorId]);
 
-    return { active, archived, error, existingLinks, isLoading, items, link, refresh, unlink };
+    const error = outcome.kind === 'fatal-error' || outcome.kind === 'stale-with-error'
+        ? outcome.errorKey
+        : null;
+
+    return {
+        active,
+        archived,
+        error,
+        existingLinks,
+        isLoading,
+        items,
+        link,
+        outcome,
+        refresh,
+        retry,
+        unlink,
+    };
 }

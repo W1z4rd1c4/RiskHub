@@ -6,9 +6,13 @@
  * `role="alert"` summary.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import {
+    RouterProvider,
+    createMemoryRouter,
+    useNavigate,
+} from 'react-router-dom';
 import * as axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -54,22 +58,29 @@ async function expectNoAxeViolations(node: Element): Promise<void> {
     expect(summary, summary).toBe('');
 }
 
-function renderForm(initialData?: Threat) {
+function renderForm(initialData?: Threat, onCancel?: () => void) {
     const onSaved = vi.fn();
     const onApprovalQueued = vi.fn();
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
-    const utils = render(
-        <QueryClientProvider client={client}>
-            <MemoryRouter>
+    const router = createMemoryRouter([
+        {
+            path: '/',
+            element: (
                 <ThreatForm
                     initialData={initialData}
                     isEdit={initialData !== undefined}
                     onApprovalQueued={onApprovalQueued}
                     onSaved={onSaved}
+                    onCancel={onCancel}
                 />
-            </MemoryRouter>
+            ),
+        },
+    ]);
+    const utils = render(
+        <QueryClientProvider client={client}>
+            <RouterProvider router={router} />
         </QueryClientProvider>,
     );
     return { onApprovalQueued, onSaved, ...utils };
@@ -110,7 +121,89 @@ const nonProtectedThreat = {
     updated_at: '2026-07-01T00:00:00Z',
 } as Threat;
 
+function NavigatingThreatEdit() {
+    const navigate = useNavigate();
+    return (
+        <>
+            <button type="button" onClick={() => void navigate('/threats/88')}>
+                Back to Threat
+            </button>
+            <ThreatForm
+                initialData={nonProtectedThreat}
+                isEdit
+                onApprovalQueued={(queued) => {
+                    void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`);
+                }}
+                onSaved={(saved) => {
+                    void navigate(`/threats/${saved.id}`);
+                }}
+                onCancel={() => void navigate('/threats/88')}
+            />
+        </>
+    );
+}
+
+function renderNavigatingEdit() {
+    const client = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const router = createMemoryRouter([
+        { path: '/threats/88/edit', element: <NavigatingThreatEdit /> },
+        { path: '/threats/88', element: <p>Threat detail</p> },
+        { path: '/approvals', element: <p>Approvals</p> },
+    ], {
+        initialEntries: ['/threats/88', '/threats/88/edit'],
+        initialIndex: 1,
+    });
+    const visitedLocations: string[] = [];
+    let previousLocationKey = router.state.location.key;
+    router.subscribe((state) => {
+        if (state.location.key === previousLocationKey) return;
+        previousLocationKey = state.location.key;
+        visitedLocations.push(`${state.location.pathname}${state.location.search}`);
+    });
+    const utils = render(
+        <QueryClientProvider client={client}>
+            <RouterProvider router={router} />
+        </QueryClientProvider>,
+    );
+    return { router, visitedLocations, ...utils };
+}
+
 describe('ThreatForm — governed Threat Steward edit (#88)', () => {
+    it('guards the edit wrapper Back action and clears after a whitespace-equivalent revert', async () => {
+        const user = userEvent.setup();
+        const { router } = renderNavigatingEdit();
+        const notes = screen.getByTestId('threat-form-notes');
+
+        await user.clear(notes);
+        await user.type(notes, 'Changed note');
+        await user.click(screen.getByRole('button', { name: 'Back to Threat' }));
+        expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+        expect(router.state.location.pathname).toBe('/threats/88/edit');
+        await user.click(screen.getByRole('button', { name: i18n.t('common:actions.stay') }));
+
+        await user.clear(notes);
+        await user.type(notes, '  Existing note  ');
+        await user.click(screen.getByRole('button', { name: 'Back to Threat' }));
+        await waitFor(() => expect(router.state.location.pathname).toBe('/threats/88'));
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it('guards a create-mode Cancel callback through the local leave adapter', async () => {
+        const user = userEvent.setup();
+        const onCancel = vi.fn();
+        renderForm(undefined, onCancel);
+
+        await user.type(screen.getByTestId('threat-form-name'), 'New threat');
+        await user.click(screen.getByTestId('threat-form-cancel'));
+        expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+        expect(onCancel).not.toHaveBeenCalled();
+
+        await user.click(screen.getByRole('button', { name: i18n.t('common:actions.leave') }));
+        expect(onCancel).toHaveBeenCalledTimes(1);
+    });
+
     it('requires and focuses a localized reason for an actual steward delta', async () => {
         const user = userEvent.setup();
         const { container } = renderForm(nonProtectedThreat);
@@ -169,6 +262,75 @@ describe('ThreatForm — governed Threat Steward edit (#88)', () => {
             proposal_version: 1,
         }));
         expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it('keeps a rejected governed edit dirty', async () => {
+        const user = userEvent.setup();
+        mockUpdateThreat.mockRejectedValue(new Error('approval service unavailable'));
+        const { router } = renderNavigatingEdit();
+
+        await user.click(screen.getByTestId('threat-form-steward'));
+        await user.click(await screen.findByRole('option', { name: /Diego Security/ }));
+        await user.type(
+            screen.getByTestId('threat-form-request-reason'),
+            'Transfer stewardship to the incident response lead',
+        );
+        await user.click(screen.getByTestId('threat-form-submit'));
+        expect(await screen.findByText(i18n.t('threats:form.errors.save_failed'))).toBeInTheDocument();
+
+        await user.click(screen.getByTestId('threat-form-cancel'));
+
+        expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+            i18n.t('common:confirmation.unsaved_changes'),
+        );
+        expect(router.state.location.pathname).toBe('/threats/88/edit');
+    });
+
+    it('accepts an approval-queued edit before navigating exactly once', async () => {
+        const user = userEvent.setup();
+        const queuedResponse = approvalCreatedResponseSchema.parse({
+            status: 'approval_required',
+            message: 'Submitted',
+            approval_id: 88,
+            action_type: 'edit',
+            pending_fields: ['threat_steward'],
+            pending_changes: {
+                threat_steward: { old: 'Clara Security', new: 'Diego Security' },
+            },
+            primary_approver_id: null,
+            requires_privileged_approval: false,
+            proposal_id: 'proposal-threat-steward-88',
+            proposal_version: 1,
+        });
+        let resolveUpdate: (value: typeof queuedResponse) => void = () => {};
+        mockUpdateThreat.mockReturnValue(new Promise((resolve) => {
+            resolveUpdate = resolve;
+        }));
+        const { router, visitedLocations } = renderNavigatingEdit();
+
+        await user.click(screen.getByTestId('threat-form-steward'));
+        await user.click(await screen.findByRole('option', { name: /Diego Security/ }));
+        await user.type(
+            screen.getByTestId('threat-form-request-reason'),
+            'Transfer stewardship to the incident response lead',
+        );
+        await user.click(screen.getByTestId('threat-form-submit'));
+        await waitFor(() => expect(mockUpdateThreat).toHaveBeenCalledTimes(1));
+
+        expect(screen.getByTestId('threat-form-request-reason')).toBeDisabled();
+        expect(screen.getByTestId('threat-form-cancel')).toBeDisabled();
+
+        await user.click(screen.getByRole('button', { name: 'Back to Threat' }));
+        expect(router.state.location.pathname).toBe('/threats/88/edit');
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+
+        await act(async () => resolveUpdate(queuedResponse));
+
+        await waitFor(() => expect(router.state.location.pathname).toBe('/approvals'));
+        expect(router.state.location.search).toBe('?tab=mine&approvalId=88');
+        expect(mockUpdateThreat).toHaveBeenCalledTimes(1);
+        expect(visitedLocations).toEqual(['/approvals?tab=mine&approvalId=88']);
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
     it('keeps the same steward and an unrelated non-protected edit direct', async () => {

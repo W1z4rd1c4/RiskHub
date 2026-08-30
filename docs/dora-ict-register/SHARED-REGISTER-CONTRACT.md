@@ -16,8 +16,9 @@ The frontend owns one interaction vocabulary:
   view, sort, filters, and selected group while preserving unrelated browser
   navigation parameters.
 - `frontend/src/pages/shared/collectionPageState.ts` owns reusable collection
-  success/failure/request-order state. Entity page hooks own only their domain
-  filter types, query mapping, API call, and row actions.
+  success/failure/request-order state and the query-identity lifecycle. Entity
+  page hooks own only their normalized query identity, domain filter types,
+  query mapping, API call, and row actions.
 - Each entity `*RegisterConfig.ts` is the declarative home for its confirmed
   views, filters, grouping keys, sort fields, and normalized list parameters.
 
@@ -51,15 +52,30 @@ The backend owns one normalized collection boundary:
 | Issue | `/issues` | `pages/issues/` | `_register_listings/issues.py` | `kri-issue-register-framework.spec.ts`; `test_kri_issue_register_framework.py` |
 
 `tests/frontend/e2e/eight-register-parity.spec.ts` traverses all eight routes as
-one black-box matrix. It proves shared shell readiness, server-declared
+a 16-case black-box matrix. It proves shared shell readiness, server-declared
 Create/Export visibility, URL-backed search, page reset, and Back/Forward view
-restoration. `tests/frontend/unit/src/pages/shared/eightRegisterParity.contract.test.ts`
+restoration, plus one row-to-detail-to-visible-Back exact working-set
+restoration for each of the eight registers.
+`tests/frontend/unit/src/pages/shared/eightRegisterParity.contract.test.ts`
 locks the shell, URL vocabulary, entity query builder, current export, async
 state, capabilities, pending projection where applicable, and historical-export
 separation. `tests/backend/pytest/architecture/test_ict_gov_11_register_listing_contraction.py`
 locks the normalized endpoint boundary, shared listing lifecycle, stable entity
 tiebreakers, scoped-facet regression inventory, and removal of the superseded
 endpoint execution facade.
+
+The shared collection state has one explicit query-identity protocol. During
+render, `forQuery(queryIdentity)` exposes only data tagged to that identity, so
+an old query cannot appear in a newly rendered URL state. The layout-phase
+`commitQueryIdentity(queryIdentity)` establishes which query may receive an
+asynchronous mutation continuation. At request start,
+`beginQuery(queryIdentity)` retains safe same-query state but resets data owned
+by a different query. Successful responses use
+`applySuccess(queryIdentity, payload)`, while the latest-request guard prevents
+an older fetch from committing after a newer request. The pure seam and all
+eight register integrations are locked by `collectionPageState.test.ts`,
+`eightRegisterCollectionIdentity.test.tsx`, and
+`eightRegisterUrlHistory.test.tsx`.
 
 ## Invariants
 
@@ -76,8 +92,10 @@ endpoint execution facade.
    equivalent access. Any working-set change clears the selected page and
    returns local pagination to page 1.
 5. The shell distinguishes initial loading, stale-data refresh, empty results,
-   retryable failure, and access denial. A confirmed denial clears rows, groups,
-   facets, counts, and capabilities.
+   retryable failure, and access denial. Safe stale data may be retained only
+   for the same normalized query identity. A different query is masked before
+   request effects run, and a confirmed denial clears rows, groups, facets,
+   counts, and capabilities.
 6. Collection and row actions are rendered from backend capabilities. Archive,
    restore, and pending approval are separate states; pending proposals do not
    alter the approved operational collection until execution.
@@ -100,8 +118,8 @@ change:
 
 ```bash
 cd frontend
-npm run test:run -- ../tests/frontend/unit/src/pages/shared/eightRegisterParity.contract.test.ts
-npx playwright test -c playwright.config.ts --project=ci --list ../tests/frontend/e2e/eight-register-parity.spec.ts
+npm run test:run -- ../tests/frontend/unit/src/pages/shared/eightRegisterParity.contract.test.ts ../tests/frontend/unit/src/pages/shared/collectionPageState.test.ts ../tests/frontend/unit/src/pages/shared/eightRegisterCollectionIdentity.test.tsx ../tests/frontend/unit/src/pages/shared/eightRegisterUrlHistory.test.tsx
+npx playwright test -c playwright.config.ts --project=ci --workers=1 --retries=0 ../tests/frontend/e2e/eight-register-parity.spec.ts ../tests/frontend/e2e/dialog-render-sites.spec.ts
 
 cd ../backend
 ./venv/bin/pytest -q ../tests/backend/pytest/architecture/test_ict_gov_11_register_listing_contraction.py
@@ -115,3 +133,6 @@ The entity framework suites in the table remain the behavioral authority for
 domain filters, scoped facets/non-leakage, archive/restore, async failures,
 accessible controls, and export contents. The cross-register tests intentionally
 guard only the shared behavior so entity-specific coverage is not duplicated.
+The Playwright command above passed 72/72 in 2.9m on desktop Node 24 with the
+`ci` project, one worker, and zero retries. This bounded result is not full
+#158 acceptance, release readiness, or strict-Axe sign-off.

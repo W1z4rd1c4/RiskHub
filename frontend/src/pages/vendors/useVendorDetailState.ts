@@ -11,30 +11,23 @@ import type { VendorDetailMode } from './vendorDetailPresentation';
 
 interface UseVendorDetailStateOptions {
     mode: VendorDetailMode;
-    notFoundMessage: string;
 }
 
-export function useVendorDetailState({
-    mode,
-    notFoundMessage,
-}: UseVendorDetailStateOptions) {
+export function useVendorDetailState({ mode }: UseVendorDetailStateOptions) {
     const { id } = useParams<{ id: string }>();
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     const {
-        errorKey,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         refetch: fetchVendor,
         resource: vendor,
         resourceId: vendorId,
     } = useDetailQuery<Vendor>({
         enabled: mode !== 'new',
         entity: 'vendor',
-        invalidIdErrorKey: notFoundMessage,
         rawId: id,
         load: (vendorId) => vendorApi.getVendor(vendorId),
-        toErrorKey: () => notFoundMessage,
     });
 
     const restoreVendor = useCallback(async () => {
@@ -72,11 +65,10 @@ export function useVendorDetailState({
         canLinkKri,
         canLinkRisk,
         canRestore,
-        error: errorKey,
         fetchVendor,
-        isAccessDenied,
         isIssueModalOpen,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         openIssueModal: () => setIsIssueModalOpen(true),
         closeIssueModal: () => setIsIssueModalOpen(false),
         restoreVendor,

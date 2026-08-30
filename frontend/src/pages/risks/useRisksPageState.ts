@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
@@ -13,10 +13,9 @@ import { riskApi } from '@/services/riskApi';
 import type { RiskFacets, RiskListCapabilities, RiskSummary } from '@/types/risk';
 
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
-import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import type { RiskSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
-import { buildRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import {
     buildRiskRegisterListParams,
     EMPTY_RISK_REGISTER_FILTERS,
@@ -67,15 +66,13 @@ export function useRisksPageState(
     const sort = validSort(urlState.sort);
     const groupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [localCurrentPage, setLocalCurrentPage] = useState(1);
-    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
-        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
-    });
+    const currentPage = urlState.page;
     const [facets, setFacets] = useState<RiskFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
-        applyFailure, applySuccess, capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied,
-        isLoading, items, setErrorKey, setIsLoading, totalCount,
+        applyFailure, applySuccess, beginQuery, commitQueryIdentity, forQuery,
+        isLoading: collectionIsLoading, isQueryCurrent,
+        setErrorKey, setIsLoading,
     } = useCollectionDataState<RiskSummary, RiskListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
@@ -102,14 +99,21 @@ export function useRisksPageState(
             department_id: departmentScope?.departmentId,
         };
     }, [currentPage, debouncedSearch, departmentScope?.departmentId, filters, groupValue, semanticFilters, sort, thresholds.critical, viewMode]);
+    const queryIdentity = JSON.stringify(listParams);
+    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const queryState = forQuery(queryIdentity);
+    const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const visibleFacets = queryState.isCurrentQuery ? facets : {};
 
     const fetchRisks = useCallback(async () => {
         const request = beginRequest();
+        if (!beginQuery(queryIdentity)) setFacets({});
         setIsLoading(true);
         try {
             const response = await riskApi.getRisks(listParams);
             if (!isCurrentRequest(request)) return;
-            applySuccess({
+            applySuccess(queryIdentity, {
                 items: normalizeRiskSummaries(response.items),
                 groups: response.groups ?? [],
                 capabilities: response.capabilities ?? null,
@@ -123,9 +127,18 @@ export function useRisksPageState(
         } finally {
             if (isCurrentRequest(request)) setIsLoading(false);
         }
-    }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
+    }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => { if (!isDepartmentScoped) setLocalCurrentPage(1); }, [isDepartmentScoped, serializedParams]);
+    useEffect(() => {
+        const params = new URLSearchParams(serializedParams);
+        if (!normalizeRegisterUrlParams(params, {
+            allowedSortFields: RISK_SORT_FIELDS,
+            allowedViews: RISK_VIEWS,
+            canonicalizeFilters: (rawFilters) => serializeRiskRegisterFilters(parseRiskRegisterFilters(rawFilters)),
+            defaultView: 'all',
+        })) return;
+        setSearchParams(params, { replace: true });
+    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchRisks(); }, [fetchRisks]);
 
     const writeUrl = useCallback((next: {
@@ -140,14 +153,21 @@ export function useRisksPageState(
         existing.delete('breached');
         const params = buildRegisterUrlParams({
             filters: serializeRiskRegisterFilters(next.filters ?? filters),
+            page: 1,
             search: next.search ?? urlState.search,
             selectedGroupValue: next.group === undefined ? groupValue : next.group,
             sort: next.sort === undefined ? sort : next.sort,
             view: next.view ?? viewMode,
         }, existing);
-        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
-        if (!isDepartmentScoped) setCurrentPage(1);
-    }, [filters, groupValue, isDepartmentScoped, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(params, { replace });
+    }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+
+    const setCurrentPage = useCallback((page: number) => {
+        const params = new URLSearchParams(serializedParams);
+        if (page > 1) params.set('page', String(page));
+        else params.delete('page');
+        setSearchParams(params);
+    }, [serializedParams, setSearchParams]);
 
     const updateFilter = useCallback(<K extends keyof RiskRegisterFilters>(key: K, value: RiskRegisterFilters[K]) => {
         writeUrl({ filters: { ...filters, [key]: value }, group: null });
@@ -157,9 +177,14 @@ export function useRisksPageState(
         [writeUrl],
     );
     const restoreRisk = useCallback(async (riskId: number) => {
-        try { await riskApi.restoreRisk(riskId); await fetchRisks(); }
-        catch (error) { setErrorKey(apiClient.toUiMessageKey(error)); }
-    }, [fetchRisks, setErrorKey]);
+        const restoreQueryIdentity = queryIdentity;
+        try {
+            await riskApi.restoreRisk(riskId);
+            if (isQueryCurrent(restoreQueryIdentity)) await fetchRisks();
+        } catch (error) {
+            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
+        }
+    }, [fetchRisks, isQueryCurrent, queryIdentity, setErrorKey]);
     const exportCurrentRisks = useCallback(async () => {
         setIsExporting(true);
         try {
@@ -191,7 +216,7 @@ export function useRisksPageState(
 
     return {
         capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,
-        errorKey, exportCurrentRisks, exportRiskSnapshot, facets, fetchRisks, filters, groups, hasLoadedOnce, isAccessDenied,
+        errorKey, exportCurrentRisks, exportRiskSnapshot, facets: visibleFacets, fetchRisks, filters, groups, hasLoadedOnce, isAccessDenied,
         isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE, restoreRisk, search: urlState.search,
         selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
         selectedGroupLabel: selectedGroupLabel(groups, groupValue), selectedGroupValue: groupValue, setCurrentPage,

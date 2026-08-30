@@ -10,6 +10,7 @@ export interface RegisterSortState {
 
 export interface RegisterUrlState {
     filters: RegisterFilters;
+    page: number;
     search: string;
     selectedGroupValue: string | null;
     sort: RegisterSortState | null;
@@ -19,6 +20,15 @@ export interface RegisterUrlState {
 interface ParseRegisterUrlStateOptions {
     defaultView: string;
     allowedViews?: readonly string[];
+}
+
+interface NormalizeRegisterUrlParamsOptions extends ParseRegisterUrlStateOptions {
+    allowedSortFields: readonly string[];
+    canonicalizeFilters: (filters: RegisterFilters) => RegisterFilters;
+}
+
+interface BuildRegisterUrlParamsOptions {
+    defaultView?: string;
 }
 
 const OWNED_QUERY_KEYS = ['q', 'view', 'sort', 'filters', 'group', 'page'] as const;
@@ -60,6 +70,45 @@ function parseSort(raw: string | null): RegisterSortState | null {
     return direction === 'asc' || direction === 'desc' ? { field, direction } : null;
 }
 
+function parsePage(raw: string | null): number {
+    if (raw === null || !/^\d+$/.test(raw)) return 1;
+    const page = Number(raw);
+    return Number.isSafeInteger(page) && page > 0 ? page : 1;
+}
+
+export function normalizeRegisterUrlParams(
+    params: URLSearchParams,
+    options: NormalizeRegisterUrlParamsOptions,
+): boolean {
+    const state = parseRegisterUrlState(params, options);
+    const sort = state.sort && options.allowedSortFields.includes(state.sort.field)
+        ? state.sort
+        : null;
+    const selectedGroupValue = state.selectedGroupValue?.trim() || null;
+    const canonical = buildRegisterUrlParams({
+        ...state,
+        filters: options.canonicalizeFilters(state.filters),
+        search: state.search.trim(),
+        selectedGroupValue,
+        sort,
+    }, new URLSearchParams(), { defaultView: options.defaultView });
+
+    let changed = false;
+    OWNED_QUERY_KEYS.forEach((key) => {
+        const currentValues = params.getAll(key);
+        const canonicalValues = canonical.getAll(key);
+        if (
+            currentValues.length === canonicalValues.length
+            && currentValues.every((value, index) => value === canonicalValues[index])
+        ) return;
+
+        changed = true;
+        params.delete(key);
+        canonicalValues.forEach((value) => params.append(key, value));
+    });
+    return changed;
+}
+
 export function parseRegisterUrlState(
     params: URLSearchParams,
     { allowedViews, defaultView }: ParseRegisterUrlStateOptions,
@@ -67,6 +116,7 @@ export function parseRegisterUrlState(
     const requestedView = params.get('view') || defaultView;
     return {
         filters: parseFilters(params.get('filters')),
+        page: parsePage(params.get('page')),
         search: params.get('q') ?? '',
         selectedGroupValue: params.get('group') || null,
         sort: parseSort(params.get('sort')),
@@ -86,15 +136,17 @@ function compactFilters(filters: RegisterFilters): RegisterFilters {
 export function buildRegisterUrlParams(
     state: RegisterUrlState,
     existingParams = new URLSearchParams(),
+    { defaultView = 'all' }: BuildRegisterUrlParamsOptions = {},
 ): URLSearchParams {
     const params = new URLSearchParams(existingParams);
     OWNED_QUERY_KEYS.forEach((key) => params.delete(key));
 
     if (state.search.trim()) params.set('q', state.search.trim());
-    if (state.view !== 'all') params.set('view', state.view);
+    if (state.view !== defaultView) params.set('view', state.view);
     if (state.sort) params.set('sort', `${state.sort.field}:${state.sort.direction}`);
     const filters = compactFilters(state.filters);
     if (Object.keys(filters).length > 0) params.set('filters', JSON.stringify(filters));
     if (state.selectedGroupValue) params.set('group', state.selectedGroupValue);
+    if (state.page > 1) params.set('page', String(state.page));
     return params;
 }

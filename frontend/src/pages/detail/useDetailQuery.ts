@@ -1,31 +1,37 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { DETAIL_QUERY_STALE_TIME_MS, entityDetailQueryKey } from '@/lib/queryKeys/detail';
-import { isForbiddenApiError } from '@/services/apiClient';
+import { ApiClientError } from '@/services/apiClient';
 import { useSessionSnapshot } from '@/services/session';
 
 interface UseDetailQueryOptions<T> {
     enabled?: boolean;
     entity: string;
-    invalidIdErrorKey?: string;
     load: (id: number, signal?: AbortSignal) => Promise<T>;
     rawId: string | undefined;
-    toErrorKey: (error: unknown) => string;
 }
 
+export type DetailLoadOutcome = 'disabled' | 'loading' | 'content' | 'stale-with-error' | 'unavailable';
+
 export function parsePositiveRouteId(rawId: string | undefined): number | null {
-    const parsed = Number.parseInt(rawId ?? '', 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    if (!rawId || !/^[1-9]\d*$/.test(rawId)) {
+        return null;
+    }
+
+    const parsed = Number(rawId);
+    return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
+function isProtectedResourceUnavailable(error: unknown): boolean {
+    return error instanceof ApiClientError && (error.status === 403 || error.status === 404);
 }
 
 export function useDetailQuery<T>({
     entity,
     enabled = true,
-    invalidIdErrorKey = 'errorKeys.not_found',
     load,
     rawId,
-    toErrorKey,
 }: UseDetailQueryOptions<T>) {
     const queryClient = useQueryClient();
     const session = useSessionSnapshot();
@@ -40,6 +46,7 @@ export function useDetailQuery<T>({
         queryKey: queryKey ?? entityDetailQueryKey(entity, session.user?.id, 0),
         enabled: shouldLoad,
         queryFn: ({ signal }) => load(resourceId as number, signal),
+        retry: (failureCount, error) => !isProtectedResourceUnavailable(error) && failureCount < 1,
         staleTime: DETAIL_QUERY_STALE_TIME_MS,
     });
 
@@ -56,20 +63,33 @@ export function useDetailQuery<T>({
         await detailQuery.refetch();
     }, [detailQuery]);
 
-    const isAccessDenied = isForbiddenApiError(detailQuery.error);
-    const errorKey = !enabled
-        ? null
-        : !hasValidResourceId
-        ? invalidIdErrorKey
-        : detailQuery.error && !isAccessDenied
-            ? toErrorKey(detailQuery.error)
-            : null;
-    const resource = errorKey ? null : detailQuery.data ?? null;
+    const mustClearResource = isProtectedResourceUnavailable(detailQuery.error);
+    const resource = mustClearResource ? null : detailQuery.data ?? null;
+    const hasResource = resource !== null;
+
+    useEffect(() => {
+        if (mustClearResource && queryKey && detailQuery.data != null) {
+            queryClient.setQueryData(queryKey, null);
+        }
+    }, [detailQuery.data, mustClearResource, queryClient, queryKey]);
+
+    let loadOutcome: DetailLoadOutcome;
+    if (!enabled) {
+        loadOutcome = 'disabled';
+    } else if (!hasValidResourceId) {
+        loadOutcome = 'unavailable';
+    } else if (detailQuery.error) {
+        loadOutcome = hasResource ? 'stale-with-error' : 'unavailable';
+    } else if (detailQuery.isLoading) {
+        loadOutcome = 'loading';
+    } else {
+        loadOutcome = hasResource ? 'content' : 'unavailable';
+    }
 
     return {
-        errorKey,
-        isAccessDenied,
-        isLoading: shouldLoad ? detailQuery.isLoading : false,
+        isLoading: loadOutcome === 'loading',
+        isRetrying: detailQuery.isFetching && !detailQuery.isLoading,
+        loadOutcome,
         refetch,
         resource,
         resourceId,

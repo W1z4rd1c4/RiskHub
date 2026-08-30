@@ -6,16 +6,16 @@ import { Button } from '@/components/ui/button';
 import { IMPACT_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import type { Vendor } from '@/types/vendor';
-import {
-    VendorInlineMessage,
-} from '@/components/vendors/vendorRouteUi';
+import { VendorInlineMessage } from '@/components/vendors/vendorRouteUi';
 
 import {
+    buildVendorPayload,
     filterSuggestions,
     getSubprocessSuggestions,
+    vendorOwnerChangeRequiresApproval,
 } from './vendorForm.mappers';
 import { VendorClassificationSection } from './VendorClassificationSection';
 import { VendorIdentitySection } from './VendorIdentitySection';
@@ -25,24 +25,22 @@ import { VendorResilienceSection } from './VendorResilienceSection';
 import { useVendorFormState } from './useVendorFormState';
 import { useVendorLookups } from './useVendorLookups';
 import { useVendorSubmit } from './useVendorSubmit';
-import type { VendorFormProps } from './vendorForm.types';
+import type { VendorFormField, VendorFormProps } from './vendorForm.types';
 
-function vendorOwnerChangeRequiresApproval(
-    vendor: Vendor | undefined,
-    accountabilityChanged: boolean,
-    scenario: ReturnType<typeof useAccountabilityReassignmentScenario>,
-): boolean {
-    if (!accountabilityChanged) return false;
-    if (scenario.isEnabled) return true;
-    if (!scenario.requiresApproval('protected_vendor_edit')) return false;
-    return (
-        vendor?.derived?.tier === 'critical'
-        || vendor?.derived?.tier === 'significant'
-        || resolveCapabilityFlag(
-            vendor?.capabilities,
-            'protected_change_requires_approval',
-        )
-    );
+function focusVendorValidationField(field: VendorFormField | 'request_reason') {
+    const testIdByField: Partial<Record<typeof field, string>> = {
+        name: 'vendor-form-name',
+        process: 'vendor-form-process',
+        department_id: 'vendor-form-department',
+        outsourcing_owner_user_id: 'vendor-form-owner',
+        request_reason: 'vendor-form-request-reason',
+    };
+    const testId = testIdByField[field];
+    if (testId) {
+        requestAnimationFrame(() => {
+            document.querySelector<HTMLElement>(`[data-testid="${testId}"]`)?.focus();
+        });
+    }
 }
 
 export function VendorFormContainer({
@@ -66,6 +64,17 @@ export function VendorFormContainer({
     const { formData, handleChange } = useVendorFormState({
         initialData,
         users: lookups.users,
+    });
+    const {
+        acceptCurrentSnapshot,
+        confirmationDialog,
+        requestLocalLeave,
+    } = useDirtyTaskGuard({
+        busy: isSubmitting,
+        currentSnapshot: JSON.stringify([
+            buildVendorPayload(formData),
+            requestReason.trim(),
+        ]),
     });
     const accountabilityChanged = Boolean(
         isEdit
@@ -93,21 +102,8 @@ export function VendorFormContainer({
         onApprovalQueued,
         requestReason,
         requestReasonRequired,
-        onValidationError: (field) => {
-            const testIdByField: Partial<Record<typeof field, string>> = {
-                name: 'vendor-form-name',
-                process: 'vendor-form-process',
-                department_id: 'vendor-form-department',
-                outsourcing_owner_user_id: 'vendor-form-owner',
-                request_reason: 'vendor-form-request-reason',
-            };
-            const testId = testIdByField[field];
-            if (testId) {
-                requestAnimationFrame(() => {
-                    document.querySelector<HTMLElement>(`[data-testid="${testId}"]`)?.focus();
-                });
-            }
-        },
+        onAccepted: acceptCurrentSnapshot,
+        onValidationError: focusVendorValidationField,
         setError,
         setRequestReasonError,
         setIsSubmitting,
@@ -164,6 +160,7 @@ export function VendorFormContainer({
                 : handleSubmit}
             className="space-y-6"
         >
+            <fieldset disabled={isSubmitting} className="min-w-0 space-y-6 border-0 p-0">
             {error ? (
                 <VendorInlineMessage tone="danger">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -229,7 +226,11 @@ export function VendorFormContainer({
 
             <div className="flex items-center justify-end gap-3">
                 {onCancel ? (
-                    <Button type="button" variant="outline" onClick={onCancel}>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => requestLocalLeave(onCancel)}
+                    >
                         <X className="h-4 w-4" aria-hidden="true" />
                         {t('actions.cancel')}
                     </Button>
@@ -244,6 +245,8 @@ export function VendorFormContainer({
                     {submitLabel}
                 </Button>
             </div>
+            </fieldset>
+            {confirmationDialog}
         </form>
     );
 }

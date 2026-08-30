@@ -4,7 +4,10 @@ import { KRIGaugeCard } from '@/components/kri/KRIGaugeCard';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedKRI } from '@/types/vendorLink';
 
-import { VendorLinkedEntitiesTab } from './VendorLinkedEntitiesTab';
+import {
+    VendorLinkedEntitiesTab,
+    type VendorLinkedRegionSummary,
+} from './VendorLinkedEntitiesTab';
 
 const krisAdapter = {
     errorLogPrefix: 'Failed to load linked KRIs:',
@@ -29,9 +32,10 @@ interface VendorLinkedKRIsTabProps {
     protectedChangeRequiresApproval: boolean;
     onAddKri: () => void;
     onNavigateToKri: (kriId: number) => void;
+    onCollectionStateChange?: (summary: VendorLinkedRegionSummary) => void;
 }
 
-export function VendorLinkedKRIsTab({ vendorId, canCreateKri, canEdit, protectedChangeRequiresApproval, onAddKri, onNavigateToKri }: VendorLinkedKRIsTabProps) {
+export function VendorLinkedKRIsTab({ vendorId, canCreateKri, canEdit, protectedChangeRequiresApproval, onAddKri, onNavigateToKri, onCollectionStateChange }: VendorLinkedKRIsTabProps) {
     return (
         <VendorLinkedEntitiesTab
             adapter={krisAdapter}
@@ -46,6 +50,7 @@ export function VendorLinkedKRIsTab({ vendorId, canCreateKri, canEdit, protected
             linkDialogMode="vendor-to-kri"
             motionDelay={0.1}
             onAdd={onAddKri}
+            onCollectionStateChange={onCollectionStateChange}
             onNavigate={onNavigateToKri}
             renderCard={(kri, onClick) => <KRIGaugeCard key={kri.id} kri={kri} onClick={onClick} />}
             vendorId={vendorId}

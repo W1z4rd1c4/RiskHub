@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { SortDirection } from '@/components/tables';
@@ -10,7 +10,6 @@ import { assetApi } from '@/services/assetApi';
 import type { Asset, AssetFacets, AssetListCapabilities, AssetSortField } from '@/types/asset';
 
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
-import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import {
     canonicalAssetCriticality,
     type AssetSemanticFilters,
@@ -20,7 +19,7 @@ import {
     useCollectionDataState,
     useLatestRequestGuard,
 } from '../shared/collectionPageState';
-import { buildRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import {
     ASSET_REGISTER_CONFIG,
     buildAssetRegisterListParams,
@@ -52,25 +51,19 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
     const sort = validSort(urlState.sort);
     const groupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [localCurrentPage, setLocalCurrentPage] = useState(1);
-    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
-        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
-    });
+    const currentPage = urlState.page;
     const [facets, setFacets] = useState<AssetFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
         applyFailure,
         applySuccess,
-        capabilities,
-        errorKey,
-        groups,
-        hasLoadedOnce,
-        isAccessDenied,
-        isLoading,
-        items,
+        beginQuery,
+        commitQueryIdentity,
+        forQuery,
+        isLoading: collectionIsLoading,
+        isQueryCurrent,
         setErrorKey,
         setIsLoading,
-        totalCount,
     } = useCollectionDataState<Asset, AssetListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
@@ -86,14 +79,21 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
         ...buildAssetRegisterListParams({ currentPage, filters: effectiveFilters, groupValue, limit: DEFAULT_LIST_PAGE_SIZE, search: debouncedSearch, sort, view: viewMode }),
         has_process_link: semanticFilters.has_process_link,
     }), [currentPage, debouncedSearch, effectiveFilters, groupValue, semanticFilters.has_process_link, sort, viewMode]);
+    const queryIdentity = JSON.stringify(listParams);
+    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const queryState = forQuery(queryIdentity);
+    const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const visibleFacets = queryState.isCurrentQuery ? facets : {};
 
     const fetchAssets = useCallback(async () => {
         const currentRequest = beginRequest();
+        if (!beginQuery(queryIdentity)) setFacets({});
         setIsLoading(true);
         try {
             const response = await assetApi.getAssets(listParams);
             if (!isCurrentRequest(currentRequest)) return;
-            applySuccess({
+            applySuccess(queryIdentity, {
                 items: response.items,
                 groups: response.groups ?? [],
                 capabilities: response.capabilities ?? null,
@@ -107,39 +107,58 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
         } finally {
             if (isCurrentRequest(currentRequest)) setIsLoading(false);
         }
-    }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
+    }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => { if (!isDepartmentScoped) setLocalCurrentPage(1); }, [isDepartmentScoped, serializedParams]);
+    useEffect(() => {
+        const params = new URLSearchParams(serializedParams);
+        if (!normalizeRegisterUrlParams(params, {
+            allowedSortFields: ASSET_SORT_FIELDS,
+            allowedViews: ASSET_VIEWS,
+            canonicalizeFilters: (rawFilters) => serializeAssetRegisterFilters(parseAssetRegisterFilters(rawFilters)),
+            defaultView: 'all',
+        })) return;
+        setSearchParams(params, { replace: true });
+    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchAssets(); }, [fetchAssets]);
 
     const writeUrl = useCallback((next: {
         filters?: AssetRegisterFilters; group?: string | null; search?: string; sort?: RegisterSortState | null; view?: AssetRegisterView;
     }, replace = false) => {
         const params = buildRegisterUrlParams({
-            filters: serializeAssetRegisterFilters(next.filters ?? filters), search: next.search ?? urlState.search,
+            filters: serializeAssetRegisterFilters(next.filters ?? filters), page: 1, search: next.search ?? urlState.search,
             selectedGroupValue: next.group === undefined ? groupValue : next.group,
             sort: next.sort === undefined ? sort : next.sort, view: next.view ?? viewMode,
         }, new URLSearchParams(serializedParams));
-        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
-        if (!isDepartmentScoped) setCurrentPage(1);
-    }, [filters, groupValue, isDepartmentScoped, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(params, { replace });
+    }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+
+    const setCurrentPage = useCallback((page: number) => {
+        const params = new URLSearchParams(serializedParams);
+        if (page > 1) params.set('page', String(page));
+        else params.delete('page');
+        setSearchParams(params);
+    }, [serializedParams, setSearchParams]);
 
     const updateFilter = useCallback(<K extends keyof AssetRegisterFilters>(key: K, value: AssetRegisterFilters[K]) =>
         writeUrl({ filters: { ...filters, [key]: value }, group: null }), [filters, writeUrl]);
     const restoreAsset = useCallback(async (assetId: number) => {
-        try { await assetApi.restoreAsset(assetId); await fetchAssets(); }
-        catch (error) { setErrorKey(apiClient.toUiMessageKey(error)); }
-    }, [fetchAssets, setErrorKey]);
+        const restoreQueryIdentity = queryIdentity;
+        try {
+            await assetApi.restoreAsset(assetId);
+            if (isQueryCurrent(restoreQueryIdentity)) await fetchAssets();
+        } catch (error) {
+            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
+        }
+    }, [fetchAssets, isQueryCurrent, queryIdentity, setErrorKey]);
     const exportAssets = useCallback(async () => {
         setIsExporting(true);
         try { await assetApi.downloadExport({ ...listParams, offset: 0, limit: DEFAULT_LIST_PAGE_SIZE, search: urlState.search.trim() || undefined }, language); }
-        catch (error) { setErrorKey(apiClient.toUiMessageKey(error)); }
         finally { setIsExporting(false); }
-    }, [language, listParams, setErrorKey, urlState.search]);
+    }, [language, listParams, urlState.search]);
 
     return {
         capabilities, clearFilters: () => writeUrl({ filters: parseAssetRegisterFilters({}), group: null }),
-        clearSelectedGroup: () => writeUrl({ group: null }), currentPage, errorKey, exportAssets, facets, fetchAssets,
+        clearSelectedGroup: () => writeUrl({ group: null }), currentPage, errorKey, exportAssets, facets: visibleFacets, fetchAssets,
         filters, groups, hasLoadedOnce, isAccessDenied,
         isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
         restoreAsset, search: urlState.search, selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),

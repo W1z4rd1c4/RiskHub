@@ -4,7 +4,10 @@ import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedControl } from '@/types/vendorLink';
 
 import { VendorLinkedControlCard } from './VendorLinkedControlCard';
-import { VendorLinkedEntitiesTab } from './VendorLinkedEntitiesTab';
+import {
+    VendorLinkedEntitiesTab,
+    type VendorLinkedRegionSummary,
+} from './VendorLinkedEntitiesTab';
 
 const controlsAdapter = {
     errorLogPrefix: 'Failed to load linked controls:',
@@ -29,9 +32,10 @@ interface VendorLinkedControlsTabProps {
     protectedChangeRequiresApproval: boolean;
     onAddControl: () => void;
     onNavigateToControl: (controlId: number) => void;
+    onCollectionStateChange?: (summary: VendorLinkedRegionSummary) => void;
 }
 
-export function VendorLinkedControlsTab({ vendorId, canCreateControl, canEdit, protectedChangeRequiresApproval, onAddControl, onNavigateToControl }: VendorLinkedControlsTabProps) {
+export function VendorLinkedControlsTab({ vendorId, canCreateControl, canEdit, protectedChangeRequiresApproval, onAddControl, onNavigateToControl, onCollectionStateChange }: VendorLinkedControlsTabProps) {
     return (
         <VendorLinkedEntitiesTab
             adapter={controlsAdapter}
@@ -44,6 +48,7 @@ export function VendorLinkedControlsTab({ vendorId, canCreateControl, canEdit, p
             linkDialogMode="risk-to-control"
             motionDelay={0.05}
             onAdd={onAddControl}
+            onCollectionStateChange={onCollectionStateChange}
             onNavigate={onNavigateToControl}
             renderCard={(control, onClick) => <VendorLinkedControlCard key={control.id} control={control} onClick={onClick} />}
             vendorId={vendorId}

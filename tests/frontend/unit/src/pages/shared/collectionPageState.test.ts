@@ -1,3 +1,4 @@
+import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,7 +6,9 @@ import {
     createCollectionFailurePatch,
     createCollectionInitialState,
     createCollectionSuccessPatch,
+    resolveCollectionOutcome,
     resolveCollectionLoadFailure,
+    useCollectionDataState,
 } from '@/pages/shared/collectionPageState';
 import { ApiClientError } from '@/services/apiClient';
 
@@ -103,7 +106,68 @@ describe('collection state patches', () => {
     });
 });
 
+describe('resolveCollectionOutcome', () => {
+    it('distinguishes initial loading, successful empty data, and a later stale failure', () => {
+        const initialState = createCollectionInitialState<{ id: number }>();
+
+        expect(resolveCollectionOutcome(initialState, true)).toEqual({
+            kind: 'initial-loading',
+        });
+
+        const successfulEmptyState = applyCollectionStatePatch(
+            initialState,
+            createCollectionSuccessPatch({
+                items: [],
+                groups: [],
+                capabilities: null,
+                total: 0,
+            }),
+        );
+        expect(resolveCollectionOutcome(successfulEmptyState, false)).toEqual({
+            kind: 'empty',
+            isRefreshing: false,
+        });
+
+        const staleEmptyState = applyCollectionStatePatch(
+            successfulEmptyState,
+            createCollectionFailurePatch(
+                new ApiClientError({ status: 500, messageKey: 'errors.server' }),
+                { fallbackErrorKey: 'errors.load_failed' },
+            ),
+        );
+        expect(resolveCollectionOutcome(staleEmptyState, false)).toEqual({
+            kind: 'stale-with-error',
+            errorKey: 'errors.load_failed',
+            isRetrying: false,
+        });
+    });
+});
+
 describe('collection state model', () => {
+    it('keeps forQuery pure until rendered query ownership is explicitly committed', () => {
+        const { result } = renderHook(() => useCollectionDataState<{ id: number }>());
+        act(() => {
+            result.current.beginQuery('query-a');
+            result.current.applySuccess('query-a', {
+                items: [{ id: 1 }],
+                groups: [],
+                capabilities: null,
+                total: 1,
+            });
+            result.current.commitQueryIdentity('query-a');
+        });
+        expect(result.current.isQueryCurrent('query-a')).toBe(true);
+
+        const maskedQueryB = result.current.forQuery('query-b');
+
+        expect(maskedQueryB.items).toEqual([]);
+        expect(result.current.isQueryCurrent('query-a')).toBe(true);
+        expect(result.current.isQueryCurrent('query-b')).toBe(false);
+        act(() => result.current.commitQueryIdentity('query-b'));
+        expect(result.current.isQueryCurrent('query-a')).toBe(false);
+        expect(result.current.isQueryCurrent('query-b')).toBe(true);
+    });
+
     it('applies a success patch while preserving capabilities and loaded state in one place', () => {
         const state = createCollectionInitialState<{ id: number }>();
         const nextState = applyCollectionStatePatch(state, createCollectionSuccessPatch({

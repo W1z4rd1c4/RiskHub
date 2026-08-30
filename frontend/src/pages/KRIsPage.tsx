@@ -1,5 +1,5 @@
 import { Building2, Shield, User } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
@@ -15,9 +15,12 @@ import { formatKriGroupLabel } from './kris/kriPagePresentation';
 import { KRI_REGISTER_CONFIG, type KriRegisterView } from './kris/kriRegisterConfig';
 import { useKrisPageState } from './kris/useKrisPageState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 export function KRIsPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/kris');
     const { t, i18n } = useTranslation(['kris', 'common']);
     const language = i18n.language as SupportedLanguage;
     const state = useKrisPageState(language);
@@ -38,7 +41,7 @@ export function KRIsPage() {
         onViewChange={state.updateViewMode}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
         canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-        onCreate={() => void navigate('/kris/new')}
+        onCreate={() => void navigate(appendRegisterReturnTo('/kris/new', returnTo))}
         createLabel={t('new_kri')}
         exportLabel={t('actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog
@@ -59,8 +62,8 @@ export function KRIsPage() {
         columns={columns}
         table={{
             keyExtractor: (kri) => kri.id,
-            onRowClick: (kri) => void navigate(`/kris/${kri.id}`),
-            rowHref: (kri) => `/kris/${kri.id}`,
+            onRowClick: (kri) => void navigate(appendRegisterReturnTo(`/kris/${kri.id}`, returnTo)),
+            rowHref: (kri) => appendRegisterReturnTo(`/kris/${kri.id}`, returnTo),
             rowLabel: (kri) => kri.metric_name,
             sortKey: state.sortField,
             sortDirection: state.sortDirection,

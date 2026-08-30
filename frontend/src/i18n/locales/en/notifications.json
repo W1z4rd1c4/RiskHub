@@ -1,7 +1,9 @@
 {
   "title": "Notifications",
   "subtitle": {
-    "unread_count": "{{count}} unread"
+    "unread_count": "{{count}} unread",
+    "stale": "Notification totals may be out of date.",
+    "unavailable": "Notification totals are unavailable."
   },
   "tabs": {
     "all": "All",
@@ -13,7 +15,13 @@
   },
   "errors": {
     "update_read_state": "Could not update this notification. Try again.",
-    "mark_all_read": "Could not mark all notifications as read. Try again."
+    "mark_all_read": "Could not mark all notifications as read. Try again.",
+    "load_failed": "Could not load notifications. Try again.",
+    "list_stale": "Notifications may be out of date. Try again.",
+    "access_denied": "You do not have access to notifications."
+  },
+  "status": {
+    "retrying": "Retrying notifications."
   },
   "pagination": {
     "page_of": "Page {{page}} of {{total}}"

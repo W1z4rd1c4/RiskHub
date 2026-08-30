@@ -1,10 +1,11 @@
-import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Command, Palette, Settings2, ShieldCheck, Shield, Building } from 'lucide-react';
 import { useAuthz } from '@/authz/useAuthz';
 import { RolesPanel, DepartmentsPanel, RiskTypesPanel, SystemSettingsPanel, ApprovalScenariosPanel, RiskQuestionnairesPanel } from '@/components/riskhub';
 import { cn } from '@/lib/utils';
+import { useContentTabQuery } from '@/hooks/useContentTabQuery';
+import { useContentTabs } from '@/hooks/useContentTabs';
 
 const tabs = [
     { id: 'risk-types', labelKey: 'riskhub.tabs.risk_types', icon: Palette },
@@ -16,11 +17,21 @@ const tabs = [
 ] as const;
 
 type TabId = typeof tabs[number]['id'];
+const tabIds = tabs.map((tab) => tab.id);
 
 export function RiskHubPage() {
     const { t } = useTranslation('admin');
     const authz = useAuthz();
-    const [activeTab, setActiveTab] = useState<TabId>('risk-types');
+    const [activeTab, setActiveTab] = useContentTabQuery<TabId>({
+        tabs: tabIds,
+        defaultTab: 'risk-types',
+    });
+    const { getPanelProps, getTabProps } = useContentTabs({
+        tabs: tabIds,
+        activeTab,
+        onChange: setActiveTab,
+        idPrefix: 'risk-hub',
+    });
 
     // Tab labels with translations
     const tabLabels: Record<TabId, string> = {
@@ -55,13 +66,13 @@ export function RiskHubPage() {
             </header>
 
             {/* Tab Navigation */}
-            <div className="glass-card p-2 flex gap-2 overflow-x-auto">
-                {tabs.map((tab) => {
+            <div className="glass-card p-2 flex gap-2 overflow-x-auto" role="tablist" aria-label={t('riskhub.title')}>
+                {tabs.map((tab, index) => {
                     const isActive = activeTab === tab.id;
                     return (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
+                            {...getTabProps(tab.id, index)}
                             className={cn(
                                 "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap",
                                 isActive
@@ -77,14 +88,16 @@ export function RiskHubPage() {
             </div>
 
             {/* Tab Content */}
-            <div className="glass-card p-6">
-                {activeTab === 'risk-types' && <RiskTypesPanel />}
-                {activeTab === 'settings' && <SystemSettingsPanel />}
-                {activeTab === 'approvals' && <ApprovalScenariosPanel />}
-                {activeTab === 'roles' && <RolesPanel />}
-                {activeTab === 'departments' && <DepartmentsPanel />}
-                {activeTab === 'questionnaires' && <RiskQuestionnairesPanel />}
-            </div>
+            {tabIds.map((tab) => (
+                <div key={tab} className="glass-card p-6" {...getPanelProps(tab)}>
+                    {activeTab === tab && tab === 'risk-types' ? <RiskTypesPanel /> : null}
+                    {activeTab === tab && tab === 'settings' ? <SystemSettingsPanel /> : null}
+                    {activeTab === tab && tab === 'approvals' ? <ApprovalScenariosPanel /> : null}
+                    {activeTab === tab && tab === 'roles' ? <RolesPanel /> : null}
+                    {activeTab === tab && tab === 'departments' ? <DepartmentsPanel /> : null}
+                    {activeTab === tab && tab === 'questionnaires' ? <RiskQuestionnairesPanel /> : null}
+                </div>
+            ))}
 
             {/* Footer Note */}
             <div className="text-center text-sm text-slate-500">

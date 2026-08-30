@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Download, FileDown, X } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { DialogShell } from '@/components/DialogShell';
@@ -41,6 +41,7 @@ export function ExportDialog({
     const titleId = useId();
     const dateLabelId = useId();
     const purposeId = useId();
+    const submitButtonRef = useRef<HTMLButtonElement>(null);
     const [asOfDate, setAsOfDate] = useState<string>(getTodayLocalDate());
     const [purpose, setPurpose] = useState<ExportPurpose>(
         supportsCurrentView ? 'current_view' : 'point_in_time',
@@ -55,6 +56,12 @@ export function ExportDialog({
         setPurpose(supportsCurrentView ? 'current_view' : 'point_in_time');
         setSubmitFailed(false);
     }, [isOpen, supportsCurrentView]);
+
+    useEffect(() => {
+        if (submitFailed && !isSubmitting) {
+            submitButtonRef.current?.focus();
+        }
+    }, [isSubmitting, submitFailed]);
 
     const handleSubmit = async () => {
         if ((purpose === 'point_in_time' && !asOfDate) || isSubmitting) {
@@ -185,6 +192,7 @@ export function ExportDialog({
                     {t('export.actions.cancel', t('actions.cancel'))}
                 </button>
                 <button
+                    ref={submitButtonRef}
                     type="button"
                     onClick={handleSubmit}
                     disabled={isSubmitting || (purpose === 'point_in_time' && !asOfDate)}

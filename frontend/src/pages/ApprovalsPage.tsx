@@ -14,8 +14,8 @@ export default function ApprovalsPage() {
     const {
         approvals,
         questionnaires,
+        questionnairesOutcome,
         loading,
-        questionnairesLoading,
         filter,
         setFilter,
         selectedApproval,
@@ -35,6 +35,7 @@ export default function ApprovalsPage() {
         dismissCancel,
         confirmCancel,
         refreshActiveView,
+        retryQuestionnaires,
     } = useApprovalsPageState();
 
     return (
@@ -60,10 +61,11 @@ export default function ApprovalsPage() {
             <ApprovalsTabs filter={filter} onChange={setFilter} t={t} label={t('title')}>
                 {filter === 'risk_assessment' ? (
                     <QuestionnaireInboxList
-                        loading={questionnairesLoading}
                         questionnaires={questionnaires}
+                        outcome={questionnairesOutcome}
                         locale={i18n.language}
                         onOpenRisk={(riskId) => navigate(`/risks/${riskId}`)}
+                        onRetry={() => void retryQuestionnaires()}
                         t={t}
                     />
                 ) : (

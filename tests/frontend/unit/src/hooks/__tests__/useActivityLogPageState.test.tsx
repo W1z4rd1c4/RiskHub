@@ -1,4 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
+import { Profiler } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { buildActivityLogFilters, transitionActivityLogViewMode } from '@/hooks/activityLogPageWorkflow';
@@ -11,9 +13,10 @@ const mockGetActions = vi.fn();
 const mockGetActors = vi.fn();
 const mockGetDepartments = vi.fn();
 const mockGetRisks = vi.fn();
+const mockUseDebouncedValue = vi.fn((value: unknown) => value);
 
 vi.mock('@/hooks/useDebouncedValue', () => ({
-    useDebouncedValue: <T,>(value: T) => value,
+    useDebouncedValue: <T,>(value: T) => mockUseDebouncedValue(value) as T,
 }));
 
 vi.mock('@/services/activityLogApi', () => ({
@@ -64,6 +67,17 @@ function HookHarness() {
             <button type="button" onClick={() => state.setDateTo('2026-04-20')}>
                 set date to
             </button>
+            <button type="button" onClick={() => state.setActiveTab('risk')}>
+                risk tab
+            </button>
+            <button type="button" onClick={() => state.setSearch('policy')}>
+                search policy
+            </button>
+            <button type="button" onClick={() => state.refresh()}>
+                refresh entries
+            </button>
+            <span data-testid="active-tab">{state.activeTab}</span>
+            <span data-testid="raw-search">{state.search}</span>
             <span data-testid="entries-count">{state.entries.length}</span>
             <span data-testid="needs-risk-selection">{String(state.needsRiskSelection)}</span>
             <span data-testid="actions">{state.actions.join(',')}</span>
@@ -74,6 +88,10 @@ function HookHarness() {
     );
 }
 
+function renderWithRouter(children: React.ReactNode) {
+    return render(<MemoryRouter>{children}</MemoryRouter>);
+}
+
 describe('useActivityLogPageState', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -81,6 +99,7 @@ describe('useActivityLogPageState', () => {
         mockGetActors.mockResolvedValue([]);
         mockGetDepartments.mockResolvedValue([]);
         mockGetRisks.mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+        mockUseDebouncedValue.mockImplementation((value: unknown) => value);
     });
 
     it('keeps independent filter options when the actor lookup fails', async () => {
@@ -95,7 +114,7 @@ describe('useActivityLogPageState', () => {
             limit: 100,
         });
 
-        render(<HookHarness />);
+        renderWithRouter(<HookHarness />);
 
         await waitFor(() => expect(screen.getByTestId('actions')).toHaveTextContent('create'));
         expect(screen.getByTestId('actors')).toBeEmptyDOMElement();
@@ -120,7 +139,7 @@ describe('useActivityLogPageState', () => {
             })
             .mockImplementationOnce(() => deferred.promise);
 
-        render(<HookHarness />);
+        renderWithRouter(<HookHarness />);
 
         await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1));
 
@@ -172,10 +191,125 @@ describe('useActivityLogPageState', () => {
         expect(screen.getByTestId('needs-risk-selection')).toHaveTextContent('true');
     });
 
+    it('does not commit the prior tab entries under a new tab query', async () => {
+        const riskRequest = createDeferred<ActivityLogListResponse>();
+        const riskCommitEntryCounts: string[] = [];
+        const host = document.createElement('div');
+        document.body.appendChild(host);
+        mockList
+            .mockResolvedValueOnce({
+                items: [{
+                    id: 91,
+                    entity_type: 'kri',
+                    entity_id: 7,
+                    entity_name: 'Availability',
+                    action: 'update',
+                    actor_id: 5,
+                    actor_name: 'Analyst',
+                    department_id: 3,
+                    changes: null,
+                    description: 'Prior KRI activity',
+                    created_at: '2026-04-20T08:00:00Z',
+                }],
+                total: 1,
+                skip: 0,
+                limit: 50,
+            })
+            .mockReturnValueOnce(riskRequest.promise);
+
+        render(
+            <Profiler
+                id="activity-log-state"
+                onRender={() => {
+                    if (host.querySelector('[data-testid="active-tab"]')?.textContent !== 'risk') return;
+                    riskCommitEntryCounts.push(
+                        host.querySelector('[data-testid="entries-count"]')?.textContent ?? '',
+                    );
+                }}
+            >
+                <MemoryRouter>
+                    <HookHarness />
+                </MemoryRouter>
+            </Profiler>,
+            { container: host },
+        );
+
+        await waitFor(() => expect(screen.getByTestId('entries-count')).toHaveTextContent('1'));
+        act(() => {
+            screen.getByRole('button', { name: 'risk tab' }).click();
+        });
+
+        expect(riskCommitEntryCounts).not.toContain('1');
+        expect(screen.getByTestId('entries-count')).toHaveTextContent('0');
+
+        await act(async () => {
+            riskRequest.resolve({ items: [], total: 0, skip: 0, limit: 50 });
+            await riskRequest.promise;
+        });
+        expect(screen.getByTestId('entries-count')).toHaveTextContent('0');
+    });
+
+    it('does not commit prior rows after raw search changes while the debounce is pending', async () => {
+        const searchCommitHasPriorRows: boolean[] = [];
+        const host = document.createElement('div');
+        document.body.appendChild(host);
+        mockUseDebouncedValue.mockImplementation((value: unknown) => value === 'policy' ? '' : value);
+        mockList.mockResolvedValue({
+            items: [{
+                id: 92,
+                entity_type: 'kri',
+                entity_id: 8,
+                entity_name: 'Recovery time',
+                action: 'update',
+                actor_id: 5,
+                actor_name: 'Analyst',
+                department_id: 3,
+                changes: null,
+                description: 'Prior unfiltered activity',
+                created_at: '2026-04-20T08:00:00Z',
+            }],
+            total: 1,
+            skip: 0,
+            limit: 50,
+        });
+
+        render(
+            <Profiler
+                id="activity-log-search-state"
+                onRender={() => {
+                    if (host.querySelector('[data-testid="raw-search"]')?.textContent !== 'policy') return;
+                    searchCommitHasPriorRows.push(
+                        host.querySelector('[data-testid="entries-count"]')?.textContent === '1',
+                    );
+                }}
+            >
+                <MemoryRouter>
+                    <HookHarness />
+                </MemoryRouter>
+            </Profiler>,
+            { container: host },
+        );
+
+        await waitFor(() => expect(screen.getByTestId('entries-count')).toHaveTextContent('1'));
+        const requestsBeforeSearch = mockList.mock.calls.length;
+        act(() => {
+            screen.getByRole('button', { name: 'search policy' }).click();
+        });
+
+        expect(screen.getByTestId('raw-search')).toHaveTextContent('policy');
+        expect(searchCommitHasPriorRows).not.toContain(true);
+        expect(screen.getByTestId('entries-count')).toHaveTextContent('0');
+        expect(mockList).toHaveBeenCalledTimes(requestsBeforeSearch);
+        act(() => {
+            screen.getByRole('button', { name: 'refresh entries' }).click();
+        });
+        expect(mockList).toHaveBeenCalledTimes(requestsBeforeSearch);
+    });
+
     it('submits local calendar-day boundaries without forcing UTC', async () => {
         mockList.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 50 });
 
-        render(<HookHarness />);
+        renderWithRouter(<HookHarness />);
 
         await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1));
 
@@ -217,7 +351,7 @@ describe('useActivityLogPageState', () => {
             );
         }
 
-        render(<CapabilityHarness />);
+        renderWithRouter(<CapabilityHarness />);
 
         await waitFor(() => expect(screen.getByTestId('department-filter')).toHaveTextContent('true'));
     });
@@ -225,7 +359,7 @@ describe('useActivityLogPageState', () => {
     it('locks entries and lookups to the Department workspace', async () => {
         mockList.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 50 });
 
-        render(
+        renderWithRouter(
             <DepartmentRegisterScopeProvider value={{ departmentId: 7, departmentName: 'Compliance' }}>
                 <HookHarness />
             </DepartmentRegisterScopeProvider>,

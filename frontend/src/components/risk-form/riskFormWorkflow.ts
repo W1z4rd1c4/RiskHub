@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { isApprovalCreatedResponse, parseUpdateResult } from '@/lib/approvalUi';
 import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { ApiClientError } from '@/services/apiClient';
@@ -21,9 +22,33 @@ interface RiskTypeOption {
 interface UseRiskFormWorkflowArgs {
     initialData?: Risk;
     isEdit: boolean;
-    onSuccess?: (riskId: number) => void | Promise<void>;
+    onSuccess?: (riskId: number, acceptNavigation?: () => void) => void | Promise<void>;
     riskTypes: RiskTypeOption[];
     users: UserLookupItem[];
+}
+
+export function createRiskFormSnapshot(
+    formData: Partial<Risk>,
+    riskTypes: RiskTypeOption[],
+): string {
+    return JSON.stringify([
+        formData.name ?? '',
+        formData.process ?? '',
+        formData.subprocess ?? '',
+        resolveRiskTypeCode(formData.risk_type, riskTypes),
+        formData.category ?? '',
+        formData.description ?? '',
+        formData.department_id ?? null,
+        formData.owner_id ?? null,
+        Boolean(formData.is_priority),
+        formData.gross_probability ?? null,
+        formData.gross_impact ?? null,
+        formData.net_probability ?? null,
+        formData.net_impact ?? null,
+        formData.acceptance_approver ?? '',
+        formData.acceptance_date ?? '',
+        formData.acceptance_justification ?? '',
+    ]);
 }
 
 export function createInitialRiskFormData(risk?: Risk): Partial<Risk> {
@@ -102,7 +127,13 @@ export function useRiskScorePresentation() {
     return { getScoreTextColor, getSliderAccent };
 }
 
-export function useRiskFormWorkflow({ initialData, isEdit, onSuccess, riskTypes, users }: UseRiskFormWorkflowArgs) {
+export function useRiskFormWorkflow({
+    initialData,
+    isEdit,
+    onSuccess,
+    riskTypes,
+    users,
+}: UseRiskFormWorkflowArgs) {
     const navigate = useNavigate();
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,6 +141,14 @@ export function useRiskFormWorkflow({ initialData, isEdit, onSuccess, riskTypes,
     const [approvalQueued, setApprovalQueued] = useState<{ message: string } | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState<Partial<Risk>>(() => createInitialRiskFormData(initialData));
+    const {
+        acceptCurrentSnapshot,
+        confirmationDialog,
+        requestLocalLeave,
+    } = useDirtyTaskGuard({
+        busy: isSubmitting,
+        currentSnapshot: createRiskFormSnapshot(formData, riskTypes),
+    });
 
     useEffect(() => {
         setFormData(createInitialRiskFormData(initialData));
@@ -122,11 +161,23 @@ export function useRiskFormWorkflow({ initialData, isEdit, onSuccess, riskTypes,
         const resolvedRiskType = resolveRiskTypeCode(formData.risk_type, riskTypes);
         if (formData.risk_type === resolvedRiskType) return;
 
+        const normalizedSnapshot = createRiskFormSnapshot(
+            { ...formData, risk_type: resolvedRiskType },
+            riskTypes,
+        );
+        const normalizedInitialSnapshot = createRiskFormSnapshot(
+            createInitialRiskFormData(initialData),
+            riskTypes,
+        );
+        if (normalizedSnapshot === normalizedInitialSnapshot) {
+            acceptCurrentSnapshot(normalizedSnapshot);
+        }
+
         setFormData((prev) => {
             if (prev.risk_type === resolvedRiskType) return prev;
             return { ...prev, risk_type: resolvedRiskType };
         });
-    }, [formData.risk_type, riskTypes]);
+    }, [acceptCurrentSnapshot, formData, initialData, riskTypes]);
 
     const handleInputChange = (field: keyof Risk, value: unknown) => {
         setFormData((prev) => {
@@ -175,6 +226,7 @@ export function useRiskFormWorkflow({ initialData, isEdit, onSuccess, riskTypes,
             setCurrentStep(1);
             return;
         }
+        const submittedSnapshot = createRiskFormSnapshot(formData, riskTypes);
 
         try {
             setIsSubmitting(true);
@@ -185,6 +237,7 @@ export function useRiskFormWorkflow({ initialData, isEdit, onSuccess, riskTypes,
                 const result = await riskApi.updateRisk(initialData.id, formData as RiskUpdate);
                 const parsed = parseUpdateResult(result);
                 if (parsed.kind === 'approval') {
+                    acceptCurrentSnapshot(submittedSnapshot);
                     setApprovalQueued({ message: parsed.message });
                     setIsSubmitting(false);
                     return;
@@ -200,20 +253,28 @@ export function useRiskFormWorkflow({ initialData, isEdit, onSuccess, riskTypes,
 
                 const result = await riskApi.createRisk(createPayload);
                 if (isApprovalCreatedResponse(result)) {
+                    acceptCurrentSnapshot(createRiskFormSnapshot(createPayload, riskTypeOptions));
                     setApprovalQueued({ message: result.message });
                     setIsSubmitting(false);
                     return;
                 }
                 const newRisk = result;
+                const acceptedSnapshot = createRiskFormSnapshot(createPayload, riskTypeOptions);
+                acceptCurrentSnapshot(acceptedSnapshot);
                 if (onSuccess) {
-                    await onSuccess(newRisk.id);
+                    await onSuccess(newRisk.id, () => acceptCurrentSnapshot(acceptedSnapshot));
                 } else {
                     void navigate(`/risks/${newRisk.id}`);
                 }
                 return;
             }
 
-            void navigate(`/risks/${initialData?.id}`);
+            acceptCurrentSnapshot(submittedSnapshot);
+            if (onSuccess && initialData) {
+                await onSuccess(initialData.id, () => acceptCurrentSnapshot(submittedSnapshot));
+            } else {
+                void navigate(`/risks/${initialData?.id}`);
+            }
         } catch (err: unknown) {
             logError('Error saving risk:', err);
             setError(err instanceof ApiClientError ? err.messageKey : 'errorKeys.save_risk_failed');
@@ -236,6 +297,7 @@ export function useRiskFormWorkflow({ initialData, isEdit, onSuccess, riskTypes,
 
     return {
         approvalQueued,
+        confirmationDialog,
         currentStep,
         error,
         fieldErrors,
@@ -244,6 +306,7 @@ export function useRiskFormWorkflow({ initialData, isEdit, onSuccess, riskTypes,
         handleInputChange,
         nextStep,
         prevStep,
+        requestLocalLeave,
         setApprovalQueued,
         setCurrentStep,
         submit,

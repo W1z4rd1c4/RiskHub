@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
 
 import { KriCreateDialogs } from './KriCreateDialogs';
@@ -13,7 +14,7 @@ import { KriVendorContextBanner } from './KriVendorContextBanner';
 import { buildDepartmentOptions, filterRisksForSelection, getDisplayedRisks, getEffectiveVendorIds, getKnownRisks, getUniqueCategories, getUniqueProcesses, isRiskLinkedToVendor } from './kriForm.selectors';
 import type { KRIFormProps } from './kriForm.types';
 import { mergeVendorOptions, syncSelectedVendorOptions, validateKriDetails, validateRiskSelection } from './kriForm.utils';
-import { useKriFormState } from './useKriFormState';
+import { createKriFormSnapshot, useKriFormState } from './useKriFormState';
 import { useKriLookups } from './useKriLookups';
 import { useKriSubmit } from './useKriSubmit';
 
@@ -63,6 +64,9 @@ export function KRIFormContainer({
     const debouncedRiskSearch = useDebouncedValue(state.riskSearch, 300);
     const debouncedVendorSearch = useDebouncedValue(state.vendorSearch, 300);
     const { selectedVendorOptions, setStatePatch } = state;
+    const effectiveVendorIds = useMemo(() => getEffectiveVendorIds(state.selectedVendorIds, vendorContext), [state.selectedVendorIds, vendorContext]);
+    const currentSnapshot = createKriFormSnapshot(state.formData, effectiveVendorIds);
+    const { acceptCurrentSnapshot, confirmationDialog, requestLocalLeave } = useDirtyTaskGuard({ busy: state.isSubmitting, currentSnapshot });
 
     const lookups = useKriLookups({
         debouncedRiskSearch,
@@ -90,10 +94,6 @@ export function KRIFormContainer({
         }
     }, [lookups.vendorOptions, selectedVendorOptions, setStatePatch]);
 
-    const effectiveVendorIds = useMemo(
-        () => getEffectiveVendorIds(state.selectedVendorIds, vendorContext),
-        [state.selectedVendorIds, vendorContext],
-    );
     const displayedRisks = useMemo(
         () => getDisplayedRisks({
             showOnlyVendorLinkedRisks: state.showOnlyVendorLinkedRisks,
@@ -137,14 +137,10 @@ export function KRIFormContainer({
             vendorContext,
         ],
     );
-    const selectedRisk = useMemo(
-        () => knownRisks.find((risk) => risk.id === state.formData.risk_id),
-        [knownRisks, state.formData.risk_id],
-    );
-    const isSelectedRiskLinkedToVendor = useMemo(
-        () => isRiskLinkedToVendor(state.formData.risk_id, vendorContext, lookups.vendorLinkedRiskIds),
-        [lookups.vendorLinkedRiskIds, state.formData.risk_id, vendorContext],
-    );
+    const selectedRisk = useMemo(() => knownRisks.find((risk) => risk.id === state.formData.risk_id), [knownRisks, state.formData.risk_id]);
+    const isSelectedRiskLinkedToVendor = useMemo(() => (
+        isRiskLinkedToVendor(state.formData.risk_id, vendorContext, lookups.vendorLinkedRiskIds)
+    ), [lookups.vendorLinkedRiskIds, state.formData.risk_id, vendorContext]);
 
     const visibleError = state.error ?? lookups.lookupErrorKey;
     const cancelLabel = firstStepBackLabel ?? t('common:actions.cancel');
@@ -163,16 +159,23 @@ export function KRIFormContainer({
             selectedVendorOptions: syncSelectedVendorOptions(vendorIds, selectedVendorOptions, lookups.vendorOptions),
         });
     };
+    const cancelForm = () => requestLocalLeave(() => {
+        if (onCancel) onCancel();
+        else void navigate('/kris');
+    });
 
     const { beginCreate, finalizeCreate, handleSubmit } = useKriSubmit({
+        acceptCurrentSnapshot,
         effectiveVendorIds,
         formData: state.formData,
         isEdit,
+        isSubmitting: state.isSubmitting,
         isSelectedRiskLinkedToVendor,
         kriId,
         navigate,
         onSuccess,
         setStatePatch,
+        submittedSnapshot: currentSnapshot,
         t,
         validateStep1,
         validateStep2,
@@ -189,11 +192,9 @@ export function KRIFormContainer({
                         t={t}
                     />
                     {visibleError ? <KriFormErrorAlert error={visibleError} /> : null}
-                    {vendorContext ? (
-                        <KriVendorContextBanner vendorName={vendorContext.vendorName} />
-                    ) : null}
+                    {vendorContext ? <KriVendorContextBanner vendorName={vendorContext.vendorName} /> : null}
 
-                    <div className="flex-1 space-y-8">
+                    <fieldset disabled={state.isSubmitting} className="min-w-0 flex-1 space-y-8">
                         <KriFormStepContent
                             currentStep={state.currentStep}
                             filteredRisks={filteredRisks}
@@ -229,7 +230,7 @@ export function KRIFormContainer({
                             vendorOptions={lookups.vendorOptions}
                             vendorSearch={state.vendorSearch}
                         />
-                    </div>
+                    </fieldset>
 
                     <KriFormNavigation
                         cancelLabel={cancelLabel}
@@ -237,7 +238,7 @@ export function KRIFormContainer({
                         isEdit={isEdit}
                         isSubmitting={state.isSubmitting}
                         navigate={navigate}
-                        onCancel={onCancel}
+                        onCancel={cancelForm}
                         setStatePatch={setStatePatch}
                         validateStep1={validateStep1}
                     />
@@ -254,6 +255,7 @@ export function KRIFormContainer({
                 onConfirmGoverned={(requestReason) => void finalizeCreate({ ...state.pendingGovernedCreate, requestReason })}
                 onCreate={(options) => void beginCreate(options)}
             />
+            {confirmationDialog}
         </>
     );
 }

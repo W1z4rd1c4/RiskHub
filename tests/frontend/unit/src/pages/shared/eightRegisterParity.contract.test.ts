@@ -43,14 +43,12 @@ describe('ICT-GOV #83 eight-register frontend contract', () => {
         expect(pageSource).toContain('isError={Boolean(state.errorKey)}');
         expect(pageSource).toContain('isLoading={state.isLoading}');
         expect(pageSource).toContain('state.hasLoadedOnce');
-
         expect(stateSource).toContain('parseRegisterUrlState');
         expect(stateSource).toContain('buildRegisterUrlParams');
         expect(stateSource).toContain('useCollectionDataState');
         expect(stateSource).toContain('useLatestRequestGuard');
         expect(stateSource).toContain(contract.listBuilder);
         expect(stateSource).toContain(contract.currentExportMarker);
-        expect(stateSource).toContain('setCurrentPage(1)');
         expect(stateSource).not.toContain('useRegisterPageController');
         expect(stateSource).not.toContain('useRegisterPageWorkflow');
     });

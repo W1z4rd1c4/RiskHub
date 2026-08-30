@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, X } from 'lucide-react';
 import { useFormattedDate, useTranslation } from '@/i18n/hooks';
@@ -8,6 +8,7 @@ import { NOTIFICATIONS_DROPDOWN_LIMIT } from '@/config/constants';
 import { Button } from '@/components/ui/button';
 import { buildNotificationPresentation, NotificationPresentationIcon } from './notificationPresentation';
 import { logError } from '@/services/logger';
+import { useCollectionDataState } from '@/pages/shared/collectionPageState';
 
 interface NotificationBellProps {
     unreadCount?: number;
@@ -20,31 +21,78 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
     const { t } = useTranslation('notifications');
     const { formatRelativeDate } = useFormattedDate();
     const [isOpen, setIsOpen] = useState(false);
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [loading, setLoading] = useState(false);
+    const collection = useCollectionDataState<Notification>();
+    const {
+        applyFailure,
+        applyPatch,
+        applySuccess,
+        errorKey,
+        items: notifications,
+        outcome,
+        setIsLoading,
+    } = collection;
     const [pendingMutation, setPendingMutation] = useState<number | 'all' | null>(null);
     const [mutationError, setMutationError] = useState<{ target: number | 'all'; message: string } | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const pendingMutationRef = useRef<number | 'all' | null>(null);
+    const pendingListRetryRef = useRef(false);
+    const latestListRequestRef = useRef(0);
+
+    const fetchNotifications = useCallback(async () => {
+        const requestId = ++latestListRequestRef.current;
+        setIsLoading(true);
+        try {
+            const response = await notificationsApi.list({ limit: NOTIFICATIONS_DROPDOWN_LIMIT, unread_only: false });
+            if (requestId !== latestListRequestRef.current) {
+                return;
+            }
+            setMutationError(null);
+            applySuccess({
+                items: response.items,
+                groups: [],
+                capabilities: null,
+                total: response.total,
+            });
+            onUnreadCountChange?.(response.unread_count);
+        } catch (error) {
+            if (requestId === latestListRequestRef.current) {
+                logError('Failed to fetch notifications:', error);
+                const failure = applyFailure(error, { fallbackErrorKey: 'errors.load_failed' });
+                if (failure.isAccessDenied) {
+                    setMutationError(null);
+                    onUnreadCountChange?.(0);
+                }
+            }
+        } finally {
+            if (requestId === latestListRequestRef.current) {
+                setIsLoading(false);
+            }
+        }
+    }, [
+        applyFailure,
+        applySuccess,
+        onUnreadCountChange,
+        setIsLoading,
+    ]);
 
     // Fetch notifications when dropdown opens
     useEffect(() => {
         if (isOpen) {
-            const fetchNotifications = async () => {
-                setLoading(true);
-                try {
-                    const response = await notificationsApi.list({ limit: NOTIFICATIONS_DROPDOWN_LIMIT, unread_only: false });
-                    setNotifications(response.items);
-                    onUnreadCountChange?.(response.unread_count);
-                } catch (error) {
-                    logError('Failed to fetch notifications:', error);
-                } finally {
-                    setLoading(false);
-                }
-            };
             void fetchNotifications();
         }
-    }, [isOpen, onUnreadCountChange]);
+    }, [fetchNotifications, isOpen]);
+
+    const retryNotifications = useCallback(async () => {
+        if (pendingListRetryRef.current) {
+            return;
+        }
+        pendingListRetryRef.current = true;
+        try {
+            await fetchNotifications();
+        } finally {
+            pendingListRetryRef.current = false;
+        }
+    }, [fetchNotifications]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -66,17 +114,27 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
         pendingMutationRef.current = notification.id;
         setPendingMutation(notification.id);
         setMutationError(null);
+        const mutationListRequestId = latestListRequestRef.current;
         try {
             const { unread_count } = notification.is_read
                 ? await notificationsApi.markAsUnread(notification.id)
                 : await notificationsApi.markAsRead(notification.id);
-            setNotifications(prev =>
-                prev.map(item => item.id === notification.id ? { ...item, is_read: !notification.is_read } : item)
-            );
+            if (mutationListRequestId !== latestListRequestRef.current) {
+                return;
+            }
+            applyPatch({
+                items: notifications.map(item =>
+                    item.id === notification.id ? { ...item, is_read: !notification.is_read } : item
+                ),
+                errorKey,
+                isAccessDenied: false,
+            });
             onUnreadCountChange?.(unread_count);
         } catch (error) {
             logError('Failed to update notification read state:', error);
-            setMutationError({ target: notification.id, message: t('errors.update_read_state') });
+            if (mutationListRequestId === latestListRequestRef.current) {
+                setMutationError({ target: notification.id, message: t('errors.update_read_state') });
+            }
         } finally {
             pendingMutationRef.current = null;
             setPendingMutation(null);
@@ -91,13 +149,23 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
         pendingMutationRef.current = 'all';
         setPendingMutation('all');
         setMutationError(null);
+        const mutationListRequestId = latestListRequestRef.current;
         try {
             await notificationsApi.markAllAsRead();
-            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+            if (mutationListRequestId !== latestListRequestRef.current) {
+                return;
+            }
+            applyPatch({
+                items: notifications.map(notification => ({ ...notification, is_read: true })),
+                errorKey,
+                isAccessDenied: false,
+            });
             onUnreadCountChange?.(0);
         } catch (error) {
             logError('Failed to mark all as read:', error);
-            setMutationError({ target: 'all', message: t('errors.mark_all_read') });
+            if (mutationListRequestId === latestListRequestRef.current) {
+                setMutationError({ target: 'all', message: t('errors.mark_all_read') });
+            }
         } finally {
             pendingMutationRef.current = null;
             setPendingMutation(null);
@@ -108,6 +176,18 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
         setIsOpen(false);
         void navigate('/notifications');
     };
+
+    const hasStaleData = outcome.kind === 'stale-with-error';
+    let listError: string | null = null;
+    let retrying = false;
+    if (outcome.kind === 'fatal-error') {
+        listError = t(outcome.errorKey);
+        retrying = outcome.isRetrying;
+    } else if (outcome.kind === 'stale-with-error') {
+        listError = t('errors.list_stale');
+        retrying = outcome.isRetrying;
+    }
+    const hasFreshCollection = outcome.kind === 'content' || outcome.kind === 'empty';
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -148,14 +228,40 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
 
                     {/* Notification List */}
                     <div className="max-h-[40rem] overflow-y-auto">
-                        {loading ? (
-                            <div className="p-4 text-center text-muted-foreground">{tCommon('loading.generic')}</div>
-                        ) : notifications.length === 0 ? (
+                        {outcome.kind === 'initial-loading' && (
+                            <div className="p-4 text-center text-muted-foreground" role="status">
+                                {tCommon('loading.generic')}
+                            </div>
+                        )}
+                        {outcome.kind === 'denied' && (
+                            <div role="alert" className="m-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                                {t('errors.access_denied')}
+                            </div>
+                        )}
+                        {listError && (
+                            <div role="alert" className="m-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                                <p>{listError}</p>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="compact"
+                                    onClick={() => void retryNotifications()}
+                                    aria-busy={retrying}
+                                    aria-disabled={retrying}
+                                    className="mt-2"
+                                >
+                                    {tCommon('actions.retry')}
+                                </Button>
+                                {retrying && <span role="status" className="sr-only">{t('status.retrying')}</span>}
+                            </div>
+                        )}
+                        {outcome.kind === 'empty' && (
                             <div className="p-8 text-center text-muted-foreground">
                                 <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
                                 <p>{tCommon('empty.no_notifications')}</p>
                             </div>
-                        ) : (
+                        )}
+                        {(outcome.kind === 'content' || hasStaleData) && notifications.length > 0 && (
                             <div className="divide-y divide-border">
                                 {notifications.map(notification => {
                                     const presentation = buildNotificationPresentation(notification);
@@ -225,7 +331,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
 
                     {/* Footer */}
                     <div className="flex items-center justify-between border-t border-border px-4 py-3">
-                        {unreadCount > 0 && (
+                        {hasFreshCollection && unreadCount > 0 && (
                             <div>
                                 <Button
                                     type="button"

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { RouterProvider, createBrowserRouter, useNavigate } from 'react-router-dom';
 
 import '@/index.css';
 import '@/i18n';
@@ -22,6 +22,7 @@ import type { VendorLinkedEntitiesAdapter } from '@/components/vendors/useVendor
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { AssetLinkSections } from '@/pages/assets/AssetLinkSections';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
 import { VendorContractsSection } from '@/pages/vendors/VendorContractsSection';
@@ -289,6 +290,27 @@ function GovernedMutationReasonOwner() {
   );
 }
 
+function DirtyTaskGuardOwner() {
+  const navigate = useNavigate();
+  const [draft, setDraft] = useState('');
+  const { confirmationDialog } = useDirtyTaskGuard({ currentSnapshot: draft });
+  return (
+    <>
+      <label htmlFor="dirty-task-contract-input">Draft</label>
+      <input
+        id="dirty-task-contract-input"
+        data-testid="dirty-task-contract-input"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+      />
+      <button type="button" onClick={() => void navigate('/dialog-leave-target')}>
+        Leave dirty task
+      </button>
+      {confirmationDialog}
+    </>
+  );
+}
+
 function OwnerSurface({ siteId }: { siteId: string }) {
   switch (siteId) {
     case 'confirm.link-management': return <LinkManagementOwner />;
@@ -313,6 +335,7 @@ function OwnerSurface({ siteId }: { siteId: string }) {
     case 'risk-drilldown.dashboard': return <DashboardOwner />;
     case 'issue.contextual-action': return <ContextualIssueOwner />;
     case 'confirm.governed-mutation-reason': return <GovernedMutationReasonOwner />;
+    case 'confirm.dirty-task-guard': return <DirtyTaskGuardOwner />;
     case 'inline.departments-delete':
     case 'frame.departments': return <DepartmentsPanel />;
     case 'inline.risk-types-delete':
@@ -332,16 +355,23 @@ function Harness() {
   );
 }
 
+const router = createBrowserRouter([
+  {
+    path: '*',
+    element: (
+      <DashboardFilterProvider>
+        <Harness />
+      </DashboardFilterProvider>
+    ),
+  },
+]);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
-          <BrowserRouter>
-            <DashboardFilterProvider>
-              <Harness />
-            </DashboardFilterProvider>
-          </BrowserRouter>
+          <RouterProvider router={router} />
         </ThemeProvider>
       </AuthProvider>
     </QueryClientProvider>

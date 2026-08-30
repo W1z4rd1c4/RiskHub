@@ -1,9 +1,51 @@
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { render, screen, userEvent } from '@test/render';
 
 describe('ExportDialog failure handling', () => {
+    it('restores focus to the export action after a failed busy submission', async () => {
+        let rejectExport!: (reason: Error) => void;
+        const exportResult = new Promise<void>((_resolve, reject) => {
+            rejectExport = reject;
+        });
+
+        function BusyExportDialog() {
+            const [isSubmitting, setIsSubmitting] = useState(false);
+            return (
+                <ExportDialog
+                    isOpen
+                    isSubmitting={isSubmitting}
+                    onClose={() => undefined}
+                    onSubmit={async () => {
+                        setIsSubmitting(true);
+                        try {
+                            await exportResult;
+                        } finally {
+                            setIsSubmitting(false);
+                        }
+                    }}
+                />
+            );
+        }
+
+        render(<BusyExportDialog />);
+        const submit = screen.getByTestId('export-submit-button');
+        await userEvent.click(submit);
+        expect(submit).toBeDisabled();
+        // Browsers evict focus when the active submitter becomes disabled. Move
+        // it to the remaining enabled field to model that public transition in
+        // JSDOM, which does not consistently blur disabled buttons itself.
+        screen.getByTestId('export-date-input').focus();
+
+        rejectExport(new Error('download failed'));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Export failed. Try again.');
+        expect(submit).toBeEnabled();
+        expect(submit).toHaveFocus();
+    });
+
     it('defaults a dual-purpose dialog to current-view export without a date field', async () => {
         const onCurrentViewSubmit = vi.fn().mockResolvedValue(undefined);
         const onSubmit = vi.fn().mockResolvedValue(undefined);

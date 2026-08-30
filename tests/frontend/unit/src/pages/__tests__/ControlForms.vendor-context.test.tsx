@@ -46,11 +46,22 @@ vi.mock('@/components/control-form/ControlFormContainer', () => ({
         allowRiskLinking?: boolean;
         firstStepBackLabel?: string;
         onCancel?: () => void;
-        onSuccess?: (controlId: number) => void | Promise<void>;
+        onSuccess?: (
+            controlId: number,
+            locationState?: { controlFlash: { tone: 'warn'; message: string } },
+        ) => void | Promise<void>;
     }) => (
         <div data-allow-risk-linking={String(allowRiskLinking)}>
             <div data-testid="control-back-label">{firstStepBackLabel}</div>
             <button type="button" onClick={() => void onSuccess?.(88)}>submit</button>
+            <button
+                type="button"
+                onClick={() => void onSuccess?.(88, {
+                    controlFlash: { tone: 'warn', message: 'Risk link failed.' },
+                })}
+            >
+                partial-submit
+            </button>
             <button type="button" onClick={() => onCancel?.()}>cancel</button>
         </div>
     ),
@@ -133,5 +144,22 @@ describe('ControlNewPage vendor context', () => {
 
         await waitFor(() => expect(mockGetVendor).toHaveBeenCalledWith(12));
         expect(screen.queryByTestId('control-back-label')).not.toBeInTheDocument();
+    });
+
+    it('preserves partial-link state and the exact list context after normal create', async () => {
+        const returnTo = '/controls?q=payments&page=3#group-heading';
+        mockSearchParams = new URLSearchParams({ return_to: returnTo });
+
+        render(<ControlNewPage />);
+        fireEvent.click(await screen.findByRole('button', { name: 'partial-submit' }));
+
+        expect(mockNavigate).toHaveBeenCalledWith(
+            `/controls/88?return_to=${encodeURIComponent(returnTo)}`,
+            {
+                state: {
+                    controlFlash: { tone: 'warn', message: 'Risk link failed.' },
+                },
+            },
+        );
     });
 });

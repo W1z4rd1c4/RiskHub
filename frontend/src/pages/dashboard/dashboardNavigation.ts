@@ -1,7 +1,7 @@
 import { reportApi } from '@/services/reportApi';
 
-export function exportDashboardSummary(departmentId: number | null): void {
-    void reportApi.downloadSummaryCsv({ departmentId });
+export async function exportDashboardSummary(departmentId: number | null): Promise<void> {
+    await reportApi.downloadSummaryCsv({ departmentId });
 }
 
 export function openDashboardPath(

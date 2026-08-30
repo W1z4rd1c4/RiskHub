@@ -184,7 +184,8 @@
       "flags": "Profilové příznaky",
       "no_flags": "Bez zvláštních příznaků",
       "type_hint": "Typ: {{type}}",
-      "replaceability": "Nahraditelnost"
+      "replaceability": "Nahraditelnost",
+      "unavailable": "Nedostupné"
     },
     "meta": {
       "created_at": "Vytvořeno",
@@ -213,6 +214,14 @@
     "archived_risks": "Archivovaná rizika ({{count}})",
     "archived_controls": "Archivované kontroly ({{count}})",
     "archived_kris": "Archivovaná KRI ({{count}})",
+    "errors": {
+      "load_failed": "Tento navázaný registr není dostupný.",
+      "stale": "Tento navázaný registr nemusí být aktuální. Poslední úspěšně načtené položky zůstávají zobrazené.",
+      "access_denied": "K tomuto navázanému registru nemáte přístup."
+    },
+    "status": {
+      "retrying": "Opakuji načtení navázaného registru..."
+    },
     "dialogs": {
       "link_risks_title": "Navázat rizika na dodavatele",
       "link_controls_title": "Navázat kontroly na dodavatele",
@@ -367,6 +376,7 @@
     "title": "Reporty dodavatelů",
     "subtitle": "Exporty pro roční reporting řízení rizik dodavatelů a registr DORA.",
     "not_authorized": "Nemáte přístup k reportům dodavatelů.",
+    "unavailable": "Reporty dodavatelů jsou dočasně nedostupné. Zkuste to znovu.",
     "annual": {
       "title": "Roční report řízení dodavatelů",
       "year": "Rok",

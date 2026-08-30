@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-08-26
+**Analysis Date:** 2026-08-30
 
 This file is a versioned repository-structure snapshot for the commit that
 contains it. It does not assign live work or determine whether an issue, pull
@@ -43,8 +43,8 @@ request, or project item is open. See
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 234 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
-- `frontend/src/components/` - 319 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
+- `frontend/src/pages/` - 239 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
+- `frontend/src/components/` - 320 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
 - `frontend/src/services/` - API client, auth transport, session state packages, domain service wrappers, and split runtime schema modules
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -53,7 +53,7 @@ request, or project item is open. See
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 73 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
+- `tests/frontend/e2e/` - 76 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
 
 ## Planning and Documentation Structure
 
@@ -90,4 +90,4 @@ in the applicable GitHub Issue, pull request, or Project item.
 
 ---
 
-*Structure audit refreshed on 2026-08-26*
+*Structure audit refreshed on 2026-08-30*

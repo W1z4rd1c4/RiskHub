@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { act, useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
@@ -83,6 +83,187 @@ describe('NotificationBell read-state controls', () => {
 
     afterAll(async () => {
         await i18n.changeLanguage('en');
+    });
+
+    it('shows a compact focus-stable retry instead of an empty dropdown when the initial list request fails', async () => {
+        let listRequests = 0;
+        let releaseRetry!: () => void;
+        const retryGate = new Promise<void>((resolve) => { releaseRetry = resolve; });
+        server.use(
+            http.get('*/api/v1/notifications', async () => {
+                listRequests += 1;
+                if (listRequests === 1) {
+                    return HttpResponse.json({ detail: 'failed' }, { status: 500 });
+                }
+                await retryGate;
+                return HttpResponse.json({
+                    items: [],
+                    total: 0,
+                    skip: 0,
+                    limit: 10,
+                    unread_count: 0,
+                });
+            }),
+        );
+        const user = userEvent.setup();
+        render(<MemoryRouter><BellHarness /></MemoryRouter>);
+        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Could not load notifications. Try again.');
+        expect(screen.queryByText('No notifications')).not.toBeInTheDocument();
+        const retry = screen.getByRole('button', { name: 'Retry' });
+
+        await user.click(retry);
+        await waitFor(() => expect(listRequests).toBe(2));
+        expect(retry).toHaveFocus();
+        expect(retry).toHaveAttribute('aria-disabled', 'true');
+        expect(retry).toHaveAttribute('aria-busy', 'true');
+        fireEvent.click(retry);
+        expect(listRequests).toBe(2);
+
+        releaseRetry();
+        expect(await screen.findByText('No notifications')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('keeps safe rows visible and labels them stale when reopening refresh fails', async () => {
+        let listRequests = 0;
+        server.use(
+            http.get('*/api/v1/notifications', () => {
+                listRequests += 1;
+                if (listRequests > 1) {
+                    return HttpResponse.json({ detail: 'failed' }, { status: 500 });
+                }
+                return HttpResponse.json({
+                    items: [linkedUnread],
+                    total: 1,
+                    skip: 0,
+                    limit: 10,
+                    unread_count: 1,
+                });
+            }),
+        );
+        render(<MemoryRouter><BellHarness /></MemoryRouter>);
+        const user = await openBell();
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Notifications may be out of date. Try again.');
+        expect(screen.getByText(linkedUnread.title)).toBeInTheDocument();
+        expect(screen.queryByText('No notifications')).not.toBeInTheDocument();
+    });
+
+    it('clears previously loaded dropdown rows when reopening refresh is denied', async () => {
+        let listRequests = 0;
+        server.use(
+            http.get('*/api/v1/notifications', () => {
+                listRequests += 1;
+                if (listRequests > 1) {
+                    return HttpResponse.json({ detail: 'forbidden' }, { status: 403 });
+                }
+                return HttpResponse.json({
+                    items: [linkedUnread],
+                    total: 1,
+                    skip: 0,
+                    limit: 10,
+                    unread_count: 1,
+                });
+            }),
+        );
+        render(<MemoryRouter><BellHarness /></MemoryRouter>);
+        const user = await openBell();
+        expect(screen.getByTestId('notification-bell-button')).toHaveTextContent('1');
+        expect(screen.getByRole('status', { name: 'Unread count' })).toHaveTextContent('1');
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('You do not have access to notifications.');
+        expect(screen.queryByText(linkedUnread.title)).not.toBeInTheDocument();
+        expect(screen.queryByText('No notifications')).not.toBeInTheDocument();
+        expect(screen.getByTestId('notification-bell-button')).not.toHaveTextContent('1');
+        expect(screen.getByRole('status', { name: 'Unread count' })).toHaveTextContent('0');
+    });
+
+    it('keeps a newer denied result when an older overlapping reopen request succeeds late', async () => {
+        let listRequests = 0;
+        let releaseOlderRequest!: () => void;
+        const olderRequestGate = new Promise<void>((resolve) => { releaseOlderRequest = resolve; });
+        server.use(
+            http.get('*/api/v1/notifications', async () => {
+                listRequests += 1;
+                if (listRequests === 1) {
+                    await olderRequestGate;
+                    return HttpResponse.json({
+                        items: [linkedUnread],
+                        total: 1,
+                        skip: 0,
+                        limit: 10,
+                        unread_count: 1,
+                    });
+                }
+                return HttpResponse.json({ detail: 'forbidden' }, { status: 403 });
+            }),
+        );
+        const user = userEvent.setup();
+        render(<MemoryRouter><BellHarness /></MemoryRouter>);
+        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await waitFor(() => expect(listRequests).toBe(1));
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('You do not have access to notifications.');
+        await act(async () => {
+            releaseOlderRequest();
+            await olderRequestGate;
+            await Promise.resolve();
+        });
+
+        expect(screen.getByRole('alert')).toHaveTextContent('You do not have access to notifications.');
+        expect(screen.queryByText(linkedUnread.title)).not.toBeInTheDocument();
+    });
+
+    it('does not let an older pending mutation resurrect rows or count after a newer denial', async () => {
+        let listRequests = 0;
+        let mutationRequests = 0;
+        let releaseMutation!: () => void;
+        const mutationGate = new Promise<void>((resolve) => { releaseMutation = resolve; });
+        server.use(
+            http.get('*/api/v1/notifications', () => {
+                listRequests += 1;
+                return listRequests === 1
+                    ? HttpResponse.json({
+                        items: [linkedUnread],
+                        total: 1,
+                        skip: 0,
+                        limit: 10,
+                        unread_count: 1,
+                    })
+                    : HttpResponse.json({ detail: 'forbidden' }, { status: 403 });
+            }),
+            http.post('*/api/v1/notifications/202/read', async () => {
+                mutationRequests += 1;
+                await mutationGate;
+                return HttpResponse.json({ unread_count: 4 });
+            }),
+        );
+        const user = userEvent.setup();
+        render(<MemoryRouter><BellHarness /></MemoryRouter>);
+        await openBell();
+        await user.click(screen.getByRole('button', { name: 'Mark as read' }));
+        await waitFor(() => expect(mutationRequests).toBe(1));
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent('You do not have access to notifications.');
+
+        await act(async () => {
+            releaseMutation();
+            await mutationGate;
+            await Promise.resolve();
+        });
+
+        expect(screen.getByRole('alert')).toHaveTextContent('You do not have access to notifications.');
+        expect(screen.queryByText(linkedUnread.title)).not.toBeInTheDocument();
+        expect(screen.getByRole('status', { name: 'Unread count' })).toHaveTextContent('0');
     });
 
     it('keeps hover, focus, and resource navigation free of read-state mutations', async () => {
@@ -207,6 +388,85 @@ describe('NotificationBell read-state controls', () => {
         expect(markAll).toHaveFocus();
         expect(screen.getByRole('button', { name: 'Mark as read' })).toBeEnabled();
         expect(screen.getByRole('status', { name: 'Unread count' })).toHaveTextContent('1');
+    });
+
+    it('clears a failed row-action alert only after a current successful reopen refresh commits', async () => {
+        let listRequests = 0;
+        let releaseRefresh!: () => void;
+        const refreshGate = new Promise<void>((resolve) => { releaseRefresh = resolve; });
+        server.use(
+            http.get('*/api/v1/notifications', async () => {
+                listRequests += 1;
+                if (listRequests > 1) {
+                    await refreshGate;
+                }
+                return HttpResponse.json({
+                    items: [linkedUnread],
+                    total: 1,
+                    skip: 0,
+                    limit: 10,
+                    unread_count: 1,
+                });
+            }),
+            http.post('*/api/v1/notifications/202/read', () => (
+                HttpResponse.json({ detail: 'failed' }, { status: 500 })
+            )),
+        );
+        render(<MemoryRouter><BellHarness /></MemoryRouter>);
+        const user = await openBell();
+        await user.click(screen.getByRole('button', { name: 'Mark as read' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent('Could not update this notification. Try again.');
+
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await waitFor(() => expect(listRequests).toBe(2));
+        expect(screen.getByRole('alert')).toHaveTextContent('Could not update this notification. Try again.');
+
+        await act(async () => {
+            releaseRefresh();
+            await refreshGate;
+            await Promise.resolve();
+        });
+
+        await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+        expect(screen.getByText(linkedUnread.title)).toBeInTheDocument();
+    });
+
+    it('clears a failed mark-all alert on denial and keeps it cleared after recovery', async () => {
+        let listRequests = 0;
+        server.use(
+            http.get('*/api/v1/notifications', () => {
+                listRequests += 1;
+                if (listRequests === 2) {
+                    return HttpResponse.json({ detail: 'forbidden' }, { status: 403 });
+                }
+                return HttpResponse.json({
+                    items: [linkedUnread],
+                    total: 1,
+                    skip: 0,
+                    limit: 10,
+                    unread_count: 1,
+                });
+            }),
+            http.post('*/api/v1/notifications/read-all', () => (
+                HttpResponse.json({ detail: 'failed' }, { status: 500 })
+            )),
+        );
+        render(<MemoryRouter><BellHarness /></MemoryRouter>);
+        const user = await openBell();
+        await user.click(screen.getByRole('button', { name: 'Mark all as read' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent('Could not mark all notifications as read. Try again.');
+
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        expect(await screen.findByText('You do not have access to notifications.')).toBeInTheDocument();
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+        expect(screen.queryByText('Could not mark all notifications as read. Try again.')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        expect(await screen.findByText(linkedUnread.title)).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('applies mark-all item and count changes only after server acknowledgement', async () => {

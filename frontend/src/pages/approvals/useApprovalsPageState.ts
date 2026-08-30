@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
@@ -7,6 +7,7 @@ import { logError } from '@/services/logger';
 import type { ApprovalRequest } from '@/types/approval';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 import { approvalsApi } from '@/services/approvalsApi';
+import { useCollectionDataState } from '@/pages/shared/collectionPageState';
 
 import { buildApprovalListParams, type ApprovalsFilter } from './approvalsPresentation';
 
@@ -17,9 +18,15 @@ export function useApprovalsPageState() {
     const requestedTab = searchParams.get('tab');
     const requestedApprovalId = Number(searchParams.get('approvalId'));
     const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
-    const [questionnaires, setQuestionnaires] = useState<RiskQuestionnaireListItem[]>([]);
+    const questionnaireCollection = useCollectionDataState<RiskQuestionnaireListItem>();
+    const {
+        applyFailure: applyQuestionnaireFailure,
+        applySuccess: applyQuestionnaireSuccess,
+        items: questionnaires,
+        outcome: questionnairesOutcome,
+        setIsLoading: setQuestionnairesLoading,
+    } = questionnaireCollection;
     const [loading, setLoading] = useState(true);
-    const [questionnairesLoading, setQuestionnairesLoading] = useState(false);
     const [filter, setFilterState] = useState<ApprovalsFilter>(
         requestedTab === 'mine' || requestedTab === 'pending' || requestedTab === 'all'
             ? requestedTab
@@ -32,6 +39,8 @@ export function useApprovalsPageState() {
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [cancelApprovalId, setCancelApprovalId] = useState<number | null>(null);
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+    const pendingQuestionnaireRetryRef = useRef(false);
+    const latestQuestionnaireRequestRef = useRef(0);
 
     const fetchApprovals = useCallback(async () => {
         try {
@@ -48,16 +57,49 @@ export function useApprovalsPageState() {
     }, [filter]);
 
     const fetchQuestionnaires = useCallback(async () => {
+        const requestId = ++latestQuestionnaireRequestRef.current;
         try {
             setQuestionnairesLoading(true);
             const items = await riskQuestionnairesApi.inbox();
-            setQuestionnaires(items);
+            if (latestQuestionnaireRequestRef.current !== requestId) {
+                return;
+            }
+            applyQuestionnaireSuccess({
+                items,
+                groups: [],
+                capabilities: null,
+                total: items.length,
+            });
         } catch (error) {
+            if (latestQuestionnaireRequestRef.current !== requestId) {
+                return;
+            }
             logError('Failed to fetch questionnaire inbox.', error);
+            applyQuestionnaireFailure(error, {
+                fallbackErrorKey: 'errors.questionnaire_load_failed',
+            });
         } finally {
-            setQuestionnairesLoading(false);
+            if (latestQuestionnaireRequestRef.current === requestId) {
+                setQuestionnairesLoading(false);
+            }
         }
-    }, []);
+    }, [
+        applyQuestionnaireFailure,
+        applyQuestionnaireSuccess,
+        setQuestionnairesLoading,
+    ]);
+
+    const retryQuestionnaires = useCallback(async () => {
+        if (pendingQuestionnaireRetryRef.current) {
+            return;
+        }
+        pendingQuestionnaireRetryRef.current = true;
+        try {
+            await fetchQuestionnaires();
+        } finally {
+            pendingQuestionnaireRetryRef.current = false;
+        }
+    }, [fetchQuestionnaires]);
 
     useEffect(() => {
         if (filter === 'risk_assessment') {
@@ -177,8 +219,8 @@ export function useApprovalsPageState() {
     return {
         approvals,
         questionnaires,
+        questionnairesOutcome,
         loading,
-        questionnairesLoading,
         filter,
         setFilter,
         selectedApproval,
@@ -198,5 +240,6 @@ export function useApprovalsPageState() {
         dismissCancel,
         confirmCancel,
         refreshActiveView,
+        retryQuestionnaires,
     };
 }

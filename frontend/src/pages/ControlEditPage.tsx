@@ -1,50 +1,57 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { ControlForm } from '@/components/control-form/ControlFormContainer';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { controlApi } from '@/services/controlApi';
-import { logError } from '@/services/logger';
 import type { Control } from '@/types/control';
+import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
+import { useDetailQuery } from './detail/useDetailQuery';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 export function ControlEditPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/controls');
+    const detailPath = appendRegisterReturnTo(`/controls/${id}`, returnTo);
     const { t } = useTranslation(['controls', 'common']);
-    const [control, setControl] = useState<Control | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const loadControl = useCallback((controlId: number) => controlApi.getControl(controlId), []);
+    const {
+        isRetrying,
+        loadOutcome,
+        refetch: fetchControl,
+        resource: control,
+        resourceId: controlId,
+    } = useDetailQuery<Control>({ entity: 'control', rawId: id, load: loadControl });
 
-    useEffect(() => {
-        const fetchControl = async () => {
-            if (!id) return;
-            try {
-                setIsLoading(true);
-                const data = await controlApi.getControl(parseInt(id));
-                setControl(data);
-            } catch (error) {
-                logError('Failed to fetch control for edit.', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        void fetchControl();
-    }, [id]);
-
-    if (isLoading) {
+    if (loadOutcome === 'loading') {
         return <FormCapabilityGateState state="loading" />;
     }
 
-    if (!control) return null;
+    if (loadOutcome === 'unavailable' || !control) {
+        return (
+            <DetailLoadUnavailableState
+                backLabel={t('controls:title')}
+                isRetrying={isRetrying}
+                onBack={() => navigate(returnTo)}
+                onRetry={controlId === null ? undefined : () => void fetchControl()}
+            />
+        );
+    }
 
     return (
         <div className="space-y-8">
+            {loadOutcome === 'stale-with-error' ? (
+                <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchControl()} />
+            ) : null}
             <div className="flex flex-col gap-2">
                 <button
-                    onClick={() => navigate(`/controls/${id}`)}
+                    onClick={() => navigate(detailPath)}
                     className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest mb-2"
                 >
                     <ArrowLeft className="h-3 w-3" /> {t('common:actions.back')} {t('common:labels.details')}
@@ -63,6 +70,11 @@ export function ControlEditPage() {
                         initialData={control}
                         isEdit={true}
                         allowRiskLinking={resolveCapabilityFlag(control.capabilities, 'can_link_risk')}
+                        onCancel={() => navigate(detailPath)}
+                        onSuccess={(_controlId, locationState) => navigate(
+                            detailPath,
+                            locationState ? { state: locationState } : undefined,
+                        )}
                     />
                 ) : (
                     <FormCapabilityGateState state="denied" />

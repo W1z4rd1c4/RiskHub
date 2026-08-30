@@ -7,7 +7,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import * as axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -66,11 +66,13 @@ function renderForm() {
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
+    const router = createMemoryRouter([{
+        path: '*',
+        element: <ProcessForm onSaved={onSaved} onApprovalQueued={onApprovalQueued} />,
+    }]);
     const utils = render(
         <QueryClientProvider client={client}>
-            <MemoryRouter>
-                <ProcessForm onSaved={onSaved} onApprovalQueued={onApprovalQueued} />
-            </MemoryRouter>
+            <RouterProvider router={router} />
         </QueryClientProvider>,
     );
     return { onSaved, onApprovalQueued, ...utils };

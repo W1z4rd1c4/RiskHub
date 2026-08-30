@@ -146,4 +146,20 @@ describe('RiskNewPage vendor context', () => {
         await waitFor(() => expect(mockGetVendor).toHaveBeenCalledWith(12));
         expect(screen.queryByTestId('risk-back-label')).not.toBeInTheDocument();
     });
+
+    it('returns a normal create cancel and direct save to the exact safe Risk list working set', async () => {
+        const returnTo = '/risks?q=claims&view=department&page=3#group-heading';
+        mockSearchParams = new URLSearchParams({ return_to: returnTo });
+
+        render(<RiskNewPage />);
+        await screen.findByRole('button', { name: 'cancel' });
+        fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
+        expect(mockNavigate).toHaveBeenCalledWith(returnTo);
+
+        mockNavigate.mockClear();
+        fireEvent.click(screen.getByRole('button', { name: 'submit' }));
+        await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(
+            `/risks/77?return_to=${encodeURIComponent(returnTo)}`,
+        ));
+    });
 });

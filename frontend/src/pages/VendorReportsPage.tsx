@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { vendorReportApi } from '@/services/vendorReportApi';
@@ -7,6 +7,16 @@ import type { VendorReportCapabilities } from '@/types/vendorReport';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { logError } from '@/services/logger';
+
+type AnnualDownloadRequest = {
+    year: number;
+    departmentId: number | null;
+};
+
+type DoraDownloadRequest = {
+    departmentId: number | null;
+};
 
 export function VendorReportsPage() {
     const { t } = useTranslation('vendors');
@@ -16,34 +26,59 @@ export function VendorReportsPage() {
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
     const [capabilities, setCapabilities] = useState<VendorReportCapabilities | null>(null);
     const [isCapabilitiesLoading, setIsCapabilitiesLoading] = useState(true);
-    const [isDownloading, setIsDownloading] = useState(false);
+    const [capabilitiesUnavailable, setCapabilitiesUnavailable] = useState(false);
+    const [capabilityAttempt, setCapabilityAttempt] = useState(0);
+    const [isAnnualDownloading, setIsAnnualDownloading] = useState(false);
+    const [annualError, setAnnualError] = useState<AnnualDownloadRequest | null>(null);
+    const [isDoraDownloading, setIsDoraDownloading] = useState(false);
+    const [doraError, setDoraError] = useState<DoraDownloadRequest | null>(null);
 
     const canReadReports = resolveCapabilityFlag(capabilities, 'can_read');
     const canDownloadAnnual = resolveCapabilityFlag(capabilities, 'can_download_annual_report');
     const canDownloadDora = resolveCapabilityFlag(capabilities, 'can_download_dora_register');
     const canUseDepartmentFilter = resolveCapabilityFlag(capabilities, 'can_use_department_filter');
 
-    const download = async (fn: () => Promise<void>) => {
+    const downloadAnnual = async (request: AnnualDownloadRequest) => {
+        setIsAnnualDownloading(true);
+        setAnnualError(null);
         try {
-            setIsDownloading(true);
-            await fn();
+            await vendorReportApi.downloadAnnual(request.year, 'csv', request.departmentId);
+        } catch (error) {
+            logError('Failed to download annual vendor report.', error);
+            setAnnualError(request);
         } finally {
-            setIsDownloading(false);
+            setIsAnnualDownloading(false);
+        }
+    };
+
+    const downloadDora = async (request: DoraDownloadRequest) => {
+        setIsDoraDownloading(true);
+        setDoraError(null);
+        try {
+            await vendorReportApi.downloadDoraRegister(request.departmentId);
+        } catch (error) {
+            logError('Failed to download DORA register.', error);
+            setDoraError(request);
+        } finally {
+            setIsDoraDownloading(false);
         }
     };
 
     useEffect(() => {
         let cancelled = false;
         setIsCapabilitiesLoading(true);
+        setCapabilitiesUnavailable(false);
         vendorReportApi.getCapabilities()
             .then((data) => {
                 if (!cancelled) {
                     setCapabilities(data);
                 }
             })
-            .catch(() => {
+            .catch((error: unknown) => {
                 if (!cancelled) {
                     setCapabilities(null);
+                    setCapabilitiesUnavailable(true);
+                    logError('Failed to load vendor report capabilities.', error);
                 }
             })
             .finally(() => {
@@ -55,7 +90,7 @@ export function VendorReportsPage() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [capabilityAttempt]);
 
     useEffect(() => {
         if (!canUseDepartmentFilter) {
@@ -108,6 +143,126 @@ export function VendorReportsPage() {
         </div>
     ) : null;
 
+    let reportContent: ReactNode;
+    if (isCapabilitiesLoading) {
+        reportContent = (
+            <div className="glass-card p-6">
+                <p className="text-foreground font-medium">{t('labels.loading')}</p>
+            </div>
+        );
+    } else if (capabilitiesUnavailable) {
+        reportContent = (
+            <div role="alert" className="glass-card p-6 flex flex-wrap items-center justify-between gap-4 border-rose-500/30">
+                <p className="text-foreground font-medium">{t('reports.unavailable')}</p>
+                <button
+                    type="button"
+                    onClick={() => setCapabilityAttempt((attempt) => attempt + 1)}
+                    className="px-4 py-2 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-muted/80 transition-colors"
+                >
+                    {tCommon('actions.retry')}
+                </button>
+            </div>
+        );
+    } else if (!canReadReports) {
+        reportContent = (
+            <div className="glass-card p-6">
+                <p className="text-foreground font-medium">{t('reports.not_authorized')}</p>
+            </div>
+        );
+    } else {
+        reportContent = (
+            <div className="grid gap-6 lg:grid-cols-2">
+                <section className="glass-card p-6 space-y-4">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                        <Download className="h-4 w-4" />
+                        {t('reports.annual.title')}
+                    </h3>
+
+                    <Field
+                        id="vendor-report-year"
+                        label={t('reports.annual.year')}
+                        className="w-28"
+                    >
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="number"
+                                value={year}
+                                onChange={(event) => setYear(Number(event.target.value))}
+                                className="font-mono"
+                                min={2000}
+                                max={2100}
+                            />
+                        )}
+                    </Field>
+                    {renderDepartmentSelector('vendor-report-annual-department')}
+
+                    <div className="flex flex-wrap gap-2">
+                        {canDownloadAnnual ? (
+                            <button
+                                type="button"
+                                aria-busy={isAnnualDownloading}
+                                disabled={isAnnualDownloading}
+                                onClick={() => void downloadAnnual({ year, departmentId: effectiveDepartmentId })}
+                                className="px-4 py-2 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-muted/80 transition-colors disabled:opacity-60 flex items-center gap-2"
+                            >
+                                <FileSpreadsheet className="h-4 w-4" />
+                                {t('reports.annual.download_csv')}
+                            </button>
+                        ) : null}
+                    </div>
+                    {annualError ? (
+                        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3">
+                            <p className="text-sm font-semibold text-rose-200">{tCommon('export.errors.failed')}</p>
+                            <button
+                                type="button"
+                                onClick={() => void downloadAnnual(annualError)}
+                                className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-xs font-bold text-foreground hover:bg-white/15"
+                            >
+                                {tCommon('actions.retry')}
+                            </button>
+                        </div>
+                    ) : null}
+                </section>
+
+                <section className="glass-card p-6 space-y-4">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                        <FileSpreadsheet className="h-4 w-4" />
+                        {t('reports.dora.title')}
+                    </h3>
+                    <p className="text-sm text-foreground font-medium">
+                        {t('reports.dora.subtitle')}
+                    </p>
+                    {renderDepartmentSelector('vendor-report-dora-department')}
+                    {canDownloadDora ? (
+                        <button
+                            type="button"
+                            aria-busy={isDoraDownloading}
+                            disabled={isDoraDownloading}
+                            onClick={() => void downloadDora({ departmentId: effectiveDepartmentId })}
+                            className="px-4 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent-text font-bold hover:bg-accent/20 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
+                        >
+                            <Download className="h-4 w-4" />
+                            {t('reports.dora.download')}
+                        </button>
+                    ) : null}
+                    {doraError ? (
+                        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3">
+                            <p className="text-sm font-semibold text-rose-200">{tCommon('export.errors.failed')}</p>
+                            <button
+                                type="button"
+                                onClick={() => void downloadDora(doraError)}
+                                className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-xs font-bold text-foreground hover:bg-white/15"
+                            >
+                                {tCommon('actions.retry')}
+                            </button>
+                        </div>
+                    ) : null}
+                </section>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8">
             <div>
@@ -115,81 +270,7 @@ export function VendorReportsPage() {
                 <p className="text-muted-foreground font-medium">{t('reports.subtitle')}</p>
             </div>
 
-            {isCapabilitiesLoading ? (
-                <div className="glass-card p-6">
-                    <p className="text-foreground font-medium">{t('labels.loading')}</p>
-                </div>
-            ) : !canReadReports ? (
-                <div className="glass-card p-6">
-                    <p className="text-foreground font-medium">{t('reports.not_authorized')}</p>
-                </div>
-            ) : (
-                <div className="grid gap-6 lg:grid-cols-2">
-                    <section className="glass-card p-6 space-y-4">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                            <Download className="h-4 w-4" />
-                            {t('reports.annual.title')}
-                        </h3>
-
-                        <Field
-                            id="vendor-report-year"
-                            label={t('reports.annual.year')}
-                            className="w-28"
-                        >
-                            {(field) => (
-                                <Input
-                                    {...field}
-                                    type="number"
-                                    value={year}
-                                    onChange={(event) => setYear(Number(event.target.value))}
-                                    className="font-mono"
-                                    min={2000}
-                                    max={2100}
-                                />
-                            )}
-                        </Field>
-                        {renderDepartmentSelector('vendor-report-annual-department')}
-
-                        <div className="flex flex-wrap gap-2">
-                            {canDownloadAnnual ? (
-                                <button
-                                    disabled={isDownloading}
-                                    onClick={() => download(
-                                        () => vendorReportApi.downloadAnnual(year, 'csv', effectiveDepartmentId),
-                                    )}
-                                    className="px-4 py-2 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-muted/80 transition-colors disabled:opacity-60 flex items-center gap-2"
-                                >
-                                    <FileSpreadsheet className="h-4 w-4" />
-                                    {t('reports.annual.download_csv')}
-                                </button>
-                            ) : null}
-                        </div>
-                    </section>
-
-                    <section className="glass-card p-6 space-y-4">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                            <FileSpreadsheet className="h-4 w-4" />
-                            {t('reports.dora.title')}
-                        </h3>
-                        <p className="text-sm text-foreground font-medium">
-                            {t('reports.dora.subtitle')}
-                        </p>
-                        {renderDepartmentSelector('vendor-report-dora-department')}
-                        {canDownloadDora ? (
-                            <button
-                                disabled={isDownloading}
-                                onClick={() => download(
-                                    () => vendorReportApi.downloadDoraRegister(effectiveDepartmentId),
-                                )}
-                                className="px-4 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent-text font-bold hover:bg-accent/20 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
-                            >
-                                <Download className="h-4 w-4" />
-                                {t('reports.dora.download')}
-                            </button>
-                        ) : null}
-                    </section>
-                </div>
-            )}
+            {reportContent}
         </div>
     );
 }

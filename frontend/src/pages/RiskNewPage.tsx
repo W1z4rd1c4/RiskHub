@@ -12,6 +12,7 @@ import { vendorLinkApi } from '@/services/vendorLinkApi';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
 
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { combineCapabilityGateStates, useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import {
     coerceVendorContext,
@@ -27,6 +28,7 @@ export function RiskNewPage() {
         searchParams.get('return_to'),
     );
     const isVendorContext = vendorId !== null && returnTo !== null;
+    const riskListReturnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/risks');
     const [vendorContextState, setVendorContextState] = useState<'loading' | 'allowed' | 'denied'>(
         isVendorContext ? 'loading' : 'allowed',
     );
@@ -77,16 +79,22 @@ export function RiskNewPage() {
         });
     };
 
-    const handleVendorContextSuccess = async (riskId: number) => {
+    const handleVendorContextSuccess = async (riskId: number, acceptNavigation?: () => void) => {
         if (!vendorId || !returnTo) {
+            acceptNavigation?.();
             void navigate(`/risks/${riskId}`);
             return;
         }
 
+        const finish = (flash: VendorDetailFlash) => {
+            acceptNavigation?.();
+            navigateToVendor(flash);
+        };
+
         try {
             const result = await vendorLinkApi.linkRisk(vendorId, riskId);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToVendor({
+                finish({
                     tone: 'warn',
                     message: t('vendors:links.risks.created_but_not_linked'),
                     ctaHref: `/risks/${riskId}`,
@@ -94,7 +102,7 @@ export function RiskNewPage() {
                 });
                 return;
             }
-            navigateToVendor({
+            finish({
                 tone: 'success',
                 message: t('vendors:links.risks.created_and_linked'),
                 ctaHref: `/risks/${riskId}`,
@@ -102,7 +110,7 @@ export function RiskNewPage() {
             });
         } catch (error) {
             logError('Risk created but failed to link vendor context.', error);
-            navigateToVendor({
+            finish({
                 tone: 'warn',
                 message: t('vendors:links.risks.created_but_not_linked'),
                 ctaHref: `/risks/${riskId}`,
@@ -118,7 +126,7 @@ export function RiskNewPage() {
             <div className="space-y-3">
                 <button
                     onClick={() => {
-                        void navigate(isVendorContext ? returnTo! : '/risks');
+                        void navigate(isVendorContext ? returnTo! : riskListReturnTo);
                     }}
                     className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent transition-colors uppercase tracking-widest"
                 >
@@ -142,10 +150,12 @@ export function RiskNewPage() {
                 <FormCapabilityGateState state={gateState} />
             ) : (
                 <RiskForm
-                    onSuccess={isVendorContext ? handleVendorContextSuccess : undefined}
-                    onCancel={isVendorContext ? () => {
-                        void navigate(returnTo!);
-                    } : undefined}
+                    onSuccess={isVendorContext
+                        ? handleVendorContextSuccess
+                        : (riskId) => navigate(appendRegisterReturnTo(`/risks/${riskId}`, riskListReturnTo))}
+                    onCancel={() => {
+                        void navigate(isVendorContext ? returnTo! : riskListReturnTo);
+                    }}
                     firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
                 />
             )}

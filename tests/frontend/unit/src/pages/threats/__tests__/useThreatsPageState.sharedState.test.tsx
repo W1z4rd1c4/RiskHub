@@ -79,6 +79,21 @@ describe('useThreatsPageState shared collection state', () => {
         expect(result.current.items[0]?.name).toBe('Newest threat');
     });
 
+    it('propagates export failure without replacing the register outcome', async () => {
+        const failure = new ApiClientError({ status: 500, messageKey: 'errorKeys.server' });
+        mocks.downloadExport.mockRejectedValueOnce(failure);
+        const { result } = renderHook(() => useThreatsPageState(), { wrapper });
+        await waitFor(() => expect(result.current.items).toHaveLength(1));
+
+        await act(async () => {
+            await expect(result.current.exportThreats()).rejects.toBe(failure);
+        });
+
+        expect(result.current.items[0]?.name).toBe('Threat one');
+        expect(result.current.errorKey).toBeNull();
+        expect(result.current.isExporting).toBe(false);
+    });
+
     it('restores shared URL state, preserves unrelated parameters, and removes page/group on filters', async () => {
         const urlWrapper = ({ children }: { children: ReactNode }) => (
             <MemoryRouter initialEntries={[

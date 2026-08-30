@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KRIFormContainer } from '@/components/kri-form/KRIFormContainer';
@@ -30,6 +30,7 @@ vi.mock('@/i18n/hooks', () => ({
 }));
 
 vi.mock('@/components/kri-form/useKriFormState', () => ({
+    createKriFormSnapshot: () => 'snapshot',
     useKriFormState: () => mocks.formState,
 }));
 
@@ -112,11 +113,8 @@ describe('KRIFormContainer approval queued banner', () => {
     });
 
     it('renders one shared approval banner with translated queued copy', () => {
-        render(
-            <MemoryRouter>
-                <KRIFormContainer />
-            </MemoryRouter>,
-        );
+        const router = createMemoryRouter([{ path: '/', element: <KRIFormContainer /> }]);
+        render(<RouterProvider router={router} />);
 
         const banners = screen.getAllByTestId('approval-queued-banner');
         expect(banners).toHaveLength(1);

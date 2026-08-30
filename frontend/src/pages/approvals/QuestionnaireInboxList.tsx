@@ -4,34 +4,57 @@ import { CheckCircle2, Clock } from 'lucide-react';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
 import { cn } from '@/lib/utils';
+import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 
 import { getQuestionnaireStatusBadge, getQuestionnaireStatusLabel } from './approvalsPresentation';
 
 interface QuestionnaireInboxListProps {
-    loading: boolean;
     questionnaires: RiskQuestionnaireListItem[];
+    outcome: CollectionOutcome;
     locale?: string;
     onOpenRisk: (riskId: number) => void;
+    onRetry: () => void;
     t: SafeTFunction;
 }
 
 export function QuestionnaireInboxList({
-    loading,
     questionnaires,
+    outcome,
     locale = 'en',
     onOpenRisk,
+    onRetry,
     t,
 }: QuestionnaireInboxListProps) {
-    if (loading) {
+    if (outcome.kind === 'initial-loading') {
         return (
-            <div className="flex items-center justify-center py-20">
+            <div className="flex items-center justify-center py-20" role="status">
                 <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                <span className="sr-only">{t('common:loading.generic')}</span>
             </div>
         );
     }
 
-    if (questionnaires.length === 0) {
+    if (outcome.kind === 'denied') {
+        return (
+            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                {t('approvals:errors.questionnaire_access_denied')}
+            </div>
+        );
+    }
+
+    const hasStaleData = outcome.kind === 'stale-with-error';
+    let loadError: string | null = null;
+    if (outcome.kind === 'fatal-error') {
+        loadError = t('approvals:errors.questionnaire_load_failed');
+    } else if (outcome.kind === 'stale-with-error') {
+        loadError = t('approvals:errors.questionnaire_stale');
+    }
+    const retrying = outcome.kind === 'fatal-error' || hasStaleData
+        ? outcome.isRetrying
+        : false;
+
+    if (outcome.kind === 'empty') {
         return (
             <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
                 <CheckCircle2 className="h-12 w-12 text-slate-700 mx-auto mb-4" />
@@ -43,7 +66,22 @@ export function QuestionnaireInboxList({
 
     return (
         <div className="space-y-4">
-            {questionnaires.map((questionnaire) => (
+            {loadError && (
+                <div role="alert" className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                    <span>{loadError}</span>
+                    <button
+                        type="button"
+                        onClick={onRetry}
+                        aria-busy={retrying}
+                        aria-disabled={retrying}
+                        className="ml-auto rounded-lg border border-current px-3 py-2 font-medium"
+                    >
+                        {t('common:actions.retry')}
+                    </button>
+                    {retrying && <span role="status" className="sr-only">{t('approvals:status.questionnaire_retrying')}</span>}
+                </div>
+            )}
+            {(outcome.kind === 'content' || hasStaleData) && questionnaires.map((questionnaire) => (
                 <motion.div
                     key={questionnaire.id}
                     initial={{ opacity: 0, y: 10 }}

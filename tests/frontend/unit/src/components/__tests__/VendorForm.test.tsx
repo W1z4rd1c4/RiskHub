@@ -1,6 +1,8 @@
 import type { ReactElement } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { RouterProvider, createMemoryRouter, useNavigate } from 'react-router-dom';
 import * as axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -37,7 +39,12 @@ function renderWithQueryClient(ui: ReactElement) {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false } },
     });
-    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+    const router = createMemoryRouter([{ path: '*', element: ui }]);
+    return render(
+        <QueryClientProvider client={queryClient}>
+            <RouterProvider router={router} />
+        </QueryClientProvider>,
+    );
 }
 
 async function expectNoAxeViolations(node: Element): Promise<void> {
@@ -374,6 +381,159 @@ describe('VendorForm', () => {
             tier: 'critical',
         },
     } as Vendor;
+
+    function NavigatingVendorEdit() {
+        const navigate = useNavigate();
+        return (
+            <VendorForm
+                initialData={nonProtectedVendor}
+                isEdit
+                onSaved={(saved) => void navigate(`/vendors/${saved.id}`)}
+                onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
+                onCancel={() => void navigate('/vendors/42')}
+            />
+        );
+    }
+
+    function renderNavigatingVendorEdit() {
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        });
+        const router = createMemoryRouter([
+            { path: '/vendors/42/edit', element: <NavigatingVendorEdit /> },
+            { path: '/vendors/42', element: <p>Vendor detail</p> },
+            { path: '/approvals', element: <p>Approvals</p> },
+        ], { initialEntries: ['/vendors/42/edit'] });
+        const utils = render(
+            <QueryClientProvider client={queryClient}>
+                <RouterProvider router={router} />
+            </QueryClientProvider>,
+        );
+        return { router, ...utils };
+    }
+
+    function NavigatingVendorCreate() {
+        const navigate = useNavigate();
+        return (
+            <VendorForm
+                onSaved={(saved) => void navigate(`/vendors/${saved.id}`)}
+                onCancel={() => void navigate('/vendors')}
+            />
+        );
+    }
+
+    function renderNavigatingVendorCreate() {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const router = createMemoryRouter([
+            { path: '/vendors/new', element: <NavigatingVendorCreate /> },
+            { path: '/vendors', element: <p>Vendors</p> },
+        ], { initialEntries: ['/vendors/new'] });
+        render(
+            <QueryClientProvider client={queryClient}>
+                <RouterProvider router={router} />
+            </QueryClientProvider>,
+        );
+        return router;
+    }
+
+    describe('dirty task protection (#158)', () => {
+        it('guards a create draft and becomes clean after an exact semantic revert', async () => {
+            const user = userEvent.setup();
+            const router = renderNavigatingVendorCreate();
+            const name = screen.getByTestId('vendor-form-name');
+
+            await user.type(name, 'New Vendor');
+            await user.click(screen.getByRole('button', { name: 'actions.cancel' }));
+            expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+            expect(router.state.location.pathname).toBe('/vendors/new');
+            await user.click(screen.getByRole('button', { name: 'actions.stay' }));
+
+            await user.clear(name);
+            await user.type(name, '  ');
+            await user.click(screen.getByRole('button', { name: 'actions.cancel' }));
+            await waitFor(() => expect(router.state.location.pathname).toBe('/vendors'));
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('prompts for a semantic edit, keeps the draft on Stay, and clears when the payload is reverted', async () => {
+            const user = userEvent.setup();
+            const { router } = renderNavigatingVendorEdit();
+
+            const name = screen.getByTestId('vendor-form-name');
+            await user.clear(name);
+            await user.type(name, 'Changed Vendor');
+            await user.click(screen.getByRole('button', { name: 'actions.cancel' }));
+
+            expect(await screen.findByRole('alertdialog')).toHaveTextContent('confirmation.unsaved_changes');
+            expect(router.state.location.pathname).toBe('/vendors/42/edit');
+            await user.click(screen.getByRole('button', { name: 'actions.stay' }));
+            expect(name).toHaveValue('Changed Vendor');
+
+            await user.clear(name);
+            await user.type(name, '  Ordinary Vendor  ');
+            await user.click(screen.getByRole('button', { name: 'actions.cancel' }));
+
+            await waitFor(() => expect(router.state.location.pathname).toBe('/vendors/42'));
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('locks editable fields and Cancel while the accepted save is pending', async () => {
+            const user = userEvent.setup();
+            let resolveUpdate: (vendor: Vendor) => void = () => {};
+            updateVendorMock.mockReturnValue(new Promise((resolve) => {
+                resolveUpdate = resolve;
+            }));
+            const { router } = renderNavigatingVendorEdit();
+
+            const name = screen.getByTestId('vendor-form-name');
+            await user.clear(name);
+            await user.type(name, 'Updated Vendor');
+            await user.click(screen.getByRole('button', { name: 'actions.save' }));
+            await waitFor(() => expect(updateVendorMock).toHaveBeenCalledTimes(1));
+
+            expect(name).toBeDisabled();
+            expect(screen.getByRole('button', { name: 'actions.cancel' })).toBeDisabled();
+
+            await act(async () => resolveUpdate({ ...nonProtectedVendor, name: 'Updated Vendor' }));
+            await waitFor(() => expect(router.state.location.pathname).toBe('/vendors/42'));
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('keeps an invalid edit dirty', async () => {
+            const user = userEvent.setup();
+            const { router } = renderNavigatingVendorEdit();
+
+            await user.clear(screen.getByTestId('vendor-form-name'));
+            await user.click(screen.getByRole('button', { name: 'actions.save' }));
+            expect(await screen.findByText('errors.name_required')).toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: 'actions.cancel' }));
+
+            expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+            expect(router.state.location.pathname).toBe('/vendors/42/edit');
+        });
+
+        it('accepts an approval-queued edit before navigating', async () => {
+            const user = userEvent.setup();
+            updateVendorMock.mockResolvedValue(processApprovalQueuedResponseSchema.parse({
+                status: 'approval_required',
+                message: 'Submitted',
+                approval_id: 101,
+                action_type: 'edit',
+                pending_fields: ['name'],
+                proposal_id: 'proposal-vendor-101',
+                proposal_version: 1,
+            }));
+            const { router } = renderNavigatingVendorEdit();
+
+            await user.clear(screen.getByTestId('vendor-form-name'));
+            await user.type(screen.getByTestId('vendor-form-name'), 'Queued Vendor');
+            await user.click(screen.getByRole('button', { name: 'actions.save' }));
+
+            await waitFor(() => expect(router.state.location.pathname).toBe('/approvals'));
+            expect(router.state.location.search).toBe('?tab=mine&approvalId=101');
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+    });
 
     describe('governed Outsourcing Owner edit (#88)', () => {
         it('requires and focuses a localized reason for an actual Outsourcing Owner delta', async () => {

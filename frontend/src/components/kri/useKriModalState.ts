@@ -49,6 +49,34 @@ function formDataFromKri(kri: NonNullable<KRIModalProps['kri']>): KriModalFormDa
     };
 }
 
+function vendorOptionsFromKri(
+    kri: KRIModalProps['kri'],
+): KRIVendorOption[] {
+    return (kri?.linked_vendors ?? []).map((vendor) => ({
+        id: vendor.id,
+        name: vendor.name,
+        is_archived: vendor.is_archived,
+    }));
+}
+
+export function createKriModalSnapshot(
+    formData: KriModalFormData,
+    selectedVendorIds: number[],
+    isCreate: boolean,
+): string {
+    return JSON.stringify([
+        formData.metric_name ?? '',
+        formData.description ?? '',
+        isCreate ? formData.current_value ?? null : null,
+        formData.lower_limit ?? null,
+        formData.upper_limit ?? null,
+        formData.unit ?? '',
+        formData.frequency ?? '',
+        formData.reporting_owner_id ?? null,
+        [...selectedVendorIds].sort((left, right) => left - right),
+    ]);
+}
+
 function errorMessageFromUnknown(err: unknown): string {
     if (err instanceof ApiClientError) {
         return err.rawMessage ?? err.messageKey;
@@ -68,6 +96,7 @@ export function useKriModalState({
     risk_id,
 }: KRIModalProps) {
     const isCreate = !kri;
+    const initialVendorOptions = vendorOptionsFromKri(kri);
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -76,19 +105,21 @@ export function useKriModalState({
     const debouncedVendorSearch = useDebouncedValue(vendorSearch, 300);
     const [isLoadingVendors, setIsLoadingVendors] = useState(false);
     const [vendorOptions, setVendorOptions] = useState<KRIVendorOption[]>([]);
-    const [selectedVendorIds, setSelectedVendorIds] = useState<number[]>([]);
-    const [selectedVendorOptions, setSelectedVendorOptions] = useState<KRIVendorOption[]>([]);
-    const [formData, setFormData] = useState<KriModalFormData>(DEFAULT_FORM_DATA);
+    const [selectedVendorIds, setSelectedVendorIds] = useState<number[]>(
+        () => initialVendorOptions.map((vendor) => vendor.id),
+    );
+    const [selectedVendorOptions, setSelectedVendorOptions] = useState<KRIVendorOption[]>(
+        () => initialVendorOptions,
+    );
+    const [formData, setFormData] = useState<KriModalFormData>(
+        () => kri ? formDataFromKri(kri) : DEFAULT_FORM_DATA,
+    );
     const [users, setUsers] = useState<KriOwnerOption[]>([]);
 
     useEffect(() => {
         if (kri) {
             setFormData(formDataFromKri(kri));
-            const linkedVendorOptions = (kri.linked_vendors ?? []).map((vendor) => ({
-                id: vendor.id,
-                name: vendor.name,
-                is_archived: vendor.is_archived,
-            }));
+            const linkedVendorOptions = vendorOptionsFromKri(kri);
             setSelectedVendorIds(linkedVendorOptions.map((vendor) => vendor.id));
             setSelectedVendorOptions(linkedVendorOptions);
         } else {
@@ -173,7 +204,10 @@ export function useKriModalState({
         setError(null);
     }
 
-    async function handleSave() {
+    async function handleSave(acceptCurrentSnapshot?: () => void) {
+        if (isSaving || isDeleting) {
+            return;
+        }
         const validationError = getKriDraftValidationErrorKey(formData);
         if (validationError) {
             setError(validationError);
@@ -186,6 +220,7 @@ export function useKriModalState({
             const { current_value: _currentValue, ...rest } = formData;
             const data = isCreate ? { ...formData, risk_id } as KRICreate : rest as KRIUpdate;
             await onSave(data, selectedVendorIds);
+            acceptCurrentSnapshot?.();
             onClose();
         } catch (err) {
             logError('Save failed:', err);
@@ -195,13 +230,14 @@ export function useKriModalState({
         }
     }
 
-    async function handleDelete() {
-        if (!kri || !onDelete) {
+    async function handleDelete(acceptCurrentSnapshot?: () => void) {
+        if (!kri || !onDelete || isSaving || isDeleting) {
             return;
         }
         try {
             setIsDeleting(true);
             await onDelete(kri.id);
+            acceptCurrentSnapshot?.();
             onClose();
         } catch (err) {
             logError('Delete failed:', err);

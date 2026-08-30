@@ -71,6 +71,7 @@ export function RemediationPlanCard({ issue }: RemediationPlanCardProps) {
                     />
                 </>
             )}
+            {workflow.confirmationDialog}
         </div>
     );
 }

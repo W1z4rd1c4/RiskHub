@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Activity, Server, Shield, Terminal, Users } from 'lucide-react';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthz } from '@/authz/useAuthz';
 import { useContentTabs } from '@/hooks/useContentTabs';
+import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 
@@ -26,7 +26,10 @@ export function AdminConsolePage() {
     const { t } = useTranslation('admin');
     const { isLoading } = useAuth();
     const authz = useAuthz();
-    const [activeTab, setActiveTab] = useState<TabId>('health');
+    const [activeTab, setActiveTab] = useContentTabQuery<TabId>({
+        tabs: tabIds,
+        defaultTab: 'health',
+    });
     const { getTabProps, getPanelProps } = useContentTabs({
         tabs: tabIds,
         activeTab,

@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, History, RefreshCw, Target, Wrench } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, History, RefreshCw, Target, Wrench } from 'lucide-react';
 
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
 import type { IssueSeverity, IssueStatus } from '@/types/issue';
 
 import { IssueHistoryTab } from './issues/issue-detail/IssueHistoryTab';
@@ -13,17 +14,32 @@ import { IssueWorkflowTab } from './issues/issue-detail/IssueWorkflowTab';
 import type { IssueDetailTab } from './issues/issue-detail/issueDetail.types';
 import { useIssueDetail } from './issues/issue-detail/useIssueDetail';
 import { useIssueHistory } from './issues/issue-detail/useIssueHistory';
+import { resolveRegisterReturnTo } from './shared/registerReturnContext';
+import { useContentTabQuery } from '@/hooks/useContentTabQuery';
+import { useContentTabs } from '@/hooks/useContentTabs';
+
+const issueDetailTabs = ['overview', 'workflow', 'history'] as const;
 
 export function IssueDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/issues');
     const { t, i18n } = useTranslation('issues');
 
-    const issueId = id ? Number(id) : Number.NaN;
-    const [activeTab, setActiveTab] = useState<IssueDetailTab>('overview');
+    const [activeTab, setActiveTab] = useContentTabQuery<IssueDetailTab>({
+        tabs: issueDetailTabs,
+        defaultTab: 'overview',
+    });
+    const { getPanelProps, getTabProps } = useContentTabs({
+        tabs: issueDetailTabs,
+        activeTab,
+        onChange: setActiveTab,
+        idPrefix: 'issue-detail',
+    });
 
-    const { errorKey, refreshIssue, isAccessDenied, isLoading, issue } = useIssueDetail({
-        issueId,
+    const { isRetrying, issue, issueId, loadOutcome, refreshIssue } = useIssueDetail({
+        rawId: id,
     });
     const canViewActivityHistory = resolveCapabilityFlag(issue?.capabilities, 'can_view_activity_history');
     const { historyItems, isHistoryLoading, refreshHistory } = useIssueHistory({
@@ -58,16 +74,7 @@ export function IssueDetailPage() {
         { id: 'history', label: t('detail.tabs.history'), icon: History },
     ];
 
-    if (isAccessDenied) {
-        return (
-            <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
-                <AlertTriangle className="h-5 w-5" />
-                <span>{t('permissions.view_denied')}</span>
-            </div>
-        );
-    }
-
-    if (isLoading && !issue) {
+    if (loadOutcome === 'loading') {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
@@ -78,43 +85,27 @@ export function IssueDetailPage() {
         );
     }
 
-    if (errorKey || !issue) {
+    if (loadOutcome === 'unavailable' || !issue) {
         return (
-            <div className="glass-card flex flex-col items-center justify-center p-20 text-center gap-4">
-                <div className="bg-rose-500/20 p-4 rounded-full">
-                    <AlertTriangle className="h-10 w-10 text-rose-500" />
-                </div>
-                <div>
-                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">
-                        {t('detail.not_found_title')}
-                    </h3>
-                    <p className="text-slate-500 mt-2 font-medium">
-                        {errorKey
-                            ? errorKey.startsWith('errorKeys.')
-                                ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                                : t(errorKey)
-                            : t('errors.unable_to_load')}
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => navigate('/issues')}
-                    className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors flex items-center gap-2"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    {t('actions.back_to_issues')}
-                </button>
-            </div>
+            <DetailLoadUnavailableState
+                backLabel={t('actions.back_to_issues')}
+                isRetrying={isRetrying}
+                onBack={() => navigate(returnTo)}
+                onRetry={issueId === null ? undefined : () => void refreshIssue()}
+            />
         );
     }
 
     return (
         <div className="space-y-8">
+            {loadOutcome === 'stale-with-error' ? (
+                <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void refreshIssue()} />
+            ) : null}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                 <div className="space-y-3">
                     <button
                         type="button"
-                        onClick={() => navigate('/issues')}
+                        onClick={() => navigate(returnTo)}
                         className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent transition-colors uppercase tracking-widest"
                     >
                         <ArrowLeft className="h-3.5 w-3.5" />
@@ -151,17 +142,14 @@ export function IssueDetailPage() {
             </div>
 
             <div className="flex items-center gap-1 border-b border-white/10" role="tablist" aria-label={t('title')}>
-                {tabs.map((tab) => {
+                {tabs.map((tab, index) => {
                     const TabIcon = tab.icon;
                     const isActive = activeTab === tab.id;
 
                     return (
                         <button
                             key={tab.id}
-                            type="button"
-                            role="tab"
-                            aria-selected={isActive}
-                            onClick={() => setActiveTab(tab.id)}
+                            {...getTabProps(tab.id, index)}
                             className={`inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-colors ${
                                 isActive ? 'text-accent-text border-b-2 border-accent' : 'text-muted-foreground hover:text-foreground'
                             }`}
@@ -173,28 +161,28 @@ export function IssueDetailPage() {
                 })}
             </div>
 
-            {activeTab === 'overview' ? (
-                <IssueOverviewTab
-                    issue={issue}
-                    locale={i18n.language}
-                    sourceLabel={sourceLabel}
-                    t={t}
-                />
-            ) : null}
-
-            {activeTab === 'workflow' ? (
-                <IssueWorkflowTab issue={issue} />
-            ) : null}
-
-            {activeTab === 'history' ? (
-                <IssueHistoryTab
-                    canViewActivityHistory={canViewActivityHistory}
-                    historyItems={historyItems}
-                    isHistoryLoading={isHistoryLoading}
-                    locale={i18n.language}
-                    t={t}
-                />
-            ) : null}
+            {issueDetailTabs.map((tab) => (
+                <div key={tab} {...getPanelProps(tab)}>
+                    {tab === 'overview' && activeTab === tab ? (
+                        <IssueOverviewTab
+                            issue={issue}
+                            locale={i18n.language}
+                            sourceLabel={sourceLabel}
+                            t={t}
+                        />
+                    ) : null}
+                    {tab === 'workflow' && activeTab === tab ? <IssueWorkflowTab issue={issue} /> : null}
+                    {tab === 'history' && activeTab === tab ? (
+                        <IssueHistoryTab
+                            canViewActivityHistory={canViewActivityHistory}
+                            historyItems={historyItems}
+                            isHistoryLoading={isHistoryLoading}
+                            locale={i18n.language}
+                            t={t}
+                        />
+                    ) : null}
+                </div>
+            ))}
         </div>
     );
 }

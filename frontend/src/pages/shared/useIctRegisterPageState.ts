@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { presentSemanticFilters } from './ictRegisterSemanticFilters';
 
@@ -9,7 +9,9 @@ type SemanticFilters = Record<string, SemanticFilterValue>;
 export function useIctRegisterSemanticPageState<TFilters extends SemanticFilters>(
     parse: (params: URLSearchParams) => TFilters,
 ) {
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams] = useSearchParams();
+    const location = useLocation();
+    const navigate = useNavigate();
     const serializedSearchParams = searchParams.toString();
     const semanticFilters = useMemo(
         () => parse(new URLSearchParams(serializedSearchParams)),
@@ -20,9 +22,15 @@ export function useIctRegisterSemanticPageState<TFilters extends SemanticFilters
         (key: string) => {
             const next = new URLSearchParams(serializedSearchParams);
             next.delete(key);
-            setSearchParams(next);
+            next.delete('page');
+            const query = next.toString();
+            void navigate({
+                pathname: location.pathname,
+                search: query ? `?${query}` : '',
+                hash: location.hash,
+            });
         },
-        [serializedSearchParams, setSearchParams],
+        [location.hash, location.pathname, navigate, serializedSearchParams],
     );
 
     const presentedSemanticFilters = useMemo(

@@ -1,6 +1,7 @@
 import * as axe from 'axe-core';
 import { http, HttpResponse } from 'msw';
 import { useState, type ReactElement, type ReactNode } from 'react';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, render, renderWithoutProviders, screen, userEvent, waitFor, within } from '@test/render';
@@ -225,6 +226,26 @@ async function assertDialogContract(
         await waitForReady(surface);
     }
 
+    await assertOpenDialogContract(user, role, surface, launch);
+}
+
+async function assertDataRouterDialogContract(
+    role: Role,
+    renderSurface: RenderSurface,
+    waitForReady?: WaitForReady,
+): Promise<void> {
+    const user = userEvent.setup();
+    const router = createMemoryRouter([{
+        path: '/',
+        element: <SurfaceHarness renderSurface={renderSurface} />,
+    }]);
+    renderWithoutProviders(<RouterProvider router={router} />);
+
+    const launch = screen.getByRole('button', { name: 'launch' });
+    launch.focus();
+    await user.click(launch);
+    const surface = await screen.findByRole(role);
+    if (waitForReady) await waitForReady(surface);
     await assertOpenDialogContract(user, role, surface, launch);
 }
 
@@ -505,7 +526,7 @@ describe('Dialog interaction matrix — dialog surfaces (FR-P2c-1)', () => {
 describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
     // C5a — accessible-name fixed (was RED):form inputs use ISSUE_LABEL (unassociated <label>, IssueQuickCreateModal.tsx:132) so axe label fails.
     it('[owner.issue-quick-create-modal] IssueQuickCreateModal', async () => {
-        await assertDialogContract('dialog', (onClose) => (
+        await assertDataRouterDialogContract('dialog', (onClose) => (
             <IssueQuickCreateModal
                 isOpen
                 onClose={onClose}
@@ -628,7 +649,7 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
         server.use(
             http.get('*/api/v1/vendors', () => HttpResponse.json({ items: [], total: 0, offset: 0, limit: 25 })),
         );
-        await assertDialogContract(
+        await assertDataRouterDialogContract(
             'dialog',
             (onClose) => (
                 <KRIModal
@@ -818,7 +839,7 @@ describe('Dialog interaction matrix — network-backed surfaces (FR-P2c-1, R4)',
             http.get('*/api/v1/departments', () => HttpResponse.json([departmentLookupFixture])),
             // `/users/lookup` and `/risks` (ControlForm's other lookups) are base handlers.
         );
-        await assertDialogContract(
+        await assertDataRouterDialogContract(
             'dialog',
             (onClose) => <ControlCreateDialog isOpen onClose={onClose} onSuccess={() => {}} />,
             // Loaded sentinel: ControlForm's background lookups (users, departments,

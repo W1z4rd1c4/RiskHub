@@ -11,16 +11,14 @@ export type ProcessDetailMode = 'view' | 'new' | 'edit';
 
 interface UseProcessDetailStateOptions {
     mode: ProcessDetailMode;
-    notFoundMessage: string;
 }
 
-export function useProcessDetailState({ mode, notFoundMessage }: UseProcessDetailStateOptions) {
+export function useProcessDetailState({ mode }: UseProcessDetailStateOptions) {
     const { id } = useParams<{ id: string }>();
 
     const {
-        errorKey,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         refetch: fetchProcess,
         resource: process,
         resourceId: processId,
@@ -28,10 +26,8 @@ export function useProcessDetailState({ mode, notFoundMessage }: UseProcessDetai
     } = useDetailQuery<Process>({
         enabled: mode !== 'new',
         entity: 'process',
-        invalidIdErrorKey: notFoundMessage,
         rawId: id,
         load: (processId) => processApi.getProcess(processId),
-        toErrorKey: () => notFoundMessage,
     });
 
     const restoreProcess = useCallback(async () => {
@@ -50,10 +46,9 @@ export function useProcessDetailState({ mode, notFoundMessage }: UseProcessDetai
         canArchive: resolveCapabilityFlag(process?.capabilities, 'can_archive'),
         canEdit: resolveCapabilityFlag(process?.capabilities, 'can_update'),
         canRestore: resolveCapabilityFlag(process?.capabilities, 'can_restore'),
-        error: errorKey,
         fetchProcess,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         process,
         processId,
         restoreProcess,

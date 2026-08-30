@@ -3,7 +3,7 @@ import type { Location, NavigateFunction } from 'react-router-dom';
 
 import {
     getVendorDetailScrollTargetId,
-    shouldNormalizeVendorDetailSearch,
+    normalizeVendorDetailSearch,
     type VendorDetailFlash,
 } from './vendorDetailPresentation';
 
@@ -17,16 +17,17 @@ function getVendorFlash(locationState: unknown): VendorDetailFlash | null {
 
 export function useVendorFlashMessage(location: Location, navigate: NavigateFunction) {
     const [actionMessage, setActionMessage] = useState<VendorDetailFlash | null>(() => getVendorFlash(location.state));
+    const currentLocation = `${location.pathname}${location.search}${location.hash}`;
 
     useEffect(() => {
         if (getVendorFlash(location.state)) {
-            void navigate(location.pathname, { replace: true });
+            void navigate(currentLocation, { replace: true });
         }
-    }, [location.pathname, location.state, navigate]);
+    }, [currentLocation, location.state, navigate]);
 
     const dismissActionMessage = () => {
         setActionMessage(null);
-        void navigate(location.pathname, { replace: true });
+        void navigate(currentLocation, { replace: true });
     };
 
     return {
@@ -60,10 +61,13 @@ export function useVendorDeepLinkScroll(location: Location) {
 
 export function useNormalizeLegacyVendorDetailSearch(location: Location, navigate: NavigateFunction) {
     useEffect(() => {
-        if (!shouldNormalizeVendorDetailSearch(location.search)) {
-            return;
-        }
+        const search = normalizeVendorDetailSearch(location.search);
+        if (search === null) return;
 
-        void navigate(location.pathname, { replace: true });
-    }, [location.pathname, location.search, navigate]);
+        void navigate({
+            pathname: location.pathname,
+            search,
+            hash: location.hash,
+        }, { replace: true });
+    }, [location.hash, location.pathname, location.search, navigate]);
 }

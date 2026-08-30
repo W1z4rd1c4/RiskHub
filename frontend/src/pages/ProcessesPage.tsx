@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
@@ -20,9 +20,12 @@ import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
 import { parseProcessSemanticFilters } from './shared/ictRegisterSemanticFilters';
 import { useIctRegisterSemanticPageState } from './shared/useIctRegisterPageState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 export function ProcessesPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/processes');
     const { language } = useLanguage();
     const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } =
         useIctRegisterSemanticPageState(parseProcessSemanticFilters);
@@ -66,7 +69,7 @@ export function ProcessesPage() {
             onViewChange={state.updateViewMode}
             canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
             canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-            onCreate={() => void navigate('/processes/new')}
+            onCreate={() => void navigate(appendRegisterReturnTo('/processes/new', returnTo))}
             createLabel={t('actions.new')}
             exportLabel={t('actions.export')}
             exportDialog={({ isOpen, onClose }) => (
@@ -91,8 +94,8 @@ export function ProcessesPage() {
             columns={columns}
             table={{
                 keyExtractor: (process) => process.id,
-                onRowClick: (process) => void navigate(`/processes/${process.id}`),
-                rowHref: (process) => `/processes/${process.id}`,
+                onRowClick: (process) => void navigate(appendRegisterReturnTo(`/processes/${process.id}`, returnTo)),
+                rowHref: (process) => appendRegisterReturnTo(`/processes/${process.id}`, returnTo),
                 rowLabel: (process) => process.l1_process,
                 sortKey: state.sortField,
                 sortDirection: state.sortDirection,

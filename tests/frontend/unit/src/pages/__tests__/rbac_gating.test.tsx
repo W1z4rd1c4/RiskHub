@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
@@ -208,23 +208,22 @@ function makeRiskCapabilities(overrides: Partial<Record<string, boolean>> = {}) 
 
 async function renderWithRoute(route: string) {
     const queryClient = createTestQueryClient();
+    const router = createMemoryRouter([
+        { path: '/kris/:id', element: <KRIDetailPage /> },
+        { path: '/controls', element: <ControlsPage /> },
+        { path: '/controls/:id', element: <ControlDetailPage /> },
+        { path: '/departments', element: <DepartmentsPage /> },
+        { path: '/risks', element: <RisksPage /> },
+        { path: '/users', element: <UsersPage /> },
+    ], { initialEntries: [route] });
 
     render(
         <QueryClientProvider client={queryClient}>
-            <MemoryRouter initialEntries={[route]}>
-                <AuthProviderWithReady>
-                    <DashboardFilterProvider>
-                        <Routes>
-                            <Route path="/kris/:id" element={<KRIDetailPage />} />
-                            <Route path="/controls" element={<ControlsPage />} />
-                            <Route path="/controls/:id" element={<ControlDetailPage />} />
-                            <Route path="/departments" element={<DepartmentsPage />} />
-                            <Route path="/risks" element={<RisksPage />} />
-                            <Route path="/users" element={<UsersPage />} />
-                        </Routes>
-                    </DashboardFilterProvider>
-                </AuthProviderWithReady>
-            </MemoryRouter>
+            <AuthProviderWithReady>
+                <DashboardFilterProvider>
+                    <RouterProvider router={router} />
+                </DashboardFilterProvider>
+            </AuthProviderWithReady>
         </QueryClientProvider>
     );
     await waitForAuthBootstrapReady();
@@ -738,7 +737,7 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Mock Control');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByRole('button', { name: /execution history/i }));
+        await uiUser.click(screen.getByRole('tab', { name: /execution history/i }));
 
         expect(await screen.findByText(/execution audit trail/i)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /log execution/i })).not.toBeInTheDocument();
@@ -777,7 +776,7 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Mock Control');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByRole('button', { name: /execution history/i }));
+        await uiUser.click(screen.getByRole('tab', { name: /execution history/i }));
 
         expect(await screen.findByText(/execution audit trail/i)).toBeInTheDocument();
         expect(await screen.findByRole('button', { name: /log execution/i })).toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFormattedDate, useTranslation } from '@/i18n/hooks';
@@ -10,42 +10,146 @@ import {
 } from '@/components/notifications/notificationPresentation';
 import { Button } from '@/components/ui/button';
 import { logError } from '@/services/logger';
+import { useContentTabs } from '@/hooks/useContentTabs';
+import { notificationTabs, useNotificationsPageQuery } from '@/pages/notifications/useNotificationsPageQuery';
+import { resolveCollectionOutcome, useCollectionDataState } from '@/pages/shared/collectionPageState';
 
 export function NotificationsPage() {
     const { t } = useTranslation('notifications');
     const { t: tCommon } = useTranslation('common');
     const { formatRelativeDate } = useFormattedDate();
-    const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [total, setTotal] = useState(0);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(0);
+    const { activeTab, isReady, page, setActiveTab, setPage } = useNotificationsPageQuery();
+    const collection = useCollectionDataState<Notification>();
+    const {
+        applyFailure,
+        applyPatch,
+        applySuccess,
+        beginQuery,
+        commitQueryIdentity,
+        forQuery,
+        isLoading: collectionIsLoading,
+        isQueryCurrent,
+        setIsLoading,
+    } = collection;
+    const [unreadSummary, setUnreadSummary] = useState<{ queryKey: string | null; count: number | null }>({
+        queryKey: null,
+        count: null,
+    });
     const [pendingMutation, setPendingMutation] = useState<number | 'all' | null>(null);
-    const [mutationError, setMutationError] = useState<{ target: number | 'all'; message: string } | null>(null);
+    const [mutationError, setMutationError] = useState<{
+        queryKey: string;
+        target: number | 'all';
+        message: string;
+    } | null>(null);
     const pendingMutationRef = useRef<number | 'all' | null>(null);
+    const pendingListRetryRef = useRef(false);
+    const latestListRequestRef = useRef(0);
+    const requestedViewKeyRef = useRef<string | null>(null);
+    const currentViewKey = `${activeTab}:${page}`;
+    useLayoutEffect(
+        () => commitQueryIdentity(currentViewKey),
+        [commitQueryIdentity, currentViewKey],
+    );
+    const queryState = forQuery(currentViewKey);
+    const {
+        errorKey,
+        items: notifications,
+        totalCount: total,
+    } = queryState;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const outcome = resolveCollectionOutcome(queryState, isLoading);
+    const unreadCount = queryState.isCurrentQuery && unreadSummary.queryKey === currentViewKey
+        ? unreadSummary.count
+        : null;
+    const visibleMutationError = queryState.isCurrentQuery && mutationError?.queryKey === currentViewKey
+        ? mutationError
+        : null;
     const limit = 20;
+    const { getPanelProps, getTabProps } = useContentTabs({
+        tabs: notificationTabs,
+        activeTab,
+        onChange: setActiveTab,
+        idPrefix: 'notifications',
+    });
 
     const fetchNotifications = useCallback(async () => {
-        setLoading(true);
+        const requestViewKey = currentViewKey;
+        const requestId = ++latestListRequestRef.current;
+        setIsLoading(true);
         try {
             const response = await notificationsApi.list({
                 skip: page * limit,
                 limit,
                 unread_only: activeTab === 'unread',
             });
-            setNotifications(response.items);
-            setTotal(response.total);
-            setUnreadCount(response.unread_count);
+            if (requestId !== latestListRequestRef.current || !isQueryCurrent(requestViewKey)) {
+                return;
+            }
+            const lastPage = Math.max(0, Math.ceil(response.total / limit) - 1);
+            if (page > lastPage) {
+                setPage(lastPage, true);
+                return;
+            }
+            applySuccess(requestViewKey, {
+                items: response.items,
+                groups: [],
+                capabilities: null,
+                total: response.total,
+            });
+            setUnreadSummary({ queryKey: requestViewKey, count: response.unread_count });
         } catch (error) {
-            logError('Failed to fetch notifications:', error);
+            if (requestId === latestListRequestRef.current && isQueryCurrent(requestViewKey)) {
+                logError('Failed to fetch notifications:', error);
+                const failure = applyFailure(error, {
+                    fallbackErrorKey: 'errors.load_failed',
+                });
+                if (failure.isAccessDenied) {
+                    setUnreadSummary({ queryKey: requestViewKey, count: null });
+                    setMutationError(null);
+                }
+            }
         } finally {
-            setLoading(false);
+            if (requestId === latestListRequestRef.current && isQueryCurrent(requestViewKey)) {
+                setIsLoading(false);
+            }
         }
-    }, [activeTab, limit, page]);
+    }, [
+        activeTab,
+        applyFailure,
+        applySuccess,
+        currentViewKey,
+        isQueryCurrent,
+        limit,
+        page,
+        setPage,
+        setIsLoading,
+    ]);
 
     useEffect(() => {
-        void fetchNotifications();
+        if (isReady) {
+            if (requestedViewKeyRef.current !== currentViewKey) {
+                requestedViewKeyRef.current = currentViewKey;
+                setMutationError(null);
+            }
+            beginQuery(currentViewKey);
+            void fetchNotifications();
+        }
+
+        return () => {
+            latestListRequestRef.current += 1;
+        };
+    }, [beginQuery, currentViewKey, fetchNotifications, isReady]);
+
+    const retryNotifications = useCallback(async () => {
+        if (pendingListRetryRef.current) {
+            return;
+        }
+        pendingListRetryRef.current = true;
+        try {
+            await fetchNotifications();
+        } finally {
+            pendingListRetryRef.current = false;
+        }
     }, [fetchNotifications]);
 
     const toggleReadState = async (notification: Notification) => {
@@ -56,28 +160,53 @@ export function NotificationsPage() {
         pendingMutationRef.current = notification.id;
         setPendingMutation(notification.id);
         setMutationError(null);
+        const mutationQueryKey = currentViewKey;
+        const mutationListRequestId = latestListRequestRef.current;
         try {
             const { unread_count } = notification.is_read
                 ? await notificationsApi.markAsUnread(notification.id)
                 : await notificationsApi.markAsRead(notification.id);
-            setUnreadCount(unread_count);
+            if (
+                latestListRequestRef.current !== mutationListRequestId
+                || !isQueryCurrent(mutationQueryKey)
+            ) {
+                return;
+            }
+            setUnreadSummary({ queryKey: mutationQueryKey, count: unread_count });
             if (activeTab === 'unread' && !notification.is_read) {
                 const remainingNotifications = notifications.filter(item => item.id !== notification.id);
-                setNotifications(remainingNotifications);
-                setTotal(currentTotal => Math.max(0, currentTotal - 1));
+                applyPatch({
+                    items: remainingNotifications,
+                    totalCount: Math.max(0, total - 1),
+                    errorKey,
+                    isAccessDenied: false,
+                });
                 if (remainingNotifications.length === 0 && page > 0) {
-                    setPage(currentPage => Math.max(0, currentPage - 1));
+                    setPage(page - 1, true);
                 } else {
                     await fetchNotifications();
                 }
             } else {
-                setNotifications(prev =>
-                    prev.map(item => item.id === notification.id ? { ...item, is_read: !notification.is_read } : item)
-                );
+                applyPatch({
+                    items: notifications.map(item =>
+                        item.id === notification.id ? { ...item, is_read: !notification.is_read } : item
+                    ),
+                    errorKey,
+                    isAccessDenied: false,
+                });
             }
         } catch (error) {
             logError('Failed to update notification read state:', error);
-            setMutationError({ target: notification.id, message: t('errors.update_read_state') });
+            if (
+                latestListRequestRef.current === mutationListRequestId
+                && isQueryCurrent(mutationQueryKey)
+            ) {
+                setMutationError({
+                    queryKey: mutationQueryKey,
+                    target: notification.id,
+                    message: t('errors.update_read_state'),
+                });
+            }
         } finally {
             pendingMutationRef.current = null;
             setPendingMutation(null);
@@ -92,19 +221,44 @@ export function NotificationsPage() {
         pendingMutationRef.current = 'all';
         setPendingMutation('all');
         setMutationError(null);
+        const mutationQueryKey = currentViewKey;
+        const mutationListRequestId = latestListRequestRef.current;
         try {
             await notificationsApi.markAllAsRead();
-            if (activeTab === 'unread') {
-                setNotifications([]);
-                setTotal(0);
-                setPage(0);
-            } else {
-                setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+            if (
+                latestListRequestRef.current !== mutationListRequestId
+                || !isQueryCurrent(mutationQueryKey)
+            ) {
+                return;
             }
-            setUnreadCount(0);
+            setUnreadSummary({ queryKey: mutationQueryKey, count: 0 });
+            if (activeTab === 'unread') {
+                applyPatch({
+                    items: [],
+                    totalCount: 0,
+                    errorKey,
+                    isAccessDenied: false,
+                });
+                setPage(0, true);
+            } else {
+                applyPatch({
+                    items: notifications.map(notification => ({ ...notification, is_read: true })),
+                    errorKey,
+                    isAccessDenied: false,
+                });
+            }
         } catch (error) {
             logError('Failed to mark all as read:', error);
-            setMutationError({ target: 'all', message: t('errors.mark_all_read') });
+            if (
+                latestListRequestRef.current === mutationListRequestId
+                && isQueryCurrent(mutationQueryKey)
+            ) {
+                setMutationError({
+                    queryKey: mutationQueryKey,
+                    target: 'all',
+                    message: t('errors.mark_all_read'),
+                });
+            }
         } finally {
             pendingMutationRef.current = null;
             setPendingMutation(null);
@@ -112,7 +266,26 @@ export function NotificationsPage() {
     };
 
     const totalPages = Math.ceil(total / limit);
-    const navigationDisabled = pendingMutation !== null;
+    const navigationDisabled = pendingMutation !== null || isLoading;
+    const hasFreshSummary = outcome.kind === 'content' || outcome.kind === 'empty';
+    const hasStaleData = outcome.kind === 'stale-with-error';
+    let listError: string | null = null;
+    let retrying = false;
+    if (outcome.kind === 'fatal-error') {
+        listError = t(outcome.errorKey);
+        retrying = outcome.isRetrying;
+    } else if (outcome.kind === 'stale-with-error') {
+        listError = t('errors.list_stale');
+        retrying = outcome.isRetrying;
+    }
+    let subtitle = t('subtitle.unavailable');
+    if (hasFreshSummary && unreadCount !== null) {
+        subtitle = unreadCount > 0
+            ? t('subtitle.unread_count', { count: unreadCount })
+            : tCommon('empty.all_caught_up');
+    } else if (hasStaleData) {
+        subtitle = t('subtitle.stale');
+    }
 
     return (
         <div className="p-8 max-w-4xl mx-auto">
@@ -121,16 +294,16 @@ export function NotificationsPage() {
                 <div>
                     <h1 className="text-3xl font-bold text-foreground font-heading">{t('title')}</h1>
                     <p className="text-muted-foreground mt-1">
-                        {unreadCount > 0 ? t('subtitle.unread_count', { count: unreadCount }) : tCommon('empty.all_caught_up')}
+                        {subtitle}
                     </p>
                 </div>
-                {unreadCount > 0 && (
+                {hasFreshSummary && unreadCount !== null && unreadCount > 0 && (
                     <Button
                         type="button"
                         variant="ghost"
                         onClick={() => void handleMarkAllAsRead()}
                         aria-disabled={pendingMutation !== null}
-                        aria-describedby={mutationError?.target === 'all' ? 'notifications-mark-all-error' : undefined}
+                        aria-describedby={visibleMutationError?.target === 'all' ? 'notifications-mark-all-error' : undefined}
                         className="rounded-xl bg-accent/10 text-accent hover:bg-accent/20 hover:text-accent"
                     >
                         <Check className="h-4 w-4" aria-hidden="true" />
@@ -138,17 +311,16 @@ export function NotificationsPage() {
                     </Button>
                 )}
             </div>
-            {mutationError?.target === 'all' && (
+            {visibleMutationError?.target === 'all' && (
                 <p id="notifications-mark-all-error" role="alert" className="-mt-6 mb-6 text-sm text-destructive text-right">
-                    {mutationError.message}
+                    {visibleMutationError.message}
                 </p>
             )}
 
             {/* Tabs */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-6" role="tablist" aria-label={t('title')}>
                 <button
-                    type="button"
-                    onClick={() => { setActiveTab('all'); setPage(0); }}
+                    {...getTabProps('all', 0)}
                     disabled={navigationDisabled}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${activeTab === 'all'
                         ? 'bg-accent text-accent-foreground'
@@ -158,8 +330,7 @@ export function NotificationsPage() {
                     {t('tabs.all')}
                 </button>
                 <button
-                    type="button"
-                    onClick={() => { setActiveTab('unread'); setPage(0); }}
+                    {...getTabProps('unread', 1)}
                     disabled={navigationDisabled}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50 ${activeTab === 'unread'
                         ? 'bg-accent text-accent-foreground'
@@ -167,7 +338,7 @@ export function NotificationsPage() {
                         }`}
                 >
                     {t('tabs.unread')}
-                    {unreadCount > 0 && (
+                    {unreadCount !== null && unreadCount > 0 && (
                         <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                             {unreadCount}
                         </span>
@@ -176,19 +347,51 @@ export function NotificationsPage() {
             </div>
 
             {/* Notification List */}
-            <div className="glass-card overflow-hidden">
-                {loading ? (
-                    <div className="p-8 text-center text-muted-foreground">{tCommon('loading.generic')}</div>
-                ) : notifications.length === 0 ? (
-                    <div className="p-12 text-center text-muted-foreground">
-                        <Bell className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                        <p className="text-lg font-medium text-foreground">{tCommon('empty.no_notifications')}</p>
-                        <p className="text-sm mt-1">
-                            {activeTab === 'unread' ? tCommon('empty.all_caught_up') : tCommon('empty.nothing_to_show')}
-                        </p>
-                    </div>
-                ) : (
-                    <div className="divide-y divide-white/10">
+            {notificationTabs.map((tab) => (
+                <div key={tab} className="glass-card overflow-hidden" {...getPanelProps(tab)}>
+                {activeTab === tab && (
+                    <>
+                    {outcome.kind === 'initial-loading' && (
+                        <div className="p-8 text-center text-muted-foreground" role="status">
+                            {tCommon('loading.generic')}
+                        </div>
+                    )}
+                    {outcome.kind === 'denied' && (
+                        <div role="alert" className="m-4 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                            {t('errors.access_denied')}
+                        </div>
+                    )}
+                    {listError && (
+                        <div
+                            role="alert"
+                            className="m-4 flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+                        >
+                            <span>{listError}</span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="compact"
+                                onClick={() => void retryNotifications()}
+                                aria-busy={retrying}
+                                aria-disabled={retrying}
+                                className="ml-auto"
+                            >
+                                {tCommon('actions.retry')}
+                            </Button>
+                            {retrying && <span role="status" className="sr-only">{t('status.retrying')}</span>}
+                        </div>
+                    )}
+                    {outcome.kind === 'empty' && (
+                        <div className="p-12 text-center text-muted-foreground">
+                            <Bell className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                            <p className="text-lg font-medium text-foreground">{tCommon('empty.no_notifications')}</p>
+                            <p className="text-sm mt-1">
+                                {activeTab === 'unread' ? tCommon('empty.all_caught_up') : tCommon('empty.nothing_to_show')}
+                            </p>
+                        </div>
+                    )}
+                    {(outcome.kind === 'content' || hasStaleData) && notifications.length > 0 && (
+                        <div className="divide-y divide-white/10">
                         {notifications.map(notification => {
                             const presentation = buildNotificationPresentation(notification);
                             const content = (
@@ -214,7 +417,9 @@ export function NotificationsPage() {
                                     </div>
                                 </div>
                             );
-                            const error = mutationError?.target === notification.id ? mutationError.message : null;
+                            const error = visibleMutationError?.target === notification.id
+                                ? visibleMutationError.message
+                                : null;
                             return (
                                 <div
                                     key={notification.id}
@@ -246,16 +451,19 @@ export function NotificationsPage() {
                                 </div>
                             );
                         })}
-                    </div>
+                        </div>
+                    )}
+                    </>
                 )}
-            </div>
+                </div>
+            ))}
 
             {/* Pagination */}
             {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-4 mt-6">
                     <button
                         type="button"
-                        onClick={() => setPage(p => Math.max(0, p - 1))}
+                        onClick={() => setPage(page - 1)}
                         disabled={page === 0 || navigationDisabled}
                         className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -266,7 +474,7 @@ export function NotificationsPage() {
                     </span>
                     <button
                         type="button"
-                        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                        onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                         disabled={page >= totalPages - 1 || navigationDisabled}
                         className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
                     >

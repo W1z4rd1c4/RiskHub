@@ -19,13 +19,13 @@ import { useTranslation } from '@/i18n/hooks';
 import { formatDateTimeValue, formatRelativeDateValue } from '@/i18n/formatters';
 import type { ActivityLogEntry } from '@/types/activityLog';
 import { ACTION_COLORS, ACTION_LABELS, getActivityEntityLabel } from '@/types/activityLog';
+import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 
 import { getDiffPair } from './activityLogPresentation';
 
 interface ActivityLogEntriesProps {
     entries: ActivityLogEntry[];
-    isLoading: boolean;
-    errorType: 'access_denied' | 'network_error' | null;
+    outcome: CollectionOutcome;
     needsRiskSelection?: boolean;
     onRetry: () => void;
 }
@@ -57,12 +57,12 @@ const getActionIcon = (action: string) => {
 
 const normalizeActivityLabel = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
 
-export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSelection = false, onRetry }: ActivityLogEntriesProps) {
+export function ActivityLogEntries({ entries, outcome, needsRiskSelection = false, onRetry }: ActivityLogEntriesProps) {
     const { t, i18n } = useTranslation('common');
 
-    if (isLoading && entries.length === 0) {
+    if (outcome.kind === 'initial-loading') {
         return (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3" role="status" aria-label={t('loading.activity_log')}>
                 {Array.from({ length: 5 }).map((_, index) => (
                     <div
                         key={index}
@@ -73,9 +73,9 @@ export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSel
         );
     }
 
-    if (errorType === 'access_denied') {
+    if (outcome.kind === 'denied') {
         return (
-            <div className="flex flex-col items-center justify-center rounded-3xl border border-rose-500/20 bg-rose-500/5 py-20 text-rose-400">
+            <div role="alert" className="flex flex-col items-center justify-center rounded-3xl border border-rose-500/20 bg-rose-500/5 py-20 text-rose-400">
                 <ShieldX className="mb-4 h-12 w-12" />
                 <p className="font-semibold">{t('access.denied')}</p>
                 <p className="mt-1 text-sm text-slate-500">{t('access.denied_activity_log')}</p>
@@ -83,23 +83,40 @@ export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSel
         );
     }
 
-    if (errorType === 'network_error') {
-        return (
-            <div className="flex flex-col items-center justify-center rounded-3xl border border-amber-500/20 bg-amber-500/5 py-20 text-amber-400">
+    const isStale = outcome.kind === 'stale-with-error';
+    const isLoadFailure = outcome.kind === 'fatal-error' || isStale;
+    const isRetrying = isLoadFailure ? outcome.isRetrying : false;
+    const errorState = isLoadFailure ? (
+            <div role="alert" className={`flex ${isStale ? 'items-center' : 'flex-col items-center justify-center py-20'} rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4 text-amber-400`}>
                 <AlertCircle className="mb-4 h-12 w-12" />
-                <p className="font-semibold">{t('activity_log.failed_to_load')}</p>
-                <p className="mt-1 text-sm text-slate-500">{t('activity_log.failed_to_load_help')}</p>
+                <div className={isStale ? 'mr-4' : 'text-center'}>
+                    <p className="font-semibold">
+                        {t(isStale ? 'activity_log.may_be_out_of_date' : 'activity_log.failed_to_load')}
+                    </p>
+                    {!isStale ? (
+                        <p className="mt-1 text-sm text-slate-500">{t('activity_log.failed_to_load_help')}</p>
+                    ) : null}
+                </div>
                 <button
+                    type="button"
                     onClick={onRetry}
-                    className="mt-4 rounded-xl bg-amber-500/20 px-4 py-2 text-sm transition-colors hover:bg-amber-500/30"
+                    aria-busy={isRetrying}
+                    aria-disabled={isRetrying}
+                    className={`${isStale ? 'ml-auto' : 'mt-4'} rounded-xl bg-amber-500/20 px-4 py-2 text-sm transition-colors hover:bg-amber-500/30`}
                 >
-                    {t('actions.refresh')}
+                    {t('actions.retry')}
                 </button>
+                {isRetrying ? (
+                    <span role="status" className="sr-only">{t('activity_log.retrying')}</span>
+                ) : null}
             </div>
-        );
+        ) : null;
+
+    if (outcome.kind === 'fatal-error') {
+        return errorState;
     }
 
-    if (entries.length === 0) {
+    if (outcome.kind === 'empty') {
         return (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/5 py-20 text-slate-400">
                 <Activity className="mb-4 h-12 w-12 opacity-20" />
@@ -113,6 +130,7 @@ export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSel
 
     return (
         <div className="flex flex-col gap-3">
+            {errorState}
             <AnimatePresence mode="popLayout">
                 {entries.map((entry) => (
                     <motion.div

@@ -1,46 +1,53 @@
 import { Edit } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { RiskForm } from '@/components/RiskForm';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { logError } from '@/services/logger';
 import { riskApi } from '@/services/riskApi';
 import type { Risk } from '@/types/risk';
+import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
+import { useDetailQuery } from './detail/useDetailQuery';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 export function RiskEditPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/risks');
+    const detailPath = appendRegisterReturnTo(`/risks/${id}`, returnTo);
     const { t } = useTranslation(['risks', 'common']);
-    const [risk, setRisk] = useState<Risk | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const loadRisk = useCallback((riskId: number) => riskApi.getRisk(riskId), []);
+    const {
+        isRetrying,
+        loadOutcome,
+        refetch: fetchRisk,
+        resource: risk,
+        resourceId: riskId,
+    } = useDetailQuery<Risk>({ entity: 'risk-edit', rawId: id, load: loadRisk });
 
-    useEffect(() => {
-        const fetchRisk = async () => {
-            if (!id) return;
-            setIsLoading(true);
-            setRisk(null);
-            try {
-                const data = await riskApi.getRisk(parseInt(id));
-                setRisk(data);
-            } catch (error) {
-                logError('Failed to fetch risk for edit.', error);
-                void navigate('/risks');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        void fetchRisk();
-    }, [id, navigate]);
-
-    if (isLoading) {
+    if (loadOutcome === 'loading') {
         return <FormCapabilityGateState state="loading" />;
+    }
+
+    if (loadOutcome === 'unavailable' || !risk) {
+        return (
+            <DetailLoadUnavailableState
+                backLabel={t('risks:title')}
+                isRetrying={isRetrying}
+                onBack={() => navigate(returnTo)}
+                onRetry={riskId === null ? undefined : () => void fetchRisk()}
+            />
+        );
     }
 
     return (
         <div className="space-y-8">
+            {loadOutcome === 'stale-with-error' ? (
+                <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchRisk()} />
+            ) : null}
             <div className="flex items-center gap-4">
                 <div className="bg-accent/20 p-3 rounded-2xl">
                     <Edit className="h-6 w-6 text-accent" />
@@ -53,8 +60,13 @@ export function RiskEditPage() {
                 </div>
             </div>
 
-            {risk !== null && resolveCapabilityFlag(risk.capabilities, 'can_update') ? (
-                <RiskForm initialData={risk} isEdit={true} />
+            {resolveCapabilityFlag(risk.capabilities, 'can_update') ? (
+                <RiskForm
+                    initialData={risk}
+                    isEdit={true}
+                    onCancel={() => navigate(detailPath)}
+                    onSuccess={() => navigate(detailPath)}
+                />
             ) : (
                 <FormCapabilityGateState state="denied" />
             )}

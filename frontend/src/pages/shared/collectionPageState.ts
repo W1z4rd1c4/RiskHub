@@ -23,6 +23,11 @@ interface CollectionSuccessPayload<TItem, TCapabilities extends object> {
     total: number;
 }
 
+interface ApplyCollectionSuccess<TItem, TCapabilities extends object> {
+    (payload: CollectionSuccessPayload<TItem, TCapabilities>): void;
+    (queryIdentity: string, payload: CollectionSuccessPayload<TItem, TCapabilities>): void;
+}
+
 export interface CollectionStatePatch<TItem, TCapabilities extends object = CollectionCapabilities> {
     items?: TItem[];
     groups?: CollectionGroup[];
@@ -41,6 +46,55 @@ export interface CollectionStateSnapshot<TItem, TCapabilities extends object = C
     errorKey: string | null;
     isAccessDenied: boolean;
     hasLoadedOnce: boolean;
+}
+
+export type CollectionOutcome =
+    | { kind: 'initial-loading' }
+    | {
+        kind: 'content' | 'empty';
+        isRefreshing: boolean;
+    }
+    | {
+        kind: 'stale-with-error';
+        errorKey: string;
+        isRetrying: boolean;
+    }
+    | { kind: 'fatal-error'; errorKey: string; isRetrying: boolean }
+    | { kind: 'denied' };
+
+export function resolveCollectionOutcome<
+    TItem,
+    TCapabilities extends object = CollectionCapabilities,
+>(
+    state: CollectionStateSnapshot<TItem, TCapabilities>,
+    isLoading: boolean,
+): CollectionOutcome {
+    if (state.isAccessDenied) {
+        return { kind: 'denied' };
+    }
+
+    if (state.errorKey) {
+        return state.hasLoadedOnce
+            ? {
+                kind: 'stale-with-error',
+                errorKey: state.errorKey,
+                isRetrying: isLoading,
+            }
+            : {
+                kind: 'fatal-error',
+                errorKey: state.errorKey,
+                isRetrying: isLoading,
+            };
+    }
+
+    if (!state.hasLoadedOnce) {
+        return { kind: 'initial-loading' };
+    }
+
+    return {
+        kind: state.items.length > 0 || state.groups.length > 0 ? 'content' : 'empty',
+        isRefreshing: isLoading,
+    };
 }
 
 export function createCollectionInitialState<
@@ -157,37 +211,67 @@ export function useCollectionDataState<
         createCollectionInitialState<TItem, TCapabilities>
     );
     const [isLoading, setIsLoading] = useState(true);
+    const committedQueryIdentityRef = useRef<string | null>(null);
+    const stateQueryIdentityRef = useRef<string | null>(null);
+    const commitQueryIdentity = useCallback((queryIdentity: string) => { committedQueryIdentityRef.current = queryIdentity; }, []);
+    const isQueryCurrent = useCallback((queryIdentity: string) => committedQueryIdentityRef.current === queryIdentity, []);
 
     const applyPatch = useCallback((patch: CollectionStatePatch<TItem, TCapabilities>) => {
         setState((currentState) => applyCollectionStatePatch(currentState, patch));
     }, []);
 
-    const applySuccess = useCallback((payload: CollectionSuccessPayload<TItem, TCapabilities>) => {
-        applyPatch(createCollectionSuccessPatch(payload));
-    }, [applyPatch]);
-
-    const applyFailure = useCallback((
-        error: unknown,
-        options: CollectionLoadFailureOptions = {}
+    const applySuccess = useCallback((
+        queryIdentityOrPayload: string | CollectionSuccessPayload<TItem, TCapabilities>,
+        payload?: CollectionSuccessPayload<TItem, TCapabilities>,
     ) => {
+        const successPayload = typeof queryIdentityOrPayload === 'string' ? payload : queryIdentityOrPayload;
+        if (!successPayload) return;
+        if (typeof queryIdentityOrPayload === 'string') stateQueryIdentityRef.current = queryIdentityOrPayload;
+        applyPatch(createCollectionSuccessPatch(successPayload));
+    }, [applyPatch]) as ApplyCollectionSuccess<TItem, TCapabilities>;
+
+    const beginQuery = useCallback((queryIdentity: string) => {
+        const canRetainCurrentData = stateQueryIdentityRef.current === queryIdentity;
+        if (!canRetainCurrentData) {
+            stateQueryIdentityRef.current = queryIdentity;
+            setState(createCollectionInitialState<TItem, TCapabilities>());
+        }
+        return canRetainCurrentData;
+    }, []);
+
+    const forQuery = (queryIdentity: string) => {
+        const isCurrentQuery = stateQueryIdentityRef.current === queryIdentity;
+        return { ...(isCurrentQuery ? state : createCollectionInitialState<TItem, TCapabilities>()), isCurrentQuery };
+    };
+
+    const applyFailure = useCallback((error: unknown, options: CollectionLoadFailureOptions = {}) => {
         const patch = createCollectionFailurePatch<TItem, TCapabilities>(error, options);
         applyPatch(patch);
         return patch;
     }, [applyPatch]);
 
-    const setErrorKey = useCallback((errorKey: string | null) => {
-        setState((currentState) => ({
-            ...currentState,
-            errorKey,
-        }));
+    const setErrorKey = useCallback((errorKey: string | null) => setState((state) => ({ ...state, errorKey })), []);
+
+    const reset = useCallback(() => {
+        stateQueryIdentityRef.current = null;
+        setState(createCollectionInitialState<TItem, TCapabilities>());
+        setIsLoading(true);
     }, []);
+
+    const outcome = resolveCollectionOutcome(state, isLoading);
 
     return {
         ...state,
         applyFailure,
         applyPatch,
         applySuccess,
+        beginQuery,
+        commitQueryIdentity,
+        forQuery,
+        isQueryCurrent,
         isLoading,
+        outcome,
+        reset,
         setErrorKey,
         setIsLoading,
     };

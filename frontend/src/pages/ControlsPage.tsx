@@ -1,5 +1,5 @@
 import { Building2, Shield, User } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
@@ -15,9 +15,12 @@ import { ControlRegisterFilterBar } from './controls/ControlRegisterFilterBar';
 import { formatControlGroupLabel } from './controls/controlsPagePresentation';
 import { useControlsPageState } from './controls/useControlsPageState';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 export function ControlsPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/controls');
     const { language } = useLanguage();
     const { t } = useTranslation('controls');
     const pendingApprovalIds = usePendingApprovalIds('control');
@@ -33,14 +36,14 @@ export function ControlsPage() {
         views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
         view={state.viewMode} onViewChange={state.updateViewMode}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')} canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-        onCreate={() => void navigate('/controls/new')} createLabel={t('new_control')} exportLabel={t('actions.export')}
+        onCreate={() => void navigate(appendRegisterReturnTo('/controls/new', returnTo))} createLabel={t('new_control')} exportLabel={t('actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog isOpen={isOpen} onClose={onClose}
             onCurrentViewSubmit={async () => { await state.exportCurrentControls(); onClose(); }}
             onSubmit={async (payload) => { await state.exportControlSnapshot(payload); onClose(); }}
             isSubmitting={state.isExporting} dataTestId="controls-export-dialog" title={t('register.export.title')} />}
         isAccessDenied={state.isAccessDenied} isError={Boolean(state.errorKey)} errorMessage={state.errorKey ? t(state.errorKey) : undefined}
         isExporting={state.isExporting} isLoading={state.isLoading} items={state.items} columns={columns}
-        table={{ keyExtractor: (control) => control.id, onRowClick: (control) => void navigate(`/controls/${control.id}`), rowHref: (control) => `/controls/${control.id}`, rowLabel: (control) => control.name, sortKey: state.sortField, sortDirection: state.sortDirection, onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection) }}
+        table={{ keyExtractor: (control) => control.id, onRowClick: (control) => void navigate(appendRegisterReturnTo(`/controls/${control.id}`, returnTo)), rowHref: (control) => appendRegisterReturnTo(`/controls/${control.id}`, returnTo), rowLabel: (control) => control.name, sortKey: state.sortField, sortDirection: state.sortDirection, onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection) }}
         currentPage={state.currentPage} totalPages={state.totalPages} totalCount={state.totalCount} itemsPerPage={state.limit}
         onPageChange={state.setCurrentPage} onRetry={() => void state.fetchControls()}
         emptyMessage={state.hasLoadedOnce ? t('empty_state.no_controls') : t('common:loading.data')}

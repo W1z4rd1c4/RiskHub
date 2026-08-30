@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { IssueCreateForm } from '@/components/issues/IssueCreateForm';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { issuesApi } from '@/services/issuesApi';
 import type { Issue } from '@/types/issue';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 export function IssueNewPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/issues');
     const { t } = useTranslation('issues');
     const [canCreate, setCanCreate] = useState(false);
     const [isLoadingCapability, setIsLoadingCapability] = useState(true);
@@ -41,7 +44,7 @@ export function IssueNewPage() {
     }, []);
 
     const handleCreated = (issue: Issue) => {
-        void navigate(`/issues/${issue.id}`);
+        void navigate(appendRegisterReturnTo(`/issues/${issue.id}`, returnTo));
     };
 
     if (isLoadingCapability) {
@@ -76,7 +79,7 @@ export function IssueNewPage() {
             </div>
 
             <section className="glass-card p-8 space-y-6">
-                <IssueCreateForm onCreated={handleCreated} onCancel={() => navigate('/issues')} />
+                <IssueCreateForm onCreated={handleCreated} onCancel={() => navigate(returnTo)} />
             </section>
         </div>
     );

@@ -10,6 +10,7 @@ const mockGetHistory = vi.fn();
 const mockGetRisk = vi.fn();
 const mockUpdateKRI = vi.fn();
 const mockDeleteKRI = vi.fn();
+let mockSearchParams = new URLSearchParams();
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -17,6 +18,7 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useParams: () => ({ id: '21' }),
         useNavigate: () => mockNavigate,
+        useSearchParams: () => [mockSearchParams],
     };
 });
 
@@ -44,15 +46,20 @@ vi.mock('@/services/riskApi', () => ({
 vi.mock('@/components/kri/KRIModal', () => ({
     KRIModal: ({
         isOpen,
+        onClose,
         onSave,
     }: {
         isOpen: boolean;
+        onClose: () => void;
         onSave: (data: Record<string, unknown>, vendorIds: number[]) => Promise<unknown>;
     }) =>
         isOpen ? (
             <button
                 type="button"
-                onClick={() => void onSave({ metric_name: 'Adjusted KRI', description: 'Adjusted desc' }, [12, 21])}
+                onClick={() => void onSave(
+                    { metric_name: 'Adjusted KRI', description: 'Adjusted desc' },
+                    [12, 21],
+                ).then(onClose)}
             >
                 trigger-kri-save
             </button>
@@ -100,6 +107,7 @@ vi.mock('@/components/ConfirmDialog', () => ({
 describe('KRIDetailPage approval-aware edit flow', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockSearchParams = new URLSearchParams();
         mockGetKRI.mockResolvedValue({
             id: 21,
             risk_id: 8,
@@ -189,5 +197,19 @@ describe('KRIDetailPage approval-aware edit flow', () => {
         expect(screen.getAllByText('Claims Leakage Ratio').length).toBeGreaterThan(0);
         expect(screen.queryByRole('button', { name: 'confirm-kri-delete' })).not.toBeInTheDocument();
         expect(mockNavigate).not.toHaveBeenCalledWith('/kris');
+    });
+
+    it('returns an immediately deleted KRI to its exact validated list working set', async () => {
+        const returnTo = '/kris?q=threshold&page=4#group-heading';
+        mockSearchParams = new URLSearchParams({ return_to: returnTo });
+
+        render(<KRIDetailPage />);
+
+        await screen.findAllByText('Claims Leakage Ratio');
+        fireEvent.click(screen.getByRole('button', { name: /Delete|Smazat/i }));
+        fireEvent.click(await screen.findByRole('button', { name: 'confirm-kri-delete' }));
+
+        await waitFor(() => expect(mockDeleteKRI).toHaveBeenCalled());
+        expect(mockNavigate).toHaveBeenCalledWith(returnTo);
     });
 });

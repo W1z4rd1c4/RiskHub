@@ -41,7 +41,8 @@
     "inactive": "Inactive",
     "archived": "Archived",
     "under_review": "Under Review",
-    "deprecated": "Deprecated"
+    "deprecated": "Deprecated",
+    "history_retrying": "Retrying execution history"
   },
   "monitoring": {
     "new": "New",
@@ -96,6 +97,8 @@
   },
   "errors": {
     "load_history_failed": "Failed to load execution history. Please try again.",
+    "history_stale": "Execution history may be out of date. Try again.",
+    "history_access_denied": "You do not have access to execution history.",
     "load_failed": "Failed to load controls. Please check your connection.",
     "title": "Error Loading Controls",
     "try_again": "Try Again"
@@ -135,6 +138,8 @@
     "no_findings": "No findings recorded."
   },
   "form": {
+    "risk_link_failed_after_create": "Control created, but linking the selected risk failed.",
+    "risk_link_failed_after_update": "Control updated, but linking the selected risk failed.",
     "steps": {
       "identity": "Identity",
       "ownership": "Ownership",

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { RouterProvider, createMemoryRouter, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetClosedLists = vi.fn();
@@ -126,16 +127,20 @@ function renderForm(process: Process = protectedProcess) {
     const onSaved = vi.fn();
     const onApprovalQueued = vi.fn();
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const router = createMemoryRouter([{
+        path: '*',
+        element: (
+            <ProcessForm
+                initialData={process}
+                isEdit
+                onSaved={onSaved}
+                onApprovalQueued={onApprovalQueued}
+            />
+        ),
+    }]);
     render(
         <QueryClientProvider client={client}>
-            <MemoryRouter>
-                <ProcessForm
-                    initialData={process}
-                    isEdit
-                    onSaved={onSaved}
-                    onApprovalQueued={onApprovalQueued}
-                />
-            </MemoryRouter>
+            <RouterProvider router={router} />
         </QueryClientProvider>,
     );
     return { onSaved, onApprovalQueued };
@@ -156,6 +161,58 @@ const nonProtectedProcess: Process = {
     },
 };
 
+function NavigatingProcessEdit() {
+    const navigate = useNavigate();
+    return (
+        <ProcessForm
+            initialData={nonProtectedProcess}
+            isEdit
+            onSaved={(saved) => void navigate(`/processes/${saved.id}`)}
+            onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
+            onCancel={() => void navigate('/processes/89')}
+        />
+    );
+}
+
+function renderNavigatingProcessEdit() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const router = createMemoryRouter([
+        { path: '/processes/89/edit', element: <NavigatingProcessEdit /> },
+        { path: '/processes/89', element: <p>Process detail</p> },
+        { path: '/approvals', element: <p>Approvals</p> },
+    ], { initialEntries: ['/processes/89/edit'] });
+    render(
+        <QueryClientProvider client={client}>
+            <RouterProvider router={router} />
+        </QueryClientProvider>,
+    );
+    return router;
+}
+
+function NavigatingProcessCreate() {
+    const navigate = useNavigate();
+    return (
+        <ProcessForm
+            onSaved={(saved) => void navigate(`/processes/${saved.id}`)}
+            onCancel={() => void navigate('/processes')}
+        />
+    );
+}
+
+function renderNavigatingProcessCreate() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const router = createMemoryRouter([
+        { path: '/processes/new', element: <NavigatingProcessCreate /> },
+        { path: '/processes', element: <p>Processes</p> },
+    ], { initialEntries: ['/processes/new'] });
+    render(
+        <QueryClientProvider client={client}>
+            <RouterProvider router={router} />
+        </QueryClientProvider>,
+    );
+    return router;
+}
+
 describe('ProcessForm governed edit workflow', () => {
     beforeEach(() => {
         accountabilityScenario.enabled = true;
@@ -173,13 +230,95 @@ describe('ProcessForm governed edit workflow', () => {
         vi.unstubAllGlobals();
     });
 
+    describe('dirty task protection (#158)', () => {
+        it('guards a create draft and becomes clean after an exact semantic revert', async () => {
+            const user = userEvent.setup();
+            const router = renderNavigatingProcessCreate();
+            const name = screen.getByTestId('process-form-l1-process');
+
+            await user.type(name, 'New Process');
+            await user.click(screen.getByRole('button', { name: 'Cancel' }));
+            expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+            expect(router.state.location.pathname).toBe('/processes/new');
+            await user.click(screen.getByRole('button', { name: 'Stay' }));
+
+            await user.clear(name);
+            await user.type(name, '  ');
+            await user.click(screen.getByRole('button', { name: 'Cancel' }));
+            await waitFor(() => expect(router.state.location.pathname).toBe('/processes'));
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('prompts for a normalized edit and becomes clean after a semantic revert', async () => {
+            const user = userEvent.setup();
+            const router = renderNavigatingProcessEdit();
+            const name = screen.getByTestId('process-form-l1-process');
+
+            await user.clear(name);
+            await user.type(name, 'Changed Payments');
+            await user.click(screen.getByRole('button', { name: 'Cancel' }));
+            expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+            expect(router.state.location.pathname).toBe('/processes/89/edit');
+            await user.click(screen.getByRole('button', { name: 'Stay' }));
+
+            await user.clear(name);
+            await user.type(name, '  Payments  ');
+            await user.click(screen.getByRole('button', { name: 'Cancel' }));
+            await waitFor(() => expect(router.state.location.pathname).toBe('/processes/89'));
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('keeps a rejected edit dirty', async () => {
+            const user = userEvent.setup();
+            mockUpdateProcess.mockRejectedValue(new Error('unavailable'));
+            const router = renderNavigatingProcessEdit();
+
+            await user.type(screen.getByTestId('process-form-notes'), 'New note');
+            await user.click(screen.getByTestId('process-form-submit'));
+            expect(await screen.findByText('Failed to save the process.')).toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+            expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+            expect(router.state.location.pathname).toBe('/processes/89/edit');
+        });
+
+        it('locks edits while pending and accepts a queued response before navigation', async () => {
+            const user = userEvent.setup();
+            const queued = processApprovalQueuedResponseSchema.parse({
+                status: 'approval_required',
+                message: 'Submitted',
+                approval_id: 98,
+                action_type: 'edit',
+                pending_fields: ['notes'],
+                proposal_id: 'proposal-98',
+                proposal_version: 1,
+            });
+            let resolveUpdate: (value: typeof queued) => void = () => {};
+            mockUpdateProcess.mockReturnValue(new Promise((resolve) => {
+                resolveUpdate = resolve;
+            }));
+            const router = renderNavigatingProcessEdit();
+
+            await user.type(screen.getByTestId('process-form-notes'), 'Queued note');
+            await user.click(screen.getByTestId('process-form-submit'));
+            await waitFor(() => expect(mockUpdateProcess).toHaveBeenCalledTimes(1));
+            expect(screen.getByTestId('process-form-l1-process')).toBeDisabled();
+            expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+
+            await act(async () => resolveUpdate(queued));
+            await waitFor(() => expect(router.state.location.pathname).toBe('/approvals'));
+            expect(router.state.location.search).toBe('?tab=mine&approvalId=98');
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+    });
+
     it('requires and focuses the request reason before submitting a protected edit', async () => {
         renderForm();
         fireEvent.click(screen.getByTestId('process-form-submit'));
 
         const reason = screen.getByTestId('process-form-request-reason');
         expect(reason).toHaveAttribute('aria-invalid', 'true');
-        expect(reason).toHaveFocus();
+        await waitFor(() => expect(reason).toHaveFocus());
         expect(mockUpdateProcess).not.toHaveBeenCalled();
     });
 
@@ -545,7 +684,7 @@ describe('ProcessForm governed edit workflow', () => {
         )).toBeInTheDocument();
         const reason = screen.getByTestId('process-form-request-reason');
         expect(reason).toHaveAttribute('aria-invalid', 'true');
-        expect(reason).toHaveFocus();
+        await waitFor(() => expect(reason).toHaveFocus());
         expect(screen.getByTestId('process-form-submit')).toHaveTextContent('Submit for approval');
         expect(screen.getByTestId('process-form-impact-client')).toHaveValue('4');
         expect(screen.getByTestId('process-form-mtpd-hours')).toHaveValue(48);

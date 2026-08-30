@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Save,
@@ -13,6 +13,7 @@ import {
     Link as LinkIcon,
 } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import { useFormStepNavigation } from '@/components/forms/FormStepContext';
@@ -32,15 +33,24 @@ import {
 } from './controlRiskLinkStepContext';
 import { collectRiskFilterOptions, filterRisks, filterUsers, getUniqueRoles } from './controlFormFilters';
 import { useControlFormLookups } from './useControlFormLookups';
-import { useControlFormWorkflow } from './useControlFormWorkflow';
+import {
+    createControlFormSnapshot,
+    useControlFormWorkflow,
+    type ControlFormLocationState,
+} from './useControlFormWorkflow';
 
 interface ControlFormProps {
     initialData?: Control;
     isEdit?: boolean;
-    onSuccess?: (controlId: number) => void | Promise<void>;
+    onSuccess?: (
+        controlId: number,
+        locationState?: ControlFormLocationState,
+        acceptNavigation?: () => void,
+    ) => void | Promise<void>;
     onCancel?: () => void;
     firstStepBackLabel?: string;
     allowRiskLinking?: boolean;
+    registerCloseRequest?: (requestClose: (() => void) | null) => void;
 }
 
 export function ControlForm({
@@ -50,6 +60,7 @@ export function ControlForm({
     onCancel,
     firstStepBackLabel,
     allowRiskLinking = true,
+    registerCloseRequest,
 }: ControlFormProps) {
     const navigate = useNavigate();
     const { t } = useTranslation(['controls', 'common', 'errorKeys']);
@@ -106,6 +117,19 @@ export function ControlForm({
         users,
         t,
     });
+    const currentSnapshot = createControlFormSnapshot(formData, {
+        selectedRiskId: allowRiskLinking ? selectedRiskId : undefined,
+        riskEffectiveness,
+        linkNotes,
+    });
+    const {
+        acceptCurrentSnapshot,
+        confirmationDialog,
+        requestLocalLeave,
+    } = useDirtyTaskGuard({
+        busy: isSubmitting,
+        currentSnapshot,
+    });
 
     const { uniqueDepartments, uniqueProcesses, uniqueCategories } = collectRiskFilterOptions(risks);
     const filteredRisks = filterRisks(risks, {
@@ -147,10 +171,13 @@ export function ControlForm({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         await submit({
+            acceptCurrentSnapshot,
             selectedRiskId: allowRiskLinking ? selectedRiskId : undefined,
             riskEffectiveness,
             linkNotes,
+            submittedSnapshot: currentSnapshot,
         });
     };
 
@@ -163,9 +190,26 @@ export function ControlForm({
         validateStep,
     });
 
+    const requestClose = useCallback(() => {
+        if (isSubmitting) return;
+        requestLocalLeave(() => {
+            if (onCancel) {
+                onCancel();
+            } else {
+                void navigate('/controls');
+            }
+        });
+    }, [isSubmitting, navigate, onCancel, requestLocalLeave]);
+
+    useEffect(() => {
+        registerCloseRequest?.(requestClose);
+        return () => registerCloseRequest?.(null);
+    }, [registerCloseRequest, requestClose]);
+
     const submitOutcome = resolveSubmitOutcome({ approvalQueued: Boolean(approvalQueued) });
 
     return (
+        <>
         <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
             {/*
               * Loaded-state sentinel for tests: the identity step (step 0) shows no
@@ -180,7 +224,7 @@ export function ControlForm({
             <StepIndicator
                 steps={steps}
                 currentStep={currentStep}
-                isStepClickable={(idx) => isEdit || idx <= currentStep + 1}
+                isStepClickable={(idx) => !isSubmitting && (isEdit || idx <= currentStep + 1)}
                 onStepClick={handleStepClick}
             />
 
@@ -216,7 +260,7 @@ export function ControlForm({
                     </div>
                 )}
 
-                <div className="flex-1 space-y-6">
+                <fieldset disabled={isSubmitting} className="min-w-0 flex-1 space-y-6">
                     {currentStep === 0 && (
                         <ControlFormIdentityStep formData={formData} handleInputChange={handleInputChange} t={t} />
                     )}
@@ -256,19 +300,17 @@ export function ControlForm({
                             </ControlRiskLinkStepProvider>
                         </div>
                     )}
-                </div>
+                </fieldset>
 
                 {/* Footer Controls */}
                 <div className="mt-12 flex justify-between items-center pt-8 border-t border-white/5">
                     <button
                         type="button"
+                        aria-disabled={isSubmitting}
                         onClick={() => {
+                            if (isSubmitting) return;
                             if (currentStep === 0) {
-                                if (onCancel) {
-                                    onCancel();
-                                } else {
-                                    void navigate('/controls');
-                                }
+                                requestClose();
                             } else {
                                 prevStep();
                             }
@@ -283,7 +325,11 @@ export function ControlForm({
                         <button
                             key="next-step"
                             type="button"
-                            onClick={nextStep}
+                            aria-disabled={isSubmitting}
+                            onClick={() => {
+                                if (isSubmitting) return;
+                                nextStep();
+                            }}
                             className="btn-primary"
                         >
                             {t('common:actions.next')} <ChevronRight className="h-4 w-4" />
@@ -292,8 +338,8 @@ export function ControlForm({
                         <button
                             key="submit"
                             type="submit"
-                            disabled={isSubmitting}
-                            className="btn-primary"
+                            aria-disabled={isSubmitting}
+                            className="btn-primary aria-disabled:cursor-wait aria-disabled:opacity-60"
                         >
                             {isSubmitting ? t('common:loading.generic') : (isEdit ? t('controls:edit_control') : t('controls:create_control'))}
                             <Save className="h-4 w-4" />
@@ -301,6 +347,8 @@ export function ControlForm({
                     )}
                 </div>
             </div>
-        </form >
+        </form>
+        {confirmationDialog}
+        </>
     );
 }

@@ -1,8 +1,9 @@
 {
  "version": "1.0",
- "last_reviewed": "2026-08-26",
- "last_architecture_refactor_reviewed": "2026-08-26",
+ "last_reviewed": "2026-08-30",
+ "last_architecture_refactor_reviewed": "2026-08-30",
  "architecture_refactor_notes": [
+  "2026-08-30: Issue #158 checkpoints 1-4 move URL-owned register/task state, dirty-task navigation blocking, and truthful collection/request outcome presentation behind bounded frontend workflow helpers across Issue quick-create, Vendor form, Activity Log, register/detail/create/edit pages, and shared register query state. Shared collections now tag successes with the normalized query identity, mask data owned by a different query during render, retain safe stale data only for the same query, fence late responses, and clear protected collection data on a confirmed 403. Shared detail presentation maps protected 403 and 404 responses to the same non-leaky unavailable outcome. The new vendorForm.mappers.ts helper only resolves the existing protected_change_requires_approval capability for Vendor form presentation. These are frontend architecture and truthful-state presentation changes only. Backend authorization remains authoritative; route guards, row visibility, mutation authority, response schemas, capability fields, fallback precedence, and frontend gate semantics are unchanged.",
   "2026-08-26: Issue #145 moves ICT Committee display ordering, drill-down destinations, semantic tones, matrix cells, narratives, and RoI presentation behind the pure buildIctCommitteePresentation model. IctCommitteeSection retains the existing data-fetch, refresh, and backend-403 boundary. Route and session authorization, backend enforcement, row visibility, response schemas, capability fields, and frontend gate semantics are unchanged.",
   "2026-08-23: Issue #110 moves access-roster and access-update policy failures in backend/app/services/_access_workflow/policy.py from FastAPI HTTPException to the existing ADR-003 domain taxonomy. ValidationError, AuthorizationError, and NotFoundError retain the existing 400, 403, and 404 projections through the application domain-error handler. Direct policy tests cover the migrated failures, and the access-workflow architecture test keeps that context transport-neutral. Detail strings, actor authority, row visibility, capability fields, frontend gates, and transaction behavior are unchanged.",
   "2026-08-18: Issue #125 serializes the three CRO-managed risk-threshold rows with one deterministic PostgreSQL lock order before tuple validation and atomic value-plus-audit commit. Missing peers continue to use canonical defaults without implicit creation, and non-threshold configuration retains its single-row path. CRO-only mutation authority, route guards, row visibility, response schemas, capability fields, and frontend gates are unchanged.",
@@ -191,6 +192,7 @@
   "frontend/src/components/riskhub/",
   "frontend/src/components/risks/",
   "frontend/src/components/vendor-form/VendorFormContainer.tsx",
+  "frontend/src/components/vendor-form/vendorForm.mappers.ts",
   "frontend/src/contexts/AuthContext.tsx",
   "frontend/src/contexts/AuthActionsContext.tsx",
   "frontend/src/contexts/PreferencesContext.tsx",
@@ -594,7 +596,7 @@
    "backend_authority": "backend/app/api/v1/endpoints/vendors/ and backend/app/api/v1/endpoints/vendor_links.py",
    "service_policy": "backend/app/services/_vendor_workflow/policy.py and backend/app/services/_vendor_links/ own shared link/unlink workflow; backend/app/services/_vendor_governance/links.py owns Vendor link authorization and mutation helpers; backend/app/services/_vendor_governance/lifecycle.py, contract_lifecycle.py, sub_outsourcing_lifecycle.py, policy.py, and projection.py preserve ordinary authority before routing protected mutations through backend/app/services/_governed_mutations/fixed_vendor_policy.py, vendor_mutations.py, vendor_resolution.py, vendor_identity.py, and vendor_impact.py; approval_execution_service.py owns terminal workflow dispatch",
    "response_capability": "backend/app/schemas/vendor.py VendorCapabilities ordinary action flags plus protected_change_requires_approval, can_request_change, can_cancel_pending_change, has_pending_change, and business_edit_blocked; VendorPendingChangeCapabilities exposes can_view_diff and can_cancel. Protected request schemas require request_reason and may return the typed HTTP 202 approval-queued response without broadening authority",
-   "frontend_gate": "frontend/src/components/vendor-form/VendorFormContainer.tsx, frontend/src/pages/vendors/, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/VendorDetailPage.tsx, frontend/src/pages/shared/useCreateCapabilityGate.ts, and vendor detail tabs use backend capabilities; VendorRegisterLinksSection prefers backend register-link view/manage flags and uses local permission checks only when capability metadata is absent",
+   "frontend_gate": "frontend/src/components/vendor-form/VendorFormContainer.tsx and frontend/src/components/vendor-form/vendorForm.mappers.ts, frontend/src/pages/vendors/, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/VendorDetailPage.tsx, frontend/src/pages/shared/useCreateCapabilityGate.ts, and vendor detail tabs use backend capabilities; VendorRegisterLinksSection prefers backend register-link view/manage flags and uses local permission checks only when capability metadata is absent",
    "tests": [
     "tests/backend/pytest/test_vendor_links.py",
     "tests/backend/pytest/test_vendors.py",
@@ -976,7 +978,8 @@
     "tests/backend/pytest/test_riskhub_departments.py",
     "tests/frontend/unit/src/pages/__tests__/DepartmentDetailPage.operational-tabs.test.tsx",
     "tests/frontend/unit/src/pages/departments/DepartmentRegisterScope.test.tsx",
-    "tests/frontend/unit/src/pages/departments/useDepartmentScopedPagination.test.tsx",
+    "tests/frontend/unit/src/pages/shared/registerListQuery.test.ts",
+    "tests/frontend/unit/src/pages/processes/__tests__/useProcessesPageState.sharedState.test.tsx",
     "tests/frontend/unit/src/pages/departments/departmentSnapshotExportScope.contract.test.ts",
     "tests/frontend/unit/src/hooks/__tests__/useActivityLogPageState.test.tsx",
     "tests/frontend/e2e/department-register-drilldown.spec.ts"

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
@@ -12,9 +12,8 @@ import { reportApi } from '@/services/reportApi';
 import type { KRIFacets, KRIListCapabilities, KeyRiskIndicator } from '@/types/kri';
 
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
-import { resetDepartmentScopedPage, useDepartmentScopedPagination } from '../departments/useDepartmentScopedPagination';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
-import { buildRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import { buildKriExportFilters, readKriRouteFilters } from './kriPagePresentation';
 import {
     buildKriRegisterListParams,
@@ -61,15 +60,13 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
     const sort = validSort(urlState.sort);
     const selectedGroupValue = urlState.selectedGroupValue;
     const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const [localCurrentPage, setLocalCurrentPage] = useState(1);
-    const { currentPage, isDepartmentScoped, setCurrentPage } = useDepartmentScopedPagination({
-        localPage: localCurrentPage, searchParams, setLocalPage: setLocalCurrentPage, setSearchParams,
-    });
+    const currentPage = urlState.page;
     const [facets, setFacets] = useState<KRIFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
-        applyFailure, applySuccess, capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied,
-        isLoading, items, setErrorKey, setIsLoading, totalCount,
+        applyFailure, applySuccess, beginQuery, commitQueryIdentity, forQuery,
+        isLoading: collectionIsLoading, isQueryCurrent,
+        setErrorKey, setIsLoading,
     } = useCollectionDataState<KeyRiskIndicator, KRIListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
@@ -77,14 +74,21 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
         currentPage, filters: effectiveFilters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
         search: debouncedSearch, sort, view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, selectedGroupValue, sort, viewMode]);
+    const queryIdentity = JSON.stringify(listParams);
+    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const queryState = forQuery(queryIdentity);
+    const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
+    const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
+    const visibleFacets = queryState.isCurrentQuery ? facets : {};
 
     const fetchKris = useCallback(async () => {
         const request = beginRequest();
+        if (!beginQuery(queryIdentity)) setFacets({});
         setIsLoading(true);
         try {
             const response = await kriApi.getKRIs(listParams);
             if (!isCurrentRequest(request)) return;
-            applySuccess({ items: response.items, groups: response.groups ?? [], capabilities: response.capabilities ?? null, total: response.total });
+            applySuccess(queryIdentity, { items: response.items, groups: response.groups ?? [], capabilities: response.capabilities ?? null, total: response.total });
             setFacets(response.facets ?? {});
         } catch (error) {
             if (!isCurrentRequest(request)) return;
@@ -93,9 +97,18 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
         } finally {
             if (isCurrentRequest(request)) setIsLoading(false);
         }
-    }, [applyFailure, applySuccess, beginRequest, isCurrentRequest, listParams, setIsLoading]);
+    }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => { if (!isDepartmentScoped) setLocalCurrentPage(1); }, [isDepartmentScoped, serializedParams]);
+    useEffect(() => {
+        const params = new URLSearchParams(serializedParams);
+        if (!normalizeRegisterUrlParams(params, {
+            allowedSortFields: KRI_SORT_FIELDS,
+            allowedViews: KRI_VIEWS,
+            canonicalizeFilters: (rawFilters) => serializeKriRegisterFilters(parseKriRegisterFilters(rawFilters)),
+            defaultView: 'all',
+        })) return;
+        setSearchParams(params, { replace: true });
+    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchKris(); }, [fetchKris]);
 
     const writeUrl = useCallback((next: {
@@ -108,14 +121,21 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
         existing.delete('status');
         const params = buildRegisterUrlParams({
             filters: serializeKriRegisterFilters(next.filters ?? filters),
+            page: 1,
             search: next.search ?? urlState.search,
             selectedGroupValue: next.group === undefined ? selectedGroupValue : next.group,
             sort: next.sort === undefined ? sort : next.sort,
             view: next.view ?? viewMode,
         }, existing);
-        setSearchParams(resetDepartmentScopedPage(params, isDepartmentScoped), { replace });
-        if (!isDepartmentScoped) setCurrentPage(1);
-    }, [filters, isDepartmentScoped, selectedGroupValue, serializedParams, setCurrentPage, setSearchParams, sort, urlState.search, viewMode]);
+        setSearchParams(params, { replace });
+    }, [filters, selectedGroupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
+
+    const setCurrentPage = useCallback((page: number) => {
+        const params = new URLSearchParams(serializedParams);
+        if (page > 1) params.set('page', String(page));
+        else params.delete('page');
+        setSearchParams(params);
+    }, [serializedParams, setSearchParams]);
 
     const updateFilter = useCallback(<K extends keyof KriRegisterFilters>(key: K, value: KriRegisterFilters[K]) => {
         const next = { ...filters, [key]: value };
@@ -128,9 +148,14 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
     }, [filters, writeUrl]);
     const clearFilters = useCallback(() => writeUrl({ filters: EMPTY_KRI_REGISTER_FILTERS, group: null }), [writeUrl]);
     const restoreKri = useCallback(async (kriId: number) => {
-        try { await kriApi.restoreKRI(kriId); await fetchKris(); }
-        catch (error) { setErrorKey(apiClient.toUiMessageKey(error)); }
-    }, [fetchKris, setErrorKey]);
+        const restoreQueryIdentity = queryIdentity;
+        try {
+            await kriApi.restoreKRI(kriId);
+            if (isQueryCurrent(restoreQueryIdentity)) await fetchKris();
+        } catch (error) {
+            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
+        }
+    }, [fetchKris, isQueryCurrent, queryIdentity, setErrorKey]);
     const exportCurrentKris = useCallback(async () => {
         setIsExporting(true);
         try { await kriApi.downloadExport({ ...listParams, offset: 0 }, language); }
@@ -151,7 +176,7 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
 
     return {
         capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,
-        errorKey, exportCurrentKris, exportKriSnapshot, facets, fetchKris, filters, groups, hasLoadedOnce,
+        errorKey, exportCurrentKris, exportKriSnapshot, facets: visibleFacets, fetchKris, filters, groups, hasLoadedOnce,
         isAccessDenied, isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE, restoreKri,
         search: urlState.search, selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
         selectedGroupLabel: groupLabel(groups, selectedGroupValue), selectedGroupValue, setCurrentPage,

@@ -13,17 +13,23 @@ import type { KeyRiskIndicator, KRIHistoryCapabilities, KRIHistoryEntry } from '
 import type { Risk } from '@/types/risk';
 
 import { useDetailQuery } from './useDetailQuery';
+import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 
 export type KriDetailTabView = 'overview' | 'history';
+export const kriDetailTabs = ['overview', 'history'] as const;
 
 interface UseKriDetailStateArgs {
     rawId: string | undefined;
+    returnTo: string;
 }
 
-export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
+export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
     const navigate = useNavigate();
     const { t: tErrors } = useTranslation('errorKeys');
-    const [activeTab, setActiveTab] = useState<KriDetailTabView>('overview');
+    const [activeTab, setActiveTab] = useContentTabQuery<KriDetailTabView>({
+        tabs: kriDetailTabs,
+        defaultTab: 'overview',
+    });
     const [approvalBanner, setApprovalBanner] = useState<{ message: string } | null>(null);
     const [history, setHistory] = useState<KRIHistoryEntry[]>([]);
     const [historyCapabilities, setHistoryCapabilities] = useState<KRIHistoryCapabilities | null>(null);
@@ -39,8 +45,8 @@ export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
     const loadKRI = useCallback((id: number) => kriApi.getKRI(id, { include_archived: true }), []);
 
     const {
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         refetch: fetchKRI,
         resource: kri,
         resourceId: kriId,
@@ -48,7 +54,6 @@ export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
         entity: 'kri',
         rawId,
         load: loadKRI,
-        toErrorKey: () => 'not_found',
     });
 
     const fetchHistory = useCallback(async (id: number) => {
@@ -97,13 +102,13 @@ export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
                 setApprovalBanner({ message: parsed.message });
                 return;
             }
-            void navigate('/kris');
+            void navigate(returnTo);
         } catch (error) {
             logError('Failed to delete KRI.', error);
         } finally {
             setIsDeleting(false);
         }
-    }, [kri, navigate]);
+    }, [kri, navigate, returnTo]);
 
     const handleRestore = useCallback(async () => {
         if (!kri) return;
@@ -130,12 +135,10 @@ export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
             const parsed = parseUpdateResult(result);
             if (parsed.kind === 'approval') {
                 setApprovalBanner({ message: parsed.message });
-                setIsEditModalOpen(false);
                 return parsed;
             }
 
             await fetchKRI();
-            setIsEditModalOpen(false);
             return { kind: 'updated' };
         } catch (error) {
             if (error instanceof ApiClientError || error instanceof Error) {
@@ -173,18 +176,19 @@ export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
         handleSave,
         history,
         historyTotal,
-        isAccessDenied,
         isDeleteDialogOpen,
         isDeleting,
         isEditModalOpen,
         isIssueModalOpen,
-        isLoading,
+        isRetrying,
         isLoadingHistory,
         isOverdue,
         isValueModalOpen,
         kri,
         kriId,
         linkedRisk,
+        loadOutcome,
+        refreshKri: fetchKRI,
         refreshHistory: fetchHistory,
         selectedHistoryEntry,
         setActiveTab,

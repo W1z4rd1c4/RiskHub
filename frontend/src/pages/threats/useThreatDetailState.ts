@@ -11,16 +11,14 @@ export type ThreatDetailMode = 'view' | 'new' | 'edit';
 
 interface UseThreatDetailStateOptions {
     mode: ThreatDetailMode;
-    notFoundMessage: string;
 }
 
-export function useThreatDetailState({ mode, notFoundMessage }: UseThreatDetailStateOptions) {
+export function useThreatDetailState({ mode }: UseThreatDetailStateOptions) {
     const { id } = useParams<{ id: string }>();
 
     const {
-        errorKey,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         refetch: fetchThreat,
         resource: threat,
         resourceId: threatId,
@@ -28,10 +26,8 @@ export function useThreatDetailState({ mode, notFoundMessage }: UseThreatDetailS
     } = useDetailQuery<Threat>({
         enabled: mode !== 'new',
         entity: 'threat',
-        invalidIdErrorKey: notFoundMessage,
         rawId: id,
         load: (threatId) => threatApi.getThreat(threatId),
-        toErrorKey: () => notFoundMessage,
     });
 
     const restoreThreat = useCallback(async () => {
@@ -50,10 +46,9 @@ export function useThreatDetailState({ mode, notFoundMessage }: UseThreatDetailS
         canArchive: resolveCapabilityFlag(threat?.capabilities, 'can_archive'),
         canEdit: resolveCapabilityFlag(threat?.capabilities, 'can_update'),
         canRestore: resolveCapabilityFlag(threat?.capabilities, 'can_restore'),
-        error: errorKey,
         fetchThreat,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         threat,
         threatId,
         setThreat,

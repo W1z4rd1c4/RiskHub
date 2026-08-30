@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { RemediationPlanCard } from '@/components/issues/RemediationPlanCard';
 import type { Issue } from '@/types/issue';
 import { createTestQueryClient } from '@test/queryClient';
@@ -98,10 +99,13 @@ describe('RemediationPlanCard workflow visibility', () => {
 
     function renderCard(issue: Issue) {
         const queryClient = createTestQueryClient();
+        const router = createMemoryRouter([
+            { path: '/', element: <RemediationPlanCard issue={issue} /> },
+        ]);
 
         return render(
             <QueryClientProvider client={queryClient}>
-                <RemediationPlanCard issue={issue} />
+                <RouterProvider router={router} />
             </QueryClientProvider>
         );
     }

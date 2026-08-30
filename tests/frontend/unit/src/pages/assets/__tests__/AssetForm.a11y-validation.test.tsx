@@ -7,9 +7,9 @@
  * closed-lists fetch (C4) so a dropped request is not a silent empty dropdown.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { RouterProvider, createMemoryRouter, useNavigate } from 'react-router-dom';
 import * as axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -75,16 +75,20 @@ async function renderForm(initialData?: Asset) {
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
+    const router = createMemoryRouter([{
+        path: '*',
+        element: (
+            <AssetForm
+                initialData={initialData}
+                isEdit={initialData !== undefined}
+                onApprovalQueued={onApprovalQueued}
+                onSaved={onSaved}
+            />
+        ),
+    }]);
     const utils = render(
         <QueryClientProvider client={client}>
-            <MemoryRouter>
-                <AssetForm
-                    initialData={initialData}
-                    isEdit={initialData !== undefined}
-                    onApprovalQueued={onApprovalQueued}
-                    onSaved={onSaved}
-                />
-            </MemoryRouter>
+            <RouterProvider router={router} />
         </QueryClientProvider>,
     );
     await waitFor(() => {
@@ -376,6 +380,70 @@ const protectedAsset = {
     },
 } as Asset;
 
+function NavigatingAssetEdit() {
+    const navigate = useNavigate();
+    return (
+        <AssetForm
+            initialData={nonProtectedAsset}
+            isEdit
+            onSaved={(saved) => void navigate(`/assets/${saved.id}`)}
+            onApprovalQueued={(queued) => void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`)}
+            onCancel={() => void navigate('/assets/88')}
+        />
+    );
+}
+
+async function renderNavigatingAssetEdit() {
+    const client = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const router = createMemoryRouter([
+        { path: '/assets/88/edit', element: <NavigatingAssetEdit /> },
+        { path: '/assets/88', element: <p>Asset detail</p> },
+        { path: '/approvals', element: <p>Approvals</p> },
+    ], { initialEntries: ['/assets/88/edit'] });
+    render(
+        <QueryClientProvider client={client}>
+            <RouterProvider router={router} />
+        </QueryClientProvider>,
+    );
+    await waitFor(() => {
+        expect(mockGetClosedLists).toHaveBeenCalledTimes(1);
+        expect(mockGetAssetOwners).toHaveBeenCalledTimes(2);
+        expect(mockGetAssetDepartments).toHaveBeenCalledTimes(1);
+    });
+    return router;
+}
+
+function NavigatingAssetCreate() {
+    const navigate = useNavigate();
+    return (
+        <AssetForm
+            onSaved={(saved) => void navigate(`/assets/${saved.id}`)}
+            onCancel={() => void navigate('/assets')}
+        />
+    );
+}
+
+async function renderNavigatingAssetCreate() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const router = createMemoryRouter([
+        { path: '/assets/new', element: <NavigatingAssetCreate /> },
+        { path: '/assets', element: <p>Assets</p> },
+    ], { initialEntries: ['/assets/new'] });
+    render(
+        <QueryClientProvider client={client}>
+            <RouterProvider router={router} />
+        </QueryClientProvider>,
+    );
+    await waitFor(() => {
+        expect(mockGetClosedLists).toHaveBeenCalledTimes(1);
+        expect(mockGetAssetOwners).toHaveBeenCalledTimes(2);
+        expect(mockGetAssetDepartments).toHaveBeenCalledTimes(1);
+    });
+    return router;
+}
+
 describe('AssetForm — governed accountability edits (#88)', () => {
     beforeEach(() => {
         mockGetAssetOwners.mockResolvedValue([
@@ -397,6 +465,88 @@ describe('AssetForm — governed accountability edits (#88)', () => {
             { id: 8, name: 'Finance', code: 'FIN' },
             { id: 9, name: 'IT', code: 'IT' },
         ]);
+    });
+
+    describe('dirty task protection (#158)', () => {
+        it('guards a create draft and becomes clean after an exact semantic revert', async () => {
+            const user = userEvent.setup();
+            const router = await renderNavigatingAssetCreate();
+            const name = screen.getByTestId('asset-form-name');
+
+            await user.type(name, 'New Asset');
+            await user.click(screen.getByRole('button', { name: i18n.t('assets:actions.cancel') }));
+            expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+            expect(router.state.location.pathname).toBe('/assets/new');
+            await user.click(screen.getByRole('button', { name: i18n.t('common:actions.stay') }));
+
+            await user.clear(name);
+            await user.type(name, '  ');
+            await user.click(screen.getByRole('button', { name: i18n.t('assets:actions.cancel') }));
+            await waitFor(() => expect(router.state.location.pathname).toBe('/assets'));
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('prompts for a normalized edit and becomes clean after a semantic revert', async () => {
+            const user = userEvent.setup();
+            const router = await renderNavigatingAssetEdit();
+            const name = screen.getByTestId('asset-form-name');
+
+            await user.clear(name);
+            await user.type(name, 'Changed platform');
+            await user.click(screen.getByRole('button', { name: i18n.t('assets:actions.cancel') }));
+            expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+            expect(router.state.location.pathname).toBe('/assets/88/edit');
+            await user.click(screen.getByRole('button', { name: i18n.t('common:actions.stay') }));
+
+            await user.clear(name);
+            await user.type(name, '  Payments platform  ');
+            await user.click(screen.getByRole('button', { name: i18n.t('assets:actions.cancel') }));
+            await waitFor(() => expect(router.state.location.pathname).toBe('/assets/88'));
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('keeps a rejected edit dirty', async () => {
+            const user = userEvent.setup();
+            mockUpdateAsset.mockRejectedValue(new Error('unavailable'));
+            const router = await renderNavigatingAssetEdit();
+
+            await user.type(screen.getByTestId('asset-form-notes'), 'New note');
+            await user.click(screen.getByTestId('asset-form-submit'));
+            expect(await screen.findByText(i18n.t('assets:form.errors.save_failed'))).toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: i18n.t('assets:actions.cancel') }));
+
+            expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+            expect(router.state.location.pathname).toBe('/assets/88/edit');
+        });
+
+        it('locks edits while pending and accepts a queued response before navigation', async () => {
+            const user = userEvent.setup();
+            const queued = processApprovalQueuedResponseSchema.parse({
+                status: 'approval_required',
+                message: 'Submitted',
+                approval_id: 99,
+                action_type: 'edit',
+                pending_fields: ['notes'],
+                proposal_id: 'proposal-asset-99',
+                proposal_version: 1,
+            });
+            let resolveUpdate: (value: typeof queued) => void = () => {};
+            mockUpdateAsset.mockReturnValue(new Promise((resolve) => {
+                resolveUpdate = resolve;
+            }));
+            const router = await renderNavigatingAssetEdit();
+
+            await user.type(screen.getByTestId('asset-form-notes'), 'Queued note');
+            await user.click(screen.getByTestId('asset-form-submit'));
+            await waitFor(() => expect(mockUpdateAsset).toHaveBeenCalledTimes(1));
+            expect(screen.getByTestId('asset-form-name')).toBeDisabled();
+            expect(screen.getByRole('button', { name: i18n.t('assets:actions.cancel') })).toBeDisabled();
+
+            await act(async () => resolveUpdate(queued));
+            await waitFor(() => expect(router.state.location.pathname).toBe('/approvals'));
+            expect(router.state.location.search).toBe('?tab=mine&approvalId=99');
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
     });
 
     it.each([

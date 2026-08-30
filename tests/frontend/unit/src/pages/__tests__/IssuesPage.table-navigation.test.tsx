@@ -66,7 +66,7 @@ describe('IssuesPage table navigation', () => {
         expect(await screen.findByText('Control Evidence Review')).toBeInTheDocument();
         fireEvent.click(rowTitle);
 
-        expect(mockNavigate).toHaveBeenCalledWith('/issues/42');
+        expect(mockNavigate).toHaveBeenCalledWith('/issues/42?return_to=%2Fissues');
     });
 
     it('does not emit unsupported server sort keys for display-only columns', async () => {

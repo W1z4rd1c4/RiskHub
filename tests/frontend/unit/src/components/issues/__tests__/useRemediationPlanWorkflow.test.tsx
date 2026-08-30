@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import type { PropsWithChildren } from 'react';
+import { createContext, useContext, useState, type PropsWithChildren, type ReactNode } from 'react';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRemediationPlanWorkflow } from '@/components/issues/remediation/useRemediationPlanWorkflow';
 import type { Issue } from '@/types/issue';
@@ -97,9 +98,20 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
 
 function createWrapper() {
     const queryClient = createTestQueryClient();
+    const HookChildrenContext = createContext<ReactNode>(null);
+    const HookChildren = () => useContext(HookChildrenContext);
 
     return function Wrapper({ children }: PropsWithChildren) {
-        return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+        const [router] = useState(() => createMemoryRouter([
+            { path: '/', element: <HookChildren /> },
+        ]));
+        return (
+            <QueryClientProvider client={queryClient}>
+                <HookChildrenContext.Provider value={children}>
+                    <RouterProvider router={router} />
+                </HookChildrenContext.Provider>
+            </QueryClientProvider>
+        );
     };
 }
 

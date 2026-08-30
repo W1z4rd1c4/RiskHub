@@ -409,6 +409,7 @@ const parentSiteIds = new Set([
   'confirm.vendor-contracts',
   'confirm.vendor-sub-outsourcing',
   'confirm.governed-mutation-reason',
+  'confirm.dirty-task-guard',
   'link.control-overview',
   'risk-view.control-overview',
   'risk-drilldown.dashboard',
@@ -435,9 +436,10 @@ async function gotoOwnerRoute(page: Page, route: string) {
   if (new URL(page.url()).pathname !== route) {
     const sidebarLink = page.locator(`a[href="${route}"]`).first();
     if (await sidebarLink.isVisible()) {
+      await sidebarLink.focus();
       await Promise.all([
         page.waitForURL((url) => url.pathname === route),
-        sidebarLink.click(),
+        sidebarLink.press('Enter'),
       ]);
     } else {
       await page.goto(route);
@@ -499,9 +501,9 @@ async function arrangeKriWithHistory(page: Page) {
   await gotoOwnerRoute(page, '/kris');
   await register.search(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
   await register.openRowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
-  await page.waitForURL(/\/kris\/\d+$/, { timeout: 15_000 });
+  await page.waitForURL((url) => /\/kris\/\d+$/.test(url.pathname), { timeout: 15_000 });
   await expect(page.locator('main h1').first()).toBeVisible();
-  await page.getByRole('button', { name: /history/i }).click();
+  await page.getByRole('tab', { name: /history/i }).click();
 }
 
 async function gotoFirstDetail(page: Page, listRoute: string, detailPattern: RegExp) {
@@ -538,7 +540,7 @@ async function gotoFirstDetail(page: Page, listRoute: string, detailPattern: Reg
   } else {
     throw new Error(`No deterministic detail driver for ${listRoute}`);
   }
-  await page.waitForURL(detailPattern, { timeout: 15_000 });
+  await page.waitForURL((url) => detailPattern.test(url.pathname), { timeout: 15_000 });
   await expect(page.locator('main h1, main h2').first()).toBeVisible();
 }
 
@@ -557,6 +559,7 @@ const parentOpeners: Record<string, (page: Page) => Locator> = {
   'confirm.vendor-contracts': (page) => page.getByTestId('vendor-contract-archive-1'),
   'confirm.vendor-sub-outsourcing': (page) => page.getByTestId('vendor-sub-outsourcing-archive-1'),
   'confirm.governed-mutation-reason': (page) => page.getByRole('button', { name: /open governed mutation reason/i }),
+  'confirm.dirty-task-guard': (page) => page.getByRole('button', { name: /leave dirty task/i }),
   'link.control-overview': (page) => page.getByRole('button', { name: /link.*risk|manage.*risk|controls:detail/i }).first(),
   'risk-view.control-overview': (page) => page.getByRole('button', { name: /authentication drift/i }).first(),
   'risk-drilldown.dashboard': (page) => page.getByRole('button', { name: /1.*probability.*4.*impact.*4/i }).first(),
@@ -574,6 +577,12 @@ function parentDriver(siteId: string): RenderSiteDriver {
     arrange: arrangeParent,
     opener: parentOpeners[siteId]!,
     ownerSentinel: (page, site) => page.locator(`[data-testid="dialog-owner-ready"][data-render-site="${site.id}"]`),
+    activate: siteId === 'confirm.dirty-task-guard'
+      ? async (opener) => {
+        await opener.page().getByTestId('dirty-task-contract-input').fill('Unsaved contract draft');
+        await opener.click();
+      }
+      : undefined,
   };
 }
 
@@ -620,7 +629,7 @@ Object.assign(drivers, {
           && url.pathname === '/api/v1/approvals'
           && url.searchParams.get('my_requests') === 'true';
       }),
-      page.getByRole('button', { name: /my requests/i }).click(),
+      page.getByRole('tab', { name: /my requests/i }).click(),
     ]);
     expect(response.ok()).toBe(true);
   },
@@ -633,7 +642,7 @@ Object.assign(drivers, {
   ),
   'execution-log.control-detail': liveDriver(RM, async (page) => {
     await detail('/controls', /\/controls\/\d+$/)(page);
-    await page.getByRole('button', { name: /execution history/i }).click();
+    await page.getByRole('tab', { name: /execution history/i }).click();
   }, (page) => page.getByRole('button', { name: /log execution/i })),
   'archive.control-detail': liveDriver(RM, detail('/controls', /\/controls\/\d+$/), (page) => page.locator('main button').filter({ has: page.locator('svg.lucide-trash-2') }).first()),
   'export.controls-page': liveDriver(RM, list('/controls'), (page) => page.getByTestId('controls-export-button')),
@@ -674,11 +683,11 @@ Object.assign(drivers, {
   'export.vendors-page': liveDriver(RM, list('/vendors'), (page) => page.getByTestId('vendors-export-button')),
   'audit-details.audit-logs': liveDriver(ADMIN, async (page) => {
     await gotoOwnerRoute(page, '/admin');
-    await page.getByRole('button', { name: /audit logs/i }).click();
+    await page.getByRole('tab', { name: /audit logs/i }).click();
   }, (page) => page.getByRole('button', { name: /^view$/i }).first(), undefined, adminSectionHandoffFailures),
   'confirm.sessions-panel': liveDriver(ADMIN, async (page) => {
     await gotoOwnerRoute(page, '/admin');
-    await page.getByRole('button', { name: /active sessions/i }).click();
+    await page.getByRole('tab', { name: /active sessions/i }).click();
   }, (page) => page.getByRole('button', { name: /revoke/i }).first(), undefined, adminSectionHandoffFailures),
 });
 

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -12,8 +12,8 @@ import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
 import { isProcessApprovalQueuedResponse, type Process } from '@/types/process';
 
+import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
-import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ProcessForm } from './processes/ProcessForm';
 import { ProcessPendingChangePanel } from './processes/ProcessPendingChangePanel';
@@ -31,6 +31,7 @@ import {
 } from './processes/processesPagePresentation';
 import { getProcessStatusColor } from './processes/processColumns';
 import { useProcessDetailState, type ProcessDetailMode } from './processes/useProcessDetailState';
+import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 interface ProcessDetailPageProps {
     mode?: ProcessDetailMode;
@@ -119,6 +120,9 @@ function ProcessOwnershipAlert({
 
 export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/processes');
+    const processDetailPath = (processId: number) => appendRegisterReturnTo(`/processes/${processId}`, returnTo);
     const authz = useAuthz();
     const { t, i18n } = useTranslation('processes');
     const { t: tCommon } = useTranslation('common');
@@ -131,14 +135,14 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         canArchive,
         canEdit,
         canRestore,
-        error,
         fetchProcess,
-        isAccessDenied,
-        isLoading,
+        isRetrying,
+        loadOutcome,
         process,
+        processId,
         restoreProcess,
         setProcess,
-    } = useProcessDetailState({ mode, notFoundMessage: t('errors.not_found') });
+    } = useProcessDetailState({ mode });
 
     const createGateState = useCreateCapabilityGate({
         enabled: mode === 'new',
@@ -157,7 +161,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
                 return;
             }
-            void navigate('/processes');
+            void navigate(returnTo);
         } catch (archiveError) {
             logError('Failed to archive process:', archiveError);
             setActionError(t('errors.archive_failed'));
@@ -191,7 +195,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 <div className="flex items-start gap-3">
                     <button
                         type="button"
-                        onClick={() => navigate('/processes')}
+                        onClick={() => navigate(returnTo)}
                         aria-label={t('actions.back_to_register')}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
                     >
@@ -203,52 +207,46 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     </div>
                 </div>
                 <ProcessForm
-                    onSaved={(saved: Process) => navigate(`/processes/${saved.id}`)}
+                    onSaved={(saved: Process) => navigate(processDetailPath(saved.id))}
                     onApprovalQueued={(queued) => {
                         void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`);
                     }}
-                    onCancel={() => navigate('/processes')}
+                    onCancel={() => navigate(returnTo)}
                 />
             </div>
         );
     }
 
-    if (isLoading) {
+    if (loadOutcome === 'loading') {
         return (
             <div className="glass-card animate-pulse text-sm text-slate-400">{tCommon('loading.generic')}</div>
         );
     }
 
-    if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
-    }
-
-    if (error || !process) {
+    if (loadOutcome === 'unavailable' || !process) {
         return (
-            <div className="glass-card space-y-4">
-                <div className="flex items-start gap-3 text-rose-300">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{error ?? t('errors.not_found')}</p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => navigate('/processes')}
-                    className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white transition-colors text-sm font-semibold"
-                >
-                    {t('actions.back_to_register')}
-                </button>
-            </div>
+            <DetailLoadUnavailableState
+                backLabel={t('actions.back_to_register')}
+                isRetrying={isRetrying}
+                onBack={() => navigate(returnTo)}
+                onRetry={processId === null ? undefined : () => void fetchProcess()}
+            />
         );
     }
+
+    const staleWarning = loadOutcome === 'stale-with-error' ? (
+        <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchProcess()} />
+    ) : null;
 
     if (mode === 'edit') {
         if (process.capabilities?.business_edit_blocked || process.pending_change) {
             return (
                 <div className="space-y-8">
+                    {staleWarning}
                     <div className="flex items-start gap-3">
                         <button
                             type="button"
-                            onClick={() => navigate(`/processes/${process.id}`)}
+                            onClick={() => navigate(processDetailPath(process.id))}
                             aria-label={t('actions.back_to_register')}
                             className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
                         >
@@ -284,10 +282,11 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         if (process.ownership_status === 'pending_governance') {
             return (
                 <div className="space-y-8">
+                    {staleWarning}
                     <div className="flex items-start gap-3">
                         <button
                             type="button"
-                            onClick={() => navigate(`/processes/${process.id}`)}
+                            onClick={() => navigate(processDetailPath(process.id))}
                             aria-label={t('actions.back_to_register')}
                             className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
                         >
@@ -316,10 +315,11 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         }
         return (
             <div className="space-y-8">
+                {staleWarning}
                 <div className="flex items-start gap-3">
                     <button
                         type="button"
-                        onClick={() => navigate(`/processes/${process.id}`)}
+                        onClick={() => navigate(processDetailPath(process.id))}
                         aria-label={t('actions.back_to_register')}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
                     >
@@ -346,13 +346,13 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         : process}
                     isEdit
                     onApprovalQueued={() => {
-                        void navigate(`/processes/${process.id}`);
+                        void navigate(processDetailPath(process.id));
                     }}
                     onSaved={(saved: Process) => {
                         setProcess(saved);
-                        void navigate(`/processes/${saved.id}`);
+                        void navigate(processDetailPath(saved.id));
                     }}
-                    onCancel={() => navigate(`/processes/${process.id}`)}
+                    onCancel={() => navigate(processDetailPath(process.id))}
                 />
             </div>
         );
@@ -362,6 +362,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
 
     return (
         <div className="space-y-8">
+            {staleWarning}
             {actionError ? (
                 <div className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -400,7 +401,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 <div className="flex items-start gap-3">
                     <button
                         type="button"
-                        onClick={() => navigate('/processes')}
+                        onClick={() => navigate(returnTo)}
                         data-testid="process-detail-back"
                         aria-label={t('actions.back_to_register')}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
@@ -441,7 +442,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         && process.ownership_status !== 'pending_governance' && (
                         <button
                             type="button"
-                            onClick={() => navigate(`/processes/${process.id}/edit`)}
+                            onClick={() => navigate(appendRegisterReturnTo(`/processes/${process.id}/edit`, returnTo))}
                             data-testid="process-detail-edit"
                             className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
