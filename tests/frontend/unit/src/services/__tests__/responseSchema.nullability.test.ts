@@ -532,6 +532,7 @@ describe('response schema nullability alignment', () => {
                 skip: 0,
                 limit: 50,
                 capabilities: {
+                    can_read: true,
                     can_export_csv: true,
                 },
             }));
@@ -539,6 +540,7 @@ describe('response schema nullability alignment', () => {
 
         await expect(executionApi.getExecutions()).resolves.toMatchObject({
             capabilities: {
+                can_read: true,
                 can_export_csv: true,
             },
             items: [
@@ -551,6 +553,26 @@ describe('response schema nullability alignment', () => {
                 },
             ],
         });
+    });
+
+    it('rejects global execution log responses without the required read capability', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.includes('/api/v1/executions')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse({
+                items: [],
+                total: 0,
+                skip: 0,
+                limit: 50,
+                capabilities: {
+                    can_export_csv: false,
+                },
+            }));
+        });
+
+        await expect(executionApi.getExecutions()).rejects.toThrow();
     });
 
     it('accepts KRI detail responses with null ownership and risk metadata', async () => {

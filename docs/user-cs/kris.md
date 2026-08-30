@@ -30,6 +30,8 @@ tags:
 
 Tento manuál použijte, když potřebujete vytvářet smysluplná KRI, nastavovat hranice, zadávat hodnoty včas, rozumět breach a warning signálům a žádat opravy. Je určen pro uživatele, kteří definují, zadávají nebo kontrolují indikátory rizik, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
+Stránka **KRI** slouží pro **Sledování rizikového apetitu**. Rizikový apetit zůstává business kontextem, zatímco KRI je jednotný název stránky a položky navigace.
+
 Text není technická reference. Vysvětluje běžný provozní postup: otevřít správnou stránku, ověřit správný záznam, provést nejmenší užitečnou změnu a zkontrolovat výsledek v seznamu, detailu, notifikacích nebo aktivitě.
 
 Tuto oblast budete používat hlavně pro:
@@ -122,7 +124,7 @@ Dialog Export má dva odlišné režimy evidence:
 - **Aktuální pohled** stáhne všechny řádky odpovídající aktuálnímu hledání, filtrům, řazení, pohledu a vybrané skupině. Stránkování seznamu se nepoužije. CSV obsahuje metriku, popis, navázané riziko a oddělení, hodnoty a limity, breach kód i popisek, frekvenci, monitoring, termín a prodlení, reporting ownera, poslední report a lifecycle.
 - **Historický snapshot** používá zvolené datum a reports službu. Použijte ho, když důkaz musí reprodukovat stav známý k minulému datu; nejde o export živého registru.
 
-Pro evidenci historie hodnot použijte záložku Historie v detailu KRI nebo Activity Log; samostatný export detailu nebo historie neexistuje.
+Pro evidenci historie hodnot použijte záložku Historie v detailu KRI nebo stránku **Záznam aktivit**; samostatný export detailu nebo historie neexistuje.
 
 Pro spolehlivý výsledek filtrujte v tomto pořadí:
 
@@ -149,4 +151,4 @@ Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na 
 
 ## Související manuály
 
-Začněte s [Risks](./risks.md), [Dashboard](./dashboard.md), [Vendors](./vendors.md), [Notifications](./notifications.md), [Activity Log](./activity-log.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.
+Začněte s [Risks](./risks.md), [Dashboard](./dashboard.md), [Vendors](./vendors.md), [Notifications](./notifications.md), [Záznam aktivit](./activity-log.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

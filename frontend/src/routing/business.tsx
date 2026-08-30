@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Command,
+  FileChartColumn,
   Handshake,
   Scale,
   Server,
@@ -56,6 +57,7 @@ const AuditTrailPage = lazy(() => import('@/pages/AuditTrailPage'));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
 const GovernancePage = lazy(() => import('@/pages/GovernancePage'));
 const RiskHubPage = lazy(() => import('@/pages/RiskHubPage'));
+const EvidencePage = lazy(() => import('@/pages/EvidencePage'));
 
 export const businessRoutes: AppRouteDef[] = [
   {
@@ -143,6 +145,7 @@ export const businessRoutes: AppRouteDef[] = [
     nav: {
       href: '/kris',
       labelKey: 'kris',
+      supportingTermKey: 'kris',
       icon: Target,
       group: 'registers',
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'risks'),
@@ -295,6 +298,19 @@ export const businessRoutes: AppRouteDef[] = [
       group: 'administration',
       isVisible: ({ authz }) => authz.canViewActivityLog,
       order: 100,
+    },
+  },
+  {
+    key: 'evidence',
+    path: 'evidence',
+    element: <EvidencePage />,
+    nav: {
+      href: '/evidence',
+      labelKey: 'evidence',
+      icon: FileChartColumn,
+      group: 'administration',
+      isVisible: ({ authz }) => !authz.isPlatformAdmin,
+      order: 105,
     },
   },
   {

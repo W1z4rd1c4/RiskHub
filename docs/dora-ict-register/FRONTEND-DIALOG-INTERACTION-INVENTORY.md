@@ -14,14 +14,15 @@ The current validated tree contains:
 
 | Level | Meaning | Current validated count |
 |---|---|---:|
-| `implementation_surface` | A component that implements `DialogShell`, including inline owners and the transparent `RiskHubModalFrame` wrapper | 26 |
-| `application_render_site` | A concrete production consumer of an implementation surface | 55 |
+| `implementation_surface` | A component that implements `DialogShell`, including inline owners and the transparent `RiskHubModalFrame` wrapper | 27 |
+| `application_render_site` | A concrete production consumer of an implementation surface | 56 |
 | `non_dialog_surface` | An overlay-like surface with a different interaction contract | 5 |
-| executable unit contract case | A unique implementation or consumer-specific variant, plus the production loading overlay | 29 |
+| executable unit contract case | A unique implementation or consumer-specific variant, plus the production loading overlay | 30 |
 
-The 55 render sites include all shared-dialog call sites and the three concrete
+The 56 render sites include all shared-dialog call sites and the three concrete
 `RiskHubModalFrame` consumers. The generic frame is not counted as a substitute
-for those consumers.
+for those consumers. This current decomposition includes `DestinationLauncher`
+as an implementation surface and `Sidebar` as its component-owned render site.
 
 ## Classification contract
 
@@ -59,7 +60,7 @@ the four counts above.
 ### Unit interaction matrix
 
 `tests/frontend/unit/src/components/dialogInteractionMatrix.test.tsx` executes
-all 29 manifest case IDs with no skips. It mounts production components, waits
+all 30 manifest case IDs with no skips. It mounts production components, waits
 for deterministic loaded-state sentinels, uses exact MSW handlers for
 network-backed surfaces, and treats unexpected requests, uncaught errors,
 React `act` warnings, and relevant console warnings/errors as failures. Each
@@ -71,9 +72,9 @@ no copied test-only overlay markup.
 ### Browser render-site matrix
 
 `tests/frontend/e2e/dialog-render-sites.spec.ts` reads the same manifest and
-creates one Playwright test for each of the 55 `application_render_site` rows,
+creates one Playwright test for each of the 56 `application_render_site` rows,
 plus a registry-integrity assertion that proves exact driver/manifest equality.
-The 24 component-owned render sites open through owner harnesses that mount the
+The 25 component-owned render sites open through owner harnesses that mount the
 production source parents; the 31 page-owned sites drive real authenticated
 application routes. No driver mounts a leaf dialog directly. Every render-site
 case verifies semantic role/name, initial focus, forward and reverse focus

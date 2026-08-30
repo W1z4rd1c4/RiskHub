@@ -43,6 +43,7 @@ You will use this area most often for:
 - Assets
 - Threats
 - Approvals
+- Evidence & Reports
 - Settings
 
 In the local demo login picker, ten demo personas appear as equal cards in a
@@ -120,6 +121,14 @@ For reliable results, work in this order:
 4. Confirm names, codes, owners, and status on the list, panel, modal, drilldown, or separate page that the module provides before you act.
 
 For evidence during onboarding, record the route, visible role, filters used, and the record name or code you checked.
+
+Open **Evidence & Reports** at `/evidence` when you need a safe starting point for one of three questions:
+
+- **Activity Log:** Who changed a business record, and when?
+- **Control Execution History:** Were controls performed, and what were the results?
+- **Vendor Reports:** Which vendor and DORA reports are available to export?
+
+Cards and links appear only when the corresponding authority and backend capability are available. A temporarily unavailable capability is shown with Retry; it is not presented as an access denial.
 
 ## Tips and Common Mistakes
 

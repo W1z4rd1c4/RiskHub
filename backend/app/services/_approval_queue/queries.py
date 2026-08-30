@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import and_, false, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.models import (
     ApprovalRequest,
@@ -38,6 +39,7 @@ from .projection import (
     governed_process_actor_safe_labels,
     governed_process_resolver_ids,
     governed_process_snapshot_access_ids,
+    legacy_pending_change_actor_safe_labels,
 )
 from .threat import live_threat_resolver_approval_ids, valid_threat_approvals
 from .vendor import live_vendor_resolver_approval_ids, valid_vendor_approvals
@@ -48,6 +50,23 @@ def _projection_load_options():
         selectinload(ApprovalRequest.requested_by),
         selectinload(ApprovalRequest.resolved_by),
         selectinload(ApprovalRequest.governed_mutation_proposal).selectinload(GovernedMutationProposal.requested_by),
+    )
+
+
+def _approval_queue_search_clause(query: str | None) -> ColumnElement[bool] | None:
+    normalized_query = (query or "").strip()
+    if not normalized_query:
+        return None
+
+    escaped_query = (
+        normalized_query.replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+    pattern = f"%{escaped_query}%"
+    return or_(
+        ApprovalRequest.resource_name.ilike(pattern, escape="\\"),
+        ApprovalRequest.requested_by.has(User.name.ilike(pattern, escape="\\")),
     )
 
 
@@ -79,6 +98,11 @@ async def _project_approval_queue_page(
         approvals=approvals,
         current_user=current_user,
     )
+    actor_safe_legacy_labels = await legacy_pending_change_actor_safe_labels(
+        db,
+        approvals=approvals,
+        current_user=current_user,
+    )
     return approval_queue_page(
         approvals=approvals,
         total=total,
@@ -89,6 +113,7 @@ async def _project_approval_queue_page(
         governed_resolver_ids=governed_resolver_ids,
         can_view_governed_references=can_view_governed_references,
         actor_safe_extended_labels=actor_safe_extended_labels,
+        actor_safe_legacy_labels=actor_safe_legacy_labels,
     ).to_response()
 
 
@@ -101,6 +126,7 @@ async def list_approval_queue_page(
     status_filter: ApprovalStatusEnum | None,
     resource_type: ApprovalResourceTypeEnum | None,
     my_requests: bool,
+    q: str | None = None,
 ) -> ApprovalRequestListResponse:
     tier = approval_privilege_tier(current_user)
     candidate_statuses: tuple[ApprovalStatus, ...] | None
@@ -259,6 +285,9 @@ async def list_approval_queue_page(
                     current_user=current_user,
                     resource_type=ApprovalResourceType(resource_type.value) if resource_type else None,
                 )
+                search_clause = _approval_queue_search_clause(q)
+                if search_clause is not None:
+                    pending_query = pending_query.where(search_clause)
                 count_query = select(func.count()).select_from(pending_query.order_by(None).subquery())
                 total = (await db.execute(count_query)).scalar() or 0
                 result = await db.execute(pending_query.options(*_projection_load_options()).offset(skip).limit(limit))
@@ -286,12 +315,16 @@ async def list_approval_queue_page(
             )
         )
 
+    search_clause = _approval_queue_search_clause(q)
+    if search_clause is not None:
+        base_query = base_query.where(search_clause)
+
     total = (await db.execute(select(func.count()).select_from(base_query.subquery()))).scalar() or 0
     result = await db.execute(
         base_query.options(*_projection_load_options())
+        .order_by(ApprovalRequest.created_at.desc(), ApprovalRequest.id.desc())
         .offset(skip)
         .limit(limit)
-        .order_by(ApprovalRequest.created_at.desc())
     )
     approvals = list(result.scalars().all())
     return await _project_approval_queue_page(

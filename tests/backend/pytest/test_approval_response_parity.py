@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from uuid import UUID
 
 import pytest
@@ -240,6 +241,12 @@ async def test_governed_approval_endpoints_return_same_safe_read_shape(
         requester=test_user_cro,
         department=test_department,
     )
+    proposal = approval.governed_mutation_proposal
+    assert proposal is not None
+    stored_pending_changes = deepcopy(approval.pending_changes)
+    stored_before = deepcopy(proposal.before_snapshot)
+    stored_after = deepcopy(proposal.after_snapshot)
+    stored_impact = deepcopy(proposal.derived_impact_snapshot)
     actor = test_user_cro if path_template.endswith("/cancel") else test_user_risk_manager
 
     async with client_factory(current_user=actor) as client:
@@ -252,3 +259,10 @@ async def test_governed_approval_endpoints_return_same_safe_read_shape(
     assert set(body) == APPROVAL_READ_KEYS
     assert body["status"] == expected_status
     _assert_governed_process_read(body)
+
+    await db_session.refresh(approval)
+    await db_session.refresh(proposal)
+    assert approval.pending_changes == stored_pending_changes
+    assert proposal.before_snapshot == stored_before
+    assert proposal.after_snapshot == stored_after
+    assert proposal.derived_impact_snapshot == stored_impact

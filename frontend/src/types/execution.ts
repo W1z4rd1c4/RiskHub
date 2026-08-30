@@ -53,6 +53,7 @@ export interface ExecutionAuditItem extends ControlExecution {
 }
 
 export interface ExecutionListCapabilities {
+    can_read: boolean;
     can_export_csv?: boolean;
 }
 

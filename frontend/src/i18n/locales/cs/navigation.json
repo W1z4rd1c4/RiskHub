@@ -1,19 +1,64 @@
 {
     "primary_navigation": "Hlavní navigace",
     "more_destinations_below": "Další cíle navigace níže",
+    "go_to": {
+        "trigger": "Přejít na",
+        "shortcut": "Cmd/Ctrl+K",
+        "title": "Přejít na",
+        "description": "Vyhledejte dostupné cíle navigace a záznamy.",
+        "search_label": "Hledat cíle navigace a záznamy",
+        "search_placeholder": "Zadejte cíl navigace nebo záznam",
+        "results": "Výsledky navigace",
+        "destinations": "Cíle navigace",
+        "records": "Záznamy",
+        "blank_prompt": "Pro vyhledání zadejte alespoň jeden znak.",
+        "empty": "Vašemu hledání neodpovídá žádný dostupný cíl.",
+        "records_prompt": "Pro hledání záznamů zadejte alespoň dva znaky.",
+        "records_searching": "Vyhledávání záznamů…",
+        "records_empty": "Nebyly nalezeny žádné záznamy.",
+        "records_unavailable": "Záznamy nejsou dostupné.",
+        "records_retry": "Opakovat hledání záznamů",
+        "record_types": {
+            "risk": "Riziko",
+            "control": "Kontrola",
+            "kri": "KRI",
+            "issue": "Nález",
+            "vendor": "Dodavatel",
+            "process": "Proces",
+            "asset": "Aktivum",
+            "threat": "Hrozba"
+        },
+        "record_statuses": {
+            "active": "Aktivní",
+            "closed": "Uzavřeno",
+            "draft": "Koncept",
+            "emerging": "Vznikající",
+            "inactive": "Neaktivní",
+            "in_progress": "Probíhá",
+            "open": "Otevřeno",
+            "ready_for_validation": "Připraveno k ověření",
+            "triaged": "Posouzeno",
+            "unknown": "Neznámý stav"
+        },
+        "close": "Zavřít"
+    },
+    "destination_supporting_terms": {
+        "kris": "Sledování rizikového apetitu"
+    },
     "sidebar": {
         "dashboard": "Přehled",
         "risks": "Rizika",
         "issues": "Nálezy",
         "controls": "Kontroly",
-        "kris": "Rizikový apetit",
+        "kris": "KRI",
         "vendors": "Dodavatelé",
         "processes": "Procesy",
         "assets": "Aktiva",
         "threats": "Hrozby",
         "ict_register_dq": "ICT kvalita dat",
-        "approvals": "Úkoly",
-        "activity_log": "Auditní stopa",
+        "approvals": "Schválení",
+        "activity_log": "Záznam aktivit",
+        "evidence": "Důkazy a reporty",
         "reports": "Reporty",
         "settings": "Nastavení",
         "admin": "Administrace",
@@ -47,7 +92,7 @@
     },
     "tabs": {
         "controls": "Katalog kontrol",
-        "risk_appetite": "Rizikový apetit",
+        "risk_appetite": "KRI",
         "risks": "Registr rizik",
         "approvals": "Schválení"
     }

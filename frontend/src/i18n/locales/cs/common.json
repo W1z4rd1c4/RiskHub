@@ -39,6 +39,11 @@
   "brand": {
     "name": "RiskHub"
   },
+  "not_found_page": {
+    "title": "Stránka nebyla nalezena",
+    "description": "Tato adresa neodpovídá žádné dostupné stránce.",
+    "dashboard": "Přehled"
+  },
   "detail_load": {
     "unavailable_title": "Záznam není dostupný",
     "unavailable_description": "Tento záznam teď nelze načíst. Zkuste to znovu nebo se vraťte do registru.",

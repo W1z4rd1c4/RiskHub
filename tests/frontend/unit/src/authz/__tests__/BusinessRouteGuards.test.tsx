@@ -81,7 +81,7 @@ describe('Business route guards', () => {
         vi.resetAllMocks();
     });
 
-    it('redirects platform admin away from /governance', async () => {
+    it('shows a generic denial to a platform admin at /governance', async () => {
         mockUseAuthz.mockReturnValue({
             isPlatformAdmin: true,
             canViewGovernance: false,
@@ -90,11 +90,12 @@ describe('Business route guards', () => {
 
         renderGovernanceRoute();
 
-        expect(await screen.findByText('Home')).toBeInTheDocument();
+        expect(await screen.findByText('Access Denied')).toBeInTheDocument();
+        expect(screen.queryByText('Home')).not.toBeInTheDocument();
         expect(screen.queryByText('Governance')).not.toBeInTheDocument();
     });
 
-    it('redirects platform admin away from /activity-log', async () => {
+    it('shows a generic denial to a platform admin at /activity-log', async () => {
         mockUseAuthz.mockReturnValue({
             isPlatformAdmin: true,
             canViewGovernance: false,
@@ -103,11 +104,12 @@ describe('Business route guards', () => {
 
         renderActivityLogRoute();
 
-        expect(await screen.findByText('Home')).toBeInTheDocument();
+        expect(await screen.findByText('Access Denied')).toBeInTheDocument();
+        expect(screen.queryByText('Home')).not.toBeInTheDocument();
         expect(screen.queryByText('Activity Log')).not.toBeInTheDocument();
     });
 
-    it('redirects users without control read access away from /audit-trail', async () => {
+    it('shows a generic denial without control read access at /audit-trail', async () => {
         renderGuardedRoute(
             AuditTrailRouteGuard,
             '/audit-trail',
@@ -117,11 +119,12 @@ describe('Business route guards', () => {
             },
         );
 
-        expect(await screen.findByText('Home')).toBeInTheDocument();
+        expect(await screen.findByText('Access Denied')).toBeInTheDocument();
+        expect(screen.queryByText('Home')).not.toBeInTheDocument();
         expect(screen.queryByText('Audit Trail')).not.toBeInTheDocument();
     });
 
-    it('redirects users without admin console access away from /admin', async () => {
+    it('shows a generic denial without admin console access at /admin', async () => {
         renderGuardedRoute(
             AdminConsoleRouteGuard,
             '/admin',
@@ -131,11 +134,12 @@ describe('Business route guards', () => {
             },
         );
 
-        expect(await screen.findByText('Home')).toBeInTheDocument();
+        expect(await screen.findByText('Access Denied')).toBeInTheDocument();
+        expect(screen.queryByText('Home')).not.toBeInTheDocument();
         expect(screen.queryByText('Admin Console')).not.toBeInTheDocument();
     });
 
-    it('redirects users without admin console access away from /admin/docs', async () => {
+    it('shows a generic denial without admin console access at /admin/docs', async () => {
         renderGuardedRoute(
             AdminConsoleRouteGuard,
             '/admin/docs',
@@ -145,7 +149,8 @@ describe('Business route guards', () => {
             },
         );
 
-        expect(await screen.findByText('Home')).toBeInTheDocument();
+        expect(await screen.findByText('Access Denied')).toBeInTheDocument();
+        expect(screen.queryByText('Home')).not.toBeInTheDocument();
         expect(screen.queryByText('Admin Docs')).not.toBeInTheDocument();
     });
 });

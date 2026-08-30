@@ -206,7 +206,7 @@ async function expectCitedMutedForegrounds(
 
   await visit(page, '/departments');
   const departmentCard = page.locator('main button.glass-card').first();
-  for (const label of ['Risk Register', 'Control Catalog', 'Risk Appetite']) {
+  for (const label of ['Risk Register', 'Control Catalog', 'KRIs']) {
     const metadata = departmentCard.getByText(label, { exact: true });
     await expect(metadata, `${theme} Department ${label} metadata`).toBeVisible();
     expect(await metadata.evaluate((element) => getComputedStyle(element).color))

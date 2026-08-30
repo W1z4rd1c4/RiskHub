@@ -147,4 +147,4 @@ If a linked record is missing, you may not have access to that related item. Ask
 
 ## Related Manuals
 
-Start with [Controls](./controls.md), [Kris](./kris.md), [Vendors](./vendors.md), [Risk Hub](./risk-hub.md), [Notifications](./notifications.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.
+Start with [Controls](./controls.md), [KRIs](./kris.md), [Vendors](./vendors.md), [Risk Hub](./risk-hub.md), [Notifications](./notifications.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

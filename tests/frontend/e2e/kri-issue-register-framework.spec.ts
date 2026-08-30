@@ -349,7 +349,7 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
                 });
             });
             await riskManagerPage.getByRole('link', {
-                name: contract.prefix === 'kris' ? /^Risk Appetite$/ : /^Issues$/,
+                name: contract.prefix === 'kris' ? /^KRIs$/ : /^Issues$/,
             }).click();
             await riskManagerPage.waitForURL(contract.path);
             await waitForRegisterReady(riskManagerPage, contract);

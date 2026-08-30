@@ -234,7 +234,7 @@
     "visibility": "Viditelnost"
   },
   "activity_log": {
-    "title": "Auditní stopa",
+    "title": "Záznam aktivit",
     "audit_trail": "Forenzní záznam",
     "view_modes": {
       "chronological": "Chronologicky",

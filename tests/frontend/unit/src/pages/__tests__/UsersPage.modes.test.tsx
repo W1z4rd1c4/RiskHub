@@ -613,7 +613,7 @@ describe('UsersPage mode selection', () => {
         expect(screen.queryByText('No users found matching your criteria.')).not.toBeInTheDocument();
     });
 
-    it('redirects to home when the user lacks any users-route entitlement', async () => {
+    it('renders generic access denied when the user lacks any users-route entitlement', async () => {
         const accessHandler = vi.fn(() => HttpResponse.json([]));
         const deptAccessHandler = vi.fn(() => HttpResponse.json([]));
         const directoryHandler = vi.fn(() =>
@@ -638,9 +638,8 @@ describe('UsersPage mode selection', () => {
 
         await renderUsersRoute();
 
-        await waitFor(() => {
-            expect(screen.getByText('Home route')).toBeInTheDocument();
-        });
+        expect(await screen.findByText('Access Denied')).toBeInTheDocument();
+        expect(screen.queryByText('Home route')).not.toBeInTheDocument();
         expect(accessHandler).not.toHaveBeenCalled();
         expect(deptAccessHandler).not.toHaveBeenCalled();
         expect(directoryHandler).not.toHaveBeenCalled();

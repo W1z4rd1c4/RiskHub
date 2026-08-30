@@ -15,6 +15,7 @@ import { dashboardKeys } from '@/lib/queryKeys';
 import { getGroupedSidebarNav, resolveActiveSidebarHref } from '@/routing';
 import { userApi } from '@/services/userApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { DestinationLauncher } from '@/components/layout/DestinationLauncher';
 import { SIDEBAR_POLL_MS } from '@/config/constants';
 import './sidebar.css';
 
@@ -104,6 +105,7 @@ export function Sidebar() {
             }
 
             return {
+                definition: route,
                 href: route.nav.href,
                 icon: route.nav.icon,
                 label: t(`sidebar.${route.nav.labelKey}`),
@@ -111,6 +113,9 @@ export function Sidebar() {
             };
         }),
     }));
+    const visibleSidebarRoutes = navGroups.flatMap((section) => (
+        section.items.map((item) => item.definition)
+    ));
 
     // Resolve the single active item across all groups so `:id`/edit/detail
     // routes still highlight their nav item, and nested siblings like `/admin`
@@ -177,6 +182,8 @@ export function Sidebar() {
                         onUnreadCountChange={handleUnreadCountChange}
                     />
                 </div>
+
+                <DestinationLauncher routes={visibleSidebarRoutes} />
 
                 <div className="flex min-h-0 flex-1 flex-col">
                     <nav

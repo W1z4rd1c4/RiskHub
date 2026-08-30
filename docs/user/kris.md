@@ -30,6 +30,8 @@ tags:
 
 Use this manual when you need to create meaningful indicators, set thresholds, submit values on time, understand breach and warning signals, and request corrections when needed. It is written for users who define, submit, or review risk indicators, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
+The **KRIs** page supports **Risk appetite monitoring**; Risk appetite remains the business context, while KRIs is the canonical page and navigation label.
+
 The page is not a technical reference. It explains the everyday operating pattern: start from the right screen, confirm the record is the one you intend to update, make the smallest useful change, and then verify the result in the list, detail page, notifications, or activity history.
 
 You will use this area most often for:

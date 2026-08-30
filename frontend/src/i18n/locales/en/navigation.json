@@ -1,19 +1,64 @@
 {
     "primary_navigation": "Primary navigation",
     "more_destinations_below": "More destinations below",
+    "go_to": {
+        "trigger": "Go to",
+        "shortcut": "Cmd/Ctrl+K",
+        "title": "Go to",
+        "description": "Search the destinations and records available to you.",
+        "search_label": "Search destinations and records",
+        "search_placeholder": "Type a destination or record",
+        "results": "Go to results",
+        "destinations": "Destinations",
+        "records": "Records",
+        "blank_prompt": "Type at least one character to search destinations.",
+        "empty": "No available destinations match your search.",
+        "records_prompt": "Type at least two characters to search records.",
+        "records_searching": "Searching records…",
+        "records_empty": "No records found.",
+        "records_unavailable": "Records unavailable.",
+        "records_retry": "Retry record search",
+        "record_types": {
+            "risk": "Risk",
+            "control": "Control",
+            "kri": "KRI",
+            "issue": "Issue",
+            "vendor": "Vendor",
+            "process": "Process",
+            "asset": "Asset",
+            "threat": "Threat"
+        },
+        "record_statuses": {
+            "active": "Active",
+            "closed": "Closed",
+            "draft": "Draft",
+            "emerging": "Emerging",
+            "inactive": "Inactive",
+            "in_progress": "In progress",
+            "open": "Open",
+            "ready_for_validation": "Ready for validation",
+            "triaged": "Triaged",
+            "unknown": "Unknown status"
+        },
+        "close": "Close"
+    },
+    "destination_supporting_terms": {
+        "kris": "Risk appetite monitoring"
+    },
     "sidebar": {
         "dashboard": "Dashboard",
         "risks": "Risks",
         "issues": "Issues",
         "controls": "Controls",
-        "kris": "Risk Appetite",
+        "kris": "KRIs",
         "vendors": "Vendors",
         "processes": "Processes",
         "assets": "Assets",
         "threats": "Threats",
         "ict_register_dq": "ICT Data Quality",
-        "approvals": "Workflow",
-        "activity_log": "Audit Trail",
+        "approvals": "Approvals",
+        "activity_log": "Activity Log",
+        "evidence": "Evidence & Reports",
         "reports": "Reports",
         "settings": "Settings",
         "admin": "Admin Console",
@@ -47,7 +92,7 @@
     },
     "tabs": {
         "controls": "Control Catalog",
-        "risk_appetite": "Risk Appetite",
+        "risk_appetite": "KRIs",
         "risks": "Risk Register",
         "approvals": "Approvals"
     }

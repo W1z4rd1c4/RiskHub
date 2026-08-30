@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 import {
-    buildApprovalListParams,
     getGovernedActionLabel,
     getApprovalStatusBadge,
     getQuestionnaireStatusBadge,
@@ -28,26 +27,6 @@ function createQuestionnaire(overrides: Partial<RiskQuestionnaireListItem> = {})
 }
 
 describe('Approvals page presentation helpers', () => {
-    describe('buildApprovalListParams', () => {
-        it('adds pending status for the pending queue', () => {
-            expect(buildApprovalListParams('pending')).toEqual({
-                limit: 100,
-                status: 'pending',
-            });
-        });
-
-        it('maps mine to my_requests only', () => {
-            expect(buildApprovalListParams('mine')).toEqual({
-                limit: 100,
-                my_requests: true,
-            });
-        });
-
-        it('keeps all/history unfiltered', () => {
-            expect(buildApprovalListParams('all')).toEqual({ limit: 100 });
-        });
-    });
-
     it('presents expired approvals as a neutral terminal state', () => {
         expect(getApprovalStatusBadge('expired')).toBe(
             'text-slate-400 border-slate-400/20 bg-slate-400/5',

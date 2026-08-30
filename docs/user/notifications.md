@@ -151,4 +151,4 @@ reassignment. Treat the record detail and approval row as the source of truth.
 
 ## Related Manuals
 
-Start with [Activity Log](./activity-log.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.
+Start with [Activity Log](./activity-log.md), [Risks](./risks.md), [Controls](./controls.md), [KRIs](./kris.md), [Issues](./issues.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

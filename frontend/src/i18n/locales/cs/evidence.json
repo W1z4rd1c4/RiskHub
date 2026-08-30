@@ -1,0 +1,26 @@
+{
+  "title": "Důkazy a reporty",
+  "subtitle": "Vyberte zdroj důkazů podle otázky, kterou potřebujete ověřit.",
+  "availability": {
+    "checking": "Ověřuji dostupnost…",
+    "unavailable": "Nedostupné",
+    "retry": "Zkusit znovu"
+  },
+  "cards": {
+    "activity": {
+      "title": "Záznam aktivit",
+      "question": "Kdo změnil obchodní záznam a kdy?",
+      "link": "Otevřít záznam aktivit"
+    },
+    "execution": {
+      "title": "Historie provedení kontrol",
+      "question": "Byly kontroly provedeny a s jakým výsledkem?",
+      "link": "Otevřít historii provedení kontrol"
+    },
+    "vendor": {
+      "title": "Reporty dodavatelů",
+      "question": "Které dodavatelské reporty a reporty DORA lze exportovat?",
+      "link": "Otevřít reporty dodavatelů"
+    }
+  }
+}

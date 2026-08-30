@@ -22,7 +22,11 @@ from ._approval_execution.authorization import (
     assert_can_reject,
 )
 from ._approval_execution.constants import EDITABLE_FIELDS
-from ._approval_execution.loading import get_approval_department_id, load_approval
+from ._approval_execution.loading import (
+    assert_valid_legacy_pending_changes,
+    get_approval_department_id,
+    load_approval,
+)
 from ._approval_execution.logging import log_approval_approve
 from ._approval_execution.resolution import (
     approval_cancelled_event_plan,
@@ -121,6 +125,7 @@ async def approve_request_workflow(
         )
     approval = await load_approval(db, approval_id)
     is_privileged, is_primary_approver, is_scenario_approver = await assert_can_approve(db, approval, current_user)
+    assert_valid_legacy_pending_changes(approval)
     previous_status = approval.status
 
     should_apply_changes = apply_status_transition(
@@ -211,6 +216,7 @@ async def reject_request_workflow(
         )
     approval = await load_approval(db, approval_id)
     await assert_can_reject(db, approval, current_user)
+    assert_valid_legacy_pending_changes(approval)
     previous_status = approval.status
 
     async def apply_rejection() -> None:
@@ -304,6 +310,7 @@ async def cancel_request_workflow(
         )
     approval = await load_approval(db, approval_id)
     tier = await assert_can_cancel(db, approval, current_user)
+    assert_valid_legacy_pending_changes(approval)
 
     async def apply_cancellation() -> None:
         approval.status = ApprovalStatus.CANCELLED

@@ -142,4 +142,4 @@ If a linked record is missing, you may not have access to that related item. Ask
 
 ## Related Manuals
 
-Start with [Governance](./governance.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Vendors](./vendors.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.
+Start with [Governance](./governance.md), [Risks](./risks.md), [Controls](./controls.md), [KRIs](./kris.md), [Vendors](./vendors.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

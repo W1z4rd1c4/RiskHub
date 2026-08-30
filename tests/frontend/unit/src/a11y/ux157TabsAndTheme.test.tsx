@@ -137,11 +137,11 @@ describe('UX-157 desktop content tabs', () => {
         clearBootstrapSession();
     });
 
-    it('gives Workflow one automatically activating, wrapping roving tab stop', async () => {
+    it('gives Approvals one automatically activating, wrapping roving tab stop', async () => {
         const user = userEvent.setup();
         renderApprovalsPage();
 
-        const tablist = screen.getByRole('tablist', { name: 'Workflow' });
+        const tablist = screen.getByRole('tablist', { name: 'Approvals' });
         const tabs = within(tablist).getAllByRole('tab');
         const pending = within(tablist).getByRole('tab', { name: 'Pending Queue' });
         const history = within(tablist).getByRole('tab', { name: 'History' });

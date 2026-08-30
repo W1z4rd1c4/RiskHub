@@ -77,7 +77,7 @@ const REGISTERS: readonly RegisterContract[] = [
         sortField: 'name',
     },
     {
-        backActionName: /Risk Appetite|Rizikový apetit/i,
+        backActionName: /KRIs|KRI/i,
         collectionPath: '/api/v1/kris',
         groupedView: 'department',
         groupBy: 'department',

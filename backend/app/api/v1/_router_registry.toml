@@ -108,6 +108,11 @@ prefix = "/executions"
 tags = ["executions"]
 
 [[modules]]
+module = "go_to"
+prefix = "/go-to"
+tags = ["go-to"]
+
+[[modules]]
 module = "kris"
 prefix = "/kris"
 tags = ["Key Risk Indicators"]

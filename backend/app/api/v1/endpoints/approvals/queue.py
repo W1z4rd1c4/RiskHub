@@ -44,6 +44,7 @@ async def list_approval_requests(
     status_filter: Optional[ApprovalStatusEnum] = Query(None, alias="status"),
     resource_type: Optional[ApprovalResourceTypeEnum] = None,
     my_requests: bool = Query(False, description="Show only my submitted requests"),
+    q: Optional[str] = Query(None, description="Search by resource or requester display name"),
 ):
     """
     List approval requests.
@@ -58,4 +59,5 @@ async def list_approval_requests(
         status_filter=status_filter,
         resource_type=resource_type,
         my_requests=my_requests,
+        q=q,
     )

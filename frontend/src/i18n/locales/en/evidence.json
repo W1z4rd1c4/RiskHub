@@ -1,0 +1,26 @@
+{
+  "title": "Evidence & Reports",
+  "subtitle": "Choose the evidence source that answers your review question.",
+  "availability": {
+    "checking": "Checking availability…",
+    "unavailable": "Unavailable",
+    "retry": "Retry"
+  },
+  "cards": {
+    "activity": {
+      "title": "Activity Log",
+      "question": "Who changed a business record, and when?",
+      "link": "Open Activity Log"
+    },
+    "execution": {
+      "title": "Control Execution History",
+      "question": "Were controls performed, and what were the results?",
+      "link": "Open Control Execution History"
+    },
+    "vendor": {
+      "title": "Vendor Reports",
+      "question": "Which vendor and DORA reports are available to export?",
+      "link": "Open Vendor Reports"
+    }
+  }
+}

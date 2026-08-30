@@ -1,5 +1,5 @@
 ---
-title: Activity Log (Audit Trail for Business Changes)
+title: Activity Log
 version: "2.4"
 last_updated: "2026-04-25"
 audience: user
@@ -12,7 +12,7 @@ tags:
   - troubleshooting
   - workflow
 ---
-# Activity Log (Audit Trail for Business Changes)
+# Activity Log
 
 **On this page**
 - [What This Page Helps You Do](#what-this-page-helps-you-do)
@@ -52,6 +52,8 @@ Have the record name, code, owner, and department ready before asking for help. 
 Primary route: `/activity-log`
 
 You can usually reach this area from the left sidebar. The Activity Log is a timeline surface with tabs, filters, entry cards, refresh, and pagination. Work stays in the filtered timeline.
+
+When your role can read controls, the page also links to **Control Execution History**. That separate page answers whether controls were performed and what results were recorded; it does not merge execution records into the Activity Log.
 
 Common navigation pattern:
 

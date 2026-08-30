@@ -120,7 +120,7 @@
     "export_excel": "Export CSV"
   },
   "audit_trail": {
-    "title": "Audit Trail",
+    "title": "Control Execution History",
     "subtitle": "Global log of all control executions and compliance checks.",
     "all_results": "All Results",
     "total_records": "{{count}} Total Records",
@@ -237,6 +237,6 @@
   },
   "access": {
     "denied": "Access denied",
-    "denied_activity_log": "You do not have permission to view the Activity Log."
+    "denied_control_execution_history": "You do not have permission to view Control Execution History."
   }
 }

@@ -114,7 +114,7 @@ hrozby. CRO může každý scénář zapnout nebo vypnout a vybrat neprázdnou
 podmnožinu rolí Risk Manager/CRO; prahy, pokryté mutace a zákaz self-approval
 zůstávají read-only politikou.
 
-Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; Risk Hub panely a Activity Log ukazují aktuální kontext.
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; Risk Hub panely a Záznam aktivit ukazují aktuální kontext.
 
 Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Otevřete relevantní Risk Hub panel, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
@@ -129,7 +129,7 @@ Pro spolehlivý výsledek postupujte takto:
 3. Před změnou otevřete relevantní řádek, modál nebo dotazníkovou akci.
 4. Ověřte uložený stav a případné notifikace vytvořené workflow.
 
-Pro formální evidenci použijte historii dotazníku, uložený stav panelu nebo Activity Log místo očekávání exportu přímo z Risk Hubu.
+Pro formální evidenci použijte historii dotazníku, uložený stav panelu nebo stránku **Záznam aktivit** místo očekávání exportu přímo z Risk Hubu.
 
 ## Tipy a časté chyby
 

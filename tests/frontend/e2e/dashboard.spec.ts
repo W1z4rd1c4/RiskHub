@@ -46,7 +46,7 @@ test.describe('Dashboard', () => {
             const sidebar = page.locator('aside');
             await expect(sidebar.locator('text=Risks')).toBeVisible();
             await expect(sidebar.locator('text=Controls')).toBeVisible();
-            await expect(sidebar.locator('text=Risk Appetite')).toBeVisible();
+            await expect(sidebar.getByText('KRIs', { exact: true })).toBeVisible();
         });
     });
 });

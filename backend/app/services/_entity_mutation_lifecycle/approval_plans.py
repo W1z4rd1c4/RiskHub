@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -35,25 +36,22 @@ from app.services.approval_scenario_policy import (
 )
 
 
+def _pending_change_value(value: object) -> object:
+    if hasattr(value, "value"):
+        value = value.value
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    return value
+
+
 def build_pending_changes(target: object, update_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {
         key: {
-            "old": getattr(target, key, None),
-            "new": value.value if hasattr(value, "value") else value,
+            "old": _pending_change_value(getattr(target, key, None)),
+            "new": _pending_change_value(value),
         }
         for key, value in update_data.items()
     }
-
-
-def build_priority_risk_change_set(risk: Risk, update_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    changed = {}
-    for field, new_val in update_data.items():
-        old_val = getattr(risk, field, None)
-        if hasattr(new_val, "value"):
-            new_val = new_val.value
-        if old_val != new_val:
-            changed[field] = {"old": old_val, "new": new_val}
-    return changed
 
 
 async def first_high_risk_linked_risk(db: AsyncSession, control_id: int) -> tuple[bool, Risk | None]:
@@ -80,7 +78,7 @@ async def create_risk_edit_approval_if_required(
         "category": risk.category,
         "is_priority": risk.is_priority,
     }
-    has_sensitive, changed = has_sensitive_field_changes("risk", old_data, update_data)
+    has_sensitive, sensitive_changes = has_sensitive_field_changes("risk", old_data, update_data)
     is_priority_risk_edit = risk.is_priority and bool(update_data)
 
     if not has_sensitive and not is_priority_risk_edit:
@@ -107,14 +105,14 @@ async def create_risk_edit_approval_if_required(
     if existing.scalar_one_or_none():
         raise ValidationError("Edit request already pending for this risk")
 
-    if is_priority_risk_edit and not has_sensitive:
-        changed = build_priority_risk_change_set(risk, update_data)
+    pending_changes = build_pending_changes(risk, update_data)
+    reason_fields = sensitive_changes if has_sensitive else pending_changes
 
     desc_snippet = risk.description[:50] if risk.description else ""
     reason = (
-        f"Edit to priority risk - fields: {', '.join(changed.keys())}"
+        f"Edit to priority risk - fields: {', '.join(reason_fields.keys())}"
         if is_priority_risk_edit and not has_sensitive
-        else f"Change to sensitive fields: {', '.join(changed.keys())}"
+        else f"Change to sensitive fields: {', '.join(reason_fields.keys())}"
     )
     primary_approver_id, requires_privileged = await get_risk_edit_approval_metadata(
         db,
@@ -129,7 +127,7 @@ async def create_risk_edit_approval_if_required(
         requested_by_id=current_user.id,
         reason=reason,
         action_type=ApprovalActionType.EDIT,
-        pending_changes=changed,
+        pending_changes=pending_changes,
         status=ApprovalStatus.PENDING,
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=requires_privileged,
@@ -148,8 +146,8 @@ async def create_risk_edit_approval_if_required(
         message="Change requires approval" + (" (priority risk)" if is_priority_risk_edit else ""),
         approval_id=approval.id,
         action_type="edit",
-        pending_fields=list(changed.keys()),
-        pending_changes=changed,
+        pending_fields=list(pending_changes.keys()),
+        pending_changes=pending_changes,
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=requires_privileged,
     )
@@ -187,7 +185,7 @@ async def create_control_edit_approval_if_required(
         if has_sensitive:
             requires_approval = True
             approval_reason = f"Change to sensitive fields: {', '.join(changed.keys())}"
-            pending_changes = changed
+            pending_changes = build_pending_changes(control, update_data)
 
     if not requires_approval and is_owner:
         requires_approval = True

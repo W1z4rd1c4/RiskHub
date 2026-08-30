@@ -7,7 +7,13 @@ import {
 import type { CreateApprovalRequest, ResolveApprovalRequest } from '../types/approval';
 
 export const approvalsApi = {
-    list: (params?: { status?: string; my_requests?: boolean; skip?: number; limit?: number }) =>
+    list: (params?: {
+        status?: string;
+        my_requests?: boolean;
+        q?: string;
+        skip?: number;
+        limit?: number;
+    }) =>
         apiClient.get('/approvals', { params, schema: approvalListResponseSchema }),
 
     get: (id: number) =>

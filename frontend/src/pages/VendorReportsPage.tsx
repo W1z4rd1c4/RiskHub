@@ -3,11 +3,11 @@ import { useTranslation } from '@/i18n/hooks';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { vendorReportApi } from '@/services/vendorReportApi';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
-import type { VendorReportCapabilities } from '@/types/vendorReport';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { logError } from '@/services/logger';
+import { useVendorReportCapabilities } from '@/hooks/useVendorReportCapabilities';
 
 type AnnualDownloadRequest = {
     year: number;
@@ -24,10 +24,10 @@ export function VendorReportsPage() {
     const [year, setYear] = useState<number>(new Date().getFullYear());
     const [departmentId, setDepartmentId] = useState<number | null>(null);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
-    const [capabilities, setCapabilities] = useState<VendorReportCapabilities | null>(null);
-    const [isCapabilitiesLoading, setIsCapabilitiesLoading] = useState(true);
-    const [capabilitiesUnavailable, setCapabilitiesUnavailable] = useState(false);
-    const [capabilityAttempt, setCapabilityAttempt] = useState(0);
+    const vendorCapability = useVendorReportCapabilities();
+    const capabilities = vendorCapability.capabilities;
+    const isCapabilitiesLoading = vendorCapability.state === 'pending';
+    const capabilitiesUnavailable = vendorCapability.state === 'unavailable';
     const [isAnnualDownloading, setIsAnnualDownloading] = useState(false);
     const [annualError, setAnnualError] = useState<AnnualDownloadRequest | null>(null);
     const [isDoraDownloading, setIsDoraDownloading] = useState(false);
@@ -63,34 +63,6 @@ export function VendorReportsPage() {
             setIsDoraDownloading(false);
         }
     };
-
-    useEffect(() => {
-        let cancelled = false;
-        setIsCapabilitiesLoading(true);
-        setCapabilitiesUnavailable(false);
-        vendorReportApi.getCapabilities()
-            .then((data) => {
-                if (!cancelled) {
-                    setCapabilities(data);
-                }
-            })
-            .catch((error: unknown) => {
-                if (!cancelled) {
-                    setCapabilities(null);
-                    setCapabilitiesUnavailable(true);
-                    logError('Failed to load vendor report capabilities.', error);
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setIsCapabilitiesLoading(false);
-                }
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [capabilityAttempt]);
 
     useEffect(() => {
         if (!canUseDepartmentFilter) {
@@ -156,7 +128,7 @@ export function VendorReportsPage() {
                 <p className="text-foreground font-medium">{t('reports.unavailable')}</p>
                 <button
                     type="button"
-                    onClick={() => setCapabilityAttempt((attempt) => attempt + 1)}
+                    onClick={vendorCapability.retry}
                     className="px-4 py-2 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-muted/80 transition-colors"
                 >
                     {tCommon('actions.retry')}

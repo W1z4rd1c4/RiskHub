@@ -101,7 +101,7 @@ Při změně přístupu zvolte nejmenší akci, která odpovídá business potř
 
 Změny přístupů jsou omezené na oprávněné role. Pokud se akce nezobrazuje, neobcházejte ji a požádejte vlastníka přístupů o kontrolu účtu.
 
-Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; řádek uživatele a Activity Log ukazují aktuální kontext účtu.
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; řádek uživatele a Záznam aktivit ukazují aktuální kontext účtu.
 
 Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Najděte uživatele znovu v tabulce, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
@@ -134,4 +134,4 @@ Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na 
 
 ## Související manuály
 
-Začněte s [Getting Started](./getting-started.md), [Activity Log](./activity-log.md), [Governance](./governance.md), [Notifications](./notifications.md), [Risk Hub](./risk-hub.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.
+Začněte s [Getting Started](./getting-started.md), [Záznam aktivit](./activity-log.md), [Governance](./governance.md), [Notifications](./notifications.md), [Risk Hub](./risk-hub.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

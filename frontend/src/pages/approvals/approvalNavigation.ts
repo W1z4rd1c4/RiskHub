@@ -1,7 +1,14 @@
-export type ApprovalQueueTab = 'mine' | 'pending';
+import {
+    updateApprovalWorkbenchQuery,
+    type ApprovalWorkbenchTab,
+} from './approvalWorkbenchQuery';
+
+export type ApprovalQueueTab = ApprovalWorkbenchTab;
 
 export function approvalRequestHref(approvalId: number, tab: ApprovalQueueTab = 'mine'): string {
-    return `/approvals?tab=${tab}&approvalId=${approvalId}`;
+    const tabParams = updateApprovalWorkbenchQuery(new URLSearchParams(), { tab });
+    const params = updateApprovalWorkbenchQuery(tabParams, { approvalId });
+    return `/approvals?${params.toString()}`;
 }
 
 /** Route through the app router so nested register panels preserve SPA navigation semantics. */

@@ -95,7 +95,7 @@ Při práci z notifikace rozhodujte podle aktuální zprávy a souvisejícího k
 
 Schvalování je kontrolní bod pro citlivé změny. Zkontrolujte kontext záznamu, porovnejte žádost s aktuálním stavem a napište srozumitelnou poznámku.
 
-Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; inbox řádek a Activity Log pomáhají rekonstruovat workflow.
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; inbox řádek a Záznam aktivit pomáhají rekonstruovat workflow.
 
 Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Obnovte inbox, porovnejte aktuální řádek se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
@@ -124,9 +124,9 @@ Pro spolehlivý výsledek postupujte takto:
 1. Začněte nepřečtenými, pending nebo nejnovějšími položkami.
 2. Před schválením, zamítnutím nebo eskalací otevřete související stránku, pokud ji notifikace nabízí.
 3. Při rozhodnutí napište jasnou poznámku.
-4. Pro evidence trail použijte Activity Log a aktuální stav inboxu.
+4. Pro auditní stopu použijte stránku **Záznam aktivit** a aktuální stav inboxu.
 
-Pro formální evidenci použijte Activity Log záznam a aktuální inbox nebo schvalovací řádek, který rozhodnutí zachycuje.
+Pro formální evidenci použijte záznam ze stránky **Záznam aktivit** a aktuální inbox nebo schvalovací řádek, který rozhodnutí zachycuje.
 
 ## Tipy a časté chyby
 
@@ -151,4 +151,4 @@ záznamu a řádek schválení.
 
 ## Související manuály
 
-Začněte s [Activity Log](./activity-log.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.
+Začněte s [Záznam aktivit](./activity-log.md), [Risks](./risks.md), [Controls](./controls.md), [KRI](./kris.md), [Issues](./issues.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,25 @@ from .helpers import apply_whitelisted_pending_changes, missing_resource_auto_re
 from .results import SideEffectResult
 
 logger = logging.getLogger("app.services.approval_execution_service")
+
+
+def _risk_execution_changes(changes: dict) -> dict:
+    """Convert the persisted ISO date copy without mutating approval storage."""
+    acceptance_change = changes.get("acceptance_date")
+    if not isinstance(acceptance_change, dict):
+        return changes
+
+    converted_change = dict(acceptance_change)
+    for side in ("old", "new"):
+        value = converted_change.get(side)
+        if isinstance(value, str):
+            try:
+                converted_change[side] = date.fromisoformat(value)
+            except ValueError:
+                pass
+    converted_changes = dict(changes)
+    converted_changes["acceptance_date"] = converted_change
+    return converted_changes
 
 
 async def _apply_edit_risk_control(
@@ -30,6 +50,7 @@ async def _apply_edit_risk_control(
         return SideEffectResult.applied()
 
     if approval.resource_type == ApprovalResourceType.RISK:
+        changes = _risk_execution_changes(changes)
         risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id).with_for_update())
         risk = risk_result.scalar_one_or_none()
         if not risk:

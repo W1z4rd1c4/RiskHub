@@ -61,7 +61,7 @@ Use your first week to build habits rather than speed. When you open a record, r
 
 ## Manuals by Task
 
-If you cannot see a page, start with [Getting Started](./getting-started.md) and [Access Management](./access-management.md). If your change did not apply, read [Notifications and Approvals](./notifications.md). If you need evidence, use [Dashboard](./dashboard.md), [Activity Log](./activity-log.md), and the manual for the affected record type.
+If you cannot see a page, start with [Getting Started](./getting-started.md) and [Access Management](./access-management.md). If your change did not apply, read [Notifications and Approvals](./notifications.md). If you need evidence, open **Evidence & Reports** at `/evidence` to find the authorized Activity Log, Control Execution History, and Vendor Reports destinations, then use the manual for the affected record type.
 
 For third-party work, start with [Vendors](./vendors.md), then follow links to risks, controls, KRIs, or issues. For questionnaire work, start with [Risk Hub](./risk-hub.md) if you send or review questionnaires, and [Managing Risks](./risks.md) if you answer from a risk detail page.
 

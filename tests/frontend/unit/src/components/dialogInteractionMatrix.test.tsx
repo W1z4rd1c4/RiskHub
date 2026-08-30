@@ -1,13 +1,16 @@
 import * as axe from 'axe-core';
 import { http, HttpResponse } from 'msw';
 import { useState, type ReactElement, type ReactNode } from 'react';
-import { RouterProvider, createMemoryRouter } from 'react-router-dom';
+import { MemoryRouter, RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, render, renderWithoutProviders, screen, userEvent, waitFor, within } from '@test/render';
 import { server } from '@test/mocks/server';
 import { useTranslation } from '@/i18n/hooks';
 import { ControlRiskLoadingOverlay } from '@/components/controls/ControlRiskLoadingOverlay';
+import { DestinationLauncher } from '@/components/layout/DestinationLauncher';
+import { buildAuthz, type PermissionChecker } from '@/authz/policy';
+import { getSidebarNavRoutes } from '@/routing';
 
 // --- Real dialog / alertdialog surfaces under test -------------------------
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -423,6 +426,7 @@ function ApprovalResolutionSurface({ onClose }: { onClose: () => void }) {
             selectedApproval={approvalFixture}
             dialogMode="approve"
             resolutionNotes=""
+            errorText={null}
             isSubmitting={false}
             onClose={onClose}
             onResolve={() => {}}
@@ -480,6 +484,28 @@ describe('Dialog interaction matrix — alertdialog surfaces (FR-P2c-1)', () => 
 });
 
 describe('Dialog interaction matrix — dialog surfaces (FR-P2c-1)', () => {
+    it('[owner.destination-launcher] DestinationLauncher', async () => {
+        const user = userEvent.setup();
+        const hasPermission: PermissionChecker = () => false;
+        const authz = buildAuthz(
+            { role: 'risk_manager', access_scope: 'global' },
+            hasPermission,
+            undefined,
+            false,
+        );
+        renderWithoutProviders(
+            <MemoryRouter>
+                <DestinationLauncher routes={getSidebarNavRoutes({ authz, hasPermission })} />
+            </MemoryRouter>,
+        );
+
+        const launch = screen.getByRole('button', { name: 'Go to' });
+        launch.focus();
+        await user.click(launch);
+
+        await assertOpenDialogContract(user, 'dialog', screen.getByRole('dialog'), launch);
+    });
+
     it('[owner.role-modal] RoleModal', async () => {
         await assertDialogContract('dialog', (onClose) => (
             <RoleModal

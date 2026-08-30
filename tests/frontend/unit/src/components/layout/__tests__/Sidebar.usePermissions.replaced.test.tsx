@@ -73,32 +73,38 @@ vi.mock('@/routing', () => {
         return <span />;
     }
 
+    const getRoutes = (hasPermission: (resource: string, action: string) => boolean) => [
+        {
+            key: 'settings',
+            nav: {
+                href: '/settings',
+                icon: RouteIcon,
+                labelKey: 'settings',
+                group: 'administration',
+            },
+        },
+        ...(hasPermission('risks', 'read')
+            ? [
+                {
+                    key: 'risks',
+                    nav: {
+                        href: '/risks',
+                        icon: RouteIcon,
+                        labelKey: 'risks',
+                        group: 'administration',
+                    },
+                },
+            ]
+            : []),
+    ];
+
     return {
+        getSidebarNavRoutes: ({ hasPermission }: { hasPermission: (resource: string, action: string) => boolean }) =>
+            getRoutes(hasPermission),
         getGroupedSidebarNav: ({ hasPermission }: { hasPermission: (resource: string, action: string) => boolean }) => [
             {
                 group: 'administration',
-                items: [
-                    {
-                        nav: {
-                            href: '/settings',
-                            icon: RouteIcon,
-                            labelKey: 'settings',
-                            group: 'administration',
-                        },
-                    },
-                    ...(hasPermission('risks', 'read')
-                        ? [
-                            {
-                                nav: {
-                                    href: '/risks',
-                                    icon: RouteIcon,
-                                    labelKey: 'risks',
-                                    group: 'administration',
-                                },
-                            },
-                        ]
-                        : []),
-                ],
+                items: getRoutes(hasPermission),
             },
         ],
         resolveActiveSidebarHref: (pathname: string, hrefs: readonly string[]) =>
@@ -145,5 +151,13 @@ describe('Sidebar usePermissions replacement', () => {
 
         expect(screen.getByRole('link', { name: 'sidebar.settings' })).toBeVisible();
         expect(screen.queryByRole('link', { name: 'sidebar.risks' })).not.toBeInTheDocument();
+    });
+
+    it('renders the desktop Go to launcher in the persistent sidebar', () => {
+        mocks.hasPermission.mockReturnValue(false);
+
+        renderSidebar();
+
+        expect(screen.getByRole('button', { name: 'go_to.trigger' })).toBeVisible();
     });
 });

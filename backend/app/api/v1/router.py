@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     departments,
     directory,
     executions,
+    go_to,
     health,
     ict_register,
     issues,
@@ -57,6 +58,7 @@ api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboar
 api_router.include_router(departments.router, prefix="/departments", tags=["departments"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(executions.router, prefix="/executions", tags=["executions"])
+api_router.include_router(go_to.router, prefix="/go-to", tags=["go-to"])
 api_router.include_router(kris.router)
 api_router.include_router(approvals.router, prefix="/approvals", tags=["approvals"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])

@@ -1,5 +1,5 @@
 {
-    "title": "Workflow",
+    "title": "Schválení",
     "page_subtitle": "Správa žádostí o schválení kritických změn a mazání.",
     "tabs": {
         "pending": "Fronta čekajících",
@@ -17,7 +17,8 @@
         "approved": "Schváleno",
         "rejected": "Zamítnuto",
         "cancelled": "Zrušeno",
-        "expired": "Vypršelo"
+        "expired": "Vypršelo",
+        "questionnaire_retrying": "Schránka dotazníků se načítá znovu."
     },
     "request_types": {
         "create": "Vytvoření",
@@ -93,8 +94,22 @@
         "questionnaire_stale": "Přiřazení dotazníků nemusí být aktuální. Zkuste to znovu.",
         "questionnaire_access_denied": "K přiřazeným dotazníkům nemáte přístup."
     },
-    "status": {
-        "questionnaire_retrying": "Schránka dotazníků se načítá znovu."
+    "workbench": {
+        "search_label": "Hledat schválení",
+        "search_placeholder": "Hledat žadatele nebo žádost",
+        "pagination_label": "Stránky schválení",
+        "range": "Zobrazeny žádosti {{start}}–{{end}} z {{total}}",
+        "range_incomplete": "Pozice na stránce {{start}}–{{end}} z {{total}} odpovídajících žádostí",
+        "page_loading": "Načítá se stránka žádostí.",
+        "previous_page": "Předchozí stránka",
+        "next_page": "Další stránka",
+        "incomplete": "Některé odpovídající žádosti nelze zobrazit. Výsledky nejsou úplné (přeskočeno: {{count}}).",
+        "linked_title": "Odkazovaná žádost",
+        "linked_description": "Odkazované žádosti se zobrazují mimo tuto stránku fronty.",
+        "linked_loading": "Načítám odkazovanou žádost.",
+        "linked_unavailable": "Tato odkazovaná žádost není dostupná.",
+        "linked_load_failed": "Odkazovanou žádost se nepodařilo načíst.",
+        "linked_retry": "Zkusit znovu načíst odkazovanou žádost"
     },
     "labels": {
         "proposed_changes": "Navrhované změny",
@@ -102,6 +117,94 @@
         "rejected_on": "Zamítnuto {{date}} v {{time}}",
         "by": "od",
         "re": "Ohledně:"
+    },
+    "legacy": {
+        "not_set": "Nenastaveno",
+        "restricted_change": "Omezená změna",
+        "unknown_user": "Neznámý uživatel",
+        "unknown_department": "Neznámé oddělení",
+        "unknown_vendor": "Neznámý dodavatel",
+        "yes": "Ano",
+        "no": "Ne",
+        "score_out_of_five": "{{value}} z 5",
+        "kri_history": {
+            "title": "Oprava historie KRI",
+            "value": "Oprava hodnoty",
+            "reason": "Důvod opravy"
+        },
+        "fields": {
+            "risk_id_code": "ID rizika",
+            "name": "Název",
+            "metric_name": "Název metriky",
+            "description": "Popis",
+            "data_source": "Zdroj dat",
+            "methodology_reference": "Odkaz na metodiku",
+            "process_owner_position": "Pozice vlastníka procesu",
+            "executor_position": "Pozice vykonavatele",
+            "output_description": "Popis výstupu",
+            "report_recipient": "Příjemce reportu",
+            "documentation_location": "Umístění dokumentace",
+            "category": "Kategorie",
+            "process": "Proces",
+            "subprocess": "Podproces",
+            "owner": "Odpovědný vlastník",
+            "control_owner": "Vlastník kontroly",
+            "reporting_owner": "Odpovědná osoba za vykazování",
+            "department": "Vlastnické oddělení",
+            "linked_vendors": "Propojení dodavatelé",
+            "is_priority": "Prioritní riziko",
+            "acceptance_date": "Datum akceptace",
+            "acceptance_approver": "Schvalovatel akceptace",
+            "acceptance_justification": "Odůvodnění akceptace",
+            "period_end": "Konec období",
+            "recorded_at": "Zaznamenáno",
+            "risk_type": "Typ rizika",
+            "control_form": "Forma kontroly",
+            "status": "Stav",
+            "frequency": "Frekvence",
+            "gross_probability": "Hrubá pravděpodobnost",
+            "net_probability": "Čistá pravděpodobnost",
+            "gross_impact": "Hrubý dopad",
+            "net_impact": "Čistý dopad",
+            "risk_level": "Úroveň rizika",
+            "current_value": "Aktuální hodnota",
+            "lower_limit": "Dolní mez",
+            "upper_limit": "Horní mez",
+            "unit": "Jednotka"
+        },
+        "values": {
+            "risk_type": {
+                "strategic": "Strategické",
+                "operational": "Operační"
+            },
+            "control_form": {
+                "manual": "Manuální",
+                "automatic": "Automatická"
+            },
+            "status": {
+                "active": "Aktivní",
+                "emerging": "Vznikající",
+                "draft": "Koncept",
+                "inactive": "Neaktivní"
+            },
+            "frequency": {
+                "daily": "Denně",
+                "weekly": "Týdně",
+                "monthly": "Měsíčně",
+                "quarterly": "Čtvrtletně",
+                "semi-annually": "Pololetně",
+                "annually": "Ročně",
+                "ad_hoc": "Dle potřeby",
+                "continuous": "Průběžně"
+            },
+            "unit": {
+                "percentage": "Procenta",
+                "count": "Počet",
+                "days": "Dny",
+                "hours": "Hodiny",
+                "ratio": "Poměr"
+            }
+        }
     },
     "governed": {
         "business_changes": "Před změnou a po změně",

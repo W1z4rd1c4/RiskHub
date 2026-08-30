@@ -3,6 +3,7 @@
     { "id": "archive-confirm-dialog", "component": "ArchiveConfirmDialog", "file": "frontend/src/components/ArchiveConfirmDialog.tsx", "role": "alertdialog", "kind": "semantic", "verificationCaseIds": ["owner.archive-confirm-dialog"] },
     { "id": "confirm-dialog", "component": "ConfirmDialog", "file": "frontend/src/components/ConfirmDialog.tsx", "role": "alertdialog", "kind": "semantic", "verificationCaseIds": ["owner.confirm-dialog"] },
     { "id": "control-create-dialog", "component": "ControlCreateDialog", "file": "frontend/src/components/ControlCreateDialog.tsx", "role": "dialog", "kind": "semantic", "verificationCaseIds": ["owner.control-create-dialog"] },
+    { "id": "destination-launcher", "component": "DestinationLauncher", "file": "frontend/src/components/layout/DestinationLauncher.tsx", "role": "dialog", "kind": "semantic", "verificationCaseIds": ["owner.destination-launcher"] },
     { "id": "link-management-dialog", "component": "LinkManagementDialog", "file": "frontend/src/components/LinkManagementDialog.tsx", "role": "dialog", "kind": "semantic", "verificationCaseIds": ["owner.link-management-dialog"] },
     { "id": "risk-quick-view-modal", "component": "RiskQuickViewModal", "file": "frontend/src/components/RiskQuickViewModal.tsx", "role": "dialog", "kind": "semantic", "verificationCaseIds": ["owner.risk-quick-view-modal"] },
     { "id": "access-edit-modal", "component": "AccessEditModal", "file": "frontend/src/components/access/AccessEditModal.tsx", "role": "dialog", "kind": "semantic", "verificationCaseIds": ["owner.access-edit-modal"] },
@@ -28,6 +29,7 @@
     { "id": "break-glass-enable-dialog", "component": "BreakGlassEnableDialog", "file": "frontend/src/pages/users/BreakGlassEnableDialog.tsx", "role": "dialog", "kind": "semantic", "verificationCaseIds": ["owner.break-glass-enable-dialog"] }
   ],
   "applicationRenderSites": [
+    { "id": "destination-launcher.sidebar", "component": "DestinationLauncher", "file": "frontend/src/components/layout/Sidebar.tsx", "verificationCaseId": "owner.destination-launcher" },
     { "id": "confirm.governed-mutation-reason", "component": "ConfirmDialog", "file": "frontend/src/components/approvals/GovernedMutationReasonDialog.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "confirm.link-management", "component": "ConfirmDialog", "file": "frontend/src/components/LinkManagementDialog.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "issue.execution-history", "component": "IssueQuickCreateModal", "file": "frontend/src/components/executions/ExecutionHistory.tsx", "verificationCaseId": "owner.issue-quick-create-modal" },

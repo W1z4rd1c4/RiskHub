@@ -43,6 +43,7 @@ Tuto oblast budete používat hlavně pro:
 - Aktiva
 - Hrozby
 - Schvalování
+- Důkazy a reporty
 - Nastavení
 
 V lokálním demo login pickeru se zobrazuje deset demo person jako stejné karty
@@ -95,7 +96,7 @@ Pokud váš tým nemá přísnější postup, použijte tento základní workflo
 3. Rozlišit chybějící stránku od skrytých dat.
 4. Najít schvalování a notifikace.
 
-Po uložení nebo odeslání ověřte výsledek na stránce, kterou jste použili: seznam, tabulka, panel, modál, notifikace nebo Activity Log mají ukazovat očekávaný stav. Pokud stránka hlásí, že položku mezitím změnil někdo jiný, obnovte data a znovu posuďte aktuální stav.
+Po uložení nebo odeslání ověřte výsledek na stránce, kterou jste použili: seznam, tabulka, panel, modál, notifikace nebo stránka **Záznam aktivit** mají ukazovat očekávaný stav. Pokud stránka hlásí, že položku mezitím změnil někdo jiný, obnovte data a znovu posuďte aktuální stav.
 
 Při propojování záznamů vybírejte jen vazby, které dávají smysl dalšímu reviewerovi. Vazba má popsat skutečný business vztah: kontrola snižuje riziko, KRI riziko monitoruje, dodavatel vytváří expozici nebo nález řeší konkrétní problém.
 
@@ -103,7 +104,7 @@ Při propojování záznamů vybírejte jen vazby, které dávají smysl další
 
 První kroky jsou většinou jen pro čtení. Jakmile budete upravovat rizika, kontroly, KRI, nálezy nebo dodavatele, některé změny mohou čekat na schválení.
 
-Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; aktuální stránka a Activity Log pomáhají rekonstruovat kontext.
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; aktuální stránka a Záznam aktivit pomáhají rekonstruovat kontext.
 
 Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Vraťte se na stránku, kde práce začala, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
@@ -119,6 +120,14 @@ Pro spolehlivý výsledek postupujte takto:
 4. Ověřte názvy, kódy, vlastníky a stav v seznamu, panelu, modálu, drilldownu nebo samostatné stránce, kterou daný modul nabízí, než provedete akci.
 
 Pro onboarding evidenci zapište cestu v aplikaci, viditelnou roli, použité filtry a název nebo kód kontrolovaného záznamu.
+
+Otevřete **Důkazy a reporty** na `/evidence`, když hledáte bezpečný výchozí bod pro jednu ze tří otázek:
+
+- **Záznam aktivit:** Kdo změnil business záznam a kdy?
+- **Historie provedení kontrol:** Byly kontroly provedeny a s jakým výsledkem?
+- **Reporty dodavatelů:** Které reporty dodavatelů a DORA lze exportovat?
+
+Karty a odkazy se zobrazí jen tehdy, když je dostupné odpovídající oprávnění a backend capability. Dočasně nedostupná kontrola nabízí Zkusit znovu; nezobrazuje se jako zamítnutí přístupu.
 
 ## Tipy a časté chyby
 

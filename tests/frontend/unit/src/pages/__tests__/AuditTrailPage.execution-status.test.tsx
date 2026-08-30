@@ -9,6 +9,11 @@ import { ApiClientError } from '@/services/apiClient';
 
 const getExecutionsMock = vi.fn();
 const downloadAuditTrailCsvMock = vi.fn();
+const mockUseAuthz = vi.fn(() => ({ canViewActivityLog: true }));
+
+vi.mock('@/authz/useAuthz', () => ({
+    useAuthz: () => mockUseAuthz(),
+}));
 
 function LocationProbe() {
     const location = useLocation();
@@ -43,7 +48,7 @@ function executionResponse(name = 'Quarterly Review Control') {
         total: 1,
         skip: 0,
         limit: 50,
-        capabilities: { can_export_csv: true },
+        capabilities: { can_read: true, can_export_csv: true },
     };
 }
 
@@ -72,7 +77,31 @@ describe('AuditTrailPage execution status rendering', () => {
     beforeEach(() => {
         getExecutionsMock.mockReset();
         downloadAuditTrailCsvMock.mockReset();
+        mockUseAuthz.mockReturnValue({ canViewActivityLog: true });
         downloadAuditTrailCsvMock.mockResolvedValue(undefined);
+    });
+
+    it('links to Activity Log only with activity-log authority', async () => {
+        getExecutionsMock.mockResolvedValue(executionResponse());
+
+        const rendered = render(
+            <MemoryRouter>
+                <AuditTrailPage />
+            </MemoryRouter>,
+        );
+
+        expect(await screen.findByRole('link', { name: 'admin:activity_log.title' })).toHaveAttribute(
+            'href',
+            '/activity-log',
+        );
+
+        mockUseAuthz.mockReturnValue({ canViewActivityLog: false });
+        rendered.rerender(
+            <MemoryRouter>
+                <AuditTrailPage />
+            </MemoryRouter>,
+        );
+        expect(screen.queryByRole('link', { name: 'admin:activity_log.title' })).not.toBeInTheDocument();
     });
 
     it('renders audit results from the paginated execution response and uses canonical result labels', async () => {
@@ -96,6 +125,7 @@ describe('AuditTrailPage execution status rendering', () => {
             skip: 0,
             limit: 50,
             capabilities: {
+                can_read: true,
                 can_export_csv: true,
             },
         });
@@ -124,6 +154,7 @@ describe('AuditTrailPage execution status rendering', () => {
             skip: 0,
             limit: 50,
             capabilities: {
+                can_read: true,
                 can_export_csv: true,
             },
         });
@@ -143,7 +174,7 @@ describe('AuditTrailPage execution status rendering', () => {
     });
 
     it.each([
-        ['false capability', { can_export_csv: false }],
+        ['false capability', { can_read: true, can_export_csv: false }],
         ['missing capabilities', undefined],
     ])('hides the CSV action when %s is returned', async (_caseName, capabilities) => {
         getExecutionsMock.mockResolvedValue({
@@ -179,6 +210,8 @@ describe('AuditTrailPage execution status rendering', () => {
         );
 
         await screen.findByText('access.denied');
+        expect(screen.getByText('access.denied_control_execution_history')).toBeInTheDocument();
+        expect(screen.queryByText('access.denied_activity_log')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
         expect(screen.queryByText('audit_trail.total_records:0')).not.toBeInTheDocument();
         expect(screen.queryByText('common:empty.no_executions')).not.toBeInTheDocument();
@@ -207,6 +240,7 @@ describe('AuditTrailPage execution status rendering', () => {
                 skip: 0,
                 limit: 50,
                 capabilities: {
+                    can_read: true,
                     can_export_csv: true,
                 },
             })

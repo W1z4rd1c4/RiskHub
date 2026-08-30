@@ -753,6 +753,7 @@
     "schema": "executionListCapabilitiesSchema"
    },
    "fields": [
+    "can_read",
     "can_export_csv"
    ]
   },

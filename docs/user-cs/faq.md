@@ -97,7 +97,7 @@ Při propojování záznamů vybírejte jen vazby, které dávají smysl další
 
 Pokud změna čeká, zkontrolujte Schvalování a Notifikace před dalším pokusem. Duplicitní úpravy ztěžují review.
 
-Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; aktuální stránka a Activity Log pomáhají rekonstruovat kontext.
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; aktuální stránka a Záznam aktivit pomáhají rekonstruovat kontext.
 
 Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Vraťte se na stránku, kde práce začala, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
@@ -131,4 +131,4 @@ Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na 
 
 ## Související manuály
 
-Začněte s [Getting Started](./getting-started.md), [Access Management](./access-management.md), [Notifications](./notifications.md), [Activity Log](./activity-log.md), [Dashboard](./dashboard.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.
+Začněte s [Getting Started](./getting-started.md), [Access Management](./access-management.md), [Notifications](./notifications.md), [Záznam aktivit](./activity-log.md), [Dashboard](./dashboard.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

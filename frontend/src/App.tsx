@@ -76,8 +76,6 @@ function AppRoutes() {
           }>
             {protectedAppRoutes.map(renderRoute)}
           </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </ErrorBoundary>

@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.approval_display import approval_resource_label
+from app.core.pagination import MAX_LOOKUP_SIZE
 from app.core.permissions import (
     control_visibility_clause,
+    get_user_department_ids,
+    has_permission,
     kri_visibility_clause,
     visible_risk_ids,
     visible_vendor_ids,
@@ -17,13 +21,16 @@ from app.models import (
     ApprovalRequest,
     Asset,
     Control,
+    Department,
     GovernedMutationProposal,
     KeyRiskIndicator,
     Process,
     Risk,
+    Role,
     Vendor,
 )
-from app.models.user import User
+from app.models.role import RoleType
+from app.models.user import AccessScope, User
 from app.schemas.approval_request import ApprovalRequestCapabilities, ApprovalRequestRead
 from app.services._governed_mutations.process_identity import (
     GovernedProcessIdentity,
@@ -81,6 +88,322 @@ class ActorSafeExtendedLabels:
     asset_labels: dict[int, str]
     vendor_labels: dict[int, str]
     relationship_target_label: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ActorSafeLegacyLabels:
+    user_labels_by_field: dict[str, dict[int, str]]
+    department_labels: dict[int, str]
+    vendor_labels: dict[int, str]
+
+
+_LEGACY_USER_REFERENCE_FIELDS = frozenset(
+    {"owner_id", "control_owner_id", "reporting_owner_id"}
+)
+_LEGACY_REFERENCE_FIELDS = _LEGACY_USER_REFERENCE_FIELDS | {
+    "department_id",
+    "linked_vendor_ids",
+}
+_LEGACY_KRI_HISTORY_PRESENTATION_FIELDS = frozenset(
+    {"old_value", "new_value", "reason", "period_end", "recorded_at"}
+)
+_LEGACY_PRESENTATION_FIELDS = {
+    "risk": frozenset(
+        {
+            "risk_id_code",
+            "name",
+            "process",
+            "subprocess",
+            "risk_type",
+            "category",
+            "description",
+            "department_id",
+            "owner_id",
+            "gross_probability",
+            "gross_impact",
+            "net_probability",
+            "net_impact",
+            "status",
+            "is_priority",
+            "acceptance_approver",
+            "acceptance_justification",
+            "acceptance_date",
+        }
+    ),
+    "control": frozenset(
+        {
+            "name",
+            "description",
+            "data_source",
+            "methodology_reference",
+            "control_form",
+            "process_owner_position",
+            "control_owner_id",
+            "executor_position",
+            "frequency",
+            "risk_level",
+            "output_description",
+            "report_recipient",
+            "documentation_location",
+            "department_id",
+            "status",
+        }
+    ),
+    "kri": frozenset(
+        {
+            "metric_name",
+            "description",
+            "upper_limit",
+            "lower_limit",
+            "current_value",
+            "reporting_owner_id",
+            "unit",
+            "frequency",
+            "linked_vendor_ids",
+        }
+    ),
+}
+_LEGACY_PRESENTATION_FIELDS["kri"] |= _LEGACY_KRI_HISTORY_PRESENTATION_FIELDS
+_RESTRICTED_LEGACY_CHANGE_FIELD = "__restricted_change__"
+_RESTRICTED_LEGACY_CHANGE = {"old": None, "new": None}
+_UNKNOWN_LEGACY_LABEL = {
+    "owner_id": "Unknown user",
+    "control_owner_id": "Unknown user",
+    "reporting_owner_id": "Unknown user",
+    "department_id": "Unknown department",
+    "linked_vendor_ids": "Unknown vendor",
+}
+_MALFORMED_LEGACY_REFERENCE = object()
+
+
+def _legacy_change_values(value: object) -> tuple[object, object]:
+    if not isinstance(value, dict):
+        return _MALFORMED_LEGACY_REFERENCE, _MALFORMED_LEGACY_REFERENCE
+    return (
+        value.get("old", _MALFORMED_LEGACY_REFERENCE),
+        value.get("new", _MALFORMED_LEGACY_REFERENCE),
+    )
+
+
+def _legacy_scalar_label(
+    value: object,
+    *,
+    labels: dict[int, str],
+    unknown_label: str,
+) -> object:
+    if value is None:
+        return None
+    if type(value) is int:
+        return labels.get(value, unknown_label)
+    return unknown_label
+
+
+def _legacy_vendor_labels(value: object, labels: dict[int, str]) -> object:
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        return [_UNKNOWN_LEGACY_LABEL["linked_vendor_ids"]]
+    return [
+        labels.get(item, _UNKNOWN_LEGACY_LABEL["linked_vendor_ids"])
+        if type(item) is int
+        else _UNKNOWN_LEGACY_LABEL["linked_vendor_ids"]
+        for item in value
+    ]
+
+
+def _actor_safe_legacy_pending_changes(
+    approval: ApprovalRequest,
+    labels: ActorSafeLegacyLabels | None,
+) -> dict | None:
+    """Build a presentation-only copy of legacy pending changes."""
+    value = approval.pending_changes
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("Malformed legacy pending_changes")
+
+    resource_type = approval.resource_type.value
+    allowed_fields = _LEGACY_PRESENTATION_FIELDS.get(resource_type, frozenset())
+    projected: dict[str, object] = {}
+    has_restricted_change = False
+    for field, change in value.items():
+        if not isinstance(field, str) or field not in allowed_fields:
+            has_restricted_change = True
+            continue
+        if field not in _LEGACY_REFERENCE_FIELDS:
+            if field not in _LEGACY_KRI_HISTORY_PRESENTATION_FIELDS and (
+                not isinstance(change, dict)
+                or "old" not in change
+                or "new" not in change
+            ):
+                has_restricted_change = True
+                continue
+            projected[field] = deepcopy(change)
+            continue
+
+        old, new = _legacy_change_values(change)
+        if field == "linked_vendor_ids":
+            vendor_labels = labels.vendor_labels if labels is not None else {}
+            projected[field] = {
+                "old": _legacy_vendor_labels(old, vendor_labels),
+                "new": _legacy_vendor_labels(new, vendor_labels),
+            }
+            continue
+
+        if field == "department_id":
+            field_labels = labels.department_labels if labels is not None else {}
+        else:
+            field_labels = (
+                labels.user_labels_by_field.get(field, {}) if labels is not None else {}
+            )
+        projected[field] = {
+            "old": _legacy_scalar_label(
+                old,
+                labels=field_labels,
+                unknown_label=_UNKNOWN_LEGACY_LABEL[field],
+            ),
+            "new": _legacy_scalar_label(
+                new,
+                labels=field_labels,
+                unknown_label=_UNKNOWN_LEGACY_LABEL[field],
+            ),
+        }
+    if has_restricted_change:
+        projected[_RESTRICTED_LEGACY_CHANGE_FIELD] = _RESTRICTED_LEGACY_CHANGE.copy()
+    return projected or None
+
+
+def _legacy_user_visibility_clause(current_user: User):
+    if current_user.access_scope == AccessScope.GLOBAL:
+        return None
+    if current_user.access_scope == AccessScope.DEPARTMENT:
+        if current_user.department_id is not None:
+            return User.department_id == current_user.department_id
+        return User.id == current_user.id
+    return or_(User.id == current_user.id, User.manager_id == current_user.id)
+
+
+def _legacy_reference_ids(value: object, *, many: bool) -> set[int]:
+    old, new = _legacy_change_values(value)
+    candidates = (old, new)
+    if many:
+        return {
+            item
+            for candidate in candidates
+            if isinstance(candidate, list)
+            for item in candidate
+            if type(item) is int
+        }
+    return {candidate for candidate in candidates if type(candidate) is int}
+
+
+def _can_view_legacy_user_field(current_user: User, field: str) -> bool:
+    if has_permission(current_user, "users", "read"):
+        return True
+    if field == "control_owner_id":
+        return has_permission(current_user, "controls", "write")
+    if field == "reporting_owner_id":
+        return has_permission(current_user, "risks", "write")
+    return has_permission(current_user, "risks", "write") or has_permission(
+        current_user,
+        "controls",
+        "write",
+    )
+
+
+async def legacy_pending_change_actor_safe_labels(
+    db: AsyncSession,
+    *,
+    approvals: list[ApprovalRequest],
+    current_user: User,
+) -> ActorSafeLegacyLabels:
+    """Batch-load only active, actor-visible labels referenced by legacy rows."""
+    user_ids_by_field: dict[str, set[int]] = {
+        field: set() for field in _LEGACY_USER_REFERENCE_FIELDS
+    }
+    department_ids: set[int] = set()
+    vendor_ids: set[int] = set()
+    for approval in approvals:
+        if approval.governed_mutation_proposal is not None or not isinstance(approval.pending_changes, dict):
+            continue
+        allowed_fields = _LEGACY_PRESENTATION_FIELDS.get(
+            approval.resource_type.value,
+            frozenset(),
+        )
+        for field, change in approval.pending_changes.items():
+            if field not in allowed_fields:
+                continue
+            if field in _LEGACY_USER_REFERENCE_FIELDS and _can_view_legacy_user_field(current_user, field):
+                user_ids_by_field[field].update(_legacy_reference_ids(change, many=False))
+            elif field == "department_id" and has_permission(current_user, "departments", "read"):
+                department_ids.update(_legacy_reference_ids(change, many=False))
+            elif field == "linked_vendor_ids":
+                vendor_ids.update(_legacy_reference_ids(change, many=True))
+
+    all_user_ids = sorted(set().union(*user_ids_by_field.values()))[:MAX_LOOKUP_SIZE]
+    visible_user_labels: dict[int, str] = {}
+    if all_user_ids:
+        user_query = (
+            select(User.id, User.name)
+            .join(Role, User.role_id == Role.id)
+            .where(
+                User.id.in_(all_user_ids),
+                User.is_active.is_(True),
+                Role.is_active.is_(True),
+                Role.name != RoleType.ADMIN,
+            )
+        )
+        user_scope = _legacy_user_visibility_clause(current_user)
+        if user_scope is not None:
+            user_query = user_query.where(user_scope)
+        visible_user_labels = dict((await db.execute(user_query)).tuples().all())
+
+    bounded_department_ids = sorted(department_ids)[:MAX_LOOKUP_SIZE]
+    department_labels: dict[int, str] = {}
+    if bounded_department_ids:
+        department_query = select(Department.id, Department.name).where(
+            Department.id.in_(bounded_department_ids),
+            Department.is_active.is_(True),
+        )
+        scoped_department_ids = get_user_department_ids(current_user)
+        if scoped_department_ids is not None:
+            department_query = department_query.where(
+                Department.id.in_(scoped_department_ids) if scoped_department_ids else false()
+            )
+        department_labels = dict((await db.execute(department_query)).tuples().all())
+
+    bounded_vendor_ids = sorted(vendor_ids)[:MAX_LOOKUP_SIZE]
+    vendor_labels: dict[int, str] = {}
+    if bounded_vendor_ids:
+        visible_vendor_id_set = await visible_vendor_ids(
+            db,
+            current_user,
+            bounded_vendor_ids,
+        )
+        if visible_vendor_id_set:
+            vendor_labels = dict(
+                (
+                    await db.execute(
+                        select(Vendor.id, Vendor.name).where(
+                            Vendor.id.in_(visible_vendor_id_set),
+                            Vendor.is_archived.is_(False),
+                        )
+                    )
+                ).tuples().all()
+            )
+
+    return ActorSafeLegacyLabels(
+        user_labels_by_field={
+            field: {
+                user_id: visible_user_labels[user_id]
+                for user_id in field_ids
+                if user_id in visible_user_labels
+            }
+            for field, field_ids in user_ids_by_field.items()
+        },
+        department_labels=department_labels,
+        vendor_labels=vendor_labels,
+    )
 
 
 def _strict_process_identity(proposal):
@@ -273,6 +596,7 @@ def build_approval_read(
     can_view_governed_references: bool = False,
     governed_resolver: bool = False,
     actor_safe_extended_labels: ActorSafeExtendedLabels | None = None,
+    actor_safe_legacy_labels: ActorSafeLegacyLabels | None = None,
 ) -> ApprovalRequestRead:
     proposal = approval.governed_mutation_proposal
     identity = _strict_process_identity(proposal)
@@ -318,7 +642,7 @@ def build_approval_read(
     pending_changes = (
         None
         if malformed_terminal or asset_identity or vendor_identity or threat_identity
-        else approval.pending_changes
+        else _actor_safe_legacy_pending_changes(approval, actor_safe_legacy_labels)
         if identity is None
         else None
     )
@@ -935,6 +1259,7 @@ def project_approval_read(
     governed_resolver_ids: set[int] | None = None,
     can_view_governed_references: bool = False,
     actor_safe_extended_labels: dict[int, ActorSafeExtendedLabels] | None = None,
+    actor_safe_legacy_labels: ActorSafeLegacyLabels | None = None,
 ):
     # Projection callers normally pass ORM ApprovalRequest rows. Keep policy
     # failures outside the corrupt-payload quarantine for lightweight contract
@@ -952,6 +1277,7 @@ def project_approval_read(
                 can_view_governed_references=can_view_governed_references,
                 governed_resolver=(governed_resolver_ids is not None and approval.id in governed_resolver_ids),
                 actor_safe_extended_labels=(actor_safe_extended_labels or {}).get(approval.id),
+                actor_safe_legacy_labels=actor_safe_legacy_labels,
             ),
             None,
         )
@@ -975,6 +1301,7 @@ def project_approval_queue_item(
     governed_resolver_ids: set[int] | None = None,
     can_view_governed_references: bool = False,
     actor_safe_extended_labels: dict[int, ActorSafeExtendedLabels] | None = None,
+    actor_safe_legacy_labels: ActorSafeLegacyLabels | None = None,
 ) -> ApprovalQueueProjection:
     item, skipped_reason = project_approval_read(
         approval,
@@ -983,6 +1310,7 @@ def project_approval_queue_item(
         governed_resolver_ids=governed_resolver_ids,
         can_view_governed_references=can_view_governed_references,
         actor_safe_extended_labels=actor_safe_extended_labels,
+        actor_safe_legacy_labels=actor_safe_legacy_labels,
     )
     return ApprovalQueueProjection(approval=approval, item=item, skipped_reason=skipped_reason)
 
@@ -998,6 +1326,7 @@ def approval_queue_page(
     governed_resolver_ids: set[int] | None = None,
     can_view_governed_references: bool = False,
     actor_safe_extended_labels: dict[int, ActorSafeExtendedLabels] | None = None,
+    actor_safe_legacy_labels: ActorSafeLegacyLabels | None = None,
 ) -> ApprovalQueuePage:
     projections = [
         project_approval_queue_item(
@@ -1007,6 +1336,7 @@ def approval_queue_page(
             governed_resolver_ids=governed_resolver_ids,
             can_view_governed_references=can_view_governed_references,
             actor_safe_extended_labels=actor_safe_extended_labels,
+            actor_safe_legacy_labels=actor_safe_legacy_labels,
         )
         for approval in approvals
     ]

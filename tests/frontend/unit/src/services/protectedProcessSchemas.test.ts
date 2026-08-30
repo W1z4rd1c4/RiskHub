@@ -157,7 +157,7 @@ describe('protected Process API schemas', () => {
 
         expect(approvalRequestSchema.parse(approval).resource_type).toBe('asset');
         expect(approvalListResponseSchema.parse({
-            items: [approval], total: 1, skip: 0, limit: 50,
+            items: [approval], total: 1, skip: 0, limit: 50, skipped_corrupt_payloads: 0,
         }).items[0]?.governed_mutation?.mutation_kind).toBe('asset.edit');
         expect(approvalRequestSchema.parse({
             ...approval,

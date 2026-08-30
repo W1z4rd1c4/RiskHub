@@ -23,6 +23,7 @@ import issuesEN from './locales/en/issues.json';
 import errorKeysEN from './locales/en/errorKeys.json';
 import notificationsEN from './locales/en/notifications.json';
 import layoutEN from './locales/en/layout.json';
+import evidenceEN from './locales/en/evidence.json';
 
 // Import Czech namespace files
 import commonCS from './locales/cs/common.json';
@@ -45,6 +46,7 @@ import issuesCS from './locales/cs/issues.json';
 import errorKeysCS from './locales/cs/errorKeys.json';
 import notificationsCS from './locales/cs/notifications.json';
 import layoutCS from './locales/cs/layout.json';
+import evidenceCS from './locales/cs/evidence.json';
 
 export const SUPPORTED_LANGUAGES = ['en', 'cs'] as const;
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
@@ -73,6 +75,7 @@ export const resources = {
         errorKeys: errorKeysEN,
         notifications: notificationsEN,
         layout: layoutEN,
+        evidence: evidenceEN,
     },
     cs: {
         common: commonCS,
@@ -95,6 +98,7 @@ export const resources = {
         errorKeys: errorKeysCS,
         notifications: notificationsCS,
         layout: layoutCS,
+        evidence: evidenceCS,
     },
 } as const;
 
@@ -119,6 +123,7 @@ export const namespaces = [
     'errorKeys',
     'notifications',
     'layout',
+    'evidence',
 ] as const;
 
 export type Namespace = typeof namespaces[number];

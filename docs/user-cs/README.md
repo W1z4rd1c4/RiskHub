@@ -56,12 +56,12 @@ První týden používejte hlavně k vytvoření správných návyků. Při otev
 - [Oddělení](./departments.md): expozice podle organizační oblasti.
 - [Governance](./governance.md): chybějící ownership nebo kontext.
 - [Správa přístupů](./access-management.md): uživatelé, adresář a lifecycle účtů.
-- [Activity Log](./activity-log.md): kdo co změnil a kdy.
+- [Záznam aktivit](./activity-log.md): kdo co změnil a kdy.
 - [Risk Hub](./risk-hub.md): business nastavení risk managementu.
 
 ## Manuály podle úkolu
 
-Pokud nevidíte stránku, začněte [Začínáme](./getting-started.md) a [Správa přístupů](./access-management.md). Pokud se změna neprojevila, čtěte [Notifikace a schvalování](./notifications.md). Pokud potřebujete evidenci, použijte [Dashboard](./dashboard.md), [Activity Log](./activity-log.md) a manuál pro příslušný typ záznamu.
+Pokud nevidíte stránku, začněte [Začínáme](./getting-started.md) a [Správa přístupů](./access-management.md). Pokud se změna neprojevila, čtěte [Notifikace a schvalování](./notifications.md). Pokud potřebujete evidenci, otevřete **Důkazy a reporty** na `/evidence`, kde najdete povolené cíle Záznam aktivit, Historie provedení kontrol a Reporty dodavatelů, a potom použijte manuál pro příslušný typ záznamu.
 
 U dodavatelské práce začněte [Dodavatelé](./vendors.md), potom pokračujte na rizika, kontroly, KRI nebo nálezy. U dotazníků začněte [Risk Hub](./risk-hub.md), pokud je posíláte nebo reviewujete, a [Správa rizik](./risks.md), pokud odpovídáte z detailu rizika.
 
@@ -98,7 +98,7 @@ Každý manuál má stejný tvar, abyste se v něm rychle orientovali: s čím s
 
 ## Jak vyhledávat a filtrovat manuály
 
-Tagy používejte pro zúžení knihovny podle tématu. Začněte filtrem All, potom vyberte modul jako risks, controls, vendors nebo access. Pro auditní práci kombinujte modulové manuály s Activity Logem a Notifikacemi.
+Tagy používejte pro zúžení knihovny podle tématu. Začněte filtrem All, potom vyberte modul jako risks, controls, vendors nebo access. Pro auditní práci kombinujte modulové manuály s manuálem **Záznam aktivit** a Notifikacemi.
 
 Na stránce hledejte business slova: owner, approval, export, vendor, questionnaire, break-glass, closure nebo evidence. Technické identifikátory používejte jen tehdy, když si je výslovně vyžádá podpora.
 

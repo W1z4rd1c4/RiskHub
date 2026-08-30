@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateTimeValue } from '@/i18n/formatters';
 import {
@@ -23,6 +23,7 @@ import { OrphanedItemsTable, ResolveOrphanModal, OrphanQuickViewModal } from '@/
 import { GOVERNANCE_POLL_MS } from '@/config/constants';
 import { governanceKeys } from '@/lib/queryKeys';
 import { useAuthz } from '@/authz/useAuthz';
+import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 
 const container = {
     hidden: { opacity: 0 },
@@ -363,7 +364,7 @@ export default function GovernancePage() {
 
     // CRO-only business route. Keep a local guard so direct page mounts never hit orphan APIs for blocked roles.
     if (!authz.canViewGovernance) {
-        return <Navigate to="/" replace />;
+        return <ReadAccessDeniedState />;
     }
 
     return <GovernancePageInner />;

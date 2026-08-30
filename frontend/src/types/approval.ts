@@ -7,6 +7,8 @@ export interface PendingChange {
     new: unknown;
 }
 
+export type ApprovalPendingChange = PendingChange | string | number | boolean | null;
+
 export interface GovernedDerivedState {
     cif: string;
     criticality_class: string | null;
@@ -193,7 +195,7 @@ export interface ApprovalRequest {
     resource_id: number | null;
     resource_name: string;
     action_type: ApprovalActionType;
-    pending_changes: Record<string, PendingChange> | null;
+    pending_changes: Record<string, ApprovalPendingChange> | null;
     governed_mutation?: GovernedMutationRead | null;
     status: ApprovalStatus;
     reason: string;
@@ -215,6 +217,7 @@ export interface ApprovalListResponse {
     total: number;
     skip: number;
     limit: number;
+    skipped_corrupt_payloads: number;
 }
 
 export interface CreateApprovalRequest {

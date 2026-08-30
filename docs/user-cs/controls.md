@@ -36,7 +36,7 @@ Tuto oblast budete používat hlavně pro:
 
 - seznam kontrol
 - detail kontroly
-- historie provedení
+- Historie provedení kontrol
 - vazby na rizika
 - kontext dodavatelů
 - stav a review signály
@@ -54,6 +54,8 @@ Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. 
 Primární cesta: `/controls`
 
 Většinou se sem dostanete z levého menu. Detail otevřete výběrem řádku nebo karty s vazbou. Pokud jste přišli z jiného záznamu, použijte návrat nebo odkazy na související záznamy.
+
+Pro historii napříč kontrolami použijte **Historie provedení kontrol** na `/audit-trail`. Pokud to vaše role dovoluje, stránka odkazuje na stránku **Záznam aktivit** pro historii změn business záznamů, ale obě datové množiny neslučuje.
 
 Běžný postup navigace:
 
@@ -144,4 +146,4 @@ Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na 
 
 ## Související manuály
 
-Začněte s [Risks](./risks.md), [Vendors](./vendors.md), [Issues](./issues.md), [Activity Log](./activity-log.md), [Notifications](./notifications.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.
+Začněte s [Risks](./risks.md), [Vendors](./vendors.md), [Issues](./issues.md), [Záznam aktivit](./activity-log.md), [Notifications](./notifications.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

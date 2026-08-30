@@ -1,4 +1,3 @@
-import { Navigate } from 'react-router-dom';
 import { Activity, Server, Shield, Terminal, Users } from 'lucide-react';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +6,7 @@ import { useContentTabs } from '@/hooks/useContentTabs';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
+import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 
 import { AuditLogsPanel } from './admin-console/sections/AdminConsoleAuditPanels';
 import { HealthPanel, LogsPanel, SessionsPanel } from './admin-console/sections/AdminConsoleOpsPanels';
@@ -42,7 +42,7 @@ export function AdminConsolePage() {
     }
 
     if (!authz.canViewAdminConsole) {
-        return <Navigate to="/" replace />;
+        return <ReadAccessDeniedState />;
     }
 
     return (

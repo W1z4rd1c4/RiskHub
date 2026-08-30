@@ -69,7 +69,7 @@ explicitní přeřazení v Governance používají při zapnutém scénáři sch
 Původní vazba zůstává schválená a dohledatelná do nezávislého schválení celé
 změny.
 
-V Activity Logu ověřujte autora vytvoření, změny, archivace, obnovení, vazby nebo přeřazení. Governance resolution je řízená oprava, ne obcházení běžných oprávnění. Pokud upozornění vidíte, ale Governance otevřít nemůžete, požádejte oprávněného Risk Managera nebo CRO.
+Na stránce **Záznam aktivit** ověřujte autora vytvoření, změny, archivace, obnovení, vazby nebo přeřazení. Governance resolution je řízená oprava, ne obcházení běžných oprávnění. Pokud upozornění vidíte, ale Governance otevřít nemůžete, požádejte oprávněného Risk Managera nebo CRO.
 
 ## Vyhledávání, filtrování a evidence
 
@@ -108,4 +108,4 @@ Zrušení, zamítnutí či zastarání zachová původní hodnoty.
 
 ## Související manuály
 
-Viz [Procesy](./processes.md), [Oddělení](./departments.md), [Governance](./governance.md), [Dodavatelé](./vendors.md) a [Activity Log](./activity-log.md).
+Viz [Procesy](./processes.md), [Oddělení](./departments.md), [Governance](./governance.md), [Dodavatelé](./vendors.md) a [Záznam aktivit](./activity-log.md).

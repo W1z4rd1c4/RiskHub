@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockUseAuthz = vi.fn();
@@ -29,6 +29,11 @@ const cases: Array<[string, GuardComponent, string]> = [
     ['AuditTrailRouteGuard', AuditTrailRouteGuard, 'canReadControls'],
 ];
 
+function LocationProbe() {
+    const location = useLocation();
+    return <output data-testid="location">{location.pathname}</output>;
+}
+
 function renderGuard(Guard: GuardComponent, key: string, allowed: boolean) {
     mockUseAuthz.mockReturnValue({ [key]: allowed });
 
@@ -39,9 +44,12 @@ function renderGuard(Guard: GuardComponent, key: string, allowed: boolean) {
                 <Route
                     path="/protected"
                     element={
-                        <Guard>
-                            <div>Protected child</div>
-                        </Guard>
+                        <>
+                            <Guard>
+                                <div>Protected child</div>
+                            </Guard>
+                            <LocationProbe />
+                        </>
                     }
                 />
             </Routes>
@@ -65,10 +73,12 @@ describe('BusinessRouteGuards factory contract', () => {
         expect(screen.queryByText('Home')).not.toBeInTheDocument();
     });
 
-    it.each(cases)('%s redirects home when %s is false', async (_name, Guard, key) => {
+    it.each(cases)('%s renders a generic denial without changing the URL when %s is false', async (_name, Guard, key) => {
         renderGuard(Guard, key, false);
 
-        expect(await screen.findByText('Home')).toBeInTheDocument();
+        expect(await screen.findByText('Access Denied')).toBeInTheDocument();
+        expect(screen.getByTestId('location')).toHaveTextContent('/protected');
+        expect(screen.queryByText('Home')).not.toBeInTheDocument();
         expect(screen.queryByText('Protected child')).not.toBeInTheDocument();
     });
 });

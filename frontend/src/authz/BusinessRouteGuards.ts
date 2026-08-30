@@ -1,8 +1,8 @@
 import { createElement, Fragment, type ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
 
 import type { Authz } from '@/authz/policy';
 import { useAuthz } from '@/authz/useAuthz';
+import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 
 type GuardProps = {
     children: ReactNode;
@@ -16,7 +16,7 @@ export function createBusinessRouteGuard<K extends BoolKeys>(key: K) {
     return ({ children }: GuardProps) => {
         const authz = useAuthz();
         if (!authz[key]) {
-            return createElement(Navigate, { to: '/', replace: true });
+            return createElement(ReadAccessDeniedState);
         }
 
         return createElement(Fragment, null, children);

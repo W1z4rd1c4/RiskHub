@@ -7,11 +7,18 @@ from datetime import UTC, datetime
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import delete, select
 
 from app.models import Control, ControlRiskLink, Department, Permission, Risk, Role, RolePermission, User
 from app.models.control_execution import ControlExecution
 from app.models.user import AccessScope
+from app.schemas.execution import ControlExecutionListCapabilities
+
+
+def test_execution_list_capability_schema_requires_backend_read_authority() -> None:
+    with pytest.raises(PydanticValidationError):
+        ControlExecutionListCapabilities(can_export_csv=True)
 
 
 @pytest.mark.asyncio
@@ -262,6 +269,7 @@ async def test_list_executions(client_cro: AsyncClient, test_user_cro: User, tes
     assert isinstance(data["items"], list)
     assert data["total"] >= 1
     assert data["limit"] == 100
+    assert data["capabilities"]["can_read"] is True
 
 
 @pytest.mark.asyncio
@@ -336,6 +344,7 @@ async def test_execution_list_export_csv_capability_tracks_reports_read(
     allowed_response = await client.get("/api/v1/executions", headers=headers)
 
     assert allowed_response.status_code == 200
+    assert allowed_response.json()["capabilities"]["can_read"] is True
     assert allowed_response.json()["capabilities"]["can_export_csv"] is True
 
     reports_read_id = (
@@ -355,6 +364,7 @@ async def test_execution_list_export_csv_capability_tracks_reports_read(
     denied_response = await client.get("/api/v1/executions", headers=headers)
 
     assert denied_response.status_code == 200
+    assert denied_response.json()["capabilities"]["can_read"] is True
     assert denied_response.json()["capabilities"]["can_export_csv"] is False
 
 

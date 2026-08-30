@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
 import {
     ClipboardCheck,
@@ -32,6 +33,7 @@ const AUDIT_TRAIL_SKELETON_ROWS = 5;
 
 export function AuditTrailPage() {
     const { t, i18n } = useTranslation(['controls', 'common']);
+    const authz = useAuthz();
     const navigate = useNavigate();
 
     const {
@@ -127,7 +129,7 @@ export function AuditTrailPage() {
                 </div>
                 <h2 className="text-2xl font-bold text-white">{t('access.denied')}</h2>
                 <p className="text-slate-400 text-center max-w-md">
-                    {t('access.denied_activity_log')}
+                    {t('access.denied_control_execution_history')}
                 </p>
             </div>
         );
@@ -165,6 +167,14 @@ export function AuditTrailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {authz.canViewActivityLog ? (
+                        <Link
+                            to="/activity-log"
+                            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm font-bold text-foreground"
+                        >
+                            {t('admin:activity_log.title')}
+                        </Link>
+                    ) : null}
                     <button
                         type="button"
                         aria-label={t('common:actions.refresh')}

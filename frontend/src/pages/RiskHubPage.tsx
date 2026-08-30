@@ -1,4 +1,3 @@
-import { Navigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Command, Palette, Settings2, ShieldCheck, Shield, Building } from 'lucide-react';
 import { useAuthz } from '@/authz/useAuthz';
@@ -6,6 +5,7 @@ import { RolesPanel, DepartmentsPanel, RiskTypesPanel, SystemSettingsPanel, Appr
 import { cn } from '@/lib/utils';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 import { useContentTabs } from '@/hooks/useContentTabs';
+import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 
 const tabs = [
     { id: 'risk-types', labelKey: 'riskhub.tabs.risk_types', icon: Palette },
@@ -45,7 +45,7 @@ export function RiskHubPage() {
 
     // Only CRO can access Risk Hub
     if (!authz.canViewRiskHub) {
-        return <Navigate to="/" replace />;
+        return <ReadAccessDeniedState />;
     }
 
     return (

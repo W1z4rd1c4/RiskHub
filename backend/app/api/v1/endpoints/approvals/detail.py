@@ -12,6 +12,7 @@ from app.services._approval_execution.privilege_context import PrivilegeContext,
 from app.services._approval_queue.projection import (
     build_approval_read,
     governed_process_actor_safe_labels,
+    legacy_pending_change_actor_safe_labels,
 )
 from app.services._ict_register_lifecycle.policy import can_use_process_assignment_lookup
 from app.services.approval_scenario_policy import (
@@ -86,6 +87,11 @@ async def get_approval_request(
         approvals=[approval],
         current_user=ctx.user,
     )
+    actor_safe_legacy_labels = await legacy_pending_change_actor_safe_labels(
+        db,
+        approvals=[approval],
+        current_user=ctx.user,
+    )
     return build_approval_read(
         approval,
         ctx.user,
@@ -96,4 +102,5 @@ async def get_approval_request(
             current_user=ctx.user,
         ),
         actor_safe_extended_labels=actor_safe_labels.get(approval.id),
+        actor_safe_legacy_labels=actor_safe_legacy_labels,
     )

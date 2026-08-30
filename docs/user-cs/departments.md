@@ -142,4 +142,4 @@ Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na 
 
 ## Související manuály
 
-Začněte s [Governance](./governance.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Vendors](./vendors.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.
+Začněte s [Governance](./governance.md), [Risks](./risks.md), [Controls](./controls.md), [KRI](./kris.md), [Vendors](./vendors.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

@@ -145,4 +145,4 @@ Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na 
 
 ## Související manuály
 
-Začněte s [Risks](./risks.md), [Controls](./controls.md), [Vendors](./vendors.md), [Notifications](./notifications.md), [Activity Log](./activity-log.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.
+Začněte s [Risks](./risks.md), [Controls](./controls.md), [Vendors](./vendors.md), [Notifications](./notifications.md), [Záznam aktivit](./activity-log.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

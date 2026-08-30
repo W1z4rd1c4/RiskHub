@@ -1,4 +1,6 @@
 import { Activity, RefreshCw, ShieldX } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useAuthz } from '@/authz/useAuthz';
 import { useActivityLogPageState, type ActiveTab } from '@/hooks/useActivityLogPageState';
 import { ActivityLogFilterBar } from '@/components/activity-log/ActivityLogFilterBar';
 import { ActivityLogEntries } from '@/components/activity-log/ActivityLogEntries';
@@ -23,6 +25,7 @@ const TABS: { id: ActiveTab; labelKey: string }[] = [
 
 export function ActivityLogPage() {
     const { t } = useTranslation('common');
+    const authz = useAuthz();
     const state = useActivityLogPageState();
     const readDenied = state.capabilities !== null && !resolveCapabilityFlag(state.capabilities, 'can_read');
 
@@ -53,15 +56,25 @@ export function ActivityLogPage() {
                         <p className="text-muted-foreground text-sm">{t('activity_log.subtitle')}</p>
                     </div>
                 </div>
-                <button
-                    onClick={() => state.refresh()}
-                    disabled={state.isSearchSettling}
-                    className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-muted-foreground hover:text-foreground disabled:cursor-wait disabled:opacity-60"
-                    title={t('tooltips.refresh_log')}
-                    aria-label={t('tooltips.refresh_log')}
-                >
-                    <RefreshCw className={`h-5 w-5 ${state.isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
-                </button>
+                <div className="flex items-center gap-3">
+                    {authz.canReadControls ? (
+                        <Link
+                            to="/audit-trail"
+                            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm font-bold text-foreground"
+                        >
+                            {t('controls:audit_trail.title')}
+                        </Link>
+                    ) : null}
+                    <button
+                        onClick={() => state.refresh()}
+                        disabled={state.isSearchSettling}
+                        className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-muted-foreground hover:text-foreground disabled:cursor-wait disabled:opacity-60"
+                        title={t('tooltips.refresh_log')}
+                        aria-label={t('tooltips.refresh_log')}
+                    >
+                        <RefreshCw className={`h-5 w-5 ${state.isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                    </button>
+                </div>
             </div>
 
             {/* Tabs */}

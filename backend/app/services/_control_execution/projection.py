@@ -48,6 +48,7 @@ class ControlRiskLinkOutcome:
 class ControlExecutionListOutcome:
     projections: list[ControlExecutionProjection]
     total: int
+    can_read: bool
     can_export_csv: bool
 
 
@@ -162,6 +163,7 @@ async def list_control_execution_projections(
             for execution in executions
         ],
         total=total,
+        can_read=has_permission(current_user, "controls", "read"),
         can_export_csv=has_permission(current_user, "reports", "read"),
     )
 

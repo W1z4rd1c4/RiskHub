@@ -6,6 +6,10 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
 import { DialogShell } from '@/components/DialogShell';
+import {
+    getPermissionLabel,
+    getPermissionResourceLabel,
+} from '@/components/access/permissionPresentation';
 import type { PermissionRead, RoleHubCreate, RoleHubRead, RoleHubUpdate } from '@/services/riskHubApi';
 
 import {
@@ -31,7 +35,7 @@ export function RoleModal({
     permissionsLoading,
     role,
 }: RoleModalProps) {
-    const { t } = useTranslation(['admin', 'common']);
+    const { t } = useTranslation(['admin', 'common', 'settings']);
     const titleId = useId();
     const [description, setDescription] = useState('');
     const [displayName, setDisplayName] = useState('');
@@ -173,33 +177,48 @@ export function RoleModal({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
                                 {Object.entries(permissionsByResource).map(([resource, permissions]) => (
                                     <div key={resource} className="bg-white/5 rounded-lg p-3 border border-white/10">
-                                        <h4 className="text-xs font-bold text-accent uppercase mb-2 tracking-wider">{resource}</h4>
+                                        <h4 className="text-xs font-bold text-accent uppercase mb-2 tracking-wider">
+                                            {getPermissionResourceLabel(resource, t)}
+                                        </h4>
                                         <div className="space-y-2">
-                                            {permissions.map((permission) => (
-                                                <label key={permission.id} htmlFor={`role-perm-${permission.id}`} className="flex items-start gap-2 cursor-pointer group">
-                                                    <input
-                                                        id={`role-perm-${permission.id}`}
-                                                        type="checkbox"
-                                                        checked={selectedPermissionIds.includes(permission.id)}
-                                                        onChange={() => togglePermission(permission.id)}
-                                                        className="mt-0.5 rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
-                                                    />
-                                                    <div>
-                                                        <span className="block text-sm text-slate-200 group-hover:text-white transition-colors">
-                                                            {permission.action}
-                                                        </span>
-                                                        {permission.description && (
-                                                            <span className="block text-xs text-slate-500">
-                                                                {permission.description}
+                                            {permissions.map((permission) => {
+                                                const permissionToken = `${permission.resource}:${permission.action}`;
+                                                const permissionLabel = getPermissionLabel(permissionToken, t);
+                                                return (
+                                                    <label key={permission.id} htmlFor={`role-perm-${permission.id}`} className="flex items-start gap-2 cursor-pointer group">
+                                                        <input
+                                                            id={`role-perm-${permission.id}`}
+                                                            type="checkbox"
+                                                            aria-label={permissionLabel}
+                                                            checked={selectedPermissionIds.includes(permission.id)}
+                                                            onChange={() => togglePermission(permission.id)}
+                                                            className="mt-0.5 rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
+                                                        />
+                                                        <div>
+                                                            <span className="block text-sm text-slate-200 group-hover:text-white transition-colors">
+                                                                {permissionLabel}
                                                             </span>
-                                                        )}
-                                                    </div>
-                                                </label>
-                                            ))}
+                                                        </div>
+                                                    </label>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 ))}
                             </div>
+                        )}
+                        {!permissionsLoading && allPermissions.length > 0 && (
+                            <details className="mt-3 border-t border-white/10 pt-3 text-xs text-slate-400">
+                                <summary className="cursor-pointer font-medium text-slate-300">
+                                    {t('permissions.technical_details', { ns: 'settings' })}
+                                </summary>
+                                <ul className="mt-2 space-y-1">
+                                    {allPermissions.map((permission) => {
+                                        const permissionToken = `${permission.resource}:${permission.action}`;
+                                        return <li key={permission.id}><code>{permissionToken}</code></li>;
+                                    })}
+                                </ul>
+                            </details>
                         )}
                     </div>
 

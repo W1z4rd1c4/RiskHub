@@ -134,6 +134,29 @@ describe('routing manifest parity', () => {
     expect(new Set(hrefs).size).toBe(hrefs.length);
   });
 
+  it('registers Evidence & Reports in Administration between Activity Log and Settings', () => {
+    const evidence = businessRoutes.find((route) => route.key === 'evidence');
+
+    expect(evidence).toMatchObject({
+      path: 'evidence',
+      nav: {
+        href: '/evidence',
+        group: 'administration',
+        labelKey: 'evidence',
+        order: 105,
+      },
+    });
+  });
+
+  it('declares the localized KRI supporting term on the existing sidebar route', () => {
+    expect(businessRoutes.find((route) => route.key === 'kris')).toMatchObject({
+      nav: {
+        labelKey: 'kris',
+        supportingTermKey: 'kris',
+      },
+    });
+  });
+
   it('guards direct navigation for audit and admin route entries', () => {
     expectRouteElementGuard(businessRoutes, 'audit-trail', AuditTrailRouteGuard);
     expectRouteElementGuard(adminRoutes, 'admin', AdminConsoleRouteGuard);
@@ -177,6 +200,7 @@ describe('routing manifest parity', () => {
       '/departments',
       '/governance',
       '/activity-log',
+      '/evidence',
       '/settings',
       '/users',
       '/risk-hub',
@@ -209,6 +233,7 @@ describe('routing manifest parity', () => {
       '/ict-register/data-quality',
       '/departments',
       '/activity-log',
+      '/evidence',
       '/settings',
       '/users',
     ]);
@@ -347,7 +372,7 @@ describe('sidebar nav grouping (P4 section map)', () => {
         group: 'ict_register',
         hrefs: ['/processes', '/assets', '/threats', '/ict-register/data-quality'],
       },
-      { group: 'administration', hrefs: ['/governance', '/activity-log', '/settings', '/users', '/risk-hub'] },
+      { group: 'administration', hrefs: ['/governance', '/activity-log', '/evidence', '/settings', '/users', '/risk-hub'] },
     ]);
   });
 

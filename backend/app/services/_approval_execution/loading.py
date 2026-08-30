@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, ValidationError
 from app.models import ApprovalRequest, ApprovalResourceType, Control, KeyRiskIndicator, Risk
 
 
@@ -26,6 +26,15 @@ async def load_approval(db: AsyncSession, approval_id: int) -> ApprovalRequest:
     if not approval:
         raise NotFoundError("Approval request not found")
     return approval
+
+
+def assert_valid_legacy_pending_changes(approval: ApprovalRequest) -> None:
+    """Reject corrupt legacy change envelopes after action authorization."""
+    if approval.pending_changes is not None and not isinstance(approval.pending_changes, dict):
+        raise ValidationError(
+            "Approval request cannot be resolved because its stored changes are invalid",
+            code="approval_payload_invalid",
+        )
 
 
 async def get_approval_department_id(db: AsyncSession, approval: ApprovalRequest) -> int | None:

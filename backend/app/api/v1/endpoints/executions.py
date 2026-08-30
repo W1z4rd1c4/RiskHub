@@ -67,7 +67,10 @@ async def read_executions(
         total=outcome.total,
         skip=skip,
         limit=limit,
-        capabilities=schemas.ControlExecutionListCapabilities(can_export_csv=outcome.can_export_csv),
+        capabilities=schemas.ControlExecutionListCapabilities(
+            can_read=outcome.can_read,
+            can_export_csv=outcome.can_export_csv,
+        ),
     )
 
 

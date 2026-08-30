@@ -4,17 +4,20 @@ import { useContentTabs } from '@/hooks/useContentTabs';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 
-import { APPROVAL_TABS, type ApprovalsFilter } from './approvalsPresentation';
+import {
+    APPROVAL_TAB_REGISTRY,
+    type ApprovalWorkbenchTab,
+} from './approvalWorkbenchQuery';
 
 interface ApprovalsTabsProps {
-    filter: ApprovalsFilter;
-    onChange: (filter: ApprovalsFilter) => void;
+    filter: ApprovalWorkbenchTab;
+    onChange: (filter: ApprovalWorkbenchTab) => void;
     t: SafeTFunction;
     label: string;
     children: ReactNode;
 }
 
-const approvalTabValues = APPROVAL_TABS.map((tab) => tab.value);
+const approvalTabValues = APPROVAL_TAB_REGISTRY.map((tab) => tab.value);
 
 export function ApprovalsTabs({ filter, onChange, t, label, children }: ApprovalsTabsProps) {
     const { getTabProps, getPanelProps } = useContentTabs({
@@ -31,7 +34,7 @@ export function ApprovalsTabs({ filter, onChange, t, label, children }: Approval
                 aria-label={label}
                 className="flex items-center gap-4 border-b border-white/5 pb-4"
             >
-                {APPROVAL_TABS.map((tab, index) => (
+                {APPROVAL_TAB_REGISTRY.map((tab, index) => (
                     <button
                         key={tab.value}
                         {...getTabProps(tab.value, index)}
@@ -46,7 +49,7 @@ export function ApprovalsTabs({ filter, onChange, t, label, children }: Approval
                     </button>
                 ))}
             </div>
-            {APPROVAL_TABS.map((tab) => (
+            {APPROVAL_TAB_REGISTRY.map((tab) => (
                 <div key={tab.value} {...getPanelProps(tab.value)}>
                     {filter === tab.value ? children : null}
                 </div>

@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 
 import type { SafeTFunction } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ interface ApprovalResolutionDialogProps {
     selectedApproval: ApprovalRequest | null;
     dialogMode: 'approve' | 'reject' | null;
     resolutionNotes: string;
+    errorText: string | null;
     isSubmitting: boolean;
     onClose: () => void;
     onResolve: () => void;
@@ -20,6 +21,7 @@ export function ApprovalResolutionDialog({
     selectedApproval,
     dialogMode,
     resolutionNotes,
+    errorText,
     isSubmitting,
     onClose,
     onResolve,
@@ -28,6 +30,8 @@ export function ApprovalResolutionDialog({
 }: ApprovalResolutionDialogProps) {
     const titleId = useId();
     const descriptionId = useId();
+    const notesRef = useRef<HTMLTextAreaElement>(null);
+
     return (
         <DialogShell
             isOpen={Boolean(selectedApproval && dialogMode)}
@@ -47,12 +51,22 @@ export function ApprovalResolutionDialog({
                             <p id={descriptionId} className="text-sm text-slate-400 mb-6">{t('dialogs.resolution_required')}</p>
 
                             <textarea
+                                ref={notesRef}
                                 value={resolutionNotes}
                                 onChange={(event) => onResolutionNotesChange(event.target.value)}
                                 aria-labelledby={descriptionId}
                                 placeholder={t('dialogs.resolution_placeholder')}
                                 className="w-full h-32 bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder:text-slate-600 outline-none focus:border-accent/50 resize-none"
                             />
+
+                            {errorText && (
+                                <p
+                                    role="alert"
+                                    className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+                                >
+                                    {errorText}
+                                </p>
+                            )}
 
                             <div className="flex justify-end gap-3 mt-6">
                                 <button
@@ -62,8 +76,11 @@ export function ApprovalResolutionDialog({
                                     {t('actions.cancel')}
                                 </button>
                                 <button
-                                    onClick={onResolve}
-                                    disabled={isSubmitting || !resolutionNotes.trim()}
+                                    onClick={() => {
+                                        onResolve();
+                                        if (!resolutionNotes.trim()) notesRef.current?.focus();
+                                    }}
+                                    disabled={isSubmitting}
                                     className={cn(
                                         'px-6 py-2 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50',
                                         dialogMode === 'approve'

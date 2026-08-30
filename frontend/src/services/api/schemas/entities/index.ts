@@ -1,6 +1,7 @@
 export * from './identity';
 export * from './executions';
 export * from './governance';
+export * from './goTo';
 export * from './processes';
 export * from './assets';
 export * from './threats';

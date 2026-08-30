@@ -502,6 +502,7 @@ export const handlers = [
             total: 0,
             skip,
             limit,
+            skipped_corrupt_payloads: 0,
         });
     }),
     http.get('*/api/v1/approvals/pending/count', () => {
@@ -561,7 +562,10 @@ export const handlers = [
 
     // Executions
     http.get('*/api/v1/executions', () => {
-        return HttpResponse.json(paginate(mockExecutions));
+        return HttpResponse.json({
+            ...paginate(mockExecutions),
+            capabilities: { can_read: true, can_export_csv: true },
+        });
     }),
 
     http.post('*/api/v1/executions', async ({ request }) => {

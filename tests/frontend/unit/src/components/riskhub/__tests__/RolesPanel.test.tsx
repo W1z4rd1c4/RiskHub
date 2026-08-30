@@ -144,7 +144,7 @@ describe('RolesPanel', () => {
         fireEvent.change(screen.getByLabelText(/role identifier/i), { target: { value: 'Vendor_Lead!' } });
         fireEvent.change(screen.getByLabelText(/display name/i), { target: { value: 'Vendor Lead' } });
         fireEvent.change(screen.getByLabelText(/description/i), { target: { value: 'Vendor lead role' } });
-        fireEvent.click(screen.getByLabelText(/Write risks/i));
+        fireEvent.click(screen.getByLabelText(/Can manage risks/i));
         fireEvent.click(screen.getByRole('button', { name: /save role/i }));
 
         await waitFor(() => {
@@ -165,7 +165,7 @@ describe('RolesPanel', () => {
         expect(row).not.toBeNull();
         fireEvent.click(within(row as HTMLTableRowElement).getByLabelText(/^edit$/i));
         fireEvent.change(screen.getByLabelText(/display name/i), { target: { value: 'Risk Owner Updated' } });
-        fireEvent.click(screen.getByLabelText(/Read controls/i));
+        fireEvent.click(screen.getByLabelText(/Can view controls/i));
         fireEvent.click(screen.getByRole('button', { name: /save role/i }));
 
         await waitFor(() => {

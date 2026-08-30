@@ -1,6 +1,6 @@
 /**
  * Approvals Page Object Model
- * Handles Approval workflow list and interaction operations
+ * Handles the Approvals list and interaction operations
  */
 import { Page, Locator, expect } from '@playwright/test';
 import { waitForDataLoad } from '../helpers/wait';
@@ -17,7 +17,7 @@ export class ApprovalsPage {
     // ─────────────────────────────────────────────────────────────
 
     get pageTitle(): Locator {
-        return this.page.locator('h1:has-text("Workflow")');
+        return this.page.getByRole('heading', { name: /Approvals|Schválení/ });
     }
 
     get pendingQueueTab(): Locator {

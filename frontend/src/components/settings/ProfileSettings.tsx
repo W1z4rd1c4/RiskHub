@@ -1,4 +1,5 @@
 import { User, Mail, Building, Shield, Key, BriefcaseBusiness } from 'lucide-react';
+import { getPermissionLabel } from '@/components/access/permissionPresentation';
 import { useTranslation } from '@/i18n/hooks';
 
 interface ProfileSettingsProps {
@@ -17,81 +18,11 @@ interface ProfileSettingsProps {
     };
 }
 
-// Get human-readable permission name
-function getPermissionLabel(permission: string, permissionLabels: Record<string, string>): string {
-    if (permissionLabels[permission]) {
-        return permissionLabels[permission];
-    }
-    // Fallback: format the permission string nicely
-    const parts = permission.split(':');
-    if (parts.length !== 2 || !parts[0] || !parts[1]) {
-        return permission;
-    }
-    const [resource, action] = parts;
-    return `${action.charAt(0).toUpperCase() + action.slice(1)} ${resource.charAt(0).toUpperCase() + resource.slice(1)}`;
-}
-
-// Group permissions by resource
-function groupPermissions(permissions: string[]): Record<string, string[]> {
-    const grouped: Record<string, string[]> = {};
-    permissions.forEach(perm => {
-        const [resource] = perm.split(':');
-        if (!grouped[resource]) {
-            grouped[resource] = [];
-        }
-        grouped[resource].push(perm);
-    });
-    return grouped;
-}
-
-// Get icon color based on resource
-function getResourceColor(resource: string): string {
-    const colors: Record<string, string> = {
-        risks: 'text-red-400',
-        controls: 'text-blue-400',
-        vendors: 'text-indigo-400',
-        vendor_contracts: 'text-indigo-400',
-        kris: 'text-amber-400',
-        kri: 'text-amber-400',
-        approvals: 'text-purple-400',
-        users: 'text-emerald-400',
-        departments: 'text-cyan-400',
-        activity_log: 'text-slate-400',
-        admin: 'text-rose-400',
-        '*': 'text-yellow-400',
-    };
-    return colors[resource] || 'text-slate-400';
-}
-
 export function ProfileSettings({ user }: ProfileSettingsProps) {
     const { t } = useTranslation('settings');
 
-    // Permission labels with translations
-    const permissionLabels: Record<string, string> = {
-        'risks:read': t('permissions.risks_read'),
-        'risks:write': t('permissions.risks_write'),
-        'risks:delete': t('permissions.risks_delete'),
-        'controls:read': t('permissions.controls_read'),
-        'controls:write': t('permissions.controls_write'),
-        'controls:delete': t('permissions.controls_delete'),
-        'controls:execute': t('permissions.controls_execute'),
-        'kri:submit': t('permissions.kri_submit'),
-        'approvals:read': t('permissions.approvals_read'),
-        'approvals:write': t('permissions.approvals_write'),
-        'users:read': t('permissions.users_read'),
-        'users:write': t('permissions.users_write'),
-        'activity_log:read': t('permissions.activity_log_read'),
-        'departments:read': t('permissions.departments_read'),
-        'reports:read': t('permissions.reports_read'),
-        'vendors:read': t('permissions.vendors_read'),
-        'vendors:write': t('permissions.vendors_write'),
-        'vendors:delete': t('permissions.vendors_delete'),
-        'vendor_contracts:write': t('permissions.vendor_contracts_write'),
-        '*:*': t('permissions.super_admin'),
-    };
-
     const effectivePermissions = user.effective_permissions ?? user.permissions ?? [];
-    const groupedPermissions = groupPermissions(effectivePermissions);
+    const listedPermissions = effectivePermissions.filter((permission) => permission !== '*:*');
 
     return (
         <div className="space-y-8">
@@ -183,29 +114,32 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                 <div className="bg-white/5 border border-white/10 rounded-xl p-6">
                     {effectivePermissions.includes('*:*') && (
                         <div className="mb-4 px-3 py-2 rounded-lg border border-yellow-500/20 bg-yellow-500/10 text-yellow-300 text-sm font-medium">
-                            {t('profile.all_permissions')} <span className="font-mono">(*:*)</span>
+                            {getPermissionLabel('*:*', t)}
                         </div>
                     )}
-                    {Object.keys(groupedPermissions).length === 0 ? (
+                    {effectivePermissions.length === 0 ? (
                         <p className="text-slate-400 text-center py-4">{t('profile.no_permissions_assigned')}</p>
-                    ) : (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {Object.entries(groupedPermissions).map(([resource, perms]) => (
-                                <div key={resource} className="space-y-2">
-                                    <h5 className={`text-sm font-semibold capitalize ${getResourceColor(resource)}`}>
-                                        {resource === '*' ? 'Global' : resource.replace(/_/g, ' ')}
-                                    </h5>
-                                    <ul className="space-y-1">
-                                        {perms.map(perm => (
-                                            <li key={perm} className="text-sm text-slate-300 flex items-center gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                {getPermissionLabel(perm, permissionLabels)}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
+                    ) : listedPermissions.length > 0 && (
+                        <ul className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                            {listedPermissions.map((permission) => (
+                                <li key={permission} className="text-sm text-slate-300 flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    {getPermissionLabel(permission, t)}
+                                </li>
                             ))}
-                        </div>
+                        </ul>
+                    )}
+                    {effectivePermissions.length > 0 && (
+                        <details className="mt-5 border-t border-white/10 pt-3 text-xs text-slate-400">
+                            <summary className="cursor-pointer font-medium text-slate-300">
+                                {t('permissions.technical_details')}
+                            </summary>
+                            <ul className="mt-2 space-y-1">
+                                {effectivePermissions.map((permission) => (
+                                    <li key={permission}><code>{permission}</code></li>
+                                ))}
+                            </ul>
+                        </details>
                     )}
                 </div>
             </section>

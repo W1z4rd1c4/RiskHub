@@ -55,7 +55,7 @@ Vyberte **Nová hrozba**, zadejte stručný jednoznačný název a ve vyhledáva
 
 ### Přeřazení odpovědnosti
 
-Pokud je současný správce způsobilý, otevřete **Upravit hrozbu**, vyhledejte náhradního CISO podle jména nebo e-mailu, vyberte osobu a uložte. Pokud se zobrazuje jantarové upozornění, nepoužívejte běžnou úpravu: CRO otevře frontu hrozeb v **Governance**, vybere **Resolve**, zvolí aktivního CISO a odešle explicitní resolution. Deaktivace původního správce nikdy automaticky nepřevede odpovědnost. Po úspěchu kteréhokoli postupu ověřte nové jméno v detailu a při požadavku na evidenci zkontrolujte Activity Log.
+Pokud je současný správce způsobilý, otevřete **Upravit hrozbu**, vyhledejte náhradního CISO podle jména nebo e-mailu, vyberte osobu a uložte. Pokud se zobrazuje jantarové upozornění, nepoužívejte běžnou úpravu: CRO otevře frontu hrozeb v **Governance**, vybere **Resolve**, zvolí aktivního CISO a odešle explicitní resolution. Deaktivace původního správce nikdy automaticky nepřevede odpovědnost. Po úspěchu kteréhokoli postupu ověřte nové jméno v detailu a při požadavku na evidenci zkontrolujte stránku **Záznam aktivit**.
 
 ### Propojení nebo odpojení rizika
 
@@ -91,9 +91,9 @@ Počet aktivních filtrů a jejich štítky ukazují celý výběr. Odebráním 
 
 Řazení a stránkování pracují uvnitř aktuálního filtrovaného rozsahu a vybrané skupiny. **Export** stáhne všechny odpovídající hrozby ve stejném oprávněném rozsahu bez ohledu na právě zobrazenou stránku. Standardní export zachová stabilní kódy kategorií a doplní popisky ve zvoleném jazyce exportu. Přenáší hledání, filtry, pohled a vybranou skupinu, nikoli nesouvisející parametry URL nebo stránkování seznamu. Pokud **Export** chybí, server tuto capability neposkytl.
 
-Detail a Activity Log slouží jako evidence správy, lifecycle změn a vazeb na rizika. UI nikdy nenahrazuje chybějící jméno surovým ID uživatele.
+Detail a Záznam aktivit slouží jako evidence správy, lifecycle změn a vazeb na rizika. UI nikdy nenahrazuje chybějící jméno surovým ID uživatele.
 
-Při evidenční kontrole zaznamenejte název hrozby, kategorii, aktuálně způsobilého správce, stav archivace a business identifikátory navázaných rizik. V Activity Logu ověřte, kdo a kdy záznam vytvořil, změnil, archivoval, obnovil, propojil nebo odpojil. Filtrovaný seznam nebo standardní export je snímek registru, nikoli úplná auditní stopa. Pokud evidence musí ukázat, kdo a kdy změnil vazbu nebo pole, použijte Activity Log nebo autorizovaný auditní report.
+Při evidenční kontrole zaznamenejte název hrozby, kategorii, aktuálně způsobilého správce, stav archivace a business identifikátory navázaných rizik. Na stránce **Záznam aktivit** ověřte, kdo a kdy záznam vytvořil, změnil, archivoval, obnovil, propojil nebo odpojil. Filtrovaný seznam nebo standardní export je snímek registru, nikoli úplná auditní stopa. Pokud evidence musí ukázat, kdo a kdy změnil vazbu nebo pole, použijte stránku **Záznam aktivit** nebo autorizovaný auditní report.
 
 Jantarové upozornění na osiřelou odpovědnost znamená, že systém po deaktivaci nebo ztrátě role CISO zachoval původní vazbu. Jde o záměrné zachování evidence. Hrozba zůstává čitelná a původní vztah není přepsán vymyšleným náhradníkem. Detail skryje **Upravit hrozbu** a oprávněného CRO nasměruje do fronty hrozeb v Governance; CISO bez přístupu do Governance dostane pokyn požádat CRO. Governance statistiky počítají mezeru, dokud tento uživatel explicitně nepřeřadí záznam na aktivního CISO.
 
@@ -125,4 +125,4 @@ nevyřešená do schválení.
 
 ## Související manuály
 
-Viz [Rizika](./risks.md), [Governance](./governance.md), [Activity Log](./activity-log.md) a [Správa přístupů](./access-management.md).
+Viz [Rizika](./risks.md), [Governance](./governance.md), [Záznam aktivit](./activity-log.md) a [Správa přístupů](./access-management.md).

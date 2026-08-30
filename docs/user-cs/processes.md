@@ -82,7 +82,7 @@ Pokud máte oprávnění k exportu, tlačítko **Export** stáhne standardní CS
 
 Během načítání nechte prohlížeč otevřený a vyčkejte na dokončení progress stavu. Když je to bezpečné, chyba při obnovení ponechá už načtené výsledky viditelné a nabídne chybu s opakováním. Stav prázdného registru a stav bez shody vysvětlují, zda vytvořit záznam, odstranit podmínky nebo změnit hledání. Při zamítnutém právu číst procesy registr ukáže access stav a neodhalí řádky, názvy skupin, počty facetů ani lookup hodnoty. Pohledy, filtry, karty skupin, řazení tabulky, stránkování a opakování jsou ovladatelné klávesnicí a správně popsané pro asistivní technologie.
 
-Pro evidenci si poznamenejte F-kód, hierarchii, zobrazené jméno a kontext vlastníka, název a kód vlastnického útvaru, lifecycle, lokalizované zobrazené hodnoty a odvozený výsledek. Activity Log ukáže autora a čas změny. E-mail slouží jako metadata v pickeru pro rozlišení identity; není součástí zobrazení evidence na detailu procesu.
+Pro evidenci si poznamenejte F-kód, hierarchii, zobrazené jméno a kontext vlastníka, název a kód vlastnického útvaru, lifecycle, lokalizované zobrazené hodnoty a odvozený výsledek. Záznam aktivit ukáže autora a čas změny. E-mail slouží jako metadata v pickeru pro rozlišení identity; není součástí zobrazení evidence na detailu procesu.
 
 ## Tipy a časté chyby
 
@@ -108,4 +108,4 @@ platí pro osiřelé položky v Governance, které zůstanou ve frontě do schv�
 
 ## Související manuály
 
-Viz [Oddělení](./departments.md), [Governance](./governance.md), [Rizika](./risks.md), [Dodavatelé](./vendors.md) a [Activity Log](./activity-log.md).
+Viz [Oddělení](./departments.md), [Governance](./governance.md), [Rizika](./risks.md), [Dodavatelé](./vendors.md) a [Záznam aktivit](./activity-log.md).

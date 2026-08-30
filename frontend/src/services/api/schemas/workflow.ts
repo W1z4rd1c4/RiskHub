@@ -2,10 +2,10 @@ import type { ActivityLogEntry, ActivityLogListResponse } from '@/types/activity
 import type {
     ApprovalCreatedResponse,
     ApprovalListResponse,
+    ApprovalPendingChange,
     ApprovalRequest,
     GovernedDerivedImpact,
     GovernedMutationRead,
-    PendingChange,
 } from '@/types/approval';
 import { GOVERNED_MUTATION_KINDS } from '@/types/approval';
 import type {
@@ -39,18 +39,16 @@ import {
     z,
 } from './common';
 
-const pendingChangeSchema: z.ZodType<PendingChange> = z.preprocess(
-    (value) => {
-        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-            return value;
-        }
-        return { old: undefined, new: value };
-    },
+const pendingChangeSchema: z.ZodType<ApprovalPendingChange> = z.union([
     passthroughObject({
         old: z.unknown(),
         new: z.unknown(),
     }),
-);
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+]);
 
 const governedDerivedStateSchema = z.strictObject({
     cif: z.string(),
@@ -314,7 +312,9 @@ export const approvalRequestSchema: z.ZodType<ApprovalRequest> = passthroughObje
     }).nullable().optional(),
 });
 export const approvalListResponseSchema: z.ZodType<ApprovalListResponse> =
-    offsetPaginationSchema(approvalRequestSchema);
+    offsetPaginationSchema(approvalRequestSchema).extend({
+        skipped_corrupt_payloads: z.number().int().nonnegative(),
+    });
 export const approvalCreatedResponseSchema = passthroughObject({
         status: z.literal('approval_required'),
         message: z.string(),

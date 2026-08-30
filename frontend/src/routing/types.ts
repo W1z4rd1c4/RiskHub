@@ -18,6 +18,7 @@ export type SidebarRuntimeContext = {
 export type SidebarNavDef = {
   href: string;
   labelKey: string;
+  supportingTermKey?: string;
   icon: LucideIcon;
   group: SidebarGroupKey;
   isVisible: (context: SidebarRuntimeContext) => boolean;

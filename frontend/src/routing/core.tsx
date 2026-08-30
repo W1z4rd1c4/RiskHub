@@ -13,6 +13,7 @@ const UserNewPage = lazy(() => import('@/pages/UserNewPage'));
 const HeroPage = lazy(() => import('@/pages/HeroPage'));
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const SsoCallbackPage = lazy(() => import('@/pages/SsoCallbackPage'));
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 function RoleBasedIndex() {
   const authz = useAuthz();
@@ -96,5 +97,10 @@ export const coreProtectedRoutes: AppRouteDef[] = [
         <UserNewPage />
       </UserLifecycleRouteGuard>
     ),
+  },
+  {
+    key: 'not-found',
+    path: '*',
+    element: <NotFoundPage />,
   },
 ];

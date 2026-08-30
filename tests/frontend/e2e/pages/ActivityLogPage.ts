@@ -24,7 +24,7 @@ export class ActivityLogPage {
 
     get pageTitle(): Locator {
         return this.page.locator(
-            'h1:has-text("Activity Log"), h1:has-text("Audit Trail"), h1:has-text("Auditní stopa")',
+            'h1:has-text("Activity Log"), h1:has-text("Záznam aktivit")',
         );
     }
 
@@ -146,7 +146,7 @@ export class ActivityLogPage {
         // Click Activity Log tab
         await this.page.click(
             'button:has-text("Activity Log"), [role="tab"]:has-text("Activity"), ' +
-            'button:has-text("Auditní stopa"), [role="tab"]:has-text("Auditní")',
+            'button:has-text("Záznam aktivit"), [role="tab"]:has-text("Záznam aktivit")',
         );
         await waitForDataLoad(this.page);
     }
@@ -361,7 +361,7 @@ export class ActivityLogPage {
     async expectPageVisible(): Promise<void> {
         await expect(
             this.page.locator(
-                'h1:has-text("Activity Log"), h1:has-text("Audit Trail"), h1:has-text("Auditní stopa")',
+                'h1:has-text("Activity Log"), h1:has-text("Záznam aktivit")',
             ).first(),
         ).toBeVisible();
     }

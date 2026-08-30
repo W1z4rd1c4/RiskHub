@@ -36,7 +36,7 @@ You will use this area most often for:
 
 - control list
 - control detail
-- execution history
+- Control Execution History
 - risk links
 - vendor context
 - status and review signals
@@ -54,6 +54,8 @@ Have the record name, code, owner, and department ready before asking for help. 
 Primary route: `/controls`
 
 You can usually reach this area from the left sidebar. Detail pages open by selecting a row or a linked card. If you arrive from another record, use the back button or the related-record links to return to the broader context.
+
+Use **Control Execution History** at `/audit-trail` for the cross-control execution population. When your role permits it, that page links to **Activity Log** for business-record change history without combining the two datasets.
 
 Common navigation pattern:
 

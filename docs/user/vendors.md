@@ -147,6 +147,8 @@ Every active filter has a chip and contributes to the active-filter count. Remov
 
 The standard Vendor export uses the current search, filters, sort, and selected group, includes all matching rows independently of the current page, and follows the active UI locale. Controlled fields retain stable codes and localized labels. The formal DORA Register of Information export is a separate regulatory action with mandated structure and terminology. Use the Vendor detail or the related register for evidence that is not part of the standard list export.
 
+Use **Vendor Reports** at `/vendor-reports` for the annual Vendor report and formal DORA export. **Evidence & Reports** links there only after its capability check succeeds; an unavailable check offers Retry and a denied capability omits the card.
+
 For reliable evidence, start broad enough to confirm the Vendor exists, narrow to the intended population, open a sample row to verify the meaning, and then export. Record the time and purpose of the snapshot and avoid sharing unrelated personal or sensitive information.
 
 ## Tips and Common Mistakes
@@ -185,4 +187,4 @@ the former-owner evidence.
 
 ## Related Manuals
 
-Start with [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md), [Dashboard](./dashboard.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.
+Start with [Risks](./risks.md), [Controls](./controls.md), [KRIs](./kris.md), [Issues](./issues.md), [Dashboard](./dashboard.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

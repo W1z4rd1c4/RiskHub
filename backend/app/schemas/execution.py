@@ -87,6 +87,7 @@ class ControlExecution(ControlExecutionRead):
 class ControlExecutionListCapabilities(BaseModel):
     """Collection-level capabilities for the generic execution list."""
 
+    can_read: bool
     can_export_csv: bool = False
 
 

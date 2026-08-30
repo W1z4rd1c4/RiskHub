@@ -20,8 +20,7 @@ test.describe('Approvals Permissions', () => {
             // Wait for navigation to complete and page to render
             await riskManagerPage.waitForLoadState('networkidle');
 
-            // Page title is "Workflow"
-            const pageTitle = riskManagerPage.locator('h1:has-text("Workflow")');
+            const pageTitle = riskManagerPage.getByRole('heading', { name: 'Approvals' });
             await expect(pageTitle).toBeVisible({ timeout: 15000 });
         });
 
@@ -29,8 +28,7 @@ test.describe('Approvals Permissions', () => {
             await croPage.goto('/approvals');
             await waitForDataLoad(croPage);
 
-            // Page title is "Workflow"
-            const pageTitle = croPage.locator('h1:has-text("Workflow")');
+            const pageTitle = croPage.getByRole('heading', { name: 'Approvals' });
             await expect(pageTitle).toBeVisible();
         });
 

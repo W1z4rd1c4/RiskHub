@@ -21,8 +21,9 @@ import { cn } from '@/lib/utils';
 import type { ApprovalRequest } from '@/types/approval';
 
 import { GovernedMutationDiff } from '@/components/approvals/GovernedMutationDiff';
+import { LegacyApprovalChanges } from '@/components/approvals/LegacyApprovalChanges';
 import { getApprovalActionBadge, getApprovalStatusBadge, getGovernedActionLabel } from './approvalsPresentation';
-import { approvalPendingChangeEntries, canViewApprovalPendingChanges } from './approvalPendingChanges';
+import { canViewApprovalPendingChanges } from './approvalPendingChanges';
 
 interface ApprovalListProps {
     approvals: ApprovalRequest[];
@@ -69,7 +70,6 @@ export function ApprovalList({
         <div className="space-y-4">
             {approvals.map((approval) => {
                 const canViewPendingChanges = canViewApprovalPendingChanges(approval);
-                const pendingChangeEntries = approvalPendingChangeEntries(approval);
                 const governedActionLabel = getGovernedActionLabel(
                     approval.action_type,
                     approval.governed_mutation?.mutation_kind,
@@ -255,30 +255,12 @@ export function ApprovalList({
                                             testId={`approval-governed-mutation-${approval.id}`}
                                         />
                                     ) : (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {pendingChangeEntries.map(([field, change]) => (
-                                                <div
-                                                    key={field}
-                                                    className="bg-black/20 rounded-lg p-3 border border-white/5"
-                                                >
-                                                    <span
-                                                        data-testid="approval-pending-change-field"
-                                                        className="block text-xs text-accent-text font-bold uppercase mb-1"
-                                                    >
-                                                        {field}
-                                                    </span>
-                                                    <div className="flex items-center gap-2 text-xs">
-                                                        <span className="text-destructive line-through">
-                                                            {String(change.old)}
-                                                        </span>
-                                                        <span className="text-slate-600">→</span>
-                                                        <span className="text-success-text font-bold">
-                                                            {String(change.new)}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <LegacyApprovalChanges
+                                            pendingChanges={approval.pending_changes!}
+                                            resourceType={approval.resource_type}
+                                            locale={locale}
+                                            testId={`approval-legacy-changes-${approval.id}`}
+                                        />
                                     )}
                                 </motion.div>
                             )}

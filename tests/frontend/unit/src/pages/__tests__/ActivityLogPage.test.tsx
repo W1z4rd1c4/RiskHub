@@ -17,6 +17,11 @@ const mockGetUsers = vi.fn();
 const mockGetDepartments = vi.fn();
 const mockGetRisks = vi.fn();
 const mockUseDebouncedValue = vi.fn((value: unknown) => value);
+const mockUseAuthz = vi.fn(() => ({ canReadControls: true }));
+
+vi.mock('@/authz/useAuthz', () => ({
+    useAuthz: () => mockUseAuthz(),
+}));
 
 vi.mock('@/hooks/useDebouncedValue', () => ({
     useDebouncedValue: <T,>(value: T) => mockUseDebouncedValue(value) as T,
@@ -223,12 +228,38 @@ describe('Activity Log Helpers', () => {
 describe('ActivityLogPage capability denial state', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockUseAuthz.mockReturnValue({ canReadControls: true });
         mockGetActions.mockResolvedValue([]);
         mockGetActors.mockResolvedValue([]);
         mockGetUsers.mockResolvedValue([]);
         mockGetDepartments.mockResolvedValue([]);
         mockGetRisks.mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
         mockUseDebouncedValue.mockImplementation((value: unknown) => value);
+    });
+
+    it('links to Control Execution History only with control read authority', async () => {
+        mockList.mockResolvedValue({
+            items: [],
+            total: 0,
+            skip: 0,
+            limit: 50,
+            capabilities: null,
+        });
+
+        const rendered = renderActivityLogPage();
+
+        expect(await screen.findByRole('link', { name: 'controls:audit_trail.title' })).toHaveAttribute(
+            'href',
+            '/audit-trail',
+        );
+
+        mockUseAuthz.mockReturnValue({ canReadControls: false });
+        rendered.rerender(
+            <MemoryRouter>
+                <ActivityLogPage />
+            </MemoryRouter>,
+        );
+        expect(screen.queryByRole('link', { name: 'controls:audit_trail.title' })).not.toBeInTheDocument();
     });
 
     it('shows retryable network state instead of access denied when list loading fails without 403', async () => {

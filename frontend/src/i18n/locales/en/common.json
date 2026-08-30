@@ -39,6 +39,11 @@
   "brand": {
     "name": "RiskHub"
   },
+  "not_found_page": {
+    "title": "Page not found",
+    "description": "This address does not match an available page.",
+    "dashboard": "Dashboard"
+  },
   "detail_load": {
     "unavailable_title": "Record unavailable",
     "unavailable_description": "This record cannot be loaded right now. Try again or return to the register.",

@@ -1,5 +1,5 @@
 {
-    "title": "Workflow",
+    "title": "Approvals",
     "page_subtitle": "Manage approval requests for critical changes and deletions.",
     "tabs": {
         "pending": "Pending Queue",
@@ -17,7 +17,8 @@
         "approved": "Approved",
         "rejected": "Rejected",
         "cancelled": "Cancelled",
-        "expired": "Expired"
+        "expired": "Expired",
+        "questionnaire_retrying": "Retrying questionnaire inbox."
     },
     "request_types": {
         "create": "Create",
@@ -93,8 +94,22 @@
         "questionnaire_stale": "Questionnaire assignments may be out of date. Try again.",
         "questionnaire_access_denied": "You do not have access to questionnaire assignments."
     },
-    "status": {
-        "questionnaire_retrying": "Retrying questionnaire inbox."
+    "workbench": {
+        "search_label": "Search approvals",
+        "search_placeholder": "Search requester or request",
+        "pagination_label": "Approval pages",
+        "range": "Showing {{start}}–{{end}} of {{total}} requests",
+        "range_incomplete": "Page positions {{start}}–{{end}} of {{total}} matching requests",
+        "page_loading": "Loading approval page.",
+        "previous_page": "Previous page",
+        "next_page": "Next page",
+        "incomplete": "Some matching requests could not be displayed. Results are incomplete ({{count}} skipped).",
+        "linked_title": "Linked request",
+        "linked_description": "Linked requests are shown outside this queue page.",
+        "linked_loading": "Loading linked request.",
+        "linked_unavailable": "This linked request is unavailable.",
+        "linked_load_failed": "The linked request could not be loaded.",
+        "linked_retry": "Retry linked request"
     },
     "labels": {
         "proposed_changes": "Proposed Changes",
@@ -102,6 +117,94 @@
         "rejected_on": "Rejected on {{date}} at {{time}}",
         "by": "by",
         "re": "Re:"
+    },
+    "legacy": {
+        "not_set": "Not set",
+        "restricted_change": "Restricted change",
+        "unknown_user": "Unknown user",
+        "unknown_department": "Unknown department",
+        "unknown_vendor": "Unknown vendor",
+        "yes": "Yes",
+        "no": "No",
+        "score_out_of_five": "{{value}} of 5",
+        "kri_history": {
+            "title": "KRI history correction",
+            "value": "Value correction",
+            "reason": "Correction reason"
+        },
+        "fields": {
+            "risk_id_code": "Risk ID",
+            "name": "Name",
+            "metric_name": "Metric name",
+            "description": "Description",
+            "data_source": "Data source",
+            "methodology_reference": "Methodology reference",
+            "process_owner_position": "Process owner position",
+            "executor_position": "Executor position",
+            "output_description": "Output description",
+            "report_recipient": "Report recipient",
+            "documentation_location": "Documentation location",
+            "category": "Category",
+            "process": "Process",
+            "subprocess": "Subprocess",
+            "owner": "Accountable owner",
+            "control_owner": "Control owner",
+            "reporting_owner": "Reporting owner",
+            "department": "Owning Department",
+            "linked_vendors": "Linked vendors",
+            "is_priority": "Priority risk",
+            "acceptance_date": "Acceptance date",
+            "acceptance_approver": "Acceptance approver",
+            "acceptance_justification": "Acceptance justification",
+            "period_end": "Period end",
+            "recorded_at": "Recorded at",
+            "risk_type": "Risk type",
+            "control_form": "Control form",
+            "status": "Status",
+            "frequency": "Frequency",
+            "gross_probability": "Gross probability",
+            "net_probability": "Net probability",
+            "gross_impact": "Gross impact",
+            "net_impact": "Net impact",
+            "risk_level": "Risk level",
+            "current_value": "Current value",
+            "lower_limit": "Lower limit",
+            "upper_limit": "Upper limit",
+            "unit": "Unit"
+        },
+        "values": {
+            "risk_type": {
+                "strategic": "Strategic",
+                "operational": "Operational"
+            },
+            "control_form": {
+                "manual": "Manual",
+                "automatic": "Automatic"
+            },
+            "status": {
+                "active": "Active",
+                "emerging": "Emerging",
+                "draft": "Draft",
+                "inactive": "Inactive"
+            },
+            "frequency": {
+                "daily": "Daily",
+                "weekly": "Weekly",
+                "monthly": "Monthly",
+                "quarterly": "Quarterly",
+                "semi-annually": "Semi-annually",
+                "annually": "Annually",
+                "ad_hoc": "Ad hoc",
+                "continuous": "Continuous"
+            },
+            "unit": {
+                "percentage": "Percentage",
+                "count": "Count",
+                "days": "Days",
+                "hours": "Hours",
+                "ratio": "Ratio"
+            }
+        }
     },
     "governed": {
         "business_changes": "Before and after",

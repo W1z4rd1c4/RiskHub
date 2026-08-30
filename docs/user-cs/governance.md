@@ -100,7 +100,7 @@ Při propojování KRI nebo kontroly k riziku vybírejte jen vazby, které dáva
 
 Řešení se použije jen tehdy, pokud je záznam stále ve stavu, který jste kontrolovali. Pokud ho někdo mezitím změnil, obnovte data a posuďte aktuální stav.
 
-Poznámky k řešení mají vysvětlit business důvod, ne jen tlačítko, které jste použili. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Quick view a Activity Log pomáhají vysvětlit aktuální kontext.
+Poznámky k řešení mají vysvětlit business důvod, ne jen tlačítko, které jste použili. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Quick view a Záznam aktivit pomáhají vysvětlit aktuální kontext.
 
 Pokud je řešení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Obnovte frontu, porovnejte aktuální řádek se záměrem a odešlete nové úzké řešení jen tehdy, pokud je stále potřeba.
 
@@ -115,7 +115,7 @@ Pro spolehlivý výsledek postupujte takto:
 3. Otevřete quick view a ověřte, že cílový záznam stále potřebuje zásah.
 4. Položku vyřešte, obnovte frontu a ověřte, že zmizela.
 
-Pro formální evidenci použijte záznam v Activity Logu, který změnu zachycuje, nebo stav governance fronty po obnovení.
+Pro formální evidenci použijte záznam na stránce **Záznam aktivit**, který změnu zachycuje, nebo stav governance fronty po obnovení.
 
 ## Tipy a časté chyby
 
@@ -140,4 +140,4 @@ Managerem nebo CRO. Zrušení, zamítnutí či zastarání zachová původní d�
 
 ## Související manuály
 
-Začněte s [Departments](./departments.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Activity Log](./activity-log.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.
+Začněte s [Departments](./departments.md), [Risks](./risks.md), [Controls](./controls.md), [KRI](./kris.md), [Záznam aktivit](./activity-log.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

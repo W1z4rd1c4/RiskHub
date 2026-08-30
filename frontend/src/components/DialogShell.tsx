@@ -40,6 +40,7 @@ function classNames(...values: Array<string | undefined>) {
 function getFocusableElements(container: HTMLElement) {
     return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((element) => (
         !element.hasAttribute('disabled')
+        && element.tabIndex >= 0
         && element.getAttribute('aria-hidden') !== 'true'
         && !element.closest('[aria-hidden="true"]')
     ));

@@ -146,6 +146,8 @@ Každý aktivní filtr má čip a započítává se do počtu aktivních filtrů
 
 Standardní export dodavatelů používá aktuální hledání, filtry, řazení a vybranou skupinu, zahrne všechny odpovídající řádky bez ohledu na aktuální stránku a respektuje aktivní jazyk UI. Řízená pole zachovávají stabilní kódy i lokalizované popisky. Formální export Registru informací DORA je samostatná regulatorní akce s předepsanou strukturou a terminologií. Evidenci, která není součástí standardního exportu seznamu, hledejte v detailu dodavatele nebo v příslušném registru.
 
+Pro roční report dodavatelů a formální export DORA použijte **Reporty dodavatelů** na `/vendor-reports`. **Důkazy a reporty** na tuto stránku odkážou až po úspěšné kontrole capability; dočasná chyba nabízí Zkusit znovu a zamítnutá capability kartu nezobrazí.
+
 Pro spolehlivou evidenci začněte dost široce, abyste ověřili existenci dodavatele, zužte požadovanou populaci, otevřením vzorového řádku ověřte význam a teprve potom exportujte. Poznamenejte čas a účel snímku a nesdílejte zbytečné osobní nebo citlivé informace.
 
 ## Tipy a časté chyby
@@ -182,4 +184,4 @@ Osiřelá položka zůstává viditelná a dodavatel uzamčený do schválení.
 
 ## Související manuály
 
-Začněte s [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md), [Dashboard](./dashboard.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.
+Začněte s [Risks](./risks.md), [Controls](./controls.md), [KRI](./kris.md), [Issues](./issues.md), [Dashboard](./dashboard.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

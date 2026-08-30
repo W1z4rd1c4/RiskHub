@@ -1,10 +1,10 @@
 ---
-title: Activity Log (audit trail pro business změny)
+title: Záznam aktivit
 version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/ActivityLogPage.tsx + backend activity log endpoints"
-summary: "Jak používat Activity Log pro vyšetřování změn, potvrzení schválení a vytvoření auditovatelné historie bez úniku citlivých dat."
+summary: "Jak používat stránku Záznam aktivit pro vyšetřování změn, potvrzení schválení a vytvoření auditovatelné historie bez úniku citlivých dat."
 tags:
   - activity-log
   - audit
@@ -12,7 +12,7 @@ tags:
   - troubleshooting
   - workflow
 ---
-# Activity Log (audit trail pro business změny)
+# Záznam aktivit
 
 **Na této stránce**
 - [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
@@ -30,7 +30,7 @@ tags:
 
 Tento manuál použijte, když potřebujete zjistit kdo co změnil, kdy se to stalo, kterého záznamu se změna týkala a jak souvisí se schvalováním nebo follow-up prací. Je určen pro uživatele, kteří potřebují rekonstruovat změny, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-Text není technická reference. Vysvětluje běžný provozní postup: otevřít Activity Log, zúžit timeline, zkontrolovat kartu události a souhrn změny a zapsat potřebnou evidenci.
+Text není technická reference. Vysvětluje běžný provozní postup: otevřít stránku **Záznam aktivit**, zúžit timeline, zkontrolovat kartu události a souhrn změny a zapsat potřebnou evidenci.
 
 Tuto oblast budete používat hlavně pro:
 
@@ -51,11 +51,13 @@ Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. 
 
 Primární cesta: `/activity-log`
 
-Většinou se sem dostanete z levého menu. Activity Log je timeline plocha se záložkami, filtry, kartami událostí, refreshem a stránkováním. Práce zůstává ve filtrované timeline.
+Většinou se sem dostanete z levého menu. Záznam aktivit je timeline plocha se záložkami, filtry, kartami událostí, refreshem a stránkováním. Práce zůstává ve filtrované timeline.
+
+Pokud vaše role smí číst kontroly, stránka odkazuje také na stránku **Historie provedení kontrol**. Tato samostatná stránka odpovídá na otázku, zda byly kontroly provedeny a s jakým výsledkem; záznamy provedení neslučuje se Záznamem aktivit.
 
 Běžný postup navigace:
 
-1. Otevřete Activity Log.
+1. Otevřete stránku **Záznam aktivit**.
 2. Vyberte správnou záložku pro typ aktivity, který hledáte.
 3. Vyčistěte filtry, pokud si nejste jistí viditelností.
 4. Hledejte podle osoby, akce, typu záznamu, názvu záznamu, oddělení nebo data.
@@ -88,19 +90,19 @@ Pokud váš tým nemá přísnější postup, použijte tento základní workflo
 
 Po filtrování nebo obnovení ověřte, že timeline ukazuje očekávanou událost, osobu, akci a souhrn změny. Pokud se stránka během práce znovu načte, před zapsáním výsledku zkontrolujte aktuální filtry.
 
-Při použití Activity Logu jako evidence držte pohromadě časové okno, osobu, akci, typ záznamu a souhrn změny, aby jiný reviewer mohl rekonstruovat pořadí událostí.
+Při použití stránky **Záznam aktivit** jako evidence držte pohromadě časové okno, osobu, akci, typ záznamu a souhrn změny, aby jiný reviewer mohl rekonstruovat pořadí událostí.
 
 ## Schvalování a notifikace
 
 Schválené změny se mohou objevit jako žádost i jako aplikovaná změna. Čas a jména osob použijte pro vysvětlení pořadí.
 
-Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; Activity Log ukazuje časovou osu toho, co se stalo.
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; Záznam aktivit ukazuje časovou osu toho, co se stalo.
 
-Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Porovnejte čas schválení s Activity Logem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
+Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Porovnejte čas schválení se záznamy na stránce **Záznam aktivit** a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
 ## Vyhledávání, filtrování a evidence
 
-Používejte časové okno, osobu, akci a typ záznamu pro zúžení timeline. Business Activity Log slouží k vyšetřování a review; nemá uživatelské exportní tlačítko.
+Používejte časové okno, osobu, akci a typ záznamu pro zúžení timeline. Stránka **Záznam aktivit** slouží k vyšetřování a review; nemá uživatelské exportní tlačítko.
 
 Pro spolehlivý výsledek postupujte takto:
 

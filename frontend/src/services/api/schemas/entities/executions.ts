@@ -44,6 +44,7 @@ export const executionAuditItemSchema: z.ZodType<ExecutionAuditItem> = controlEx
     linked_risks: z.array(z.string()).optional(),
 });
 export const executionListCapabilitiesSchema: z.ZodType<ExecutionListCapabilities> = passthroughObject({
+    can_read: z.boolean(),
     can_export_csv: z.boolean().optional(),
 });
 export const executionListResponseSchema: z.ZodType<ExecutionListResponse> =

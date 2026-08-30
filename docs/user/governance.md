@@ -142,4 +142,4 @@ the orphan and former-owner evidence.
 
 ## Related Manuals
 
-Start with [Departments](./departments.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Activity Log](./activity-log.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.
+Start with [Departments](./departments.md), [Risks](./risks.md), [Controls](./controls.md), [KRIs](./kris.md), [Activity Log](./activity-log.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

@@ -137,7 +137,7 @@ describe('users route guards', () => {
         clearBootstrapSession();
     });
 
-    it('redirects denied /users visits before UsersPage mounts while auth config bootstraps', async () => {
+    it('renders generic denial for /users before UsersPage mounts while auth config bootstraps', async () => {
         server.use(
             http.get('*/api/v1/auth/me', () =>
                 HttpResponse.json(
@@ -154,12 +154,13 @@ describe('users route guards', () => {
         await renderUsersRoute();
 
         await waitFor(() => {
-            expect(screen.getByText('Home route')).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: 'Access Denied' })).toBeInTheDocument();
+            expect(screen.getByText('Access denied.')).toBeInTheDocument();
         });
         expect(mockGetAuthConfig).toHaveBeenCalledTimes(1);
     });
 
-    it('redirects denied /users/new visits before UserNewPage mounts while auth config bootstraps', async () => {
+    it('renders generic denial for /users/new before UserNewPage mounts while auth config bootstraps', async () => {
         server.use(
             http.get('*/api/v1/auth/me', () =>
                 HttpResponse.json(
@@ -176,7 +177,8 @@ describe('users route guards', () => {
         await renderUserNewRoute();
 
         await waitFor(() => {
-            expect(screen.getByText('Home route')).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: 'Access Denied' })).toBeInTheDocument();
+            expect(screen.getByText('Access denied.')).toBeInTheDocument();
         });
         expect(mockGetAuthConfig).toHaveBeenCalledTimes(1);
     });

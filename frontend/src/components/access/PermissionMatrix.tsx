@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Check, Info } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
+import { getPermissionLabel } from './permissionPresentation';
 
 interface PermissionMatrixProps {
     permissions: string[];
@@ -33,18 +34,6 @@ const resourceConfig: Record<string, { icon: string; labelKey: string; descripti
     departments: { icon: '🏢', labelKey: 'admin:access.matrix.resources.departments.label', descriptionKey: 'admin:access.matrix.resources.departments.description' },
 };
 
-// Detailed action descriptions
-const actionDescriptions: Record<string, Record<string, string>> = {
-    users: { read: 'admin:access.matrix.actions.users.read', write: 'admin:access.matrix.actions.users.write', delete: 'admin:access.matrix.actions.users.delete' },
-    risks: { read: 'admin:access.matrix.actions.risks.read', write: 'admin:access.matrix.actions.risks.write', delete: 'admin:access.matrix.actions.risks.delete' },
-    controls: { read: 'admin:access.matrix.actions.controls.read', write: 'admin:access.matrix.actions.controls.write', delete: 'admin:access.matrix.actions.controls.delete' },
-    approvals: { read: 'admin:access.matrix.actions.approvals.read', write: 'admin:access.matrix.actions.approvals.write' },
-    reports: { read: 'admin:access.matrix.actions.reports.read', write: 'admin:access.matrix.actions.reports.write' },
-    dashboard: { read: 'admin:access.matrix.actions.dashboard.read' },
-    notifications: { read: 'admin:access.matrix.actions.notifications.read', write: 'admin:access.matrix.actions.notifications.write' },
-    departments: { read: 'admin:access.matrix.actions.departments.read', write: 'admin:access.matrix.actions.departments.write' },
-};
-
 const allResourceActions: Record<string, string[]> = {
     users: ['read', 'write', 'delete'],
     risks: ['read', 'write', 'delete'],
@@ -62,14 +51,18 @@ export function PermissionMatrix({
     editable = false,
     onPermissionsChange
 }: PermissionMatrixProps) {
-    const { t } = useTranslation(['admin', 'common']);
+    const { t } = useTranslation(['admin', 'common', 'settings']);
     const [localPermissions, setLocalPermissions] = useState<Set<string>>(new Set(permissions));
 
     // Group permissions by resource
-    const grouped = permissions.reduce((acc, perm) => {
-        const [resource, action] = perm.split(':');
+    const grouped = permissions.reduce((acc, permission) => {
+        const parts = permission.split(':');
+        const parsedResource = parts.length === 2 && parts[0] && parts[1] ? parts[0] : null;
+        const resource = parsedResource && resourceConfig[parsedResource]
+            ? parsedResource
+            : '__additional__';
         if (!acc[resource]) acc[resource] = [];
-        acc[resource].push(action);
+        acc[resource].push(permission);
         return acc;
     }, {} as Record<string, string[]>);
 
@@ -102,8 +95,14 @@ export function PermissionMatrix({
             </div>
 
             {sortedResources.map((resource) => {
-                const config = resourceConfig[resource] || { icon: '📋', labelKey: `admin:access.matrix.resources.${resource}.label`, descriptionKey: `admin:access.matrix.resources.${resource}.description` };
-                const actions = editable ? (allResourceActions[resource] || []) : grouped[resource];
+                const config = resourceConfig[resource] || {
+                    icon: '📋',
+                    labelKey: 'settings:permissions.other_resource',
+                    descriptionKey: 'settings:permissions.other_resource_description',
+                };
+                const permissionTokens = editable
+                    ? (allResourceActions[resource] || []).map((action) => `${resource}:${action}`)
+                    : grouped[resource];
 
                 return (
                     <div key={resource} className="grid md:grid-cols-[180px_1fr] items-center group hover:bg-white/[0.02] rounded-lg transition-colors py-1">
@@ -118,12 +117,11 @@ export function PermissionMatrix({
 
                         {/* Actions Row */}
                         <div className="px-4 py-1 flex flex-wrap gap-2">
-                            {actions.sort().map((action) => {
-                                const perm = `${resource}:${action}`;
+                            {[...permissionTokens].sort().map((perm) => {
+                                const action = perm.split(':')[1] ?? '';
                                 const enabled = localPermissions.has(perm);
                                 const style = actionStyles[action] || { color: 'text-muted-foreground', bg: 'bg-nested', border: 'border-border' };
-                                const descKey = actionDescriptions[resource]?.[action];
-                                const desc = descKey ? t(descKey) : action;
+                                const label = getPermissionLabel(perm, t);
 
                                 return (
                                     <button
@@ -132,6 +130,7 @@ export function PermissionMatrix({
                                         type="button"
                                         disabled={!editable}
                                         onClick={() => togglePermission(resource, action)}
+                                        aria-label={label}
                                         className={cn(
                                             "flex items-center gap-2 px-2.5 py-1 rounded-md border text-xs font-bold uppercase tracking-wider transition-[background-color,border-color,color,filter,transform]",
                                             enabled
@@ -139,7 +138,7 @@ export function PermissionMatrix({
                                                 : "bg-transparent border-transparent text-muted-foreground hover:text-foreground grayscale",
                                             editable && "cursor-pointer active:scale-95"
                                         )}
-                                        title={desc}
+                                        title={label}
                                     >
                                         <div className={cn(
                                             "w-3.5 h-3.5 rounded-sm flex items-center justify-center border",
@@ -147,10 +146,7 @@ export function PermissionMatrix({
                                         )}>
                                             {enabled && <Check className="h-2.5 w-2.5" />}
                                         </div>
-                                        <span>{action}</span>
-                                        <span className="normal-case font-medium text-muted-foreground ml-1 border-l border-border pl-2 hidden lg:inline">
-                                            {desc}
-                                        </span>
+                                        <span className="normal-case tracking-normal">{label}</span>
                                     </button>
                                 );
                             })}
@@ -165,12 +161,24 @@ export function PermissionMatrix({
                     {t('access.matrix.click_to_toggle', { ns: 'admin' })}
                 </div>
             )}
+            {permissions.length > 0 && (
+                <details className="mt-2 border-t border-border px-4 py-2 text-xs text-muted-foreground">
+                    <summary className="cursor-pointer font-medium text-foreground">
+                        {t('permissions.technical_details', { ns: 'settings' })}
+                    </summary>
+                    <ul className="mt-2 space-y-1">
+                        {permissions.map((permission) => (
+                            <li key={permission}><code>{permission}</code></li>
+                        ))}
+                    </ul>
+                </details>
+            )}
         </div>
     );
 }
 
-// ... PermissionChips remains the same as it was already compact ...
 export function PermissionChips({ permissions, maxVisible = 5, className }: { permissions: string[], maxVisible?: number, className?: string }) {
+    const { t } = useTranslation('settings');
     const actionColors: Record<string, string> = {
         read: 'bg-info/10 text-accent-text border-info/20',
         write: 'bg-success/10 text-success-text border-success/20',
@@ -183,20 +191,8 @@ export function PermissionChips({ permissions, maxVisible = 5, className }: { pe
     return (
         <div className={cn('flex flex-wrap gap-1', className)}>
             {visible.map((perm) => {
-                const parts = perm.split(':');
-                if (parts.length !== 2 || !parts[0] || !parts[1]) {
-                    return (
-                        <span
-                            key={perm}
-                            data-testid="permission-summary-badge"
-                            className="px-1.5 py-0.5 text-[10px] font-medium rounded border bg-muted text-muted-foreground border-border"
-                            title={perm}
-                        >
-                            {perm}
-                        </span>
-                    );
-                }
-                const [resource, action] = parts;
+                const action = perm.split(':')[1] ?? '';
+                const label = getPermissionLabel(perm, t);
                 return (
                     <span
                         key={perm}
@@ -205,9 +201,9 @@ export function PermissionChips({ permissions, maxVisible = 5, className }: { pe
                             'px-1.5 py-0.5 text-[10px] font-medium rounded border',
                             actionColors[action] || 'bg-muted text-muted-foreground border-border'
                         )}
-                        title={perm}
+                        title={label}
                     >
-                        {resource.slice(0, 3)}:{action.charAt(0)}
+                        {label}
                     </span>
                 );
             })}

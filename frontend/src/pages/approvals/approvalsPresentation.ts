@@ -2,33 +2,6 @@ import type { SafeTFunction } from '@/i18n/hooks';
 import type { ApprovalActionType, ApprovalStatus } from '@/types/approval';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 
-export type ApprovalsFilter = 'pending' | 'all' | 'mine' | 'risk_assessment';
-
-export interface ApprovalListParams {
-    limit: number;
-    status?: 'pending';
-    my_requests?: boolean;
-}
-
-export const APPROVAL_TABS: ReadonlyArray<{ value: ApprovalsFilter; labelKey: string }> = [
-    { value: 'pending', labelKey: 'tabs.pending' },
-    { value: 'mine', labelKey: 'tabs.mine' },
-    { value: 'risk_assessment', labelKey: 'tabs.risk_assessment' },
-    { value: 'all', labelKey: 'tabs.history' },
-];
-
-export function buildApprovalListParams(filter: ApprovalsFilter): ApprovalListParams {
-    const params: ApprovalListParams = { limit: 100 };
-
-    if (filter === 'pending') {
-        params.status = 'pending';
-    } else if (filter === 'mine') {
-        params.my_requests = true;
-    }
-
-    return params;
-}
-
 export function getApprovalStatusBadge(status: ApprovalStatus): string {
     switch (status) {
         case 'pending':

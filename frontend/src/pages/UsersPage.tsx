@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuthz } from '@/authz/useAuthz';
 import { AccessEditModal } from '@/components/access/AccessEditModal';
@@ -212,8 +212,7 @@ export function UsersPage() {
     }, [accessWorkflow.importedUserTransition, navigate, t]);
 
     if (currentUser && pageMode === 'forbidden') {
-        if (departmentScope) return <ReadAccessDeniedState />;
-        return <Navigate to="/" replace />;
+        return <ReadAccessDeniedState />;
     }
 
     const displayUsers = isAccessMode ? filters.filteredAccessUsers : [];

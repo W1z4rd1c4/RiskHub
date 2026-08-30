@@ -1,0 +1,87 @@
+import type { SafeTFunction } from '@/i18n/hooks';
+
+// Presentation only. Authorization continues to use the original permission tokens.
+const permissionLabelKeys: Readonly<Record<string, string>> = {
+    '*:*': 'permissions.super_admin',
+    'users:*': 'permissions.users_all',
+    'users:read': 'permissions.users_read',
+    'users:write': 'permissions.users_write',
+    'users:delete': 'permissions.users_delete',
+    'risks:*': 'permissions.risks_all',
+    'risks:read': 'permissions.risks_read',
+    'risks:write': 'permissions.risks_write',
+    'risks:delete': 'permissions.risks_delete',
+    'controls:*': 'permissions.controls_all',
+    'controls:read': 'permissions.controls_read',
+    'controls:write': 'permissions.controls_write',
+    'controls:delete': 'permissions.controls_delete',
+    'controls:approve': 'permissions.controls_approve',
+    'controls:execute': 'permissions.controls_execute',
+    'issues:*': 'permissions.issues_all',
+    'issues:read': 'permissions.issues_read',
+    'issues:write': 'permissions.issues_write',
+    'issues:approve': 'permissions.issues_approve',
+    'vendors:*': 'permissions.vendors_all',
+    'vendors:read': 'permissions.vendors_read',
+    'vendors:write': 'permissions.vendors_write',
+    'vendors:delete': 'permissions.vendors_delete',
+    'processes:*': 'permissions.processes_all',
+    'processes:read': 'permissions.processes_read',
+    'processes:write': 'permissions.processes_write',
+    'processes:delete': 'permissions.processes_delete',
+    'assets:*': 'permissions.assets_all',
+    'assets:read': 'permissions.assets_read',
+    'assets:write': 'permissions.assets_write',
+    'assets:delete': 'permissions.assets_delete',
+    'threats:*': 'permissions.threats_all',
+    'threats:read': 'permissions.threats_read',
+    'threats:write': 'permissions.threats_write',
+    'threats:delete': 'permissions.threats_delete',
+    'vendor_contracts:*': 'permissions.vendor_contracts_all',
+    'vendor_contracts:read': 'permissions.vendor_contracts_read',
+    'vendor_contracts:write': 'permissions.vendor_contracts_write',
+    'ict_committee:read': 'permissions.ict_committee_read',
+    'departments:read': 'permissions.departments_read',
+    'departments:write': 'permissions.departments_write',
+    'reports:*': 'permissions.reports_all',
+    'reports:read': 'permissions.reports_read',
+    'reports:write': 'permissions.reports_write',
+    'admin:session.revoke': 'permissions.admin_session_revoke',
+    'approvals:read': 'permissions.approvals_read',
+    'approvals:write': 'permissions.approvals_write',
+    'kri:submit': 'permissions.kri_submit',
+    'activity_log:read': 'permissions.activity_log_read',
+    'dashboard:read': 'permissions.dashboard_read',
+    'notifications:read': 'permissions.notifications_read',
+    'notifications:write': 'permissions.notifications_write',
+};
+
+const permissionResourceLabelKeys: Readonly<Record<string, string>> = {
+    '*': 'permission_resources.all',
+    users: 'permission_resources.users',
+    risks: 'permission_resources.risks',
+    controls: 'permission_resources.controls',
+    issues: 'permission_resources.issues',
+    vendors: 'permission_resources.vendors',
+    processes: 'permission_resources.processes',
+    assets: 'permission_resources.assets',
+    threats: 'permission_resources.threats',
+    vendor_contracts: 'permission_resources.vendor_contracts',
+    ict_committee: 'permission_resources.ict_committee',
+    departments: 'permission_resources.departments',
+    reports: 'permission_resources.reports',
+    admin: 'permission_resources.admin',
+    approvals: 'permission_resources.approvals',
+    kri: 'permission_resources.kri',
+    activity_log: 'permission_resources.activity_log',
+    dashboard: 'permission_resources.dashboard',
+    notifications: 'permission_resources.notifications',
+};
+
+export function getPermissionLabel(permission: string, t: SafeTFunction): string {
+    return t(permissionLabelKeys[permission] ?? 'permissions.restricted', { ns: 'settings' });
+}
+
+export function getPermissionResourceLabel(resource: string, t: SafeTFunction): string {
+    return t(permissionResourceLabelKeys[resource] ?? 'permissions.other_resource', { ns: 'settings' });
+}

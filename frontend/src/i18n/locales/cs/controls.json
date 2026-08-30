@@ -120,7 +120,7 @@
     "export_excel": "Exportovat CSV"
   },
   "audit_trail": {
-    "title": "Auditní stopa",
+    "title": "Historie provedení kontrol",
     "subtitle": "Globální přehled všech exekucí kontrol a kontroly shody.",
     "all_results": "Všechny výsledky",
     "total_records": "{{count}} celkem záznamů",
@@ -237,6 +237,6 @@
   },
   "access": {
     "denied": "Přístup odepřen",
-    "denied_activity_log": "Nemáte oprávnění zobrazit protokol aktivit."
+    "denied_control_execution_history": "Nemáte oprávnění zobrazit historii provedení kontrol."
   }
 }

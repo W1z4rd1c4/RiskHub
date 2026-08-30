@@ -26,7 +26,7 @@ export class DashboardPage {
     }
 
     get krisNavLink(): Locator {
-        return this.sidebar.locator('a[href="/kris"], a:has-text("Risk Appetite")').first();
+        return this.sidebar.locator('a[href="/kris"], a:has-text("KRIs"), a:has-text("KRI")').first();
     }
 
     get departmentsNavLink(): Locator {
