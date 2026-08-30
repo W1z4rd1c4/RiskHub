@@ -278,6 +278,8 @@
     "select_department": "Vybrat oddělení...",
     "select_risk": "Vybrat riziko...",
     "search_logs": "Hledat v záznamech...",
+    "date_from": "Datum od",
+    "date_to": "Datum do",
     "search_items": "Hledat položky...",
     "search_risks": "Hledat rizika...",
     "search_controls": "Hledat kontroly...",

@@ -19,6 +19,7 @@ export function ApprovalQueuedBanner({
     return (
         <div
             data-testid="approval-queued-banner"
+            role="status"
             className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2"
         >
             <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />

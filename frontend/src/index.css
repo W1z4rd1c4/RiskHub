@@ -407,13 +407,14 @@
      the readable text shade, so no lightening is needed here.
      --warning-text: unlike --success, the amber fill token fails as text on
      the light surfaces (~2.05:1), so a darkened amber is used instead — AA
-     against --background is enforced by statusTokenContrast.test.ts. */
+     against both --background and warning-tinted surfaces is enforced by
+     statusTokenContrast.test.ts. */
   --success: 142 72% 26%;
   --success-foreground: 0 0% 100%;
   --success-text: 142 72% 26%;
   --warning: 38 92% 50%;
   --warning-foreground: 26 84% 6%;
-  --warning-text: 38 92% 30%;
+  --warning-text: 38 92% 25%;
   --info: 211 80% 38%;
   --info-foreground: 0 0% 100%;
 

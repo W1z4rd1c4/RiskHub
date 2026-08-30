@@ -5,6 +5,8 @@ import { vendorReportApi } from '@/services/vendorReportApi';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 import type { VendorReportCapabilities } from '@/types/vendorReport';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 
 export function VendorReportsPage() {
     const { t } = useTranslation('vendors');
@@ -129,19 +131,23 @@ export function VendorReportsPage() {
                             {t('reports.annual.title')}
                         </h3>
 
-                        <div className="flex items-center gap-3">
-                            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                                {t('reports.annual.year')}
-                            </label>
-                            <input
-                                type="number"
-                                value={year}
-                                onChange={(e) => setYear(Number(e.target.value))}
-                                className="w-28 bg-nested border border-border rounded-xl px-3 py-2 text-foreground font-mono"
-                                min={2000}
-                                max={2100}
-                            />
-                        </div>
+                        <Field
+                            id="vendor-report-year"
+                            label={t('reports.annual.year')}
+                            className="w-28"
+                        >
+                            {(field) => (
+                                <Input
+                                    {...field}
+                                    type="number"
+                                    value={year}
+                                    onChange={(event) => setYear(Number(event.target.value))}
+                                    className="font-mono"
+                                    min={2000}
+                                    max={2100}
+                                />
+                            )}
+                        </Field>
                         {renderDepartmentSelector('vendor-report-annual-department')}
 
                         <div className="flex flex-wrap gap-2">

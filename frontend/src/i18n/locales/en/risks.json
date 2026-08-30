@@ -16,6 +16,10 @@
     "process": "Process",
     "probability": "Probability",
     "impact": "Impact",
+    "gross_probability": "Gross probability",
+    "gross_impact": "Gross impact",
+    "net_probability": "Net probability",
+    "net_impact": "Net impact",
     "gross_score": "Gross Score",
     "net_score": "Net Score",
     "is_priority": "Priority Risk",
@@ -160,6 +164,7 @@
     "gross_risk": "Gross Risk",
     "net_risk": "Net Risk",
     "cell_title": "P:{{probability}} × I:{{impact}} = {{score}}",
+    "choice_label": "Probability {{probability}}, impact {{impact}}, score {{score}}",
     "score_label": "Score: {{score}}"
   },
   "scoring": {
@@ -224,6 +229,10 @@
       "identity": "Identity",
       "ownership": "Details & Owner",
       "scoring": "Risk Assessment"
+    },
+    "errors": {
+      "process_required": "Process is required",
+      "category_required": "Category is required"
     },
     "financial": {
       "loss": "Loss",

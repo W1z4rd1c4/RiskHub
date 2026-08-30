@@ -120,7 +120,7 @@ export function RiskNewPage() {
                     onClick={() => {
                         void navigate(isVendorContext ? returnTo! : '/risks');
                     }}
-                    className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest"
+                    className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent transition-colors uppercase tracking-widest"
                 >
                     <ArrowLeft className="h-3 w-3" />
                     {isVendorContext ? t('vendors:links.actions.back_to_vendor') : `${t('common:actions.back')} ${t('risks:title')}`}
@@ -130,8 +130,8 @@ export function RiskNewPage() {
                         <Plus className="h-6 w-6 text-accent" />
                     </div>
                     <div>
-                        <h2 className="text-3xl font-black text-white tracking-tighter">{t('risks:new_risk')}</h2>
-                        <p className="text-slate-500 font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
+                        <h2 className="text-3xl font-black text-foreground tracking-tighter">{t('risks:new_risk')}</h2>
+                        <p className="text-muted-foreground font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
                             {t('risks:title')} / {t('common:actions.create')}
                         </p>
                     </div>

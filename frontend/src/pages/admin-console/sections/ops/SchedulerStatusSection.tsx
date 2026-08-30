@@ -26,7 +26,7 @@ export function SchedulerStatusSection({ schedulerStatus }: SchedulerStatusSecti
                         <p className="admin-subtle">{t('health.scheduler.lock_state')}</p>
                         <p className={cn(
                             'mt-1 font-medium',
-                            schedulerStatus?.lock_acquired ? 'text-emerald-400' : 'text-amber-300',
+                            schedulerStatus?.lock_acquired ? 'text-success-text' : 'text-warning-text',
                         )}>
                             {schedulerStatus?.lock_acquired ? t('health.scheduler.lock_held') : t('health.scheduler.lock_not_held')}
                         </p>
@@ -81,8 +81,8 @@ export function SchedulerStatusSection({ schedulerStatus }: SchedulerStatusSecti
                                     <p className="admin-title text-sm font-medium">{job.job_name}</p>
                                     <span className={cn(
                                         'text-xs',
-                                        job.status === 'succeeded' && 'text-emerald-400',
-                                        job.status === 'failed' && 'text-rose-400',
+                                        job.status === 'succeeded' && 'text-success-text',
+                                        job.status === 'failed' && 'text-destructive',
                                         job.status !== 'succeeded' && job.status !== 'failed' && 'text-slate-300',
                                     )}>
                                         {job.status}

@@ -8,6 +8,7 @@ interface BreakGlassEnableDialogProps {
     breakGlassHours: number | '';
     breakGlassReason: string;
     breakGlassUser: AccessUserRead | null;
+    errorMessage: string | null;
     isBreakGlassSubmitting: boolean;
     onClose: () => void;
     onReasonChange: (reason: string) => void;
@@ -19,6 +20,7 @@ export function BreakGlassEnableDialog({
     breakGlassHours,
     breakGlassReason,
     breakGlassUser,
+    errorMessage,
     isBreakGlassSubmitting,
     onClose,
     onHoursChange,
@@ -89,6 +91,11 @@ export function BreakGlassEnableDialog({
                     }}
                     className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-amber-400/70"
                 />
+                {errorMessage && (
+                    <p id="break-glass-submit-error" role="alert" className="mt-4 text-sm text-rose-300">
+                        {errorMessage}
+                    </p>
+                )}
                 <div className="mt-6 flex justify-end gap-3">
                     <button
                         type="button"
@@ -101,8 +108,11 @@ export function BreakGlassEnableDialog({
                     <button
                         type="button"
                         onClick={onSubmit}
-                        disabled={isBreakGlassSubmitting || !breakGlassReason.trim() || breakGlassHours === ''}
-                        className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={!breakGlassReason.trim() || breakGlassHours === ''}
+                        aria-busy={isBreakGlassSubmitting}
+                        aria-disabled={isBreakGlassSubmitting || !breakGlassReason.trim() || breakGlassHours === ''}
+                        aria-describedby={errorMessage ? 'break-glass-submit-error' : undefined}
+                        className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
                     >
                         {isBreakGlassSubmitting
                             ? t('users.break_glass_enabling', { ns: 'admin' })

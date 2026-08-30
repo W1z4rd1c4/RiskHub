@@ -32,6 +32,13 @@ export const notificationsApi = {
         apiClient.post(`/notifications/${id}/read`, {}, { schema: notificationUnreadCountSchema }),
 
     /**
+     * Mark a single notification as unread.
+     * Returns the updated unread count for UI sync.
+     */
+    markAsUnread: (id: number) =>
+        apiClient.post(`/notifications/${id}/unread`, {}, { schema: notificationUnreadCountSchema }),
+
+    /**
      * Mark all notifications as read.
      */
     markAllAsRead: () =>

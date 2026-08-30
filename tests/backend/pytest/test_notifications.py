@@ -1427,6 +1427,91 @@ async def test_mark_as_read_not_owner(
 
 
 @pytest.mark.asyncio
+async def test_mark_as_unread_persists_and_is_idempotent(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_user_cro,
+    test_user_employee,
+):
+    """Marking one read notification unread returns the authoritative visible count."""
+    hidden_risk = await _create_hidden_risk_for_employee(
+        db_session,
+        owner_id=test_user_cro.id,
+    )
+    notification = await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.APPROVAL_RESOLVED,
+        title="Read again",
+        message="Message",
+    )
+    notification.is_read = True
+    await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.APPROVAL_PENDING,
+        title="Hidden unread",
+        message="Hidden linked reminder",
+        resource_type="risk",
+        resource_id=hidden_risk.id,
+    )
+    await db_session.commit()
+    headers = _headers_for(test_user_employee)
+
+    first_response = await client.post(
+        f"/api/v1/notifications/{notification.id}/unread",
+        headers=headers,
+    )
+    second_response = await client.post(
+        f"/api/v1/notifications/{notification.id}/unread",
+        headers=headers,
+    )
+    inbox_response = await client.get(
+        "/api/v1/notifications?unread_only=true",
+        headers=headers,
+    )
+    count_response = await client.get(
+        "/api/v1/notifications/unread/count",
+        headers=headers,
+    )
+
+    assert first_response.status_code == 200
+    assert first_response.json() == {"unread_count": 1}
+    assert second_response.status_code == 200
+    assert second_response.json() == {"unread_count": 1}
+    assert [item["id"] for item in inbox_response.json()["items"]] == [notification.id]
+    assert count_response.json() == {"count": 1}
+
+
+@pytest.mark.asyncio
+async def test_mark_as_unread_hides_missing_and_other_users_notifications(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_user_employee,
+):
+    """Missing and non-owned notification ids expose the same not-found response."""
+    other_user_notification = await NotificationService.create_notification(
+        db=db_session,
+        user_id=test_user_employee.id,
+        notification_type=NotificationType.APPROVAL_PENDING,
+        title="Employee only",
+        message="Message",
+    )
+    other_user_notification.is_read = True
+    await db_session.commit()
+
+    missing_response = await auth_client.post("/api/v1/notifications/99999/unread")
+    other_user_response = await auth_client.post(
+        f"/api/v1/notifications/{other_user_notification.id}/unread"
+    )
+
+    assert missing_response.status_code == 404
+    assert other_user_response.status_code == 404
+    assert missing_response.json() == other_user_response.json()
+    assert missing_response.json() == {"detail": "Notification not found"}
+
+
+@pytest.mark.asyncio
 async def test_mark_all_as_read(
     db_session: AsyncSession,
     auth_client: AsyncClient,

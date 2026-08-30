@@ -139,6 +139,30 @@ async def mark_notification_read(
     return NotificationReadOutcome(notification_id=notification.id, unread_count=unread_count)
 
 
+async def mark_notification_unread(
+    db: AsyncSession,
+    *,
+    notification_id: int,
+    actor: User,
+) -> NotificationReadOutcome:
+    visibility_clause = await visible_notification_clause(db, actor)
+    result = await db.execute(
+        select(Notification).where(
+            Notification.id == notification_id,
+            visibility_clause,
+        )
+    )
+    notification = result.scalar_one_or_none()
+
+    if notification is None:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    notification.is_read = False
+    await commit_service_boundary(db, boundary="notification_inbox.mark_unread")
+    unread_count = await count_visible_unread_notifications(db, actor)
+    return NotificationReadOutcome(notification_id=notification.id, unread_count=unread_count)
+
+
 async def mark_all_notifications_read(db: AsyncSession, actor: User) -> NotificationReadOutcome:
     visibility_clause = await visible_notification_clause(db, actor)
     await db.execute(

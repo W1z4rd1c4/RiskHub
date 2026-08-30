@@ -62,7 +62,7 @@ export function OpenIssuesBySeverityChart({ items }: OpenIssuesBySeverityChartPr
                     />
                 </PieChart>
             </ResponsiveContainer>
-            <div className="mt-2 text-center text-xs text-slate-400">
+            <div className="mt-2 text-center text-xs text-muted-foreground">
                 {t('issues.summary.open_counted', { count: total })}
             </div>
         </div>

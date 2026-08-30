@@ -59,10 +59,6 @@ export function RiskForm({
         subprocessesByProcess,
         users,
     } = useRiskLookups();
-    const [showProcessDropdown, setShowProcessDropdown] = useState(false);
-    const [showSubprocessDropdown, setShowSubprocessDropdown] = useState(false);
-    const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-
     // Owner search/filter
     const [ownerSearch, setOwnerSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState<string>('');
@@ -90,6 +86,7 @@ export function RiskForm({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         await submit();
     };
 
@@ -136,12 +133,6 @@ export function RiskForm({
                             existingProcesses={existingProcesses}
                             existingCategories={existingCategories}
                             subprocessesByProcess={subprocessesByProcess}
-                            showProcessDropdown={showProcessDropdown}
-                            showSubprocessDropdown={showSubprocessDropdown}
-                            showCategoryDropdown={showCategoryDropdown}
-                            setShowProcessDropdown={setShowProcessDropdown}
-                            setShowSubprocessDropdown={setShowSubprocessDropdown}
-                            setShowCategoryDropdown={setShowCategoryDropdown}
                             handleInputChange={handleInputChange}
                         />
                     )}
@@ -191,7 +182,7 @@ export function RiskForm({
                             }
                             prevStep();
                         }}
-                        className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
+                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-white transition-colors uppercase tracking-widest"
                     >
                         {currentStep === 0 ? <X className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                         {currentStep === 0 ? (firstStepBackLabel || t('common:actions.cancel')) : t('common:actions.back')}
@@ -209,9 +200,9 @@ export function RiskForm({
                     ) : (
                         <button
                             type="submit"
-                            disabled={isSubmitting}
+                            aria-disabled={isSubmitting}
                             data-testid="risk-form-submit-button"
-                            className="btn-primary px-8"
+                            className="btn-primary px-8 aria-disabled:cursor-wait aria-disabled:opacity-60"
                         >
                             {isSubmitting ? t('common:loading.generic') : (isEdit ? t('risks:edit_risk') : t('risks:create_risk'))}
                             <Save className="h-4 w-4" />

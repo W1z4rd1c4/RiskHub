@@ -1,5 +1,7 @@
 import { ArrowLeft, Building2, RefreshCw } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { useTranslation } from '@/i18n/hooks';
 import type { DepartmentDetail } from '@/services/departmentApi';
 
 interface DepartmentDetailHeaderProps {
@@ -9,15 +11,21 @@ interface DepartmentDetailHeaderProps {
 }
 
 export function DepartmentDetailHeader({ department, onBack, onRefresh }: DepartmentDetailHeaderProps) {
+    const { t } = useTranslation('common');
+
     return (
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-                <button
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
                     onClick={onBack}
-                    className="px-4 py-2 glass rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    aria-label={t('actions.back')}
+                    title={t('actions.back')}
                 >
-                    <ArrowLeft className="h-5 w-5" />
-                </button>
+                    <ArrowLeft aria-hidden="true" />
+                </Button>
                 <div>
                     <div className="flex items-center gap-3 mb-2">
                         <Building2 className="h-8 w-8 text-accent" />
@@ -29,12 +37,16 @@ export function DepartmentDetailHeader({ department, onBack, onRefresh }: Depart
                     {department.description && <p className="text-muted-foreground font-medium">{department.description}</p>}
                 </div>
             </div>
-            <button
+            <Button
+                type="button"
+                variant="outline"
+                size="icon"
                 onClick={onRefresh}
-                className="px-4 py-2 glass rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label={t('actions.refresh')}
+                title={t('actions.refresh')}
             >
-                <RefreshCw className="h-5 w-5" />
-            </button>
+                <RefreshCw aria-hidden="true" />
+            </Button>
         </div>
     );
 }

@@ -108,6 +108,7 @@ const THEMES = [
 ] as const;
 
 const STATUS_TOKENS = ['destructive', 'success', 'warning', 'info'] as const;
+const RISK_SCORE_BAND_TOKENS = ['destructive', 'warning', 'info', 'success'] as const;
 
 const SURFACE_TEXT_PAIRS = [
   ['background', 'foreground'],
@@ -226,6 +227,30 @@ describe('semantic status tokens — WCAG AA contrast (FR-P1-3, N20)', () => {
     const block = themeBlock(indexCss, selector);
     const ratio = contrastRatio(readHsl(block, 'warning-text'), readHsl(block, 'background'));
     expect(ratio, `text-warning-text @ ${name} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+  });
+
+  it.each(THEMES)('warning-text clears AA against a 40% warning tint in $name', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    const warningTint = composite(readHsl(block, 'warning'), readHsl(block, 'background'), 0.4);
+    const ratio = contrastRatioRgb(hslToRgb(readHsl(block, 'warning-text')), warningTint);
+    expect(
+      ratio,
+      `text-warning-text on bg-warning/40 @ ${name} = ${ratio.toFixed(2)}:1`,
+    ).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+  });
+
+  it.each(THEMES)('selected risk score foreground clears AA against every 40% band tint in $name', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    const foreground = hslToRgb(readHsl(block, 'foreground'));
+
+    for (const token of RISK_SCORE_BAND_TOKENS) {
+      const bandTint = composite(readHsl(block, token), readHsl(block, 'background'), 0.4);
+      const ratio = contrastRatioRgb(foreground, bandTint);
+      expect(
+        ratio,
+        `text-foreground on bg-${token}/40 @ ${name} = ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+    }
   });
 
   it('defines --warning-text in every theme and wires it into Tailwind', () => {

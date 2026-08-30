@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { getApiBaseUrl, getDemoTokenByAccountName } from './helpers/api-auth';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 import { navigateSpa } from './helpers/spaNavigate';
 import { waitForDataLoad } from './helpers/wait';
@@ -14,22 +15,46 @@ import {
 type AuditTheme = 'riskhub' | 'light' | 'dark';
 
 const THEMES: AuditTheme[] = ['riskhub', 'light', 'dark'];
-const BUSINESS_ROUTES = ['/', '/controls', '/risks', '/settings'];
-// DORA ICT-register surfaces (ADR-013 · FR-P1-5 · N7) — the register that the
-// smoke previously covered NONE of. The risk-manager demo account (Petra
-// Svobodová) can read every one, including the committee (ict_committee:read).
-// The committee moved from the standalone /ict-register/committee route to the
-// URL-addressable Dashboard tab /?view=ict-committee (issue #64); the legacy
-// path now redirects there, so the scan targets the live tab, not the redirect.
-const DORA_ROUTES = [
+const RESTING_VIEWPORT = { width: 1440, height: 900 } as const;
+const BUSINESS_ROUTES = [
+  '/',
+  '/controls',
+  '/risks',
+  '/settings',
   '/vendors',
   '/processes',
   '/assets',
   '/threats',
   '/ict-register/data-quality',
   '/?view=ict-committee',
-];
-const ADMIN_ROUTES = ['/admin'];
+  '/issues',
+  '/kris',
+  '/departments',
+  '/approvals',
+  '/activity-log',
+  '/governance',
+  '/notifications',
+  '/vendor-reports',
+  '/users',
+  '/risk-hub',
+] as const;
+const DETAIL_FAMILIES = [
+  { apiPath: '/api/v1/controls?skip=0&limit=1', logicalRoute: '/controls/:id', routePrefix: '/controls' },
+  { apiPath: '/api/v1/risks?skip=0&limit=1', logicalRoute: '/risks/:id', routePrefix: '/risks' },
+  { apiPath: '/api/v1/kris?page=1&size=1', logicalRoute: '/kris/:id', routePrefix: '/kris' },
+  { apiPath: '/api/v1/departments', logicalRoute: '/departments/:id', routePrefix: '/departments' },
+  { apiPath: '/api/v1/vendors?skip=0&limit=1', logicalRoute: '/vendors/:id', routePrefix: '/vendors' },
+] as const;
+const ADMIN_ROUTES = ['/admin', '/admin/docs'] as const;
+
+interface AuditRoute {
+  logicalRoute: string;
+  resolvedPath: string;
+}
+
+interface IdentifiedRecord {
+  id?: string | number;
+}
 
 async function seedTheme(page: Page, theme: AuditTheme): Promise<void> {
   await page.addInitScript(({ themeValue }) => {
@@ -51,26 +76,75 @@ async function seedTheme(page: Page, theme: AuditTheme): Promise<void> {
   });
 }
 
+function firstRecord(payload: unknown): IdentifiedRecord | null {
+  if (Array.isArray(payload)) return (payload[0] as IdentifiedRecord | undefined) ?? null;
+  if (!payload || typeof payload !== 'object') return null;
+  const items = (payload as { items?: unknown }).items;
+  if (!Array.isArray(items)) return null;
+  return (items[0] as IdentifiedRecord | undefined) ?? null;
+}
+
+async function resolveBusinessRoutes(page: Page): Promise<AuditRoute[]> {
+  const token = await getDemoTokenByAccountName(DEMO_ACCOUNTS.CRO);
+  const routes = staticAuditRoutes(BUSINESS_ROUTES);
+
+  for (const family of DETAIL_FAMILIES) {
+    const response = await page.request.get(new URL(family.apiPath, getApiBaseUrl()).toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(response.ok(), `fixture lookup ${family.apiPath}`).toBe(true);
+    const record = firstRecord(await response.json());
+    expect(record?.id, `runtime fixture ${family.logicalRoute}`).toBeTruthy();
+    routes.push({
+      logicalRoute: family.logicalRoute,
+      resolvedPath: `${family.routePrefix}/${String(record?.id)}`,
+    });
+  }
+
+  return routes;
+}
+
+function staticAuditRoutes(routes: readonly string[]): AuditRoute[] {
+  return routes.map((route) => ({ logicalRoute: route, resolvedPath: route }));
+}
+
+function routeIdentity(url: string): string {
+  const parsed = new URL(url);
+  return `${parsed.pathname}${parsed.search}`;
+}
+
 async function auditRoutes(
   page: Page,
-  routes: string[],
+  routes: AuditRoute[],
   theme: AuditTheme,
   testInfo: TestInfo
 ): Promise<void> {
   const project = testInfo.project.name;
 
-  const attach: Array<{ route: string; findingCount: number; findings: AxeFinding[] }> = [];
+  const attach: Array<{
+    logicalRoute: string;
+    resolvedUrl: string;
+    findingCount: number;
+    findings: AxeFinding[];
+  }> = [];
 
   for (const route of routes) {
-    await navigateSpa(page, route, { timeout: 30000 });
+    await navigateSpa(page, route.resolvedPath, { timeout: 30000 });
     await waitForDataLoad(page, 30000);
+    expect(routeIdentity(page.url()), `resolved route ${route.logicalRoute}`).toBe(route.resolvedPath);
 
     // Pin explicit WCAG tags (N8). Fail on EVERY violation the tags select — do
     // NOT filter by axe impact/severity (N9).
     const analysis = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).analyze();
     const findings = toFindings(analysis.violations);
-    attach.push({ route, findingCount: findings.length, findings });
-    assertZeroAxeFindings(findings, `${project}/${theme} ${route}`);
+    const resolvedUrl = page.url();
+    attach.push({
+      logicalRoute: route.logicalRoute,
+      resolvedUrl,
+      findingCount: findings.length,
+      findings,
+    });
+    assertZeroAxeFindings(findings, `${project}/${theme} ${route.logicalRoute} (${resolvedUrl})`);
   }
 
   await testInfo.attach(`axe-${project}-${theme}`, {
@@ -87,15 +161,18 @@ test.describe('Accessibility smoke (WCAG 2.2 AA tags, strict-zero)', () => {
   test.beforeAll(() => validateCommittedZeroAxeBaseline());
   for (const theme of THEMES) {
     test(`business + DORA register surfaces have zero axe violations in ${theme}`, async ({ page }, testInfo) => {
+      test.setTimeout(300_000);
+      await page.setViewportSize(RESTING_VIEWPORT);
       await seedTheme(page, theme);
-      await loginAsDemoUser(page, DEMO_ACCOUNTS.RISK_MANAGER);
-      await auditRoutes(page, [...BUSINESS_ROUTES, ...DORA_ROUTES], theme, testInfo);
+      await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
+      await auditRoutes(page, await resolveBusinessRoutes(page), theme, testInfo);
     });
 
     test(`admin routes have zero axe violations in ${theme}`, async ({ page }, testInfo) => {
+      await page.setViewportSize(RESTING_VIEWPORT);
       await seedTheme(page, theme);
       await loginAsDemoUser(page, DEMO_ACCOUNTS.ADMIN);
-      await auditRoutes(page, ADMIN_ROUTES, theme, testInfo);
+      await auditRoutes(page, staticAuditRoutes(ADMIN_ROUTES), theme, testInfo);
     });
   }
 });

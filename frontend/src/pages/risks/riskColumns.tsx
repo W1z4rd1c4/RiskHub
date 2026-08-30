@@ -22,13 +22,13 @@ type BuildRiskColumnsParams = {
 export function getRiskStatusColor(status: RiskDisplayStatus): string {
     switch (status) {
         case 'active':
-            return 'text-emerald-400 bg-emerald-400/10';
+            return 'text-success-text bg-success/10';
         case 'emerging':
-            return 'text-amber-400 bg-amber-400/10';
+            return 'text-warning-text bg-warning/10';
         case 'archived':
-            return 'text-slate-400 bg-slate-400/10';
+            return 'text-muted-foreground bg-muted';
         default:
-            return 'text-slate-400 bg-slate-400/10';
+            return 'text-muted-foreground bg-muted';
     }
 }
 
@@ -50,11 +50,11 @@ export function buildRiskColumns({
             render: (risk) => (
                 <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">{risk.name}</span>
+                        <span className="text-sm font-bold text-foreground">{risk.name}</span>
                         {risk.is_priority && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />}
                         {pendingApprovalIds.has(risk.id) && (
                             <div
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20"
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-warning/10 text-warning-text border border-warning/20"
                                 title={t('columns.pending_tooltip')}
                             >
                                 <Lock className="h-2.5 w-2.5" />
@@ -62,7 +62,7 @@ export function buildRiskColumns({
                             </div>
                         )}
                     </div>
-                    <span className="text-[10px] text-slate-400">{risk.process}</span>
+                    <span className="text-[10px] text-muted-foreground">{risk.process}</span>
                 </div>
             ),
         },
@@ -70,7 +70,7 @@ export function buildRiskColumns({
             key: 'category',
             label: t('columns.category'),
             sortable: true,
-            render: (risk) => <span className="text-xs font-medium text-slate-400">{risk.category || '—'}</span>,
+            render: (risk) => <span className="text-xs font-medium text-muted-foreground">{risk.category || '—'}</span>,
         },
         {
             key: 'description',
@@ -82,7 +82,7 @@ export function buildRiskColumns({
                 return (
                     <div className="relative group/desc">
                         <span
-                            className="text-xs text-slate-400 cursor-help border-b border-dotted border-slate-600 hover:border-slate-400 transition-colors"
+                            className="text-xs text-muted-foreground cursor-help border-b border-dotted border-slate-600 hover:border-slate-400 transition-colors"
                             title={text}
                         >
                             {isLong ? `${text.slice(0, 20)}...` : text}
@@ -159,7 +159,7 @@ export function buildRiskColumns({
                 if (count === 0) return <span className="text-slate-600 text-[10px]">—</span>;
                 return (
                     <div className="flex justify-center">
-                        <div className="px-2 py-0.5 rounded-md text-[10px] font-bold text-blue-400 bg-blue-400/10">
+                        <div className="px-2 py-0.5 rounded-md text-[10px] font-bold text-accent-text bg-info/10">
                             {count} {count === 1 ? 'Ctrl' : 'Ctrls'}
                         </div>
                     </div>
@@ -181,7 +181,7 @@ export function buildRiskColumns({
                     <div className="flex justify-center">
                         <div
                             className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
-                                hasBreach ? 'text-rose-400 bg-rose-400/10' : 'text-emerald-400 bg-emerald-400/10'
+                                hasBreach ? 'text-destructive bg-destructive/10' : 'text-success-text bg-success/10'
                             }`}
                         >
                             {hasBreach && <AlertCircle className="h-3 w-3" />}

@@ -143,7 +143,7 @@ export function AccessUserRow({
                         {user.external_id && (
                             <p className="text-xs text-muted-foreground">
                                 {t('users.directory_status_label')}{' '}
-                                <span className="text-slate-300">
+                                <span className="text-foreground">
                                     {presentationModel.directoryStatus || t('common:fallbacks.not_available')}
                                 </span>
                                 {user.directory_last_checked_at && (
@@ -222,7 +222,7 @@ export function AccessUserRow({
                         {actionModel.canBreakGlassEnable && onBreakGlassEnable && (
                             <button
                                 onClick={() => onBreakGlassEnable(user)}
-                                className="rounded-lg border border-amber-500/30 px-2.5 py-1.5 text-xs text-amber-300 transition hover:bg-amber-500/10"
+                                className="rounded-lg border border-warning/30 px-2.5 py-1.5 text-xs text-warning-text transition hover:bg-warning/10"
                                 title={t('users.break_glass_enable')}
                             >
                                 <span className="inline-flex items-center gap-1.5">
@@ -234,8 +234,9 @@ export function AccessUserRow({
                         {canRunDirectoryChecks && actionModel.canRunDirectoryCheck && onCheckDirectory && (
                             <button
                                 onClick={() => onCheckDirectory(user)}
-                                disabled={checkingDirectoryUserId === user.id}
-                                className="rounded-lg border border-sky-500/30 px-2.5 py-1.5 text-xs text-sky-300 transition hover:bg-sky-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                aria-busy={checkingDirectoryUserId === user.id}
+                                aria-disabled={checkingDirectoryUserId !== null}
+                                className="rounded-lg border border-accent/30 px-2.5 py-1.5 text-xs text-accent-text transition hover:bg-accent/10 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                                 title={t('users.check_directory_status')}
                             >
                                 {checkingDirectoryUserId === user.id

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useId } from 'react';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { useTranslation } from '@/i18n/hooks';
 import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
@@ -31,6 +32,7 @@ export function RiskScoreMatrix({
     thresholds: overrideThresholds
 }: RiskScoreMatrixProps) {
     const { t } = useTranslation('risks');
+    const matrixName = `risk-score-${type}-${useId()}`;
     const score = probability * impact;
 
     // Get thresholds from Risk Hub config (with optional overrides)
@@ -53,12 +55,14 @@ export function RiskScoreMatrix({
 
     const { cell: cellClass, label: labelClass } = sizeClasses[size];
 
+    const matrixLabel = type === 'gross' ? t('matrix.gross_risk') : t('matrix.net_risk');
+
     return (
-        <div className="flex flex-col items-center">
+        <fieldset className="m-0 flex min-w-0 flex-col items-center border-0 p-0">
             {/* Type label - color matches score threshold */}
-            <div className={`${labelClass} font-black uppercase tracking-widest mb-3 ${riskScoreVariantClass('text', score, thresholds)}`}>
-                {type === 'gross' ? t('matrix.gross_risk') : t('matrix.net_risk')}
-            </div>
+            <legend className={`${labelClass} mx-auto mb-3 w-auto p-0 font-black uppercase tracking-widest ${riskScoreVariantClass('text', score, thresholds)}`}>
+                {matrixLabel}
+            </legend>
 
             <div className="flex gap-1">
                 {/* Y-axis label */}
@@ -72,30 +76,57 @@ export function RiskScoreMatrix({
                 <div className="flex flex-col-reverse">
                     {[1, 2, 3, 4, 5].map((p) => (
                         <div key={p} className="flex">
-                            {[1, 2, 3, 4, 5].map((i) => (
-                                <motion.div
-                                    key={`${p}-${i}`}
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: (p + i) * 0.02 }}
-                                    className={`
-                                        ${cellClass} ${riskScoreVariantClass('matrix-cell', p * i, thresholds)}
-                                        rounded-sm flex items-center justify-center font-bold
-                                        transition-[background-color,border-color,box-shadow,transform] duration-200 m-0.5
-                                        ${onSelect ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}
-                                        ${isSelected(p, i)
-                                            ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 scale-110 z-10'
-                                            : 'opacity-60'
-                                        }
-                                    `}
-                                    onClick={() => onSelect?.(p, i)}
-                                    title={t('matrix.cell_title', { probability: p, impact: i, score: p * i })}
-                                >
-                                    {isSelected(p, i) && (
-                                        <span className="text-foreground font-black">{p * i}</span>
-                                    )}
-                                </motion.div>
-                            ))}
+                            {[1, 2, 3, 4, 5].map((i) => {
+                                const cellScore = p * i;
+                                const selected = isSelected(p, i);
+                                const cellTitle = t('matrix.cell_title', { probability: p, impact: i, score: cellScore });
+                                const cellClasses = `
+                                    ${cellClass} ${riskScoreVariantClass('matrix-cell', cellScore, thresholds)}
+                                    rounded-sm flex items-center justify-center font-bold
+                                    transition-[background-color,border-color,box-shadow,transform] duration-200
+                                    ${selected
+                                        ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 scale-110 z-10'
+                                        : 'opacity-60'
+                                    }
+                                `;
+                                const selectedScore = selected
+                                    ? <span className="text-foreground font-black">{cellScore}</span>
+                                    : null;
+                                const visualCell = (
+                                    <motion.span
+                                        key={`${p}-${i}`}
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: (p + i) * 0.02 }}
+                                        className={`${cellClasses} ${onSelect
+                                            ? 'hover:scale-105 active:scale-95 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background'
+                                            : 'm-0.5'
+                                        }`}
+                                        title={onSelect ? cellTitle : undefined}
+                                    >
+                                        {selectedScore}
+                                    </motion.span>
+                                );
+
+                                if (!onSelect) {
+                                    return visualCell;
+                                }
+
+                                return (
+                                    <label key={`${p}-${i}`} className="relative m-0.5 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name={matrixName}
+                                            value={`${p}-${i}`}
+                                            checked={selected}
+                                            onChange={() => onSelect(p, i)}
+                                            aria-label={t('matrix.choice_label', { probability: p, impact: i, score: cellScore })}
+                                            className="peer sr-only"
+                                        />
+                                        {visualCell}
+                                    </label>
+                                );
+                            })}
                         </div>
                     ))}
                 </div>
@@ -110,6 +141,6 @@ export function RiskScoreMatrix({
             <div className={`mt-3 px-4 py-1.5 rounded-full font-black text-sm ${riskScoreVariantClass('card', score, thresholds)}`}>
                 {t('matrix.score_label', { score })}
             </div>
-        </div>
+        </fieldset>
     );
 }

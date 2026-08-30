@@ -7,6 +7,14 @@
     "all": "All",
     "unread": "Unread"
   },
+  "actions": {
+    "mark_read": "Mark as read",
+    "mark_unread": "Mark as unread"
+  },
+  "errors": {
+    "update_read_state": "Could not update this notification. Try again.",
+    "mark_all_read": "Could not mark all notifications as read. Try again."
+  },
   "pagination": {
     "page_of": "Page {{page}} of {{total}}"
   },
@@ -14,4 +22,3 @@
     "bell": "Notifications"
   }
 }
-

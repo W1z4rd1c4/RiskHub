@@ -4,6 +4,7 @@ import { Activity, Server, Shield, Terminal, Users } from 'lucide-react';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthz } from '@/authz/useAuthz';
+import { useContentTabs } from '@/hooks/useContentTabs';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 
@@ -19,12 +20,19 @@ const tabDefs = [
 ] as const;
 
 type TabId = (typeof tabDefs)[number]['id'];
+const tabIds = tabDefs.map((tab) => tab.id);
 
 export function AdminConsolePage() {
     const { t } = useTranslation('admin');
     const { isLoading } = useAuth();
     const authz = useAuthz();
     const [activeTab, setActiveTab] = useState<TabId>('health');
+    const { getTabProps, getPanelProps } = useContentTabs({
+        tabs: tabIds,
+        activeTab,
+        onChange: setActiveTab,
+        idPrefix: 'admin-console',
+    });
 
     if (isLoading) {
         return <div className="admin-console-route flex items-center justify-center min-h-screen admin-muted">{t('console.loading')}</div>;
@@ -48,31 +56,41 @@ export function AdminConsolePage() {
                 </div>
             </header>
 
-            <div className="glass-card p-2 flex gap-2 overflow-x-auto">
-                {tabDefs.map((tab) => {
+            <div
+                role="tablist"
+                aria-label={t('console.title')}
+                className="glass-card p-2 flex gap-2 overflow-x-auto"
+            >
+                {tabDefs.map((tab, index) => {
                     const isActive = activeTab === tab.id;
                     return (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
+                            {...getTabProps(tab.id, index)}
                             className={cn(
                                 'flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap',
                                 isActive ? 'bg-slate-700 text-slate-50 shadow-lg' : 'admin-tab-inactive hover:bg-white/10',
                             )}
                         >
-                            <tab.icon className="h-4 w-4" />
+                            <tab.icon className="h-4 w-4" aria-hidden="true" />
                             <span className="font-medium">{t(tab.labelKey)}</span>
                         </button>
                     );
                 })}
             </div>
 
-            <div className="glass-card p-6">
-                {activeTab === 'health' && <HealthPanel />}
-                {activeTab === 'logs' && <LogsPanel />}
-                {activeTab === 'audit' && <AuditLogsPanel />}
-                {activeTab === 'sessions' && <SessionsPanel />}
-            </div>
+            {tabDefs.map((tab) => (
+                <div key={tab.id} className="glass-card p-6" {...getPanelProps(tab.id)}>
+                    {activeTab === tab.id ? (
+                        <>
+                            {tab.id === 'health' && <HealthPanel />}
+                            {tab.id === 'logs' && <LogsPanel />}
+                            {tab.id === 'audit' && <AuditLogsPanel />}
+                            {tab.id === 'sessions' && <SessionsPanel />}
+                        </>
+                    ) : null}
+                </div>
+            ))}
         </div>
     );
 }

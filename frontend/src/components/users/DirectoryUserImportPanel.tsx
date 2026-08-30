@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, UserPlus } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
@@ -29,15 +29,14 @@ export function DirectoryUserImportPanel({
     const [results, setResults] = useState<DirectoryUser[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isImportingOid, setIsImportingOid] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [showProviderSetupHint, setShowProviderSetupHint] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const importingOidRef = useRef<string | null>(null);
 
     useEffect(() => {
         const trimmed = query.trim();
         if (!trimmed) {
             setResults([]);
-            setError(null);
-            setShowProviderSetupHint(false);
+            setErrorMessage(null);
             onProviderUnavailableChange?.(false);
             setIsSearching(false);
             return;
@@ -46,21 +45,17 @@ export function DirectoryUserImportPanel({
         const handle = window.setTimeout(async () => {
             try {
                 setIsSearching(true);
-                setError(null);
+                setErrorMessage(null);
                 const users = await directoryApi.searchUsers(trimmed, 25);
                 setResults(users);
-                setShowProviderSetupHint(false);
                 onProviderUnavailableChange?.(false);
             } catch (err) {
                 logError('Directory search failed', err);
                 const providerUnavailable = isProviderUnavailableError(err);
-                setShowProviderSetupHint(providerUnavailable);
                 onProviderUnavailableChange?.(providerUnavailable);
-                setError(
-                    providerUnavailable
-                        ? t('users.directory_setup_required')
-                        : t('users.directory_search_failed')
-                );
+                setErrorMessage(providerUnavailable
+                    ? `${t('users.directory_setup_required')} ${t('users.directory_setup_help')}`
+                    : `${t('users.directory_search_failed')} ${t('users.directory_retry_help')}`);
             } finally {
                 setIsSearching(false);
             }
@@ -72,24 +67,24 @@ export function DirectoryUserImportPanel({
     const hasResults = useMemo(() => results.length > 0, [results.length]);
 
     const handleImport = async (user: DirectoryUser) => {
+        if (importingOidRef.current !== null) return;
+
+        importingOidRef.current = user.external_id;
         try {
             setIsImportingOid(user.external_id);
-            setError(null);
+            setErrorMessage(null);
             const response = await directoryApi.importUser(user.external_id);
             await onImported(response);
-            setShowProviderSetupHint(false);
             onProviderUnavailableChange?.(false);
         } catch (err) {
             logError('Directory import failed', err);
             const providerUnavailable = isProviderUnavailableError(err);
-            setShowProviderSetupHint(providerUnavailable);
             onProviderUnavailableChange?.(providerUnavailable);
-            setError(
-                providerUnavailable
-                    ? t('users.directory_setup_required')
-                    : t('users.directory_import_failed')
-            );
+            setErrorMessage(providerUnavailable
+                ? `${t('users.directory_setup_required')} ${t('users.directory_setup_help')}`
+                : `${t('users.directory_import_failed')} ${t('users.directory_retry_help')}`);
         } finally {
+            importingOidRef.current = null;
             setIsImportingOid(null);
         }
     };
@@ -101,19 +96,18 @@ export function DirectoryUserImportPanel({
                 <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
+                    aria-label={t('users.directory_search_placeholder')}
                     className="w-full rounded-xl border border-white/10 bg-slate-950 py-2 pl-10 pr-3 text-sm text-white outline-none transition focus:border-accent/70"
                     placeholder={t('users.directory_search_placeholder')}
                 />
             </div>
 
-            {error && (
-                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
-                    {error}
-                </div>
-            )}
-            {showProviderSetupHint && (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
-                    {t('users.directory_setup_help')}
+            {errorMessage && (
+                <div
+                    role="alert"
+                    className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200"
+                >
+                    {errorMessage}
                 </div>
             )}
 
@@ -138,9 +132,10 @@ export function DirectoryUserImportPanel({
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => handleImport(entry)}
-                                    disabled={isImportingOid === entry.external_id}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+                                    onClick={() => void handleImport(entry)}
+                                    aria-busy={isImportingOid === entry.external_id}
+                                    aria-disabled={isImportingOid !== null}
+                                    className={`inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent-hover ${isImportingOid !== null ? 'cursor-not-allowed opacity-60' : ''}`}
                                 >
                                     <UserPlus className="h-3.5 w-3.5" />
                                     {isImportingOid === entry.external_id
@@ -151,7 +146,7 @@ export function DirectoryUserImportPanel({
                         ))}
                     </ul>
                 ) : (
-                    <div className="px-4 py-8 text-center text-sm text-slate-500">
+                    <div className="px-4 py-8 text-center text-sm text-slate-300">
                         {query.trim()
                             ? t('users.directory_no_results')
                             : t('users.directory_search_hint')}

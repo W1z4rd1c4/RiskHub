@@ -40,8 +40,8 @@ export function UsersPageHeader({
                         <button
                             type="button"
                             onClick={onCheckAllDirectory}
-                            disabled={isCheckingAllDirectory}
-                            className="rounded-xl border border-info/30 bg-info/10 px-4 py-2 text-accent-text transition hover:bg-info/20 disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-disabled={isCheckingAllDirectory}
+                            className="rounded-xl border border-info/30 bg-info/10 px-4 py-2 text-accent-text transition hover:bg-info/20 aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
                         >
                             <span className="inline-flex items-center gap-2">
                                 <RefreshCw className={`h-4 w-4 ${isCheckingAllDirectory ? 'animate-spin' : ''}`} />

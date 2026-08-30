@@ -1,6 +1,8 @@
+import { HttpResponse, http } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { notificationsApi } from '@/services/notificationsApi';
+import { server } from '@test/mocks/server';
 
 describe('notificationsApi response validation', () => {
     beforeEach(() => {
@@ -85,5 +87,18 @@ describe('notificationsApi response validation', () => {
         });
 
         await expect(notificationsApi.markAsRead(41)).resolves.toEqual({ unread_count: 2 });
+    });
+
+    it('marks one notification unread through the exact HTTP contract', async () => {
+        let observedBody: unknown;
+        server.use(
+            http.post('*/api/v1/notifications/41/unread', async ({ request }) => {
+                observedBody = await request.json();
+                return HttpResponse.json({ unread_count: 3 });
+            }),
+        );
+
+        await expect(notificationsApi.markAsUnread(41)).resolves.toEqual({ unread_count: 3 });
+        expect(observedBody).toEqual({});
     });
 });

@@ -78,7 +78,7 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
 
     return (
         <div className="glass-card">
-            <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-300">
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-foreground">
                 {t('issues.summary.title')}
             </h3>
             <div className="space-y-2">
@@ -95,8 +95,8 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                             >
                                 <span className="flex items-center gap-3">
                                     <row.Icon className={`h-4 w-4 shrink-0 ${row.iconClassName}`} aria-hidden="true" />
-                                    <span className="min-w-0 flex-1 text-left text-sm text-slate-200">{row.label}</span>
-                                    <span className="text-base font-bold text-white">{row.value}</span>
+                                    <span className="min-w-0 flex-1 text-left text-sm text-foreground">{row.label}</span>
+                                    <span className="text-base font-bold text-foreground">{row.value}</span>
                                     <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
                                 </span>
                             </button>
@@ -112,10 +112,10 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                             <span className="flex items-center gap-3">
                                 <row.Icon className={`h-4 w-4 shrink-0 ${row.iconClassName}`} aria-hidden="true" />
                                 <span className="min-w-0 flex-1 text-left">
-                                    <span className="block text-sm text-slate-300">{row.label}</span>
-                                    <span className="block text-[11px] text-slate-500">{t('issues.summary.aggregate_metric_hint')}</span>
+                                    <span className="block text-sm text-foreground">{row.label}</span>
+                                    <span className="block text-[11px] text-muted-foreground">{t('issues.summary.aggregate_metric_hint')}</span>
                                 </span>
-                                <span className="text-base font-bold text-white">{row.value}</span>
+                                <span className="text-base font-bold text-foreground">{row.value}</span>
                             </span>
                         </div>
                     );

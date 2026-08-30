@@ -1,4 +1,6 @@
-import { Search, Calendar, ArrowRight } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { ACTION_LABELS } from '@/types/activityLog';
 import type { ViewMode } from '@/hooks/useActivityLogPageState';
@@ -158,25 +160,27 @@ export function ActivityLogFilterBar({
                     />
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
-                    <input
-                        type="date"
-                        value={dateFrom}
-                        onChange={(e) => onDateFromChange(e.target.value)}
-                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-colors"
-                    />
-                </div>
+                <Field id="activity-log-date-from" label={t('filters.date_from')}>
+                    {(field) => (
+                        <Input
+                            {...field}
+                            type="date"
+                            value={dateFrom}
+                            onChange={(event) => onDateFromChange(event.target.value)}
+                        />
+                    )}
+                </Field>
 
-                <div className="flex items-center gap-2">
-                    <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
-                    <input
-                        type="date"
-                        value={dateTo}
-                        onChange={(e) => onDateToChange(e.target.value)}
-                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-colors"
-                    />
-                </div>
+                <Field id="activity-log-date-to" label={t('filters.date_to')}>
+                    {(field) => (
+                        <Input
+                            {...field}
+                            type="date"
+                            value={dateTo}
+                            onChange={(event) => onDateToChange(event.target.value)}
+                        />
+                    )}
+                </Field>
             </div>
             ) : null}
         </>

@@ -30,7 +30,7 @@ export function SettingsPage() {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-white font-heading">{t('title')}</h1>
-                        <p className="text-slate-400">
+                        <p className="text-muted-foreground">
                             {t('page_subtitle')}
                         </p>
                     </div>
@@ -50,7 +50,7 @@ export function SettingsPage() {
                                 "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap",
                                 isActive
                                     ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20"
-                                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                             )}
                         >
                             <tab.icon className="h-4 w-4" />

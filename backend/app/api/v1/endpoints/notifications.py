@@ -17,6 +17,7 @@ from app.services._notification_inbox.lifecycle import (
     list_notification_inbox,
     mark_all_notifications_read,
     mark_notification_read,
+    mark_notification_unread,
     read_notification_preferences,
     update_notification_preferences,
 )
@@ -98,6 +99,21 @@ async def mark_as_read(
     Returns the updated unread count for immediate UI sync.
     """
     outcome = await mark_notification_read(db, notification_id=notification_id, actor=current_user)
+    return {"unread_count": outcome.unread_count or 0}
+
+
+@router.post("/{notification_id}/unread")
+async def mark_as_unread(
+    notification_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> dict[str, int]:
+    """Mark a visible notification as unread and return the updated unread count."""
+    outcome = await mark_notification_unread(
+        db,
+        notification_id=notification_id,
+        actor=current_user,
+    )
     return {"unread_count": outcome.unread_count or 0}
 
 

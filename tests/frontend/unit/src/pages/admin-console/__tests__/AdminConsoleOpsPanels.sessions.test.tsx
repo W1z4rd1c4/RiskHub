@@ -126,7 +126,7 @@ describe('SessionsPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: 'users.check_directory' }));
 
         const action = await screen.findByRole('button', { name: /users.checking_directory/ });
-        expect(action).toBeDisabled();
+        expect(action).toHaveAttribute('aria-disabled', 'true');
         expect(action).toHaveAttribute('aria-busy', 'true');
     });
 
@@ -138,7 +138,9 @@ describe('SessionsPanel', () => {
         await screen.findByText('Session User');
         fireEvent.click(screen.getByRole('button', { name: 'users.check_directory' }));
 
-        expect(await screen.findByText('users.directory_check_failed')).toBeInTheDocument();
+        expect(await screen.findByText(
+            'users.directory_check_failed users.directory_retry_help',
+        )).toBeInTheDocument();
     });
 
     it('hides session and directory actions when admin capabilities are missing', async () => {

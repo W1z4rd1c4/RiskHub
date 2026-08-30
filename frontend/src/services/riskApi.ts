@@ -91,8 +91,8 @@ export const riskApi = {
         return apiClient.get(`/risks/${id}`, { schema: riskSchema });
     },
 
-    async createRisk(data: RiskCreate): Promise<Risk> {
-        return apiClient.post('/risks', data, { schema: riskSchema });
+    async createRisk(data: RiskCreate): Promise<Risk | ApprovalCreatedResponse> {
+        return apiClient.post('/risks', data, { schema: riskOrApprovalSchema });
     },
 
     async updateRisk(id: number, data: RiskUpdate): Promise<Risk | ApprovalCreatedResponse> {

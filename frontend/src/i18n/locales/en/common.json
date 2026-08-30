@@ -278,6 +278,8 @@
     "select_department": "Select a department...",
     "select_risk": "Select a risk...",
     "search_logs": "Search logs...",
+    "date_from": "From date",
+    "date_to": "To date",
     "search_items": "Search items...",
     "search_risks": "Search risks...",
     "search_controls": "Search controls...",

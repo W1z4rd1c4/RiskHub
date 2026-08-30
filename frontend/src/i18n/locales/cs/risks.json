@@ -16,6 +16,10 @@
     "process": "Proces",
     "probability": "Pravděpodobnost",
     "impact": "Dopad",
+    "gross_probability": "Hrubá pravděpodobnost",
+    "gross_impact": "Hrubý dopad",
+    "net_probability": "Čistá pravděpodobnost",
+    "net_impact": "Čistý dopad",
     "gross_score": "Inherentní skóre",
     "net_score": "Reziduální skóre",
     "is_priority": "Prioritní riziko",
@@ -160,6 +164,7 @@
     "gross_risk": "Hrubé riziko",
     "net_risk": "Čisté riziko",
     "cell_title": "P:{{probability}} × D:{{impact}} = {{score}}",
+    "choice_label": "Pravděpodobnost {{probability}}, dopad {{impact}}, skóre {{score}}",
     "score_label": "Skóre: {{score}}"
   },
   "scoring": {
@@ -224,6 +229,10 @@
       "identity": "Identita",
       "ownership": "Detaily a vlastník",
       "scoring": "Hodnocení rizika"
+    },
+    "errors": {
+      "process_required": "Proces je povinný",
+      "category_required": "Kategorie je povinná"
     },
     "financial": {
       "loss": "Ztráta",

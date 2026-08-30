@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import { parseUpdateResult } from '@/lib/approvalUi';
+import { isApprovalCreatedResponse, parseUpdateResult } from '@/lib/approvalUi';
 import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { ApiClientError } from '@/services/apiClient';
 import { riskApi } from '@/services/riskApi';
@@ -75,8 +75,8 @@ export function getUniqueRiskOwnerRoles(users: UserLookupItem[]): string[] {
 export function validateRiskIdentity(formData: Partial<Risk>): Record<string, string> {
     const errors: Record<string, string> = {};
     if (!formData.name?.trim()) errors.name = 'Risk Name is required';
-    if (!formData.process?.trim()) errors.process = 'Main Process is required';
-    if (!formData.category?.trim()) errors.category = 'Category is required';
+    if (!formData.process?.trim()) errors.process = 'risks:form.errors.process_required';
+    if (!formData.category?.trim()) errors.category = 'risks:form.errors.category_required';
     if (!formData.description?.trim()) errors.description = 'Risk Description is required';
     return errors;
 }
@@ -198,7 +198,13 @@ export function useRiskFormWorkflow({ initialData, isEdit, onSuccess, riskTypes,
                     setFormData((prev) => ({ ...prev, risk_type: resolvedRiskType }));
                 }
 
-                const newRisk = await riskApi.createRisk(createPayload);
+                const result = await riskApi.createRisk(createPayload);
+                if (isApprovalCreatedResponse(result)) {
+                    setApprovalQueued({ message: result.message });
+                    setIsSubmitting(false);
+                    return;
+                }
+                const newRisk = result;
                 if (onSuccess) {
                     await onSuccess(newRisk.id);
                 } else {

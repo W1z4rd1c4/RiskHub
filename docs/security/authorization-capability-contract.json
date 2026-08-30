@@ -536,8 +536,8 @@
   {
    "id": "AUTHZ-NOTIFICATIONS",
    "surface": "Notifications",
-   "action": "List, count, mark, and configure current-user notifications plus manual KRI deadline check trigger",
-   "actor_scope": "Notification reads and counts are current-user scoped and linked-resource filtered; mark-read mutations are current-user ownership scoped; manual KRI deadline trigger requires approval-resolution authority",
+   "action": "List, count, mark read/unread, and configure current-user notifications plus manual KRI deadline check trigger",
+   "actor_scope": "Notification reads and counts are current-user scoped and linked-resource filtered; mark-read and mark-unread mutations require current-user ownership and linked-resource visibility; manual KRI deadline trigger requires approval-resolution authority",
    "backend_authority": "backend/app/api/v1/endpoints/notifications.py",
    "service_policy": "backend/app/services/notification_visibility.py applies risk, control, KRI, vendor, approval, and questionnaire visibility helpers; issue-linked notifications require issues:read plus issue visibility scope; creation-time notification recipient loaders use user_selectinload_options(include_permissions=True) before can_read_* checks so manager-derived department scope is available; backend/app/services/kri_deadline_service.py and backend/app/services/questionnaire_deadline_service.py use creation-time visibility gates where available; approval_privilege_tier preserves can_resolve_approvals authority for the manual KRI deadline trigger; backend/app/services/_deadline_execution/ owns shared deadline notification execution, dedupe, visibility gates, and result aggregation while issue/KRI domain policies remain local",
    "response_capability": "None; notification payloads are scoped server-side",

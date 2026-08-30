@@ -28,10 +28,10 @@ export function buildControlColumns({
             sortable: true,
             render: (control) => (
                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white">{control.name}</span>
+                    <span className="text-sm font-bold text-foreground">{control.name}</span>
                     {pendingApprovalIds.has(control.id) ? (
                         <div
-                            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20"
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-warning/10 text-warning-text border border-warning/20"
                             title={translate('columns.pending_changes_title')}
                         >
                             <Lock className="h-2.5 w-2.5" aria-hidden="true" />
@@ -46,7 +46,7 @@ export function buildControlColumns({
             label: translate('columns.department'),
             sortable: true,
             render: (control) => (
-                <span className="text-xs font-medium text-slate-300">
+                <span className="text-xs font-medium text-muted-foreground">
                     {control.department_name || translate('common:fallbacks.unassigned')}
                 </span>
             ),
@@ -56,7 +56,7 @@ export function buildControlColumns({
             label: translate('columns.frequency'),
             sortable: true,
             render: (control) => (
-                <div className="flex items-center gap-2 text-xs text-slate-400 capitalize">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground capitalize">
                     <Calendar className="h-3 w-3 text-accent" aria-hidden="true" />
                     {translate(`frequencies.${control.frequency}`, { defaultValue: control.frequency })}
                 </div>

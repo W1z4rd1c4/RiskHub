@@ -484,6 +484,7 @@ describe('Dialog interaction matrix — dialog surfaces (FR-P2c-1)', () => {
                 breakGlassHours={4}
                 breakGlassReason=""
                 breakGlassUser={accessUserFixture}
+                errorMessage={null}
                 isBreakGlassSubmitting={false}
                 onClose={onClose}
                 onReasonChange={() => {}}

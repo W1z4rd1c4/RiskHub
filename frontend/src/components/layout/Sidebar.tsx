@@ -38,6 +38,7 @@ export function Sidebar() {
         pollMs: SIDEBAR_POLL_MS,
         enabled: shouldPollShellSummary,
     });
+    const { refetch: refetchShellSummary } = shellSummaryQuery;
 
     const workflowCount = (shellSummaryQuery.data?.pending_approvals_count ?? 0)
         + (shellSummaryQuery.data?.questionnaire_inbox_count ?? 0);
@@ -64,16 +65,16 @@ export function Sidebar() {
 
     const displayedUnreadNotificationCount = notificationCountOverride ?? unreadNotificationCount;
 
-    const handleUnreadCountChange = (count: number) => {
+    const handleUnreadCountChange = useCallback((count: number) => {
         setNotificationCountOverride(count);
         if (notificationRefreshTimeoutRef.current !== null) {
             window.clearTimeout(notificationRefreshTimeoutRef.current);
         }
         notificationRefreshTimeoutRef.current = window.setTimeout(() => {
             notificationRefreshTimeoutRef.current = null;
-            void shellSummaryQuery.refresh();
+            void refetchShellSummary();
         }, 150);
-    };
+    }, [refetchShellSummary]);
 
     useEffect(() => {
         return () => {

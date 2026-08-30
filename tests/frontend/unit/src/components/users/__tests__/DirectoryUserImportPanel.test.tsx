@@ -89,8 +89,9 @@ describe('DirectoryUserImportPanel', () => {
             expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25);
         });
 
-        expect(await screen.findByText(adminEn.users.directory_setup_required)).toBeInTheDocument();
-        expect(screen.getByText(adminEn.users.directory_setup_help)).toBeInTheDocument();
+        expect(await screen.findByText(
+            `${adminEn.users.directory_setup_required} ${adminEn.users.directory_setup_help}`,
+        )).toBeInTheDocument();
         expect(onProviderUnavailableChange).toHaveBeenLastCalledWith(true);
         expect(onImported).not.toHaveBeenCalled();
     });
@@ -121,8 +122,10 @@ describe('DirectoryUserImportPanel', () => {
             expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25);
         });
 
-        expect(await screen.findByText(adminEn.users.directory_search_failed)).toBeInTheDocument();
-        expect(screen.queryByText(adminEn.users.directory_setup_help)).not.toBeInTheDocument();
+        expect(await screen.findByText(
+            `${adminEn.users.directory_search_failed} ${adminEn.users.directory_retry_help}`,
+        )).toBeInTheDocument();
+        expect(screen.queryByText(adminEn.users.directory_setup_help, { exact: false })).not.toBeInTheDocument();
         expect(onProviderUnavailableChange).toHaveBeenLastCalledWith(false);
         expect(onImported).not.toHaveBeenCalled();
         expect(mockImportUser).not.toHaveBeenCalled();
@@ -172,8 +175,10 @@ describe('DirectoryUserImportPanel', () => {
             expect(mockImportUser).toHaveBeenCalledWith('oid-1');
         });
 
-        expect(await screen.findByText(adminEn.users.directory_import_failed)).toBeInTheDocument();
-        expect(screen.queryByText(adminEn.users.directory_setup_help)).not.toBeInTheDocument();
+        expect(await screen.findByText(
+            `${adminEn.users.directory_import_failed} ${adminEn.users.directory_retry_help}`,
+        )).toBeInTheDocument();
+        expect(screen.queryByText(adminEn.users.directory_setup_help, { exact: false })).not.toBeInTheDocument();
         expect(onProviderUnavailableChange).toHaveBeenLastCalledWith(false);
         expect(onImported).not.toHaveBeenCalled();
     });

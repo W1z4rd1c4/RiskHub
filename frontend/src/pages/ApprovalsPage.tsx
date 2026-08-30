@@ -57,29 +57,29 @@ export default function ApprovalsPage() {
                 </div>
             )}
 
-            <ApprovalsTabs filter={filter} onChange={setFilter} t={t} />
-
-            {filter === 'risk_assessment' ? (
-                <QuestionnaireInboxList
-                    loading={questionnairesLoading}
-                    questionnaires={questionnaires}
-                    locale={i18n.language}
-                    onOpenRisk={(riskId) => navigate(`/risks/${riskId}`)}
-                    t={t}
-                />
-            ) : (
-                <ApprovalList
-                    approvals={approvals}
-                    loading={loading}
-                    expandedRows={expandedRows}
-                    locale={i18n.language}
-                    onToggleRow={toggleRow}
-                    onApprove={openApproveDialog}
-                    onReject={openRejectDialog}
-                    onCancel={requestCancel}
-                    t={t}
-                />
-            )}
+            <ApprovalsTabs filter={filter} onChange={setFilter} t={t} label={t('title')}>
+                {filter === 'risk_assessment' ? (
+                    <QuestionnaireInboxList
+                        loading={questionnairesLoading}
+                        questionnaires={questionnaires}
+                        locale={i18n.language}
+                        onOpenRisk={(riskId) => navigate(`/risks/${riskId}`)}
+                        t={t}
+                    />
+                ) : (
+                    <ApprovalList
+                        approvals={approvals}
+                        loading={loading}
+                        expandedRows={expandedRows}
+                        locale={i18n.language}
+                        onToggleRow={toggleRow}
+                        onApprove={openApproveDialog}
+                        onReject={openRejectDialog}
+                        onCancel={requestCancel}
+                        t={t}
+                    />
+                )}
+            </ApprovalsTabs>
 
             <ApprovalResolutionDialog
                 selectedApproval={selectedApproval}

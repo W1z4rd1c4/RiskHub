@@ -118,8 +118,8 @@ export function ConfirmDialog({
                     <IconComponent className={`h-6 w-6 ${styles.iconColor}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h3 id={titleId} className="text-lg font-bold text-white">{title}</h3>
-                    <p id={messageId} className="text-sm text-slate-400 mt-1 leading-relaxed whitespace-pre-wrap">
+                    <h3 id={titleId} className="text-lg font-bold text-foreground">{title}</h3>
+                    <p id={messageId} className="text-sm text-muted-foreground mt-1 leading-relaxed whitespace-pre-wrap">
                         {message}
                     </p>
                 </div>
@@ -140,7 +140,7 @@ export function ConfirmDialog({
                 <div className="px-6 pb-4">
                     <label htmlFor={inputId} className="block">
                         {inputLabel && (
-                            <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                            <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                                 {inputLabel} {inputRequired && <span className="text-destructive">*</span>}
                             </span>
                         )}
@@ -152,7 +152,7 @@ export function ConfirmDialog({
                             placeholder={resolvedInputPlaceholder}
                             rows={3}
                             aria-label={inputLabel ? undefined : resolvedInputPlaceholder}
-                            className="confirm-dialog-input w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 outline-none focus:border-accent/50 transition-all resize-none"
+                            className="confirm-dialog-input w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-foreground text-sm placeholder:text-muted-foreground outline-none focus:border-accent/50 transition-all resize-none"
                         />
                     </label>
                 </div>

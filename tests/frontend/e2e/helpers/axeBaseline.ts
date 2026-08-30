@@ -22,7 +22,23 @@ export const AXE_BASELINE_ROUTES = [
   '/threats',
   '/ict-register/data-quality',
   '/?view=ict-committee',
+  '/issues',
+  '/kris',
+  '/departments',
+  '/approvals',
+  '/activity-log',
+  '/governance',
+  '/notifications',
+  '/vendor-reports',
+  '/users',
+  '/risk-hub',
+  '/controls/:id',
+  '/risks/:id',
+  '/kris/:id',
+  '/departments/:id',
+  '/vendors/:id',
   '/admin',
+  '/admin/docs',
 ] as const;
 
 export interface AxeLikeViolation {

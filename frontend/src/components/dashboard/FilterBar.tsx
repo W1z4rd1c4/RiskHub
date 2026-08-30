@@ -115,7 +115,7 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
                 <div className="flex items-center justify-between gap-4">
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
-                        className="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white transition-colors"
+                        className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <Filter className="h-4 w-4" />
                         <span>{t('dashboard:filters.title')}</span>

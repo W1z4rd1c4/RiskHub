@@ -13,11 +13,16 @@ import { logError } from '@/services/logger';
 
 import { SessionsTable } from './SessionsTable';
 
+type DirectoryOutcome = {
+    kind: 'status' | 'alert';
+    message: string;
+};
+
 export function SessionsPanel() {
     const { t } = useTranslation('admin');
     const queryClient = useQueryClient();
     const [pendingRevokeSession, setPendingRevokeSession] = useState<ActiveSession | null>(null);
-    const [directorySummary, setDirectorySummary] = useState<string | null>(null);
+    const [directoryOutcome, setDirectoryOutcome] = useState<DirectoryOutcome | null>(null);
     const [directorySyncing, setDirectorySyncing] = useState(false);
     const [revokeError, setRevokeError] = useState<string | null>(null);
 
@@ -53,19 +58,25 @@ export function SessionsPanel() {
     };
 
     const handleCheckAllDirectory = async () => {
+        if (directorySyncing) return;
         try {
+            setDirectoryOutcome(null);
             setDirectorySyncing(true);
             const result = await adminApi.checkAllDirectoryUsers();
-            setDirectorySummary(
-                t('users.directory_check_all_success', {
+            setDirectoryOutcome({
+                kind: 'status',
+                message: t('users.directory_check_all_success', {
                     checked: result.checked,
                     deprovisioned: result.deprovisioned,
                 }),
-            );
+            });
             void queryClient.invalidateQueries({ queryKey: adminKeys.sessions() });
         } catch (error) {
             logError('Directory check-all failed.', error);
-            setDirectorySummary(t('users.directory_check_failed'));
+            setDirectoryOutcome({
+                kind: 'alert',
+                message: `${t('users.directory_check_failed')} ${t('users.directory_retry_help')}`,
+            });
         } finally {
             setDirectorySyncing(false);
         }
@@ -88,11 +99,11 @@ export function SessionsPanel() {
                             type="button"
                             variant="secondary"
                             onClick={handleCheckAllDirectory}
-                            disabled={directorySyncing}
-                            isLoading={directorySyncing}
+                            aria-busy={directorySyncing}
+                            aria-disabled={directorySyncing}
                             className="text-xs"
                         >
-                            {!directorySyncing ? <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+                            <RefreshCw className={`h-3.5 w-3.5 ${directorySyncing ? 'animate-spin' : ''}`} aria-hidden="true" />
                             {directorySyncing
                                 ? t('users.checking_directory')
                                 : t('users.check_directory')}
@@ -101,9 +112,12 @@ export function SessionsPanel() {
                 </div>
             </div>
 
-            {directorySummary && (
-                <div className="admin-surface-muted admin-text rounded-lg border px-3 py-2 text-xs">
-                    {directorySummary}
+            {directoryOutcome && (
+                <div
+                    role={directoryOutcome.kind}
+                    className="admin-surface-muted admin-text rounded-lg border px-3 py-2 text-xs"
+                >
+                    {directoryOutcome.message}
                 </div>
             )}
             {revokeError && (

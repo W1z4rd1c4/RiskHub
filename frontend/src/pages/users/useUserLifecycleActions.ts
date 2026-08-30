@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { adminApi } from '@/services/adminApi';
 import { apiClient } from '@/services/apiClient';
@@ -10,13 +10,13 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 interface UseUserLifecycleActionsOptions {
     refreshUsers: () => Promise<void>;
-    setDirectoryMessage: (message: string | null) => void;
+    setOutcome: (outcome: { kind: 'status' | 'alert'; message: string } | null) => void;
     t: Translate;
 }
 
 export function useUserLifecycleActions({
     refreshUsers,
-    setDirectoryMessage,
+    setOutcome,
     t,
 }: UseUserLifecycleActionsOptions) {
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -25,10 +25,12 @@ export function useUserLifecycleActions({
     const [breakGlassUser, setBreakGlassUser] = useState<AccessUserRead | null>(null);
     const [breakGlassReason, setBreakGlassReason] = useState('');
     const [breakGlassHours, setBreakGlassHours] = useState<number | ''>(4);
+    const [breakGlassError, setBreakGlassError] = useState<string | null>(null);
     const [isBreakGlassSubmitting, setIsBreakGlassSubmitting] = useState(false);
+    const isBreakGlassSubmittingRef = useRef(false);
 
     const handleToggleClick = (user: AccessUserRead) => {
-        setDirectoryMessage(null);
+        setOutcome(null);
         setUserToToggle(user);
         setConfirmDialogOpen(true);
     };
@@ -45,12 +47,23 @@ export function useUserLifecycleActions({
             setIsToggling(true);
             await userApi.updateUser(userToToggle.id, { is_active: !userToToggle.is_active });
             await refreshUsers();
+            setOutcome({
+                kind: 'status',
+                message: t('users.user_status_update_success', {
+                    ns: 'admin',
+                    name: userToToggle.name,
+                    status: userToToggle.is_active
+                        ? t('access.status.inactive', { ns: 'admin' })
+                        : t('access.status.active', { ns: 'admin' }),
+                }),
+            });
         } catch (error) {
             logError('Failed to update user status.', error);
-            setDirectoryMessage(
-                apiClient.getRawErrorMessage(error)
-                ?? t('users.user_status_update_failed', { ns: 'admin' })
-            );
+            setOutcome({
+                kind: 'alert',
+                message: apiClient.getRawErrorMessage(error)
+                    ?? t('users.user_status_update_failed', { ns: 'admin' }),
+            });
         } finally {
             setIsToggling(false);
             setConfirmDialogOpen(false);
@@ -59,10 +72,11 @@ export function useUserLifecycleActions({
     };
 
     const handleBreakGlassOpen = (user: AccessUserRead) => {
-        setDirectoryMessage(null);
+        setOutcome(null);
         setBreakGlassUser(user);
         setBreakGlassReason('');
         setBreakGlassHours(4);
+        setBreakGlassError(null);
     };
 
     const handleBreakGlassClose = () => {
@@ -70,39 +84,52 @@ export function useUserLifecycleActions({
         setBreakGlassUser(null);
         setBreakGlassReason('');
         setBreakGlassHours(4);
+        setBreakGlassError(null);
     };
 
     const handleBreakGlassSubmit = async () => {
-        if (!breakGlassUser || !breakGlassReason.trim() || breakGlassHours === '') return;
+        if (
+            isBreakGlassSubmittingRef.current
+            || !breakGlassUser
+            || !breakGlassReason.trim()
+            || breakGlassHours === ''
+        ) return;
+
+        isBreakGlassSubmittingRef.current = true;
         try {
+            setBreakGlassError(null);
             setIsBreakGlassSubmitting(true);
             await adminApi.breakGlassEnableDirectoryUser(breakGlassUser.id, {
                 reason: breakGlassReason.trim(),
                 expires_in_hours: breakGlassHours,
             });
-            setDirectoryMessage(
-                t('users.break_glass_success', {
+            setOutcome({
+                kind: 'status',
+                message: t('users.break_glass_success', {
                     ns: 'admin',
                     name: breakGlassUser.name,
-                })
-            );
+                }),
+            });
             setBreakGlassUser(null);
             setBreakGlassReason('');
             setBreakGlassHours(4);
+            setBreakGlassError(null);
             await refreshUsers();
         } catch (error) {
             logError('Break-glass enable failed.', error);
-            setDirectoryMessage(
+            setBreakGlassError(
                 apiClient.getRawErrorMessage(error)
-                ?? t('users.break_glass_failed', { ns: 'admin' })
+                    ?? t('users.break_glass_failed', { ns: 'admin' }),
             );
         } finally {
+            isBreakGlassSubmittingRef.current = false;
             setIsBreakGlassSubmitting(false);
         }
     };
 
     return {
         breakGlassHours,
+        breakGlassError,
         breakGlassReason,
         breakGlassUser,
         confirmDialogOpen,

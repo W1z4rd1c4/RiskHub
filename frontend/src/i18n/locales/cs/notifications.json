@@ -7,6 +7,14 @@
     "all": "Vše",
     "unread": "Nepřečtené"
   },
+  "actions": {
+    "mark_read": "Označit jako přečtené",
+    "mark_unread": "Označit jako nepřečtené"
+  },
+  "errors": {
+    "update_read_state": "Oznámení se nepodařilo aktualizovat. Zkuste to znovu.",
+    "mark_all_read": "Oznámení se nepodařilo označit jako přečtená. Zkuste to znovu."
+  },
   "pagination": {
     "page_of": "Strana {{page}} z {{total}}"
   },
@@ -14,4 +22,3 @@
     "bell": "Oznámení"
   }
 }
-

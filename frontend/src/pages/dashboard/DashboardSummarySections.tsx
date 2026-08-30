@@ -78,7 +78,7 @@ export function DashboardSummarySections({
                             </div>
                         </div>
                         <div>
-                            <p className="text-sm font-bold text-slate-500 mb-1">{stat.title}</p>
+                            <p className="text-sm font-bold text-muted-foreground mb-1">{stat.title}</p>
                             <h3 className="text-4xl font-black text-foreground tracking-tighter">{stat.value}</h3>
                         </div>
                     </motion.button>
@@ -92,14 +92,14 @@ export function DashboardSummarySections({
                     </motion.div>
 
                     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card">
-                        <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-300">
+                        <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-foreground">
                             {issueAgingTitle}
                         </h3>
                         <IssueAgingChart buckets={issueAging.buckets} />
                     </motion.div>
 
                     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card">
-                        <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-300">
+                        <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-foreground">
                             {issueSeverityTitle}
                         </h3>
                         <OpenIssuesBySeverityChart items={issueSeverity.items} />

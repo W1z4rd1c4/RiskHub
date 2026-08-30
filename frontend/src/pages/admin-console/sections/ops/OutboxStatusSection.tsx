@@ -19,7 +19,7 @@ export function OutboxStatusSection({ outboxStatus }: OutboxStatusSectionProps) 
                 </div>
                 <span className={cn(
                     'text-xs font-medium',
-                    (outboxStatus?.dead_letter_count || 0) > 0 ? 'text-rose-400' : 'text-emerald-400',
+                    (outboxStatus?.dead_letter_count || 0) > 0 ? 'text-destructive' : 'text-success-text',
                 )}>
                     {(outboxStatus?.dead_letter_count || 0) > 0 ? t('health.outbox.attention') : t('health.outbox.healthy')}
                 </span>

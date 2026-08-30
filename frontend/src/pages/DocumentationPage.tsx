@@ -190,12 +190,12 @@ export function DocumentationPage() {
                         <BookOpen className="h-10 w-10 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-white font-heading">{t('documentation.library_title')}</h1>
-                        <p className="text-slate-400 text-lg mt-1">
+                        <h1 className="text-3xl font-bold text-foreground font-heading">{t('documentation.library_title')}</h1>
+                        <p className="text-muted-foreground text-lg mt-1">
                             {t('documentation.library_subtitle')}
                         </p>
                         <div className="mt-3">
-                            <span className="px-2 py-1 rounded-md text-xs font-semibold bg-blue-500/20 text-blue-300">
+                            <span className="px-2 py-1 rounded-md text-xs font-semibold bg-info/10 text-accent-text">
                                 {audienceLabel}
                             </span>
                         </div>
@@ -210,8 +210,8 @@ export function DocumentationPage() {
                         className={[
                             'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
                             selectedTag === 'all'
-                                ? 'bg-accent/20 text-accent border-accent/50'
-                                : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10',
+                                ? 'bg-accent/20 text-accent-text border-accent/50'
+                                : 'bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10',
                         ].join(' ')}
                     >
                         {t('documentation.filter_all')}
@@ -223,8 +223,8 @@ export function DocumentationPage() {
                             className={[
                                 'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors uppercase tracking-wider',
                                 selectedTag === tag
-                                    ? 'bg-accent/20 text-accent border-accent/50'
-                                    : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10',
+                                    ? 'bg-accent/20 text-accent-text border-accent/50'
+                                    : 'bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10',
                             ].join(' ')}
                         >
                             {tag}
@@ -248,23 +248,23 @@ export function DocumentationPage() {
                             className="glass-card p-6 flex flex-col text-left group hover:border-accent/50 hover:bg-accent/5 transition-all duration-300"
                         >
                             <div className="bg-white/5 p-3 rounded-xl w-fit mb-4 group-hover:bg-accent/20 transition-colors">
-                                <FileText className="h-6 w-6 text-slate-400 group-hover:text-accent transition-colors" />
+                                <FileText className="h-6 w-6 text-muted-foreground group-hover:text-accent-text transition-colors" />
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-accent transition-colors">{doc.title}</h3>
-                            <p className="text-sm text-slate-500 mb-6 flex-1 line-clamp-3">
+                            <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-accent-text transition-colors">{doc.title}</h3>
+                            <p className="text-sm text-muted-foreground mb-6 flex-1 line-clamp-3">
                                 {(doc.summary || doc.content.replace(/[#*`]/g, '').slice(0, 150)).trim()}...
                             </p>
                             <div className="flex flex-wrap gap-1.5 mb-4">
                                 {doc.tags.map((tag) => (
                                     <span
                                         key={`${doc.id}-${tag}`}
-                                        className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold bg-white/5 text-slate-300"
+                                        className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold bg-white/5 text-muted-foreground"
                                     >
                                         {formatDocumentationTag(tag)}
                                     </span>
                                 ))}
                             </div>
-                            <div className="flex items-center gap-2 text-accent text-sm font-semibold mt-auto">
+                            <div className="flex items-center gap-2 text-accent-text text-sm font-semibold mt-auto">
                                 {t('documentation.view_manual')}
                                 <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                             </div>

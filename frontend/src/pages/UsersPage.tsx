@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
@@ -28,6 +28,11 @@ import { UsersAccessStats } from './users/UsersAccessStats';
 import { UsersPageHeader } from './users/UsersPageHeader';
 import type { UsersPageLocationState, UsersPageMode } from './users/usersPageTypes';
 
+type UsersPageOutcome = {
+    kind: 'status' | 'alert';
+    message: string;
+};
+
 function resolveUsersPageMode(authz: ReturnType<typeof useAuthz>): UsersPageMode {
     if (authz.canViewAccessUsers) return 'access';
     if (authz.canViewDepartmentAccessUsers) return 'department-access';
@@ -46,9 +51,10 @@ export function UsersPage() {
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<AccessUserRead | null>(null);
     const [isADPickerOpen, setIsADPickerOpen] = useState(false);
-    const [directoryMessage, setDirectoryMessage] = useState<string | null>(null);
+    const [outcome, setOutcome] = useState<UsersPageOutcome | null>(null);
     const [isCheckingAllDirectory, setIsCheckingAllDirectory] = useState(false);
     const [checkingDirectoryUserId, setCheckingDirectoryUserId] = useState<number | null>(null);
+    const checkingDirectoryUserIdRef = useRef<number | null>(null);
 
     const locationState = location.state as UsersPageLocationState;
     const pageMode = departmentScope
@@ -88,6 +94,7 @@ export function UsersPage() {
 
     const {
         breakGlassHours,
+        breakGlassError,
         breakGlassReason,
         breakGlassUser,
         confirmDialogOpen,
@@ -104,7 +111,7 @@ export function UsersPage() {
         userToToggle,
     } = useUserLifecycleActions({
         refreshUsers: fetchUsers,
-        setDirectoryMessage,
+        setOutcome,
         t,
     });
 
@@ -118,11 +125,12 @@ export function UsersPage() {
     };
 
     const handleDirectoryImported = async (result: DirectoryImportResponse) => {
-        setDirectoryMessage(
-            t('users.directory_import_success', {
+        setOutcome({
+            kind: 'status',
+            message: t('users.directory_import_success', {
                 name: result.name,
             }),
-        );
+        });
         setIsADPickerOpen(false);
         await fetchUsers();
     };
@@ -136,39 +144,54 @@ export function UsersPage() {
     };
 
     const handleCheckAllDirectory = async () => {
+        if (isCheckingAllDirectory) return;
         try {
+            setOutcome(null);
             setIsCheckingAllDirectory(true);
             const response = await adminApi.checkAllDirectoryUsers();
-            setDirectoryMessage(
-                t('users.directory_check_all_success', {
+            setOutcome({
+                kind: 'status',
+                message: t('users.directory_check_all_success', {
                     checked: response.checked,
                     deprovisioned: response.deprovisioned,
                 }),
-            );
+            });
             await fetchUsers();
         } catch (error) {
             logError('Directory check-all failed.', error);
-            setDirectoryMessage(t('users.directory_check_failed'));
+            setOutcome({
+                kind: 'alert',
+                message: `${t('users.directory_check_failed')} ${t('users.directory_retry_help')}`,
+            });
         } finally {
             setIsCheckingAllDirectory(false);
         }
     };
 
     const handleCheckSingleDirectory = async (user: AccessUserRead) => {
+        if (checkingDirectoryUserIdRef.current !== null) return;
+
+        checkingDirectoryUserIdRef.current = user.id;
         try {
+            setOutcome(null);
             setCheckingDirectoryUserId(user.id);
             const response = await adminApi.checkDirectoryUser(user.id);
-            setDirectoryMessage(
-                t('users.directory_check_single_success', {
+            setOutcome({
+                kind: 'status',
+                message: t('users.directory_check_single_success', {
                     name: user.name,
                     status: response.status,
                 }),
-            );
+            });
             await fetchUsers();
         } catch (error) {
             logError('Directory single-user check failed.', error);
-            setDirectoryMessage(t('users.directory_check_failed'));
+            setOutcome({
+                kind: 'alert',
+                message: `${t('users.directory_check_failed')} ${t('users.directory_retry_help')}`,
+            });
         } finally {
+            checkingDirectoryUserIdRef.current = null;
             setCheckingDirectoryUserId(null);
         }
     };
@@ -179,11 +202,12 @@ export function UsersPage() {
 
         setSelectedUser(transition.user);
         setEditModalOpen(true);
-        setDirectoryMessage(
-            t('users.directory_import_success', {
+        setOutcome({
+            kind: 'status',
+            message: t('users.directory_import_success', {
                 name: transition.messageName,
             }),
-        );
+        });
         void navigate('/users', { replace: true, state: null });
     }, [accessWorkflow.importedUserTransition, navigate, t]);
 
@@ -236,14 +260,23 @@ export function UsersPage() {
             />
 
             {authModeStatus === 'error' && authModeError && (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                <div
+                    role="alert"
+                    className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+                >
                     {authModeError}
                 </div>
             )}
 
-            {directoryMessage && (
-                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
-                    {directoryMessage}
+            {outcome && (
+                <div
+                    role={outcome.kind}
+                    className={`rounded-xl border px-4 py-3 text-sm ${outcome.kind === 'alert'
+                        ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                        : 'border-success/30 bg-success/10 text-success-text'
+                    }`}
+                >
+                    {outcome.message}
                 </div>
             )}
 
@@ -354,6 +387,7 @@ export function UsersPage() {
 
             <BreakGlassEnableDialog
                 breakGlassHours={breakGlassHours}
+                errorMessage={breakGlassError}
                 breakGlassReason={breakGlassReason}
                 breakGlassUser={breakGlassUser}
                 isBreakGlassSubmitting={isBreakGlassSubmitting}

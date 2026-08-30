@@ -65,13 +65,13 @@ export function HealthPanel() {
                     <div className="flex items-center gap-3 mb-2">
                         <Database className={cn(
                             'h-5 w-5',
-                            health?.database_status === 'connected' ? 'text-green-400' : 'text-red-400',
+                            health?.database_status === 'connected' ? 'text-success-text' : 'text-destructive',
                         )} />
                         <span className="admin-muted text-sm">{t('health.database')}</span>
                     </div>
                     <p className={cn(
                         'text-xl font-bold',
-                        health?.database_status === 'connected' ? 'text-green-400' : 'text-red-400',
+                        health?.database_status === 'connected' ? 'text-success-text' : 'text-destructive',
                     )}>
                         {health?.database_status === 'connected' ? t('health.connected') : t('health.error')}
                     </p>
