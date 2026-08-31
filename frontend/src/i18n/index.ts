@@ -160,6 +160,9 @@ export async function activateLanguage(
 }
 
 const dynamicLocaleBackend = createDynamicLocaleBackend(loadLocale);
+const testResources = import.meta.env.MODE === 'test'
+    ? (await import('./allResources')).resources
+    : undefined;
 
 await i18n
     .use(LanguageDetector)
@@ -169,6 +172,8 @@ await i18n
         fallbackLng: fallbackLanguages,
         supportedLngs: SUPPORTED_LANGUAGES,
         nonExplicitSupportedLngs: true,
+        resources: testResources,
+        partialBundledLanguages: testResources !== undefined,
         defaultNS: 'common',
         ns: namespaces,
         detection: {

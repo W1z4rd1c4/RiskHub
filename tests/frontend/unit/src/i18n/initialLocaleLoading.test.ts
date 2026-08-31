@@ -1,4 +1,14 @@
 describe('initial locale loading', () => {
+    it('initializes the Vitest singleton without scheduling locale chunk loads', async () => {
+        localStorage.setItem('riskhub-language', 'en');
+        vi.resetModules();
+
+        const { default: i18n } = await import('@/i18n');
+
+        expect(i18n.hasResourceBundle('en', 'common')).toBe(true);
+        expect(i18n.hasResourceBundle('cs', 'common')).toBe(true);
+    });
+
     it('asks the configured backend for Czech only when Czech is detected', async () => {
         localStorage.setItem('riskhub-language', 'cs');
         vi.resetModules();
