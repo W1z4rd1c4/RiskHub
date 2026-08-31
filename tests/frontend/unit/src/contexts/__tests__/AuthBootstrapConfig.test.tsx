@@ -1,16 +1,23 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
+import { ProtectedRoute } from '@/App';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { authApi } from '@/services/authApi';
 import type { AuthConfigResponse, AuthUser } from '@/services/authApi';
+import { AuthRequestError } from '@/services/authRequest';
 import {
     __resetAuthSessionCoordinatorForTests,
     clearBootstrapSession,
     setBootstrapSession,
 } from '@/services/session/coordinator';
+import {
+    __setRefreshSessionHintForTests,
+    clearRefreshSessionHint,
+} from '@/services/session/sessionStorage';
 import { syncAuthenticatedToken } from '@/services/session/coordinator';
-import { __resetSessionStoreForTests } from '@/services/session/store';
+import { __resetSessionStoreForTests, getSessionSnapshot } from '@/services/session/store';
 
 const { getAuthConfigMock, syncPreferencesFromServerMock } = vi.hoisted(() => ({
     getAuthConfigMock: vi.fn(),
@@ -62,12 +69,31 @@ function AuthProbe() {
     );
 }
 
+function ProtectedProbe() {
+    return (
+        <MemoryRouter initialEntries={['/protected']}>
+            <Routes>
+                <Route
+                    path="/protected"
+                    element={(
+                        <ProtectedRoute>
+                            <div>Protected content</div>
+                        </ProtectedRoute>
+                    )}
+                />
+                <Route path="/login" element={<div>Login page</div>} />
+            </Routes>
+        </MemoryRouter>
+    );
+}
+
 describe('AuthProvider config bootstrap', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         __resetAuthSessionCoordinatorForTests();
         __resetSessionStoreForTests();
         clearBootstrapSession();
+        clearRefreshSessionHint();
     });
 
     afterEach(() => {
@@ -75,6 +101,7 @@ describe('AuthProvider config bootstrap', () => {
         __resetAuthSessionCoordinatorForTests();
         __resetSessionStoreForTests();
         clearBootstrapSession();
+        clearRefreshSessionHint();
     });
 
     it('loads auth config during initial session bootstrap', async () => {
@@ -93,7 +120,7 @@ describe('AuthProvider config bootstrap', () => {
         await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('yes'));
     });
 
-    it('waits for auth config before applying the bootstrapped session', async () => {
+    it('starts config and session concurrently but keeps protected content blocked until config settles', async () => {
         let resolveConfig: (config: AuthConfigResponse) => void = () => undefined;
         getAuthConfigMock.mockImplementation(
             () => new Promise<AuthConfigResponse>((resolve) => {
@@ -107,36 +134,78 @@ describe('AuthProvider config bootstrap', () => {
 
         render(
             <AuthProvider>
-                <AuthProbe />
+                <ProtectedProbe />
             </AuthProvider>,
         );
 
         await waitFor(() => expect(getAuthConfigMock).toHaveBeenCalledTimes(1));
-        expect(screen.getByTestId('loading')).toHaveTextContent('loading');
-        expect(screen.getByTestId('authenticated')).toHaveTextContent('no');
+        await waitFor(() => expect(authApi.getCurrentUser).toHaveBeenCalledWith('session-token'));
+        expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+        expect(screen.getByText(/loading/i)).toBeInTheDocument();
 
         await act(async () => {
             resolveConfig(authConfig);
         });
-
-        await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('yes'));
-        expect(screen.getByTestId('loading')).toHaveTextContent('ready');
+        await waitFor(() => expect(screen.getByText('Protected content')).toBeInTheDocument());
     });
 
-    it('keeps a valid session when auth config loading fails', async () => {
-        getAuthConfigMock.mockRejectedValue(new Error('config unavailable'));
+    it('keeps a refresh-hint session behind the config gate and fails closed when config rejects', async () => {
+        let rejectConfig: (error: unknown) => void = () => undefined;
+        getAuthConfigMock.mockImplementation(
+            () => new Promise<AuthConfigResponse>((_resolve, reject) => {
+                rejectConfig = reject;
+            }),
+        );
+        __setRefreshSessionHintForTests();
+        act(() => {
+            __resetSessionStoreForTests();
+        });
+        vi.spyOn(authApi, 'refresh').mockResolvedValue({
+            access_token: 'refreshed-token',
+            token_type: 'bearer',
+            user,
+        });
+
+        render(
+            <AuthProvider>
+                <ProtectedProbe />
+            </AuthProvider>,
+        );
+
+        await waitFor(() => expect(authApi.refresh).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(getSessionSnapshot().user).toEqual(user));
+        expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+        expect(screen.getByText(/loading/i)).toBeInTheDocument();
+
+        await act(async () => {
+            rejectConfig(new AuthRequestError({
+                code: 'AUTH_SERVICE_UNAVAILABLE',
+                message: 'config unavailable',
+            }));
+        });
+
+        await waitFor(() => expect(screen.getByText('Login page')).toBeInTheDocument());
+        expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+        expect(getSessionSnapshot().user).toBeNull();
+    });
+
+    it('fails closed without exposing protected content when auth config is unavailable', async () => {
+        getAuthConfigMock.mockRejectedValue(new AuthRequestError({
+            code: 'AUTH_SERVICE_UNAVAILABLE',
+            message: 'config unavailable',
+        }));
         act(() => {
             setBootstrapSession({ token: 'session-token', user });
         });
 
         render(
             <AuthProvider>
-                <AuthProbe />
+                <ProtectedProbe />
             </AuthProvider>,
         );
 
         await waitFor(() => expect(getAuthConfigMock).toHaveBeenCalledTimes(1));
-        await waitFor(() => expect(screen.getByTestId('authenticated')).toHaveTextContent('yes'));
-        expect(screen.getByTestId('loading')).toHaveTextContent('ready');
+        await waitFor(() => expect(screen.getByText('Login page')).toBeInTheDocument());
+        expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
     });
 });

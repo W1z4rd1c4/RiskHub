@@ -4,10 +4,18 @@ import { http, HttpResponse } from 'msw';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
+import { I18nextProvider } from 'react-i18next';
 
 import { server } from '@test/mocks/server';
 import { mockDemoPersonas } from '@test/mocks/handlers';
 import { createTestQueryClient } from '@test/queryClient';
+import i18n, {
+    createDynamicLocaleBackend,
+    createRetryableLocaleLoader,
+    namespaces,
+} from '@/i18n';
+import { resources as czechResources } from '@/i18n/locales/cs';
+import { resources as englishResources } from '@/i18n/locales/en';
 import LoginPage from '@/pages/LoginPage';
 import { clearAuthConfigCache } from '@/services/authConfig';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
@@ -21,14 +29,20 @@ vi.mock('@/services/entraAuth', () => ({
     },
 }));
 
-function renderWithQuery(ui: React.ReactElement, initialEntry = '/login') {
+function renderWithQuery(
+    ui: React.ReactElement,
+    initialEntry = '/login',
+    i18nInstance: typeof i18n = i18n,
+) {
     const queryClient = createTestQueryClient();
     return render(
-        <QueryClientProvider client={queryClient}>
-            <MemoryRouter initialEntries={[initialEntry]}>
-                {ui}
-            </MemoryRouter>
-        </QueryClientProvider>
+        <I18nextProvider i18n={i18nInstance}>
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter initialEntries={[initialEntry]}>
+                    {ui}
+                </MemoryRouter>
+            </QueryClientProvider>
+        </I18nextProvider>
     );
 }
 
@@ -40,13 +54,24 @@ function createAbortablePendingResponse(signal?: AbortSignal): Promise<Response>
     });
 }
 
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((settle, fail) => {
+        resolve = settle;
+        reject = fail;
+    });
+    return { promise, resolve, reject };
+}
+
 describe('LoginPage auth modes', () => {
-    afterEach(() => {
+    afterEach(async () => {
         clearAuthConfigCache();
         __resetSessionStoreForTests();
         logoutRedirectMock.mockReset();
         vi.restoreAllMocks();
         vi.useRealTimers();
+        await i18n.changeLanguage('en');
     });
 
     it('renders Microsoft login only in microsoft_sso mode', async () => {
@@ -75,6 +100,157 @@ describe('LoginPage auth modes', () => {
         await screen.findByRole('button', { name: /microsoft/i });
         expect(screen.queryByRole('button', { name: /system admin/i })).not.toBeInTheDocument();
     });
+
+    it('keeps the confirmed production-login language after a chunk failure and lets the user retry', async () => {
+        server.use(
+            http.get('*/api/v1/auth/config', () => {
+                return HttpResponse.json({
+                    auth_mode: 'microsoft_sso',
+                    demo_login_enabled: false,
+                    password_login_enabled: false,
+                    demo_personas: [],
+                    sso: {
+                        enabled: true,
+                        provider: 'entra',
+                        tenant_id: 'tenant',
+                        client_id: 'client',
+                        authority: 'https://login.microsoftonline.com/tenant',
+                        scopes: ['openid', 'profile', 'email'],
+                    },
+                    sso_error: null,
+                });
+            }),
+        );
+        localStorage.setItem('riskhub-language', 'en');
+        const importCzech = vi.fn()
+            .mockRejectedValueOnce(new Error('locale chunk unavailable'))
+            .mockImplementationOnce(() => import('@/i18n/locales/cs'));
+        const instance = i18n.createInstance();
+        await instance
+            .use(createDynamicLocaleBackend(createRetryableLocaleLoader({
+                en: () => import('@/i18n/locales/en'),
+                cs: importCzech,
+            })))
+            .init({
+                lng: 'en',
+                fallbackLng: false,
+                supportedLngs: ['en', 'cs'],
+                nonExplicitSupportedLngs: true,
+                defaultNS: 'common',
+                ns: namespaces,
+                partialBundledLanguages: true,
+                resources: { en: englishResources },
+                react: { useSuspense: false },
+            });
+        const user = userEvent.setup();
+
+        renderWithQuery(<LoginPage />, '/login', instance);
+        const english = await screen.findByRole('button', { name: 'EN' });
+        const czech = screen.getByRole('button', { name: 'CS' });
+
+        await user.click(czech);
+        expect(await screen.findByText(/unable to connect to server\. please try again/i)).toBeInTheDocument();
+        expect(english).toHaveAttribute('aria-pressed', 'true');
+        expect(czech).toHaveAttribute('aria-pressed', 'false');
+        expect(instance.language).toBe('en');
+        expect(localStorage.getItem('riskhub-language')).toBe('en');
+
+        await user.click(czech);
+        await waitFor(() => expect(czech).toHaveAttribute('aria-pressed', 'true'));
+        expect(instance.language).toBe('cs');
+        expect(localStorage.getItem('riskhub-language')).toBe('cs');
+        expect(importCzech).toHaveBeenCalledTimes(2);
+        expect(screen.queryByText(/unable to connect to server\. please try again/i)).not.toBeInTheDocument();
+    });
+
+    it.each([
+        ['success', false],
+        ['failure', true],
+    ] as const)(
+        'ignores stale Czech locale %s after a newer English production-login intent',
+        async (_outcome, rejectCzech) => {
+            server.use(
+                http.get('*/api/v1/auth/config', () => {
+                    return HttpResponse.json({
+                        auth_mode: 'microsoft_sso',
+                        demo_login_enabled: false,
+                        password_login_enabled: false,
+                        demo_personas: [],
+                        sso: {
+                            enabled: true,
+                            provider: 'entra',
+                            tenant_id: 'tenant',
+                            client_id: 'client',
+                            authority: 'https://login.microsoftonline.com/tenant',
+                            scopes: ['openid', 'profile', 'email'],
+                        },
+                        sso_error: null,
+                    });
+                }),
+            );
+            localStorage.setItem('riskhub-language', 'en');
+            const czechActivation = deferred<void>();
+            const englishActivation = deferred<void>();
+            const instance = i18n.createInstance();
+            await instance.init({
+                lng: 'en',
+                fallbackLng: false,
+                supportedLngs: ['en', 'cs'],
+                nonExplicitSupportedLngs: true,
+                defaultNS: 'common',
+                ns: namespaces,
+                resources: {
+                    en: englishResources,
+                    cs: czechResources,
+                },
+                react: { useSuspense: false },
+            });
+            const loadLanguages = vi.spyOn(instance, 'loadLanguages');
+            loadLanguages.mockImplementation(((language: string, callback?: (error?: unknown) => void) => {
+                const activation = language === 'cs' ? czechActivation : englishActivation;
+                return activation.promise.then(
+                    () => {
+                        callback?.();
+                        return instance.t;
+                    },
+                    (error: unknown) => {
+                        callback?.(error);
+                        return instance.t;
+                    },
+                );
+            }) as typeof instance.loadLanguages);
+            renderWithQuery(<LoginPage />, '/login', instance);
+            const english = await screen.findByRole('button', { name: 'EN' });
+            const czech = screen.getByRole('button', { name: 'CS' });
+
+            fireEvent.click(czech);
+            await waitFor(() => expect(loadLanguages).toHaveBeenCalledWith('cs', expect.any(Function)));
+            localStorage.setItem('riskhub-language', 'pending-current-intent');
+            fireEvent.click(english);
+            await waitFor(() => expect(loadLanguages).toHaveBeenCalledWith('en', expect.any(Function)));
+            await act(async () => {
+                englishActivation.resolve();
+                await englishActivation.promise;
+            });
+            await waitFor(() => expect(localStorage.getItem('riskhub-language')).toBe('en'));
+
+            await act(async () => {
+                if (rejectCzech) {
+                    czechActivation.reject(new Error('stale Czech load failed'));
+                    await czechActivation.promise.catch(() => undefined);
+                } else {
+                    czechActivation.resolve();
+                    await czechActivation.promise;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 25));
+            });
+            expect(english).toHaveAttribute('aria-pressed', 'true');
+            expect(czech).toHaveAttribute('aria-pressed', 'false');
+            expect(instance.language).toBe('en');
+            expect(localStorage.getItem('riskhub-language')).toBe('en');
+            expect(screen.queryByText(/unable to connect to server\. please try again/i)).not.toBeInTheDocument();
+        },
+    );
 
     it('keeps demo account picker in hybrid_dev mode', async () => {
         server.use(
@@ -275,7 +451,7 @@ describe('LoginPage auth modes', () => {
         const user = userEvent.setup();
         renderWithQuery(<LoginPage />);
 
-        expect(await screen.findByText(/odhlášení z microsoftu se nedokončilo/i)).toBeInTheDocument();
+        expect(await screen.findByText(/microsoft sign-out did not complete/i)).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: /complete microsoft sign-out/i }));
         expect(logoutRedirectMock).toHaveBeenCalledTimes(1);
     });

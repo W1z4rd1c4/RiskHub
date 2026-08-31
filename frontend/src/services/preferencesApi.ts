@@ -15,14 +15,17 @@ export const preferencesApi = {
     /**
      * Get current user's preferences
      */
-    async get(): Promise<UserPreferences> {
-        return apiClient.get('/preferences', { schema: userPreferencesSchema });
+    async get(options: { signal?: AbortSignal } = {}): Promise<UserPreferences> {
+        return apiClient.get('/preferences', { schema: userPreferencesSchema, ...options });
     },
 
     /**
      * Update current user's preferences
      */
-    async update(prefs: PreferencesUpdate): Promise<UserPreferences> {
-        return apiClient.put('/preferences', prefs, { schema: userPreferencesSchema });
+    async update(
+        prefs: PreferencesUpdate,
+        options: { signal?: AbortSignal } = {},
+    ): Promise<UserPreferences> {
+        return apiClient.put('/preferences', prefs, { schema: userPreferencesSchema, ...options });
     },
 };

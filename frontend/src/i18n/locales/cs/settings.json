@@ -37,7 +37,7 @@
     "density": "Hustota zobrazení",
     "density_comfortable": "Pohodlné",
     "density_compact": "Kompaktní",
-    "persistence_note": "Preference motivu je uložena lokálně na tomto zařízení a zůstane zachována mezi relacemi."
+    "persistence_note": "Po přihlášení se motiv synchronizuje s vaším účtem. Volby bez přihlášení zůstanou v tomto zařízení."
   },
   "notifications": {
     "title": "Nastavení notifikací",
@@ -91,7 +91,14 @@
     "current_preference": "Aktuální jazyková preference:",
     "active_translation": "Aktivní překlad",
     "active_translation_message": "Čeština je nyní aktivní. Rozhraní se postupně překládá do vybraného jazyka.",
-    "preference_persistence_note": "Jazyková preference je uložena lokálně na tomto zařízení a přetrvá i po restartu."
+    "preference_persistence_note": "Po přihlášení se jazyk synchronizuje s vaším účtem. Volby bez přihlášení zůstanou v tomto zařízení."
+  },
+  "sync": {
+    "saving": "Ukládání",
+    "saved": "Uloženo",
+    "unsynced": "Nesynchronizováno",
+    "retry": "Zkusit znovu",
+    "revert": "Vrátit změnu"
   },
   "languages": {
     "en": "Angličtina",

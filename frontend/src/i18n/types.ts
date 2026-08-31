@@ -1,4 +1,5 @@
-import type { resources, namespaces, SupportedLanguage } from './index';
+import type { resources } from './allResources';
+import type { namespaces, SupportedLanguage } from './index';
 
 // Re-export SupportedLanguage for convenience
 export type { SupportedLanguage };

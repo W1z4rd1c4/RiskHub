@@ -11,6 +11,7 @@ import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { clearBootstrapSession } from '@/services/session/coordinator';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { buildAuthz } from '@/authz/policy';
 
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
@@ -220,9 +221,11 @@ async function renderWithRoute(route: string) {
     render(
         <QueryClientProvider client={queryClient}>
             <AuthProviderWithReady>
-                <DashboardFilterProvider>
-                    <RouterProvider router={router} />
-                </DashboardFilterProvider>
+                <LanguageProvider>
+                    <DashboardFilterProvider>
+                        <RouterProvider router={router} />
+                    </DashboardFilterProvider>
+                </LanguageProvider>
             </AuthProviderWithReady>
         </QueryClientProvider>
     );

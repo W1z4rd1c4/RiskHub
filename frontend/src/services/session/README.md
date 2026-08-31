@@ -19,7 +19,7 @@ Use it for:
 - `index.ts` is the public barrel.
 
 `coordinator.ts` must keep `refreshInFlight`, `lastRefreshFailureAt`,
-`REFRESH_FAILURE_COOLDOWN_MS`, and `bootstrapPromise` at module scope. The
+`REFRESH_FAILURE_COOLDOWN_MS`, and `bootstrapInFlight` at module scope. The
 single-flight and cooldown contract is pinned by
 `tests/frontend/unit/src/services/session/__tests__/coordinator.singleFlight.test.ts`.
 

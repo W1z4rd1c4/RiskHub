@@ -1,10 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useTranslation as useI18nextTranslation } from 'react-i18next';
-import { type SupportedLanguage, STORAGE_KEY } from './index';
 import type { Namespace } from './types';
-import { useAuth } from '@/contexts/AuthContext';
-import { logError } from '@/services/logger';
-import { saveLanguageToServer } from '@/utils/userSettingsStorage';
+import { useLanguageContext } from '@/contexts/LanguageContext';
 import {
     formatDateTimeValue,
     formatDateValue,
@@ -184,29 +181,7 @@ export function useFormattedNumber() {
  * Updates i18n, localStorage, and syncs to server when authenticated.
  */
 export function useLanguage() {
-    const { i18n: i18nInstance } = useI18nextTranslation();
-    const { isAuthenticated } = useAuth();
-
-    const language = i18nInstance.language as SupportedLanguage;
-
-    const setLanguage = useCallback(
-        (newLang: SupportedLanguage) => {
-            void i18nInstance.changeLanguage(newLang);
-            if (isAuthenticated) {
-                void saveLanguageToServer(newLang).catch((error: unknown) => {
-                    logError('Failed to save language preference.', error);
-                });
-            } else {
-                localStorage.setItem(STORAGE_KEY, newLang);
-            }
-        },
-        [i18nInstance, isAuthenticated]
-    );
-
-    return useMemo(
-        () => ({ language, setLanguage }),
-        [language, setLanguage]
-    );
+    return useLanguageContext();
 }
 
 // Re-export the raw react-i18next hook for cases that need full typing surface.

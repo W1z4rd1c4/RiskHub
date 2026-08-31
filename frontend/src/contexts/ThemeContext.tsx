@@ -1,16 +1,24 @@
 /**
  * Theme context with server sync and multi-tab support.
  */
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getLocalTheme, saveThemeToServer, THEME_KEY } from '@/utils/userSettingsStorage';
-import { logError } from '@/services/logger';
+import {
+    getLocalTheme,
+    markThemeIntent,
+    saveThemeToServer,
+    THEME_KEY,
+} from '@/utils/userSettingsStorage';
+import { useLatestPreferenceSync, type PreferenceSyncStatus } from '@/hooks/useLatestPreferenceSync';
 
 export type Theme = 'dark' | 'light' | 'riskhub';
 
 interface ThemeContextType {
     theme: Theme;
     setTheme: (theme: Theme) => void;
+    syncStatus: PreferenceSyncStatus;
+    retryThemeSync: () => void;
+    revertTheme: () => void;
 }
 
 const THEME_DOM: Record<Theme, { rootClass: string; colorScheme: 'light' | 'dark'; themeColor: string }> = {
@@ -30,6 +38,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setThemeState] = useState<Theme>(() => {
         const stored = getLocalTheme();
         return isValidTheme(stored) ? stored : 'riskhub';
+    });
+    const applyTheme = useCallback((value: Theme) => {
+        setThemeState(value);
+        localStorage.setItem(THEME_KEY, value);
+    }, []);
+    const {
+        status: syncStatus,
+        sync: syncTheme,
+        retry: retryThemeSync,
+        revert: revertTheme,
+        acknowledgeExternalValue,
+    } = useLatestPreferenceSync({
+        initialValue: theme,
+        save: saveThemeToServer,
+        applyLocal: applyTheme,
     });
 
     // Keep application tokens and native browser chrome on the same theme.
@@ -51,11 +74,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === THEME_KEY && e.newValue && isValidTheme(e.newValue)) {
                 setThemeState(e.newValue);
+                acknowledgeExternalValue(e.newValue);
             }
         };
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
-    }, []);
+    }, [acknowledgeExternalValue]);
 
     // Re-read theme when auth state changes (login/logout triggers sync)
     useEffect(() => {
@@ -66,19 +90,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }, [isAuthenticated, theme]);
 
     const setTheme = (newTheme: Theme) => {
-        setThemeState(newTheme);
+        markThemeIntent();
         if (isAuthenticated) {
-            saveThemeToServer(newTheme).catch((error: unknown) => {
-                logError('Failed to save theme preference.', error);
-            });
+            syncTheme(newTheme);
         } else {
-            // Guest mode: just save locally
-            localStorage.setItem(THEME_KEY, newTheme);
+            applyTheme(newTheme);
         }
     };
 
     return (
-        <ThemeContext.Provider value={{ theme, setTheme }}>
+        <ThemeContext.Provider value={{ theme, setTheme, syncStatus, retryThemeSync, revertTheme }}>
             {children}
         </ThemeContext.Provider>
     );

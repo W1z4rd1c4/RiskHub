@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Shield, Sparkles } from 'lucide-react';
 
-import { resources } from '@/i18n';
+import { resources } from '@/i18n/allResources';
 
 type PreviewLanguage = 'cs' | 'en';
 

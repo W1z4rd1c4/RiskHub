@@ -20,6 +20,7 @@ import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { clearBootstrapSession } from '@/services/session/coordinator';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { RiskDetailPage } from '@/pages/RiskDetailPage';
 import { RisksPage } from '@/pages/RisksPage';
 import { DepartmentRegisterScopeProvider } from '@/pages/departments/DepartmentRegisterScope';
@@ -54,14 +55,16 @@ async function renderWithRoute(route: string | string[]) {
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={initialEntries} initialIndex={initialEntries.length - 1}>
                 <AuthProviderWithReady>
-                    <DashboardFilterProvider>
-                        <Routes>
-                            <Route path="/risks" element={<RisksPage />} />
-                            <Route path="/risks/:id" element={null} />
-                            <Route path="/risks/new" element={null} />
-                        </Routes>
-                        <LocationProbe />
-                    </DashboardFilterProvider>
+                    <LanguageProvider>
+                        <DashboardFilterProvider>
+                            <Routes>
+                                <Route path="/risks" element={<RisksPage />} />
+                                <Route path="/risks/:id" element={null} />
+                                <Route path="/risks/new" element={null} />
+                            </Routes>
+                            <LocationProbe />
+                        </DashboardFilterProvider>
+                    </LanguageProvider>
                 </AuthProviderWithReady>
             </MemoryRouter>
         </QueryClientProvider>
@@ -76,10 +79,12 @@ async function renderDepartmentRiskJourney(route: string) {
             path: '/',
             element: (
                 <AuthProviderWithReady>
-                    <DashboardFilterProvider>
-                        <Outlet />
-                        <LocationProbe />
-                    </DashboardFilterProvider>
+                    <LanguageProvider>
+                        <DashboardFilterProvider>
+                            <Outlet />
+                            <LocationProbe />
+                        </DashboardFilterProvider>
+                    </LanguageProvider>
                 </AuthProviderWithReady>
             ),
             children: [

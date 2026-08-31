@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
+import { ProtectedRoute } from '@/App';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 const getCurrentUserMock = vi.fn();
@@ -11,6 +13,17 @@ vi.mock('@/services/authApi', () => ({
   authApi: {
     login: vi.fn(),
     getCurrentUser: (...args: unknown[]) => getCurrentUserMock(...args),
+    getAuthConfig: vi.fn(async () => ({
+      auth_mode: 'hybrid_dev',
+      demo_login_enabled: true,
+      password_login_enabled: true,
+      strict_capabilities: false,
+      sso: {
+        enabled: false,
+        provider: 'entra',
+        scopes: [],
+      },
+    })),
   },
 }));
 
@@ -51,7 +64,7 @@ describe('Auth preference hydration ordering', () => {
     clearAccessToken();
   });
 
-  it('does not mark auth ready until preferences are synced from server', async () => {
+  it('renders a protected route as soon as identity is known while preferences hydrate in the background', async () => {
     setAccessToken('fake-token');
 
     getCurrentUserMock.mockResolvedValueOnce({
@@ -71,13 +84,19 @@ describe('Auth preference hydration ordering', () => {
 
     render(
       <AuthProvider>
-        <Probe />
+        <MemoryRouter>
+          <Probe />
+          <ProtectedRoute>
+            <div>protected route ready</div>
+          </ProtectedRoute>
+        </MemoryRouter>
       </AuthProvider>,
     );
 
     await waitFor(() => expect(getCurrentUserMock).toHaveBeenCalledTimes(1));
-    expect(screen.getByTestId('auth-loading')).toHaveTextContent('loading');
+    await waitFor(() => expect(screen.getByTestId('auth-loading')).toHaveTextContent('ready'));
     expect(screen.getByTestId('prefs-hydrated')).toHaveTextContent('no');
+    expect(screen.getByText('protected route ready')).toBeInTheDocument();
 
     deferred.resolve({ theme: 'dark', language: 'cs' });
 

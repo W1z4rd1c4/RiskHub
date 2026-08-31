@@ -5,7 +5,6 @@ import { authApi } from '@/services/authApi';
 import { logError } from '@/services/logger';
 import { applyAuthenticatedSession, clearExplicitLogoutSuppressed } from '@/services/session';
 import { isAuthUnavailableError } from '@/services/authRequest';
-import { entraAuth } from '@/services/entraAuth';
 
 interface UseLoginActionsOptions {
     returnTo: string;
@@ -62,6 +61,7 @@ export function useLoginActions({ returnTo, translate }: UseLoginActionsOptions)
 
         try {
             const challenge = await authApi.ssoStart(returnTo);
+            const { entraAuth } = await import('@/services/entraAuth');
             await entraAuth.loginRedirect({ nonce: challenge.nonce, state: challenge.state });
         } catch (error) {
             logError('SSO login initiation failed.', error);

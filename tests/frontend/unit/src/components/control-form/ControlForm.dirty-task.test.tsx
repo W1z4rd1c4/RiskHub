@@ -279,7 +279,8 @@ describe('ControlForm dirty-task protection', () => {
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
-    it('provides localized create and update Risk-link failure warnings', () => {
+    it('provides localized create and update Risk-link failure warnings', async () => {
+        await i18n.loadLanguages(['en', 'cs']);
         expect(i18n.t('controls:form.risk_link_failed_after_create', { lng: 'en' }))
             .toBe('Control created, but linking the selected risk failed.');
         expect(i18n.t('controls:form.risk_link_failed_after_update', { lng: 'en' }))

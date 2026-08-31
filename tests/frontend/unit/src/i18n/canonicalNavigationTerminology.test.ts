@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resources } from '@/i18n';
+import { resources } from '@/i18n/allResources';
 
 describe('canonical desktop navigation terminology', () => {
     it('uses the approved English labels and KRI supporting copy', () => {

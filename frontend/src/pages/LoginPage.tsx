@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { sanitizeReturnTo } from '@/services/authRedirect';
@@ -10,9 +10,9 @@ import { getProdAuthCopy } from '@/pages/login/prodAuthCopy';
 import { useAuthConfigLoader } from '@/pages/login/useAuthConfigLoader';
 import { useLoginActions } from '@/pages/login/useLoginActions';
 import { useProdLoginMetadata } from '@/pages/login/useProdLoginMetadata';
-import { entraAuth } from '@/services/entraAuth';
 import { logError } from '@/services/logger';
 import { useSessionSnapshot } from '@/services/session';
+import { activateLanguage, normalizeSupportedLanguage, STORAGE_KEY } from '@/i18n';
 
 function stripErrorKeyPrefix(errorKey: string): string {
     return errorKey.startsWith('errorKeys.') ? errorKey.slice('errorKeys.'.length) : errorKey;
@@ -31,8 +31,12 @@ export default function LoginPage() {
         };
     }, [location.search]);
 
-    const [prodLanguage, setProdLanguage] = useState<ProdLanguage>('cs');
+    const [prodLanguage, setProdLanguage] = useState<ProdLanguage>(
+        () => normalizeSupportedLanguage(i18n.language),
+    );
+    const [prodLanguageLoadFailed, setProdLanguageLoadFailed] = useState(false);
     const [isCompletingSsoLogout, setIsCompletingSsoLogout] = useState(false);
+    const prodLanguageActivationRef = useRef<AbortController | null>(null);
     const hasAccessToken = session.token !== null;
     const showBootstrapUnavailableBanner = authErrorParam === 'service_unavailable';
 
@@ -42,6 +46,10 @@ export default function LoginPage() {
         }
         void navigate(returnTo, { replace: true });
     }, [hasAccessToken, navigate, returnTo]);
+
+    useEffect(() => () => {
+        prodLanguageActivationRef.current?.abort();
+    }, []);
 
     const {
         authConfig,
@@ -104,15 +112,18 @@ export default function LoginPage() {
     const ssoLogoutRecoveryMessage = session.logoutErrorKey === 'errorKeys.sso_logout_incomplete'
         ? prodErrorTranslate(stripErrorKeyPrefix(session.logoutErrorKey))
         : null;
-    const prodErrorMessage = authErrorParam === 'sso_callback_failed'
-        ? prodAuthTranslate('sso_callback.exchange_failed')
-        : errorKey ? prodErrorTranslate(stripErrorKeyPrefix(errorKey)) : '';
+    const prodErrorMessage = prodLanguageLoadFailed
+        ? prodAuthTranslate('errors.network_error')
+        : authErrorParam === 'sso_callback_failed'
+            ? prodAuthTranslate('sso_callback.exchange_failed')
+            : errorKey ? prodErrorTranslate(stripErrorKeyPrefix(errorKey)) : '';
     const demoErrorMessage = authErrorParam === 'sso_callback_failed'
         ? t('sso_callback.exchange_failed')
         : errorKey ? t(errorKey, { ns: 'errorKeys' }) : null;
     const handleCompleteSsoLogout = useCallback(async () => {
         setIsCompletingSsoLogout(true);
         try {
+            const { entraAuth } = await import('@/services/entraAuth');
             await entraAuth.logoutRedirect();
         } catch (error) {
             logError('Retrying SSO logout redirect failed.', error);
@@ -120,6 +131,28 @@ export default function LoginPage() {
             setIsCompletingSsoLogout(false);
         }
     }, []);
+    const handleProdLanguageChange = useCallback((language: ProdLanguage) => {
+        prodLanguageActivationRef.current?.abort();
+        const controller = new AbortController();
+        prodLanguageActivationRef.current = controller;
+        setProdLanguageLoadFailed(false);
+        void activateLanguage(i18n, normalizeSupportedLanguage(language), controller.signal)
+            .then(() => {
+                if (controller.signal.aborted) return;
+                localStorage.setItem(STORAGE_KEY, language);
+                setProdLanguage(language);
+            })
+            .catch((error: unknown) => {
+                if (controller.signal.aborted) return;
+                logError('Loading the production-login language failed.', error);
+                setProdLanguageLoadFailed(true);
+            })
+            .finally(() => {
+                if (prodLanguageActivationRef.current === controller) {
+                    prodLanguageActivationRef.current = null;
+                }
+            });
+    }, [i18n]);
 
     useProdLoginMetadata({
         enabled: authConfig?.auth_mode === 'microsoft_sso',
@@ -159,7 +192,7 @@ export default function LoginPage() {
                 isSsoLogoutRecoveryPending={isCompletingSsoLogout}
                 ssoEnabled={Boolean(authConfig.sso.enabled)}
                 ssoError={authConfig.sso_error}
-                onChangeLanguage={setProdLanguage}
+                onChangeLanguage={handleProdLanguageChange}
                 onRetrySsoLogout={handleCompleteSsoLogout}
                 onSsoLogin={handleSsoLogin}
                 translate={t}

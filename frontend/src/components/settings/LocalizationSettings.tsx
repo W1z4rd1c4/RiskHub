@@ -3,6 +3,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/i18n/hooks';
 import type { SupportedLanguage } from '@/i18n';
+import { PreferenceSyncStatus } from './PreferenceSyncStatus';
 
 interface LanguageOption {
     code: SupportedLanguage;
@@ -28,7 +29,7 @@ const languages: LanguageOption[] = [
 
 export function LocalizationSettings() {
     const { t } = useTranslation('settings');
-    const { language, setLanguage } = useLanguage();
+    const { language, setLanguage, syncStatus, retryLanguageSync, revertLanguage } = useLanguage();
 
     const selectedLang = languages.find(l => l.code === language) || languages[0];
 
@@ -118,6 +119,11 @@ export function LocalizationSettings() {
             <p className="text-xs text-slate-500 italic">
                 {t('localization.preference_persistence_note')}
             </p>
+            <PreferenceSyncStatus
+                status={syncStatus}
+                onRetry={retryLanguageSync}
+                onRevert={revertLanguage}
+            />
         </div>
     );
 }

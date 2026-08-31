@@ -3,7 +3,6 @@ import type { AuthUser, TokenResponse } from '@/services/authApi';
 import { authApi } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
 import { AuthRequestError } from '@/services/authRequest';
-import { entraAuth } from '@/services/entraAuth';
 import { logError } from '@/services/logger';
 import {
     applyAuthenticatedSession,
@@ -36,12 +35,13 @@ export function useAuthActions({
         try {
             const response: TokenResponse = await authApi.login({ email, password });
             applyAuthenticatedSession(response);
-            await hydratePreferences();
+            markPreferencesReady(false);
+            void hydratePreferences();
             return response.user;
         } catch (err) {
             throw new Error(err instanceof Error ? err.message : 'Login failed', { cause: err });
         }
-    }, [hydratePreferences]);
+    }, [hydratePreferences, markPreferencesReady]);
 
     const logout = useCallback(async () => {
         setLogoutPendingState(true);
@@ -75,6 +75,7 @@ export function useAuthActions({
 
         if (shouldUseSsoLogout) {
             try {
+                const { entraAuth } = await import('@/services/entraAuth');
                 await entraAuth.logoutRedirect();
             } catch (error) {
                 logError('SSO logout redirect failed.', error);

@@ -8,9 +8,16 @@
  */
 import { preferencesApi, type UserPreferences, type PreferencesUpdate } from '@/services/preferencesApi';
 import i18n from '@/i18n';
+import {
+    getSessionOwnershipSnapshot,
+    isSessionOwnershipCurrent,
+} from '@/services/session';
 
 export const THEME_KEY = 'riskhub-theme';
 export const LANGUAGE_KEY = 'riskhub-language';
+
+let themeIntentVersion = 0;
+let languageIntentVersion = 0;
 
 function dispatchSyntheticStorageEvent(key: string, newValue: string) {
     if (typeof window === 'undefined') return;
@@ -58,6 +65,14 @@ export function setLocalLanguage(lang: string): void {
     localStorage.setItem(LANGUAGE_KEY, lang);
 }
 
+export function markThemeIntent(): void {
+    themeIntentVersion += 1;
+}
+
+export function markLanguageIntent(): void {
+    languageIntentVersion += 1;
+}
+
 // ============================================================================
 // Server Sync Helpers
 // ============================================================================
@@ -66,22 +81,26 @@ export function setLocalLanguage(lang: string): void {
  * Fetch preferences from server and update local storage + i18n.
  * Called on login and page refresh.
  */
-export async function syncPreferencesFromServer(): Promise<UserPreferences> {
-    const prefs = await preferencesApi.get();
+export async function syncPreferencesFromServer(signal?: AbortSignal): Promise<UserPreferences> {
+    const hydrationThemeVersion = themeIntentVersion;
+    const hydrationLanguageVersion = languageIntentVersion;
+    const owner = getSessionOwnershipSnapshot();
+    const prefs = await preferencesApi.get({ signal });
 
-    // Update local cache with server values
-    setLocalTheme(prefs.theme);
-    setLocalLanguage(prefs.language);
+    if (signal?.aborted || !isSessionOwnershipCurrent(owner)) {
+        throw new DOMException('The operation was aborted.', 'AbortError');
+    }
 
-    // Always dispatch synthetic storage events so same-tab listeners (ThemeContext) update.
-    // Native StorageEvent only fires for OTHER tabs, not the current one.
-    // We dispatch unconditionally because on login, localStorage was cleared.
-    dispatchSyntheticStorageEvent(THEME_KEY, prefs.theme);
-    dispatchSyntheticStorageEvent(LANGUAGE_KEY, prefs.language);
-
-    // Also update i18n instance if language differs
-    if (i18n.language !== prefs.language) {
-        void i18n.changeLanguage(prefs.language);
+    if (hydrationThemeVersion === themeIntentVersion) {
+        setLocalTheme(prefs.theme);
+        dispatchSyntheticStorageEvent(THEME_KEY, prefs.theme);
+    }
+    if (hydrationLanguageVersion === languageIntentVersion) {
+        setLocalLanguage(prefs.language);
+        dispatchSyntheticStorageEvent(LANGUAGE_KEY, prefs.language);
+        if (i18n.language !== prefs.language) {
+            void i18n.changeLanguage(prefs.language);
+        }
     }
 
     return prefs;
@@ -90,17 +109,19 @@ export async function syncPreferencesFromServer(): Promise<UserPreferences> {
 /**
  * Save theme to server and local storage.
  */
-export async function saveThemeToServer(theme: string): Promise<void> {
+export async function saveThemeToServer(theme: string, signal?: AbortSignal): Promise<void> {
+    themeIntentVersion += 1;
     setLocalTheme(theme); // Immediate local update
-    await preferencesApi.update({ theme: theme as PreferencesUpdate['theme'] });
+    await preferencesApi.update({ theme: theme as PreferencesUpdate['theme'] }, { signal });
 }
 
 /**
  * Save language to server and local storage.
  */
-export async function saveLanguageToServer(lang: string): Promise<void> {
+export async function saveLanguageToServer(lang: string, signal?: AbortSignal): Promise<void> {
+    languageIntentVersion += 1;
     setLocalLanguage(lang); // Immediate local update
-    await preferencesApi.update({ language: lang as PreferencesUpdate['language'] });
+    await preferencesApi.update({ language: lang as PreferencesUpdate['language'] }, { signal });
 }
 
 // ============================================================================
@@ -111,6 +132,8 @@ export async function saveLanguageToServer(lang: string): Promise<void> {
  * Clear local settings on logout.
  */
 export function clearLocalSettings(): void {
+    themeIntentVersion += 1;
+    languageIntentVersion += 1;
     localStorage.removeItem(THEME_KEY);
     localStorage.removeItem(LANGUAGE_KEY);
 }

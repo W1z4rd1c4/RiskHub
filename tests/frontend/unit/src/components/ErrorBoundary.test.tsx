@@ -54,8 +54,10 @@ async function renderAppAt(
             t: (key: string) => key,
         }),
     }));
-    vi.doMock('@/routing', () => ({
+    vi.doMock('@/routing/public', () => ({
         publicRoutes: routes.publicRoutes ?? [],
+    }));
+    vi.doMock('@/routing', () => ({
         protectedAppRoutes: routes.protectedAppRoutes ?? [],
     }));
 
@@ -80,7 +82,7 @@ describe('ErrorBoundary', () => {
             </ErrorBoundary>,
         );
 
-        expect(screen.getByRole('alert')).toHaveTextContent(/something went wrong/i);
+        expect(await screen.findByRole('alert')).toHaveTextContent(/something went wrong/i);
         expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 
@@ -91,7 +93,7 @@ describe('ErrorBoundary', () => {
             publicRoutes: [{ key: 'login', path: 'login', element: <ThrowingChild /> }],
         });
 
-        expect(screen.getByRole('alert')).toHaveTextContent(/something went wrong/i);
+        expect(await screen.findByRole('alert')).toHaveTextContent(/something went wrong/i);
         expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 
@@ -102,7 +104,7 @@ describe('ErrorBoundary', () => {
             protectedAppRoutes: [{ key: 'controls', path: 'controls', element: <ThrowingChild /> }],
         });
 
-        expect(screen.getByRole('alert')).toHaveTextContent(/something went wrong/i);
+        expect(await screen.findByRole('alert')).toHaveTextContent(/something went wrong/i);
         expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 

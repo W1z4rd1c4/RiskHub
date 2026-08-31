@@ -1,5 +1,10 @@
 import { getErrorMessageKey } from '@/i18n/errorMessageKey';
-import { clearAuthenticatedSession } from '@/services/session/coordinator';
+import {
+    clearAuthenticatedSession,
+    getSessionOwnershipSnapshot,
+    isSessionOwnershipCurrent,
+    type SessionOwnershipSnapshot,
+} from '@/services/session/coordinator';
 import { isExplicitLogoutSuppressed } from '@/services/session/sessionStorage';
 import { trySilentSessionRefresh } from '@/services/session/coordinator';
 
@@ -8,6 +13,8 @@ import { ApiClientError } from './apiErrors';
 export interface SessionRefreshContext {
     pathname: string;
     attempt: number;
+    signal?: AbortSignal;
+    owner?: SessionOwnershipSnapshot;
 }
 
 export type RefreshOutcome =
@@ -21,6 +28,21 @@ export function shouldAttemptSilentSessionRefresh({ pathname, attempt }: Session
     return true;
 }
 
+function unauthorizedError(): ApiClientError {
+    return new ApiClientError({
+        status: 401,
+        code: 'UNAUTHORIZED',
+        messageKey: getErrorMessageKey('UNAUTHORIZED', 401),
+        rawMessage: 'Unauthorized',
+    });
+}
+
+export function assertRequestSessionOwnershipCurrent(owner: SessionOwnershipSnapshot): void {
+    if (!isSessionOwnershipCurrent(owner)) {
+        throw unauthorizedError();
+    }
+}
+
 export async function applySessionRefreshPolicy(
     ctx: SessionRefreshContext,
     deps: {
@@ -28,21 +50,29 @@ export async function applySessionRefreshPolicy(
         clearSession?: () => void;
     } = {},
 ): Promise<RefreshOutcome> {
-    const tryRefresh = deps.tryRefresh ?? trySilentSessionRefresh;
+    const owner = ctx.owner ?? getSessionOwnershipSnapshot();
+    const tryRefresh = deps.tryRefresh ?? (() => trySilentSessionRefresh(owner));
     const clearSession = deps.clearSession ?? (() => clearAuthenticatedSession({ clearBootstrap: true }));
+    const throwIfAborted = () => {
+        if (ctx.signal?.aborted) {
+            throw new DOMException('The operation was aborted.', 'AbortError');
+        }
+    };
 
+    throwIfAborted();
+    assertRequestSessionOwnershipCurrent(owner);
     if (shouldAttemptSilentSessionRefresh(ctx)) {
         const refreshed = await tryRefresh();
+        throwIfAborted();
+        assertRequestSessionOwnershipCurrent(owner);
         if (refreshed) {
             return { kind: 'retry' };
         }
     }
 
-    clearSession();
-    throw new ApiClientError({
-        status: 401,
-        code: 'UNAUTHORIZED',
-        messageKey: getErrorMessageKey('UNAUTHORIZED', 401),
-        rawMessage: 'Unauthorized',
-    });
+    throwIfAborted();
+    if (isSessionOwnershipCurrent(owner)) {
+        clearSession();
+    }
+    throw unauthorizedError();
 }

@@ -37,7 +37,7 @@
     "density": "Display Density",
     "density_comfortable": "Comfortable",
     "density_compact": "Compact",
-    "persistence_note": "Theme preference is saved locally on this device and will persist across sessions."
+    "persistence_note": "When signed in, your theme syncs with your account. Signed-out choices stay on this device."
   },
   "notifications": {
     "title": "Notification Preferences",
@@ -91,7 +91,14 @@
     "current_preference": "Current language preference:",
     "active_translation": "Active Translation",
     "active_translation_message": "Language switching is now active. The interface will be progressively translated.",
-    "preference_persistence_note": "Language preference is saved locally on this device and will persist across sessions."
+    "preference_persistence_note": "When signed in, your language syncs with your account. Signed-out choices stay on this device."
+  },
+  "sync": {
+    "saving": "Saving",
+    "saved": "Saved",
+    "unsynced": "Unsynced",
+    "retry": "Retry",
+    "revert": "Revert"
   },
   "languages": {
     "en": "English",

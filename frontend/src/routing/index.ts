@@ -1,7 +1,7 @@
 import type { AppRouteDef, SidebarGroupKey, SidebarNavDef, SidebarRuntimeContext } from './types';
 import { adminRoutes } from './admin';
 import { businessRoutes } from './business';
-import { coreProtectedRoutes, publicRoutes } from './core';
+import { coreProtectedRoutes } from './core';
 
 export type { AppRouteDef, SidebarBadgeKey, SidebarGroupKey, SidebarNavDef, SidebarRuntimeContext } from './types';
 
@@ -10,8 +10,6 @@ export const protectedAppRoutes: AppRouteDef[] = [
   ...businessRoutes,
   ...adminRoutes,
 ];
-
-export { publicRoutes };
 
 export type SidebarNavRoute = AppRouteDef & { nav: SidebarNavDef };
 

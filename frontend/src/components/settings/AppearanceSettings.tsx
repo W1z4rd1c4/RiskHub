@@ -2,9 +2,10 @@ import { Sun, Moon, Sparkles, Check } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
+import { PreferenceSyncStatus } from './PreferenceSyncStatus';
 
 export function AppearanceSettings() {
-    const { theme, setTheme } = useTheme();
+    const { theme, setTheme, syncStatus, retryThemeSync, revertTheme } = useTheme();
     const { t } = useTranslation('settings');
 
     const themeOptions = [
@@ -110,6 +111,7 @@ export function AppearanceSettings() {
             <p className="text-xs text-muted-foreground italic">
                 {t('appearance.persistence_note')}
             </p>
+            <PreferenceSyncStatus status={syncStatus} onRetry={retryThemeSync} onRevert={revertTheme} />
         </div>
     );
 }

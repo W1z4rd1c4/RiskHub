@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resources } from '@/i18n';
+import { resources } from '@/i18n/allResources';
 
 /**
  * GovernedMutationReasonDialog resolves its keys dynamically

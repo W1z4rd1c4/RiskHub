@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "dev:lan": "vite --host",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run quality:login-graph",
     "lint": "eslint . && npm run lint:a11y && npm run lint:dialog-inventory",
     "lint:a11y": "node scripts/a11y/jsx-a11y-baseline.mjs",
     "lint:dialog-inventory": "node scripts/a11y/validate-dialog-inventory.mjs",
@@ -17,6 +17,7 @@
     "e2e:a11y:results": "node scripts/a11y/validate-playwright-a11y-results.mjs",
     "e2e:dora:collect": "node scripts/quality/validate-dora-e2e-coverage.mjs",
     "quality:debt": "node scripts/quality/debt-budget.mjs",
+    "quality:login-graph": "node scripts/quality/validate-login-dependency-graph.mjs",
     "i18n:inventory": "node scripts/i18n/inventory-ui-text.mjs",
     "i18n:scan": "node scripts/i18n/scan-hardcoded-ui.mjs",
     "i18n:validate:strict": "node scripts/i18n/validate-parity.mjs",

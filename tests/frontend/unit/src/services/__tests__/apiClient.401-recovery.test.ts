@@ -3,6 +3,8 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/services/session/coordinator', () => ({
     clearAuthenticatedSession: vi.fn(),
+    getSessionOwnershipSnapshot: vi.fn(() => ({ generation: 0, principalId: null })),
+    isSessionOwnershipCurrent: vi.fn(() => true),
     trySilentSessionRefresh: vi.fn(async () => {
         const { setAccessToken } = await import('@test/accessTokenStoreHarness');
         setAccessToken('refreshed-token');

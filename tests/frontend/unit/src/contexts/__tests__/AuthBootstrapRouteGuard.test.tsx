@@ -111,6 +111,22 @@ describe('ProtectedRoute bootstrap failure handling', () => {
     it('keeps the protected shell in loading state while token bootstrap is still resolving', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
             const url = String(input);
+            if (url.endsWith('/api/v1/auth/config')) {
+                return Promise.resolve(new Response(JSON.stringify({
+                    auth_mode: 'hybrid_dev',
+                    demo_login_enabled: true,
+                    password_login_enabled: true,
+                    strict_capabilities: false,
+                    sso: {
+                        enabled: false,
+                        provider: 'entra',
+                        scopes: [],
+                    },
+                }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }));
+            }
             if (url.endsWith('/api/v1/auth/me')) {
                 return createAbortablePendingResponse(init?.signal as AbortSignal | undefined);
             }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resources } from '@/i18n';
+import { resources } from '@/i18n/allResources';
 
 function flatten(obj: unknown, prefix = ''): string[] {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return [];

@@ -10,9 +10,6 @@ const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const UsersPage = lazy(() => import('@/pages/UsersPage'));
 const UserNewPage = lazy(() => import('@/pages/UserNewPage'));
-const HeroPage = lazy(() => import('@/pages/HeroPage'));
-const LoginPage = lazy(() => import('@/pages/LoginPage'));
-const SsoCallbackPage = lazy(() => import('@/pages/SsoCallbackPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 function RoleBasedIndex() {
@@ -24,24 +21,6 @@ function RoleBasedIndex() {
 
   return <DashboardPage />;
 }
-
-export const publicRoutes: AppRouteDef[] = [
-  {
-    key: 'login',
-    path: '/login',
-    element: <LoginPage />,
-  },
-  {
-    key: 'sso-callback',
-    path: '/auth/sso/callback',
-    element: <SsoCallbackPage />,
-  },
-  {
-    key: 'landing',
-    path: '/landing',
-    element: <HeroPage />,
-  },
-];
 
 export const coreProtectedRoutes: AppRouteDef[] = [
   {

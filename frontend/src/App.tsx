@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import {
   Navigate,
   Route,
@@ -7,27 +7,25 @@ import {
   createBrowserRouter,
   useLocation,
 } from 'react-router-dom';
-import { QueryClientProvider } from '@tanstack/react-query';
 import { MotionConfig } from 'framer-motion';
 import { useTranslation } from '@/i18n/hooks';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { MainLayout } from '@/components/layout';
-import { createAppQueryClient } from '@/lib/queryClient';
-import { protectedAppRoutes, publicRoutes, type AppRouteDef } from '@/routing';
+import { PrincipalQueryBoundary } from '@/contexts/PrincipalQueryBoundary';
+import { publicRoutes } from '@/routing/public';
+import type { AppRouteDef } from '@/routing/types';
 
-const queryClient = createAppQueryClient();
+const ProtectedApplication = lazy(() => import('@/ProtectedApplication'));
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, isPreferencesHydrated, bootstrapStatus } = useAuth();
+  const { isAuthenticated, isLoading, bootstrapStatus } = useAuth();
   const { t } = useTranslation('common');
   const location = useLocation();
-  const preferencesReady = isPreferencesHydrated ?? true;
   const returnTo = `${location.pathname}${location.search}${location.hash}`;
 
-  if (isLoading || (isAuthenticated && !preferencesReady)) {
+  if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">{t('loading.generic')}</div>;
   }
   if (!isAuthenticated && bootstrapStatus === 'error') {
@@ -67,15 +65,11 @@ function AppRoutes() {
         <Routes>
           {publicRoutes.map(renderRoute)}
 
-          <Route path="/" element={
+          <Route path="*" element={
             <ProtectedRoute>
-              <DashboardFilterProvider>
-                <MainLayout />
-              </DashboardFilterProvider>
+              <ProtectedApplication />
             </ProtectedRoute>
-          }>
-            {protectedAppRoutes.map(renderRoute)}
-          </Route>
+          } />
         </Routes>
       </Suspense>
     </ErrorBoundary>
@@ -91,15 +85,25 @@ const router = createBrowserRouter([
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+    <AuthProvider>
+      <PrincipalOwnedApplication />
+    </AuthProvider>
+  );
+}
+
+function PrincipalOwnedApplication() {
+  const { user } = useAuth();
+
+  return (
+    <PrincipalQueryBoundary principalId={user?.id ?? null}>
+      <LanguageProvider>
         <ThemeProvider>
           <MotionConfig reducedMotion="user">
             <RouterProvider router={router} />
           </MotionConfig>
         </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+      </LanguageProvider>
+    </PrincipalQueryBoundary>
   );
 }
 

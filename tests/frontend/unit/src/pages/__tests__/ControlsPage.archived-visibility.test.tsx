@@ -11,6 +11,7 @@ import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { clearBootstrapSession } from '@/services/session/coordinator';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ControlsPage } from '@/pages/ControlsPage';
 
 vi.mock('@/utils/userSettingsStorage', async () => {
@@ -42,11 +43,13 @@ async function renderWithRoute(route: string) {
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={[route]}>
                 <AuthProviderWithReady>
-                    <DashboardFilterProvider>
-                        <Routes>
-                            <Route path="/controls" element={<ControlsPage />} />
-                        </Routes>
-                    </DashboardFilterProvider>
+                    <LanguageProvider>
+                        <DashboardFilterProvider>
+                            <Routes>
+                                <Route path="/controls" element={<ControlsPage />} />
+                            </Routes>
+                        </DashboardFilterProvider>
+                    </LanguageProvider>
                 </AuthProviderWithReady>
             </MemoryRouter>
         </QueryClientProvider>
