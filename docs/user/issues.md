@@ -116,7 +116,7 @@ Switch between All and grouped views by category, department, owner, process, ri
 The Export dialog has two evidence modes:
 
 - **Current view** downloads every row matching the current normalized search, filters, sort, view, and selected group, without list pagination. The mature CSV preserves issue ID, title, status and severity codes/labels, source context, department, owner, due/overdue and age fields, readable linked risks/controls/executions/KRIs, remediation status/progress/owner/target date, and exception status/expiry.
-- **Historical snapshot** uses the selected as-of date and the reports service. Use this for point-in-time evidence rather than a live operational queue.
+- **Evaluate current rows on a date** uses the reports service and exports the current Issue register values. The selected evaluation date controls age and overdue calculations only. The export includes its generation time and does not reconstruct how the register looked on that date. When no Issues match, a clearly labelled Export Metadata record preserves this context without representing an Issue.
 
 Use the issue detail Overview, Workflow, and History tabs for record-level audit evidence.
 
@@ -125,7 +125,7 @@ For reliable results, filter in this order:
 1. Start broad enough to confirm the record exists.
 2. Narrow by department, owner, status, vendor, or date.
 3. Open a sample record to confirm the filter matches your intent.
-4. Choose Current view for the live queue or Historical snapshot for an as-of-date report, then export only the evidence needed for the review.
+4. Choose Current view for the live queue or Evaluate current rows on a date for date-based age and overdue evidence, then export only the evidence needed for the review.
 
 Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
 

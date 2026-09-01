@@ -3,7 +3,11 @@
   "page_subtitle": "Přehled rizikové pozice a výkonu kontrol v celé organizaci.",
   "welcome": "Vítejte zpět, {{name}}",
   "loading": "Synchronizace přehledu...",
-  "live_data": "Živá data",
+  "freshness": {
+    "updated": "Aktualizováno",
+    "updating": "Probíhá aktualizace",
+    "update_failed": "Aktualizace selhala — zobrazena data z"
+  },
   "widgets": {
     "risk_overview": "Přehled rizik",
     "control_status": "Stav kontrol",
@@ -30,11 +34,7 @@
     "active_depts": "Aktivní oddělení",
     "critical_risks": "Kritická rizika",
     "avg_risk_score": "Průměrné skóre",
-    "vendors": "Dodavatelé",
-    "live": "Živo",
-    "stable": "Stabilní",
-    "urgent": "Nalnéhavové",
-    "calculated": "Vypočteno"
+    "vendors": "Dodavatelé"
   },
   "actions": {
     "export_summary_excel": "Exportovat souhrn do CSV"
@@ -86,7 +86,7 @@
     "departmental_visibility": "Viditelnost oddělení",
     "no_execution_history": "Žádná historie exekuce",
     "critical_risks": "Kritická rizika",
-    "risk_exposure_by_dept": "Riziková expozice dle oddělení",
+    "risk_exposure_by_dept": "Součet čistých skóre rizik",
     "recent_activity": "Nedávná aktivita"
   },
   "quarterly": {
@@ -117,7 +117,17 @@
     "last_quarter": "minulé čtvrtletí",
     "no_snapshot_banner": "Pro období {{period}} není snapshot. Deltové porovnání snapshotových metrik není dostupné.",
     "no_snapshot_hint": "Chybí historický snapshot - porovnání není dostupné",
-    "not_available": "N/A"
+    "comparison_unavailable": "Porovnání není pro tato pozorování dostupné",
+    "missing_definition": "Definice metriky není k dispozici",
+    "not_available": "N/A",
+    "new_from_zero": "Nové (z 0) +{{change}}",
+    "observation_evidence": "Podklady čtvrtletního porovnání",
+    "stock_observations": "Stavová pozorování",
+    "source": {
+      "live": "Živá data",
+      "stored": "Uložená data",
+      "missing": "Chybí"
+    }
   },
   "kri": {
     "all_current": "Všechna KRI aktuální",
@@ -226,6 +236,10 @@
     "view_all_high_risk_vendors": "Zobrazit všechny vysoce rizikové dodavatele",
     "none": "Žádné",
     "no_department_exposure_data": "Žádná data expozice oddělení",
+    "risk_count": "{{count}} rizik",
+    "risk_count_one": "{{count}} riziko",
+    "risk_count_few": "{{count}} rizika",
+    "risk_count_other": "{{count}} rizik",
     "no_recent_significant_activity": "Žádná nedávná významná aktivita",
     "today": "Dnes",
     "yesterday": "Včera",
@@ -251,7 +265,10 @@
     "risk_sum": "Riziko Σ"
   },
   "risk_levels": {
-    "critical": "Kritické"
+    "critical": "Kritické",
+    "high": "Vysoké",
+    "medium": "Střední",
+    "low": "Nízké"
   },
   "department_table": {
     "columns": {

@@ -96,6 +96,11 @@ export const dashboardSummarySchema: z.ZodType<DashboardSummary> = passthroughOb
     risks_by_status: numberRecordSchema,
     critical_risks_count: z.number(),
     average_net_risk_score: z.number(),
+    risk_thresholds: passthroughObject({
+        critical: z.number(),
+        high: z.number(),
+        medium: z.number(),
+    }),
     total_vendors: z.number().optional(),
     high_risk_vendors_count: z.number().optional(),
 });
@@ -190,10 +195,26 @@ export const dashboardRiskByCellItemSchema: z.ZodType<DashboardRiskByCellItem> =
 export const dashboardRiskByCellItemArraySchema = z.array(dashboardRiskByCellItemSchema);
 
 const dashboardMetricChangeSchema: z.ZodType<DashboardMetricChange> = passthroughObject({
-    absolute: z.number(),
-    percentage: z.number(),
+    absolute: z.number().nullable(),
+    percentage: z.number().nullable(),
     direction: z.enum(['up', 'down', 'same', 'unknown']),
+    reason: z.enum([
+        'baseline_zero',
+        'different_definition',
+        'incomparable_source',
+        'missing_definition',
+        'missing_observation',
+        'unequal_window',
+    ]).optional(),
     note: z.string().optional(),
+});
+const dashboardMetricSourceSchema = z.enum(['live', 'stored', 'missing']);
+const dashboardMetricObservationSideSchema = passthroughObject({
+    source: dashboardMetricSourceSchema,
+    start: z.string().optional(),
+    end: z.string().optional(),
+    observed_at: z.string().nullable().optional(),
+    definition_id: z.string().optional(),
 });
 export const dashboardQuarterlyComparisonSchema: z.ZodType<DashboardQuarterlyComparison> =
     passthroughObject({
@@ -205,7 +226,13 @@ export const dashboardQuarterlyComparisonSchema: z.ZodType<DashboardQuarterlyCom
             this_end: z.string(),
             last_start: z.string(),
             last_end: z.string(),
+            window_type: z.enum(['equal_elapsed', 'complete_quarters']),
         }),
+        metric_observations: z.record(z.string(), passthroughObject({
+            metric_type: z.enum(['flow', 'stock']),
+            current: dashboardMetricObservationSideSchema,
+            compare: dashboardMetricObservationSideSchema,
+        })),
         snapshot_info: passthroughObject({
             current_quarter: z.string(),
             last_quarter: z.string(),
@@ -213,8 +240,8 @@ export const dashboardQuarterlyComparisonSchema: z.ZodType<DashboardQuarterlyCom
             current_quarter_snapshot_available: z.boolean().optional(),
             missing_snapshot_quarters: z.array(z.string()).optional(),
             snapshot_sources: passthroughObject({
-                current: z.enum(['live', 'stored', 'missing']),
-                compare: z.enum(['stored', 'missing']),
+                current: dashboardMetricSourceSchema,
+                compare: dashboardMetricSourceSchema,
             }).optional(),
             missing_snapshot_metrics: passthroughObject({
                 current: z.array(z.string()),

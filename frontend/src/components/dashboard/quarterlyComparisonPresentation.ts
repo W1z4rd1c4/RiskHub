@@ -1,35 +1,11 @@
-export interface MetricChange {
-    absolute: number;
-    percentage: number;
-    direction: 'up' | 'down' | 'same' | 'unknown';
-    note?: string;
-}
+import type {
+    DashboardMetricChange,
+    DashboardQuarterlyComparison,
+} from '@/services/dashboardApi';
 
-export interface SnapshotInfo {
-    current_quarter: string;
-    last_quarter: string;
-    last_quarter_snapshot_available: boolean;
-    current_quarter_snapshot_available?: boolean;
-    missing_snapshot_quarters?: string[];
-    snapshot_sources?: {
-        current: 'live' | 'stored' | 'missing';
-        compare: 'stored' | 'missing';
-    };
-    missing_snapshot_metrics?: {
-        current: string[];
-        compare: string[];
-    };
-    period_metrics: string[];
-    snapshot_metrics: string[];
-}
+export type MetricChange = DashboardMetricChange;
 
-export interface QuarterlyData {
-    this_quarter: Record<string, number>;
-    last_quarter: Record<string, number>;
-    changes: Record<string, MetricChange>;
-    period: { this_start: string; this_end: string; last_start: string; last_end: string };
-    snapshot_info?: SnapshotInfo;
-}
+export type QuarterlyData = DashboardQuarterlyComparison;
 
 export interface QuarterOption {
     value: string;

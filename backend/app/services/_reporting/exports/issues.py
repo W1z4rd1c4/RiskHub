@@ -4,12 +4,13 @@ from typing import Any, Literal
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import utc_now
 from app.models import User
 from app.models.issue import IssueSeverity, IssueStatus
 from app.services._issue_register.linked_context import build_issue_linked_visibility
 
 from .fetch import _fetch_issues_for_export
-from .lifecycle import ExportRow, ReportExportDefinition, render_report_export_definition
+from .lifecycle import ReportExportDefinition, render_report_export_definition
 from .rows import _issue_to_row
 from .shared import ExportFormat, _as_of_datetime
 
@@ -28,6 +29,12 @@ async def _export_issues(
     overdue_only: bool,
     exclude_active_exceptions: bool,
 ) -> StreamingResponse:
+    generated_at = utc_now()
+    register_state = "Current Issue register state at generation time"
+    disclaimer = (
+        "The evaluation date affects ageing and overdue calculations only; "
+        "this export does not reconstruct historical Issue state."
+    )
     models = await _fetch_issues_for_export(
         db,
         current_user=current_user,
@@ -49,21 +56,26 @@ async def _export_issues(
                 as_of_dt=as_of_dt,
                 current_user=current_user,
                 linked_visibility=linked_visibility,
-                overdue_mode="historical_report",
+                overdue_mode="evaluation_report",
             )
             for issue in batch
         )
 
-    def apply_overdue_filter(current_rows: list[ExportRow]) -> list[ExportRow]:
-        if overdue_only:
-            return [row for row in current_rows if bool(row.get("is_overdue"))]
-        return current_rows
+    if overdue_only:
+        rows = [row for row in rows if bool(row.get("is_overdue"))]
+    if not rows:
+        rows = [{"_record_type": "export_metadata"}]
 
     definition = ReportExportDefinition(
-        title=f"Issue Export (as of {as_of_date.isoformat()})",
+        title=f"Current Issue register state (evaluated on {as_of_date.isoformat()})",
         sheet_name="Issues",
         filename_base="issues",
         headers=[
+            "Record Type",
+            "Register State",
+            "Evaluation Date",
+            "Generated At",
+            "Disclaimer",
             "Issue ID",
             "Title",
             "Status",
@@ -92,8 +104,12 @@ async def _export_issues(
             "Exception Status",
             "Exception Expires At",
         ],
-        stages=(apply_overdue_filter,),
         row_values=lambda row: [
+            "Export Metadata" if row.get("_record_type") == "export_metadata" else "Issue",
+            register_state,
+            as_of_date.isoformat(),
+            generated_at.isoformat(),
+            disclaimer,
             row.get("id"),
             row.get("title"),
             row.get("status"),
@@ -106,7 +122,13 @@ async def _export_issues(
             row.get("department_name"),
             row.get("owner_name"),
             row.get("due_at"),
-            "yes" if row.get("is_overdue") else "no",
+            (
+                None
+                if row.get("_record_type") == "export_metadata"
+                else "yes"
+                if row.get("is_overdue")
+                else "no"
+            ),
             row.get("age_days"),
             row.get("risk_ids"),
             row.get("risk_names"),

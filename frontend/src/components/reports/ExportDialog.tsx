@@ -4,7 +4,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { DialogShell } from '@/components/DialogShell';
 
 export type ExportFormat = 'csv';
-export type ExportPurpose = 'current_view' | 'point_in_time';
+export type ExportPurpose = 'current_view' | 'evaluation' | 'point_in_time';
 
 export interface ExportDialogSubmitPayload {
     format: ExportFormat;
@@ -12,6 +12,7 @@ export interface ExportDialogSubmitPayload {
 }
 
 interface ExportDialogProps {
+    dateMode?: 'evaluation' | 'point_in_time';
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (payload: ExportDialogSubmitPayload) => Promise<void>;
@@ -28,6 +29,7 @@ function getTodayLocalDate(): string {
 }
 
 export function ExportDialog({
+    dateMode = 'point_in_time',
     isOpen,
     onClose,
     onSubmit,
@@ -43,19 +45,21 @@ export function ExportDialog({
     const purposeId = useId();
     const submitButtonRef = useRef<HTMLButtonElement>(null);
     const [asOfDate, setAsOfDate] = useState<string>(getTodayLocalDate());
+    const datedPurpose: Exclude<ExportPurpose, 'current_view'> = dateMode;
     const [purpose, setPurpose] = useState<ExportPurpose>(
-        supportsCurrentView ? 'current_view' : 'point_in_time',
+        supportsCurrentView ? 'current_view' : datedPurpose,
     );
     const [submitFailed, setSubmitFailed] = useState(false);
+    const datePurposeKey = dateMode === 'evaluation' ? 'evaluation' : 'point_in_time';
 
     useEffect(() => {
         if (!isOpen) {
             return;
         }
         setAsOfDate(getTodayLocalDate());
-        setPurpose(supportsCurrentView ? 'current_view' : 'point_in_time');
+        setPurpose(supportsCurrentView ? 'current_view' : datedPurpose);
         setSubmitFailed(false);
-    }, [isOpen, supportsCurrentView]);
+    }, [datedPurpose, isOpen, supportsCurrentView]);
 
     useEffect(() => {
         if (submitFailed && !isSubmitting) {
@@ -64,7 +68,7 @@ export function ExportDialog({
     }, [isSubmitting, submitFailed]);
 
     const handleSubmit = async () => {
-        if ((purpose === 'point_in_time' && !asOfDate) || isSubmitting) {
+        if ((purpose === datedPurpose && !asOfDate) || isSubmitting) {
             return;
         }
         setSubmitFailed(false);
@@ -139,31 +143,33 @@ export function ExportDialog({
                             </span>
                         </label>
                         <label
-                            htmlFor={`${purposeId}-snapshot`}
-                            aria-label={t('export.purpose.point_in_time.title')}
+                            htmlFor={`${purposeId}-${datedPurpose}`}
+                            aria-label={t(`export.purpose.${datePurposeKey}.title`)}
                             className="flex cursor-pointer gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 has-[:checked]:border-accent/50 has-[:checked]:bg-accent/10"
                         >
                             <input
-                                id={`${purposeId}-snapshot`}
+                                id={`${purposeId}-${datedPurpose}`}
                                 type="radio"
                                 name="export-purpose"
-                                value="point_in_time"
-                                checked={purpose === 'point_in_time'}
-                                onChange={() => { setPurpose('point_in_time'); setSubmitFailed(false); }}
-                                data-testid="export-purpose-point-in-time"
+                                value={datedPurpose}
+                                checked={purpose === datedPurpose}
+                                onChange={() => { setPurpose(datedPurpose); setSubmitFailed(false); }}
+                                data-testid={datedPurpose === 'evaluation'
+                                    ? 'export-purpose-evaluation'
+                                    : 'export-purpose-point-in-time'}
                                 className="mt-1 accent-[var(--color-accent)]"
                             />
                             <span>
-                                <span className="block font-bold text-white">{t('export.purpose.point_in_time.title')}</span>
-                                <span className="block text-sm text-slate-400">{t('export.purpose.point_in_time.description')}</span>
+                                <span className="block font-bold text-white">{t(`export.purpose.${datePurposeKey}.title`)}</span>
+                                <span className="block text-sm text-slate-400">{t(`export.purpose.${datePurposeKey}.description`)}</span>
                             </span>
                         </label>
                     </fieldset>
                 )}
-                {purpose === 'point_in_time' && (
+                {purpose === datedPurpose && (
                     <div className="space-y-2">
                         <span id={dateLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                            {t('export.fields.date')}
+                            {t(dateMode === 'evaluation' ? 'export.fields.evaluation_date' : 'export.fields.date')}
                         </span>
                         <input
                             type="date"
@@ -195,14 +201,14 @@ export function ExportDialog({
                     ref={submitButtonRef}
                     type="button"
                     onClick={handleSubmit}
-                    disabled={isSubmitting || (purpose === 'point_in_time' && !asOfDate)}
+                    disabled={isSubmitting || (purpose === datedPurpose && !asOfDate)}
                     data-testid="export-submit-button"
                     className="px-5 py-2.5 rounded-xl bg-accent text-slate-950 font-bold hover:bg-accent/90 transition-all flex items-center gap-2 disabled:opacity-60"
                 >
                     <Download className="h-4 w-4" />
                     {purpose === 'current_view'
                         ? t('export.actions.submit_current')
-                        : t('export.actions.submit_snapshot')}
+                        : t(dateMode === 'evaluation' ? 'export.actions.submit_evaluation' : 'export.actions.submit_snapshot')}
                 </button>
             </div>
         </DialogShell>

@@ -5,6 +5,14 @@ Dashboard Schemas for Executive and Department-level Metrics
 from pydantic import BaseModel, Field
 
 
+class DashboardRiskThresholds(BaseModel):
+    """Configured ADR-008 score-band boundaries used by Dashboard metrics."""
+
+    critical: int
+    high: int
+    medium: int
+
+
 class DashboardSummaryResponse(BaseModel):
     """Overview stats for executive dashboard."""
 
@@ -14,8 +22,9 @@ class DashboardSummaryResponse(BaseModel):
     controls_by_frequency: dict[str, int] = Field(default_factory=dict)
     total_risks: int = 0
     risks_by_status: dict[str, int] = Field(default_factory=dict)
-    critical_risks_count: int = 0  # net_score >= 15
+    critical_risks_count: int = 0  # Uses the configured critical threshold.
     average_net_risk_score: float = 0.0
+    risk_thresholds: DashboardRiskThresholds
 
     total_vendors: int = 0
     high_risk_vendors_count: int = 0  # vendor.risk_score_1_5 >= 4

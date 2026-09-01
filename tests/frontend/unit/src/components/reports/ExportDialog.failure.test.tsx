@@ -88,6 +88,27 @@ describe('ExportDialog failure handling', () => {
         expect(onCurrentViewSubmit).not.toHaveBeenCalled();
     });
 
+    it('describes the Issue date as evaluation of current rows, not reconstruction', async () => {
+        render(
+            <ExportDialog
+                dateMode="evaluation"
+                isOpen
+                onClose={() => undefined}
+                onCurrentViewSubmit={vi.fn().mockResolvedValue(undefined)}
+                onSubmit={vi.fn().mockResolvedValue(undefined)}
+            />,
+        );
+
+        await userEvent.click(screen.getByTestId('export-purpose-evaluation'));
+
+        expect(screen.getByText('Current register evaluated on a date')).toBeInTheDocument();
+        expect(screen.getByText(/selected date affects age and overdue only/i)).toBeInTheDocument();
+        expect(screen.getByText('Evaluation date')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Export evaluated current rows' })).toBeInTheDocument();
+        expect(screen.queryByTestId('export-purpose-point-in-time')).not.toBeInTheDocument();
+        expect(screen.queryByText(/snapshot|reconstruct/i)).not.toBeInTheDocument();
+    });
+
     it('preserves the selected purpose when parent callbacks are recreated', async () => {
         const { rerender } = render(
             <ExportDialog

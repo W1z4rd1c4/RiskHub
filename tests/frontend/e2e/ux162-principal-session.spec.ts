@@ -127,6 +127,7 @@ function overview(totalControls: number) {
             risks_by_status: {},
             critical_risks_count: 0,
             average_net_risk_score: 0,
+            risk_thresholds: { critical: 16, high: 10, medium: 5 },
             total_vendors: 0,
             high_risk_vendors_count: 0,
         },
@@ -139,6 +140,21 @@ function overview(totalControls: number) {
         issue_summary: null,
         issue_aging: null,
         issue_severity: null,
+        filter_scope: {
+            department_applies_to_all_scoped_panels: true,
+            risk_level_applies_to: [
+                'risk_summary',
+                'risk_distribution',
+                'risk_trends',
+                'department_risk_metrics',
+            ],
+            control_filters_apply_to: [
+                'control_summary',
+                'control_trends',
+                'department_control_metrics',
+            ],
+            unaffected_by_risk_control: ['kri', 'issues', 'vendors'],
+        },
         generated_at: '2026-08-31T12:00:00Z',
         capabilities: {
             can_read: true,

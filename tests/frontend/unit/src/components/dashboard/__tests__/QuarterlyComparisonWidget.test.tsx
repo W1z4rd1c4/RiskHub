@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchAvailablePeriodsMock = vi.fn();
@@ -15,7 +15,13 @@ vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string, options?: { period?: string }) => {
             if (key === 'quarterly.no_snapshot_banner') return `missing ${options?.period ?? ''}`;
+            if (key === 'quarterly.comparison_unavailable') return 'Comparison unavailable';
+            if (key === 'quarterly.missing_definition') return 'Metric definition unavailable';
             if (key === 'quarterly.not_available') return 'N/A';
+            if (key === 'quarterly.new_from_zero') return `New (from 0) +${(options as { change?: number })?.change}`;
+            if (key === 'quarterly.source.live') return 'Live';
+            if (key === 'quarterly.source.stored') return 'Stored';
+            if (key === 'quarterly.source.missing') return 'Missing';
             return key;
         },
     }),
@@ -46,20 +52,34 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 }));
 
 import { QuarterlyComparisonWidget } from '@/components/dashboard/QuarterlyComparisonWidget';
+import { QuarterMetricCard } from '@/components/dashboard/QuarterMetricCard';
 
 function comparisonPayload(overrides: Record<string, unknown> = {}) {
     return {
         this_quarter: { new_risks: 1, priority_risks: 4 },
         last_quarter: { new_risks: 0, priority_risks: 2 },
         changes: {
-            new_risks: { absolute: 1, percentage: 100, direction: 'up' },
+            new_risks: { absolute: 1, percentage: null, direction: 'unknown', reason: 'baseline_zero' },
             priority_risks: { absolute: 2, percentage: 100, direction: 'up' },
         },
         period: {
             this_start: '2026-04-01T00:00:00Z',
             this_end: '2026-04-23T00:00:00Z',
             last_start: '2026-01-01T00:00:00Z',
-            last_end: '2026-04-01T00:00:00Z',
+            last_end: '2026-01-23T00:00:00Z',
+            window_type: 'equal_elapsed',
+        },
+        metric_observations: {
+            new_risks: {
+                metric_type: 'flow',
+                current: { source: 'live', start: '2026-04-01T00:00:00Z', end: '2026-04-23T00:00:00Z' },
+                compare: { source: 'live', start: '2026-01-01T00:00:00Z', end: '2026-01-23T00:00:00Z' },
+            },
+            priority_risks: {
+                metric_type: 'stock',
+                current: { source: 'live', observed_at: '2026-04-23T00:00:00Z' },
+                compare: { source: 'stored', observed_at: '2026-01-20T12:00:00Z' },
+            },
         },
         snapshot_info: {
             current_quarter: '2026-Q2',
@@ -103,6 +123,75 @@ describe('QuarterlyComparisonWidget', () => {
         fireEvent.change(currentQuarter, { target: { value: '1' } });
 
         await waitFor(() => expect(fetchQuarterlyComparisonMock).toHaveBeenCalledWith('2026-Q1', '2025-Q4'));
+    });
+
+    it('shows exact equal-window evidence and a non-percentage baseline-zero change', async () => {
+        render(<QuarterlyComparisonWidget />);
+
+        expect(await screen.findByText('New (from 0) +1')).toBeInTheDocument();
+        expect(screen.getByText('2026-Q2 · Live')).toBeInTheDocument();
+        expect(screen.getByText('2026-Q1 · Live')).toBeInTheDocument();
+        const priorityCard = screen.getByRole('group', { name: 'quarterly.priority_risks' });
+        expect(within(priorityCard).getByText('2026-Q2 · Live 2026-04-23T00:00:00Z')).toBeInTheDocument();
+        expect(within(priorityCard).getByText('2026-Q1 · Stored 2026-01-20T12:00:00Z')).toBeInTheDocument();
+        expect(screen.getByText('2026-04-01T00:00:00Z – 2026-04-23T00:00:00Z')).toBeInTheDocument();
+        expect(screen.getByText('2026-01-01T00:00:00Z – 2026-01-23T00:00:00Z')).toBeInTheDocument();
+    });
+
+    it('shows each stock metric\'s own observation sources and times', async () => {
+        fetchQuarterlyComparisonMock.mockResolvedValue(comparisonPayload({
+            this_quarter: { new_risks: 1, priority_risks: 4, active_vendors: 5 },
+            last_quarter: { new_risks: 0, priority_risks: 2 },
+            changes: {
+                new_risks: { absolute: 1, percentage: null, direction: 'unknown', reason: 'baseline_zero' },
+                priority_risks: { absolute: 2, percentage: 100, direction: 'up' },
+                active_vendors: {
+                    absolute: null,
+                    percentage: null,
+                    direction: 'unknown',
+                    reason: 'missing_observation',
+                },
+            },
+            metric_observations: {
+                new_risks: {
+                    metric_type: 'flow',
+                    current: { source: 'live', start: '2026-04-01T00:00:00Z', end: '2026-04-23T00:00:00Z' },
+                    compare: { source: 'live', start: '2026-01-01T00:00:00Z', end: '2026-01-23T00:00:00Z' },
+                },
+                priority_risks: {
+                    metric_type: 'stock',
+                    current: { source: 'live', observed_at: '2026-04-23T00:00:00Z' },
+                    compare: { source: 'stored', observed_at: '2026-01-20T12:00:00Z' },
+                },
+                active_vendors: {
+                    metric_type: 'stock',
+                    current: { source: 'stored', observed_at: '2026-04-11T09:30:00Z' },
+                    compare: { source: 'missing', observed_at: null },
+                },
+            },
+            snapshot_info: {
+                current_quarter: '2026-Q2',
+                last_quarter: '2026-Q1',
+                last_quarter_snapshot_available: true,
+                current_quarter_snapshot_available: true,
+                missing_snapshot_quarters: [],
+                snapshot_sources: { current: 'live', compare: 'stored' },
+                missing_snapshot_metrics: { current: [], compare: ['active_vendors'] },
+                period_metrics: ['new_risks'],
+                snapshot_metrics: ['priority_risks', 'active_vendors'],
+            },
+        }));
+
+        render(<QuarterlyComparisonWidget />);
+
+        const priorityCard = await screen.findByRole('group', { name: 'quarterly.priority_risks' });
+        expect(within(priorityCard).getByText('2026-Q2 · Live 2026-04-23T00:00:00Z')).toBeInTheDocument();
+        expect(within(priorityCard).getByText('2026-Q1 · Stored 2026-01-20T12:00:00Z')).toBeInTheDocument();
+
+        const vendorCard = screen.getByRole('group', { name: 'quarterly.active_vendors' });
+        expect(within(vendorCard).getByText('2026-Q2 · Stored 2026-04-11T09:30:00Z')).toBeInTheDocument();
+        expect(within(vendorCard).getByText('2026-Q1 · Missing N/A')).toBeInTheDocument();
+        expect(vendorCard).not.toHaveTextContent('2026-04-23T00:00:00Z');
     });
 
     it('renders missing snapshot metadata as unavailable snapshot deltas', async () => {
@@ -204,5 +293,44 @@ describe('QuarterlyComparisonWidget', () => {
         expect(await screen.findByText('5')).toBeInTheDocument();
         expect(screen.getByText('vs —')).toBeInTheDocument();
         expect(screen.getByText('N/A')).toBeInTheDocument();
+    });
+
+    it('uses a truthful generic hint when observations cannot be compared', async () => {
+        fetchQuarterlyComparisonMock.mockResolvedValue(comparisonPayload({
+            changes: {
+                new_risks: { absolute: null, percentage: null, direction: 'unknown', reason: 'unequal_window' },
+                priority_risks: { absolute: null, percentage: null, direction: 'unknown', reason: 'different_definition' },
+            },
+        }));
+
+        render(<QuarterlyComparisonWidget />);
+
+        expect(await screen.findAllByTitle('Comparison unavailable')).toHaveLength(2);
+        expect(screen.queryByTitle('quarterly.no_snapshot_hint')).not.toBeInTheDocument();
+    });
+
+    it('names a missing metric definition separately from a missing observation', () => {
+        render(<QuarterMetricCard
+            change={{
+                absolute: null,
+                percentage: null,
+                direction: 'unknown',
+                reason: 'missing_definition',
+            }}
+            compareSnapshotAvailable
+            currentSnapshotAvailable
+            isSnapshotMetric
+            keyName="priority_risks"
+            label="Priority Risks"
+            lastValue={2}
+            missingCompareSnapshotMetric={false}
+            missingCurrentSnapshotMetric={false}
+            t={(key) => key === 'quarterly.missing_definition'
+                ? 'Metric definition unavailable'
+                : key}
+            thisValue={4}
+        />);
+
+        expect(screen.getByTitle('Metric definition unavailable')).toBeInTheDocument();
     });
 });

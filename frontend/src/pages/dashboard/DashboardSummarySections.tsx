@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ClipboardList, TrendingUp } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 
 import { CategoryBreakdownCharts } from '@/components/dashboard/CategoryBreakdownCharts';
 import { IssueAgingChart } from '@/components/dashboard/IssueAgingChart';
@@ -51,10 +51,7 @@ export function DashboardSummarySections({
                             <div className={`${stat.bg} p-3 rounded-xl`}>
                                 <stat.icon className={`h-6 w-6 ${stat.color}`} />
                             </div>
-                            <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                                <TrendingUp className="h-3 w-3" />
-                                {stat.trend}
-                            </div>
+                            {stat.context ? <span className="sr-only">{stat.context}</span> : null}
                         </div>
                         <div>
                             <p className="text-sm font-bold text-muted-foreground mb-1">{stat.title}</p>

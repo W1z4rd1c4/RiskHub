@@ -3,14 +3,27 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
+import { RiskAssessmentSection } from '@/components/risks/detail-overview/RiskAssessmentSection';
 import type { Risk, RiskCapabilities } from '@/types/risk';
+import enRisks from '@/i18n/locales/en/risks.json';
+import csRisks from '@/i18n/locales/cs/risks.json';
 
-const tMock = (key: string) => key;
+let currentLanguage: 'en' | 'cs' = 'en';
+const tMock = (key: string) => {
+    const normalizedKey = key.replace(/^risks:/, '');
+    if (normalizedKey === 'scores_heading') {
+        return currentLanguage === 'en' ? 'Gross and net Risk scores' : 'Hrubé a čisté skóre rizika';
+    }
+    if (normalizedKey === 'questionnaires.title') {
+        return currentLanguage === 'en' ? 'Assessment questionnaires' : 'Hodnoticí dotazníky';
+    }
+    return key;
+};
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: tMock,
-        i18n: { language: 'en' },
+        i18n: { language: currentLanguage },
     }),
 }));
 
@@ -20,6 +33,10 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
 
 vi.mock('@/components/risks/RiskQuestionnaireDetail', () => ({
     RiskQuestionnaireDetail: () => null,
+}));
+
+vi.mock('@/components/RiskScoreMatrix', () => ({
+    RiskScoreMatrix: ({ type }: { type: string }) => <div>{type} score</div>,
 }));
 
 vi.mock('@/services/riskQuestionnairesApi', () => ({
@@ -84,6 +101,7 @@ function makeRisk(overrides: Partial<Risk> = {}): Risk {
 describe('RiskDetailQuestionnairesTab', () => {
     beforeEach(() => {
         vi.resetAllMocks();
+        currentLanguage = 'en';
         (riskQuestionnairesApi.listForRisk as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
         (riskQuestionnairesApi.sendForRisk as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({});
     });
@@ -109,5 +127,32 @@ describe('RiskDetailQuestionnairesTab', () => {
         await waitFor(() => {
             expect(riskQuestionnairesApi.sendForRisk).toHaveBeenCalledWith(10);
         });
+    });
+
+    it('renders distinct score and questionnaire headings in English and Czech', async () => {
+        expect(enRisks.scores_heading).toBe('Gross and net Risk scores');
+        expect(enRisks.questionnaires.title).toBe('Assessment questionnaires');
+        expect(csRisks.scores_heading).toBe('Hrubé a čisté skóre rizika');
+        expect(csRisks.questionnaires.title).toBe('Hodnoticí dotazníky');
+
+        const risk = makeRisk();
+        const { rerender } = render(
+            <>
+                <RiskAssessmentSection risk={risk} />
+                <RiskDetailQuestionnairesTab risk={risk} />
+            </>,
+        );
+        expect(screen.getByRole('heading', { name: 'Gross and net Risk scores' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Assessment questionnaires' })).toBeInTheDocument();
+
+        currentLanguage = 'cs';
+        rerender(
+            <>
+                <RiskAssessmentSection risk={risk} />
+                <RiskDetailQuestionnairesTab risk={risk} />
+            </>,
+        );
+        expect(screen.getByRole('heading', { name: 'Hrubé a čisté skóre rizika' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Hodnoticí dotazníky' })).toBeInTheDocument();
     });
 });

@@ -1,7 +1,13 @@
 import { reportApi } from '@/services/reportApi';
+import type { DashboardFilters } from '@/types/dashboard';
 
-export async function exportDashboardSummary(departmentId: number | null): Promise<void> {
-    await reportApi.downloadSummaryCsv({ departmentId });
+export async function exportDashboardSummary(filters: DashboardFilters): Promise<void> {
+    await reportApi.downloadSummaryCsv({
+        departmentId: filters.departmentId,
+        riskLevel: filters.riskLevel,
+        controlStatus: filters.controlStatus,
+        controlForm: filters.controlForm,
+    });
 }
 
 export function openDashboardPath(

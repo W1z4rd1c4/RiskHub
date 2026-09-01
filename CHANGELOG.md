@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Pending changes for future releases should be recorded here.
+- Corrected Dashboard summary export parity, quarterly comparison evidence, Dashboard freshness/cue semantics, department aggregation labels, Risk detail headings, and Issue evaluation-date export wording.
+- Evidence generated before these fixes cannot be retroactively repaired. Regenerate Dashboard and Issue exports when current-state evidence is acceptable; do not treat a regenerated Issue export as a reconstruction of past register rows.
 
 ## v0.1.0
 

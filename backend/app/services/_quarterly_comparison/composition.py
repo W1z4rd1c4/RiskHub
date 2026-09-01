@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
 from app.core.permissions import get_user_department_ids
-from app.core.snapshot_service import get_quarter_label
+from app.core.snapshot_service import SNAPSHOT_METRIC_DEFINITION_IDS, get_quarter_label
 from app.models import User
-from app.services._quarterly_comparison.changes import calculate_changes
+from app.models.quarterly_metric_snapshot import SnapshotType
+from app.services._quarterly_comparison.changes import SuppressionReason, calculate_changes
 from app.services._quarterly_comparison.period_metrics import get_quarter_period_metrics
 from app.services._quarterly_comparison.periods import calculate_quarter_boundaries, validate_quarter_selection
 from app.services._quarterly_comparison.snapshots import (
@@ -26,18 +28,7 @@ PERIOD_METRICS = [
     "activity_volume",
 ]
 
-SNAPSHOT_METRICS = [
-    "priority_risks",
-    "kri_breaches",
-    "pending_approvals",
-    "control_coverage",
-    "orphaned_items",
-    "kri_health",
-    "overdue_kris",
-    "risks_without_kri",
-    "active_risks",
-    "active_vendors",
-]
+SNAPSHOT_METRICS = list(SNAPSHOT_METRIC_DEFINITION_IDS)
 
 
 @dataclass(frozen=True)
@@ -53,6 +44,7 @@ class QuarterMetricComposition:
     changes: dict
     period: dict
     snapshot_info: dict
+    metric_observations: dict
 
     def as_response(self) -> dict:
         return {
@@ -61,6 +53,7 @@ class QuarterMetricComposition:
             "changes": self.changes,
             "period": self.period,
             "snapshot_info": self.snapshot_info,
+            "metric_observations": self.metric_observations,
         }
 
 
@@ -82,26 +75,47 @@ async def build_quarterly_comparison(
     validate_quarter_selection(now, current_quarter_start, last_quarter_start)
     effective_current_quarter_end = min(current_quarter_end, now)
 
+    selected_current_quarter_label = get_quarter_label(current_quarter_start)
+    actual_current_quarter_label = get_quarter_label(now)
+    is_live_current_quarter = selected_current_quarter_label == actual_current_quarter_label
+    effective_last_quarter_end = last_quarter_end
+    window_type = "complete_quarters"
+    if is_live_current_quarter:
+        elapsed = effective_current_quarter_end - current_quarter_start
+        effective_last_quarter_end = min(last_quarter_start + elapsed, last_quarter_end)
+        window_type = "equal_elapsed"
+
     this_quarter_period = await get_quarter_period_metrics(
         db, current_quarter_start, effective_current_quarter_end, dept_ids
     )
-    last_quarter_period = await get_quarter_period_metrics(db, last_quarter_start, last_quarter_end, dept_ids)
+    last_quarter_period = await get_quarter_period_metrics(
+        db, last_quarter_start, effective_last_quarter_end, dept_ids
+    )
 
     last_quarter_label = get_quarter_label(last_quarter_start)
-    selected_current_quarter_label = get_quarter_label(current_quarter_start)
-    actual_current_quarter_label = get_quarter_label(now)
 
     snapshot_department_id = resolve_snapshot_department_id(dept_ids)
-    is_live_current_quarter = selected_current_quarter_label == actual_current_quarter_label
 
-    current_snapshot, current_snapshot_source = await resolve_snapshot_metrics(
+    (
+        current_snapshot,
+        current_snapshot_source,
+        current_snapshot_observed_at,
+        current_snapshot_type,
+        current_metric_definitions,
+    ) = await resolve_snapshot_metrics(
         db,
         quarter_label=selected_current_quarter_label,
         is_live_current_quarter=is_live_current_quarter,
         dept_ids=dept_ids,
         snapshot_department_id=snapshot_department_id,
     )
-    last_quarter_snapshot, last_quarter_snapshot_source = await resolve_snapshot_metrics(
+    (
+        last_quarter_snapshot,
+        last_quarter_snapshot_source,
+        last_snapshot_observed_at,
+        last_snapshot_type,
+        last_metric_definitions,
+    ) = await resolve_snapshot_metrics(
         db,
         quarter_label=last_quarter_label,
         is_live_current_quarter=False,
@@ -120,9 +134,100 @@ async def build_quarterly_comparison(
 
     missing_current_snapshot_metrics = {metric for metric in SNAPSHOT_METRICS if metric not in current_snapshot}
     missing_compare_snapshot_metrics = {metric for metric in SNAPSHOT_METRICS if metric not in last_quarter_snapshot}
-    unavailable_snapshot_metrics = missing_current_snapshot_metrics | missing_compare_snapshot_metrics
+    suppressed_metrics: dict[str, SuppressionReason] = {}
+    if window_type == "equal_elapsed" and (
+        effective_current_quarter_end - current_quarter_start
+        != effective_last_quarter_end - last_quarter_start
+    ):
+        suppressed_metrics.update({metric: "unequal_window" for metric in PERIOD_METRICS})
+    for metric in SNAPSHOT_METRICS:
+        if metric in missing_current_snapshot_metrics or metric in missing_compare_snapshot_metrics:
+            suppressed_metrics[metric] = "missing_observation"
+        elif current_snapshot_source != last_quarter_snapshot_source:
+            suppressed_metrics[metric] = "incomparable_source"
+        elif current_snapshot_source == "stored":
+            if current_snapshot_type != last_snapshot_type:
+                suppressed_metrics[metric] = "incomparable_source"
+            elif current_snapshot_type == SnapshotType.MANUAL:
+                if current_snapshot_observed_at is None or last_snapshot_observed_at is None:
+                    suppressed_metrics[metric] = "missing_observation"
+                elif not (
+                    current_snapshot_observed_at == current_quarter_end
+                    and last_snapshot_observed_at == last_quarter_end
+                ) and (
+                    current_snapshot_observed_at - current_quarter_start
+                    != last_snapshot_observed_at - last_quarter_start
+                ):
+                    suppressed_metrics[metric] = "unequal_window"
+        if metric not in suppressed_metrics:
+            current_definition = current_metric_definitions.get(metric)
+            compare_definition = last_metric_definitions.get(metric)
+            if not current_definition or not compare_definition:
+                suppressed_metrics[metric] = "missing_definition"
+            elif current_definition != compare_definition:
+                suppressed_metrics[metric] = "different_definition"
 
-    changes = calculate_changes(this_quarter_combined, last_quarter_combined, unavailable_snapshot_metrics)
+    changes = calculate_changes(this_quarter_combined, last_quarter_combined, suppressed_metrics)
+
+    flow_observation = {
+        "metric_type": "flow",
+        "current": {
+            "source": "live",
+            "start": current_quarter_start.isoformat(),
+            "end": effective_current_quarter_end.isoformat(),
+        },
+        "compare": {
+            "source": "live",
+            "start": last_quarter_start.isoformat(),
+            "end": effective_last_quarter_end.isoformat(),
+        },
+    }
+    def snapshot_observation(
+        metric: str,
+        metrics: dict,
+        source: str,
+        observed_at: datetime | None,
+        definitions: dict[str, str],
+    ) -> dict:
+        if metric not in metrics:
+            return {"source": "missing", "observed_at": None}
+        observation = {
+            "source": source,
+            "observed_at": (
+                now.isoformat()
+                if source == "live"
+                else observed_at.isoformat()
+                if observed_at is not None
+                else None
+            ),
+        }
+        if metric in definitions:
+            observation["definition_id"] = definitions[metric]
+        return observation
+
+    metric_observations = {
+        **{metric: flow_observation for metric in PERIOD_METRICS},
+        **{
+            metric: {
+                "metric_type": "stock",
+                "current": snapshot_observation(
+                    metric,
+                    current_snapshot,
+                    current_snapshot_source,
+                    current_snapshot_observed_at,
+                    current_metric_definitions,
+                ),
+                "compare": snapshot_observation(
+                    metric,
+                    last_quarter_snapshot,
+                    last_quarter_snapshot_source,
+                    last_snapshot_observed_at,
+                    last_metric_definitions,
+                ),
+            }
+            for metric in SNAPSHOT_METRICS
+        },
+    }
 
     composition = QuarterMetricComposition(
         this_quarter=this_quarter_combined,
@@ -132,7 +237,8 @@ async def build_quarterly_comparison(
             "this_start": current_quarter_start.isoformat(),
             "this_end": effective_current_quarter_end.isoformat(),
             "last_start": last_quarter_start.isoformat(),
-            "last_end": last_quarter_end.isoformat(),
+            "last_end": effective_last_quarter_end.isoformat(),
+            "window_type": window_type,
         },
         snapshot_info={
             "current_quarter": selected_current_quarter_label,
@@ -151,5 +257,6 @@ async def build_quarterly_comparison(
             "period_metrics": PERIOD_METRICS,
             "snapshot_metrics": SNAPSHOT_METRICS,
         },
+        metric_observations=metric_observations,
     )
     return composition.as_response()

@@ -58,7 +58,8 @@
     "title": "Export data",
     "fields": {
       "format": "Format",
-      "date": "As of date"
+      "date": "As of date",
+      "evaluation_date": "Evaluation date"
     },
     "purpose": {
       "label": "Export purpose",
@@ -69,6 +70,10 @@
       "point_in_time": {
         "title": "Point-in-time audit snapshot",
         "description": "Reconstruct the audited register state for a selected date."
+      },
+      "evaluation": {
+        "title": "Current register evaluated on a date",
+        "description": "Exports current Issue row values; the selected date affects age and overdue only. It does not recreate past register state."
       }
     },
     "formats": {
@@ -79,6 +84,7 @@
       "submit": "Export",
       "submit_current": "Export current view",
       "submit_snapshot": "Export snapshot",
+      "submit_evaluation": "Export evaluated current rows",
       "cancel": "Cancel"
     },
     "errors": {
@@ -588,12 +594,8 @@
   "stats": {
     "active_depts": "Active departments",
     "avg_risk_score": "Average risk score",
-    "calculated": "Calculated",
     "critical_risks": "Critical risks",
-    "live": "Live",
-    "stable": "Stable",
     "total_controls": "Total controls",
-    "urgent": "Urgent",
     "vendors": "Vendors"
   },
   "error_boundary": {

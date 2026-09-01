@@ -104,7 +104,7 @@ async def export_issues(
     format: Literal["csv"] = Query("csv"),
     as_of_date: date | None = Query(
         None,
-        description="Point-in-time exports are provided by /reports/issues/export",
+        description="Evaluation-date exports are provided by /reports/issues/export",
     ),
     criteria: IssueListingCriteria = Depends(issue_listing_criteria_dependency),
     db: AsyncSession = Depends(get_db),
@@ -116,8 +116,8 @@ async def export_issues(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "code": "point_in_time_export_requires_report",
-                "message": "Use /api/v1/reports/issues/export for point-in-time Issue exports.",
+                "code": "evaluation_date_export_requires_report",
+                "message": "Use /api/v1/reports/issues/export for current Issue state with evaluation-date ageing.",
             },
         )
 

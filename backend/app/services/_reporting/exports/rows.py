@@ -171,7 +171,7 @@ def _issue_to_row(
     as_of_dt: datetime,
     current_user: User,
     linked_visibility: IssueLinkedVisibility,
-    overdue_mode: Literal["current_register", "historical_report"],
+    overdue_mode: Literal["current_register", "evaluation_report"],
 ) -> dict[str, Any]:
     links = issue.links or []
     visible_risk_ids = linked_visibility.risk_ids
@@ -222,7 +222,7 @@ def _issue_to_row(
     age_days = (as_of_dt - opened_at).days if opened_at is not None else 0
     age_days = max(age_days, 0)
     is_overdue = issue.status != IssueStatus.closed.value and due_at is not None and due_at < as_of_dt
-    if overdue_mode == "historical_report" and active_exception:
+    if overdue_mode == "evaluation_report" and active_exception:
         is_overdue = False
     source_link = _issue_source_link(issue)
     source_link_type, source_link_label = (

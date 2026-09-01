@@ -57,8 +57,8 @@ describe('ICT-GOV #83 eight-register frontend contract', () => {
         ['Risk', 'src/pages/RisksPage.tsx', 'exportRiskSnapshot'],
         ['Control', 'src/pages/ControlsPage.tsx', 'exportControlSnapshot'],
         ['KRI', 'src/pages/KRIsPage.tsx', 'exportKriSnapshot'],
-        ['Issue', 'src/pages/IssuesPage.tsx', 'exportIssueSnapshot'],
-    ])('%s keeps current-view export distinct from historical evidence export', (_name, pagePath, historicalMarker) => {
+        ['Issue', 'src/pages/IssuesPage.tsx', 'exportIssueEvaluation'],
+    ])('%s keeps current-view export distinct from its dated evidence export', (_name, pagePath, historicalMarker) => {
         const source = readFrontendSource(pagePath);
 
         expect(source).toContain('onCurrentViewSubmit');

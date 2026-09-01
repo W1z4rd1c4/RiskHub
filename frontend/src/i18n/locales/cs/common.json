@@ -58,7 +58,8 @@
     "title": "Export dat",
     "fields": {
       "format": "Formát",
-      "date": "Stav k datu"
+      "date": "Stav k datu",
+      "evaluation_date": "Datum vyhodnocení"
     },
     "purpose": {
       "label": "Účel exportu",
@@ -69,6 +70,10 @@
       "point_in_time": {
         "title": "Auditní snímek k datu",
         "description": "Rekonstruuje auditovaný stav registru k vybranému datu."
+      },
+      "evaluation": {
+        "title": "Aktuální registr vyhodnocený k datu",
+        "description": "Exportuje aktuální hodnoty nálezů; vybrané datum ovlivní pouze stáří a stav po termínu. Minulý stav registru nereprodukuje."
       }
     },
     "formats": {
@@ -79,6 +84,7 @@
       "submit": "Exportovat",
       "submit_current": "Exportovat aktuální zobrazení",
       "submit_snapshot": "Exportovat snímek",
+      "submit_evaluation": "Exportovat vyhodnocené aktuální záznamy",
       "cancel": "Zrušit"
     },
     "errors": {
@@ -588,12 +594,8 @@
   "stats": {
     "active_depts": "Aktivní oddělení",
     "avg_risk_score": "Průměrné skóre rizika",
-    "calculated": "Vypočteno",
     "critical_risks": "Kritická rizika",
-    "live": "Živě",
-    "stable": "Stabilní",
     "total_controls": "Celkem kontrol",
-    "urgent": "Urgentní",
     "vendors": "Dodavatelé"
   },
   "error_boundary": {

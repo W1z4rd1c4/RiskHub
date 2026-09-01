@@ -61,10 +61,15 @@ describe('reportApi exportKRIs', () => {
             headers: new Headers(),
         });
 
-        await reportApi.downloadSummaryCsv({ departmentId: 7 });
+        await reportApi.downloadSummaryCsv({
+            departmentId: 7,
+            riskLevel: 'high',
+            controlStatus: 'active',
+            controlForm: 'manual',
+        });
 
         expect(getBlobMock).toHaveBeenCalledWith(
-            '/reports/summary/export?format=csv&department_id=7',
+            '/reports/summary/export?format=csv&department_id=7&risk_level=high&control_status=active&control_form=manual',
             { timeoutMs: null },
         );
     });

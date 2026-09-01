@@ -58,10 +58,11 @@
     "controls": "Kontroly",
     "kris": "KRI",
     "history": "Historie",
-    "assessment": "Hodnocení rizika"
+    "assessment": "Hodnoticí dotazníky"
   },
+  "scores_heading": "Hrubé a čisté skóre rizika",
   "questionnaires": {
-    "title": "Hodnocení rizika",
+    "title": "Hodnoticí dotazníky",
     "subtitle": "Historie dotazníků a aktuální stav pro toto riziko.",
     "assessment_summary_title": "Souhrn hodnocení",
     "assessment_summary_empty": "Zatím žádné odevzdané hodnocení.",

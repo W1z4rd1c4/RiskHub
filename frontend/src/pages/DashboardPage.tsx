@@ -124,10 +124,10 @@ function DashboardPageContent() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { filters } = useDashboardFilters();
     const authz = useAuthz();
-    const { t } = useTranslation('dashboard');
+    const { i18n, t } = useTranslation('dashboard');
     const { t: tCommon } = useTranslation('common');
     const [isExporting, setIsExporting] = useState(false);
-    const [exportError, setExportError] = useState<{ departmentId: number | null } | null>(null);
+    const [exportError, setExportError] = useState<typeof filters | null>(null);
 
     const [selectedCell, setSelectedCell] = useState<{
         probability: number;
@@ -191,6 +191,7 @@ function DashboardPageContent() {
     } = useDashboardOverviewState({
         // The overview request only runs for its own tab; both committee tabs
         // render independently of it (acceptance d).
+        canReadControls: authz.canReadControls,
         enabled: activeView === 'overview',
         filters,
         t,
@@ -199,16 +200,19 @@ function DashboardPageContent() {
     const canViewIssueMetrics = resolveCapabilityFlag(capabilities, 'can_view_issue_metrics');
     const canExport = resolveCapabilityFlag(capabilities, 'can_export_or_report');
     const canUseDepartmentFilter = resolveCapabilityFlag(capabilities, 'can_use_department_filter');
-    const exportDepartmentId = canUseDepartmentFilter ? filters.departmentId : null;
+    const exportFilters = useMemo(() => ({
+        ...filters,
+        departmentId: canUseDepartmentFilter ? filters.departmentId : null,
+    }), [canUseDepartmentFilter, filters]);
 
-    const handleExport = async (departmentId: number | null) => {
+    const handleExport = async (exportSnapshot: typeof filters) => {
         setIsExporting(true);
         setExportError(null);
         try {
-            await exportDashboardSummary(departmentId);
+            await exportDashboardSummary(exportSnapshot);
         } catch (error) {
             logError('Failed to export dashboard summary.', error);
-            setExportError({ departmentId });
+            setExportError(exportSnapshot);
         } finally {
             setIsExporting(false);
         }
@@ -246,13 +250,20 @@ function DashboardPageContent() {
         <div className="space-y-10">
                 <DashboardHeader
                     canExport={canExport}
+                    generatedAt={overviewQuery.data?.generated_at}
                     isExporting={isExporting}
-                    onExport={() => void handleExport(exportDepartmentId)}
-                subtitle={t('page_subtitle')}
-                title={t('title')}
-                exportLabel={t('actions.export_summary_excel')}
-                liveDataLabel={t('live_data')}
-            />
+                    isUpdating={overviewQuery.isFetching && Boolean(overviewQuery.data)}
+                    locale={i18n.language}
+                    onExport={() => void handleExport(exportFilters)}
+                    subtitle={t('page_subtitle')}
+                    title={t('title')}
+                    exportLabel={t('actions.export_summary_excel')}
+                    showFreshness={activeView === 'overview'}
+                    updateFailed={Boolean(overviewQuery.error && overviewQuery.data)}
+                    updatedLabel={t('freshness.updated')}
+                    updatingLabel={t('freshness.updating')}
+                    updateFailedLabel={t('freshness.update_failed')}
+                />
 
             {exportError ? (
                 <div
@@ -263,7 +274,7 @@ function DashboardPageContent() {
                     <button
                         type="button"
                         disabled={isExporting}
-                        onClick={() => void handleExport(exportError.departmentId)}
+                        onClick={() => void handleExport(exportError)}
                         className="rounded-lg border border-rose-300/30 px-3 py-1.5 font-bold hover:bg-rose-300/10 disabled:opacity-60"
                     >
                         {tCommon('actions.retry')}

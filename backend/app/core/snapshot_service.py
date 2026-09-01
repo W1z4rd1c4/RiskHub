@@ -5,7 +5,7 @@ Provides functions to capture and retrieve quarterly metric snapshots
 for truthful quarter-over-quarter comparisons.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Optional
 from typing import cast as typing_cast
 
@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core._snapshot_metrics import capture_snapshot_metrics
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.snapshot_periods import (
     build_current_quarter_snapshot_context,
 )
@@ -30,6 +31,20 @@ from app.core.snapshot_periods import (
 )
 from app.models.department import Department
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
+
+SNAPSHOT_METRIC_DEFINITIONS_KEY = "_metric_definitions"
+SNAPSHOT_METRIC_DEFINITION_IDS = {
+    "priority_risks": "riskhub.snapshot.priority_risks.v1",
+    "kri_breaches": "riskhub.snapshot.kri_breaches.v1",
+    "pending_approvals": "riskhub.snapshot.pending_approvals.v1",
+    "control_coverage": "riskhub.snapshot.control_coverage.v1",
+    "orphaned_items": "riskhub.snapshot.orphaned_items.v1",
+    "kri_health": "riskhub.snapshot.kri_health.v1",
+    "overdue_kris": "riskhub.snapshot.overdue_kris.v1",
+    "risks_without_kri": "riskhub.snapshot.risks_without_kri.v1",
+    "active_risks": "riskhub.snapshot.active_risks.v1",
+    "active_vendors": "riskhub.snapshot.active_vendors.v1",
+}
 
 
 def get_quarter_label(dt: datetime) -> str:
@@ -62,6 +77,7 @@ async def save_quarter_snapshot(
     snapshot_type: SnapshotType | str = SnapshotType.QUARTER_END,
     captured_by_user_id: Optional[int] = None,
     notes: Optional[str] = None,
+    captured_at: datetime | None = None,
 ) -> QuarterlyMetricSnapshot:
     """
     Save a quarterly metric snapshot to the database.
@@ -76,6 +92,7 @@ async def save_quarter_snapshot(
         snapshot_type: Type of snapshot
         captured_by_user_id: Optional user ID who triggered capture
         notes: Optional notes
+        captured_at: Optional explicit observation time; defaults to the capture time
 
     Returns:
         Created or updated snapshot
@@ -86,6 +103,8 @@ async def save_quarter_snapshot(
             snapshot_type = SnapshotType(normalized_snapshot_type)
         else:
             raise ValueError("Invalid snapshot type")
+
+    snapshot_captured_at = coerce_utc(captured_at) or utc_now()
 
     # Check if snapshot already exists
     existing = await db.execute(
@@ -102,7 +121,7 @@ async def save_quarter_snapshot(
         writable_snapshot = typing_cast(Any, snapshot)
         # Update existing snapshot
         writable_snapshot.metrics = metrics
-        writable_snapshot.captured_at = datetime.now(timezone.utc)
+        writable_snapshot.captured_at = snapshot_captured_at
         writable_snapshot.snapshot_type = snapshot_type
         if captured_by_user_id:
             writable_snapshot.captured_by_user_id = captured_by_user_id
@@ -117,6 +136,7 @@ async def save_quarter_snapshot(
             snapshot_type=snapshot_type,
             department_id=department_id,
             metrics=metrics,
+            captured_at=snapshot_captured_at,
             captured_by_user_id=captured_by_user_id,
             notes=notes,
         )
@@ -171,7 +191,7 @@ async def capture_current_quarter_snapshot(
     Returns:
         Created snapshot
     """
-    now = datetime.now(timezone.utc)
+    now = utc_now()
     snapshot_context = build_current_quarter_snapshot_context(
         now=now,
         department_ids=department_ids,
@@ -180,6 +200,10 @@ async def capture_current_quarter_snapshot(
 
     # Capture metrics
     metrics = await capture_snapshot_metrics(db, department_ids)
+    stored_metrics = {
+        **metrics,
+        SNAPSHOT_METRIC_DEFINITIONS_KEY: dict(SNAPSHOT_METRIC_DEFINITION_IDS),
+    }
 
     # Save snapshot
     return await save_quarter_snapshot(
@@ -187,7 +211,7 @@ async def capture_current_quarter_snapshot(
         quarter_label=snapshot_context.quarter_label,
         year=snapshot_context.year,
         quarter_number=snapshot_context.quarter_number,
-        metrics=metrics,
+        metrics=stored_metrics,
         department_id=snapshot_context.department_id,
         snapshot_type=snapshot_context.snapshot_type,
         captured_by_user_id=captured_by_user_id,

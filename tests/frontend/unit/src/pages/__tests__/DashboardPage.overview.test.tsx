@@ -9,13 +9,13 @@ const fetchOverviewMock = vi.fn();
 const fetchDashboardSummaryMock = vi.fn();
 const downloadSummaryCsvMock = vi.fn();
 let canViewCommitteeMock = false;
+let readableResourcesMock = new Set(['controls', 'reports', 'risks']);
 
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({
+        canReadControls: readableResourcesMock.has('controls'),
         canViewCommittee: canViewCommitteeMock,
-        // The ICT Committee tab gates on authz.can('read','ict_committee');
-        // these overview specs never exercise it, so it stays denied here.
-        can: () => false,
+        can: (action: string, resource: string) => action === 'read' && readableResourcesMock.has(resource),
     }),
 }));
 
@@ -64,6 +64,7 @@ vi.mock('@/components/dashboard/OpenIssuesBySeverityChart', () => ({ OpenIssuesB
 vi.mock('@/components/dashboard/IssuesSummaryCard', () => ({ IssuesSummaryCard: () => <div>issue summary</div> }));
 
 import { DashboardPage } from '@/pages/DashboardPage';
+import { DashboardHeader } from '@/pages/dashboard/DashboardHeader';
 
 function createWrapper() {
     const queryClient = createTestQueryClient();
@@ -95,6 +96,7 @@ function createDeferred<T>() {
 describe('DashboardPage overview aggregation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        readableResourcesMock = new Set(['controls', 'reports', 'risks']);
         canViewCommitteeMock = false;
         fetchOverviewMock.mockResolvedValue({
             summary: {
@@ -106,6 +108,7 @@ describe('DashboardPage overview aggregation', () => {
                 risks_by_status: {},
                 critical_risks_count: 2,
                 average_net_risk_score: 4,
+                risk_thresholds: { critical: 3, high: 2, medium: 1 },
             },
             department_metrics: [],
             gross_distribution: { distribution: [] },
@@ -148,6 +151,43 @@ describe('DashboardPage overview aggregation', () => {
         expect(screen.getByText('issue summary')).toBeInTheDocument();
         expect(screen.getByText('department filter shown')).toBeInTheDocument();
         expect(screen.getByText('department table focus enabled')).toBeInTheDocument();
+        expect(screen.getByText('freshness.updated')).toBeInTheDocument();
+        const generatedTime = screen.getByText((_, element) => element?.tagName === 'TIME');
+        expect(generatedTime).toHaveAttribute('datetime', '2026-03-07T10:00:00Z');
+        expect(generatedTime).not.toHaveTextContent('2026-03-07T10:00:00Z');
+        expect(screen.getByRole('button', { name: /risk_levels\.critical/ })).toBeInTheDocument();
+        expect(screen.queryByText(/stats\.(live|stable|urgent|calculated)/)).not.toBeInTheDocument();
+    });
+
+    it('hides the Total Controls card for a risk/report reader without controls:read', async () => {
+        readableResourcesMock = new Set(['reports', 'risks']);
+
+        render(
+            <MemoryRouter>
+                <DashboardPage />
+                <LocationProbe />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
+        expect(screen.queryByRole('button', { name: /stats\.total_controls/ })).not.toBeInTheDocument();
+        expect(screen.getByTestId('location')).toHaveTextContent('/');
+    });
+
+    it('keeps the Total Controls card and link for authorized actors', async () => {
+        render(
+            <MemoryRouter>
+                <DashboardPage />
+                <LocationProbe />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        const controlsCard = await screen.findByRole('button', { name: /stats\.total_controls/ });
+        fireEvent.click(controlsCard);
+
+        expect(screen.getByTestId('location')).toHaveTextContent('/controls');
     });
 
     it('stops overview fetching when the committee view is active', async () => {
@@ -162,6 +202,7 @@ describe('DashboardPage overview aggregation', () => {
                 risks_by_status: {},
                 critical_risks_count: 2,
                 average_net_risk_score: 4,
+                risk_thresholds: { critical: 3, high: 2, medium: 1 },
             },
             department_metrics: [],
             gross_distribution: { distribution: [] },
@@ -203,6 +244,7 @@ describe('DashboardPage overview aggregation', () => {
 
         expect(await screen.findByText('committee')).toBeInTheDocument();
         expect(fetchOverviewMock).not.toHaveBeenCalled();
+        expect(screen.queryByText('freshness.updated')).not.toBeInTheDocument();
     });
 
     it('hides optional dashboard actions when backend capabilities are missing', async () => {
@@ -216,6 +258,7 @@ describe('DashboardPage overview aggregation', () => {
                 risks_by_status: {},
                 critical_risks_count: 2,
                 average_net_risk_score: 4,
+                risk_thresholds: { critical: 3, high: 2, medium: 1 },
             },
             department_metrics: [],
             gross_distribution: { distribution: [] },
@@ -260,6 +303,7 @@ describe('DashboardPage overview aggregation', () => {
                 risks_by_status: {},
                 critical_risks_count: 2,
                 average_net_risk_score: 4,
+                risk_thresholds: { critical: 3, high: 2, medium: 1 },
             },
             department_metrics: [],
             gross_distribution: { distribution: [] },
@@ -305,6 +349,7 @@ describe('DashboardPage overview aggregation', () => {
                 risks_by_status: {},
                 critical_risks_count: 2,
                 average_net_risk_score: 4,
+                risk_thresholds: { critical: 3, high: 2, medium: 1 },
             },
             department_metrics: [],
             gross_distribution: { distribution: [] },
@@ -349,6 +394,7 @@ describe('DashboardPage overview aggregation', () => {
                 risks_by_status: {},
                 critical_risks_count: 2,
                 average_net_risk_score: 4,
+                risk_thresholds: { critical: 3, high: 2, medium: 1 },
             },
             department_metrics: [],
             gross_distribution: { distribution: [] },
@@ -382,7 +428,12 @@ describe('DashboardPage overview aggregation', () => {
         await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/?viewMode=department'));
         fireEvent.click(await screen.findByTitle('actions.export_summary_excel'));
 
-        expect(downloadSummaryCsvMock).toHaveBeenCalledWith({ departmentId: null });
+        expect(downloadSummaryCsvMock).toHaveBeenCalledWith({
+            controlForm: null,
+            controlStatus: null,
+            departmentId: null,
+            riskLevel: 'all',
+        });
     });
 
     it('announces a failed filtered export and retries the captured department without changing the URL', async () => {
@@ -415,9 +466,60 @@ describe('DashboardPage overview aggregation', () => {
         fireEvent.click(screen.getByRole('button', { name: 'actions.retry' }));
 
         await waitFor(() => expect(downloadSummaryCsvMock).toHaveBeenCalledTimes(2));
-        expect(downloadSummaryCsvMock).toHaveBeenNthCalledWith(1, { departmentId: 10 });
-        expect(downloadSummaryCsvMock).toHaveBeenNthCalledWith(2, { departmentId: 10 });
+        expect(downloadSummaryCsvMock).toHaveBeenNthCalledWith(1, {
+            controlForm: null,
+            controlStatus: null,
+            departmentId: 10,
+            riskLevel: 'all',
+        });
+        expect(downloadSummaryCsvMock).toHaveBeenNthCalledWith(2, {
+            controlForm: null,
+            controlStatus: null,
+            departmentId: 10,
+            riskLevel: 'all',
+        });
         await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
         expect(screen.getByTestId('location')).toHaveTextContent(initialUrl ?? '');
+    });
+});
+
+describe('DashboardHeader freshness states', () => {
+    const baseProps = {
+        canExport: false,
+        isExporting: false,
+        onExport: () => undefined,
+        subtitle: 'Subtitle',
+        title: 'Dashboard',
+        exportLabel: 'Export',
+        updatedLabel: 'Updated',
+        updatingLabel: 'Updating',
+        updateFailedLabel: 'Update failed — showing data from',
+        generatedAt: '2026-05-15T12:00:00',
+        locale: 'en',
+        showFreshness: true,
+    };
+
+    it('announces an in-progress refresh without claiming live data', () => {
+        render(<DashboardHeader {...baseProps} isUpdating updateFailed={false} />);
+
+        expect(screen.getByText('Updating')).toBeInTheDocument();
+        expect(screen.queryByText('Live Data')).not.toBeInTheDocument();
+    });
+
+    it('retains the generation time when an update fails', () => {
+        render(<DashboardHeader {...baseProps} isUpdating={false} updateFailed />);
+
+        expect(screen.getByText('Update failed — showing data from')).toBeInTheDocument();
+        expect(screen.getByText('May 15, 2026, 12:00 PM')).toHaveAttribute('datetime', '2026-05-15T12:00:00');
+    });
+
+    it.each([
+        { isUpdating: false, updateFailed: false },
+        { isUpdating: true, updateFailed: false },
+        { isUpdating: false, updateFailed: true },
+    ])('hides overview freshness outside the overview for $isUpdating/$updateFailed state', (state) => {
+        render(<DashboardHeader {...baseProps} {...state} showFreshness={false} />);
+
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 });

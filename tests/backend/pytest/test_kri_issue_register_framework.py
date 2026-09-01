@@ -540,7 +540,7 @@ async def test_current_view_exports_match_filters_and_preserve_mature_issue_fiel
     assert rejected_kri.status_code == 400
     assert rejected_issue.status_code == 400
     assert rejected_kri.json()["detail"]["code"] == "point_in_time_export_requires_report"
-    assert rejected_issue.json()["detail"]["code"] == "point_in_time_export_requires_report"
+    assert rejected_issue.json()["detail"]["code"] == "evaluation_date_export_requires_report"
 
     invalid_group = await auth_client.get(
         "/api/v1/issues/export",

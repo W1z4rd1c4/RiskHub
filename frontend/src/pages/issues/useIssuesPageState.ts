@@ -147,7 +147,7 @@ export function useIssuesPageState(language: SupportedLanguage = 'en') {
         try { await issuesApi.downloadExport({ ...listParams, offset: 0 }, language); }
         finally { setIsExporting(false); }
     }, [language, listParams]);
-    const exportIssueSnapshot = useCallback(async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
+    const exportIssueEvaluation = useCallback(async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
         setIsExporting(true);
         try {
             await reportApi.exportIssues({ format, asOfDate, filters: {
@@ -162,7 +162,7 @@ export function useIssuesPageState(language: SupportedLanguage = 'en') {
 
     return {
         capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,
-        errorKey, exportCurrentIssues, exportIssueSnapshot, facets: visibleFacets, fetchIssues, filters, groups,
+        errorKey, exportCurrentIssues, exportIssueEvaluation, facets: visibleFacets, fetchIssues, filters, groups,
         hasLoadedOnce, isAccessDenied, isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
         search: urlState.search, selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
         selectedGroupLabel: groupLabel(groups, selectedGroupValue), selectedGroupValue, setCurrentPage,

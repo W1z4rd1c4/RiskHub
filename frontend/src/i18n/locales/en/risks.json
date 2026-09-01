@@ -58,10 +58,11 @@
     "controls": "Controls",
     "kris": "KRIs",
     "history": "History",
-    "assessment": "Risk Assessment"
+    "assessment": "Assessment questionnaires"
   },
+  "scores_heading": "Gross and net Risk scores",
   "questionnaires": {
-    "title": "Risk Assessment",
+    "title": "Assessment questionnaires",
     "subtitle": "Questionnaire history and current status for this risk.",
     "assessment_summary_title": "Assessment Summary",
     "assessment_summary_empty": "No submitted assessment yet.",

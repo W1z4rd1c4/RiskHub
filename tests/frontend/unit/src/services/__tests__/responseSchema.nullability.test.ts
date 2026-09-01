@@ -144,6 +144,7 @@ describe('response schema nullability alignment', () => {
                     risks_by_status: {},
                     critical_risks_count: 0,
                     average_net_risk_score: 0,
+                    risk_thresholds: { critical: 16, high: 10, medium: 5 },
                     total_vendors: 0,
                     high_risk_vendors_count: 0,
                 },

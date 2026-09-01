@@ -39,10 +39,11 @@ export function IssuesPage() {
         createLabel={t('actions.new_issue')}
         exportLabel={t('common:actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog
+            dateMode="evaluation"
             isOpen={isOpen}
             onClose={onClose}
             onCurrentViewSubmit={async () => { await state.exportCurrentIssues(); onClose(); }}
-            onSubmit={async (payload) => { await state.exportIssueSnapshot(payload); onClose(); }}
+            onSubmit={async (payload) => { await state.exportIssueEvaluation(payload); onClose(); }}
             isSubmitting={state.isExporting}
             dataTestId="issues-export-dialog"
             title={t('register.export.title')}

@@ -9,12 +9,14 @@ import { buildDashboardStats } from './dashboardStats';
 import { extractDashboardOverviewData } from './dashboardOverviewData';
 
 interface UseDashboardOverviewStateOptions {
+    canReadControls: boolean;
     enabled?: boolean;
     filters: DashboardFilters;
     t: (key: string) => string;
 }
 
 export function useDashboardOverviewState({
+    canReadControls,
     enabled = true,
     filters,
     t,
@@ -44,7 +46,9 @@ export function useDashboardOverviewState({
         t,
     });
     const stats = buildDashboardStats({
+        canReadControls,
         canReadIssues: resolveCapabilityFlag(overviewQuery.data?.capabilities, 'can_view_issue_metrics'),
+        canReadVendors: resolveCapabilityFlag(overviewQuery.data?.capabilities, 'can_view_vendor_metrics'),
         departmentMetrics,
         issueSummary,
         summary,

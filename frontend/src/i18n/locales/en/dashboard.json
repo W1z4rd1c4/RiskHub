@@ -3,7 +3,11 @@
   "page_subtitle": "Overview of risk posture and control performance across the organization.",
   "welcome": "Welcome back, {{name}}",
   "loading": "Synchronizing Insight...",
-  "live_data": "Live Data",
+  "freshness": {
+    "updated": "Updated",
+    "updating": "Updating",
+    "update_failed": "Update failed — showing data from"
+  },
   "widgets": {
     "risk_overview": "Risk Overview",
     "control_status": "Control Status",
@@ -30,11 +34,7 @@
     "active_depts": "Active Depts",
     "critical_risks": "Critical Risks",
     "avg_risk_score": "Avg Risk Score",
-    "vendors": "Vendors",
-    "live": "Live",
-    "stable": "Stable",
-    "urgent": "Urgent",
-    "calculated": "Calculated"
+    "vendors": "Vendors"
   },
   "actions": {
     "export_summary_excel": "Export Summary CSV"
@@ -86,7 +86,7 @@
     "departmental_visibility": "Departmental Visibility",
     "no_execution_history": "No execution history available",
     "critical_risks": "Critical Risks",
-    "risk_exposure_by_dept": "Risk Exposure by Dept",
+    "risk_exposure_by_dept": "Sum of net Risk scores",
     "recent_activity": "Recent Activity"
   },
   "quarterly": {
@@ -117,7 +117,17 @@
     "last_quarter": "last quarter",
     "no_snapshot_banner": "No snapshot for {{period}}. Snapshot-based deltas are unavailable.",
     "no_snapshot_hint": "No historical snapshot - comparison unavailable",
-    "not_available": "N/A"
+    "comparison_unavailable": "Comparison unavailable for these observations",
+    "missing_definition": "Metric definition unavailable",
+    "not_available": "N/A",
+    "new_from_zero": "New (from 0) +{{change}}",
+    "observation_evidence": "Quarterly comparison observation evidence",
+    "stock_observations": "Stock observations",
+    "source": {
+      "live": "Live",
+      "stored": "Stored",
+      "missing": "Missing"
+    }
   },
   "kri": {
     "all_current": "All KRIs Current",
@@ -226,6 +236,10 @@
     "view_all_high_risk_vendors": "View all high-risk vendors",
     "none": "None",
     "no_department_exposure_data": "No department exposure data",
+    "risk_count": "{{count}} Risks",
+    "risk_count_one": "{{count}} Risk",
+    "risk_count_few": "{{count}} Risks",
+    "risk_count_other": "{{count}} Risks",
     "no_recent_significant_activity": "No recent significant activity",
     "today": "Today",
     "yesterday": "Yesterday",
@@ -251,7 +265,10 @@
     "risk_sum": "Risk Σ"
   },
   "risk_levels": {
-    "critical": "Critical"
+    "critical": "Critical",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low"
   },
   "department_table": {
     "columns": {

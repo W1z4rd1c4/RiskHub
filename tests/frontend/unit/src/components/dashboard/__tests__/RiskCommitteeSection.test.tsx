@@ -15,6 +15,10 @@ vi.mock('@/i18n/hooks', () => ({
             if (key === 'risk_committee.top_of_total' && typeof options === 'object') {
                 return `Top ${options.shown} of ${options.total}`;
             }
+            if (key === 'sections.risk_exposure_by_dept') return 'Sum of net Risk scores';
+            if (key === 'risk_committee.risk_count' && typeof options === 'object') {
+                return `${options.count} Risks`;
+            }
             return key;
         },
     }),
@@ -153,6 +157,10 @@ describe('RiskCommitteeSection', () => {
         expect(screen.getByText('Top 1 of 7')).toBeInTheDocument();
         expect(screen.getByText('risk_committee.high_risk_vendors')).toBeInTheDocument();
         expect(screen.getByText('Operations')).toBeInTheDocument();
+        expect(screen.getByText('Sum of net Risk scores')).toBeInTheDocument();
+        expect(screen.getByText('3 Risks')).toBeInTheDocument();
+        expect(screen.getByRole('progressbar', { name: 'Operations: 18; 3 Risks' })).toHaveAttribute('aria-valuenow', '18');
+        expect(screen.queryByText(/Critical|High/)).not.toBeInTheDocument();
         expect(screen.getByText('Risk approval')).toBeInTheDocument();
         expect(screen.getByText('3 days ago')).toBeInTheDocument();
 

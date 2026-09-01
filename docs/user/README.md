@@ -74,8 +74,9 @@ are always limited by server scope and capabilities; a missing value or action
 can therefore be an access result rather than missing data.
 
 Use **Current view** export for all matching rows in the live filtered register,
-not only the visible page. Risk, Control, KRI, and Issue also offer a separate
-historical snapshot for as-of evidence. Lifecycle and pending approval remain
+not only the visible page. Risk, Control, and KRI also offer a separate
+historical snapshot for as-of evidence. Issue instead evaluates age and overdue
+status on current register rows for a selected date; it does not reconstruct past rows. Lifecycle and pending approval remain
 separate: an approved record can stay Active while a proposed change waits for
 review, and Archive or Restore appears only when the row capability allows it.
 

@@ -38,7 +38,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.snapshot_periods import get_quarter_end, get_quarter_start
-from app.core.snapshot_service import save_quarter_snapshot
+from app.core.snapshot_service import (
+    SNAPSHOT_METRIC_DEFINITION_IDS,
+    SNAPSHOT_METRIC_DEFINITIONS_KEY,
+    save_quarter_snapshot,
+)
 from app.db.session import session_context
 from app.models.activity_log import ActivityAction, ActivityEntityType, ActivityLog
 from app.models.approval_request import (
@@ -57,6 +61,7 @@ from app.models.quarterly_metric_snapshot import (
 )
 from app.models.risk import ControlRiskLink, Risk
 from app.models.vendor import Vendor
+from app.services._kri_history.periods import overdue_required_period_end
 
 # --- target quarters -------------------------------------------------------
 QUARTERS: list[tuple[int, int]] = [
@@ -513,6 +518,7 @@ def compute_metrics(data: dict, end: datetime, end_date: date, dept: int | None)
         and (r.archived_at is None or r.archived_at >= end)
         and in_scope_risk(r)
     ]
+    active_risk_ids = {r.id for r in active}
     active_count = len(active)
     priority = sum(1 for r in active if r.is_priority)
 
@@ -526,7 +532,7 @@ def compute_metrics(data: dict, end: datetime, end_date: date, dept: int | None)
     # KRI metrics from history, as of quarter end; dept via the KRI's risk
     measured = breaches = within = overdue = 0
     for kri in kris:
-        if kri.created_at >= end:
+        if kri.created_at >= end or kri.risk_id not in active_risk_ids:
             continue
         if dept is not None and risk_dept.get(kri.risk_id) != dept:
             continue
@@ -539,7 +545,7 @@ def compute_metrics(data: dict, end: datetime, end_date: date, dept: int | None)
             breaches += 1
         else:
             within += 1
-        if latest.period_end + timedelta(days=15) < end_date:
+        if latest.period_end < overdue_required_period_end(end_date, kri.frequency):
             overdue += 1
     # Mirrors app.core._snapshot_metrics.kri.calculate_kri_health: no KRIs is vacuously healthy.
     kri_health = round(within / measured * 100) if measured else 100
@@ -594,7 +600,10 @@ async def write_snapshots(db: AsyncSession, data: dict, owner_id: int, dept_ids:
         end_date = end.date()
         label = f"{year}-Q{q}"
         for dept in scopes:
-            metrics = compute_metrics(data, end, end_date, dept)
+            metrics = {
+                **compute_metrics(data, end, end_date, dept),
+                SNAPSHOT_METRIC_DEFINITIONS_KEY: dict(SNAPSHOT_METRIC_DEFINITION_IDS),
+            }
             await save_quarter_snapshot(
                 db,
                 quarter_label=label,
@@ -604,6 +613,7 @@ async def write_snapshots(db: AsyncSession, data: dict, owner_id: int, dept_ids:
                 department_id=dept,
                 captured_by_user_id=owner_id,
                 notes=SNAPSHOT_NOTES,
+                captured_at=end,
             )
             written += 1
     await db.commit()

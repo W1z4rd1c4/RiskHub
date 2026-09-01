@@ -1,28 +1,45 @@
 from __future__ import annotations
 
+from typing import Literal
+
+SuppressionReason = Literal[
+    "different_definition",
+    "incomparable_source",
+    "missing_definition",
+    "missing_observation",
+    "unequal_window",
+]
+
 
 def calculate_changes(
     this_quarter: dict,
     last_quarter: dict,
-    unavailable_snapshot_metrics: set[str],
+    suppressed_metrics: dict[str, SuppressionReason],
 ) -> dict:
     changes = {}
-    metric_keys = set(this_quarter) | set(last_quarter) | unavailable_snapshot_metrics
+    metric_keys = set(this_quarter) | set(last_quarter) | set(suppressed_metrics)
     for key in metric_keys:
-        if key in unavailable_snapshot_metrics:
+        if key in suppressed_metrics:
             changes[key] = {
-                "absolute": 0,
-                "percentage": 0,
+                "absolute": None,
+                "percentage": None,
                 "direction": "unknown",
-                "note": "Snapshot unavailable for selected period",
+                "reason": suppressed_metrics[key],
             }
             continue
 
         old_val = last_quarter.get(key, 0)
         new_val = this_quarter.get(key, 0)
-        pct_change = 100 if old_val == 0 and new_val > 0 else 0 if old_val == 0 else round(
-            ((new_val - old_val) / old_val) * 100, 1
-        )
+        if old_val == 0 and new_val != 0:
+            changes[key] = {
+                "absolute": new_val,
+                "percentage": None,
+                "direction": "unknown",
+                "reason": "baseline_zero",
+            }
+            continue
+
+        pct_change = 0 if old_val == 0 else round(((new_val - old_val) / old_val) * 100, 1)
         changes[key] = {
             "absolute": new_val - old_val,
             "percentage": pct_change,

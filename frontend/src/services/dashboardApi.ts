@@ -39,17 +39,41 @@ export interface DashboardRiskByCellItem extends Pick<RiskSummary, 'id' | 'risk_
 }
 
 export interface DashboardMetricChange {
-    absolute: number;
-    percentage: number;
+    absolute: number | null;
+    percentage: number | null;
     direction: 'up' | 'down' | 'same' | 'unknown';
+    reason?: 'baseline_zero' | 'different_definition' | 'incomparable_source' | 'missing_definition' | 'missing_observation' | 'unequal_window';
     note?: string;
+}
+
+export type DashboardMetricSource = 'live' | 'stored' | 'missing';
+
+export interface DashboardMetricObservationSide {
+    source: DashboardMetricSource;
+    start?: string;
+    end?: string;
+    observed_at?: string | null;
+    definition_id?: string;
+}
+
+export interface DashboardMetricObservation {
+    metric_type: 'flow' | 'stock';
+    current: DashboardMetricObservationSide;
+    compare: DashboardMetricObservationSide;
 }
 
 export interface DashboardQuarterlyComparison {
     this_quarter: Record<string, number>;
     last_quarter: Record<string, number>;
     changes: Record<string, DashboardMetricChange>;
-    period: { this_start: string; this_end: string; last_start: string; last_end: string };
+    period: {
+        this_start: string;
+        this_end: string;
+        last_start: string;
+        last_end: string;
+        window_type: 'equal_elapsed' | 'complete_quarters';
+    };
+    metric_observations: Record<string, DashboardMetricObservation>;
     snapshot_info?: {
         current_quarter: string;
         last_quarter: string;
@@ -58,7 +82,7 @@ export interface DashboardQuarterlyComparison {
         missing_snapshot_quarters?: string[];
         snapshot_sources?: {
             current: 'live' | 'stored' | 'missing';
-            compare: 'stored' | 'missing';
+            compare: 'live' | 'stored' | 'missing';
         };
         missing_snapshot_metrics?: {
             current: string[];

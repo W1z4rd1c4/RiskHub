@@ -142,7 +142,7 @@ async def export_vendors(
 @router.get("/issues/export", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
 async def export_issues(
     format: ExportFormatQuery = Query(..., description="Export format: csv"),
-    as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
+    as_of_date: Optional[date] = Query(None, description="Evaluation date for ageing and overdue status (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: Optional[IssueStatus] = Query(None, alias="status"),
     severity: Optional[IssueSeverity] = Query(None),

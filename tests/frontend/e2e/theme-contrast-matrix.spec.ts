@@ -543,7 +543,7 @@ test.describe('UX-24 audited theme matrix', () => {
     const dashboardStatValue = dashboardStatCard.getByRole('heading', { level: 3 });
     expect(await dashboardStatValue.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightForeground);
-    await expectReadableTypography(dashboardStatCard.getByText('Live', { exact: true }), 'Dashboard status label');
+    await expect(dashboardStatCard.getByText('Live', { exact: true })).toHaveCount(0);
     const controlAnalyticsHeading = page.getByRole('heading', { name: 'Control Analytics' });
     expect(await controlAnalyticsHeading.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightForeground);
@@ -978,7 +978,7 @@ test.describe('UX-24 audited theme matrix', () => {
     const committeeMetadata = [
       page.getByText('Operations · Claims Processing / FNOL', { exact: true }),
       page.locator('main .glass-card').filter({ hasText: 'UX-24 Operations' })
-        .getByText('2 risks', { exact: true }),
+        .getByText('2 Risks', { exact: true }),
       page.locator('main .glass-card').filter({ hasText: 'UX-24 Activity' })
         .getByText('Today', { exact: true }),
     ];
@@ -991,7 +991,7 @@ test.describe('UX-24 audited theme matrix', () => {
       criticalRiskCard.getByText('UX-24 Critical Risk'),
       page.getByRole('heading', { name: 'Critical Vendors' }),
       page.getByText('UX-24 Critical Vendor', { exact: true }),
-      page.getByRole('heading', { name: 'Risk Exposure by Dept' }),
+      page.getByRole('heading', { name: 'Sum of net Risk scores' }),
       page.getByText('UX-24 Operations', { exact: true }),
       page.getByRole('heading', { name: 'Recent Activity' }),
       page.getByText('UX-24 Activity', { exact: true }),

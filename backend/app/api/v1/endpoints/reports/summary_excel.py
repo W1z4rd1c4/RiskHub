@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,9 +22,21 @@ router = APIRouter()
 async def download_summary_export(
     format: ExportFormatQuery = Query(..., description="Export format: csv"),
     department_id: Optional[int] = Query(None, description="Filter by department"),
+    control_status: Optional[Literal["draft", "active", "inactive"]] = Query(None),
+    control_form: Optional[Literal["manual", "automatic"]] = Query(None),
+    risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(None),
+    include_archived: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/reports/summary/export?format=csv")
     context = build_report_export_context(current_user=current_user, department_id=department_id)
-    return await build_summary_export(db=db, context=context, export_format=export_format)
+    return await build_summary_export(
+        db=db,
+        context=context,
+        export_format=export_format,
+        control_status=control_status,
+        control_form=control_form,
+        risk_level=risk_level,
+        include_archived=include_archived,
+    )

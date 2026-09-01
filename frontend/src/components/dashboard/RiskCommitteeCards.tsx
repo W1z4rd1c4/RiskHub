@@ -60,7 +60,7 @@ export function RiskCommitteeErrorState({ message, t }: { message: string | null
         <div className="space-y-6">
             <QuarterlyComparisonWidget />
             <div className="glass-card">
-                <p className="text-slate-500 text-sm">{message || t('risk_committee.no_summary_data')}</p>
+                <p className="text-muted-foreground text-sm">{message || t('risk_committee.no_summary_data')}</p>
             </div>
         </div>
     );
@@ -101,7 +101,7 @@ function CriticalRisksCard({
             </div>
 
             {summary.critical_risks.length === 0 ? (
-                <p className="text-slate-500 text-sm">{t('risk_committee.no_critical_risks')}</p>
+                <p className="text-muted-foreground text-sm">{t('risk_committee.no_critical_risks')}</p>
             ) : (
                 <div className="space-y-3">
                     <p className="text-xs font-semibold text-muted-foreground">
@@ -194,7 +194,7 @@ function CriticalVendorsCard({
                     {t('risk_committee.restricted_by_access_scope', { ns: 'dashboard' })}
                 </p>
             ) : summary.critical_vendors.length === 0 ? (
-                <p className="text-slate-500 text-sm">{t('risk_committee.no_vendors_in_scope')}</p>
+                <p className="text-muted-foreground text-sm">{t('risk_committee.no_vendors_in_scope')}</p>
             ) : (
                 <div className="space-y-3">
                     <p className="text-xs font-semibold text-muted-foreground">
@@ -216,7 +216,7 @@ function CriticalVendorsCard({
                                     {v.risk_score_1_5}/5
                                 </span>
                             </div>
-                            <p className="text-xs text-slate-500 uppercase tracking-widest">
+                            <p className="text-xs text-muted-foreground uppercase tracking-widest">
                                 {v.department_name} · {v.process}{v.subprocess ? ` / ${v.subprocess}` : ''}
                             </p>
                         </button>
@@ -228,8 +228,6 @@ function CriticalVendorsCard({
 }
 
 function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSummary; t: SafeTFunction }) {
-    const { thresholds } = useRiskThresholds();
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -243,12 +241,16 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
             </div>
 
             {summary.department_exposure.length === 0 ? (
-                <p className="text-slate-500 text-sm">{t('risk_committee.no_department_exposure_data')}</p>
+                <p className="text-muted-foreground text-sm">{t('risk_committee.no_department_exposure_data')}</p>
             ) : (
                 <div className="space-y-3">
                     {summary.department_exposure.map((dept, index) => {
                         const maxExposure = summary.department_exposure[0]?.total_exposure || 1;
                         const barWidth = (dept.total_exposure / maxExposure) * 100;
+                        const riskCountLabel = t('risk_committee.risk_count', {
+                            count: dept.risk_count,
+                            ns: 'dashboard',
+                        });
 
                         return (
                             <div
@@ -257,22 +259,27 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
                             >
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-sm font-bold text-foreground">{dept.name}</span>
-                                    <span className={`text-sm font-black ${riskScoreVariantClass('text', dept.total_exposure, thresholds)}`}>
+                                    <span className="text-sm font-black text-foreground">
                                         {dept.total_exposure}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2 mb-2">
                                     <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                                         <motion.div
+                                            aria-label={`${dept.name}: ${dept.total_exposure}; ${riskCountLabel}`}
+                                            aria-valuemax={maxExposure}
+                                            aria-valuemin={0}
+                                            aria-valuenow={dept.total_exposure}
                                             initial={{ width: 0 }}
                                             animate={{ width: `${barWidth}%` }}
                                             transition={{ delay: 0.3 + index * 0.1, duration: 0.5 }}
-                                            className="h-full bg-gradient-to-r from-purple-500 to-rose-500 rounded-full"
+                                            className="h-full bg-purple-400 rounded-full"
+                                            role="progressbar"
                                         />
                                     </div>
                                 </div>
-                                <p className="text-xs text-slate-500 uppercase tracking-widest">
-                                    {dept.risk_count} risk{dept.risk_count !== 1 ? 's' : ''}
+                                <p className="text-xs text-muted-foreground uppercase tracking-widest">
+                                    {riskCountLabel}
                                 </p>
                             </div>
                         );
@@ -297,7 +304,7 @@ function RecentActivityCard({ summary, t }: { summary: DashboardCommitteeSummary
             </div>
 
             {summary.recent_activity.length === 0 ? (
-                <p className="text-slate-500 text-sm">{t('risk_committee.no_recent_significant_activity')}</p>
+                <p className="text-muted-foreground text-sm">{t('risk_committee.no_recent_significant_activity')}</p>
             ) : (
                 <div className="space-y-3 max-h-80 overflow-y-auto">
                     {summary.recent_activity.map((activity) => (
@@ -313,7 +320,7 @@ function RecentActivityCard({ summary, t }: { summary: DashboardCommitteeSummary
                                     <p className="text-xs text-foreground font-medium truncate">
                                         {activity.entity_name}
                                     </p>
-                                    <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                                         <Clock className="h-3 w-3" />
                                         {formatTimeAgo(activity.created_at, t)}
                                     </p>

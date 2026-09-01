@@ -38,20 +38,20 @@ export function QuestionnaireAssessmentSummary({
             {latestSubmittedLoading ? (
                 <div className="text-sm text-slate-400">{t('loading.generic')}</div>
             ) : !latestSubmitted ? (
-                <div className="text-sm text-slate-500">
+                <div className="text-sm text-slate-400">
                     {t('risks:questionnaires.assessment_summary_empty')}
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             {t('risks:questionnaires.assessment_summary_submitted_at')}
                         </p>
                         <p className="text-sm text-white">{formatQuestionnaireDate(latestSubmitted.submitted_at, locale)}</p>
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             {t('risks:questionnaires.assessment_summary_changed_count')}
                         </p>
                         <p className="text-sm text-white">
@@ -60,14 +60,14 @@ export function QuestionnaireAssessmentSummary({
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             {t('risks:questionnaires.assessment_summary_likelihood')}
                         </p>
                         <p className="text-sm text-white">{latestLikelihood ?? '—'}</p>
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             {t('risks:questionnaires.assessment_summary_worst_case_impact')}
                         </p>
                         <p className="text-sm text-white">

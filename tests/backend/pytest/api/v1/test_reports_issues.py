@@ -203,6 +203,103 @@ async def _create_vendor_source_issue(
 
 
 @pytest.mark.asyncio
+async def test_issue_evaluation_export_labels_current_rows_and_keeps_date_based_ageing(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+) -> None:
+    issue = Issue(
+        title="Current state at evaluation export",
+        description="The row state is current; only ageing uses the evaluation date.",
+        severity="medium",
+        status="open",
+        source_type="manual",
+        department_id=test_department.id,
+        owner_user_id=None,
+        created_by_id=test_user.id,
+        opened_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC),
+        due_at=datetime(2026, 1, 10, 17, 0, tzinfo=UTC),
+    )
+    db_session.add(issue)
+    await db_session.commit()
+
+    issue.status = "in_progress"
+    issue.severity = "critical"
+    issue.owner_user_id = test_user.id
+    db_session.add(
+        IssueRemediationPlan(
+            issue_id=issue.id,
+            status="active",
+            progress_percent=65,
+            owner_user_id=test_user.id,
+            target_date=datetime(2026, 2, 1, tzinfo=UTC),
+        )
+    )
+    await db_session.commit()
+
+    response = await auth_client.get(
+        "/api/v1/reports/issues/export",
+        params={"format": "csv", "as_of_date": "2026-01-15"},
+    )
+
+    assert response.status_code == 200, response.text
+    row = next(item for item in _parse_csv(response.text) if item["Issue ID"] == str(issue.id))
+    assert row["Register State"] == "Current Issue register state at generation time"
+    assert row["Evaluation Date"] == "2026-01-15"
+    assert row["Generated At"].endswith("+00:00")
+    assert row["Status"] == "in_progress"
+    assert row["Severity"] == "critical"
+    assert row["Owner"] == test_user.name
+    assert row["Remediation Status"] == "active"
+    assert row["Remediation Progress"] == "65"
+    assert row["Overdue"] == "yes"
+    assert row["Age (days)"] == "14"
+    assert row["Record Type"] == "Issue"
+    assert row["Disclaimer"] == (
+        "The evaluation date affects ageing and overdue calculations only; "
+        "this export does not reconstruct historical Issue state."
+    )
+
+
+@pytest.mark.asyncio
+async def test_empty_issue_evaluation_export_contains_unambiguous_metadata(
+    auth_client: AsyncClient,
+) -> None:
+    response = await auth_client.get(
+        "/api/v1/reports/issues/export",
+        params={
+            "format": "csv",
+            "as_of_date": "2026-01-15",
+            "status": "closed",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    rows = _parse_csv(response.text)
+    assert len(rows) == 1
+    metadata = rows[0]
+    assert metadata["Record Type"] == "Export Metadata"
+    assert metadata["Register State"] == "Current Issue register state at generation time"
+    assert metadata["Evaluation Date"] == "2026-01-15"
+    assert metadata["Generated At"].endswith("+00:00")
+    assert metadata["Disclaimer"] == (
+        "The evaluation date affects ageing and overdue calculations only; "
+        "this export does not reconstruct historical Issue state."
+    )
+    assert metadata["Issue ID"] == ""
+    assert metadata["Title"] == ""
+    context_fields = {
+        "Record Type",
+        "Register State",
+        "Evaluation Date",
+        "Generated At",
+        "Disclaimer",
+    }
+    assert all(value == "" for key, value in metadata.items() if key not in context_fields)
+
+
+@pytest.mark.asyncio
 async def test_export_issues_csv_contains_context(
     auth_client: AsyncClient,
     issue_export_data,
@@ -226,6 +323,7 @@ async def test_export_issues_csv_contains_context(
     assert overdue_row["Remediation Progress"] == "40"
 
     requested_exception_row = next(row for row in rows if row["Title"] == "Dept issue not overdue")
+    assert requested_exception_row["Overdue"] == "no"
     assert requested_exception_row["Exception Status"] == "requested"
 
 
@@ -470,7 +568,7 @@ async def test_export_issues_overdue_only_filter(
 
 
 @pytest.mark.asyncio
-async def test_current_register_overdue_keeps_active_exception_while_historical_report_suppresses_it(
+async def test_current_register_overdue_keeps_active_exception_while_evaluation_report_suppresses_it(
     db_session: AsyncSession,
     auth_client: AsyncClient,
     test_department: Department,
@@ -479,7 +577,7 @@ async def test_current_register_overdue_keeps_active_exception_while_historical_
     now = datetime.now(UTC).replace(microsecond=0)
     issue = Issue(
         title="Active exception overdue mode split",
-        description="Current register and historical reporting intentionally differ",
+        description="Current register and evaluation reporting intentionally differ",
         severity="high",
         status="in_progress",
         source_type="manual",
@@ -509,7 +607,7 @@ async def test_current_register_overdue_keeps_active_exception_while_historical_
         "/api/v1/issues/export",
         params={"search": issue.title, "overdue": True, "locale": "en"},
     )
-    historical = await auth_client.get(
+    evaluation = await auth_client.get(
         "/api/v1/reports/issues/export",
         params={
             "format": "csv",
@@ -518,10 +616,10 @@ async def test_current_register_overdue_keeps_active_exception_while_historical_
         },
     )
     assert current.status_code == 200, current.text
-    assert historical.status_code == 200, historical.text
+    assert evaluation.status_code == 200, evaluation.text
     current_row = next(row for row in _parse_csv(current.text) if row["issue_id"] == str(issue.id))
     assert current_row["overdue_code"] == "yes"
-    assert issue.title not in {row["Title"] for row in _parse_csv(historical.text)}
+    assert issue.title not in {row["Title"] for row in _parse_csv(evaluation.text)}
 
 
 @pytest.mark.asyncio

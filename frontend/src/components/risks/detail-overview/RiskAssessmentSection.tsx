@@ -20,7 +20,7 @@ export function RiskAssessmentSection({ risk }: RiskAssessmentSectionProps) {
         >
             <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
                 <ShieldAlert className="h-5 w-5 text-accent" />
-                <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('tabs.assessment', { ns: 'risks' })}</h3>
+                <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('scores_heading', { ns: 'risks' })}</h3>
             </div>
 
             <div className="flex flex-col md:flex-row items-center justify-center gap-12 md:gap-24 py-4">

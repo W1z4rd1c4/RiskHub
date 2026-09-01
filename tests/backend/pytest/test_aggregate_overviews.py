@@ -478,7 +478,11 @@ async def test_dashboard_overview_cache_returns_stale_data_until_expiry(
     state = {"summary_total_controls": 1}
 
     async def fake_summary(**kwargs):
-        return DashboardSummaryResponse(total_controls=state["summary_total_controls"], total_risks=0)
+        return DashboardSummaryResponse(
+            total_controls=state["summary_total_controls"],
+            total_risks=0,
+            risk_thresholds={"critical": 15, "high": 10, "medium": 5},
+        )
 
     async def fake_department_metrics(**kwargs):
         return []

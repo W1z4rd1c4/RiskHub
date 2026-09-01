@@ -8,12 +8,13 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.datetime_utils import UtcAwareDatetime, coerce_utc
-from app.core.permissions import control_visibility_clause, risk_visibility_clause, visible_risk_ids
-from app.models import Control, ControlExecution, Risk, User
-from app.models.global_config import ConfigDefaults
+from app.core.datetime_utils import UtcAwareDatetime, coerce_utc, utc_now
+from app.core.permissions import control_visibility_clause, has_permission, visible_risk_ids
+from app.models import Control, ControlExecution, Department, User
 from app.models.risk import ControlRiskLink
+from app.schemas.dashboard import DashboardSummaryResponse
 from app.schemas.execution import ExecutionResultEnum
+from app.services._dashboard_metrics import build_dashboard_summary_metrics
 from app.services._reporting.exports.pipeline import _stream_binary
 from app.services._reporting.exports.shared import ExportFormat
 from app.services._reporting.tabular import generate_tabular_csv
@@ -162,74 +163,90 @@ async def build_audit_trail_export(
     )
 
 
-def _build_summary_rows(summary: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
+def _build_summary_rows(
+    summary: DashboardSummaryResponse,
+    *,
+    generated_at: datetime,
+    department_label: str,
+    control_status: str | None,
+    control_form: str | None,
+    risk_level: str | None,
+    include_archived: bool,
+    can_view_controls: bool,
+    can_view_risks: bool,
+    can_view_vendors: bool,
+) -> tuple[list[str], list[list[Any]]]:
     headers = ["Metric", "Value"]
     rows: list[list[Any]] = [
-        ["Total Controls", summary.get("total_controls", 0)],
-        ["Total Risks", summary.get("total_risks", 0)],
-        ["Critical Risks", summary.get("critical_risks_count", 0)],
-        ["Average Net Risk Score", f"{float(summary.get('average_net_risk_score', 0)):.1f}"],
+        ["Generated At", generated_at.isoformat()],
+        [
+            "Scope",
+            (
+                "Actor-visible Dashboard records in the selected Department"
+                if department_label != "All actor-visible Departments"
+                else "All actor-visible Dashboard records"
+            ),
+        ],
+        ["Filter: Department", department_label],
     ]
 
-    controls_by_status = summary.get("controls_by_status") or {}
-    if controls_by_status:
-        rows.append(["", ""])
-        rows.append(["Controls by Status", ""])
-        for ctrl_status, count in controls_by_status.items():
-            rows.append([str(ctrl_status).title(), count])
+    if can_view_risks:
+        rows.extend(
+            [
+                ["Filter: Risk Level", risk_level or "all"],
+                ["Applies to: Risk Level", "Risk metrics only"],
+            ]
+        )
+    if can_view_controls:
+        rows.extend(
+            [
+                ["Filter: Control Status", control_status or "all"],
+                ["Applies to: Control Status", "Control metrics only"],
+                ["Filter: Control Form", control_form or "all"],
+                ["Applies to: Control Form", "Control metrics only"],
+            ]
+        )
+    rows.append(["Unaffected by Risk/Control Filters", "Vendor metrics"])
+    rows.append(["Filter: Archived Records", "included" if include_archived else "excluded"])
+
+    if can_view_risks:
+        rows.extend(
+            [
+                ["Critical Risk Threshold", summary.risk_thresholds.critical],
+                ["High Risk Threshold", summary.risk_thresholds.high],
+                ["Medium Risk Threshold", summary.risk_thresholds.medium],
+            ]
+        )
+    if can_view_controls:
+        rows.append(["Total Controls", summary.total_controls])
+    if can_view_risks:
+        rows.extend(
+            [
+                ["Total Risks", summary.total_risks],
+                ["Critical Risks", summary.critical_risks_count],
+                ["Average Net Risk Score", str(summary.average_net_risk_score)],
+            ]
+        )
+    if can_view_vendors:
+        rows.extend(
+            [
+                ["Total Vendors", summary.total_vendors],
+                ["High-risk Vendors", summary.high_risk_vendors_count],
+            ]
+        )
+
+    if can_view_controls:
+        for heading, breakdown in (
+            ("Controls by Status", summary.controls_by_status),
+            ("Controls by Form", summary.controls_by_form),
+            ("Controls by Frequency", summary.controls_by_frequency),
+        ):
+            if breakdown:
+                rows.append(["", ""])
+                rows.append([heading, ""])
+                for value, count in breakdown.items():
+                    rows.append([str(value).replace("_", " ").title(), count])
     return headers, rows
-
-
-async def _build_summary_payload(
-    *,
-    db: AsyncSession,
-    context: ReportExportContextLike,
-) -> tuple[list[str], list[list[Any]]]:
-    summary: dict[str, Any] = {
-        "total_controls": 0,
-        "total_risks": 0,
-        "critical_risks_count": 0,
-        "average_net_risk_score": 0,
-        "controls_by_status": {},
-    }
-
-    if not context.empty_scope:
-        controls_query = select(Control).where(Control.live())
-        risks_query = select(Risk).where(Risk.live())
-
-        control_scope = control_visibility_clause(context.current_user, department_id=context.department_id)
-        risk_scope = await risk_visibility_clause(db, context.current_user, department_id=context.department_id)
-        if control_scope is not None:
-            controls_query = controls_query.where(control_scope)
-        if risk_scope is not None:
-            risks_query = risks_query.where(risk_scope)
-
-        controls_result = await db.execute(controls_query)
-        controls = controls_result.scalars().all()
-
-        risks_result = await db.execute(risks_query)
-        risks = risks_result.scalars().all()
-
-        total_controls = len(controls)
-        total_risks = len(risks)
-        critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
-        critical_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= critical_threshold)
-        avg_net_score = sum(r.net_probability * r.net_impact for r in risks) / len(risks) if risks else 0
-
-        controls_by_status: dict[str, int] = {}
-        for control in controls:
-            ctrl_status = control.status or "unknown"
-            controls_by_status[ctrl_status] = controls_by_status.get(ctrl_status, 0) + 1
-
-        summary = {
-            "total_controls": total_controls,
-            "total_risks": total_risks,
-            "critical_risks_count": critical_risks,
-            "average_net_risk_score": avg_net_score,
-            "controls_by_status": controls_by_status,
-        }
-
-    return _build_summary_rows(summary)
 
 
 async def build_summary_export(
@@ -237,8 +254,39 @@ async def build_summary_export(
     db: AsyncSession,
     context: ReportExportContextLike,
     export_format: ExportFormat,
+    control_status: str | None = None,
+    control_form: str | None = None,
+    risk_level: str | None = None,
+    include_archived: bool = False,
 ) -> StreamingResponse:
-    headers, rows = await _build_summary_payload(db=db, context=context)
+    generated_at = utc_now()
+    summary = await build_dashboard_summary_metrics(
+        db=db,
+        current_user=context.current_user,
+        department_id=context.department_id,
+        control_status=control_status,
+        control_form=control_form,
+        risk_level=risk_level,
+        include_archived=include_archived,
+    )
+    department_label = "All actor-visible Departments"
+    if context.department_id is not None:
+        department_label = "Unknown department"
+        department = await db.scalar(select(Department).where(Department.id == context.department_id))
+        if department is not None:
+            department_label = f"{department.code} — {department.name}"
+    headers, rows = _build_summary_rows(
+        summary,
+        generated_at=generated_at,
+        department_label=department_label,
+        control_status=control_status,
+        control_form=control_form,
+        risk_level=risk_level,
+        include_archived=include_archived,
+        can_view_controls=has_permission(context.current_user, "controls", "read"),
+        can_view_risks=has_permission(context.current_user, "risks", "read"),
+        can_view_vendors=has_permission(context.current_user, "vendors", "read"),
+    )
     return _stream_binary(
         filename_base="dashboard-summary",
         export_format=export_format,

@@ -9,6 +9,11 @@ export interface DashboardSummary {
     risks_by_status: Record<string, number>;
     critical_risks_count: number;
     average_net_risk_score: number;
+    risk_thresholds: {
+        critical: number;
+        high: number;
+        medium: number;
+    };
 
     total_vendors?: number;
     high_risk_vendors_count?: number;

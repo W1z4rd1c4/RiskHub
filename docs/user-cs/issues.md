@@ -116,7 +116,7 @@ Přepínejte mezi pohledem Vše a skupinami podle kategorie, oddělení, vlastn�
 Dialog Export má dva režimy evidence:
 
 - **Aktuální pohled** stáhne všechny řádky odpovídající aktuálnímu hledání, filtrům, řazení, pohledu a vybrané skupině bez stránkování seznamu. CSV zachová ID a název nálezu, kódy a popisky stavu a závažnosti, zdrojový kontext, oddělení, vlastníka, termín, prodlení a stáří, čitelné vazby na rizika/kontroly/exekuce/KRI, stav a postup remediation, remediation ownera a cílové datum i stav a expiraci výjimky.
-- **Historický snapshot** používá zvolené datum a reports službu. Použijte ho pro evidenci stavu k datu, ne jako živou pracovní frontu.
+- **Vyhodnotit aktuální záznamy k datu** používá reports službu a exportuje aktuální hodnoty registru nálezů. Zvolené datum řídí pouze výpočet stáří a stavu po termínu. Export obsahuje čas vytvoření a nereprodukuje minulý stav registru k tomuto datu. Když filtru neodpovídá žádný nález, jasně označený řádek Export Metadata zachová tento kontext a nepředstavuje nález.
 
 Pro audit konkrétního záznamu použijte v detailu záložky Přehled, Workflow a Historie.
 
@@ -125,7 +125,7 @@ Pro spolehlivý výsledek filtrujte v tomto pořadí:
 1. Začněte dost široce, abyste ověřili existenci záznamu.
 2. Zužte pohled podle oddělení, vlastníka, stavu, dodavatele nebo data.
 3. Otevřete vzorek záznamu a ověřte, že filtr odpovídá záměru.
-4. Pro živou frontu zvolte Aktuální pohled, pro stav k datu Historický snapshot, a exportujte jen potřebnou evidenci.
+4. Pro živou frontu zvolte Aktuální pohled; pro výpočet stáří a prodlení k datu zvolte Vyhodnotit aktuální záznamy k datu. Exportujte jen potřebnou evidenci.
 
 Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílejte zbytečné osobní nebo citlivé informace.
 

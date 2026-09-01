@@ -11,10 +11,10 @@ department-id list to a single snapshot scope. This file PINS all branches:
     [a, b, ...]     -> "unavailable"   (no multi-dept snapshot exists)
 
   resolve_snapshot_metrics(...):
-    snapshot_department_id == "unavailable"   -> ({}, "missing")
-    is_live_current_quarter                   -> (capture_snapshot_metrics(db, dept_ids), "live")
-    stored snapshot found                     -> (dict(record.metrics), "stored")
-    stored snapshot missing                   -> ({}, "missing")
+    snapshot_department_id == "unavailable"   -> empty, missing, no stored metadata
+    is_live_current_quarter                    -> live metrics, live, no stored metadata
+    stored snapshot found                     -> saved metrics, stored, capture time/type
+    stored snapshot missing                   -> empty, missing, no stored metadata
 
 >>> CROSS-MODULE IDENTITY (the "live" path IS the snapshot metric set) <<<
 The live branch returns EXACTLY app.core.snapshot_service.capture_snapshot_metrics(db,
@@ -22,11 +22,6 @@ dept_ids) — the same aggregation captured into stored snapshots — so a live 
 comparison and a freshly-captured snapshot are byte-for-byte identical dicts. This is pinned
 in test_live_path_equals_capture_snapshot_metrics so a refactor cannot let the live and
 stored comparison paths drift apart.
-
-Evidence:
-  - snapshots.py:32  `return await capture_snapshot_metrics(db, dept_ids), "live"`
-  - snapshots.py:34  `snapshot_record = await get_quarter_snapshot(db, quarter_label, ...)`
-  - snapshots.py:37  `return dict(snapshot_record.metrics or {}), "stored"`
 
 Seed: one active priority risk + one breaching KRI so capture_snapshot_metrics has non-zero,
 distinguishable values (priority_risks == 1, kri_breaches == 1).
@@ -77,7 +72,7 @@ async def test_live_path_equals_capture_snapshot_metrics(db_session: AsyncSessio
     """Live current-quarter path returns capture_snapshot_metrics verbatim, tagged 'live'."""
     await _seed_distinguishable_metrics(db_session, department_id=test_department.id, owner_id=test_user_cro.id)
 
-    metrics, source = await resolve_snapshot_metrics(
+    metrics, source, observed_at, snapshot_type, metric_definitions = await resolve_snapshot_metrics(
         db_session,
         quarter_label=QUARTER_LABEL,
         is_live_current_quarter=True,
@@ -87,6 +82,9 @@ async def test_live_path_equals_capture_snapshot_metrics(db_session: AsyncSessio
     expected = await capture_snapshot_metrics(db_session, None)
 
     assert source == "live"
+    assert observed_at is None
+    assert snapshot_type is None
+    assert metric_definitions["priority_risks"] == "riskhub.snapshot.priority_risks.v1"
     assert metrics == expected
     # Sanity: the distinguishing markers are present and non-zero.
     assert metrics["priority_risks"] == 1
@@ -108,7 +106,7 @@ async def test_stored_path_returns_saved_metrics(db_session: AsyncSession, test_
     )
     await db_session.commit()
 
-    metrics, source = await resolve_snapshot_metrics(
+    metrics, source, observed_at, snapshot_type, metric_definitions = await resolve_snapshot_metrics(
         db_session,
         quarter_label=QUARTER_LABEL,
         is_live_current_quarter=False,
@@ -117,6 +115,9 @@ async def test_stored_path_returns_saved_metrics(db_session: AsyncSession, test_
     )
 
     assert source == "stored"
+    assert observed_at is not None
+    assert snapshot_type.value == "quarter_end"
+    assert metric_definitions == {}
     # Returns the SAVED numbers, NOT the live ones (live would be priority_risks==1).
     assert metrics == stored_metrics
 
@@ -124,7 +125,7 @@ async def test_stored_path_returns_saved_metrics(db_session: AsyncSession, test_
 @pytest.mark.asyncio
 async def test_stored_path_missing_snapshot_returns_missing(db_session: AsyncSession):
     """A past-quarter request with no stored snapshot returns ({}, 'missing')."""
-    metrics, source = await resolve_snapshot_metrics(
+    metrics, source, observed_at, snapshot_type, metric_definitions = await resolve_snapshot_metrics(
         db_session,
         quarter_label="2020-Q4",
         is_live_current_quarter=False,
@@ -133,12 +134,15 @@ async def test_stored_path_missing_snapshot_returns_missing(db_session: AsyncSes
     )
     assert metrics == {}
     assert source == "missing"
+    assert observed_at is None
+    assert snapshot_type is None
+    assert metric_definitions == {}
 
 
 @pytest.mark.asyncio
 async def test_multi_department_scope_is_unavailable(db_session: AsyncSession):
     """A 'unavailable' snapshot scope short-circuits to ({}, 'missing') even when live."""
-    metrics, source = await resolve_snapshot_metrics(
+    metrics, source, observed_at, snapshot_type, metric_definitions = await resolve_snapshot_metrics(
         db_session,
         quarter_label=QUARTER_LABEL,
         is_live_current_quarter=True,  # ignored; the 'unavailable' guard wins
@@ -147,3 +151,6 @@ async def test_multi_department_scope_is_unavailable(db_session: AsyncSession):
     )
     assert metrics == {}
     assert source == "missing"
+    assert observed_at is None
+    assert snapshot_type is None
+    assert metric_definitions == {}

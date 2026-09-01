@@ -116,7 +116,9 @@ If you receive a stale or rejected approval, do not immediately resubmit the sam
 
 ## Finding, Filtering, and Evidence
 
-Use filters first, then export. For committee or quarterly views, note whether the selected period has complete historical snapshots or whether the page marks part of the comparison as unavailable.
+Use filters first, then export. The summary export uses the same actor-visible population, filters, and configured Risk thresholds as the screen, and records its own generation time. Its metadata states that Risk Level applies only to Risk metrics, Control Status and Control Form apply only to Control metrics, and Vendor metrics are unaffected by those Risk and Control filters. Hidden metrics are not quantified.
+
+For an in-progress current quarter, flow metrics compare equal elapsed windows; completed quarters use their complete windows. The comparison shows exact flow ranges plus the observation time and Live, Stored, or Missing source for stock values. Stored observations must have the same snapshot type: quarter-end pairs compare, while manual pairs compare only when both were captured at the exact quarter end or at equivalent positions within their quarters. Mixed manual and quarter-end observations, genuinely unequal manual positions, and observations with different metric definitions are not compared. A change from zero is shown as **New (from 0)** with the absolute change and no percentage. Unsupported or missing comparisons remain N/A rather than implying a trend.
 
 For reliable results, filter in this order:
 

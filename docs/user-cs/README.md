@@ -74,11 +74,14 @@ tohoto rozsahu vrátí stránkování na stranu 1. Volby filtrů, počty, skupin
 nebo akce proto může znamenat omezený přístup, nikoli chybějící data.
 
 Export **Aktuální pohled** použijte pro všechny odpovídající řádky živého
-filtrovaného registru, ne jen pro zobrazenou stránku. Rizika, kontroly, KRI a
-nálezy mají navíc samostatný historický snapshot pro evidenci k datu. Lifecycle
-a čekající schválení zůstávají oddělené: schválený záznam může zůstat Aktivní,
-zatímco navržená změna čeká na review, a Archivovat nebo Obnovit se zobrazí jen
-tehdy, když to povoluje capability konkrétního řádku.
+filtrovaného registru, ne jen pro zobrazenou stránku. Rizika, kontroly a KRI
+mají navíc samostatný historický snapshot pro evidenci k datu. Nálezy místo
+toho vyhodnocují stáří a stav po termínu nad aktuálními řádky registru ke
+zvolenému datu. Export uvádí i nezávislý čas vytvoření a nereprodukuje minulý
+stav registru. Lifecycle a čekající schválení zůstávají oddělené: schválený
+záznam může zůstat Aktivní, zatímco navržená změna čeká na review, a Archivovat
+nebo Obnovit se zobrazí jen tehdy, když to povoluje capability konkrétního
+řádku.
 
 ## Jak vaše role ovlivňuje zobrazení
 

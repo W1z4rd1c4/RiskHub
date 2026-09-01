@@ -79,6 +79,11 @@ export function QuarterlyComparisonWidget() {
 
     const metrics = Object.keys(metricLabels);
     const snapshot = getSnapshotAvailability(data);
+    const flowObservation = data?.metric_observations?.new_risks;
+    const currentSource = flowObservation?.current.source ?? 'live';
+    const compareSource = flowObservation?.compare.source ?? 'live';
+
+    const sourceLabel = (source: 'live' | 'stored' | 'missing') => t(`quarterly.source.${source}`);
 
     return (
         <motion.div
@@ -121,26 +126,44 @@ export function QuarterlyComparisonWidget() {
             )}
 
             {data && (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {metrics.map((key) => {
-                        return (
-                            <QuarterMetricCard
-                                key={key}
-                                change={data.changes?.[key]}
-                                compareSnapshotAvailable={snapshot.compareSnapshotAvailable}
-                                currentSnapshotAvailable={snapshot.currentSnapshotAvailable}
-                                isSnapshotMetric={snapshot.snapshotMetrics.has(key)}
-                                keyName={key}
-                                label={metricLabels[key] ?? key}
-                                lastValue={data.last_quarter?.[key] ?? null}
-                                missingCompareSnapshotMetric={snapshot.missingCompareSnapshotMetrics.has(key)}
-                                missingCurrentSnapshotMetric={snapshot.missingCurrentSnapshotMetrics.has(key)}
-                                t={t}
-                                thisValue={data.this_quarter?.[key] ?? null}
-                            />
-                        );
-                    })}
-                </div>
+                <>
+                    <div
+                        aria-label={t('quarterly.observation_evidence')}
+                        className="mb-4 break-words rounded-xl border border-white/5 bg-white/[0.03] px-4 py-3 text-xs text-slate-400"
+                    >
+                        <p>
+                            <span className="font-bold text-slate-300">{data.snapshot_info?.current_quarter} · {sourceLabel(currentSource)}</span>
+                            {' '}{data.period.this_start} – {data.period.this_end}
+                        </p>
+                        <p>
+                            <span className="font-bold text-slate-300">{data.snapshot_info?.last_quarter} · {sourceLabel(compareSource)}</span>
+                            {' '}{data.period.last_start} – {data.period.last_end}
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {metrics.map((key) => {
+                            return (
+                                <QuarterMetricCard
+                                    key={key}
+                                    change={data.changes?.[key]}
+                                    compareQuarter={data.snapshot_info?.last_quarter}
+                                    compareSnapshotAvailable={snapshot.compareSnapshotAvailable}
+                                    currentQuarter={data.snapshot_info?.current_quarter}
+                                    currentSnapshotAvailable={snapshot.currentSnapshotAvailable}
+                                    isSnapshotMetric={snapshot.snapshotMetrics.has(key)}
+                                    keyName={key}
+                                    label={metricLabels[key] ?? key}
+                                    lastValue={data.last_quarter?.[key] ?? null}
+                                    metricObservation={data.metric_observations?.[key]}
+                                    missingCompareSnapshotMetric={snapshot.missingCompareSnapshotMetrics.has(key)}
+                                    missingCurrentSnapshotMetric={snapshot.missingCurrentSnapshotMetrics.has(key)}
+                                    t={t}
+                                    thisValue={data.this_quarter?.[key] ?? null}
+                                />
+                            );
+                        })}
+                    </div>
+                </>
             )}
         </motion.div>
     );

@@ -1697,14 +1697,20 @@ async def test_quarterly_comparison_historical_current_uses_stored_snapshot(clie
         selected_label,
         selected_start.year,
         ((selected_start.month - 1) // 3) + 1,
-        {"priority_risks": 7},
+        {
+            "priority_risks": 7,
+            "_metric_definitions": {"priority_risks": "riskhub.snapshot.priority_risks.v1"},
+        },
     )
     await save_quarter_snapshot(
         db_session,
         compare_label,
         compare_start.year,
         ((compare_start.month - 1) // 3) + 1,
-        {"priority_risks": 3},
+        {
+            "priority_risks": 3,
+            "_metric_definitions": {"priority_risks": "riskhub.snapshot.priority_risks.v1"},
+        },
     )
     await db_session.commit()
 
@@ -1718,6 +1724,91 @@ async def test_quarterly_comparison_historical_current_uses_stored_snapshot(clie
     assert payload["last_quarter"]["priority_risks"] == 3
     assert payload["changes"]["priority_risks"]["absolute"] == 4
     assert payload["snapshot_info"]["snapshot_sources"] == {"current": "stored", "compare": "stored"}
+    assert payload["period"] == {
+        "this_start": selected_start.isoformat(),
+        "this_end": _shift_quarter(selected_start, 1).isoformat(),
+        "last_start": compare_start.isoformat(),
+        "last_end": selected_start.isoformat(),
+        "window_type": "complete_quarters",
+    }
+    assert payload["metric_observations"]["new_risks"] == {
+        "metric_type": "flow",
+        "current": {
+            "source": "live",
+            "start": selected_start.isoformat(),
+            "end": _shift_quarter(selected_start, 1).isoformat(),
+        },
+        "compare": {
+            "source": "live",
+            "start": compare_start.isoformat(),
+            "end": selected_start.isoformat(),
+        },
+    }
+    assert payload["metric_observations"]["priority_risks"]["current"]["source"] == "stored"
+    assert payload["metric_observations"]["priority_risks"]["compare"]["source"] == "stored"
+
+
+@pytest.mark.asyncio
+async def test_quarterly_comparison_values_without_definitions_name_missing_definition(
+    client_cro: AsyncClient,
+    db_session,
+):
+    """Present observations without definition IDs are not missing observations."""
+    from app.core.snapshot_service import save_quarter_snapshot
+
+    actual_start = _quarter_start(datetime.now(UTC))
+    selected_start = _shift_quarter(actual_start, -1)
+    compare_start = _shift_quarter(actual_start, -2)
+    selected_label = _quarter_label(selected_start)
+    compare_label = _quarter_label(compare_start)
+
+    current_snapshot = await save_quarter_snapshot(
+        db_session,
+        selected_label,
+        selected_start.year,
+        ((selected_start.month - 1) // 3) + 1,
+        {"priority_risks": 7},
+    )
+    compare_snapshot = await save_quarter_snapshot(
+        db_session,
+        compare_label,
+        compare_start.year,
+        ((compare_start.month - 1) // 3) + 1,
+        {"priority_risks": 3},
+    )
+    current_snapshot.captured_at = _shift_quarter(selected_start, 1)
+    compare_snapshot.captured_at = selected_start
+    await db_session.commit()
+
+    response = await client_cro.get(
+        "/api/v1/dashboard/quarterly-comparison",
+        params={"current_quarter": selected_label, "compare_quarter": compare_label},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["this_quarter"]["priority_risks"] == 7
+    assert payload["last_quarter"]["priority_risks"] == 3
+    assert payload["changes"]["priority_risks"]["reason"] == "missing_definition"
+
+
+@pytest.mark.asyncio
+async def test_quarterly_comparison_allows_completed_quarters_with_unequal_calendar_lengths(
+    client_cro: AsyncClient,
+) -> None:
+    response = await client_cro.get(
+        "/api/v1/dashboard/quarterly-comparison",
+        params={"current_quarter": "2025-Q2", "compare_quarter": "2025-Q1"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["period"]["window_type"] == "complete_quarters"
+    assert payload["changes"]["new_risks"] == {
+        "absolute": 0,
+        "percentage": 0,
+        "direction": "same",
+    }
 
 
 @pytest.mark.asyncio
@@ -1740,21 +1831,30 @@ async def test_quarterly_comparison_department_head_uses_scoped_snapshots(
         selected_label,
         selected_start.year,
         ((selected_start.month - 1) // 3) + 1,
-        {"priority_risks": 99},
+        {
+            "priority_risks": 99,
+            "_metric_definitions": {"priority_risks": "riskhub.snapshot.priority_risks.v1"},
+        },
     )
     await save_quarter_snapshot(
         db_session,
         compare_label,
         compare_start.year,
         ((compare_start.month - 1) // 3) + 1,
-        {"priority_risks": 88},
+        {
+            "priority_risks": 88,
+            "_metric_definitions": {"priority_risks": "riskhub.snapshot.priority_risks.v1"},
+        },
     )
     await save_quarter_snapshot(
         db_session,
         selected_label,
         selected_start.year,
         ((selected_start.month - 1) // 3) + 1,
-        {"priority_risks": 2},
+        {
+            "priority_risks": 2,
+            "_metric_definitions": {"priority_risks": "riskhub.snapshot.priority_risks.v1"},
+        },
         department_id=test_department.id,
     )
     await save_quarter_snapshot(
@@ -1762,7 +1862,10 @@ async def test_quarterly_comparison_department_head_uses_scoped_snapshots(
         compare_label,
         compare_start.year,
         ((compare_start.month - 1) // 3) + 1,
-        {"priority_risks": 1},
+        {
+            "priority_risks": 1,
+            "_metric_definitions": {"priority_risks": "riskhub.snapshot.priority_risks.v1"},
+        },
         department_id=test_department.id,
     )
     await db_session.commit()
@@ -1792,20 +1895,34 @@ async def test_quarterly_comparison_partial_snapshot_metric_remains_unavailable(
     selected_label = _quarter_label(selected_start)
     compare_label = _quarter_label(compare_start)
 
-    await save_quarter_snapshot(
+    current_snapshot = await save_quarter_snapshot(
         db_session,
         selected_label,
         selected_start.year,
         ((selected_start.month - 1) // 3) + 1,
-        {"priority_risks": 7, "active_vendors": 5},
+        {
+            "priority_risks": 7,
+            "active_vendors": 5,
+            "_metric_definitions": {
+                "priority_risks": "riskhub.snapshot.priority_risks.v1",
+                "active_vendors": "riskhub.snapshot.active_vendors.v1",
+            },
+        },
     )
-    await save_quarter_snapshot(
+    compare_snapshot = await save_quarter_snapshot(
         db_session,
         compare_label,
         compare_start.year,
         ((compare_start.month - 1) // 3) + 1,
-        {"priority_risks": 3},
+        {
+            "priority_risks": 3,
+            "_metric_definitions": {
+                "priority_risks": "riskhub.snapshot.priority_risks.v1",
+            },
+        },
     )
+    current_snapshot.captured_at = selected_start
+    compare_snapshot.captured_at = compare_start
     await db_session.commit()
 
     response = await client_cro.get(
@@ -1820,6 +1937,25 @@ async def test_quarterly_comparison_partial_snapshot_metric_remains_unavailable(
     assert payload["changes"]["active_vendors"]["direction"] == "unknown"
     assert "active_vendors" not in payload["snapshot_info"]["missing_snapshot_metrics"]["current"]
     assert "active_vendors" in payload["snapshot_info"]["missing_snapshot_metrics"]["compare"]
+    assert payload["metric_observations"]["active_vendors"]["current"] == {
+        "source": "stored",
+        "observed_at": selected_start.isoformat(),
+        "definition_id": "riskhub.snapshot.active_vendors.v1",
+    }
+    assert payload["metric_observations"]["active_vendors"]["compare"] == {
+        "source": "missing",
+        "observed_at": None,
+    }
+    assert payload["metric_observations"]["priority_risks"]["current"] == {
+        "source": "stored",
+        "observed_at": selected_start.isoformat(),
+        "definition_id": "riskhub.snapshot.priority_risks.v1",
+    }
+    assert payload["metric_observations"]["priority_risks"]["compare"] == {
+        "source": "stored",
+        "observed_at": compare_start.isoformat(),
+        "definition_id": "riskhub.snapshot.priority_risks.v1",
+    }
 
 
 @pytest.mark.asyncio

@@ -66,7 +66,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                         <FileText className="h-4 w-4 text-accent" />
                         {t('risks:questionnaires.title')}
                     </h3>
-                    <p className="text-slate-500 text-sm">
+                    <p className="text-slate-400 text-sm">
                         {t('risks:questionnaires.subtitle')}
                     </p>
 
@@ -102,7 +102,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                             {t('risks:questionnaires.send')}
                         </button>
                         {!risk.owner_id && (
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                                 {t('risks:questionnaires.owner_required')}
                             </p>
                         )}

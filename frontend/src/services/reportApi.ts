@@ -8,6 +8,12 @@ interface ReportFilters {
     status?: string | null;
 }
 
+interface DashboardSummaryExportFilters extends ReportFilters {
+    riskLevel?: string | null;
+    controlStatus?: string | null;
+    controlForm?: string | null;
+}
+
 export type UnifiedExportFormat = 'csv';
 
 interface RiskExportFilters extends ReportFilters {
@@ -152,10 +158,13 @@ function assertKriExportFilters(filters: KRIExportFilters): void {
 }
 
 export const reportApi = {
-    async downloadSummaryCsv(filters: ReportFilters = {}): Promise<void> {
+    async downloadSummaryCsv(filters: DashboardSummaryExportFilters = {}): Promise<void> {
         const query = buildExportQueryString({
             format: 'csv',
             department_id: filters.departmentId,
+            risk_level: filters.riskLevel === 'all' ? null : filters.riskLevel,
+            control_status: filters.controlStatus,
+            control_form: filters.controlForm,
         });
         const url = `/reports/summary/export${query}`;
         await downloadFile(url, 'dashboard-summary.csv');

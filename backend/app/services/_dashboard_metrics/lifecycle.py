@@ -19,7 +19,7 @@ from app.models import Control, Risk, User, Vendor
 from app.models.control import ControlForm, ControlFrequency, ControlStatus
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot
 from app.models.risk import RiskStatus
-from app.schemas.dashboard import DashboardSummaryResponse
+from app.schemas.dashboard import DashboardRiskThresholds, DashboardSummaryResponse
 from app.services._dashboard_metrics.risk_levels import (
     build_risk_level_condition_from_ranges,
     get_configured_risk_level_ranges,
@@ -73,12 +73,7 @@ async def build_dashboard_summary_metrics(
 
     controls_by_form = {}
     for form in ControlForm:
-        form_filter = Control.control_form == control_form if control_form else None
-        conditions = [Control.control_form == form.value] + [
-            condition
-            for condition in control_conditions
-            if form_filter is None or condition.compare(form_filter) is False
-        ]
+        conditions = [Control.control_form == form.value] + control_conditions
         count = (await db.execute(select(func.count(Control.id)).where(and_(*conditions)))).scalar() or 0
         if count > 0:
             controls_by_form[form.value] = count
@@ -138,6 +133,11 @@ async def build_dashboard_summary_metrics(
         risks_by_status=risks_by_status,
         critical_risks_count=critical_risks_count,
         average_net_risk_score=round(average_net_risk_score, 2),
+        risk_thresholds=DashboardRiskThresholds(
+            critical=risk_level_ranges["critical"][0],
+            high=risk_level_ranges["high"][0],
+            medium=risk_level_ranges["medium"][0],
+        ),
         total_vendors=total_vendors,
         high_risk_vendors_count=high_risk_vendors_count,
     )

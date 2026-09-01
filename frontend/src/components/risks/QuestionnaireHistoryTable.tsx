@@ -27,22 +27,22 @@ export function QuestionnaireHistoryTable({
             <table className="w-full">
                 <thead>
                     <tr className="border-b border-white/5">
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
                             {t('common:labels.status')}
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
                             {t('risks:questionnaires.columns.sent_at')}
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
                             {t('risks:questionnaires.columns.due_at')}
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
                             {t('risks:questionnaires.columns.submitted_at')}
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
                             {t('risks:questionnaires.columns.sent_by')}
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
                             {t('risks:questionnaires.columns.submitted_by')}
                         </th>
                     </tr>
@@ -56,7 +56,7 @@ export function QuestionnaireHistoryTable({
                         </tr>
                     ) : items.length === 0 ? (
                         <tr>
-                            <td colSpan={6} className="px-4 py-10 text-slate-500 text-sm">
+                            <td colSpan={6} className="px-4 py-10 text-slate-400 text-sm">
                                 {t('risks:questionnaires.empty')}
                             </td>
                         </tr>
