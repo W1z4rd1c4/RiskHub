@@ -114,6 +114,8 @@ export class DashboardPage {
     }
 
     async navigateToRiskHub(): Promise<void> {
+        await this.riskHubLink.scrollIntoViewIfNeeded();
+        await this.riskHubLink.focus();
         await this.riskHubLink.click();
         await expect(this.page).toHaveURL(/\/risk-hub(?:\?.*)?$/);
         await waitForDataLoad(this.page);
