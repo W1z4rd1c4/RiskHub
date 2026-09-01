@@ -491,15 +491,13 @@ describe('AssetForm — governed accountability edits (#88)', () => {
             const router = await renderNavigatingAssetEdit();
             const name = screen.getByTestId('asset-form-name');
 
-            await user.clear(name);
-            await user.type(name, 'Changed platform');
+            fireEvent.change(name, { target: { value: 'Changed platform' } });
             await user.click(screen.getByRole('button', { name: i18n.t('assets:actions.cancel') }));
             expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
             expect(router.state.location.pathname).toBe('/assets/88/edit');
             await user.click(screen.getByRole('button', { name: i18n.t('common:actions.stay') }));
 
-            await user.clear(name);
-            await user.type(name, '  Payments platform  ');
+            fireEvent.change(name, { target: { value: '  Payments platform  ' } });
             await user.click(screen.getByRole('button', { name: i18n.t('assets:actions.cancel') }));
             await waitFor(() => expect(router.state.location.pathname).toBe('/assets/88'));
             expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -510,7 +508,7 @@ describe('AssetForm — governed accountability edits (#88)', () => {
             mockUpdateAsset.mockRejectedValue(new Error('unavailable'));
             const router = await renderNavigatingAssetEdit();
 
-            await user.type(screen.getByTestId('asset-form-notes'), 'New note');
+            fireEvent.change(screen.getByTestId('asset-form-notes'), { target: { value: 'New note' } });
             await user.click(screen.getByTestId('asset-form-submit'));
             expect(await screen.findByText(i18n.t('assets:form.errors.save_failed'))).toBeInTheDocument();
             await user.click(screen.getByRole('button', { name: i18n.t('assets:actions.cancel') }));

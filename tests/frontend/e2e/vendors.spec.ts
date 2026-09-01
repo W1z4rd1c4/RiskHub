@@ -386,7 +386,7 @@ test.describe('Vendor Management (Deterministic)', () => {
             })).toBeVisible();
 
             const resolverApprovals = new ApprovalsPage(riskManagerPage);
-            await riskManagerPage.getByRole('link', { name: /^Approvals$/ }).click();
+            await riskManagerPage.getByRole('link', { name: /^Approvals\b/ }).click();
             await riskManagerPage.waitForURL(/\/approvals/);
             await resolverApprovals.waitForApprovalsReady();
             const requestIndex = await resolverApprovals.findCardByReason(reason);

@@ -79,7 +79,7 @@ export class KRIsPage {
         return this.page.locator('[class*="card"], [class*="Card"]');
     }
 
-    private async waitForKrisResponse(expected: { search?: string } = {}): Promise<void> {
+    private async waitForKrisResponse(expected: { search?: string; lifecycle?: string } = {}): Promise<void> {
         await this.page.waitForResponse(
             (response) => matchesCollectionResponse(response, '/api/v1/kris', expected),
             { timeout: 15000 },
@@ -270,7 +270,10 @@ export class KRIsPage {
     }
 
     async setStatusFilterArchived(): Promise<void> {
-        await this.page.getByTestId('kris-status-filter-archived').click();
+        await Promise.all([
+            this.waitForKrisResponse({ lifecycle: 'archived' }),
+            this.page.getByTestId('kris-status-filter-archived').click(),
+        ]);
         await this.waitForListReady();
     }
 
