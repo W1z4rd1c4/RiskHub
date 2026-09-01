@@ -108,11 +108,6 @@ function staticAuditRoutes(routes: readonly string[]): AuditRoute[] {
   return routes.map((route) => ({ logicalRoute: route, resolvedPath: route }));
 }
 
-function routeIdentity(url: string): string {
-  const parsed = new URL(url);
-  return `${parsed.pathname}${parsed.search}`;
-}
-
 async function auditRoutes(
   page: Page,
   routes: AuditRoute[],
@@ -131,7 +126,12 @@ async function auditRoutes(
   for (const route of routes) {
     await navigateSpa(page, route.resolvedPath, { timeout: 30000 });
     await waitForDataLoad(page, 30000);
-    expect(routeIdentity(page.url()), `resolved route ${route.logicalRoute}`).toBe(route.resolvedPath);
+    const actualUrl = new URL(page.url());
+    const expectedUrl = new URL(route.resolvedPath, actualUrl.origin);
+    expect(actualUrl.pathname, `resolved route ${route.logicalRoute}`).toBe(expectedUrl.pathname);
+    for (const [key, value] of expectedUrl.searchParams) {
+      expect(actualUrl.searchParams.get(key), `resolved route ${route.logicalRoute} query ${key}`).toBe(value);
+    }
 
     // Pin explicit WCAG tags (N8). Fail on EVERY violation the tags select — do
     // NOT filter by axe impact/severity (N9).

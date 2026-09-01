@@ -142,9 +142,11 @@ jobs:
         if: steps.system-chrome.outputs.available != 'true'
         timeout-minutes: 8
         working-directory: frontend
-        env:
-          PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
         run: npx playwright install --with-deps --only-shell chromium
+
+      - name: Install Playwright FFmpeg
+        working-directory: frontend
+        run: npx playwright install ffmpeg
 
       - name: Start backend
         working-directory: backend
@@ -198,7 +200,6 @@ jobs:
         working-directory: frontend
         env:
           CI: 'true'
-          PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
           if [ "${{ steps.system-chrome.outputs.available }}" != "true" ]; then

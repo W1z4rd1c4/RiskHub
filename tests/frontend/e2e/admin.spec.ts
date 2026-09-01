@@ -55,10 +55,10 @@ test.describe('Admin Console', () => {
             await expect(page.locator('main h1')).toHaveText(/Admin Console|Administrace/i, { timeout: 15000 });
 
             // Check that core admin tabs are present (locale-agnostic EN/CS labels)
-            await expect(page.getByRole('button', { name: /System Health|Stav systému/i })).toBeVisible({ timeout: 15000 });
-            await expect(page.getByRole('button', { name: /Application Logs|Aplikační logy/i })).toBeVisible({ timeout: 15000 });
-            await expect(page.getByRole('button', { name: /Audit Logs|Auditní logy/i })).toBeVisible({ timeout: 15000 });
-            await expect(page.getByRole('button', { name: /Active Sessions|Aktivní relace/i })).toBeVisible({ timeout: 15000 });
+            await expect(page.getByRole('tab', { name: /System Health|Stav systému/i })).toBeVisible({ timeout: 15000 });
+            await expect(page.getByRole('tab', { name: /Application Logs|Aplikační logy/i })).toBeVisible({ timeout: 15000 });
+            await expect(page.getByRole('tab', { name: /Audit Logs|Auditní logy/i })).toBeVisible({ timeout: 15000 });
+            await expect(page.getByRole('tab', { name: /Active Sessions|Aktivní relace/i })).toBeVisible({ timeout: 15000 });
         });
 
         test('should save log configuration using canonical app/audit payload fields', async ({ page }) => {

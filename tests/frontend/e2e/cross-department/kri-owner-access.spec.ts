@@ -18,7 +18,7 @@ async function openDeterministicCrossDeptKriForFinanceOwner(browser: Browser) {
     await krisPage.navigate();
     await krisPage.search(E2E_KRIS.CROSS_DEPT_FIN_REPORTS_IT.metric_name);
     await krisPage.openRowByText(E2E_KRIS.CROSS_DEPT_FIN_REPORTS_IT.metric_name);
-    await expect(page).toHaveURL(/\/kris\/\d+$/);
+    await expect(page).toHaveURL(/\/kris\/\d+(?:\?.*)?$/);
     await expect(page.locator('main h1').first()).toBeVisible();
 
     return { context, page };
@@ -45,7 +45,7 @@ test.describe('KRI Reporting Owner Cross-Department Access (Deterministic)', () 
         await expect(linkedRiskHeading).toBeVisible();
         await linkedRiskHeading.click();
 
-        await expect(page).toHaveURL(/\/risks\/\d+$/);
+        await expect(page).toHaveURL(/\/risks\/\d+(?:\?.*)?$/);
         await expect(page.locator('main h1, main h2').first()).toBeVisible();
         await expect(page.locator('h3').filter({ hasText: /Mitigating Controls|Zmírňující kontroly/i }).first()).toBeVisible();
         await context.close();
@@ -78,7 +78,7 @@ test.describe('KRI Reporting Owner Cross-Department Access (Deterministic)', () 
 
     test('Non-owner direct URL access to deterministic cross-department KRI is denied', async ({ browser }) => {
         const owner = await openDeterministicCrossDeptKriForFinanceOwner(browser);
-        const kriId = owner.page.url().split('/').pop();
+        const kriId = new URL(owner.page.url()).pathname.split('/').pop();
         await owner.context.close();
 
         const context = await browser.newContext();

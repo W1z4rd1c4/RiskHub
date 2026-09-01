@@ -115,7 +115,7 @@ export function ExportDialog({
             <div className="p-6 space-y-5">
                 {supportsCurrentView && (
                     <fieldset className="space-y-2">
-                        <legend className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                        <legend className="ml-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                             {t('export.purpose.label')}
                         </legend>
                         <label

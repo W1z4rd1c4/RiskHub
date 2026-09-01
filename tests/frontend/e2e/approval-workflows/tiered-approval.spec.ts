@@ -158,7 +158,7 @@ test.describe('Tiered Approval Model', () => {
             // Check for control requests
             for (let i = 0; i < count; i++) {
                 const card = approvalsPage.getCard(i);
-                const resourceType = await card.locator('.text-\\[10px\\].uppercase.tracking-widest').first().textContent();
+                const resourceType = await card.locator('span.uppercase.tracking-widest').first().textContent();
                 if (resourceType && resourceType.toLowerCase().includes('control')) {
                     // Found a control approval request
                     const status = await approvalsPage.getStatus(i);

@@ -53,7 +53,7 @@ test.describe('questionnaire workflow', () => {
 
             // Step 3 (defaults are ok)
             await page.getByRole('button', { name: /create risk|vytvořit riziko/i }).click();
-            await page.waitForURL(/\/risks\/\d+$/);
+            await page.waitForURL(/\/risks\/\d+(?:\?.*)?$/);
 
             riskUrl = page.url();
 

@@ -53,7 +53,7 @@ test.describe('KRI Management (Deterministic)', () => {
         await krisPage.search(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
 
         await krisPage.openRowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
-        await expect(riskManagerPage).toHaveURL(/\/kris\/\d+$/);
+        await expect(riskManagerPage).toHaveURL(/\/kris\/\d+(?:\?.*)?$/);
         await expect(
             riskManagerPage.getByRole('heading', { name: E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name })
         ).toBeVisible({ timeout: 15000 });

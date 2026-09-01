@@ -138,7 +138,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 await expect(page.getByTestId('asset-detail-archive')).toHaveCount(0);
                 await expect(page.getByTestId('asset-detail-restore')).toHaveCount(0);
                 await page.getByTestId('asset-detail-edit').click();
-                await expect(page).toHaveURL(new RegExp(`/assets/${asset!.id}/edit$`));
+                await expect(page).toHaveURL(new RegExp(`/assets/${asset!.id}/edit(?:\\?.*)?$`));
                 await expect(page.getByTestId('asset-form-submit')).toBeVisible();
 
                 await page.goto('/assets/new');
@@ -149,7 +149,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 await assetsPage.search(unrelatedAsset.name);
                 await expect(assetsPage.tableRows.filter({ hasText: unrelatedAsset.name })).toHaveCount(0);
                 await page.goto(`/assets/${unrelated!.id}`);
-                await expect(page.getByText(/Asset not found\.|Aktivum nenalezeno\./)).toBeVisible();
+                await expect(page.getByTestId('detail-load-unavailable')).toBeVisible();
                 await page.goto(`/assets/${unrelated!.id}/edit`);
                 await expect(page.getByTestId('asset-form-submit')).toHaveCount(0);
 
@@ -197,7 +197,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await expect(page.getByTestId('asset-detail-archive')).toHaveCount(0);
 
         await page.getByTestId('asset-detail-edit').click();
-        await expect(page).toHaveURL(new RegExp(`/assets/${asset!.id}/edit$`));
+        await expect(page).toHaveURL(new RegExp(`/assets/${asset!.id}/edit(?:\\?.*)?$`));
         await expect(page.getByTestId('asset-form-submit')).toBeVisible();
         await context.close();
     });
@@ -219,7 +219,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
 
         await deptHeadPage.goto(`/assets/${asset!.id}`);
         await waitForDataLoad(deptHeadPage);
-        await expect(deptHeadPage.getByText(/Asset not found\.|Aktivum nenalezeno\./)).toBeVisible();
+        await expect(deptHeadPage.getByTestId('detail-load-unavailable')).toBeVisible();
         await expect(deptHeadPage.locator('main h1')).toHaveCount(0);
         await expect(deptHeadPage.getByTestId('asset-detail-edit')).toHaveCount(0);
         await expect(deptHeadPage.getByTestId('asset-detail-archive')).toHaveCount(0);
@@ -277,7 +277,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         const assetsPage = new AssetsPage(riskManagerPage);
         await assetsPage.navigate();
         await assetsPage.createButton.click();
-        await riskManagerPage.waitForURL(/.*assets\/new$/);
+        await riskManagerPage.waitForURL(/.*assets\/new(?:\?.*)?$/);
 
         // Runtime choices are localized labels backed by stable canonical codes.
         await riskManagerPage.getByTestId('asset-form-asset-type').click();
@@ -305,7 +305,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.getByTestId('asset-form-name').fill(uniqueName);
         await riskManagerPage.getByTestId('asset-form-submit').click();
 
-        await riskManagerPage.waitForURL(/.*assets\/\d+$/);
+        await riskManagerPage.waitForURL(/.*assets\/\d+(?:\?.*)?$/);
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.locator('main h1').first()).toContainText(uniqueName);
         await expect(riskManagerPage.getByText('Application', { exact: true }).first()).toBeVisible();
@@ -321,7 +321,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.getByTestId('asset-form-submit').click();
 
         await expect(riskManagerPage.getByText(/Asset name is required|Název aktiva je povinný/)).toBeVisible();
-        await expect(riskManagerPage).toHaveURL(/.*assets\/new$/);
+        await expect(riskManagerPage).toHaveURL(/.*assets\/new(?:\?.*)?$/);
     });
 
     test('CIAA ratings outside the 1–5 Skala15 scale are rejected', async ({ riskManagerPage }) => {
@@ -372,7 +372,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.getByRole('option', { name: 'Operational', exact: true }).click();
         await riskManagerPage.getByTestId('asset-form-submit').click();
 
-        await riskManagerPage.waitForURL(new RegExp(`/assets/${created.id}$`));
+        await riskManagerPage.waitForURL(new RegExp(`/assets/${created.id}(?:\\?.*)?$`));
         // A fresh document independently proves persistence as well as the edit cache update.
         await riskManagerPage.goto(`/assets/${created.id}`);
         await waitForDataLoad(riskManagerPage);
@@ -578,7 +578,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
             ));
             await addDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
             dependencyCreated = (await added).status() === 201;
-            await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${asset!.id}$`));
+            await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${asset!.id}(?:\\?.*)?$`));
 
             const assetLinks = riskManagerPage.getByTestId('asset-asset-links');
             const linkRow = assetLinks.locator('li').filter({
@@ -593,7 +593,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
             const removeDialog = riskManagerPage.getByRole('alertdialog');
             await removeDialog.getByRole('textbox').fill('E2E direct asset dependency removal');
             await removeDialog.getByRole('button', { name: 'Remove link', exact: true }).click();
-            await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${asset!.id}$`));
+            await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${asset!.id}(?:\\?.*)?$`));
             await expect(linkRow).toHaveCount(0);
             dependencyCreated = false;
         } catch (error) {

@@ -7,13 +7,9 @@ interface SensitiveApprovalFixture {
     resourceType: string;
     action: string;
     status: string;
-    field: string;
-    oldValue: unknown;
-    newValue: unknown;
-}
-
-function displayedValue(value: unknown): string {
-    return value === null ? 'null' : String(value);
+    fieldLabel: string;
+    oldDisplayValue: string;
+    newDisplayValue: string;
 }
 
 export async function expectSensitiveApproval(page: Page, fixture: SensitiveApprovalFixture): Promise<void> {
@@ -30,7 +26,7 @@ export async function expectSensitiveApproval(page: Page, fixture: SensitiveAppr
     expect(await approvalsPage.getActionType(index)).toContain(fixture.action);
 
     await approvalsPage.expandChanges(index);
-    await expect(card).toContainText(fixture.field);
-    await expect(card).toContainText(displayedValue(fixture.oldValue));
-    await expect(card).toContainText(displayedValue(fixture.newValue));
+    await expect(card).toContainText(fixture.fieldLabel);
+    await expect(card).toContainText(fixture.oldDisplayValue);
+    await expect(card).toContainText(fixture.newDisplayValue);
 }

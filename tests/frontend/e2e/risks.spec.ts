@@ -84,7 +84,7 @@ test.describe('Risk Management (Deterministic)', () => {
 
         await waitForDataLoad(riskManagerPage, 30000);
         await expect(
-            riskManagerPage.getByRole('heading', { level: 2, name: E2E_RISKS.PENDING_DELETE_APPROVAL.name })
+            riskManagerPage.getByRole('heading', { name: E2E_RISKS.PENDING_DELETE_APPROVAL.name })
         ).toBeVisible({ timeout: 15000 });
 
         const kriCardHeading = riskManagerPage.locator('h4').filter({ hasText: /E2E-KRI-|KRI/i }).first();
@@ -101,7 +101,7 @@ test.describe('Risk Management (Deterministic)', () => {
         await risksPage.openRowByText(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
 
         await waitForDataLoad(riskManagerPage, 30000);
-        const riskId = riskManagerPage.url().split('/').pop();
+        const riskId = new URL(riskManagerPage.url()).pathname.split('/').pop();
         const addKriButton = riskManagerPage
             .getByRole('button', { name: /add kri|přidat kri|přidat.*indik/i })
             .first();

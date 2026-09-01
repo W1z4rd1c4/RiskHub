@@ -14,7 +14,7 @@ test.describe('Risk Ownership (Deterministic)', () => {
         await risksPage.search(E2E_RISKS.CROSS_DEPT_FIN_OWNS_OPS.name);
 
         await risksPage.openRowByText(E2E_RISKS.CROSS_DEPT_FIN_OWNS_OPS.name);
-        await expect(page).toHaveURL(/\/risks\/\d+$/);
+        await expect(page).toHaveURL(/\/risks\/\d+(?:\?.*)?$/);
 
         await context.close();
     });
@@ -28,7 +28,7 @@ test.describe('Risk Ownership (Deterministic)', () => {
         await risksPage.navigate();
         await risksPage.search(E2E_RISKS.CROSS_DEPT_IT_OWNS_FIN.name);
         await risksPage.openRowByText(E2E_RISKS.CROSS_DEPT_IT_OWNS_FIN.name);
-        await expect(page).toHaveURL(/\/risks\/\d+$/);
+        await expect(page).toHaveURL(/\/risks\/\d+(?:\?.*)?$/);
 
         await context.close();
     });

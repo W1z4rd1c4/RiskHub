@@ -16,7 +16,7 @@ test.describe('KRI Ownership & Inheritance (Deterministic)', () => {
         const row = krisPage.rowByText(E2E_KRIS.CROSS_DEPT_FIN_REPORTS_IT.metric_name);
         await expect(row).toBeVisible();
         await krisPage.openRowByText(E2E_KRIS.CROSS_DEPT_FIN_REPORTS_IT.metric_name);
-        await expect(page).toHaveURL(/\/kris\/\d+$/);
+        await expect(page).toHaveURL(/\/kris\/\d+(?:\?.*)?$/);
 
         await context.close();
     });

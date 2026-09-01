@@ -12,21 +12,6 @@ import type {
 
 import type { DashboardStat } from './dashboardStats';
 
-const container = {
-    hidden: { opacity: 0 },
-    show: {
-        opacity: 1,
-        transition: {
-            staggerChildren: 0.1,
-        },
-    },
-};
-
-const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 },
-};
-
 interface DashboardSummarySectionsProps {
     canReadIssues: boolean;
     categoryAnalyticsTitle: string;
@@ -54,17 +39,11 @@ export function DashboardSummarySections({
 }: DashboardSummarySectionsProps) {
     return (
         <>
-            <motion.div
-                variants={container}
-                initial="hidden"
-                animate="show"
-                className="grid gap-6 md:grid-cols-2 lg:grid-cols-6"
-            >
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-6">
                 {stats.map((stat) => (
-                    <motion.button
+                    <button
                         type="button"
                         key={stat.title}
-                        variants={item}
                         className="glass-card interactive-card group flex flex-col justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         onClick={() => onStatSelect(stat.path)}
                     >
@@ -81,9 +60,9 @@ export function DashboardSummarySections({
                             <p className="text-sm font-bold text-muted-foreground mb-1">{stat.title}</p>
                             <h3 className="text-4xl font-black text-foreground tracking-tighter">{stat.value}</h3>
                         </div>
-                    </motion.button>
+                    </button>
                 ))}
-            </motion.div>
+            </div>
 
             {canReadIssues && issueSummary && issueAging && issueSeverity ? (
                 <div className="grid gap-6 lg:grid-cols-3">

@@ -35,7 +35,7 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
         await risksPage.search(E2E_RISKS.CROSS_DEPT_FIN_OWNS_OPS.name);
 
         await risksPage.openRowByText(E2E_RISKS.CROSS_DEPT_FIN_OWNS_OPS.name);
-        await expect(riskManagerPage).toHaveURL(/\/risks\/\d+$/);
+        await expect(riskManagerPage).toHaveURL(/\/risks\/\d+(?:\?.*)?$/);
         await expect(riskManagerPage.locator('main h1, main h2').first()).toBeVisible();
     });
 

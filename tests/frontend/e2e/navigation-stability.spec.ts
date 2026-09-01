@@ -18,7 +18,7 @@ test.describe('Navigation Stability', () => {
         await risksPage.search(TARGET_RISK_NAME);
         await risksPage.openRowByText(TARGET_RISK_NAME);
 
-        await expect(croPage).toHaveURL(/\/risks\/\d+$/, { timeout: 15000 });
+        await expect(croPage).toHaveURL(/\/risks\/\d+(?:\?.*)?$/, { timeout: 15000 });
         await expect(croPage.locator('main')).toBeVisible();
         await croPage.waitForTimeout(1000);
         expect(maxDepthErrors).toHaveLength(0);
@@ -29,7 +29,7 @@ test.describe('Navigation Stability', () => {
 
         // Locale-agnostic assertion: verify core vendors list UI is present.
         await expect(croPage.getByTestId('vendors-search-input')).toBeVisible();
-        await expect(croPage).not.toHaveURL(/\/risks\/\d+$/);
+        await expect(croPage).not.toHaveURL(/\/risks\/\d+(?:\?.*)?$/);
 
         await croPage.waitForTimeout(1000);
         expect(maxDepthErrors).toHaveLength(0);

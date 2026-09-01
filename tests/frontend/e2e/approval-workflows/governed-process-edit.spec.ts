@@ -113,7 +113,7 @@ test.describe('Governed protected Process edit (#84)', () => {
             await riskManagerPage.goto(`/processes/${created.id}`);
             await waitForDataLoad(riskManagerPage);
             await riskManagerPage.getByTestId('process-detail-edit').click();
-            await expect(riskManagerPage).toHaveURL(new RegExp(`/processes/${created.id}/edit$`));
+            await expect(riskManagerPage).toHaveURL(new RegExp(`/processes/${created.id}/edit(?:\\?.*)?$`));
 
             await riskManagerPage.getByTestId('process-form-owner-search').fill(
                 'it.analyst@riskhub.local',

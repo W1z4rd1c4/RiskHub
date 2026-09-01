@@ -297,7 +297,7 @@ test.describe('desktop control-system geometry (#155)', () => {
                 await expect(back).toHaveAttribute('type', 'button');
 
                 if (scenario.state === 'error') {
-                    await expect(deptHeadPage.getByText('Asset not found.')).toBeVisible();
+                    await expect(deptHeadPage.getByTestId('detail-load-unavailable')).toBeVisible();
                 } else if (scenario.state === 'governed-blocked') {
                     await expect(deptHeadPage.getByTestId('asset-pending-change')).toBeVisible();
                     await expect(deptHeadPage.getByTestId('asset-form-name')).toHaveCount(0);

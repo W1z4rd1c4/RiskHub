@@ -12,7 +12,7 @@ test.describe('Control Ownership (Deterministic)', () => {
         const row = controlsPage.rowByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name);
         await expect(row).toBeVisible();
         await controlsPage.openRowByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name);
-        await expect(employeePage).toHaveURL(/\/controls\/\d+$/);
+        await expect(employeePage).toHaveURL(/\/controls\/\d+(?:\?.*)?$/);
     });
 
     test('IT employee can view their cross-department owned control', async ({ browser }) => {

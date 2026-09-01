@@ -24,7 +24,7 @@ test.describe('KRI CRUD Permissions (Deterministic)', () => {
         await krisPage.search(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
 
         await krisPage.openRowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
-        await expect(riskManagerPage).toHaveURL(/\/kris\/\d+$/);
+        await expect(riskManagerPage).toHaveURL(/\/kris\/\d+(?:\?.*)?$/);
         await expect(riskManagerPage.locator('main h1, main h2').first()).toBeVisible();
     });
 

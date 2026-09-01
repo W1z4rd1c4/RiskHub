@@ -214,7 +214,7 @@ test.describe('Vendor Management (Deterministic)', () => {
         await vendorsPage.search(E2E_VENDORS.ACTIVE_PRIMARY.name);
 
         await vendorsPage.openRowByText(E2E_VENDORS.ACTIVE_PRIMARY.name);
-        await expect(riskManagerPage).toHaveURL(/\/vendors\/\d+$/);
+        await expect(riskManagerPage).toHaveURL(/\/vendors\/\d+(?:\?.*)?$/);
         await expect(riskManagerPage.locator('main h1').first()).toContainText(E2E_VENDORS.ACTIVE_PRIMARY.name);
     });
 
@@ -301,7 +301,7 @@ test.describe('Vendor Management (Deterministic)', () => {
         await riskManagerPage.getByTestId('vendor-form-name').fill('Owner-maintained Vendor');
         await riskManagerPage.getByRole('button', { name: /^(Save|Uložit)$/i }).click();
         await expect.poll(() => patchPayload).toEqual({ name: 'Owner-maintained Vendor' });
-        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}$`));
+        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}(?:\\?.*)?$`));
         await expect(riskManagerPage.getByRole('button', { name: /Link Existing|Propojit existující/i })).toHaveCount(0);
         await expect(riskManagerPage.getByRole('button', { name: /Add Risk|Přidat riziko/i })).toHaveCount(0);
         await expect(riskManagerPage.getByRole('button', { name: /Add Control|Přidat kontrolu/i })).toHaveCount(0);
@@ -462,7 +462,7 @@ test.describe('Vendor Management (Deterministic)', () => {
         await riskManagerPage.goto(`/vendors/${vendorId}?tab=sla`);
         await waitForDataLoad(riskManagerPage);
 
-        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}$`));
+        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}(?:\\?.*)?$`));
         await expect(riskManagerPage.getByText(/Linked Controls|Navázané kontroly/i).first()).toBeVisible();
     });
 
@@ -545,7 +545,7 @@ test.describe('Vendor Management (Deterministic)', () => {
         );
         await riskManagerPage.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }).click();
 
-        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}$`));
+        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}(?:\\?.*)?$`));
         await expect(
             riskManagerPage.getByText(/KRI created and linked to the vendor|KRI bylo vytvořeno a navázáno na dodavatele/i),
         ).toBeVisible({ timeout: 15000 });

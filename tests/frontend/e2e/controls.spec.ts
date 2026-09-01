@@ -75,7 +75,7 @@ test.describe('Control Management (Deterministic)', () => {
         );
         expect(rowVisible).toBe(true);
         await controlsPage.openRowByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name);
-        await expect(riskManagerPage).toHaveURL(/\/controls\/\d+$/);
+        await expect(riskManagerPage).toHaveURL(/\/controls\/\d+(?:\?.*)?$/);
         await waitForDataLoad(riskManagerPage, 15000);
         await expect(riskManagerPage.getByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name).first()).toBeVisible({ timeout: 15000 });
     });

@@ -121,7 +121,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         await cisoPage.getByRole('option', { name: /Klára Černá/ }).click();
         await cisoPage.getByTestId('threat-form-submit').click();
 
-        await cisoPage.waitForURL(/\/threats\/\d+$/);
+        await cisoPage.waitForURL(/\/threats\/\d+(?:\?.*)?$/);
         await expect(cisoPage.getByTestId('threat-detail-steward')).toContainText('Klára Černá');
 
         const createdId = Number(cisoPage.url().match(/\/threats\/(\d+)$/)?.[1]);
@@ -129,12 +129,12 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
 
         // CISO owns the full Threat lifecycle, not creation alone.
         await cisoPage.getByTestId('threat-detail-edit').click();
-        await cisoPage.waitForURL(new RegExp(`/threats/${createdId}/edit$`));
+        await cisoPage.waitForURL(new RegExp(`/threats/${createdId}/edit(?:\\?.*)?$`));
         await cisoPage.getByTestId('threat-form-relevant-subject').fill('CISO-owned ICT service');
         await cisoPage.getByTestId('threat-form-category').click();
         await cisoPage.getByRole('option', { name: 'Integrity', exact: true }).click();
         await cisoPage.getByTestId('threat-form-submit').click();
-        await cisoPage.waitForURL(new RegExp(`/threats/${createdId}$`));
+        await cisoPage.waitForURL(new RegExp(`/threats/${createdId}(?:\\?.*)?$`));
         await expect(cisoPage.getByTestId('threat-detail-category')).toHaveText('Integrity');
         await expect(cisoPage.getByText('CISO-owned ICT service').first()).toBeVisible();
 
@@ -304,7 +304,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
             .fill('Deterministic UI-created threat.');
         await riskManagerPage.getByTestId('threat-form-submit').click();
 
-        await riskManagerPage.waitForURL(/\/threats\/\d+$/);
+        await riskManagerPage.waitForURL(/\/threats\/\d+(?:\?.*)?$/);
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.locator('main h1').first()).toContainText(uniqueName);
         await expect(riskManagerPage.getByTestId('threat-detail-category')).toHaveText('Physical');
@@ -324,7 +324,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         await riskManagerPage.getByRole('option', { name: 'Personnel', exact: true }).click();
         await riskManagerPage.getByTestId('threat-form-submit').click();
 
-        await riskManagerPage.waitForURL(new RegExp(`/threats/${created.id}$`));
+        await riskManagerPage.waitForURL(new RegExp(`/threats/${created.id}(?:\\?.*)?$`));
         // Fresh document proves persistence beyond any client-side state.
         await riskManagerPage.goto(`/threats/${created.id}`);
         await waitForDataLoad(riskManagerPage);
@@ -462,7 +462,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
             .getByTestId('risk-acceptance-justification')
             .fill('E2E acceptance justification (round-trip).');
         await riskManagerPage.getByTestId('risk-form-submit-button').click();
-        await riskManagerPage.waitForURL(new RegExp(`/risks/${risk.id}$`));
+        await riskManagerPage.waitForURL(new RegExp(`/risks/${risk.id}(?:\\?.*)?$`));
 
         // Persistence proof at the API seam (risk manager updates apply
         // directly — no approval detour on the acceptance fields).

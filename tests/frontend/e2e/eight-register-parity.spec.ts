@@ -77,7 +77,7 @@ const REGISTERS: readonly RegisterContract[] = [
         sortField: 'name',
     },
     {
-        backActionName: /KRIs|KRI/i,
+        backActionName: /^(KRIs|KRI|Zpět na KRI)$/i,
         collectionPath: '/api/v1/kris',
         groupedView: 'department',
         groupBy: 'department',

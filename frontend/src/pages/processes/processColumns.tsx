@@ -50,7 +50,7 @@ export function buildProcessColumns({
                 <div className="flex flex-col gap-0.5">
                     <span className="text-sm font-bold text-white">{process.l1_process}</span>
                     {process.l2_subprocess ? (
-                        <span className="text-xs text-slate-500">{process.l2_subprocess}</span>
+                        <span className="text-xs text-muted-foreground">{process.l2_subprocess}</span>
                     ) : null}
                 </div>
             ),
@@ -68,7 +68,7 @@ export function buildProcessColumns({
             render: (process) => (
                 <div className="flex flex-col gap-0.5">
                     <span className="text-sm text-slate-300">{processOwnerDisplayLabel(t, process)}</span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-muted-foreground">
                         {processDepartmentDisplayLabel(t, process)}
                     </span>
                 </div>

@@ -559,7 +559,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         // A direct visit uses deliberate not-found camouflage, never the vendor page.
         await adminPage.goto(`/vendors/${vendorId}?tab=contracts`);
         await waitForDataLoad(adminPage);
-        await expect(adminPage.getByRole('heading', { name: /Vendor not found|Dodavatel nenalezen/i })).toBeVisible();
+        await expect(adminPage.getByTestId('detail-load-unavailable')).toBeVisible();
         await expect(adminPage.locator('#vendor-contracts')).toHaveCount(0);
     });
 
@@ -593,7 +593,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         await riskManagerPage.getByRole('option', { name: 'Easily substitutable', exact: true }).click();
 
         await riskManagerPage.getByRole('button', { name: /^(Save|Uložit)$/ }).click();
-        await riskManagerPage.waitForURL(new RegExp(`/vendors/${vendorId}$`));
+        await riskManagerPage.waitForURL(new RegExp(`/vendors/${vendorId}(?:\\?.*)?$`));
 
         // Hard reload: the detail overview renders the persisted Substituce value...
         await riskManagerPage.goto(`/vendors/${vendorId}`);

@@ -468,8 +468,8 @@ def test_e2e_workflow_caches_playwright_browsers_and_uses_shell_only_chromium() 
         "key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}"
         in text
     )
-    assert "PLAYWRIGHT_BROWSERS_PATH:" in text
-    assert "ms-playwright" in text
+    assert "PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright" not in text
+    assert "npx playwright install ffmpeg" in text
     assert "npx playwright install --with-deps --only-shell chromium" in text
     assert "npx playwright install --with-deps chromium" not in text
 

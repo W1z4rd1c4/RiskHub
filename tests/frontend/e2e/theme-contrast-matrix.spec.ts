@@ -823,9 +823,12 @@ test.describe('UX-24 audited theme matrix', () => {
     });
     await expect(legacyEditCard).toBeVisible();
     await legacyEditCard.getByRole('button', { name: 'View Changes' }).click();
-    await expect(legacyEditCard.getByTestId('approval-pending-change-field')).toBeVisible();
+    const legacyChangeField = legacyEditCard
+      .locator('[data-testid^="approval-legacy-changes-"] dt')
+      .first();
+    await expect(legacyChangeField).toBeVisible();
     await expectReadableTypography(
-      legacyEditCard.getByTestId('approval-pending-change-field'),
+      legacyChangeField,
       'approval pending-change field',
     );
 

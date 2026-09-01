@@ -677,7 +677,7 @@ async function driveUx157Notifications(
     await link.focus();
     expect(mutations).toBe(0);
     await link.click();
-    await expect(page).toHaveURL(new RegExp(`/controls/${controlId}$`));
+    await expect(page).toHaveURL(new RegExp(`/controls/${controlId}(?:\\?.*)?$`));
     expect(mutations).toBe(0);
 
     await page.goto('/notifications');

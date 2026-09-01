@@ -59,6 +59,12 @@ test.describe('User Settings Isolation', () => {
         // Click Appearance tab first
         await page.click('[data-testid="settings-tab-appearance"]');
         await page.waitForSelector('[data-testid="theme-dark"]', { timeout: 5000 });
+        if (await page.locator('[data-testid="theme-dark"] input').isChecked()) {
+            await Promise.all([
+                waitForPreferencesSave(page),
+                page.click('[data-testid="theme-riskhub"]'),
+            ]);
+        }
         await Promise.all([
             waitForPreferencesSave(page),
             page.click('[data-testid="theme-dark"]'),
@@ -77,7 +83,10 @@ test.describe('User Settings Isolation', () => {
         await page.goto('/settings');
         await page.click('[data-testid="settings-tab-appearance"]');
         await page.waitForSelector('[data-testid="theme-riskhub"]', { timeout: 5000 });
-        await page.click('[data-testid="theme-riskhub"]');
+        await Promise.all([
+            waitForPreferencesSave(page),
+            page.click('[data-testid="theme-riskhub"]'),
+        ]);
         await logout(page);
     });
 

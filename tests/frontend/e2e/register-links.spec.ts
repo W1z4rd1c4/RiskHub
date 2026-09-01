@@ -172,7 +172,7 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
                 const addDialog = riskManagerPage.getByRole('alertdialog');
                 await addDialog.getByRole('textbox').fill('E2E direct Asset-Vendor link addition');
                 await addDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
-                await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${assetId}$`));
+                await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${assetId}(?:\\?.*)?$`));
 
                 const vendorLinks = riskManagerPage.getByTestId('asset-vendor-links');
                 await expect(vendorLinks.getByText(E2E_VENDORS.NONPROTECTED_DIRECT.name).first()).toBeVisible();
@@ -188,7 +188,7 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
                 const removeDialog = riskManagerPage.getByRole('alertdialog');
                 await removeDialog.getByRole('textbox').fill('E2E direct Asset-Vendor link removal');
                 await removeDialog.getByRole('button', { name: 'Remove link', exact: true }).click();
-                await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${assetId}$`));
+                await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${assetId}(?:\\?.*)?$`));
                 await expect(riskManagerPage.getByTestId(`asset-vendor-link-remove-${created!.id}`)).toHaveCount(0);
                 const remaining = await listAssetVendorLinks(assetId);
                 expect(remaining.some((link) => link.vendor_id === vendorId && link.ict_service_code === 'S03')).toBe(
@@ -324,7 +324,7 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
                 const removeDialog = riskManagerPage.getByRole('alertdialog');
                 await removeDialog.getByRole('textbox').fill('E2E direct Vendor-Asset link removal');
                 await removeDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
-                await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}$`));
+                await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}(?:\\?.*)?$`));
                 await expect(riskManagerPage.getByTestId(`vendor-asset-link-remove-${created.id}`)).toHaveCount(0);
                 const remaining = await listAssetVendorLinks(assetId);
                 expect(remaining.some((link) => link.vendor_id === vendorId && link.ict_service_code === 'S13')).toBe(

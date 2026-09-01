@@ -121,7 +121,7 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         const processesPage = new ProcessesPage(riskManagerPage);
         await processesPage.navigate();
         await processesPage.createButton.click();
-        await riskManagerPage.waitForURL(/.*processes\/new$/);
+        await riskManagerPage.waitForURL(/.*processes\/new(?:\?.*)?$/);
 
         // The dropdown presents all four canonical codes through the active locale.
         await riskManagerPage.getByTestId('process-form-preliminary-criticality').click();
@@ -145,7 +145,7 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId('process-form-owner-department')).toContainText('Operations');
         await riskManagerPage.getByTestId('process-form-submit').click();
 
-        await riskManagerPage.waitForURL(/.*processes\/\d+$/);
+        await riskManagerPage.waitForURL(/.*processes\/\d+(?:\?.*)?$/);
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.locator('main h1').first()).toContainText(uniqueName);
         // Server-assigned stable F-code (F{id}), never entered by hand.
@@ -172,7 +172,7 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await riskManagerPage.getByRole('option', { name: /Operations.*OPS/ }).click();
         await riskManagerPage.getByTestId('process-form-submit').click();
 
-        await riskManagerPage.waitForURL(/.*processes\/\d+$/);
+        await riskManagerPage.waitForURL(/.*processes\/\d+(?:\?.*)?$/);
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.getByText('Barbora Němcová', { exact: true })).toBeVisible();
         await expect(riskManagerPage.getByText(/IT · employee/i)).toBeVisible();
@@ -194,7 +194,7 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await expect(riskManagerPage.getByText(/L0 area is required|L0 oblast je povinná/)).toBeVisible();
         await expect(riskManagerPage.getByText(/L1 process is required|L1 proces je povinný/)).toBeVisible();
         await expect(riskManagerPage.getByTestId('process-form-l0-area')).toBeFocused();
-        await expect(riskManagerPage).toHaveURL(/.*processes\/new$/);
+        await expect(riskManagerPage).toHaveURL(/.*processes\/new(?:\?.*)?$/);
     });
 
     test('Impact dimensions outside the 1–5 Skala15 scale are rejected', async ({ riskManagerPage }) => {
@@ -270,7 +270,7 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await riskManagerPage.getByRole('option', { name: CRITICALITY_LABELS.medium }).click();
         await riskManagerPage.getByTestId('process-form-submit').click();
 
-        await riskManagerPage.waitForURL(new RegExp(`/processes/${created.id}$`));
+        await riskManagerPage.waitForURL(new RegExp(`/processes/${created.id}(?:\\?.*)?$`));
         // Hard reload: the SPA detail cache holds the pre-edit copy for up to
         // 30s (DETAIL_QUERY_STALE_TIME_MS); a fresh document proves persistence.
         const persistedProcessResponse = riskManagerPage.waitForResponse((response) => {

@@ -195,7 +195,7 @@ test.describe('Department metric drill-down (#90)', () => {
         const firstProcessLink = riskManagerPage.locator('tbody tr').first().getByRole('link');
         await expect(firstProcessLink).toBeVisible();
         await firstProcessLink.click();
-        await expect(riskManagerPage).toHaveURL(/\/processes\/\d+$/);
+        await expect(riskManagerPage).toHaveURL(/\/processes\/\d+(?:\?.*)?$/);
     });
 
     test('opens every metric family with its exact health filter and locked Department scope', async ({ page }) => {

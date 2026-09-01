@@ -47,7 +47,7 @@ test.describe('Access Scope Visibility', () => {
             await risksPage.navigate();
             await risksPage.search(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
             await risksPage.openRowByText(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
-            await expect(page).toHaveURL(/\/risks\/\d+$/);
+            await expect(page).toHaveURL(/\/risks\/\d+(?:\?.*)?$/);
             await expect(page.locator('main')).toBeVisible();
         });
 

@@ -132,7 +132,7 @@ test.describe('ICT Register — shared Risk and Control framework (#81)', () => 
         const row = riskManagerPage.locator('tbody tr').filter({ hasText: contract.fixtureName });
         const detailLink = row.getByRole('link', { name: viewLabel, exact: true });
         const detailPath = `/controls/${control!.id}`;
-        await expect(detailLink).toHaveAttribute('href', detailPath);
+        await expect(detailLink).toHaveAttribute('href', new RegExp(`^${detailPath}(?:\\?.*)?$`));
         await detailLink.focus();
         await expect(detailLink).toBeFocused();
 

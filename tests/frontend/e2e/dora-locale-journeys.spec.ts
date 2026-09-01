@@ -121,9 +121,13 @@ test.describe('DORA localized register and governed approval journeys', () => {
                 expect((await submitted).status()).toBe(202);
 
                 const approvals = new ApprovalsPage(riskManagerPage);
-                await expect(riskManagerPage.getByRole('button', { name: journey.myRequests, exact: true }))
+                await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+$/, {
+                    timeout: 15000,
+                });
+                await approvals.waitForApprovalsReady();
+                await expect(riskManagerPage.getByRole('tab', { name: journey.myRequests, exact: true }))
                     .toBeVisible();
-                await expect(riskManagerPage.getByRole('button', {
+                await expect(riskManagerPage.getByRole('tab', {
                     name: journey.oppositeMyRequests,
                     exact: true,
                 })).toHaveCount(0);

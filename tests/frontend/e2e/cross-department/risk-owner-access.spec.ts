@@ -163,17 +163,23 @@ test.describe('Risk Owner Cross-Department Access', () => {
             const response = await page.goto('/risks/9999', { waitUntil: 'networkidle' });
             await waitForDataLoad(page);
 
-            // Verify page shows error/not found content (app may stay at URL)
+            // Verify the current user-facing unavailable state (app may stay at URL).
             const url = page.url();
-            const pageContent = await page.textContent('body');
             const isAccessDenied =
                 (response && (response.status() === 403 || response.status() === 404)) ||
                 url.includes('dashboard') ||
-                url.includes('login') ||
-                (pageContent && (pageContent.includes('not found') || pageContent.includes('Not Found') || pageContent.includes('404') || pageContent.includes('Error') || pageContent.includes('does not exist')));
+                url.includes('login');
+
+            if (!isAccessDenied) {
+                await expect(page.getByRole('heading', {
+                    name: /Record unavailable|Záznam není dostupný/i,
+                })).toBeVisible();
+            }
 
             // Should not be able to access invalid/unauthorized risk
-            expect(isAccessDenied).toBe(true);
+            await expect(page.getByRole('heading', {
+                name: /E2E-|Risk details|Detail rizika/i,
+            })).toHaveCount(0);
 
             await context.close();
         });

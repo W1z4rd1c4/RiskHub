@@ -11,7 +11,7 @@ test.describe('Control Owner Cross-Department Access (Deterministic)', () => {
 
         await expect(controlsPage.rowByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name)).toBeVisible();
         await controlsPage.openRowByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name);
-        await expect(employeePage).toHaveURL(/\/controls\/\d+$/);
+        await expect(employeePage).toHaveURL(/\/controls\/\d+(?:\?.*)?$/);
     });
 
     test('IT employee can access Operations-department control they own', async ({ browser }) => {
