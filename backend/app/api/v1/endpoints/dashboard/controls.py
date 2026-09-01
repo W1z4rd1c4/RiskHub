@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +18,10 @@ async def get_control_trends(
     db: AsyncSession = Depends(get_db),
     current_user: Any = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
-    control_status: Optional[str] = Query(None, description="Filter by control status"),
+    control_status: Optional[Literal["draft", "active", "inactive"]] = Query(
+        None,
+        description="Filter by control status",
+    ),
 ):
     return await load_control_trends(
         db=db,

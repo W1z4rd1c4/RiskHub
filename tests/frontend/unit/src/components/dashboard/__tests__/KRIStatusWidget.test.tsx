@@ -7,7 +7,11 @@ const getOverdueMock = vi.fn();
 const getDueSoonMock = vi.fn();
 
 vi.mock('@/i18n/hooks', () => {
-    const t = (key: string) => key;
+    const t = (key: string, options?: { shown?: number; total?: number }) => (
+        key === 'kri.showing' && options
+            ? `Showing ${options.shown} of ${options.total}`
+            : key
+    );
     return {
         useTranslation: () => ({
             t,
@@ -124,5 +128,29 @@ describe('KRIStatusWidget drilldown', () => {
         await waitFor(() => {
             expect(screen.getByTestId('location')).toHaveTextContent('/kris?monitoring_status=not_submitted');
         });
+    });
+
+    it('keeps the exact total while showing only the first five upcoming KRIs', async () => {
+        getDueSoonMock.mockResolvedValue(
+            Array.from({ length: 6 }, (_, index) => ({
+                kri_id: index + 1,
+                metric_name: `Due Soon ${index + 1}`,
+                frequency: 'quarterly',
+                period_end: '2026-03-31',
+                due_date: '2026-04-05',
+                days_until_due: index + 1,
+                risk_id: index + 1,
+            })),
+        );
+
+        render(
+            <MemoryRouter>
+                <KRIStatusWidget />
+            </MemoryRouter>,
+        );
+
+        expect(await screen.findByText('Showing 5 of 6')).toBeInTheDocument();
+        expect(screen.getByText('Due Soon 5')).toBeInTheDocument();
+        expect(screen.queryByText('Due Soon 6')).not.toBeInTheDocument();
     });
 });

@@ -6,6 +6,7 @@ import {
     useSyncExternalStore,
     type ReactNode,
 } from 'react';
+import type { ControlForm, ControlStatus } from '@/types/control';
 
 export type RiskLevel = 'all' | 'critical' | 'high' | 'medium' | 'low';
 export type ViewMode = 'executive' | 'department';
@@ -13,8 +14,8 @@ export type ViewMode = 'executive' | 'department';
 export interface DashboardFilters {
     departmentId: number | null;
     riskLevel: RiskLevel;
-    controlStatus: string | null;
-    controlForm: string | null;
+    controlStatus: ControlStatus | null;
+    controlForm: ControlForm | null;
 }
 
 export interface DashboardFilterSnapshot {
@@ -26,8 +27,8 @@ export interface DashboardFilterSnapshot {
 interface DashboardFilterMutators {
     setDepartmentId: (id: number | null) => void;
     setRiskLevel: (level: RiskLevel) => void;
-    setControlStatus: (status: string | null) => void;
-    setControlForm: (form: string | null) => void;
+    setControlStatus: (status: ControlStatus | null) => void;
+    setControlForm: (form: ControlForm | null) => void;
     setViewMode: (mode: ViewMode) => void;
     resetFilters: () => void;
     replaceSnapshot: (snapshot: Pick<DashboardFilterSnapshot, 'filters' | 'viewMode'>) => void;
@@ -120,10 +121,10 @@ function createDashboardFilterStore(): DashboardFilterStore {
         setRiskLevel: (level: RiskLevel) => {
             updateFilters(current => current.riskLevel === level ? current : { ...current, riskLevel: level });
         },
-        setControlStatus: (status: string | null) => {
+        setControlStatus: (status: ControlStatus | null) => {
             updateFilters(current => current.controlStatus === status ? current : { ...current, controlStatus: status });
         },
-        setControlForm: (form: string | null) => {
+        setControlForm: (form: ControlForm | null) => {
             updateFilters(current => current.controlForm === form ? current : { ...current, controlForm: form });
         },
         setViewMode: (mode: ViewMode) => {

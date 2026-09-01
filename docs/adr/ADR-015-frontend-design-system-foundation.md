@@ -46,8 +46,9 @@ shadcn migration:
    get `alertdialog` semantics. Loading overlays (`aria-busy`) and popovers/menus keep their own
    ARIA and are **not** migrated to `DialogShell`.
 
-Workbook fidelity is preserved where it is regulatory — the register data and the verbatim
-Czech closed-list labels — not in Excel's conditional-formatting fill colours.
+Workbook fidelity is preserved where it is regulatory: canonical register values remain
+unchanged in storage, transport, import, and regulatory export. Ordinary UI labels follow the
+user's active locale, and Excel's conditional-formatting fill colours are not preserved.
 
 ## Alternatives Rejected
 

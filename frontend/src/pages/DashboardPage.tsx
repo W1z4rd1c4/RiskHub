@@ -295,6 +295,7 @@ function DashboardPageContent() {
                     controlExecutionTitle={t('sections.control_execution_trends')}
                     departmentMetrics={departmentMetrics}
                     departmentVisibilityTitle={t('sections.departmental_visibility')}
+                    filterScope={overviewQuery.data?.filter_scope}
                     grossDistribution={grossDistribution}
                     grossMatrixTitle={t('sections.gross_risk_matrix')}
                     historicalTitle={t('sections.time_series_analysis')}

@@ -186,19 +186,26 @@ async def build_committee_summary_metrics(*, db: AsyncSession, current_user: Use
     )
 
     dept_ids = get_user_department_ids(current_user)
+    can_read_vendors = has_permission(current_user, "vendors", "read")
     if dept_ids is not None and not dept_ids:
-        return empty_committee_core()
+        return empty_committee_core(can_view_vendors=can_read_vendors)
 
-    critical_risks, recent_activity, dept_exposure = await fetch_committee_core(db, dept_ids=dept_ids)
+    critical_risks, critical_risks_total, recent_activity, dept_exposure = await fetch_committee_core(
+        db,
+        dept_ids=dept_ids,
+    )
     vendor_sections = await fetch_vendor_sections(
         db,
         current_user=current_user,
-        can_read_vendors=has_permission(current_user, "vendors", "read"),
+        can_read_vendors=can_read_vendors,
     )
 
     return {
         "critical_risks": [risk_payload(risk) for risk in critical_risks],
+        "critical_risks_total": critical_risks_total,
         "recent_activity": [activity_payload(item) for item in recent_activity],
         "department_exposure": [department_exposure_payload(row) for row in dept_exposure],
         "critical_vendors": [vendor_payload(vendor) for vendor in vendor_sections["critical_vendors"]],
+        "critical_vendors_total": vendor_sections["critical_vendors_total"],
+        "can_view_vendors": vendor_sections["can_view_vendors"],
     }

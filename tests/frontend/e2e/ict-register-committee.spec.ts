@@ -32,22 +32,24 @@
  *   body, no committee fetch) rather than surfacing a standalone access-denied
  *   page.
  *
- * Band labels ("Kritické", "NAD TOLERANCI") are workbook-verbatim API values
- * and stay language-neutral; localized pill/heading/badge/tab text is matched
- * with dual EN/CS regexes (the vendor-derived precedent).
+ * Controlled API/filter values remain canonical Czech source values, while
+ * their ordinary UI labels follow the active English/Czech locale.
  */
+import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ICT_REGISTER_RISK } from './fixtures/e2e-data';
+import { assertZeroAxeFindings, toFindings, WCAG_TAGS } from './helpers/axeBaseline';
 import { waitForDataLoad } from './helpers/wait';
 
 // Legacy standalone route — now a <Navigate replace> to the Dashboard tab.
 const LEGACY_COMMITTEE_PATH = '/ict-register/committee';
 
-// Workbook-verbatim band labels the API serves regardless of UI language.
+// Canonical values remain in test ids and drill-down parameters.
 const BAND_CRITICAL = 'Kritické';
-const OVER_TOLERANCE = 'NAD TOLERANCI';
+const DISPLAY_CRITICAL = /Critical|Kritické/;
+const DISPLAY_OVER_TOLERANCE = /Above tolerance|NAD TOLERANCI/;
 
 // Dual-language matchers — heading/KPI/coverage/tab text is localized. The ICT
 // Committee tab renders as a <button> whose accessible name is the localized
@@ -67,6 +69,18 @@ async function openCommitteeTab(page: Page): Promise<void> {
     await page.getByRole('button', { name: ICT_COMMITTEE_TAB }).click();
     await page.waitForURL((url) => url.pathname === '/' && url.searchParams.get('view') === 'ict-committee');
     await waitForDataLoad(page);
+}
+
+async function setLocale(page: Page, locale: 'en' | 'cs'): Promise<void> {
+    await page.unroute('**/api/v1/preferences');
+    await page.route('**/api/v1/preferences', async (route, request) => {
+        if (request.method() !== 'GET') {
+            await route.continue();
+            return;
+        }
+        await route.fulfill({ status: 200, json: { theme: 'riskhub', language: locale } });
+    });
+    await page.evaluate((language) => localStorage.setItem('riskhub-language', language), locale);
 }
 
 // The committee body (<IctCommitteeSection>) renders its 16_Dashboard section
@@ -139,7 +153,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId('committee-top-risk-1')).toBeVisible();
     });
 
-    test('a max-band risk shows Kritické in the band visuals (proves the app-scale config)', async ({
+    test('a max-band risk shows the localized critical labels (proves the app-scale config)', async ({
         riskManagerPage,
     }) => {
         await openCommitteeTab(riskManagerPage);
@@ -152,14 +166,43 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
             riskManagerPage.getByTestId(`committee-migration-cell-${BAND_CRITICAL}-${BAND_CRITICAL}`),
         ).toHaveText('1');
 
-        // The Top-10 row for the seeded risk carries the Kritické band pill and
-        // the NAD TOLERANCI marker (net 20 > P_Tolerance 7).
+        // The Top-10 row localizes the canonical band and tolerance values.
         const riskRow = riskManagerPage
             .locator('[data-testid^="committee-top-risk-"]')
             .filter({ hasText: E2E_ICT_REGISTER_RISK.code });
         await expect(riskRow).toHaveCount(1);
-        await expect(riskRow).toContainText(BAND_CRITICAL);
-        await expect(riskRow).toContainText(OVER_TOLERANCE);
+        await expect(riskRow).toContainText(DISPLAY_CRITICAL);
+        await expect(riskRow).toContainText(DISPLAY_OVER_TOLERANCE);
+    });
+
+    test('controlled labels stay localized and axe-clean at both supported desktop viewports', async ({
+        riskManagerPage,
+    }) => {
+        const states = [
+            { locale: 'en' as const, viewport: { width: 1024, height: 768 }, band: 'Critical', tolerance: 'Above tolerance' },
+            { locale: 'cs' as const, viewport: { width: 1440, height: 900 }, band: 'Kritické', tolerance: 'NAD TOLERANCI' },
+        ];
+
+        for (const state of states) {
+            await riskManagerPage.setViewportSize(state.viewport);
+            await setLocale(riskManagerPage, state.locale);
+            await riskManagerPage.goto('/?view=ict-committee');
+            await waitForDataLoad(riskManagerPage);
+
+            const riskRow = riskManagerPage
+                .locator('[data-testid^="committee-top-risk-"]')
+                .filter({ hasText: E2E_ICT_REGISTER_RISK.code });
+            await expect(riskRow).toContainText(state.band);
+            await expect(riskRow).toContainText(state.tolerance);
+            await expect(riskManagerPage.getByTestId(`committee-migration-cell-${BAND_CRITICAL}-${BAND_CRITICAL}`))
+                .toHaveText('1');
+
+            const result = await new AxeBuilder({ page: riskManagerPage }).withTags([...WCAG_TAGS]).analyze();
+            assertZeroAxeFindings(
+                toFindings(result.violations),
+                `ICT Committee ${state.locale} ${state.viewport.width}x${state.viewport.height}`,
+            );
+        }
     });
 
     test('semantic drill-downs retain exact filters and show a removable summary in every destination register', async ({
@@ -189,7 +232,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
             {
                 source: `committee-migration-link-${BAND_CRITICAL}-${BAND_CRITICAL}`,
                 href: '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9&net_band=Kritick%C3%A9',
-                summary: 'Gross band: Kritické',
+                summary: /Gross band: (Critical|Kritické)/,
             },
         ] as const;
 

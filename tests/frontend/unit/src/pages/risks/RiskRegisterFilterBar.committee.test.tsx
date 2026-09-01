@@ -58,4 +58,25 @@ describe('RiskRegisterFilterBar Committee population', () => {
         await user.click(screen.getByTestId('risks-clear-filters'));
         expect(onClearAll).toHaveBeenCalledOnce();
     });
+
+    it.each([
+        ['en', true, 'KRI breach: Yes'],
+        ['en', false, 'KRI breach: No'],
+        ['cs', true, 'Překročení KRI: Ano'],
+        ['cs', false, 'Překročení KRI: Ne'],
+    ] as const)('renders the selected KRI breach boolean in %s', async (language, hasBreach, label) => {
+        await i18n.changeLanguage(language);
+        render(<RiskRegisterFilterBar
+            facets={{}}
+            filters={parseRiskRegisterFilters({ has_breach: hasBreach })}
+            isLoading={false}
+            onClearAll={vi.fn()}
+            onFilterChange={vi.fn()}
+            onRefresh={vi.fn()}
+            onSearchChange={vi.fn()}
+            search=""
+        />);
+
+        expect(screen.getByTestId('risks-filter-chip-has_breach')).toHaveTextContent(label);
+    });
 });

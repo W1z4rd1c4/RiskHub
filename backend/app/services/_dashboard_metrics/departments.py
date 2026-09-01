@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +11,10 @@ from app.models.control import ControlStatus
 from app.models.global_config import ConfigDefaults, get_config_int
 from app.models.key_risk_indicator import kri_breach_condition
 from app.schemas.dashboard import DepartmentMetrics
+from app.services._dashboard_metrics.risk_levels import (
+    build_risk_level_condition_from_ranges,
+    get_configured_risk_level_ranges,
+)
 
 
 def _count_map(rows) -> dict[int, int]:
@@ -21,6 +27,9 @@ async def load_department_dashboard_metrics(
     current_user: User,
     department_id: int | None,
     include_archived: bool,
+    control_status: str | None = None,
+    control_form: str | None = None,
+    risk_level: Literal["critical", "high", "medium", "low"] | None = None,
 ) -> list[DepartmentMetrics]:
     dept_ids = get_user_department_ids(current_user)
     can_read_controls = has_permission(current_user, "controls", "read")
@@ -52,6 +61,10 @@ async def load_department_dashboard_metrics(
         control_conditions = [Control.department_id.in_(department_ids)]
         if not include_archived:
             control_conditions.append(Control.live())
+        if control_status:
+            control_conditions.append(Control.status == control_status)
+        if control_form:
+            control_conditions.append(Control.control_form == control_form)
         control_counts = _count_map(
             (
                 await db.execute(
@@ -67,7 +80,7 @@ async def load_department_dashboard_metrics(
                 await db.execute(
                     select(Control.department_id, func.count(Control.id).label("item_count"))
                     .where(
-                        Control.department_id.in_(department_ids),
+                        *control_conditions,
                         Control.status == ControlStatus.active.value,
                         Control.live(),
                     )
@@ -79,6 +92,11 @@ async def load_department_dashboard_metrics(
     risk_conditions = [Risk.department_id.in_(department_ids)]
     if not include_archived:
         risk_conditions.append(Risk.live())
+    if risk_level:
+        risk_level_ranges = await get_configured_risk_level_ranges(db)
+        risk_level_condition = build_risk_level_condition_from_ranges(risk_level, risk_level_ranges)
+        if risk_level_condition is not None:
+            risk_conditions.append(risk_level_condition)
     risk_rows = (
         await db.execute(
             select(
@@ -100,6 +118,10 @@ async def load_department_dashboard_metrics(
         audited_control_conditions = [Control.department_id.in_(department_ids)]
         if not include_archived:
             audited_control_conditions.append(Control.live())
+        if control_status:
+            audited_control_conditions.append(Control.status == control_status)
+        if control_form:
+            audited_control_conditions.append(Control.control_form == control_form)
         audited_control_counts = _count_map(
             (
                 await db.execute(

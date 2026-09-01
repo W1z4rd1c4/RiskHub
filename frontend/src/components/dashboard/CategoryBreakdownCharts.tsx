@@ -9,6 +9,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { useDashboardFilterMutators } from '../../contexts/DashboardFilterContext';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { getChartTooltipProps } from './chartTooltip';
+import { isControlForm, isControlStatus } from '@/types/control';
 
 interface CategoryBreakdownChartsProps {
     controlsByStatus: Record<string, number>;
@@ -135,13 +136,13 @@ export function CategoryBreakdownCharts({
                     title={t('charts.by_status')}
                     data={controlsByStatus}
                     colors={chartTheme.breakdown.status}
-                    onSegmentClick={(key) => setControlStatus(key)}
+                    onSegmentClick={(key) => setControlStatus(isControlStatus(key) ? key : null)}
                 />
                 <MiniPieChart
                     title={t('charts.by_form')}
                     data={controlsByForm}
                     colors={chartTheme.breakdown.form}
-                    onSegmentClick={(key) => setControlForm(key)}
+                    onSegmentClick={(key) => setControlForm(isControlForm(key) ? key : null)}
                 />
                 <MiniPieChart
                     title={t('charts.by_frequency')}

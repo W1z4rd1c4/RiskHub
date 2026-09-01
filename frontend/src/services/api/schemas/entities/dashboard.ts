@@ -156,6 +156,12 @@ export const dashboardOverviewCapabilitiesSchema = passthroughObject({
     can_use_department_filter: z.boolean(),
     can_export_or_report: z.boolean(),
 });
+export const dashboardFilterScopeSchema = passthroughObject({
+    department_applies_to_all_scoped_panels: z.boolean(),
+    risk_level_applies_to: z.array(z.string()),
+    control_filters_apply_to: z.array(z.string()),
+    unaffected_by_risk_control: z.array(z.enum(['kri', 'issues', 'vendors'])),
+});
 export const dashboardOverviewSchema: z.ZodType<DashboardOverview> = passthroughObject({
     summary: dashboardSummarySchema,
     department_metrics: z.array(departmentMetricsSchema),
@@ -169,6 +175,7 @@ export const dashboardOverviewSchema: z.ZodType<DashboardOverview> = passthrough
     issue_severity: issueSeverityBreakdownResponseSchema.nullable().optional(),
     generated_at: z.string(),
     capabilities: dashboardOverviewCapabilitiesSchema.nullable().optional(),
+    filter_scope: dashboardFilterScopeSchema,
 });
 
 export const dashboardRiskByCellItemSchema: z.ZodType<DashboardRiskByCellItem> = passthroughObject({
@@ -233,6 +240,7 @@ export const dashboardCommitteeSummarySchema: z.ZodType<DashboardCommitteeSummar
                 department_name: z.string(),
             }),
         ),
+        critical_risks_total: z.number(),
         recent_activity: z.array(
             passthroughObject({
                 id: z.number(),
@@ -265,4 +273,6 @@ export const dashboardCommitteeSummarySchema: z.ZodType<DashboardCommitteeSummar
                 department_name: z.string(),
             }),
         ).optional().default([]),
+        critical_vendors_total: z.number().nullable(),
+        can_view_vendors: z.boolean(),
     });

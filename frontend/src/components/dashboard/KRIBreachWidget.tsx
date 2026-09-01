@@ -26,7 +26,7 @@ export function KRIBreachWidget() {
                 const params = departmentId ? { department_id: departmentId } : undefined;
                 const data = await kriApi.getBreaches(params);
                 if (!cancelled) {
-                    setBreaches(data.slice(0, 5)); // Show top 5
+                    setBreaches(data);
                     setError(null);
                 }
             } catch (err) {
@@ -90,13 +90,21 @@ export function KRIBreachWidget() {
                         <AlertTriangle className="h-4 w-4 text-rose-500" />
                         <h3 className="text-xs font-black text-white uppercase tracking-widest">{t('kri.active_breaches')}</h3>
                     </div>
-                    <span className="px-2 py-0.5 bg-rose-500/10 text-rose-500 text-[10px] font-black rounded-full border border-rose-500/20">
-                        {breaches.length}+
+                    <span
+                        className="px-2 py-0.5 bg-rose-500/10 text-rose-500 text-[10px] font-black rounded-full border border-rose-500/20"
+                        data-testid="kri-breach-total"
+                    >
+                        {breaches.length}
                     </span>
                 </div>
 
                 <div className="flex-1 overflow-auto divide-y divide-white/5">
-                    {breaches.map((kri) => (
+                    {breaches.length > 5 ? (
+                        <p className="p-3 text-xs font-semibold text-muted-foreground">
+                            {t('kri.showing', { shown: 5, total: breaches.length })}
+                        </p>
+                    ) : null}
+                    {breaches.slice(0, 5).map((kri) => (
                         <motion.div
                             key={kri.id}
                             className="p-4 cursor-pointer group flex items-center justify-between hover:bg-white/5 transition-colors"

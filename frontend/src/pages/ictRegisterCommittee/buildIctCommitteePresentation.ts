@@ -128,7 +128,7 @@ export interface IctCommitteePresentation {
         title: string;
     };
     executiveSummary: {
-        assetChart: Array<{ band: string; count: number; href: string }>;
+        assetChart: Array<{ band: string; count: number; href: string; label: string }>;
         assetChartTitle: string;
         heatmap: {
             axis: string;
@@ -145,10 +145,12 @@ export interface IctCommitteePresentation {
         migration: {
             axis: string;
             columns: readonly string[];
+            columnLabels: readonly string[];
             legend: string;
             legendStops: Array<{ fill: string | null; label: string; value: number }>;
             rows: Array<{
                 grossBand: string;
+                grossBandLabel: string;
                 cells: Array<MatrixCellPresentation & { band: string }>;
             }>;
             title: string;
@@ -161,6 +163,7 @@ export interface IctCommitteePresentation {
         narrativesTitle: string;
         riskBandChart: Array<{
             band: string;
+            label: string;
             gross: number;
             grossHref: string;
             net: number;
@@ -293,6 +296,28 @@ const TIER_STYLES: Record<string, CellStyle> = {
     'Standardní dodavatel': FILL_SUCCESS,
 };
 
+const CONTROLLED_LABEL_KEYS: Readonly<Record<string, string>> = {
+    Nízké: 'controlled.risk_band.low',
+    Střední: 'controlled.risk_band.medium',
+    Vysoké: 'controlled.risk_band.high',
+    Kritické: 'controlled.risk_band.critical',
+    'V toleranci': 'controlled.tolerance.within',
+    'NAD TOLERANCI': 'controlled.tolerance.above',
+    'Kritický dodavatel': 'controlled.vendor_tier.critical',
+    'Významný dodavatel': 'controlled.vendor_tier.significant',
+    'Standardní dodavatel': 'controlled.vendor_tier.standard',
+    Otevřené: 'controlled.risk_status.open',
+    'V řešení': 'controlled.risk_status.in_progress',
+    Uzavřené: 'controlled.risk_status.closed',
+    Akceptováno: 'controlled.risk_status.accepted',
+};
+const ASSET_CRITICALITY_LABEL_KEYS: Readonly<Record<string, string>> = {
+    Nízká: 'controlled.asset_criticality.low',
+    Střední: 'controlled.asset_criticality.medium',
+    Vysoká: 'controlled.asset_criticality.high',
+    Kritická: 'controlled.asset_criticality.critical',
+};
+
 const COVERAGE_BADGE_CLASSES: Record<string, string> = {
     full: 'bg-success text-success-foreground',
     partial: 'bg-warning text-warning-foreground',
@@ -393,6 +418,16 @@ function countClass(tone: PresentationTone): string {
 
 function styleFor(value: string | null, styles: Record<string, CellStyle>): CellStyle | null {
     return value ? (styles[value] ?? null) : null;
+}
+
+function controlledLabel(
+    value: string | null,
+    translate: Translate,
+    keys: Readonly<Record<string, string>> = CONTROLLED_LABEL_KEYS,
+): string | null {
+    if (!value) return null;
+    const key = keys[value];
+    return key ? translate(key) : value;
 }
 
 function riskBandPath(band: string, score: 'gross' | 'net'): string {
@@ -568,6 +603,7 @@ export function buildIctCommitteePresentation(
         executiveSummary: {
             assetChart: snapshot.cro.assets_by_criticality.map((entry) => ({
                 ...entry,
+                label: controlledLabel(entry.band, translate, ASSET_CRITICALITY_LABEL_KEYS) ?? entry.band,
                 href: committeeRegisterPath('/assets', {
                     criticality: canonicalAssetCriticality(entry.band) ?? entry.band,
                 }),
@@ -597,6 +633,7 @@ export function buildIctCommitteePresentation(
             migration: {
                 axis: translate('cro.migration_axis'),
                 columns: NET_BANDS,
+                columnLabels: NET_BANDS.map((band) => controlledLabel(band, translate) ?? band),
                 legend: translate('cro.heatmap_legend'),
                 legendStops: Array.from({ length: 6 }, (_, value) => ({
                     fill: colorScaleFill(value, 5),
@@ -605,6 +642,7 @@ export function buildIctCommitteePresentation(
                 })),
                 rows: snapshot.cro.migration_matrix.rows.map((row) => ({
                     grossBand: row.gross_band,
+                    grossBandLabel: controlledLabel(row.gross_band, translate) ?? row.gross_band,
                     cells: row.cells.map((count, index) => ({
                         band: NET_BANDS[index],
                         count,
@@ -618,6 +656,7 @@ export function buildIctCommitteePresentation(
             narrativesTitle: translate('cro.narratives_title'),
             riskBandChart: snapshot.cro.risks_by_band.map((entry: IctCommitteeRiskBandCounts) => ({
                 band: entry.band,
+                label: controlledLabel(entry.band, translate) ?? entry.band,
                 gross: entry.gross_count,
                 grossHref: riskBandPath(entry.band, 'gross'),
                 net: entry.net_count,
@@ -638,14 +677,14 @@ export function buildIctCommitteePresentation(
                 grossScore: risk.gross_score,
                 href: `/risks/${risk.risk_id}`,
                 label: risk.code ?? translate('common:fallbacks.unknown_risk'),
-                netBand: risk.net_band,
+                netBand: controlledLabel(risk.net_band, translate),
                 netBandStyle: styleFor(risk.net_band, NET_BAND_STYLES),
                 netScore: risk.net_score,
                 rank: risk.rank,
-                statusLabel: risk.status_label,
+                statusLabel: controlledLabel(risk.status_label, translate),
                 subjectLabel: normalizeLookupLabel(risk.subject_label, translate('common:fallbacks.unknown')),
                 threatLabel: normalizeLookupLabel(risk.threat_label, translate('common:fallbacks.unknown_threat')),
-                tolerance: risk.vs_tolerance,
+                tolerance: controlledLabel(risk.vs_tolerance, translate),
                 toleranceStyle: styleFor(risk.vs_tolerance, TOLERANCE_STYLES),
             })),
             topRisksColumns: {
@@ -665,7 +704,7 @@ export function buildIctCommitteePresentation(
                 href: `/vendors/${vendor.vendor_id}`,
                 name: vendor.name || translate('common:fallbacks.unknown_vendor'),
                 rank: vendor.rank,
-                tier: vendor.tier,
+                tier: controlledLabel(vendor.tier, translate) ?? vendor.tier,
                 tierStyle: styleFor(vendor.tier, TIER_STYLES),
             })),
             topVendorsColumns: {

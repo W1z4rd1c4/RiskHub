@@ -4,13 +4,14 @@ import type {
     RiskLevel,
     ViewMode,
 } from '@/contexts/DashboardFilterContext';
+import { ControlForm, ControlStatus } from '@/types/control';
 
 type DashboardFilterUrlState = Pick<DashboardFilterSnapshot, 'filters' | 'viewMode'>;
 
 const OWNED_KEYS = ['departmentId', 'riskLevel', 'controlStatus', 'controlForm', 'viewMode'] as const;
 const RISK_LEVELS: readonly RiskLevel[] = ['all', 'critical', 'high', 'medium', 'low'];
-const CONTROL_STATUSES = ['active', 'inactive', 'pending', 'deprecated'] as const;
-const CONTROL_FORMS = ['preventive', 'detective', 'corrective'] as const;
+const CONTROL_STATUSES = [ControlStatus.DRAFT, ControlStatus.ACTIVE, ControlStatus.INACTIVE] as const;
+const CONTROL_FORMS = [ControlForm.MANUAL, ControlForm.AUTOMATIC] as const;
 const VIEW_MODES: readonly ViewMode[] = ['executive', 'department'];
 
 function allowedValue<T extends string>(raw: string | null, allowed: readonly T[]): T | null {

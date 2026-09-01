@@ -131,6 +131,7 @@ async def load_risk_trends(
     current_user: User,
     department_id: int | None,
     include_archived: bool,
+    risk_level: Literal["critical", "high", "medium", "low"] | None = None,
 ) -> list[RiskTrendPoint]:
     try:
         conditions = []
@@ -139,9 +140,14 @@ async def load_risk_trends(
         visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
         if visibility_clause is not None:
             conditions.append(visibility_clause)
+        risk_level_ranges = await get_configured_risk_level_ranges(db)
+        if risk_level:
+            risk_level_condition = build_risk_level_condition_from_ranges(risk_level, risk_level_ranges)
+            if risk_level_condition is not None:
+                conditions.append(risk_level_condition)
 
         period_expr = month_period_expr(db, Risk.created_at)
-        critical_threshold = (await get_configured_risk_level_ranges(db))["critical"][0]
+        critical_threshold = risk_level_ranges["critical"][0]
         query = select(
             period_expr.label("period"),
             func.count(Risk.id).label("total_new"),
@@ -196,6 +202,7 @@ async def load_risk_dashboard_metrics(
             db=db,
             current_user=current_user,
             department_id=department_id,
+            risk_level=risk_level,
             include_archived=include_archived,
         ),
     }

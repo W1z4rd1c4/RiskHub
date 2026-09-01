@@ -66,7 +66,15 @@ export function RiskCommitteeErrorState({ message, t }: { message: string | null
     );
 }
 
-function CriticalRisksCard({ summary, t }: { summary: DashboardCommitteeSummary; t: SafeTFunction }) {
+function CriticalRisksCard({
+    summary,
+    navigate,
+    t,
+}: {
+    summary: DashboardCommitteeSummary;
+    navigate: NavigateFunction;
+    t: SafeTFunction;
+}) {
     const { thresholds } = useRiskThresholds();
 
     return (
@@ -76,15 +84,33 @@ function CriticalRisksCard({ summary, t }: { summary: DashboardCommitteeSummary;
             transition={{ delay: 0.1 }}
             className="glass-card"
         >
-            <div className="flex items-center gap-2 mb-6">
-                <AlertTriangle className="h-5 w-5 text-rose-400" />
-                <h3 className="text-lg font-bold text-foreground">{t('risk_committee.critical_risks')}</h3>
+            <div className="flex items-start justify-between gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-rose-400" />
+                    <h3 className="text-lg font-bold text-foreground">{t('risk_committee.critical_risks')}</h3>
+                </div>
+                {summary.critical_risks_total > 0 ? (
+                    <button
+                        type="button"
+                        className="text-xs font-bold text-accent hover:underline"
+                        onClick={() => navigate('/risks?net_band=Kritick%C3%A9')}
+                    >
+                        {t('risk_committee.view_all_critical_risks', { ns: 'dashboard' })}
+                    </button>
+                ) : null}
             </div>
 
             {summary.critical_risks.length === 0 ? (
                 <p className="text-slate-500 text-sm">{t('risk_committee.no_critical_risks')}</p>
             ) : (
                 <div className="space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground">
+                        {t('risk_committee.top_of_total', {
+                            ns: 'dashboard',
+                            shown: summary.critical_risks.length,
+                            total: summary.critical_risks_total,
+                        })}
+                    </p>
                     {summary.critical_risks.map((risk) => (
                         <div
                             key={risk.id}
@@ -145,15 +171,39 @@ function CriticalVendorsCard({
             transition={{ delay: 0.15 }}
             className="glass-card"
         >
-            <div className="flex items-center gap-2 mb-6">
-                <Handshake className="h-5 w-5 text-blue-400" />
-                <h3 className="text-lg font-bold text-foreground">{t('risk_committee.critical_vendors')}</h3>
+            <div className="flex items-start justify-between gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                    <Handshake className="h-5 w-5 text-blue-400" />
+                    <h3 className="text-lg font-bold text-foreground">
+                        {t('risk_committee.high_risk_vendors', { ns: 'dashboard' })}
+                    </h3>
+                </div>
+                {summary.can_view_vendors && (summary.critical_vendors_total ?? 0) > 0 ? (
+                    <button
+                        type="button"
+                        className="text-xs font-bold text-accent hover:underline"
+                        onClick={() => navigate('/vendors?risk_scores=4&risk_scores=5')}
+                    >
+                        {t('risk_committee.view_all_high_risk_vendors', { ns: 'dashboard' })}
+                    </button>
+                ) : null}
             </div>
 
-            {summary.critical_vendors.length === 0 ? (
+            {!summary.can_view_vendors ? (
+                <p className="text-muted-foreground text-sm">
+                    {t('risk_committee.restricted_by_access_scope', { ns: 'dashboard' })}
+                </p>
+            ) : summary.critical_vendors.length === 0 ? (
                 <p className="text-slate-500 text-sm">{t('risk_committee.no_vendors_in_scope')}</p>
             ) : (
                 <div className="space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground">
+                        {t('risk_committee.top_of_total', {
+                            ns: 'dashboard',
+                            shown: summary.critical_vendors.length,
+                            total: summary.critical_vendors_total ?? 0,
+                        })}
+                    </p>
                     {summary.critical_vendors.map((v) => (
                         <button
                             key={v.id}
@@ -295,7 +345,7 @@ export function RiskCommitteeSummaryContent({
             <QuarterlyComparisonWidget />
 
             <div className="grid gap-6 lg:grid-cols-2">
-                <CriticalRisksCard summary={summary} t={t} />
+                <CriticalRisksCard summary={summary} navigate={navigate} t={t} />
                 <CriticalVendorsCard summary={summary} navigate={navigate} t={t} />
             </div>
 

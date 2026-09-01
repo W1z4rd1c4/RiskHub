@@ -8,9 +8,12 @@ const mockNavigate = vi.fn();
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string, options?: { count?: number } | string) => {
+        t: (key: string, options?: { count?: number; shown?: number; total?: number } | string) => {
             if (key === 'risk_committee.days_ago' && typeof options === 'object') {
                 return `${options.count} days ago`;
+            }
+            if (key === 'risk_committee.top_of_total' && typeof options === 'object') {
+                return `Top ${options.shown} of ${options.total}`;
             }
             return key;
         },
@@ -47,9 +50,12 @@ vi.mock('react-router-dom', async () => {
 
 const emptySummary: DashboardCommitteeSummary = {
     critical_risks: [],
+    critical_risks_total: 0,
     recent_activity: [],
     department_exposure: [],
     critical_vendors: [],
+    critical_vendors_total: 0,
+    can_view_vendors: true,
 };
 
 function populatedSummary(): DashboardCommitteeSummary {
@@ -65,6 +71,7 @@ function populatedSummary(): DashboardCommitteeSummary {
             owner_name: 'Ava Owner',
             department_name: 'Risk',
         }],
+        critical_risks_total: 6,
         critical_vendors: [{
             id: 42,
             name: 'Claims Cloud',
@@ -77,6 +84,8 @@ function populatedSummary(): DashboardCommitteeSummary {
             outsourcing_owner_name: 'Vera Vendor',
             department_name: 'Operations',
         }],
+        critical_vendors_total: 7,
+        can_view_vendors: true,
         department_exposure: [{
             id: 7,
             name: 'Operations',
@@ -140,15 +149,37 @@ describe('RiskCommitteeSection', () => {
         expect(screen.getByText('Ava Owner')).toBeInTheDocument();
         expect(screen.getByText('Claims Cloud')).toBeInTheDocument();
         expect(screen.getByText('4/5')).toBeInTheDocument();
+        expect(screen.getByText('Top 1 of 6')).toBeInTheDocument();
+        expect(screen.getByText('Top 1 of 7')).toBeInTheDocument();
+        expect(screen.getByText('risk_committee.high_risk_vendors')).toBeInTheDocument();
         expect(screen.getByText('Operations')).toBeInTheDocument();
         expect(screen.getByText('Risk approval')).toBeInTheDocument();
         expect(screen.getByText('3 days ago')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'risk_committee.view_all_critical_risks' }));
+        expect(mockNavigate).toHaveBeenCalledWith('/risks?net_band=Kritick%C3%A9');
+
+        fireEvent.click(screen.getByRole('button', { name: 'risk_committee.view_all_high_risk_vendors' }));
+        expect(mockNavigate).toHaveBeenCalledWith('/vendors?risk_scores=4&risk_scores=5');
 
         fireEvent.click(screen.getByRole('button', { name: /Claims Cloud/ }));
 
         await waitFor(() => {
             expect(mockNavigate).toHaveBeenCalledWith('/vendors/42?tab=assessments&section=schedule');
         });
+    });
+
+    it('does not present a permission-hidden vendor population as zero', async () => {
+        vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue({
+            ...emptySummary,
+            critical_vendors_total: null,
+            can_view_vendors: false,
+        });
+
+        render(<RiskCommitteeSection />);
+
+        expect(await screen.findByText('risk_committee.restricted_by_access_scope')).toBeInTheDocument();
+        expect(screen.queryByText('risk_committee.no_vendors_in_scope')).not.toBeInTheDocument();
     });
 
     it('renders committee scores from configured data', async () => {

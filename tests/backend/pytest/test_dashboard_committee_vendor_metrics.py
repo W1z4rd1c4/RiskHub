@@ -82,6 +82,56 @@ async def test_committee_summary_includes_critical_vendors_section(
     data = resp.json()
 
     assert "critical_vendors" in data
+    assert data["critical_vendors_total"] is None
+    assert data["can_view_vendors"] is False
+
+
+@pytest.mark.asyncio
+async def test_committee_summary_high_risk_vendors_excludes_score_three_and_reports_total(
+    db_session: AsyncSession,
+    client_cro: AsyncClient,
+    test_department: Department,
+    test_user_cro: User,
+):
+    vendors = [
+        Vendor(
+            name=name,
+            process="IT",
+            department_id=test_department.id,
+            outsourcing_owner_user_id=test_user_cro.id,
+            vendor_type="ict",
+            risk_score_1_5=score,
+            status="active",
+        )
+        for name, score in [
+            ("Excluded score three", 3),
+            ("Zulu score five", 5),
+            ("Alpha score four", 4),
+            ("Alpha score five", 5),
+            ("Charlie score four", 4),
+            ("Bravo score five", 5),
+            ("Bravo score four", 4),
+        ]
+    ]
+    db_session.add_all(vendors)
+    await db_session.commit()
+
+    response = await client_cro.get("/api/v1/dashboard/committee-summary")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["can_view_vendors"] is True
+    assert payload["critical_vendors_total"] == 6
+    assert [item["name"] for item in payload["critical_vendors"]] == [
+        "Alpha score five",
+        "Bravo score five",
+        "Zulu score five",
+        "Alpha score four",
+        "Bravo score four",
+    ]
+    assert "Excluded score three" not in {
+        item["name"] for item in payload["critical_vendors"]
+    }
 
 
 @pytest.mark.asyncio

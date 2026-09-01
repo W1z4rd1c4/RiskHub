@@ -10,7 +10,7 @@ type CellStyle = { backgroundColor: string; color: string };
 interface DrilldownBarShapeProps {
     fill?: string;
     height?: number;
-    payload?: { band: string; grossHref?: string; href?: string; netHref?: string };
+    payload?: { band: string; grossHref?: string; href?: string; label?: string; netHref?: string };
     width?: number;
     x?: number;
     y?: number;
@@ -36,7 +36,7 @@ function DrilldownBarShape({
             href={href}
             tabIndex={0}
             data-testid={`${testIdPrefix}-${payload.band}`}
-            aria-label={payload.band}
+            aria-label={payload.label ?? payload.band}
             onClick={(event) => {
                 if (event.defaultPrevented || event.button !== 0) return;
                 if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -65,7 +65,7 @@ function HeatmapLegend({
 }) {
     return (
         <div data-testid={testId} className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <span className="text-xs text-slate-500 font-medium">{label}</span>
+            <span className="text-xs text-muted-foreground font-medium">{label}</span>
             <div className="flex items-center gap-2">
                 {stops.map((stop) => (
                     <span key={stop.value} className="flex items-center gap-1">
@@ -74,7 +74,7 @@ function HeatmapLegend({
                             style={stop.fill ? { backgroundColor: stop.fill } : undefined}
                             className={`h-3 w-3 rounded ${stop.fill ? '' : 'bg-white/5'}`}
                         />
-                        <span className="text-[10px] text-slate-500 tabular-nums">{stop.label}</span>
+                        <span className="text-[10px] text-muted-foreground tabular-nums">{stop.label}</span>
                     </span>
                 ))}
             </div>
@@ -100,7 +100,7 @@ function MatrixCell({ fill, count, testId }: { fill: string | null; count: numbe
             data-testid={testId}
             style={fill ? { backgroundColor: fill, color: '#0F172A' } : undefined}
             className={`h-10 min-w-10 flex items-center justify-center rounded-lg text-sm font-bold tabular-nums ${
-                fill ? '' : 'bg-white/5 text-slate-500'
+                fill ? '' : 'bg-white/5 text-muted-foreground'
             }`}
         >
             {count}
@@ -114,7 +114,7 @@ function TopRisksTable({ presentation }: { presentation: ExecutivePresentation }
         <div className="overflow-x-auto">
             <table className="w-full text-sm">
                 <thead>
-                    <tr className="text-left text-slate-500 text-xs uppercase tracking-wide">
+                    <tr className="text-left text-muted-foreground text-xs uppercase tracking-wide">
                         <th className="py-2 pr-3">{columns.rank}</th>
                         <th className="py-2 pr-3">{columns.id}</th>
                         <th className="py-2 pr-3">{columns.subject}</th>
@@ -129,7 +129,7 @@ function TopRisksTable({ presentation }: { presentation: ExecutivePresentation }
                 <tbody>
                     {presentation.topRisks.map((risk) => (
                         <tr key={risk.rank} data-testid={`committee-top-risk-${risk.rank}`} className="border-t border-white/5">
-                            <td className="py-2 pr-3 text-slate-500 font-bold">{risk.rank}</td>
+                            <td className="py-2 pr-3 text-muted-foreground font-bold">{risk.rank}</td>
                             <td className="py-2 pr-3">
                                 <Link
                                     to={risk.href}
@@ -169,7 +169,7 @@ function TopVendorsTable({ presentation }: { presentation: ExecutivePresentation
         <div className="overflow-x-auto">
             <table className="w-full text-sm">
                 <thead>
-                    <tr className="text-left text-slate-500 text-xs uppercase tracking-wide">
+                    <tr className="text-left text-muted-foreground text-xs uppercase tracking-wide">
                         <th className="py-2 pr-3">{columns.rank}</th>
                         <th className="py-2 pr-3">{columns.vendor}</th>
                         <th className="py-2 pr-3 text-right">{columns.cifProcesses}</th>
@@ -179,7 +179,7 @@ function TopVendorsTable({ presentation }: { presentation: ExecutivePresentation
                 <tbody>
                     {presentation.topVendors.map((vendor) => (
                         <tr key={vendor.rank} data-testid={`committee-top-vendor-${vendor.rank}`} className="border-t border-white/5">
-                            <td className="py-2 pr-3 text-slate-500 font-bold">{vendor.rank}</td>
+                            <td className="py-2 pr-3 text-muted-foreground font-bold">{vendor.rank}</td>
                             <td className="py-2 pr-3">
                                 <Link
                                     to={vendor.href}
@@ -219,11 +219,11 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                 {presentation.kpis.map((kpi) => {
                     const content = (
                         <div data-testid={`committee-kpi-${kpi.key}`} title={kpi.inertHint ?? undefined}>
-                            <p className="text-slate-500 text-xs font-bold text-center min-h-8">{kpi.label}</p>
+                            <p className="text-muted-foreground text-xs font-bold text-center min-h-8">{kpi.label}</p>
                             {kpi.inert ? (
                                 <>
                                     <p className="text-3xl font-bold text-slate-600 text-center mt-1">{kpi.displayValue}</p>
-                                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 text-center mt-1">
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground text-center mt-1">
                                         {kpi.inertLabel}
                                     </p>
                                 </>
@@ -249,11 +249,11 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 <div className="glass-card" data-testid="committee-heatmap">
                     <h3 className="text-white font-bold">{presentation.heatmap.title}</h3>
-                    <p className="text-slate-500 text-xs font-medium mt-1">{presentation.heatmap.axis}</p>
+                    <p className="text-muted-foreground text-xs font-medium mt-1">{presentation.heatmap.axis}</p>
                     <div className="mt-3 space-y-1.5 overflow-x-auto">
                         {presentation.heatmap.rows.map((row) => (
                             <div key={row.probability} className="flex items-center gap-1.5">
-                                <span className="w-5 text-right text-xs text-slate-500 font-bold">{row.probability}</span>
+                                <span className="w-5 text-right text-xs text-muted-foreground font-bold">{row.probability}</span>
                                 <div className="grid grid-cols-5 gap-1.5 flex-1">
                                     {row.cells.map((cell) => (
                                         <Link
@@ -276,7 +276,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                             <span className="w-5" />
                             <div className="grid grid-cols-5 gap-1.5 flex-1">
                                 {presentation.heatmap.columns.map((value) => (
-                                    <span key={value} className="text-center text-xs text-slate-500 font-bold">{value}</span>
+                                    <span key={value} className="text-center text-xs text-muted-foreground font-bold">{value}</span>
                                 ))}
                             </div>
                         </div>
@@ -290,11 +290,11 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
 
                 <div className="glass-card" data-testid="committee-migration">
                     <h3 className="text-white font-bold">{presentation.migration.title}</h3>
-                    <p className="text-slate-500 text-xs font-medium mt-1">{presentation.migration.axis}</p>
+                    <p className="text-muted-foreground text-xs font-medium mt-1">{presentation.migration.axis}</p>
                     <div className="mt-3 space-y-1.5 overflow-x-auto">
                         {presentation.migration.rows.map((row) => (
                             <div key={row.grossBand} className="flex items-center gap-1.5">
-                                <span className="w-16 text-right text-xs text-slate-500 font-bold">{row.grossBand}</span>
+                                <span className="w-16 text-right text-xs text-muted-foreground font-bold">{row.grossBandLabel}</span>
                                 <div className="grid grid-cols-4 gap-1.5 flex-1">
                                     {row.cells.map((cell) => (
                                         <Link
@@ -316,8 +316,10 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                         <div className="flex items-center gap-1.5">
                             <span className="w-16" />
                             <div className="grid grid-cols-4 gap-1.5 flex-1">
-                                {presentation.migration.columns.map((band) => (
-                                    <span key={band} className="text-center text-xs text-slate-500 font-bold">{band}</span>
+                                {presentation.migration.columns.map((band, index) => (
+                                    <span key={band} className="text-center text-xs text-muted-foreground font-bold">
+                                        {presentation.migration.columnLabels[index]}
+                                    </span>
                                 ))}
                             </div>
                         </div>
@@ -361,7 +363,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                         <BarChart data={presentation.assetChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
                             <XAxis
-                                dataKey="band"
+                                dataKey="label"
                                 tick={{ fill: chartTheme.axisTickFill, fontSize: 11, fontWeight: 600 }}
                                 axisLine={false}
                                 tickLine={false}
@@ -402,7 +404,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                                 data-testid={`committee-asset-bar-${entry.band}`}
                                 className="rounded-lg bg-white/5 px-2 py-1 text-xs text-slate-300 hover:text-accent"
                             >
-                                {entry.band}: {entry.count}
+                                {entry.label}: {entry.count}
                             </Link>
                         ))}
                     </div>
@@ -414,7 +416,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                         <BarChart data={presentation.riskBandChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
                             <XAxis
-                                dataKey="band"
+                                dataKey="label"
                                 tick={{ fill: chartTheme.axisTickFill, fontSize: 11, fontWeight: 600 }}
                                 axisLine={false}
                                 tickLine={false}
@@ -472,7 +474,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                                         data-testid={`committee-risk-bar-${score}-${entry.band}`}
                                         className="rounded-lg bg-white/5 px-2 py-1 text-xs text-slate-300 hover:text-accent"
                                     >
-                                        {entry.band} · {presentation.riskBandChartLabels[score]}: {entry[score]}
+                                        {entry.label} · {presentation.riskBandChartLabels[score]}: {entry[score]}
                                     </Link>
                                 )),
                         )}

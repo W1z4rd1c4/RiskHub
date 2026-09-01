@@ -130,6 +130,30 @@ class DashboardOverviewCapabilities(BaseModel):
     can_export_or_report: bool = False
 
 
+class DashboardFilterScope(BaseModel):
+    """Fixed dashboard filter-to-panel contract exposed to the UI."""
+
+    department_applies_to_all_scoped_panels: bool = True
+    risk_level_applies_to: list[str] = Field(
+        default_factory=lambda: [
+            "risk_summary",
+            "risk_distribution",
+            "risk_trends",
+            "department_risk_metrics",
+        ]
+    )
+    control_filters_apply_to: list[str] = Field(
+        default_factory=lambda: [
+            "control_summary",
+            "control_trends",
+            "department_control_metrics",
+        ]
+    )
+    unaffected_by_risk_control: list[str] = Field(
+        default_factory=lambda: ["kri", "issues", "vendors"]
+    )
+
+
 class DashboardOverviewResponse(BaseModel):
     """Aggregate dashboard payload for the main overview screen."""
 
@@ -145,3 +169,4 @@ class DashboardOverviewResponse(BaseModel):
     issue_severity: IssueSeverityBreakdownResponse | None = None
     generated_at: str
     capabilities: DashboardOverviewCapabilities | None = None
+    filter_scope: DashboardFilterScope = Field(default_factory=DashboardFilterScope)

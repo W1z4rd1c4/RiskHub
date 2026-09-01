@@ -76,7 +76,7 @@ export function IctCommitteeSection() {
                 data-testid="committee-loading"
             >
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">
+                <p className="text-muted-foreground font-bold animate-pulse uppercase tracking-widest text-xs">
                     {t('loading')}
                 </p>
             </div>
@@ -101,7 +101,7 @@ export function IctCommitteeSection() {
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
-                    <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
+                    <p className="text-muted-foreground font-medium mt-1">{t('subtitle')}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                     <RegisterExportLink />
@@ -129,7 +129,7 @@ export function IctCommitteeSection() {
             {presentation?.sections.map(renderCommitteeSection)}
 
             {!isLoading && !data && !errorKey && (
-                <div className="glass-card text-slate-500 text-center py-8">{t('empty')}</div>
+                <div className="glass-card text-muted-foreground text-center py-8">{t('empty')}</div>
             )}
         </div>
     );

@@ -85,6 +85,35 @@
         "risk_bands_gross": "Hrubé",
         "risk_bands_net": "Čisté"
     },
+    "controlled": {
+        "risk_band": {
+            "low": "Nízké",
+            "medium": "Střední",
+            "high": "Vysoké",
+            "critical": "Kritické"
+        },
+        "asset_criticality": {
+            "low": "Nízká",
+            "medium": "Střední",
+            "high": "Vysoká",
+            "critical": "Kritická"
+        },
+        "tolerance": {
+            "within": "V toleranci",
+            "above": "NAD TOLERANCI"
+        },
+        "vendor_tier": {
+            "critical": "Kritický dodavatel",
+            "significant": "Významný dodavatel",
+            "standard": "Standardní dodavatel"
+        },
+        "risk_status": {
+            "open": "Otevřené",
+            "in_progress": "V řešení",
+            "closed": "Uzavřené",
+            "accepted": "Akceptováno"
+        }
+    },
     "kpi": {
         "risk_count": "Rizik celkem",
         "material_risk_count": "Materiální",

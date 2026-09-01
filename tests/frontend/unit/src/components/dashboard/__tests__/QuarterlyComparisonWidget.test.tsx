@@ -26,14 +26,16 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
         value,
         onValueChange,
         options,
+        triggerAriaLabel,
         triggerTestId,
     }: {
         value: string;
         onValueChange: (value: string) => void;
         options: Array<{ value: string; label: string; disabled?: boolean }>;
+        triggerAriaLabel?: string;
         triggerTestId?: string;
     }) => (
-        <select data-testid={triggerTestId} value={value} onChange={(event) => onValueChange(event.target.value)}>
+        <select aria-label={triggerAriaLabel} data-testid={triggerTestId} value={value} onChange={(event) => onValueChange(event.target.value)}>
             {options.map((option) => (
                 <option key={option.value} value={option.value} disabled={option.disabled}>
                     {option.label}
@@ -93,6 +95,10 @@ describe('QuarterlyComparisonWidget', () => {
         const compareQuarter = screen.getByTestId('quarterly-compare-quarter') as HTMLSelectElement;
         expect(currentQuarter.querySelector('option[value="3"]')).toBeDisabled();
         expect(compareQuarter.querySelector('option[value="2"]')).toBeDisabled();
+        expect(screen.getByRole('combobox', { name: 'quarterly.current_quarter' })).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: 'quarterly.current_year' })).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: 'quarterly.compare_quarter' })).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: 'quarterly.compare_year' })).toBeInTheDocument();
 
         fireEvent.change(currentQuarter, { target: { value: '1' } });
 

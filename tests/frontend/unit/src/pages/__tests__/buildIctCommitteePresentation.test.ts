@@ -111,6 +111,13 @@ function translate(key: string, values?: Record<string, unknown>): string {
         'common:fallbacks.unknown_risk': 'Unknown risk',
         'common:fallbacks.unknown_threat': 'Unknown threat',
         'common:fallbacks.unknown_vendor': 'Unknown vendor',
+        'controlled.asset_criticality.critical': 'Critical',
+        'controlled.risk_band.critical': 'Critical',
+        'controlled.risk_band.high': 'High',
+        'controlled.risk_band.low': 'Low',
+        'controlled.risk_band.medium': 'Medium',
+        'controlled.tolerance.within': 'Within tolerance',
+        'controlled.vendor_tier.critical': 'Critical vendor',
     };
     return known[key] ?? `${key}${values ? `:${JSON.stringify(values)}` : ''}`;
 }
@@ -213,9 +220,13 @@ describe('buildIctCommitteePresentation', () => {
             href: '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9&net_band=St%C5%99edn%C3%AD',
         });
         expect(presentation.executiveSummary.migration.rows[0].cells[3].fill).toBe('#F8696B');
+        expect(presentation.executiveSummary.migration.columnLabels).toEqual(['Low', 'Medium', 'High', 'Critical']);
+        expect(presentation.executiveSummary.migration.rows[0].grossBandLabel).toBe('Critical');
         expect(presentation.executiveSummary.topRisks[0]).toMatchObject({
             href: '/risks/99',
             label: 'Unknown risk',
+            netBand: 'Low',
+            tolerance: 'Within tolerance',
             netBandStyle: {
                 backgroundColor: 'hsl(var(--success))',
                 color: 'hsl(var(--success-foreground))',
@@ -224,12 +235,15 @@ describe('buildIctCommitteePresentation', () => {
         expect(presentation.executiveSummary.assetChart[0].href).toBe(
             '/assets?committee_scope=true&criticality=critical',
         );
+        expect(presentation.executiveSummary.assetChart[0].label).toBe('Critical');
         expect(presentation.executiveSummary.riskBandChart[0]).toMatchObject({
+            label: 'High',
             grossHref: '/risks?committee_scope=true&ict_linked=true&gross_band=Vysok%C3%A9',
             netHref: '/risks?committee_scope=true&ict_linked=true&net_band=Vysok%C3%A9',
         });
         expect(presentation.executiveSummary.topVendors[0]).toMatchObject({
             href: '/vendors/8',
+            tier: 'Critical vendor',
             tierStyle: {
                 backgroundColor: 'hsl(var(--destructive))',
                 color: 'hsl(var(--destructive-foreground))',

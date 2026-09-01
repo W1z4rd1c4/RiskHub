@@ -96,7 +96,10 @@ export function RiskRegisterFilterBar({
         ...(filters.status !== 'active' ? [{ key: 'status', label: `${t('fields.status')}: ${filters.status ? t(`status.${filters.status}`) : t('filters.all_statuses')}` }] : []),
         ...(filters.risk_type ? [{ key: 'risk_type', label: `${t('fields.type')}: ${riskTypeLabel(filters.risk_type)}` }] : []),
         ...(filters.is_priority !== null ? [{ key: 'is_priority', label: `${t('filters.priority_only')}: ${filters.is_priority ? t('common:actions.yes') : t('common:actions.no')}` }] : []),
-        ...(filters.has_breach !== null ? [{ key: 'has_breach', label: labels.has_breach }] : []),
+        ...(filters.has_breach !== null ? [{
+            key: 'has_breach',
+            label: `${labels.has_breach}: ${filters.has_breach ? t('common:actions.yes') : t('common:actions.no')}`,
+        }] : []),
         ...(filters.critical ? [{ key: 'critical', label: labels.critical }] : []),
         ...(filters.net_band ? [{ key: 'net_band', label: `${netBandLabel}: ${selectedNetBandLabel}` }] : []),
     ], [filters, labels.critical, labels.has_breach, netBandLabel, riskTypeLabel, selectedNetBandLabel, t]);

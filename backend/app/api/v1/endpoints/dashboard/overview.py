@@ -16,7 +16,7 @@ from app.core.security import require_permission
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
 from app.models import User
-from app.schemas.dashboard import DashboardOverviewCapabilities, DashboardOverviewResponse
+from app.schemas.dashboard import DashboardFilterScope, DashboardOverviewCapabilities, DashboardOverviewResponse
 from app.services._dashboard_metrics import build_dashboard_summary_metrics
 from app.services._dashboard_metrics.controls import load_control_trends
 from app.services._dashboard_metrics.departments import load_department_dashboard_metrics
@@ -34,8 +34,14 @@ async def get_dashboard_overview(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
-    control_status: Optional[str] = Query(None, description="Filter by control status"),
-    control_form: Optional[str] = Query(None, description="Filter by control form"),
+    control_status: Optional[Literal["draft", "active", "inactive"]] = Query(
+        None,
+        description="Filter by control status",
+    ),
+    control_form: Optional[Literal["manual", "automatic"]] = Query(
+        None,
+        description="Filter by control form",
+    ),
     risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(
         None, description="Filter by risk level"
     ),
@@ -66,6 +72,9 @@ async def get_dashboard_overview(
         db=db,
         current_user=current_user,
         department_id=department_id,
+        control_status=control_status,
+        control_form=control_form,
+        risk_level=risk_level,
         include_archived=include_archived,
     )
     gross_distribution = await load_risk_distribution(
@@ -89,11 +98,13 @@ async def get_dashboard_overview(
         current_user=current_user,
         department_id=department_id,
         control_status=control_status,
+        control_form=control_form,
     )
     risk_trends = await load_risk_trends(
         db=db,
         current_user=current_user,
         department_id=department_id,
+        risk_level=risk_level,
         include_archived=include_archived,
     )
     kri_breach_trends = await load_kri_breach_trends(
@@ -135,5 +146,6 @@ async def get_dashboard_overview(
             can_use_department_filter=get_user_department_ids(current_user) is None,
             can_export_or_report=has_permission(current_user, "reports", "read"),
         ).model_dump(),
+        "filter_scope": DashboardFilterScope().model_dump(),
     }
     return DashboardOverviewResponse(**DASHBOARD_OVERVIEW_CACHE.set(cache_key, payload))

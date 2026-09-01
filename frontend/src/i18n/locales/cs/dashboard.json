@@ -107,6 +107,10 @@
     "risks_without_kri": "Rizika bez KRI",
     "current_period": "Aktuální:",
     "compare_period": "Porovnat:",
+    "current_quarter": "Čtvrtletí aktuálního období",
+    "current_year": "Rok aktuálního období",
+    "compare_quarter": "Čtvrtletí porovnávacího období",
+    "compare_year": "Rok porovnávacího období",
     "active_vendors": "Aktivní dodavatelé",
     "no_data_available": "Data nejsou k dispozici",
     "vs": "vs",
@@ -134,6 +138,7 @@
     "days_until_due": "zbývá {{count}} dní",
     "view_all": "Zobrazit všechna KRI",
     "view_all_overdue": "Zobrazit vše po termínu",
+    "showing": "Zobrazeno {{shown}} z {{total}}",
     "breaches_load_failed": "Nepodařilo se načíst porušení KRI",
     "status_load_failed": "Nepodařilo se načíst stav KRI"
   },
@@ -180,10 +185,17 @@
     "view_mode": "Režim zobrazení",
     "title": "Filtry",
     "clear_all": "Vymazat vše",
+    "remove": "Odebrat filtr {{label}}",
     "risk_level": "Úroveň rizika",
     "control_status": "Stav kontroly",
     "control_form": "Forma kontroly",
-    "department_load_failed": "Oddělení nejsou dostupná"
+    "department_load_failed": "Oddělení nejsou dostupná",
+    "unaffected_scope": "{{panels}} zůstávají v celé populaci vybraného oddělení a vašeho rozsahu přístupu.",
+    "panels": {
+      "kri": "KRI",
+      "issues": "Nálezy",
+      "vendors": "Dodavatelé"
+    }
   },
   "time_periods": {
     "today": "Dnes",
@@ -206,7 +218,12 @@
     "critical_risks": "Kritická rizika",
     "no_critical_risks": "Momentálně nejsou žádná kritická rizika",
     "critical_vendors": "Kritičtí dodavatelé",
+    "high_risk_vendors": "Vysoce rizikoví dodavatelé",
     "no_vendors_in_scope": "Žádní dodavatelé v rozsahu",
+    "restricted_by_access_scope": "Omezeno rozsahem přístupu",
+    "top_of_total": "Prvních {{shown}} z {{total}}",
+    "view_all_critical_risks": "Zobrazit všechna kritická rizika",
+    "view_all_high_risk_vendors": "Zobrazit všechny vysoce rizikové dodavatele",
     "none": "Žádné",
     "no_department_exposure_data": "Žádná data expozice oddělení",
     "no_recent_significant_activity": "Žádná nedávná významná aktivita",

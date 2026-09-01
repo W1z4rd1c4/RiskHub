@@ -19,6 +19,8 @@ import { lookupApi } from '../../services/lookupApi';
 import { ThemedSelect } from '../ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
+import { ControlForm, ControlStatus, isControlForm, isControlStatus } from '@/types/control';
+import type { DashboardFilterScope } from '@/types/dashboard';
 
 interface Department {
     id: number;
@@ -27,9 +29,10 @@ interface Department {
 
 interface FilterBarProps {
     canUseDepartmentFilter: boolean;
+    filterScope?: DashboardFilterScope;
 }
 
-export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
+export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProps) {
     const filters = useDashboardFilterSelector(state => state.filters);
     const hasActiveFilters = useDashboardFilterSelector(state => state.hasActiveFilters);
     const {
@@ -55,17 +58,15 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
 
     const controlStatuses = [
         { value: null, label: t('common:filters.all_statuses') },
-        { value: 'active', label: t('dashboard:charts.active') },
-        { value: 'inactive', label: t('dashboard:charts.inactive') },
-        { value: 'pending', label: t('dashboard:charts.pending') },
-        { value: 'deprecated', label: t('dashboard:charts.deprecated') },
+        { value: ControlStatus.DRAFT, label: t('dashboard:charts.draft') },
+        { value: ControlStatus.ACTIVE, label: t('dashboard:charts.active') },
+        { value: ControlStatus.INACTIVE, label: t('dashboard:charts.inactive') },
     ];
 
     const controlForms = [
         { value: null, label: t('common:filters.all_forms') },
-        { value: 'preventive', label: t('dashboard:charts.preventive') },
-        { value: 'detective', label: t('dashboard:charts.detective') },
-        { value: 'corrective', label: t('dashboard:charts.corrective') },
+        { value: ControlForm.MANUAL, label: t('dashboard:charts.manual') },
+        { value: ControlForm.AUTOMATIC, label: t('dashboard:charts.automatic') },
     ];
 
     useEffect(() => {
@@ -107,6 +108,12 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
             onRemove: () => setControlForm(null),
         },
     ].filter(Boolean) as { key: string; label: string; onRemove: () => void }[];
+    const hasRiskOrControlFilter = filters.riskLevel !== 'all'
+        || filters.controlStatus !== null
+        || filters.controlForm !== null;
+    const unaffectedPanelLabels = filterScope?.unaffected_by_risk_control
+        .map(panel => t(`dashboard:filters.panels.${panel}`))
+        .join(', ');
 
     return (
         <WidgetShell title={t('dashboard:filters.title')}>
@@ -140,6 +147,7 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
                                     {chip.label}
                                     <button
                                         onClick={chip.onRemove}
+                                        aria-label={t('dashboard:filters.remove', { label: chip.label })}
                                         className="ml-1 hover:bg-accent/30 rounded-full p-0.5 transition-colors"
                                     >
                                         <X className="h-3 w-3" />
@@ -159,6 +167,12 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
                         </button>
                     )}
                 </div>
+
+                {hasRiskOrControlFilter && unaffectedPanelLabels ? (
+                    <p className="mt-3 text-xs text-muted-foreground" data-testid="dashboard-filter-scope-note">
+                        {t('dashboard:filters.unaffected_scope', { panels: unaffectedPanelLabels })}
+                    </p>
+                ) : null}
 
                 {/* Expanded Filter Panel */}
                 <AnimatePresence>
@@ -228,7 +242,7 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
                                     </label>
                                     <ThemedSelect
                                         value={filters.controlStatus ?? ''}
-                                        onValueChange={(v) => setControlStatus(v || null)}
+                                        onValueChange={(v) => setControlStatus(isControlStatus(v) ? v : null)}
                                         placeholder={t('common:filters.all_statuses')}
                                         allowEmpty
                                         emptyLabel={t('common:filters.all_statuses')}
@@ -244,7 +258,7 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
                                     </label>
                                     <ThemedSelect
                                         value={filters.controlForm ?? ''}
-                                        onValueChange={(v) => setControlForm(v || null)}
+                                        onValueChange={(v) => setControlForm(isControlForm(v) ? v : null)}
                                         placeholder={t('common:filters.all_forms')}
                                         allowEmpty
                                         emptyLabel={t('common:filters.all_forms')}

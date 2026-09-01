@@ -220,6 +220,176 @@ async def test_dashboard_overview_returns_backend_capabilities(client_cro: Async
     assert capabilities["can_view_committee"] is True
     assert capabilities["can_use_department_filter"] is True
     assert capabilities["can_export_or_report"] is True
+    assert response.json()["filter_scope"] == {
+        "department_applies_to_all_scoped_panels": True,
+        "risk_level_applies_to": [
+            "risk_summary",
+            "risk_distribution",
+            "risk_trends",
+            "department_risk_metrics",
+        ],
+        "control_filters_apply_to": [
+            "control_summary",
+            "control_trends",
+            "department_control_metrics",
+        ],
+        "unaffected_by_risk_control": ["kri", "issues", "vendors"],
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("control_status", ["draft", "active", "inactive"])
+async def test_dashboard_overview_accepts_canonical_control_statuses(
+    auth_client: AsyncClient,
+    control_status: str,
+):
+    response = await auth_client.get(
+        "/api/v1/dashboard/overview",
+        params={"control_status": control_status},
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("control_form", ["manual", "automatic"])
+async def test_dashboard_overview_accepts_canonical_control_forms(
+    auth_client: AsyncClient,
+    control_form: str,
+):
+    response = await auth_client.get(
+        "/api/v1/dashboard/overview",
+        params={"control_form": control_form},
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("parameter", "value"),
+    [("control_status", "pending"), ("control_form", "preventive")],
+)
+async def test_dashboard_overview_rejects_noncanonical_control_filters(
+    auth_client: AsyncClient,
+    parameter: str,
+    value: str,
+):
+    response = await auth_client.get(
+        "/api/v1/dashboard/overview",
+        params={parameter: value},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_dashboard_overview_applies_risk_and_control_filters_to_their_trends_and_department_columns(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    seed_risk_types,
+):
+    from app.api.v1.endpoints.dashboard.overview import DASHBOARD_OVERVIEW_CACHE
+
+    department = Department(name="Dashboard Filter Matrix", code="DASH-FILTER-MATRIX", is_system=True)
+    db_session.add(department)
+    await db_session.flush()
+
+    manual_control = Control(
+        name="Dashboard Filter Manual Control",
+        description="Manual control selected by the dashboard filter",
+        department_id=department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        status="active",
+    )
+    automatic_control = Control(
+        name="Dashboard Filter Automatic Control",
+        description="Automatic control excluded by the dashboard filter",
+        department_id=department.id,
+        control_owner_id=test_user.id,
+        control_form="automatic",
+        status="active",
+    )
+    critical_risk = Risk(
+        risk_id_code="DASH-FILTER-CRITICAL",
+        name="Dashboard Filter Critical Risk",
+        process="Dashboard filter matrix",
+        description="Critical risk selected by the dashboard filter",
+        category="Test",
+        department_id=department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=5,
+        gross_impact=5,
+        gross_score=25,
+        net_probability=5,
+        net_impact=5,
+        net_score=25,
+        status="active",
+        created_at=datetime(2026, 8, 20, 12, 0, tzinfo=UTC),
+    )
+    low_risk = Risk(
+        risk_id_code="DASH-FILTER-LOW",
+        name="Dashboard Filter Low Risk",
+        process="Dashboard filter matrix",
+        description="Low risk excluded by the dashboard filter",
+        category="Test",
+        department_id=department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=1,
+        gross_impact=1,
+        gross_score=1,
+        net_probability=1,
+        net_impact=1,
+        net_score=1,
+        status="active",
+        created_at=datetime(2026, 8, 21, 12, 0, tzinfo=UTC),
+    )
+    db_session.add_all([manual_control, automatic_control, critical_risk, low_risk])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ControlExecution(
+                control_id=manual_control.id,
+                executed_by_id=test_user.id,
+                result="passed",
+                executed_at=datetime(2026, 8, 20, 12, 0, tzinfo=UTC),
+            ),
+            ControlExecution(
+                control_id=automatic_control.id,
+                executed_by_id=test_user.id,
+                result="passed",
+                executed_at=datetime(2026, 8, 21, 12, 0, tzinfo=UTC),
+            ),
+        ]
+    )
+    await db_session.commit()
+    DASHBOARD_OVERVIEW_CACHE.clear()
+
+    try:
+        response = await auth_client.get(
+            "/api/v1/dashboard/overview",
+            params={
+                "department_id": department.id,
+                "control_form": "manual",
+                "risk_level": "critical",
+            },
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        metrics = next(item for item in payload["department_metrics"] if item["department_id"] == department.id)
+        assert payload["summary"]["total_controls"] == 1
+        assert payload["summary"]["total_risks"] == 1
+        assert metrics["control_count"] == 1
+        assert metrics["risk_count"] == 1
+        assert sum(point["execution_count"] for point in payload["control_trends"]) == 1
+        assert sum(point["total_new"] for point in payload["risk_trends"]) == 1
+    finally:
+        DASHBOARD_OVERVIEW_CACHE.clear()
 
 
 @pytest.mark.asyncio
@@ -871,10 +1041,12 @@ async def test_committee_summary_scoped_for_department_head(client: AsyncClient,
         description="Desc",
         department_id=dept_a.id,
         risk_type="operational",
-        gross_probability=1,
-        gross_impact=1,
-        net_probability=1,
-        net_impact=1,
+        gross_probability=5,
+        gross_impact=5,
+        gross_score=25,
+        net_probability=5,
+        net_impact=5,
+        net_score=25,
         status=RiskStatus.active.value,
         created_at=datetime.now(UTC) - timedelta(days=1),
     )
@@ -886,10 +1058,12 @@ async def test_committee_summary_scoped_for_department_head(client: AsyncClient,
         description="Desc",
         department_id=dept_b.id,
         risk_type="operational",
-        gross_probability=1,
-        gross_impact=1,
-        net_probability=1,
-        net_impact=1,
+        gross_probability=5,
+        gross_impact=5,
+        gross_score=25,
+        net_probability=5,
+        net_impact=5,
+        net_score=25,
         status=RiskStatus.active.value,
         created_at=datetime.now(UTC) - timedelta(days=1),
     )
@@ -958,12 +1132,12 @@ async def test_committee_core_excludes_archived_normalized_active_risks(
         description="Live risk should remain in committee rollups.",
         department_id=test_department.id,
         risk_type="operational",
-        gross_probability=2,
-        gross_impact=2,
-        gross_score=4,
-        net_probability=2,
-        net_impact=2,
-        net_score=4,
+        gross_probability=5,
+        gross_impact=5,
+        gross_score=25,
+        net_probability=5,
+        net_impact=5,
+        net_score=25,
         status=RiskStatus.active.value,
         is_archived=False,
     )
@@ -987,7 +1161,7 @@ async def test_committee_core_excludes_archived_normalized_active_risks(
     db_session.add_all([live_risk, archived_risk])
     await db_session.commit()
 
-    critical_risks, _recent_activity, department_exposure = await fetch_committee_core(
+    critical_risks, critical_risks_total, _recent_activity, department_exposure = await fetch_committee_core(
         db_session,
         dept_ids=[test_department.id],
     )
@@ -995,10 +1169,87 @@ async def test_committee_core_excludes_archived_normalized_active_risks(
     critical_ids = {risk.id for risk in critical_risks}
     assert live_risk.id in critical_ids
     assert archived_risk.id not in critical_ids
+    assert critical_risks_total == 1
 
     exposure = next(row for row in department_exposure if row.id == test_department.id)
     assert exposure.risk_count == 1
     assert exposure.total_exposure == live_risk.net_score
+
+
+@pytest.mark.asyncio
+async def test_committee_critical_risks_use_configured_threshold_and_report_uncapped_total(
+    client_cro: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user_cro: User,
+    seed_risk_types,
+):
+    config = GlobalConfig(
+        key="critical_risk_min_net_score",
+        value="20",
+        value_type="int",
+        category="risk_thresholds",
+        display_name="Critical Risk Threshold",
+    )
+    critical_risks = [
+        Risk(
+            risk_id_code=f"COMMITTEE-CRIT-{score}",
+            name=f"Committee critical {score}",
+            process="Committee population",
+            description="Critical fixture",
+            category="Test",
+            department_id=test_department.id,
+            owner_id=test_user_cro.id,
+            risk_type="operational",
+            gross_probability=5,
+            gross_impact=5,
+            gross_score=25,
+            net_probability=4,
+            net_impact=5,
+            net_score=score,
+            status="active",
+        )
+        for score in range(20, 26)
+    ]
+    below_threshold = Risk(
+        risk_id_code="COMMITTEE-BELOW-19",
+        name="Committee below configured threshold",
+        process="Committee population",
+        description="Below-threshold fixture",
+        category="Test",
+        department_id=test_department.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        gross_probability=4,
+        gross_impact=5,
+        gross_score=20,
+        net_probability=4,
+        net_impact=5,
+        net_score=19,
+        status="active",
+    )
+    db_session.add_all([config, *critical_risks, below_threshold])
+    await db_session.commit()
+    clear_config_cache()
+
+    try:
+        response = await client_cro.get("/api/v1/dashboard/committee-summary")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["critical_risks_total"] == 6
+        assert [item["risk_id_code"] for item in payload["critical_risks"]] == [
+            "COMMITTEE-CRIT-25",
+            "COMMITTEE-CRIT-24",
+            "COMMITTEE-CRIT-23",
+            "COMMITTEE-CRIT-22",
+            "COMMITTEE-CRIT-21",
+        ]
+        assert "COMMITTEE-BELOW-19" not in {
+            item["risk_id_code"] for item in payload["critical_risks"]
+        }
+    finally:
+        clear_config_cache()
 
 
 @pytest.mark.asyncio

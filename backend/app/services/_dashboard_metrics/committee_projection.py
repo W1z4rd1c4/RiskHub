@@ -18,10 +18,22 @@ from app.models import Department, Risk, User
 from app.models.activity_log import ActivityLog
 from app.models.risk import RiskStatus
 from app.models.vendor import Vendor
+from app.services._dashboard_metrics.risk_levels import (
+    build_risk_level_condition_from_ranges,
+    get_configured_risk_level_ranges,
+)
 
 
-def empty_committee_core() -> dict:
-    return {"critical_risks": [], "recent_activity": [], "department_exposure": [], "critical_vendors": []}
+def empty_committee_core(*, can_view_vendors: bool) -> dict:
+    return {
+        "critical_risks": [],
+        "critical_risks_total": 0,
+        "recent_activity": [],
+        "department_exposure": [],
+        "critical_vendors": [],
+        "critical_vendors_total": 0 if can_view_vendors else None,
+        "can_view_vendors": can_view_vendors,
+    }
 
 
 def risk_payload(risk: Risk) -> dict:
@@ -85,20 +97,34 @@ async def fetch_committee_core(
     dept_ids: list[int] | None,
 ):
     thirty_days_ago = utc_now() - timedelta(days=30)
+    risk_level_ranges = await get_configured_risk_level_ranges(db)
+    critical_condition = build_risk_level_condition_from_ranges("critical", risk_level_ranges)
+    assert critical_condition is not None
 
+    critical_conditions = [
+        Risk.status == RiskStatus.active.value,
+        Risk.live(),
+        critical_condition,
+    ]
+    if dept_ids is not None:
+        critical_conditions.append(Risk.department_id.in_(dept_ids))
     critical_risks_query = (
         select(Risk)
         .options(joinedload(Risk.owner), joinedload(Risk.department))
-        .where(Risk.status == RiskStatus.active.value)
-        .where(Risk.live())
+        .where(*critical_conditions)
     )
-    critical_risks_query = _apply_scope(critical_risks_query, Risk.department_id, dept_ids)
+    critical_risks_total = int(
+        (await db.execute(select(func.count(Risk.id)).where(*critical_conditions))).scalar() or 0
+    )
     critical_risks = (
         (
             await db.execute(
-                critical_risks_query.order_by(Risk.is_priority.desc(), Risk.net_score.desc()).limit(
-                    DASHBOARD_TOP_CRITICAL_RISKS
-                )
+                critical_risks_query.order_by(
+                    Risk.is_priority.desc(),
+                    Risk.net_score.desc(),
+                    Risk.risk_id_code.asc(),
+                    Risk.id.asc(),
+                ).limit(DASHBOARD_TOP_CRITICAL_RISKS)
             )
         )
         .scalars()
@@ -132,7 +158,7 @@ async def fetch_committee_core(
     dept_exposure_query = _apply_scope(dept_exposure_query, Department.id, dept_ids)
     dept_exposure = (await db.execute(dept_exposure_query)).all()
 
-    return critical_risks, recent_activity, dept_exposure
+    return critical_risks, critical_risks_total, recent_activity, dept_exposure
 
 
 async def fetch_vendor_sections(
@@ -143,22 +169,38 @@ async def fetch_vendor_sections(
 ):
     vendor_scope_filter = vendor_visibility_clause(current_user)
     if not can_read_vendors:
-        return {"critical_vendors": []}
+        return {
+            "critical_vendors": [],
+            "critical_vendors_total": None,
+            "can_view_vendors": False,
+        }
 
+    conditions = [Vendor.live(), Vendor.risk_score_1_5.in_([4, 5])]
+    if vendor_scope_filter is not None:
+        conditions.append(vendor_scope_filter)
     query = (
         select(Vendor)
         .options(joinedload(Vendor.outsourcing_owner), joinedload(Vendor.department))
-        .where(Vendor.live())
+        .where(*conditions)
     )
-    if vendor_scope_filter is not None:
-        query = query.where(vendor_scope_filter)
+    critical_vendors_total = int(
+        (await db.execute(select(func.count(Vendor.id)).where(*conditions))).scalar() or 0
+    )
     critical_vendors = (
         (
             await db.execute(
-                query.order_by(Vendor.risk_score_1_5.desc(), Vendor.name.asc()).limit(DASHBOARD_TOP_CRITICAL_VENDORS)
+                query.order_by(
+                    Vendor.risk_score_1_5.desc(),
+                    Vendor.name.asc(),
+                    Vendor.id.asc(),
+                ).limit(DASHBOARD_TOP_CRITICAL_VENDORS)
             )
         )
         .scalars()
         .all()
     )
-    return {"critical_vendors": critical_vendors}
+    return {
+        "critical_vendors": critical_vendors,
+        "critical_vendors_total": critical_vendors_total,
+        "can_view_vendors": True,
+    }

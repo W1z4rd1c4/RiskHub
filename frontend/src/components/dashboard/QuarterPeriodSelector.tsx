@@ -1,4 +1,5 @@
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import type { SafeTFunction } from '@/i18n/hooks';
 
 import type { QuarterOption } from './quarterlyComparisonPresentation';
 
@@ -13,7 +14,7 @@ interface QuarterPeriodSelectorProps {
     onCompareYearChange: (value: number) => void;
     onCurrentQuarterChange: (value: number) => void;
     onCurrentYearChange: (value: number) => void;
-    t: (key: string) => string;
+    t: SafeTFunction;
     yearOptions: QuarterOption[];
 }
 
@@ -42,6 +43,7 @@ export function QuarterPeriodSelector({
                     onValueChange={(value) => onCurrentQuarterChange(Number.parseInt(value, 10))}
                     options={currentQuarterOptions}
                     className="min-w-[70px]"
+                    triggerAriaLabel={t('quarterly.current_quarter', { ns: 'dashboard' })}
                     triggerTestId="quarterly-current-quarter"
                     optionTestIdPrefix="quarterly-current-quarter-option"
                 />
@@ -50,6 +52,7 @@ export function QuarterPeriodSelector({
                     onValueChange={(value) => onCurrentYearChange(Number.parseInt(value, 10))}
                     options={yearOptions}
                     className="min-w-[90px]"
+                    triggerAriaLabel={t('quarterly.current_year', { ns: 'dashboard' })}
                     triggerTestId="quarterly-current-year"
                     optionTestIdPrefix="quarterly-current-year-option"
                 />
@@ -66,6 +69,7 @@ export function QuarterPeriodSelector({
                     onValueChange={(value) => onCompareQuarterChange(Number.parseInt(value, 10))}
                     options={compareQuarterOptions}
                     className="min-w-[70px]"
+                    triggerAriaLabel={t('quarterly.compare_quarter', { ns: 'dashboard' })}
                     triggerTestId="quarterly-compare-quarter"
                     optionTestIdPrefix="quarterly-compare-quarter-option"
                 />
@@ -74,6 +78,7 @@ export function QuarterPeriodSelector({
                     onValueChange={(value) => onCompareYearChange(Number.parseInt(value, 10))}
                     options={yearOptions}
                     className="min-w-[90px]"
+                    triggerAriaLabel={t('quarterly.compare_year', { ns: 'dashboard' })}
                     triggerTestId="quarterly-compare-year"
                     optionTestIdPrefix="quarterly-compare-year-option"
                 />

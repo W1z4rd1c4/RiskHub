@@ -153,6 +153,21 @@ describe('response schema nullability alignment', () => {
                 control_trends: [],
                 risk_trends: [],
                 kri_breach_trends: [],
+                filter_scope: {
+                    department_applies_to_all_scoped_panels: true,
+                    risk_level_applies_to: [
+                        'risk_summary',
+                        'risk_distribution',
+                        'risk_trends',
+                        'department_risk_metrics',
+                    ],
+                    control_filters_apply_to: [
+                        'control_summary',
+                        'control_trends',
+                        'department_control_metrics',
+                    ],
+                    unaffected_by_risk_control: ['kri', 'issues', 'vendors'],
+                },
                 generated_at: '2026-05-07T12:00:00Z',
             }));
         });

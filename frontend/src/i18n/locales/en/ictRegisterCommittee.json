@@ -85,6 +85,35 @@
         "risk_bands_gross": "Gross",
         "risk_bands_net": "Net"
     },
+    "controlled": {
+        "risk_band": {
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "critical": "Critical"
+        },
+        "asset_criticality": {
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "critical": "Critical"
+        },
+        "tolerance": {
+            "within": "Within tolerance",
+            "above": "Above tolerance"
+        },
+        "vendor_tier": {
+            "critical": "Critical vendor",
+            "significant": "Significant vendor",
+            "standard": "Standard vendor"
+        },
+        "risk_status": {
+            "open": "Open",
+            "in_progress": "In progress",
+            "closed": "Closed",
+            "accepted": "Accepted"
+        }
+    },
     "kpi": {
         "risk_count": "Total risks",
         "material_risk_count": "Material",

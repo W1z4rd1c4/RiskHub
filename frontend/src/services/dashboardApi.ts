@@ -81,6 +81,7 @@ export interface DashboardCommitteeSummary {
         owner_name: string;
         department_name: string;
     }>;
+    critical_risks_total: number;
     recent_activity: Array<{
         id: number;
         action: string;
@@ -107,6 +108,8 @@ export interface DashboardCommitteeSummary {
         outsourcing_owner_name: string;
         department_name: string;
     }>;
+    critical_vendors_total: number | null;
+    can_view_vendors: boolean;
 }
 
 function buildQueryParams(filters?: DashboardFilters): DashboardQueryParams {

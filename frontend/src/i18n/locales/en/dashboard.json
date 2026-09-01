@@ -107,6 +107,10 @@
     "risks_without_kri": "Risks Without KRI",
     "current_period": "Current:",
     "compare_period": "Compare:",
+    "current_quarter": "Current period quarter",
+    "current_year": "Current period year",
+    "compare_quarter": "Comparison period quarter",
+    "compare_year": "Comparison period year",
     "active_vendors": "Active Vendors",
     "no_data_available": "No data available",
     "vs": "vs",
@@ -134,6 +138,7 @@
     "days_until_due": "{{count}} days until due",
     "view_all": "View All KRIs",
     "view_all_overdue": "View All Overdue",
+    "showing": "Showing {{shown}} of {{total}}",
     "breaches_load_failed": "Unable to load KRI breaches",
     "status_load_failed": "Unable to load KRI status"
   },
@@ -180,10 +185,17 @@
     "view_mode": "View Mode",
     "title": "Filters",
     "clear_all": "Clear All",
+    "remove": "Remove {{label}} filter",
     "risk_level": "Risk Level",
     "control_status": "Control Status",
     "control_form": "Control Form",
-    "department_load_failed": "Departments unavailable"
+    "department_load_failed": "Departments unavailable",
+    "unaffected_scope": "{{panels}} remain all-population within the selected department and your access scope.",
+    "panels": {
+      "kri": "KRI",
+      "issues": "Issue",
+      "vendors": "Vendor"
+    }
   },
   "time_periods": {
     "today": "Today",
@@ -206,7 +218,12 @@
     "critical_risks": "Critical Risks",
     "no_critical_risks": "No critical risks at this time",
     "critical_vendors": "Critical Vendors",
+    "high_risk_vendors": "High-risk Vendors",
     "no_vendors_in_scope": "No vendors in scope",
+    "restricted_by_access_scope": "Restricted by access scope",
+    "top_of_total": "Top {{shown}} of {{total}}",
+    "view_all_critical_risks": "View all critical risks",
+    "view_all_high_risk_vendors": "View all high-risk vendors",
     "none": "None",
     "no_department_exposure_data": "No department exposure data",
     "no_recent_significant_activity": "No recent significant activity",

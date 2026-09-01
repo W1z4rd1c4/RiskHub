@@ -8,6 +8,9 @@ export const ControlForm = {
     MANUAL: 'manual' as ControlForm,
     AUTOMATIC: 'automatic' as ControlForm,
 };
+export function isControlForm(value: string): value is ControlForm {
+    return Object.values(ControlForm).includes(value as ControlForm);
+}
 
 export type ControlFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'ad_hoc' | 'continuous';
 export const ControlFrequency = {
@@ -27,6 +30,9 @@ export const ControlStatus = {
     ACTIVE: 'active' as ControlStatus,
     INACTIVE: 'inactive' as ControlStatus,
 };
+export function isControlStatus(value: string): value is ControlStatus {
+    return Object.values(ControlStatus).includes(value as ControlStatus);
+}
 
 export type ControlMonitoringStatus = 'new' | 'needs_review' | 'failed' | 'passed';
 export type ControlMonitoringReason =

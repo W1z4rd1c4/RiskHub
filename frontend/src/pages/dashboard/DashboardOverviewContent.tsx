@@ -40,12 +40,16 @@ interface DashboardOverviewContentProps {
     stats: DashboardStat[];
     summary: DashboardSummary | null;
     trends: DashboardOverview['control_trends'];
+    filterScope: DashboardOverview['filter_scope'] | undefined;
 }
 
 export function DashboardOverviewContent(props: DashboardOverviewContentProps) {
     return (
         <>
-            <FilterBar canUseDepartmentFilter={props.canUseDepartmentFilter} />
+            <FilterBar
+                canUseDepartmentFilter={props.canUseDepartmentFilter}
+                filterScope={props.filterScope}
+            />
             <DashboardSummarySections
                 canReadIssues={props.canReadIssues}
                 categoryAnalyticsTitle={props.categoryAnalyticsTitle}

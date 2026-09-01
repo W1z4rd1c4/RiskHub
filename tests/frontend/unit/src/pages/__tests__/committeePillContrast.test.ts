@@ -191,15 +191,17 @@ const presentation = buildIctCommitteePresentation(
 );
 
 function bandStyle(band: string) {
-    return presentation.executiveSummary.topRisks.find((risk) => risk.netBand === band)!.netBandStyle!;
+    const index = ['Nízké', 'Střední', 'Vysoké', 'Kritické'].indexOf(band);
+    return presentation.executiveSummary.topRisks[index * 2].netBandStyle!;
 }
 
 function toleranceStyle(tolerance: string) {
-    return presentation.executiveSummary.topRisks.find((risk) => risk.tolerance === tolerance)!.toleranceStyle!;
+    return presentation.executiveSummary.topRisks[tolerance === 'V toleranci' ? 0 : 1].toleranceStyle!;
 }
 
 function tierStyle(tier: string) {
-    return presentation.executiveSummary.topVendors.find((vendor) => vendor.tier === tier)!.tierStyle!;
+    const index = ['Standardní dodavatel', 'Významný dodavatel', 'Kritický dodavatel'].indexOf(tier);
+    return presentation.executiveSummary.topVendors[index].tierStyle!;
 }
 
 // Distinct pill styles the three helpers resolve to.

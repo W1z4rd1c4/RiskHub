@@ -17,8 +17,14 @@ async def get_dashboard_summary(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
-    control_status: Optional[str] = Query(None, description="Filter by control status"),
-    control_form: Optional[str] = Query(None, description="Filter by control form"),
+    control_status: Optional[Literal["draft", "active", "inactive"]] = Query(
+        None,
+        description="Filter by control status",
+    ),
+    control_form: Optional[Literal["manual", "automatic"]] = Query(
+        None,
+        description="Filter by control form",
+    ),
     risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(
         None, description="Filter by risk level"
     ),

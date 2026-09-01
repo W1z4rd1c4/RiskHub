@@ -33,8 +33,8 @@ export function KRIStatusWidget() {
                     kriApi.getDueSoon(params),
                 ]);
                 if (!cancelled) {
-                    setOverdueKRIs(overdue.slice(0, 5));
-                    setDueSoonKRIs(dueSoon.slice(0, 5));
+                    setOverdueKRIs(overdue);
+                    setDueSoonKRIs(dueSoon);
                     setError(null);
                 }
             } catch (err) {
@@ -168,7 +168,12 @@ export function KRIStatusWidget() {
                             <p className="text-xs text-success-text">{t('kri.no_overdue_short')}</p>
                         </div>
                     )}
-                    {currentItems.map((kri) => {
+                    {currentItems.length > 5 ? (
+                        <p className="p-3 text-xs font-semibold text-muted-foreground">
+                            {t('kri.showing', { shown: 5, total: currentItems.length })}
+                        </p>
+                    ) : null}
+                    {currentItems.slice(0, 5).map((kri) => {
                         const isOverdue = activeTab === 'overdue';
                         const days = isOverdue
                             ? (kri as OverdueKRI).days_overdue

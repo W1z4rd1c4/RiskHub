@@ -17,11 +17,11 @@ function RoiTemplateReadiness({
     template: RoiTemplatePresentation;
 }) {
     if (template.documentary) {
-        return <p className="text-slate-500 text-sm italic">{template.note}</p>;
+        return <p className="text-muted-foreground text-sm italic">{template.note}</p>;
     }
 
     if (template.rowCount === 0) {
-        return <p className="text-slate-500 text-sm">{template.noRowsLabel}</p>;
+        return <p className="text-muted-foreground text-sm">{template.noRowsLabel}</p>;
     }
 
     return (
@@ -40,7 +40,7 @@ function RoiTemplateReadiness({
                     {template.readinessLabel}
                 </span>
             </div>
-            <div className="flex items-center gap-3 text-xs text-slate-500 mt-1.5 font-medium">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1.5 font-medium">
                 <span>{template.rowCountLabel}</span>
                 {template.gapRowCount > 0 ? (
                     <button
@@ -80,7 +80,7 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
                     <p className={`font-semibold mt-0.5 ${template.documentary ? 'text-slate-400' : 'text-slate-200'}`}>
                         {template.name}
                     </p>
-                    <p className="text-slate-500 text-xs mt-0.5">{template.feedAndGate}</p>
+                    <p className="text-muted-foreground text-xs mt-0.5">{template.feedAndGate}</p>
                 </div>
                 <div className="flex-1">
                     <RoiTemplateReadiness
@@ -97,7 +97,7 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
                     className="mt-3 space-y-2 border-t border-white/5 pt-3"
                 >
                     {template.truncatedLabel && (
-                        <p className="text-slate-500 text-xs italic">{template.truncatedLabel}</p>
+                        <p className="text-muted-foreground text-xs italic">{template.truncatedLabel}</p>
                     )}
                     {template.gapRows.map((row) => (
                         <div key={row.key} className="flex flex-col md:flex-row md:items-baseline gap-1.5 md:gap-3">
@@ -114,7 +114,7 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
                                 )}
                             </div>
                             <div className="flex-1 flex flex-wrap items-center gap-1.5">
-                                <span className="text-slate-500 text-xs">{row.missingLabel}</span>
+                                <span className="text-muted-foreground text-xs">{row.missingLabel}</span>
                                 {row.missing.map((missing) => (
                                     <span
                                         key={missing.key}
@@ -138,15 +138,15 @@ export function IctCommitteeRoiReadinessSection({ presentation }: { presentation
         <section className="space-y-4" data-testid="committee-roi">
             <div>
                 <h2 className="text-xl font-bold text-white">{presentation.title}</h2>
-                <p className="text-slate-500 text-sm font-medium mt-1">{presentation.subtitle}</p>
+                <p className="text-muted-foreground text-sm font-medium mt-1">{presentation.subtitle}</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="glass-card" data-testid="committee-roi-overall">
-                    <p className="text-slate-500 text-xs font-bold min-h-8">{presentation.overallLabel}</p>
+                    <p className="text-muted-foreground text-xs font-bold min-h-8">{presentation.overallLabel}</p>
                     <p className="text-3xl font-bold text-white mt-1 tabular-nums">{presentation.overallValue}</p>
                 </div>
                 <div className="glass-card" data-testid="committee-roi-total-gaps">
-                    <p className="text-slate-500 text-xs font-bold min-h-8">{presentation.totalGapsLabel}</p>
+                    <p className="text-muted-foreground text-xs font-bold min-h-8">{presentation.totalGapsLabel}</p>
                     <p className="text-3xl font-bold text-white mt-1 tabular-nums">{presentation.totalGapsValue}</p>
                 </div>
             </div>

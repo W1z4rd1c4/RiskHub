@@ -1,3 +1,5 @@
+import type { ControlForm, ControlStatus } from '@/types/control';
+
 export interface DashboardSummary {
     total_controls: number;
     controls_by_status: Record<string, number>;
@@ -85,6 +87,13 @@ export interface DashboardOverviewCapabilities {
     can_export_or_report: boolean;
 }
 
+export interface DashboardFilterScope {
+    department_applies_to_all_scoped_panels: boolean;
+    risk_level_applies_to: string[];
+    control_filters_apply_to: string[];
+    unaffected_by_risk_control: Array<'kri' | 'issues' | 'vendors'>;
+}
+
 export interface DashboardOverview {
     summary: DashboardSummary;
     department_metrics: DepartmentMetrics[];
@@ -98,6 +107,7 @@ export interface DashboardOverview {
     issue_severity?: IssueSeverityBreakdownResponse | null;
     generated_at: string;
     capabilities?: DashboardOverviewCapabilities | null;
+    filter_scope: DashboardFilterScope;
 }
 
 export type RiskLevel = 'all' | 'critical' | 'high' | 'medium' | 'low';
@@ -105,6 +115,6 @@ export type RiskLevel = 'all' | 'critical' | 'high' | 'medium' | 'low';
 export interface DashboardFilters {
     departmentId: number | null;
     riskLevel: RiskLevel;
-    controlStatus: string | null;
-    controlForm: string | null;
+    controlStatus: ControlStatus | null;
+    controlForm: ControlForm | null;
 }

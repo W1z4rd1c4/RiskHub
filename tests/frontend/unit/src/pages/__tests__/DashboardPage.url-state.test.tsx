@@ -71,7 +71,7 @@ function DashboardControls() {
             </output>
             <button type="button" onClick={() => setRiskLevel('high')}>risk high</button>
             <button type="button" onClick={() => setControlStatus('active')}>status active</button>
-            <button type="button" onClick={() => setControlForm('preventive')}>form preventive</button>
+            <button type="button" onClick={() => setControlForm('manual')}>form manual</button>
             <button type="button" onClick={() => setDepartmentId(10)}>department ten</button>
             <button type="button" onClick={() => setDepartmentId(null)}>clear department</button>
             <button type="button" onClick={resetFilters}>reset dashboard</button>
@@ -138,7 +138,7 @@ describe('Dashboard URL state', () => {
 
     it('uses the five route-owned filter values for the first overview request', async () => {
         renderDashboard([
-            '/?source=review&view=overview&departmentId=7&riskLevel=high&controlStatus=active&controlForm=preventive&viewMode=department',
+            '/?source=review&view=overview&departmentId=7&riskLevel=high&controlStatus=active&controlForm=manual&viewMode=department',
         ]);
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalled());
@@ -146,11 +146,11 @@ describe('Dashboard URL state', () => {
             departmentId: 7,
             riskLevel: 'high',
             controlStatus: 'active',
-            controlForm: 'preventive',
+            controlForm: 'manual',
         }, expect.any(Object));
-        expect(screen.getByTestId('filters')).toHaveTextContent('7|high|active|preventive|department');
+        expect(screen.getByTestId('filters')).toHaveTextContent('7|high|active|manual|department');
         expect(screen.getByTestId('location').textContent).toBe(
-            '/?source=review&view=overview&departmentId=7&riskLevel=high&controlStatus=active&controlForm=preventive&viewMode=department',
+            '/?source=review&view=overview&departmentId=7&riskLevel=high&controlStatus=active&controlForm=manual&viewMode=department',
         );
     });
 
@@ -219,9 +219,9 @@ describe('Dashboard URL state', () => {
 
     it('pushes one atomic reset and Back restores every prior filter', async () => {
         renderDashboard([
-            '/?source=review&view=overview&departmentId=10&riskLevel=high&controlStatus=active&controlForm=preventive&viewMode=department',
+            '/?source=review&view=overview&departmentId=10&riskLevel=high&controlStatus=active&controlForm=manual&viewMode=department',
         ]);
-        await waitFor(() => expect(screen.getByTestId('filters')).toHaveTextContent('10|high|active|preventive|department'));
+        await waitFor(() => expect(screen.getByTestId('filters')).toHaveTextContent('10|high|active|manual|department'));
 
         fireEvent.click(screen.getByRole('button', { name: 'reset dashboard' }));
         await waitFor(() => {
@@ -231,7 +231,7 @@ describe('Dashboard URL state', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'history back' }));
         await waitFor(() => {
-            expect(screen.getByTestId('filters')).toHaveTextContent('10|high|active|preventive|department');
+            expect(screen.getByTestId('filters')).toHaveTextContent('10|high|active|manual|department');
         });
     });
 

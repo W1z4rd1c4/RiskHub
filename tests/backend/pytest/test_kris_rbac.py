@@ -1506,6 +1506,90 @@ async def test_cross_department_risk_owner_can_read_kri_surfaces(
 
 
 @pytest.mark.asyncio
+async def test_kri_breaches_use_stable_business_order_with_more_than_five_items(
+    auth_client: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user,
+):
+    from datetime import UTC, datetime, time, timedelta
+
+    from app.models.kri_history import KRIValueHistory
+    from app.services._kri_history import clock
+    from app.services._kri_history.periods import latest_closed_period_for_date
+
+    period_start, period_end = latest_closed_period_for_date(
+        clock.today(),
+        KRIFrequency.monthly.value,
+    )
+    fixtures = [
+        ("ORDER-P10", True, 10, 1),
+        ("ORDER-P08", True, 8, 2),
+        ("ORDER-N25-NEW", False, 25, 6),
+        ("ORDER-N25-OLD", False, 25, 3),
+        ("ORDER-N20", False, 20, 5),
+        ("ORDER-N15", False, 15, 4),
+    ]
+    for code, is_priority, net_score, reported_day in reversed(fixtures):
+        risk = Risk(
+            risk_id_code=code,
+            name=code,
+            process="KRI breach ordering",
+            description="Ordering fixture",
+            category="Test",
+            department_id=test_department.id,
+            owner_id=test_user.id,
+            risk_type="operational",
+            gross_probability=5,
+            gross_impact=5,
+            gross_score=25,
+            net_probability=5,
+            net_impact=5,
+            net_score=net_score,
+            is_priority=is_priority,
+            status=RiskStatus.active.value,
+        )
+        db_session.add(risk)
+        await db_session.flush()
+        reported_at = datetime.combine(period_end, time(12, 0), tzinfo=UTC) + timedelta(days=reported_day)
+        kri = KeyRiskIndicator(
+            risk_id=risk.id,
+            metric_name=code,
+            description="Breached ordering fixture",
+            current_value=150.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            unit="%",
+            frequency=KRIFrequency.monthly.value,
+            last_period_end=period_end,
+            last_reported_at=reported_at,
+        )
+        db_session.add(kri)
+        await db_session.flush()
+        db_session.add(
+            KRIValueHistory(
+                kri_id=kri.id,
+                period_start=period_start,
+                period_end=period_end,
+                recorded_at=reported_at,
+                recorded_by_id=test_user.id,
+                value=150.0,
+                lower_limit=0.0,
+                upper_limit=100.0,
+                unit="%",
+                breach_status="above",
+            )
+        )
+    await db_session.commit()
+
+    response = await auth_client.get("/api/v1/kris/breaches")
+
+    assert response.status_code == 200
+    ordered_codes = [item["risk_id_code"] for item in response.json()]
+    assert ordered_codes[:6] == [code for code, *_rest in fixtures]
+
+
+@pytest.mark.asyncio
 async def test_cross_department_control_owner_can_read_linked_risk_kri_surfaces(
     client_employee: AsyncClient,
     db_session,

@@ -37,6 +37,15 @@ async def list_breaches(
 
     query = await apply_kri_department_scope(query, db=db, current_user=current_user, department_id=department_id)
 
+    query = query.order_by(
+        Risk.is_priority.desc(),
+        Risk.net_score.desc().nulls_last(),
+        KeyRiskIndicator.last_period_end.desc().nulls_last(),
+        KeyRiskIndicator.last_reported_at.desc().nulls_last(),
+        Risk.risk_id_code.asc(),
+        KeyRiskIndicator.id.asc(),
+    )
+
     query = query.options(
         selectinload(KeyRiskIndicator.reporting_owner),
         selectinload(KeyRiskIndicator.risk).selectinload(Risk.owner),

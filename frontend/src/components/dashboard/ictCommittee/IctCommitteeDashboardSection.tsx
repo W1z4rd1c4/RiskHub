@@ -27,14 +27,14 @@ export function IctCommitteeDashboardSection({ presentation }: { presentation: D
                 </div>
             </div>
 
-            <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
                 {presentation.stateHeading}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {presentation.stateTiles.map((tile) => (
                     <Link key={tile.key} to={tile.href} className="glass-card block hover:bg-white/5 transition-colors">
                         <div data-testid={`committee-state-${tile.key}`}>
-                            <p className="text-slate-500 text-xs font-medium min-h-8">{tile.label}</p>
+                            <p className="text-muted-foreground text-xs font-medium min-h-8">{tile.label}</p>
                             <p className={`text-2xl font-bold mt-1 tabular-nums ${tile.countClass}`}>
                                 {tile.value}
                             </p>
@@ -43,13 +43,13 @@ export function IctCommitteeDashboardSection({ presentation }: { presentation: D
                 ))}
             </div>
 
-            <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
                 {presentation.metricsHeading}
             </h3>
             <div className="glass-card overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="text-left text-slate-500 text-xs uppercase tracking-wide">
+                        <tr className="text-left text-muted-foreground text-xs uppercase tracking-wide">
                             <th className="py-2 pr-3">{presentation.metricsColumns.metric}</th>
                             <th className="py-2 pr-3 text-right">{presentation.metricsColumns.value}</th>
                             <th className="py-2 pr-3">{presentation.metricsColumns.interpretation}</th>

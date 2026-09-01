@@ -276,6 +276,33 @@ describe('IctCommitteeSection', () => {
         }
     });
 
+    it.each([
+        ['en', 'Critical: 12', 'Critical · Gross: 3', 'High', 'Above tolerance', 'Accepted', 'Critical vendor'],
+        ['cs', 'Kritická: 12', 'Kritické · Hrubé: 3', 'Vysoké', 'NAD TOLERANCI', 'Akceptováno', 'Kritický dodavatel'],
+    ])(
+        'localizes controlled ICT labels in %s without changing canonical drill-down values',
+        async (language, assetLabel, riskLabel, bandLabel, toleranceLabel, statusLabel, vendorTierLabel) => {
+            await i18n.changeLanguage(language);
+            try {
+                getCommittee.mockResolvedValue(samplePayload());
+                renderSection();
+
+                expect(await screen.findByTestId('committee-asset-bar-Kritická')).toHaveTextContent(assetLabel);
+                expect(screen.getByTestId('committee-risk-bar-gross-Kritické')).toHaveTextContent(riskLabel);
+                expect(screen.getByTestId('committee-top-risk-1')).toHaveTextContent(bandLabel);
+                expect(screen.getByTestId('committee-top-risk-1')).toHaveTextContent(toleranceLabel);
+                expect(screen.getByTestId('committee-top-risk-1')).toHaveTextContent(statusLabel);
+                expect(screen.getByTestId('committee-top-vendor-1')).toHaveTextContent(vendorTierLabel);
+                expect(screen.getByTestId('committee-risk-bar-gross-Kritické')).toHaveAttribute(
+                    'href',
+                    '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+                );
+            } finally {
+                await i18n.changeLanguage('en');
+            }
+        },
+    );
+
     it('renders both sheets: tiles, matrices, tables, narratives, and drill-downs', async () => {
         getCommittee.mockResolvedValue(samplePayload());
         renderSection();

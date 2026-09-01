@@ -20,8 +20,11 @@ describe('dashboardApi committee summary responses', () => {
 
             return Promise.resolve(new Response(JSON.stringify({
                 critical_risks: [],
+                critical_risks_total: 0,
                 recent_activity: [],
                 department_exposure: [],
+                critical_vendors_total: 0,
+                can_view_vendors: true,
             }), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' },
@@ -30,9 +33,12 @@ describe('dashboardApi committee summary responses', () => {
 
         await expect(dashboardApi.fetchCommitteeSummary()).resolves.toMatchObject({
             critical_risks: [],
+            critical_risks_total: 0,
             recent_activity: [],
             department_exposure: [],
             critical_vendors: [],
+            critical_vendors_total: 0,
+            can_view_vendors: true,
         });
     });
 });

@@ -21,6 +21,7 @@ async def load_control_trends(
     current_user: User,
     department_id: int | None = None,
     control_status: str | None = None,
+    control_form: str | None = None,
 ) -> list[ControlFrequencyTrend]:
     try:
         conditions: list[ColumnElement[bool]] = [ControlExecution.executed_at.isnot(None)]
@@ -30,6 +31,8 @@ async def load_control_trends(
             control_conditions.append(visibility_clause)
         if control_status:
             control_conditions.append(Control.status == control_status)
+        if control_form:
+            control_conditions.append(Control.control_form == control_form)
         conditions.append(ControlExecution.control_id.in_(select(Control.id).where(and_(*control_conditions))))
 
         period_expr = week_period_expr(db, ControlExecution.executed_at)
