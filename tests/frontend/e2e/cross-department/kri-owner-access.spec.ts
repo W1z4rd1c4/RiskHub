@@ -93,7 +93,7 @@ test.describe('KRI Reporting Owner Cross-Department Access (Deterministic)', () 
         const denied =
             (!!response && (response.status() === 403 || response.status() === 404)) ||
             !url.includes(`/kris/${kriId}`) ||
-            /not found|does not exist|error|403|404|access denied|forbidden/i.test(bodyText);
+            /not found|does not exist|unavailable|error|403|404|access denied|forbidden/i.test(bodyText);
 
         expect(denied).toBe(true);
         await context.close();

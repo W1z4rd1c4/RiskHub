@@ -100,7 +100,7 @@ export function RiskHubPage() {
             ))}
 
             {/* Footer Note */}
-            <div className="text-center text-sm text-slate-500">
+            <div className="text-center text-sm text-muted-foreground">
                 {t('riskhub.footer')}
             </div>
         </div>

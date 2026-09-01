@@ -35,7 +35,7 @@ export function buildAssetColumns({
                 <div className="flex flex-col gap-0.5">
                     <span className="text-sm font-bold text-white">{asset.name}</span>
                     {asset.asset_level ? (
-                        <span className="text-xs text-slate-500">{t(`assets:values.asset_level.${asset.asset_level}`)}</span>
+                        <span className="text-xs text-muted-foreground">{t(`assets:values.asset_level.${asset.asset_level}`)}</span>
                     ) : null}
                 </div>
             ),
@@ -53,7 +53,7 @@ export function buildAssetColumns({
                 <div className="flex flex-col gap-0.5">
                     <span className="text-sm text-slate-300">{assetOwnerDisplayName(asset.business_owner) ?? t('assets:detail.unknown_owner')}</span>
                     {assetDepartmentDisplay(asset) ? (
-                        <span className="text-xs text-slate-500">{assetDepartmentDisplay(asset)}</span>
+                        <span className="text-xs text-muted-foreground">{assetDepartmentDisplay(asset)}</span>
                     ) : null}
                 </div>
             ),

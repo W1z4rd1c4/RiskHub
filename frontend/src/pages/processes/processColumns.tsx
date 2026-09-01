@@ -59,7 +59,7 @@ export function buildProcessColumns({
             key: 'l0_area',
             label: t('processes:columns.l0_area'),
             sortable: true,
-            render: (process) => <span className="text-sm text-slate-300">{process.l0_area}</span>,
+            render: (process) => <span className="text-sm text-foreground">{process.l0_area}</span>,
         },
         {
             key: 'owner',
@@ -67,7 +67,7 @@ export function buildProcessColumns({
             sortable: true,
             render: (process) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-slate-300">{processOwnerDisplayLabel(t, process)}</span>
+                    <span className="text-sm text-foreground">{processOwnerDisplayLabel(t, process)}</span>
                     <span className="text-xs text-muted-foreground">
                         {processDepartmentDisplayLabel(t, process)}
                     </span>
@@ -82,7 +82,7 @@ export function buildProcessColumns({
             className: 'w-[90px] text-right',
             headerClassName: 'text-right',
             render: (process) => (
-                <span className="text-sm text-slate-300 tabular-nums">
+                <span className="text-sm text-foreground tabular-nums">
                     {process.mtpd_hours ?? '—'}
                 </span>
             ),
@@ -104,7 +104,7 @@ export function buildProcessColumns({
             label: t('processes:columns.cif'),
             className: 'w-[90px]',
             render: (process) => (
-                <span className="text-sm text-slate-300">
+                <span className="text-sm text-foreground">
                     {processDerivedCifLabel(t, process.derived?.cif) ?? '—'}
                 </span>
             ),

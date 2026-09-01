@@ -175,7 +175,7 @@ test.describe('Role-Based Access', () => {
             await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
             const dashboard = new DashboardPage(page);
             await dashboard.navigateToRiskHub();
-            await page.getByRole('button', { name: /Approval Rules|Pravidla schvalování/ }).click();
+            await page.getByRole('tab', { name: /Approval Rules|Pravidla schvalování/ }).click();
             await waitForDataLoad(page);
 
             const scenario = page.locator('tbody tr').filter({

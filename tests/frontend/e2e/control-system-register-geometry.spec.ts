@@ -313,7 +313,7 @@ test.describe('desktop control-system geometry (#155)', () => {
                 }
 
                 await back.click();
-                await expect(deptHeadPage).toHaveURL(new RegExp(`${scenario.destination}$`));
+                await expect(deptHeadPage).toHaveURL(new RegExp(`${scenario.destination}(?:\\?.*)?$`));
             }
         }
     });

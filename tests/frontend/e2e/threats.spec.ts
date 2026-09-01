@@ -124,7 +124,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         await cisoPage.waitForURL(/\/threats\/\d+(?:\?.*)?$/);
         await expect(cisoPage.getByTestId('threat-detail-steward')).toContainText('Klára Černá');
 
-        const createdId = Number(cisoPage.url().match(/\/threats\/(\d+)$/)?.[1]);
+        const createdId = Number(new URL(cisoPage.url()).pathname.match(/^\/threats\/(\d+)$/)?.[1]);
         expect(createdId).toBeGreaterThan(0);
 
         // CISO owns the full Threat lifecycle, not creation alone.

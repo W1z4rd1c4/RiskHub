@@ -818,17 +818,17 @@ test.describe('UX-24 audited theme matrix', () => {
     await expect(page).toHaveURL(/\/controls\/9903$/);
 
     await visit(page, '/approvals?tab=pending');
-    const legacyEditCard = page.locator('main .glass-card').filter({
+    const governedEditCard = page.locator('main .glass-card').filter({
       hasText: 'E2E test: Sensitive field change on non-priority risk',
     });
-    await expect(legacyEditCard).toBeVisible();
-    await legacyEditCard.getByRole('button', { name: 'View Changes' }).click();
-    const legacyChangeField = legacyEditCard
-      .locator('[data-testid^="approval-legacy-changes-"] dt')
+    await expect(governedEditCard).toBeVisible();
+    await governedEditCard.getByRole('button', { name: 'View Changes' }).click();
+    const governedChangeField = governedEditCard
+      .locator('[data-testid^="approval-governed-mutation-"] dt')
       .first();
-    await expect(legacyChangeField).toBeVisible();
+    await expect(governedChangeField).toBeVisible();
     await expectReadableTypography(
-      legacyChangeField,
+      governedChangeField,
       'approval pending-change field',
     );
 

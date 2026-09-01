@@ -425,7 +425,7 @@ test.describe('Vendor Management (Deterministic)', () => {
             await vendorsPage.search(E2E_VENDORS.ACTIVE_PRIMARY.name);
             await vendorsPage.openRowByText(E2E_VENDORS.ACTIVE_PRIMARY.name);
             await riskManagerPage.getByRole('button', { name: /Edit|Upravit/i }).click();
-            await riskManagerPage.waitForURL(`/vendors/${vendorId}/edit`);
+            await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}/edit(?:\\?.*)?$`));
             await expect(riskManagerPage.getByTestId('vendor-form-name')).toBeVisible();
             await expect(riskManagerPage.getByTestId('vendor-form-owner')).toBeEnabled();
         } catch (error) {

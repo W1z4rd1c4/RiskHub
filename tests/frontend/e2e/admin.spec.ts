@@ -108,7 +108,7 @@ test.describe('Admin Console', () => {
             await expect(page).toHaveURL(/\/admin/, { timeout: 15000 });
             await expect(page.locator('main h1')).toHaveText(/Admin Console|Administrace/i, { timeout: 15000 });
 
-            await page.getByRole('button', { name: /Audit Logs|Auditní logy/i }).click();
+            await page.getByRole('tab', { name: /Audit Logs|Auditní logy/i }).click();
 
             const numericInputs = page.locator('input[type="number"]');
             await expect(numericInputs).toHaveCount(4, { timeout: 15000 });
@@ -151,7 +151,7 @@ test.describe('Admin Console', () => {
                 });
             });
 
-            await page.getByRole('button', { name: /Audit Logs|Auditní logy/i }).click();
+            await page.getByRole('tab', { name: /Audit Logs|Auditní logy/i }).click();
             const eventLabel = page.locator('tbody span').filter({ hasText: /user update/i }).first();
             await expect(eventLabel).toBeVisible({ timeout: 15_000 });
             const fontSize = await eventLabel.evaluate((node) => Number.parseFloat(getComputedStyle(node).fontSize));

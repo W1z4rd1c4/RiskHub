@@ -46,7 +46,7 @@ export class DashboardPage {
     }
 
     get riskHubLink(): Locator {
-        return this.sidebar.locator('a[href="/risk-hub"], a:has-text("Risk Hub")').first();
+        return this.sidebar.getByRole('link', { name: /^Risk Hub$/ });
     }
 
     get settingsLink(): Locator {
@@ -114,8 +114,10 @@ export class DashboardPage {
     }
 
     async navigateToRiskHub(): Promise<void> {
-        await this.riskHubLink.click();
-        await expect(this.page).toHaveURL(/.*risk-hub/);
+        await Promise.all([
+            this.page.waitForURL(/.*risk-hub/, { waitUntil: 'commit' }),
+            this.riskHubLink.click(),
+        ]);
         await waitForDataLoad(this.page);
     }
 

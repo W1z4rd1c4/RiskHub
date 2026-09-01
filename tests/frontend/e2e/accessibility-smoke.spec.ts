@@ -115,6 +115,7 @@ async function auditRoutes(
   testInfo: TestInfo
 ): Promise<void> {
   const project = testInfo.project.name;
+  await page.emulateMedia({ reducedMotion: 'reduce' });
 
   const attach: Array<{
     logicalRoute: string;
