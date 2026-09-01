@@ -4,6 +4,7 @@ from typing import Literal
 
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.permissions import get_user_department_ids, has_permission
 from app.models import Control, ControlExecution, Department, KeyRiskIndicator, Risk, User
@@ -58,7 +59,7 @@ async def load_department_dashboard_metrics(
     control_counts: dict[int, int] = {}
     active_control_counts: dict[int, int] = {}
     if can_read_controls:
-        control_conditions = [Control.department_id.in_(department_ids)]
+        control_conditions: list[ColumnElement[bool]] = [Control.department_id.in_(department_ids)]
         if not include_archived:
             control_conditions.append(Control.live())
         if control_status:
@@ -89,7 +90,7 @@ async def load_department_dashboard_metrics(
             ).all()
         )
 
-    risk_conditions = [Risk.department_id.in_(department_ids)]
+    risk_conditions: list[ColumnElement[bool]] = [Risk.department_id.in_(department_ids)]
     if not include_archived:
         risk_conditions.append(Risk.live())
     if risk_level:
@@ -115,7 +116,7 @@ async def load_department_dashboard_metrics(
 
     audited_control_counts: dict[int, int] = {}
     if can_read_controls:
-        audited_control_conditions = [Control.department_id.in_(department_ids)]
+        audited_control_conditions: list[ColumnElement[bool]] = [Control.department_id.in_(department_ids)]
         if not include_archived:
             audited_control_conditions.append(Control.live())
         if control_status:
