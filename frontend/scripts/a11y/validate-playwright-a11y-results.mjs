@@ -13,12 +13,15 @@ function visitSuites(suites, callback) {
   }
 }
 
-export function assertA11ySpecsExecuted(report) {
+export function assertA11ySpecsExecuted(reportOrReports) {
+  const reports = Array.isArray(reportOrReports) ? reportOrReports : [reportOrReports];
   const byFile = new Map(REQUIRED_A11Y_SPECS.map((spec) => [spec, []]));
-  visitSuites(report?.suites, (spec, suiteFile) => {
-    const file = basename(spec.file ?? suiteFile ?? '');
-    if (byFile.has(file)) byFile.get(file).push(spec);
-  });
+  for (const report of reports) {
+    visitSuites(report?.suites, (spec, suiteFile) => {
+      const file = basename(spec.file ?? suiteFile ?? '');
+      if (byFile.has(file)) byFile.get(file).push(spec);
+    });
+  }
 
   for (const [file, specs] of byFile) {
     if (specs.length === 0) throw new Error(`Playwright JSON report contains no tests for ${file}`);
@@ -36,10 +39,14 @@ export function assertA11ySpecsExecuted(report) {
 }
 
 function main() {
-  const reportPath = process.argv[2];
-  if (!reportPath) throw new Error('Usage: validate-playwright-a11y-results.mjs <playwright-results.json>');
-  const report = JSON.parse(readFileSync(resolve(process.cwd(), reportPath), 'utf8'));
-  assertA11ySpecsExecuted(report);
+  const reportPaths = process.argv.slice(2);
+  if (reportPaths.length === 0) {
+    throw new Error('Usage: validate-playwright-a11y-results.mjs <playwright-results.json> [...]');
+  }
+  const reports = reportPaths.map((reportPath) => (
+    JSON.parse(readFileSync(resolve(process.cwd(), reportPath), 'utf8'))
+  ));
+  assertA11ySpecsExecuted(reports);
   console.log(`Playwright accessibility execution verified: ${REQUIRED_A11Y_SPECS.join(', ')}.`);
 }
 

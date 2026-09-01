@@ -11,25 +11,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  e2e-tests:
-    name: Playwright E2E Tests
+  e2e-scope:
+    name: Classify Playwright E2E Scope
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    
-    services:
-      postgres:
-        image: postgres:15@sha256:c635fa3e3b7421a659d34abdfd6d492f679cbe8149e261a501237b55c5a94212
-        env:
-          POSTGRES_USER: riskhub
-          POSTGRES_PASSWORD: riskhub_test
-          POSTGRES_DB: riskhub_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    timeout-minutes: 5
+    outputs:
+      run-e2e: ${{ steps.e2e-scope.outputs.run-e2e }}
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -75,12 +62,38 @@ jobs:
           fi
           printf 'E2E scope requires full Playwright run: %s\n' "$run_e2e"
 
-      - name: Skip Playwright E2E for docs-only changes
-        if: steps.e2e-scope.outputs.run-e2e != 'true'
-        run: echo "Skipping Playwright E2E because this change does not touch product, E2E, startup, or workflow surfaces."
+  e2e-shards:
+    name: Playwright E2E Shard ${{ matrix.shard }}/4
+    needs: e2e-scope
+    if: needs.e2e-scope.outputs.run-e2e == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+
+    services:
+      postgres:
+        image: postgres:15@sha256:c635fa3e3b7421a659d34abdfd6d492f679cbe8149e261a501237b55c5a94212
+        env:
+          POSTGRES_USER: riskhub
+          POSTGRES_PASSWORD: riskhub_test
+          POSTGRES_DB: riskhub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Python
-        if: steps.e2e-scope.outputs.run-e2e == 'true'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.13'
@@ -91,7 +104,6 @@ jobs:
             backend/requirements-db.txt
 
       - name: Set up Node.js
-        if: steps.e2e-scope.outputs.run-e2e == 'true'
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: '24'
@@ -99,17 +111,14 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install backend dependencies
-        if: steps.e2e-scope.outputs.run-e2e == 'true'
         working-directory: backend
         run: pip install -r requirements.txt
 
       - name: Install frontend dependencies
-        if: steps.e2e-scope.outputs.run-e2e == 'true'
         working-directory: frontend
         run: npm ci
 
       - name: Cache Playwright browsers
-        if: steps.e2e-scope.outputs.run-e2e == 'true'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
@@ -117,7 +126,6 @@ jobs:
 
       - name: Detect system Chrome
         id: system-chrome
-        if: steps.e2e-scope.outputs.run-e2e == 'true'
         run: |
           set -euo pipefail
           if command -v google-chrome >/dev/null 2>&1; then
@@ -131,7 +139,7 @@ jobs:
           fi
 
       - name: Install Playwright browsers
-        if: steps.e2e-scope.outputs.run-e2e == 'true' && steps.system-chrome.outputs.available != 'true'
+        if: steps.system-chrome.outputs.available != 'true'
         timeout-minutes: 8
         working-directory: frontend
         env:
@@ -139,7 +147,6 @@ jobs:
         run: npx playwright install --with-deps --only-shell chromium
 
       - name: Start backend
-        if: steps.e2e-scope.outputs.run-e2e == 'true'
         working-directory: backend
         env:
           DATABASE_URL: postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test
@@ -188,7 +195,6 @@ jobs:
           PY
 
       - name: Run E2E tests
-        if: steps.e2e-scope.outputs.run-e2e == 'true'
         working-directory: frontend
         env:
           CI: 'true'
@@ -200,26 +206,72 @@ jobs:
           fi
           npm run e2e:a11y:collect
           npm run e2e:dora:collect
-          npx playwright test -c playwright.config.ts --project=ci
-          npm run e2e:a11y:results -- ../tests/results/frontend/playwright/test-results/results.json
+          npx playwright test -c playwright.config.ts --project=ci --workers=1 --shard=${{ matrix.shard }}/4
 
       - name: Upload test results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always() && steps.e2e-scope.outputs.run-e2e == 'true'
+        if: always()
         with:
-          name: playwright-report
+          name: playwright-report-shard-${{ matrix.shard }}
           path: tests/results/frontend/playwright/playwright-report/
           retention-days: 30
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure() && steps.e2e-scope.outputs.run-e2e == 'true'
+        if: always()
         with:
-          name: test-artifacts
+          name: test-artifacts-shard-${{ matrix.shard }}
           path: |
             tests/results/frontend/playwright/test-results/
             e2e-backend.log
           retention-days: 7
+
+  e2e-tests:
+    name: Playwright E2E Tests
+    needs: [e2e-scope, e2e-shards]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fail when scope classification failed
+        if: needs.e2e-scope.result != 'success'
+        run: exit 1
+
+      - name: Skip Playwright E2E for docs-only changes
+        if: needs.e2e-scope.result == 'success' && needs.e2e-scope.outputs.run-e2e != 'true'
+        run: echo "Skipping Playwright E2E because this change does not touch product, E2E, startup, or workflow surfaces."
+
+      - name: Require successful Playwright shards
+        if: needs.e2e-scope.outputs.run-e2e == 'true' && needs.e2e-shards.result != 'success'
+        run: exit 1
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: needs.e2e-shards.result == 'success'
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node.js
+        if: needs.e2e-shards.result == 'success'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+
+      - name: Download Playwright shard results
+        if: needs.e2e-shards.result == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: test-artifacts-shard-*
+          path: e2e-artifacts
+
+      - name: Verify accessibility suites passed across shards
+        if: needs.e2e-shards.result == 'success'
+        run: |
+          mapfile -d '' result_files < <(find e2e-artifacts -name results.json -print0)
+          if [ "${#result_files[@]}" -ne 4 ]; then
+            echo "Expected four Playwright JSON reports, found ${#result_files[@]}" >&2
+            exit 1
+          fi
+          node frontend/scripts/a11y/validate-playwright-a11y-results.mjs "${result_files[@]}"
 
   production-profile-smoke:
     name: Production Profile Smoke

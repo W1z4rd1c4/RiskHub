@@ -430,8 +430,33 @@ def test_e2e_workflow_classifies_scope_before_expensive_playwright_steps() -> No
         ".github/workflows/e2e.yml",
     ):
         assert path_pattern in text
-    assert "steps.e2e-scope.outputs.run-e2e == 'true'" in text
-    assert "steps.e2e-scope.outputs.run-e2e != 'true'" in text
+    assert "needs.e2e-scope.outputs.run-e2e == 'true'" in text
+    assert "needs.e2e-scope.outputs.run-e2e != 'true'" in text
+
+
+def test_e2e_workflow_shards_serial_playwright_runs_behind_one_required_check() -> None:
+    text = E2E_WORKFLOW.read_text(encoding="utf-8")
+
+    scope_job = text[text.index("  e2e-scope:") : text.index("  e2e-shards:")]
+    shard_job = text[text.index("  e2e-shards:") : text.index("  e2e-tests:")]
+    required_job = text[
+        text.index("  e2e-tests:") : text.index("  production-profile-smoke:")
+    ]
+
+    assert "outputs:" in scope_job
+    assert "run-e2e: ${{ steps.e2e-scope.outputs.run-e2e }}" in scope_job
+    assert "needs: e2e-scope" in shard_job
+    assert "matrix:" in shard_job
+    assert "shard: [1, 2, 3, 4]" in shard_job
+    assert "--workers=1" in shard_job
+    assert "--shard=${{ matrix.shard }}/4" in shard_job
+    assert "if: always()" in shard_job
+    assert "playwright-report-shard-${{ matrix.shard }}" in shard_job
+    assert "test-artifacts-shard-${{ matrix.shard }}" in shard_job
+    assert "name: Playwright E2E Tests" in required_job
+    assert "needs: [e2e-scope, e2e-shards]" in required_job
+    assert "if: always()" in required_job
+    assert "needs.e2e-shards.result" in required_job
 
 
 def test_e2e_workflow_caches_playwright_browsers_and_uses_shell_only_chromium() -> None:
@@ -468,11 +493,14 @@ def test_e2e_workflow_prefers_system_chrome_with_bounded_browser_fallback() -> N
         )
     ]
     assert "npm run e2e:a11y:collect" in run_step
-    assert "npm run e2e:a11y:results" in run_step
     assert "--project=ci" in run_step
     assert "--project=chromium" not in run_step
     assert "unset PLAYWRIGHT_CHROMIUM_CHANNEL" in run_step
     assert "PLAYWRIGHT_CHROMIUM_CHANNEL: chrome" in text
+    required_job = text[
+        text.index("  e2e-tests:") : text.index("  production-profile-smoke:")
+    ]
+    assert "validate-playwright-a11y-results.mjs" in required_job
 
 
 def test_playwright_ci_project_allows_workflow_selected_chromium_channel() -> None:
@@ -486,7 +514,7 @@ def test_playwright_ci_project_allows_workflow_selected_chromium_channel() -> No
 def test_e2e_workflow_allows_full_suite_runtime_headroom() -> None:
     text = E2E_WORKFLOW.read_text(encoding="utf-8")
     playwright_job = text[
-        text.index("  e2e-tests:") : text.index("  production-profile-smoke:")
+        text.index("  e2e-shards:") : text.index("  e2e-tests:")
     ]
 
     assert "timeout-minutes: 60" in playwright_job

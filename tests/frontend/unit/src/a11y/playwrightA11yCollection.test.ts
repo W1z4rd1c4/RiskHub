@@ -51,4 +51,19 @@ describe('Playwright accessibility collection guard', () => {
     skipped.suites[1]!.specs[0]!.tests[0] = { projectName: 'ci', status: 'skipped', results: [] };
     expect(() => assertA11ySpecsExecuted(skipped)).toThrow(/skipped or did not pass/i);
   });
+
+  it('accepts required accessibility results split across Playwright shards', () => {
+    const reports = REQUIRED_A11Y_SPECS.map((file) => ({
+      suites: [{
+        file,
+        specs: [{
+          file,
+          title: `${file} contract`,
+          tests: [{ projectName: 'ci', status: 'expected', results: [{ status: 'passed' }] }],
+        }],
+      }],
+    }));
+
+    expect(() => assertA11ySpecsExecuted(reports)).not.toThrow();
+  });
 });
