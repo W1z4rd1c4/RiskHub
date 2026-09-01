@@ -15,7 +15,7 @@ const REGISTER_EXPORT_PATH = '/vendor-reports';
 // hardcoded-string scanner never mistakes this Tailwind className for UI copy
 // ([jsx-fallback]). It is a class list, not user-facing text.
 const DEFAULT_LINK_CLASS =
-    'px-5 py-2.5 rounded-xl bg-accent/20 border border-accent/30 text-accent font-bold hover:bg-accent/30 transition-all flex items-center gap-2 w-fit';
+    'px-5 py-2.5 rounded-xl bg-accent border border-accent text-accent-foreground font-bold hover:bg-accent-hover transition-colors flex items-center gap-2 w-fit';
 
 /**
  * FR-P5-8 (S2 / N21): a discoverability CTA that links the Committee and DQ

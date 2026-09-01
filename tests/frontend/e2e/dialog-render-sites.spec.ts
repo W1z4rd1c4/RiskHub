@@ -618,7 +618,7 @@ Object.assign(drivers, {
   'destination-launcher.sidebar': liveDriver(
     RM,
     list('/'),
-    (page) => page.getByRole('button', { name: /go to|přejít/i }),
+    (page) => page.getByRole('button', { name: /^(go to|přejít)$/i }),
   ),
   'approval-resolution.approvals-page': liveDriver(
     CRO,

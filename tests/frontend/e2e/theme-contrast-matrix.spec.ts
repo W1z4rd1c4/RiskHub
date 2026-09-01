@@ -147,6 +147,7 @@ async function expectCanonicalNeutralHover(page: Page, locator: Locator, label: 
   await expect(locator, label).toBeVisible();
   await page.mouse.move(0, 0);
   await expect.poll(() => locator.evaluate((element) => element.matches(':hover')), { message: `${label} leaves hover` }).toBe(false);
+  await settledComputedColors(locator, `${label} normal`);
   expect(await renderedContrast(locator), `${label} normal contrast`).toBeGreaterThanOrEqual(4.5);
   const semanticBackground = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--secondary))');
   const semanticChannels = semanticBackground.match(/[\d.]+/g)?.map(Number) ?? [];
@@ -818,17 +819,17 @@ test.describe('UX-24 audited theme matrix', () => {
     await expect(page).toHaveURL(/\/controls\/9903$/);
 
     await visit(page, '/approvals?tab=pending');
-    const governedEditCard = page.locator('main .glass-card').filter({
+    const legacyEditCard = page.locator('main .glass-card').filter({
       hasText: 'E2E test: Sensitive field change on non-priority risk',
     });
-    await expect(governedEditCard).toBeVisible();
-    await governedEditCard.getByRole('button', { name: 'View Changes' }).click();
-    const governedChangeField = governedEditCard
-      .locator('[data-testid^="approval-governed-mutation-"] dt')
+    await expect(legacyEditCard).toBeVisible();
+    await legacyEditCard.getByRole('button', { name: 'View Changes' }).click();
+    const legacyChangeField = legacyEditCard
+      .locator('[data-testid^="approval-legacy-changes-"] dt')
       .first();
-    await expect(governedChangeField).toBeVisible();
+    await expect(legacyChangeField).toBeVisible();
     await expectReadableTypography(
-      governedChangeField,
+      legacyChangeField,
       'approval pending-change field',
     );
 

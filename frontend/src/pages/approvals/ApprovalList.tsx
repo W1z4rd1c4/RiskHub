@@ -83,10 +83,8 @@ export function ApprovalList({
                             : Edit;
 
                 return (
-                    <motion.div
+                    <div
                         key={approval.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
                         className="glass-card p-0 overflow-hidden"
                     >
                     <div className="p-6 flex flex-col lg:flex-row lg:items-center gap-6">
@@ -265,7 +263,7 @@ export function ApprovalList({
                                 </motion.div>
                             )}
                     </AnimatePresence>
-                    </motion.div>
+                    </div>
                 );
             })}
         </div>

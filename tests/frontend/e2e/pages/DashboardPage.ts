@@ -114,10 +114,8 @@ export class DashboardPage {
     }
 
     async navigateToRiskHub(): Promise<void> {
-        await Promise.all([
-            this.page.waitForURL(/.*risk-hub/, { waitUntil: 'commit' }),
-            this.riskHubLink.click(),
-        ]);
+        await this.riskHubLink.click();
+        await expect(this.page).toHaveURL(/\/risk-hub(?:\?.*)?$/);
         await waitForDataLoad(this.page);
     }
 

@@ -33,7 +33,7 @@ export function buildAssetColumns({
             className: 'w-[300px] min-w-[220px]',
             render: (asset) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-bold text-white">{asset.name}</span>
+                    <span className="text-sm font-bold text-foreground">{asset.name}</span>
                     {asset.asset_level ? (
                         <span className="text-xs text-muted-foreground">{t(`assets:values.asset_level.${asset.asset_level}`)}</span>
                     ) : null}
@@ -44,14 +44,14 @@ export function buildAssetColumns({
             key: 'asset_type',
             label: t('assets:columns.asset_type'),
             sortable: true,
-            render: (asset) => <span className="text-sm text-slate-300">{asset.asset_type ? t(`assets:values.asset_type.${asset.asset_type}`) : '—'}</span>,
+            render: (asset) => <span className="text-sm text-foreground">{asset.asset_type ? t(`assets:values.asset_type.${asset.asset_type}`) : '—'}</span>,
         },
         {
             key: 'business_owner',
             label: t('assets:columns.owner'),
             render: (asset) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm text-slate-300">{assetOwnerDisplayName(asset.business_owner) ?? t('assets:detail.unknown_owner')}</span>
+                    <span className="text-sm text-foreground">{assetOwnerDisplayName(asset.business_owner) ?? t('assets:detail.unknown_owner')}</span>
                     {assetDepartmentDisplay(asset) ? (
                         <span className="text-xs text-muted-foreground">{assetDepartmentDisplay(asset)}</span>
                     ) : null}
@@ -75,7 +75,7 @@ export function buildAssetColumns({
             label: t('assets:columns.cif'),
             className: 'w-[90px]',
             render: (asset) => (
-                <span className="text-sm text-slate-300">
+                <span className="text-sm text-foreground">
                     {assetDerivedBooleanLabel(t, asset.derived?.cif) ?? '—'}
                 </span>
             ),
@@ -86,7 +86,7 @@ export function buildAssetColumns({
             sortable: true,
             className: 'w-[130px]',
             render: (asset) => (
-                <span className="text-sm text-slate-300">{asset.lifecycle_state ? t(`assets:values.lifecycle_state.${asset.lifecycle_state}`) : '—'}</span>
+                <span className="text-sm text-foreground">{asset.lifecycle_state ? t(`assets:values.lifecycle_state.${asset.lifecycle_state}`) : '—'}</span>
             ),
         },
         {
@@ -106,7 +106,7 @@ export function buildAssetColumns({
                             {resolveCapabilityFlag(asset.capabilities, 'has_pending_change') ? (
                                 <span
                                     data-testid={`asset-pending-change-${asset.id}`}
-                                    className="inline-flex items-center rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-200"
+                                    className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-bold text-warning-text"
                                 >
                                     {t('assets:pending_change.badge')}
                                 </span>
@@ -117,7 +117,7 @@ export function buildAssetColumns({
                                 type="button"
                                 data-testid={`asset-restore-${asset.id}`}
                                 onClick={(event) => void onRestore(asset.id, event)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                                 aria-label={t('assets:actions.restore')}
                                 title={t('assets:actions.restore')}
                             >
