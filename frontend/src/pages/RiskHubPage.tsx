@@ -57,8 +57,8 @@ export function RiskHubPage() {
                         <Command className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-white font-heading">{t('riskhub.title')}</h1>
-                        <p className="text-slate-400">
+                        <h1 className="text-2xl font-bold text-foreground font-heading">{t('riskhub.title')}</h1>
+                        <p className="text-muted-foreground">
                             {t('riskhub.subtitle')}
                         </p>
                     </div>
@@ -77,7 +77,7 @@ export function RiskHubPage() {
                                 "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap",
                                 isActive
                                     ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20"
-                                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                             )}
                         >
                             <tab.icon className="h-4 w-4" />

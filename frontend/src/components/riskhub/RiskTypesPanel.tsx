@@ -175,11 +175,11 @@ export function RiskTypesPanel() {
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.risk_types, 'can_create');
 
     if (panel.isLoading) {
-        return <div className="text-slate-400 text-center py-8">{t('common:loading.risk_types')}</div>;
+        return <div className="text-muted-foreground text-center py-8">{t('common:loading.risk_types')}</div>;
     }
 
     if (panel.error) {
-        return <div className="text-red-400 text-center py-8">{t('errors.failed_to_load_risk_types')}</div>;
+        return <div className="text-destructive text-center py-8">{t('errors.failed_to_load_risk_types')}</div>;
     }
 
     return (
@@ -187,17 +187,17 @@ export function RiskTypesPanel() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Palette className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-semibold text-white">{t('admin:risk_types_panel.title')}</h3>
+                    <h3 className="text-lg font-semibold text-foreground">{t('admin:risk_types_panel.title')}</h3>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <label htmlFor={showDeletedId} className="flex items-center gap-2 text-sm text-slate-400">
+                    <label htmlFor={showDeletedId} className="flex items-center gap-2 text-sm text-muted-foreground">
                         <input
                             id={showDeletedId}
                             type="checkbox"
                             checked={panel.showInactive}
                             onChange={(e) => panel.setShowInactive(e.target.checked)}
-                            className="rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
+                            className="rounded border-border bg-background text-accent focus:ring-accent"
                         />
                         {t('admin:risk_types_panel.show_deleted')}
                     </label>
@@ -217,14 +217,14 @@ export function RiskTypesPanel() {
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead>
-                        <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:risk_types_panel.columns.color')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:risk_types_panel.columns.code')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:risk_types_panel.columns.display_name')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.description')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:risk_types_panel.columns.risks')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.status')}</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.actions')}</th>
+                        <tr className="border-b border-border">
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.color')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.code')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.display_name')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.description')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.risks')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.status')}</th>
+                            <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -237,7 +237,7 @@ export function RiskTypesPanel() {
                             <tr
                                 key={type.id}
                                 className={cn(
-                                    "border-b border-white/5 hover:bg-white/5 transition-colors",
+                                    "border-b border-border hover:bg-muted/50 transition-colors",
                                     !type.is_active && "opacity-50"
                                 )}
                             >
@@ -245,28 +245,28 @@ export function RiskTypesPanel() {
                                     <ColorSwatch color={type.color} className="h-6 w-6" />
                                 </td>
                                 <td className="py-3 px-4">
-                                    <code className="text-sm font-mono text-slate-300">{type.code}</code>
+                                    <code className="text-sm font-mono text-foreground">{type.code}</code>
                                 </td>
-                                <td className="py-3 px-4 text-white font-medium">{type.display_name}</td>
-                                <td className="py-3 px-4 text-slate-400 text-sm max-w-xs truncate">
+                                <td className="py-3 px-4 text-foreground font-medium">{type.display_name}</td>
+                                <td className="py-3 px-4 text-muted-foreground text-sm max-w-xs truncate">
                                     {type.description || '—'}
                                 </td>
                                 <td className="py-3 px-4 text-center">
-                                    <span className="px-2 py-0.5 bg-white/10 rounded-full text-xs text-slate-300">
+                                    <span className="px-2 py-0.5 bg-muted rounded-full text-xs text-foreground">
                                         {type.risk_count}
                                     </span>
                                 </td>
                                 <td className="py-3 px-4 text-center">
                                     {type.is_system ? (
-                                        <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full text-xs">
+                                        <span className="px-2 py-0.5 bg-info/10 text-accent-text rounded-full text-xs">
                                             {t('admin:risk_types_panel.badges.system')}
                                         </span>
                                     ) : type.is_active ? (
-                                        <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full text-xs">
+                                        <span className="px-2 py-0.5 bg-success/10 text-success-text rounded-full text-xs">
                                             {t('admin:risk_types_panel.badges.active')}
                                         </span>
                                     ) : (
-                                        <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs">
+                                        <span className="px-2 py-0.5 bg-destructive/10 text-destructive rounded-full text-xs">
                                             {t('admin:risk_types_panel.badges.deleted')}
                                         </span>
                                     )}
@@ -276,7 +276,7 @@ export function RiskTypesPanel() {
                                         {canUpdate ? (
                                             <button
                                                 onClick={() => panel.openEdit(type)}
-                                                className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
                                                 title={t('common:actions.edit')}
                                                 aria-label={t('common:actions.edit')}
                                             >
@@ -287,7 +287,7 @@ export function RiskTypesPanel() {
                                         {canDelete && (
                                             <button
                                                 onClick={() => panel.requestDelete(type)}
-                                                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                                                 title={t('common:actions.delete')}
                                                 aria-label={t('common:actions.delete')}
                                             >
@@ -298,7 +298,7 @@ export function RiskTypesPanel() {
                                         {canRestore && (
                                             <button
                                                 onClick={() => panel.handleRestore(type)}
-                                                className="p-1.5 text-slate-400 hover:text-green-400 hover:bg-green-500/10 rounded transition-colors"
+                                                className="p-1.5 text-muted-foreground hover:text-success-text hover:bg-success/10 rounded transition-colors"
                                                 title={t('admin:risk_types_panel.actions.restore')}
                                                 aria-label={t('admin:risk_types_panel.actions.restore')}
                                             >
