@@ -372,7 +372,7 @@ export function IctRegisterDqPage() {
                 <div className="flex flex-wrap items-center gap-3">
                     {/* FR-P5-8 (S2 / N21): discoverability link to the register export,
                         gated on the separate can_download_dora_register capability. */}
-                    <RegisterExportLink />
+                    <RegisterExportLink className="px-5 py-2.5 rounded-xl bg-accent border border-accent text-accent-foreground font-bold hover:bg-accent-hover transition-colors flex items-center gap-2 w-fit" />
                     <button
                         type="button"
                         onClick={() => void fetchDq()}
