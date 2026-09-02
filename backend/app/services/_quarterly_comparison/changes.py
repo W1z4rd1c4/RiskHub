@@ -16,7 +16,7 @@ def calculate_changes(
     last_quarter: dict,
     suppressed_metrics: dict[str, SuppressionReason],
 ) -> dict:
-    changes = {}
+    changes: dict[str, dict[str, object]] = {}
     metric_keys = set(this_quarter) | set(last_quarter) | set(suppressed_metrics)
     for key in metric_keys:
         if key in suppressed_metrics:

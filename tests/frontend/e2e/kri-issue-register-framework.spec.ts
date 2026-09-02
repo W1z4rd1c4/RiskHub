@@ -322,7 +322,10 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
             }
 
             await riskManagerPage.getByTestId(`${contract.prefix}-export-button`).click();
-            await riskManagerPage.getByTestId('export-purpose-point-in-time').check();
+            const datedPurposeTestId = contract.prefix === 'issues'
+                ? 'export-purpose-evaluation'
+                : 'export-purpose-point-in-time';
+            await riskManagerPage.getByTestId(datedPurposeTestId).check();
             await expect(riskManagerPage.getByTestId('export-date-input')).toBeVisible();
             const historicalResponsePromise = riskManagerPage.waitForResponse((response) => (
                 response.request().method() === 'GET' && new URL(response.url()).pathname === contract.historicalExportPath

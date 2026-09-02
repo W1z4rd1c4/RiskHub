@@ -57,10 +57,10 @@ test.describe('questionnaire workflow', () => {
 
             riskUrl = page.url();
 
-            // Send questionnaire from Risk Assessment tab
+            // Send questionnaire from the Assessment questionnaires / Hodnoticí dotazníky tab
             await page
                 .getByRole('tab', {
-                    name: /risk assessment|hodnocení rizik|hodnocení rizika/i,
+                    name: /assessment questionnaires|hodnoticí dotazníky/i,
                 })
                 .click();
             await page.getByRole('button', { name: /send questionnaire|odeslat dotazník/i }).click();
@@ -77,7 +77,7 @@ test.describe('questionnaire workflow', () => {
 
             await page
                 .getByRole('tab', {
-                    name: /risk assessment|hodnocení rizik|hodnocení rizika/i,
+                    name: /assessment questionnaires|hodnoticí dotazníky/i,
                 })
                 .click();
             await page.getByRole('button', { name: /open|otevřít/i }).click();

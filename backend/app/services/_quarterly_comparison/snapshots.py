@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -59,7 +59,7 @@ async def resolve_snapshot_metrics(
     return (
         metrics,
         "stored",
-        coerce_utc(snapshot_record.captured_at),
-        snapshot_record.snapshot_type,
+        coerce_utc(cast(datetime, snapshot_record.captured_at)),
+        cast(SnapshotType, snapshot_record.snapshot_type),
         metric_definitions if isinstance(metric_definitions, dict) else {},
     )

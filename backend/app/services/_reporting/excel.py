@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from fastapi.responses import StreamingResponse
 from sqlalchemy import Select, select
@@ -256,7 +256,7 @@ async def build_summary_export(
     export_format: ExportFormat,
     control_status: str | None = None,
     control_form: str | None = None,
-    risk_level: str | None = None,
+    risk_level: Literal["critical", "high", "medium", "low"] | None = None,
     include_archived: bool = False,
 ) -> StreamingResponse:
     generated_at = utc_now()

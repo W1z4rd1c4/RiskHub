@@ -928,6 +928,9 @@ test.describe('UX-24 audited theme matrix', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
+          critical_risks_total: 1,
+          critical_vendors_total: 1,
+          can_view_vendors: true,
           critical_risks: [{
             id: 901,
             risk_id_code: 'UX-24-RISK',
@@ -989,7 +992,7 @@ test.describe('UX-24 audited theme matrix', () => {
     const committeeForegrounds = [
       page.getByRole('heading', { name: 'Critical Risks' }),
       criticalRiskCard.getByText('UX-24 Critical Risk'),
-      page.getByRole('heading', { name: 'Critical Vendors' }),
+      page.getByRole('heading', { name: 'High-risk Vendors' }),
       page.getByText('UX-24 Critical Vendor', { exact: true }),
       page.getByRole('heading', { name: 'Sum of net Risk scores' }),
       page.getByText('UX-24 Operations', { exact: true }),
