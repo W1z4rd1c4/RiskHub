@@ -857,10 +857,11 @@
    "backend_authority": "backend/app/api/v1/endpoints/risks/register_links.py GET routes under /api/v1/risks/{risk_id}, backend/app/api/v1/endpoints/threats/links.py GET /api/v1/threats/{threat_id}/risk-links, backend/app/api/v1/endpoints/processes/links.py GET /api/v1/processes/{process_id}/risk-links, and backend/app/api/v1/endpoints/assets/links.py GET /api/v1/assets/{asset_id}/risk-links",
    "service_policy": "backend/app/services/_ict_register_lifecycle/threat_links.py and backend/app/services/_ict_register_lifecycle/risk_links.py assert the dual-permission reads and Risk row visibility and own the collection reads; backend/app/services/_authorization_capabilities/threats.py owns per-row capability projection",
    "response_capability": "backend/app/schemas/threat.py ThreatRiskLinkCapabilities.can_delete and backend/app/schemas/risk.py RiskProcessLinkCapabilities.can_delete and RiskAssetLinkCapabilities.can_delete ride every link row",
-   "frontend_gate": "frontend/src/pages/threats/ThreatRiskLinksSection.tsx and frontend/src/components/risks/detail-overview/RiskRegisterLinksSection.tsx render the link sections behind the read permissions and deny on backend 403",
+   "frontend_gate": "frontend/src/pages/threats/ThreatRiskLinksSection.tsx and frontend/src/components/risks/detail-overview/RiskRegisterLinksSection.tsx render the link sections behind the read permissions; on the Risk detail, Threat, Process, and Asset links are independent sidecars: a protected 403 or anti-enumeration 404 clears cached rows and actions and is not automatically retried, a cancelled initial no-data read is replaced once for the current Risk while loading, and a sidecar outcome never hides the core Risk or successful sibling sidecars",
    "tests": [
     "tests/backend/pytest/test_ict_register_threats.py",
-    "tests/frontend/unit/src/pages/__tests__/RiskRegisterLinks.presentation.test.ts"
+    "tests/frontend/unit/src/pages/__tests__/RiskRegisterLinks.presentation.test.ts",
+    "tests/frontend/unit/src/pages/__tests__/RiskRegisterLinks.pending-lock.test.tsx"
    ],
    "status": "authoritative",
    "findings": []
