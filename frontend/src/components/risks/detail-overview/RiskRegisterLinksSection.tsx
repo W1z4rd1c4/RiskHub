@@ -75,6 +75,7 @@ function useRegisterLinkLane<T>(
     const queryClient = useQueryClient();
     const [denied, setDenied] = useState(false);
     const unavailableRef = useRef(false);
+    const recoveredOwnerRef = useRef<number | null>(null);
     const query = useQuery({
         queryKey,
         queryFn: async ({ signal }) => {
@@ -95,7 +96,19 @@ function useRegisterLinkLane<T>(
     useEffect(() => {
         setDenied(false);
         unavailableRef.current = false;
+        recoveredOwnerRef.current = null;
     }, [ownerId]);
+
+    const { data, fetchStatus, isPending, refetch } = query;
+    const needsCancelledReadReplacement = isPending
+        && fetchStatus === 'idle'
+        && data === undefined;
+
+    useEffect(() => {
+        if (!needsCancelledReadReplacement || recoveredOwnerRef.current === ownerId) return;
+        recoveredOwnerRef.current = ownerId;
+        void refetch();
+    }, [needsCancelledReadReplacement, ownerId, refetch]);
 
     useEffect(() => {
         if (query.isError && isProtectedUnavailableError(query.error)) {
@@ -116,7 +129,7 @@ function LinkLane<T>({ children, isProtectedUnavailable, query, testId }: LinkLa
     const { t } = useTranslation('common');
     const hasCachedData = query.data !== undefined;
 
-    if (query.isLoading && !hasCachedData) {
+    if (query.isPending && !hasCachedData) {
         return (
             <div className="py-12 text-center text-sm text-muted-foreground" role="status">
                 {t('common:loading.generic')}

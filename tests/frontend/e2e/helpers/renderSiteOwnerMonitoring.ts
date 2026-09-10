@@ -11,15 +11,19 @@ interface ResponseEvent {
 }
 
 export function createOwnedAbortAccounting<RequestIdentity>() {
-  const inFlightRequests = new Set<RequestIdentity>();
+  const inFlightRequests = new Map<RequestIdentity, string>();
   const expectedAbortRequests = new Set<RequestIdentity>();
 
   return {
-    requestStarted(request: RequestIdentity): void {
-      inFlightRequests.add(request);
+    requestStarted(request: RequestIdentity, operationKey: string): void {
+      // An exact duplicate supersedes only the older request objects already in flight.
+      inFlightRequests.forEach((activeOperationKey, activeRequest) => {
+        if (activeOperationKey === operationKey) expectedAbortRequests.add(activeRequest);
+      });
+      inFlightRequests.set(request, operationKey);
     },
     markCurrentRequestsAsExpectedAborts(): void {
-      inFlightRequests.forEach((request) => expectedAbortRequests.add(request));
+      inFlightRequests.forEach((_operationKey, request) => expectedAbortRequests.add(request));
     },
     requestFinished(request: RequestIdentity): void {
       inFlightRequests.delete(request);

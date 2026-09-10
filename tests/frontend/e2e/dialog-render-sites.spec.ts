@@ -746,7 +746,7 @@ test.describe('validated application dialog render sites', () => {
         await installApiContract(page, unexpectedNetwork);
       } else {
         page.on('request', (request) => {
-          ownedAborts.requestStarted(request);
+          ownedAborts.requestStarted(request, `${request.method()} ${request.url()}`);
         });
         page.on('requestfinished', (request) => {
           ownedAborts.requestFinished(request);

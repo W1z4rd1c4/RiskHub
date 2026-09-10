@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -57,6 +58,76 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
             created_at: '2026-07-17T08:00:00Z',
         }]);
         vi.mocked(riskRegisterLinksApi.getAssetLinks).mockResolvedValue([]);
+    });
+
+    it('replaces StrictMode-cancelled initial reads and keeps every lane loading until current data arrives', async () => {
+        const replacements = {
+            threats: deferred<Awaited<ReturnType<typeof riskRegisterLinksApi.getThreatLinks>>>(),
+            processes: deferred<Awaited<ReturnType<typeof riskRegisterLinksApi.getProcessLinks>>>(),
+            assets: deferred<Awaited<ReturnType<typeof riskRegisterLinksApi.getAssetLinks>>>(),
+        };
+        let useReplacement = false;
+        const installAbortableRead = <T,>(request: ReturnType<typeof vi.fn>, replacement: Promise<T>) => {
+            request.mockImplementation((_riskId: number, options?: { signal?: AbortSignal }) => {
+                if (useReplacement) return replacement;
+                return new Promise<T>((_resolve, reject) => {
+                    options?.signal?.addEventListener('abort', () => {
+                        reject(new DOMException('Aborted', 'AbortError'));
+                    }, { once: true });
+                });
+            });
+        };
+        installAbortableRead(vi.mocked(riskRegisterLinksApi.getThreatLinks), replacements.threats.promise);
+        installAbortableRead(vi.mocked(riskRegisterLinksApi.getProcessLinks), replacements.processes.promise);
+        installAbortableRead(vi.mocked(riskRegisterLinksApi.getAssetLinks), replacements.assets.promise);
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        });
+
+        render(
+            <StrictMode>
+                <QueryClientProvider client={queryClient}>
+                    <MemoryRouter>
+                        <RiskRegisterLinksSection risk={{ id: 4 } as Risk} canManageLinks={false} />
+                    </MemoryRouter>
+                </QueryClientProvider>
+            </StrictMode>,
+        );
+
+        await waitFor(() => expect(screen.getAllByRole('status')).toHaveLength(3));
+        const callsBeforeCurrentCancellation = {
+            threats: vi.mocked(riskRegisterLinksApi.getThreatLinks).mock.calls.length,
+            processes: vi.mocked(riskRegisterLinksApi.getProcessLinks).mock.calls.length,
+            assets: vi.mocked(riskRegisterLinksApi.getAssetLinks).mock.calls.length,
+        };
+        useReplacement = true;
+        await act(async () => {
+            await Promise.all([
+                queryClient.cancelQueries({ queryKey: ictRegisterKeys.riskThreatLinks(4) }),
+                queryClient.cancelQueries({ queryKey: ictRegisterKeys.riskProcessLinks(4) }),
+                queryClient.cancelQueries({ queryKey: ictRegisterKeys.riskAssetLinks(4) }),
+            ]);
+        });
+
+        await waitFor(() => {
+            expect(riskRegisterLinksApi.getThreatLinks).toHaveBeenCalledTimes(callsBeforeCurrentCancellation.threats + 1);
+            expect(riskRegisterLinksApi.getProcessLinks).toHaveBeenCalledTimes(callsBeforeCurrentCancellation.processes + 1);
+            expect(riskRegisterLinksApi.getAssetLinks).toHaveBeenCalledTimes(callsBeforeCurrentCancellation.assets + 1);
+        });
+        expect(screen.getAllByRole('status')).toHaveLength(3);
+        expect(screen.queryByTestId('risk-threat-link-block')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('risk-process-link-block')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('risk-asset-link-block')).not.toBeInTheDocument();
+
+        await act(async () => {
+            replacements.threats.resolve([]);
+            replacements.processes.resolve([]);
+            replacements.assets.resolve([]);
+        });
+
+        expect(await screen.findByTestId('risk-threat-link-block')).toBeInTheDocument();
+        expect(screen.getByTestId('risk-process-link-block')).toBeInTheDocument();
+        expect(screen.getByTestId('risk-asset-link-block')).toBeInTheDocument();
     });
 
     it('keeps the relationship readable but disables the row-authorized unlink', async () => {
